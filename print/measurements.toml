@@ -10,8 +10,8 @@
 # screw on this machine; do not switch to M4.
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
 # Mount: two 8 x 3 mm disc magnets, no drilling the chassis. The face the box
-# sits on runs about 40-50 °C, so Wagos stand on picots and must not touch the
-# floor or the walls.
+# sits on runs about 40-50 °C, so Wagos stand on 2 mm rails and must not touch
+# the floor. A 3 mm lip in the magnet channel stops them sliding out of the bays.
 # Bambu Studio: nurb 3MF is spec 1.41 and Studio warns; export STL to open cleanly.
 
 [wago_largeur]
@@ -29,15 +29,10 @@ value = 8.3
 unit = "mm"
 how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need extra room to open."
 
-[wago_pas]
-value = 5.6
-unit = "mm"
-how = "WAGO 221 series: 3-conductor 18.7 mm minus 2-conductor 13.1 mm. Used to place the two entry notches on the outer terminals."
-
 [jeu_wago]
 value = 0.3
 unit = "mm"
-how = "Minimum clearance between a Wago 221-423 and the box walls or dividers. The connector must not touch the enclosure."
+how = "Minimum clearance between a Wago 221-423 and the box walls or dividers."
 
 [aimant_diametre]
 value = 8.0
@@ -69,40 +64,10 @@ value = 0.84
 unit = "mm"
 how = "user: divider between Wago bays. Two 0.42 mm perimeters on a 0.4 mm A1 Mini nozzle."
 
-[muret_longueur]
-value = 20.0
-unit = "mm"
-how = "user: divider length in the width direction, leaving ~10 mm of cable channel."
-
-[muret_hauteur]
-value = 7.0
-unit = "mm"
-how = "user: divider height above the inner floor."
-
-[rail_epaisseur]
-value = 0.84
-unit = "mm"
-how = "user: rail that closes the three Wago bays along the length. Two perimeters."
-
-[rail_hauteur]
-value = 5.0
-unit = "mm"
-how = "user: closing-rail height above the inner floor."
-
-[picot_diametre]
-value = 2.5
-unit = "mm"
-how = "user: Wago standoff diameter. The connector must not sit on the 40-50 C chassis through the floor."
-
-[picot_hauteur]
-value = 3.0
-unit = "mm"
-how = "user: air gap under each Wago. Stub shorter than twice its diameter, so it is not a pin."
-
 [encoche]
 value = 2.5
 unit = "mm"
-how = "user: U-notch width and depth for Helutherm 145 (2.2 mm OD) at the top of the walls. Six entries on the long wall opposite the Wagos, three exits on the short wall at x = 0 (two in + one out per Wago)."
+how = "U-notch width for Helutherm 145 (2.2 mm OD). Four open-top slots, one per Wago, 10 mm high."
 
 [vis_passage]
 value = 3.4
@@ -132,7 +97,7 @@ how = "Matches the box wall. Lid sits on the wall tops; screw heads sit proud."
 [jupe_hauteur]
 value = 2.5
 unit = "mm"
-how = "Inner lid skirt on the two walls that have no wire notches. Same depth as the notches."
+how = "Inner lid skirt on the three walls that have no wire slots."
 
 [jupe_epaisseur]
 value = 1.2
@@ -142,4 +107,39 @@ how = "Three perimeters."
 [pilier_diametre]
 value = 6.5
 unit = "mm"
-how = "Boss around the M3 thread-forming hole in the cable channel, fused into the notched long wall."
+how = "Boss around the M3 thread-forming hole, fused into the slotted wall on the outer muret lines."
+
+[jeu_glissement]
+value = 0.3
+unit = "mm"
+how = "Extra on each identical bay so a standing 221-423 (8.3 mm) is held close without binding."
+
+[canal_aimants]
+value = 10.0
+unit = "mm"
+how = "user: minimum empty run from the Wago front to the slotted wall, so the two 8x3 mm magnets sit there rather than under the Wagos."
+
+[fente_hauteur]
+value = 10.0
+unit = "mm"
+how = "user: open-top slot height in the wall facing each Wago. Three Helutherm 145 (2.2 mm OD) stack in the 10 mm as the connector is dropped in."
+
+[rail_porteur_hauteur]
+value = 2.0
+unit = "mm"
+how = "user: rails 1 mm below the 3 mm magnet-channel threshold so a standing Wago cannot slide out, and sits 1 mm lower for the lid skirt."
+
+[rail_porteur_epaisseur]
+value = 1.6
+unit = "mm"
+how = "Rail thickness under the standing Wago, matches the wall. Two rails so the connector does not pivot."
+
+[muret_v2_hauteur]
+value = 11.35
+unit = "mm"
+how = "Derived: half of the standing Wago (18.7 mm) counted above the 2 mm rails, so 2 + 18.7/2 from the floor. Code computes this; kept as a record."
+
+[seuil_canal]
+value = 3.0
+unit = "mm"
+how = "user: raised floor of the magnet channel. 1 mm above the 2 mm rails, so the Wago hits a lip instead of sliding out. Magnets 8x3 mm still sit on 0.6 mm of floor."

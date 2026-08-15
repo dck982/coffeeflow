@@ -16,8 +16,7 @@ Bambu Studio : ouvrir le **STL** dans `build/`, pas le 3MF nurb (version 1.41 no
 
 | Pièce | Statut |
 | --- | --- |
-| Dérivation 230 V, **4 Wago 221-423 verticaux** | prochaine pièce |
-| Dérivation 230 V, 3 Wago à plat (`boitier` / `couvercle`) | premier essai imprimé, à remplacer |
+| Dérivation 230 V, 4 Wago 221-423 verticaux (`boitier` / `couvercle`) | actuel |
 | Dérivation DC (KISOMeter + hub I2C) | à faire |
 | Boîtier Atom (ACSSR, Unit Relay, RobotDyn) | à faire |
 | Boîtier écran triangulaire 60° | à faire |
@@ -38,12 +37,12 @@ Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de 
 
 | Fichier | Rôle |
 | --- | --- |
-| `parts/boitier.py` | Essai 3 Wago à plat |
-| `parts/couvercle.py` | Couvercle M3 de cet essai |
-| `parts/ensemble.py` | Assemblage de l'essai |
+| `parts/boitier.py` | Boîtier 4 Wago verticaux |
+| `parts/couvercle.py` | Couvercle M3 |
+| `parts/ensemble.py` | Assemblage (Wago + châssis) |
 | `measurements.toml` | Cotes (Wago, aimants, Helutherm, M3) |
 | `printer.toml` | A1 Mini, PETG HF 33102 |
-| `system.py` | Layout de l'essai 3 Wago |
+| `system.py` | Layout partagé boîtier / couvercle |
 
 Contraintes d'une pièce : sa carte `parts/<nom>.md` (`## Don't`), pas un `docs/` à part.
 
@@ -52,4 +51,4 @@ Contraintes d'une pièce : sa carte `parts/<nom>.md` (`## Don't`), pas un `docs/
 - Bambu Lab A1 Mini, PETG HF Black 33102
 - Vis **M3** (trou 2,5 mm validé)
 - Helutherm 145 0,75 mm², Ø 2,2 mm
-- Aimants 8 × 3 mm, châssis ~40–50 °C, Wago sans contact fond/parois
+- Aimants 8 × 3 mm, châssis ~40–50 °C, Wago sur rails 2 mm

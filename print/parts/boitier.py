@@ -5,17 +5,17 @@ from system import dims, outer_corners, u_cutter
 
 @part
 def boitier(
-    longueur=62.0,
-    largeur=30.0,
-    hauteur=20.0,
+    longueur=37.0,
+    largeur=32.0,
+    hauteur=25.0,
     epaisseur_paroi=1.6,
     jeu_couvercle=0.3,
     draft=False,
 ):
-    """Junction box for three Wago 221-423 on an espresso chassis.
+    """Junction box for four standing Wago 221-423. Pre-wire, then drop in from above.
 
-    longueur: inner length, split into three equal Wago zones
-    largeur: inner width, Wago bays plus the cable channel
+    longueur: inner length, four identical Wago bays
+    largeur: inner width, Wago depth plus the magnet channel
     hauteur: outer height including the floor
     epaisseur_paroi: outer wall and floor thickness
     jeu_couvercle: per-side clearance for the lid skirt
@@ -35,20 +35,19 @@ def boitier(
             d.muret_ep, d.muret_l, d.muret_h, align=amin
         )
 
-    body = body + Pos(d.wall, d.rail_y0, d.floor) * Box(
-        d.inner_x, d.rail_ep, d.rail_h, align=amin
+    for y in d.rail_y:
+        body = body + Pos(d.wall, y, d.floor) * Box(
+            d.inner_x, d.rail_ep, d.rail_h, align=amin
+        )
+
+    # Raised channel floor so the 3 mm magnets sit on 0.6 mm, without a round
+    # pad that would collide with the M3 bosses on the muret lines.
+    body = body + Pos(d.wall, d.channel_y0, d.floor) * Box(
+        d.inner_x, d.canal, d.boss_h, align=amin
     )
-
-    for x, y in d.picots:
-        body = body + Pos(x, y, d.floor) * Cylinder(d.picot_r, d.picot_h, align=cmin)
-
-    boss_r = d.puit_r + 1.4
     for x, y in d.puits:
-        if d.boss_h > 0.05:
-            body = body + Pos(x, y, d.floor) * Cylinder(boss_r, d.boss_h, align=cmin)
-        well_z = d.puit_fond
-        body = body - Pos(x, y, well_z) * Cylinder(
-            d.puit_r, d.aimant_h + 0.2, align=cmin
+        body = body - Pos(x, y, d.puit_fond) * Cylinder(
+            d.puit_r, d.well_h, align=cmin
         )
 
     for x, y in d.piliers:
@@ -59,13 +58,10 @@ def boitier(
             d.vis_trou / 2.0, d.hauteur - d.floor + 0.4, align=cmin
         )
 
-    notch = u_cutter(d.encoche, d.encoche, d.wall + 4.0)
-    z_notch = d.hauteur - d.encoche
-    for x in d.entries:
+    notch = u_cutter(d.fente_w, d.fente_h, d.wall + 4.0)
+    z_notch = d.hauteur - d.fente_h
+    for x in d.fentes:
         body = body - Pos(x, d.outer_y - d.wall / 2.0, z_notch) * notch
-    end_notch = Rot(0, 0, 90) * notch
-    for y in d.exits:
-        body = body - Pos(d.wall / 2.0, y, z_notch) * end_notch
 
     if draft:
         return body

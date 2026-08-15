@@ -5,14 +5,14 @@ from system import dims, outer_corners
 
 @part
 def couvercle(
-    longueur=62.0,
-    largeur=30.0,
-    hauteur=20.0,
+    longueur=37.0,
+    largeur=32.0,
+    hauteur=25.0,
     epaisseur_paroi=1.6,
     jeu_couvercle=0.3,
     draft=False,
 ):
-    """Lid that nests into the Wago junction box and screws down on the cable-channel side.
+    """Lid that nests into the Wago box and screws down on the slotted wall.
 
     Printed top-down: the outer face sits on the bed, the inner skirt grows in +Z.
     Screw heads sit on the lid; the two M3 holes line up with the box bosses.
@@ -27,23 +27,24 @@ def couvercle(
     amin = (Align.MIN, Align.MIN, Align.MIN)
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)
 
-    # Print frame: notch wall at y=0 so a 180° X rotation seats it on the box
-    # without flipping the left-hand exits.
+    # Print frame: slotted wall at y=0 so a 180° X rotation seats it on the box
+    # without flipping the left-hand end.
     plate = Box(d.outer_x, d.outer_y, d.lid_th, align=amin)
 
     sx = d.inner_x - 2.0 * d.jeu
     sy = d.inner_y - 2.0 * d.jeu
     ox = d.wall + d.jeu
     oy = d.wall + d.jeu
-    # Skirt only on the two walls without wire notches. A full perimeter left
-    # 0.12 mm films where the exit slots met the long-wall jupe.
-    wago_skirt = Pos(ox, oy + sy - d.jupe_th, d.lid_th) * Box(
+    # Skirt on the three walls without wire slots. The slotted wall stays clear
+    # so the three wires per Wago are not pinched by a jupe.
+    back_skirt = Pos(ox, oy + sy - d.jupe_th, d.lid_th) * Box(
         sx, d.jupe_th, d.jupe_h, align=amin
     )
-    end_skirt = Pos(ox + sx - d.jupe_th, oy, d.lid_th) * Box(
+    end_a = Pos(ox, oy, d.lid_th) * Box(d.jupe_th, sy, d.jupe_h, align=amin)
+    end_b = Pos(ox + sx - d.jupe_th, oy, d.lid_th) * Box(
         d.jupe_th, sy, d.jupe_h, align=amin
     )
-    body = plate + wago_skirt + end_skirt
+    body = plate + back_skirt + end_a + end_b
 
     for x, y_box in d.piliers:
         y = d.outer_y - y_box

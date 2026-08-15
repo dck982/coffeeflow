@@ -4,17 +4,23 @@ from system import dims
 
 
 @assembly
-def ensemble(ouvert=0.0, longueur=62.0, largeur=30.0, hauteur=20.0, epaisseur_paroi=1.6):
-    """Box and lid together, with Wagos and the espresso chassis as context.
+def ensemble(
+    ouvert=1.0,
+    longueur=37.0,
+    largeur=32.0,
+    hauteur=25.0,
+    epaisseur_paroi=1.6,
+):
+    """Box and lid together, with four standing Wagos and the espresso chassis.
 
-    ouvert: how far the lid is lifted, in mm, to look inside
+    ouvert: 0 closed, 1 lid lifted 40 mm so the bays are visible
     longueur: inner length, passed to both parts
     largeur: inner width, passed to both parts
     hauteur: box outer height
     epaisseur_paroi: wall thickness, passed to both parts
     """
     d = dims(float(longueur), float(largeur), float(hauteur), float(epaisseur_paroi))
-    lift = float(ouvert)
+    lift = float(ouvert) * 40.0
     kw = dict(
         longueur=float(longueur),
         largeur=float(largeur),
@@ -30,7 +36,7 @@ def ensemble(ouvert=0.0, longueur=62.0, largeur=30.0, hauteur=20.0, epaisseur_pa
 
     wagos = []
     for i, x in enumerate(d.bays_x):
-        w = Pos(x, d.bay_cy, d.floor + d.picot_h) * Box(
+        w = Pos(x, d.bay_cy, d.floor + d.rail_h) * Box(
             d.wago_x, d.wago_y, d.wago_z, align=(Align.CENTER, Align.CENTER, Align.MIN)
         )
         wagos.append(obstacle(w, f"Wago 221-423 #{i + 1}"))

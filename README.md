@@ -64,15 +64,13 @@ Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. B
 
 | Pièce | Où | Rôle |
 | --- | --- | --- |
-| Boîtier de dérivation **230 V** | intérieur | FASTON nylon côté machine, Wago 221-423 côté mod. Évite les cosses piggyback. **Cible : 4 Wago verticaux** (voir ci-dessous). Un premier essai 3 Wago à plat a été imprimé. |
+| Boîtier de dérivation **230 V** | intérieur | FASTON nylon côté machine, Wago 221-423 côté mod. Évite les cosses piggyback. Quatre Wago **verticaux**. |
 | Boîtier de dérivation **DC** | intérieur | KISOMeter + hub I2C. Les fils des deux capteurs y arrivent ; un seul Grove I2C en sort. |
 | Boîtier Atom | extérieur | Atom S3, ACSSR, Unit Relay, RobotDyn |
 | Boîtier écran | extérieur | Triangle 60°, posé sur le boîtier Atom |
 | Goulottes | selon besoin | Guidage des 4 × 230 V + Grove |
 
-#### Quatre Wago 230 V (prochaine pièce)
-
-Pas trois. Un Wago 221-423 par potentiel :
+#### Quatre Wago 230 V
 
 1. **Phase machine allumée** — sur le relais boiler du PID (alimentée dès le bouton on/off)
 2. **Neutre** — pris sur la pompe

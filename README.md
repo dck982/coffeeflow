@@ -1,58 +1,120 @@
 # coffeeflow
 
-Flow control for a Profitec Go espresso machine (vibratory pump dimming), built around an M5Stack Atom S3 Voice (Echo).
+Modification d'une **Profitec Go** pour du *flow profiling* et du *brew by weight* : l'infusion se lance depuis un contrôleur ESP32, la pression se module, et elle s'arrête toute seule au poids cible.
 
-## Target device: M5Stack Atom S3 Voice (Echo)
+## Machine d'origine
 
-- **MCU**: ESP32-S3 (WiFi + BLE, revision v0.2 on the unit used here)
-- **USB**: native USB-OTG wired directly to the USB-C port (no external CP210x/CH9102/CH340 bridge chip). It enumerates as a USB-CDC serial device — no driver installation needed on macOS.
-- **Audio**: built-in I2S speaker (and mic), driven via `M5.Speaker` (M5Unified library). Supports simple tones (`M5.Speaker.tone()`) and WAV playback (`M5.Speaker.playWav()`).
-- **Input**: one main button on top, exposed as `M5.BtnA`. There is also a physical reset button on the side of the unit — press it if the board stops enumerating over USB (see Troubleshooting).
-- **Board FQBN**: `m5stack:esp32:m5stack_atoms3` (there is no dedicated FQBN for the Echo/Voice variant; the plain Atom S3 target matches its pinout).
+- Vanne solénoïde + pompe vibratoire 35 W + boiler
+- Petit boîtier PID : consigne / mesure de température du boiler, chrono
+- Vanne OPV pour limiter la pression
+- Plomberie en **1/8"**
+- Connexions électriques internes : cosses à languette **FASTON 6,3 × 0,8 mm** (pas de piggyback : la dérivation se fait dans un boîtier imprimé)
 
-## Flashing on this host
+## Ce que la modification ajoute
 
-Toolchain already installed on this machine: `arduino-cli`, with the `m5stack:esp32` and `esp32:esp32` cores, and the `M5Unified` library.
+Deux dérivations 230 V, sans remplacer le câblage d'origine :
 
-1. Connect the board via a USB-C **data** cable (not charge-only).
-2. Find the serial port:
-   ```
-   ls /dev/cu.usbmodem*
-   ```
-   It typically shows up as `/dev/cu.usbmodem2201` (the numeric suffix can change between reconnects).
-3. Compile:
-   ```
-   arduino-cli compile --fqbn m5stack:esp32:m5stack_atoms3 sound_test
-   ```
-4. Upload:
-   ```
-   arduino-cli upload -p /dev/cu.usbmodem2201 --fqbn m5stack:esp32:m5stack_atoms3 sound_test
-   ```
+1. **Circuit brew** (vanne + pompe) — un ESP32 peut lancer une infusion en parallèle du bouton machine.
+2. **Circuit pompe** — un dimmer AC RobotDyn 4 A fait varier la pression. En manuel, la pompe continue de fonctionner via un relais NC.
 
-### Troubleshooting
+Alimentation du système de mod : uniquement quand la machine est allumée (phase prise sur le relais boiler du PID).
 
-- **Board doesn't show up under `/dev/cu.usbmodem*` at all**: try a different USB-C cable (many are charge-only) and a direct port on the Mac (not through a hub). A startup sound confirms power, not data connectivity.
-- **Still nothing**: press the reset button on the side of the unit while it's connected, then rescan.
-- Port names can change between reconnects/resets — always re-check `ls /dev/cu.usbmodem*` before uploading.
+Deux capteurs en feedback :
 
-## Sketches
+- **Température du groupe** (sonde collée au groupe, pas l'eau du boiler)
+- **Pression** sur la plomberie, en amont de la vanne
 
-- `sound_test/` — plays a short tone on boot and a TTS-generated WAV (`startup_wav.h`, embedded as a byte array) when the main button is pressed.
+Une **balance Acaia en BLE** (balance = master, Atom = client) donne le poids dans la tasse. L'Atom coupe l'infusion au poids cible.
 
-## TTS generation (`tts/`)
+## Électronique (écosystème M5Stack)
 
-`tts/generate_tts.py` calls the Gemini TTS API (`google.genai`) to generate a WAV file from text, for embedding into sketches as sound assets.
+| Rôle | Matériel |
+| --- | --- |
+| Contrôle temps réel (GPIO, dimmer, UART, BLE) | M5Stack Atom S3 |
+| Infusion parallèle (vanne + pompe) | ACSSR, GPIO |
+| Pompe toujours dispo en manuel | Unit Relay **NC**, en parallèle du circuit pompe |
+| Variation de pression | RobotDyn AC Dimmer 4 A, GPIO, en parallèle du relais NC |
+| Température groupe | M5Stack KISOMeter (I2C) |
+| Pression | capteur I2C |
+| Bus capteurs | Hub I2C M5Stack → un seul Grove I2C vers l'Atom |
+| UI (débit, pression, poids final) | Waveshare LCD tactile 4,3" (ESP32-S3-VROOM), UART vers l'Atom |
 
-Requires a `GOOGLE_API_KEY` in `tts/.env` (not committed — see `.gitignore`).
+L'Atom envoie à quelques hertz, sur l'UART, les valeurs capteurs + balance. L'écran envoie la commande **départ**.
 
-Run with [uv](https://docs.astral.sh/uv/) (inline PEP 723 script dependencies, no separate install step):
+Wifi sur l'écran (remontée backend) : hors scope.
+
+## Firmware
+
+- **Atom S3** : Rust `no_std` — dimmer et UART en temps réel, client BLE Acaia
+- **Écran tactile** : Rust + lib graphique, UART vers l'Atom
+
+Le dépôt contient aujourd'hui un test Arduino (`sound_test/`) sur Atom S3 Voice. Le firmware Rust n'y est pas encore.
+
+## Disposition mécanique
+
+**Dans la machine** (châssis ~40–50 °C, aimants, pas de perçage) : seulement les deux boîtiers de dérivation.
+
+**Hors machine**, posés sur le dessus : boîtier Atom (+ ACSSR, relais, RobotDyn) et boîtier écran triangulaire (angle 60°), emboîté sur le boîtier Atom.
+
+Traversée intérieur → extérieur : **quatre fils 230 V** + **un câble Grove I2C**. Des goulottes imprimées sont possibles pour les guider.
+
+### Boîtiers 3D (`print/`)
+
+Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. Bambu Studio : ouvrir le **STL** (`print/build/`), pas le 3MF nurb (alerte de version 1.41).
+
+| Pièce | Où | Rôle |
+| --- | --- | --- |
+| Boîtier de dérivation **230 V** | intérieur | FASTON nylon côté machine, Wago 221-423 côté mod. Évite les cosses piggyback. **Cible : 4 Wago verticaux** (voir ci-dessous). Un premier essai 3 Wago à plat a été imprimé. |
+| Boîtier de dérivation **DC** | intérieur | KISOMeter + hub I2C. Les fils des deux capteurs y arrivent ; un seul Grove I2C en sort. |
+| Boîtier Atom | extérieur | Atom S3, ACSSR, Unit Relay, RobotDyn |
+| Boîtier écran | extérieur | Triangle 60°, posé sur le boîtier Atom |
+| Goulottes | selon besoin | Guidage des 4 × 230 V + Grove |
+
+#### Quatre Wago 230 V (prochaine pièce)
+
+Pas trois. Un Wago 221-423 par potentiel :
+
+1. **Phase machine allumée** — sur le relais boiler du PID (alimentée dès le bouton on/off)
+2. **Neutre** — pris sur la pompe
+3. **Phase brew** — sortie de la vanne (infusion parallèle)
+4. **Phase pompe** — entrée de la pompe (relais NC *ou* dimmer, selon manuel / contrôlé)
+
+Fils : Helutherm 145, 0,75 mm², Ø 2,2 mm. Vis M3. Aimants 8 × 3 mm. Wago sans contact avec le fond ni les parois.
+
+Atelier : Bambu Lab A1 Mini, PETG HF Black 33102.
+
+## Dépôt
+
+```
+coffeeflow/
+  README.md          ← cette vue d'ensemble
+  print/             ← impressions 3D (nurb)
+  sound_test/        ← sketch Arduino de test Atom S3
+  tts/               ← génération WAV (Gemini TTS) pour le sketch
+```
+
+Contraintes et cotes d'une pièce : `print/parts/<nom>.md` + `print/measurements.toml`.
+
+## Sketch de test (`sound_test/`)
+
+Atom S3 Voice (Echo), ESP32-S3, USB-CDC natif, `M5.Speaker`, bouton `M5.BtnA`. FQBN : `m5stack:esp32:m5stack_atoms3`.
+
+```
+ls /dev/cu.usbmodem*
+arduino-cli compile --fqbn m5stack:esp32:m5stack_atoms3 sound_test
+arduino-cli upload -p /dev/cu.usbmodem2201 --fqbn m5stack:esp32:m5stack_atoms3 sound_test
+```
+
+Câble USB-C **data**. Si le port n'apparaît pas : autre câble, pas de hub, reset latéral. Le suffixe `usbmodem*` change à chaque reconnexion.
+
+## TTS (`tts/`)
 
 ```
 cd tts
 uv run generate_tts.py "Espresso ready" -o startup.wav
 ```
 
-To embed a generated WAV into a sketch as a C byte array:
+Clé `GOOGLE_API_KEY` dans `tts/.env` (non commité). Pour embarquer le WAV :
 
 ```
 xxd -i tts/startup.wav | sed 's/tts_startup_wav/startup_wav/; s/unsigned char/const uint8_t/; s/unsigned int/const unsigned int/' > sound_test/startup_wav.h

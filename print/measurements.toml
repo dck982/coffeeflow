@@ -1,0 +1,145 @@
+# coffeeflow / print — hardware the printed parts have to fit.
+#
+# Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
+# Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
+# coffeeflow repo root (sound_test/, tts/). Later prints: sensor box, screen box.
+#
+# Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
+# Filament: Bambu Lab PETG HF Black, SKU 33102.
+# Fasteners: M3 throughout. A 2.5 mm printed hole takes a thread-forming M3
+# screw on this machine; do not switch to M4.
+# Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
+# Mount: two 8 x 3 mm disc magnets, no drilling the chassis. The face the box
+# sits on runs about 40-50 °C, so Wagos stand on picots and must not touch the
+# floor or the walls.
+# Bambu Studio: nurb 3MF is spec 1.41 and Studio warns; export STL to open cleanly.
+
+[wago_largeur]
+value = 18.7
+unit = "mm"
+how = "user: Wago 221-423 across the three levers. Datasheet 221-423 is 18.8 mm width."
+
+[wago_profondeur]
+value = 18.6
+unit = "mm"
+how = "user: Wago 221-423 body in the wire-entry direction. Matches WAGO datasheet depth 18.6 mm."
+
+[wago_hauteur]
+value = 8.3
+unit = "mm"
+how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need extra room to open."
+
+[wago_pas]
+value = 5.6
+unit = "mm"
+how = "WAGO 221 series: 3-conductor 18.7 mm minus 2-conductor 13.1 mm. Used to place the two entry notches on the outer terminals."
+
+[jeu_wago]
+value = 0.3
+unit = "mm"
+how = "Minimum clearance between a Wago 221-423 and the box walls or dividers. The connector must not touch the enclosure."
+
+[aimant_diametre]
+value = 8.0
+unit = "mm"
+how = "user: disc magnet diameter, N-series disc, two wells in the end bays."
+
+[aimant_hauteur]
+value = 3.0
+unit = "mm"
+how = "user: disc magnet thickness."
+
+[puit_diametre]
+value = 8.15
+unit = "mm"
+how = "user: magnet well inside diameter for a friction fit on an 8 mm disc."
+
+[puit_fond]
+value = 0.6
+unit = "mm"
+how = "user: floor left under each magnet so it holds through the box onto the espresso chassis (40-50 C). Three 0.2 mm layers on the A1 Mini."
+
+[fil_diametre]
+value = 2.2
+unit = "mm"
+how = "user: Helukabel Helutherm 145, 0.75 mm2, outer diameter."
+
+[muret_epaisseur]
+value = 0.84
+unit = "mm"
+how = "user: divider between Wago bays. Two 0.42 mm perimeters on a 0.4 mm A1 Mini nozzle."
+
+[muret_longueur]
+value = 20.0
+unit = "mm"
+how = "user: divider length in the width direction, leaving ~10 mm of cable channel."
+
+[muret_hauteur]
+value = 7.0
+unit = "mm"
+how = "user: divider height above the inner floor."
+
+[rail_epaisseur]
+value = 0.84
+unit = "mm"
+how = "user: rail that closes the three Wago bays along the length. Two perimeters."
+
+[rail_hauteur]
+value = 5.0
+unit = "mm"
+how = "user: closing-rail height above the inner floor."
+
+[picot_diametre]
+value = 2.5
+unit = "mm"
+how = "user: Wago standoff diameter. The connector must not sit on the 40-50 C chassis through the floor."
+
+[picot_hauteur]
+value = 3.0
+unit = "mm"
+how = "user: air gap under each Wago. Stub shorter than twice its diameter, so it is not a pin."
+
+[encoche]
+value = 2.5
+unit = "mm"
+how = "user: U-notch width and depth for Helutherm 145 (2.2 mm OD) at the top of the walls. Six entries on the long wall opposite the Wagos, three exits on the short wall at x = 0 (two in + one out per Wago)."
+
+[vis_passage]
+value = 3.4
+unit = "mm"
+how = "ISO 273 medium clearance for M3, the printed-hole default. Lid holes. Not M4."
+
+[vis_tete]
+value = 5.5
+unit = "mm"
+how = "ISO 4762 M3 socket-cap head diameter."
+
+[vis_tete_hauteur]
+value = 3.0
+unit = "mm"
+how = "ISO 4762 M3 socket-cap head height."
+
+[vis_autoforeuse]
+value = 2.5
+unit = "mm"
+how = "Printed hole for an M3 thread-forming screw in PETG HF 33102 on the A1 Mini. User printed a coupon and confirmed the screw taps and holds. Do not change to M4."
+
+[couvercle_epaisseur]
+value = 1.6
+unit = "mm"
+how = "Matches the box wall. Lid sits on the wall tops; screw heads sit proud."
+
+[jupe_hauteur]
+value = 2.5
+unit = "mm"
+how = "Inner lid skirt on the two walls that have no wire notches. Same depth as the notches."
+
+[jupe_epaisseur]
+value = 1.2
+unit = "mm"
+how = "Three perimeters."
+
+[pilier_diametre]
+value = 6.5
+unit = "mm"
+how = "Boss around the M3 thread-forming hole in the cable channel, fused into the notched long wall."

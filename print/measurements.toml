@@ -49,6 +49,11 @@ value = 8.15
 unit = "mm"
 how = "user: magnet well inside diameter for a friction fit on an 8 mm disc."
 
+[puit_diametre_canal]
+value = 8.4
+unit = "mm"
+how = "user: deep side wells on the wire raceway. Looser than the box 8.15 so an 8 mm disc can be pushed all the way to the 0.6 mm face; part default matches this."
+
 [puit_fond]
 value = 0.6
 unit = "mm"

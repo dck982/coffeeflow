@@ -2,17 +2,20 @@
 #
 # Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
 # Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
-# coffeeflow repo root (sound_test/, tts/). Later prints: sensor box, screen box.
+# coffeeflow repo root (sound_test/, tts/). In progress: Waveshare 4.3 screen
+# shell (frame / wedge / base); Wago boxes already ship.
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.
-# Fasteners: M3 throughout. boitier_2w uses a captive ISO hex nut from the
-# bed; boitier_4w still has a 2.6 mm printed pilot for a plain M3×10 until
-# the bosses grow. Do not switch to M4.
+# Fasteners: M3 throughout on the Wago boxes. boitier_2w uses a captive ISO
+# hex nut from the bed; boitier_4w still has a 2.6 mm printed pilot for a plain
+# M3×10 until the bosses grow. Do not switch to M4. The Waveshare 4.3 module
+# uses M2.5 at its four corners (see screw_clearance below).
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
-# Mount: two 8 x 3 mm disc magnets, no drilling the chassis. The face the box
-# sits on runs about 40-50 °C, so Wagos stand on 2 mm rails and must not touch
-# the floor. A 3 mm lip in the magnet channel stops them sliding out of the bays.
+# Mount: 8 x 3 mm disc magnets (aimant_*), no drilling the chassis. Same discs
+# join the screen frame/wedge/base. The face the Wago box sits on runs about
+# 40-50 °C, so Wagos stand on 2 mm rails and must not touch the floor. A 3 mm
+# lip in the magnet channel stops them sliding out of the bays.
 # Bambu Studio: prefer 3MF from `nurb export` (printer.toml). Spec 1.41 may
 # warn in Studio; the object still imports. STL via `--formats stl` if needed.
 
@@ -175,3 +178,108 @@ how = "Derived: half of the standing Wago (18.7 mm) counted above the 2 mm rails
 value = 3.0
 unit = "mm"
 how = "user: raised floor of the magnet channel. 1 mm above the 2 mm rails, so the Wago hits a lip instead of sliding out. Magnets 8x3 mm still sit on 0.6 mm of floor."
+
+# --- Waveshare ESP32-S3-Touch-LCD-4.3 (screen shell) ---
+# From the product dimension drawing (front / side / back views with ±
+# tolerances as printed on the sheet). Magnet wells reuse aimant_* / puit_*.
+
+[module_width]
+value = 106.10
+unit = "mm"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall width 106.10±0.1"
+
+[module_height]
+value = 67.80
+unit = "mm"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall height 67.80±0.1"
+
+[module_thickness]
+value = 8.80
+unit = "mm"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, front glass to rearmost hardware"
+
+[active_width]
+value = 95.54
+unit = "mm"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, active area width 95.54±0.15"
+
+[active_height]
+value = 54.36
+unit = "mm"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, active area height 54.36±0.15"
+
+[bezel_right]
+value = 5.33
+unit = "mm"
+how = "Waveshare drawing, active-area right edge to module right edge"
+
+[bezel_bottom]
+value = 9.09
+unit = "mm"
+how = "Waveshare drawing, active-area bottom edge to module bottom edge"
+
+[mount_spacing_x]
+value = 98.00
+unit = "mm"
+how = "Waveshare drawing, mounting-hole centre-to-centre horizontal"
+
+[mount_spacing_y]
+value = 60.00
+unit = "mm"
+how = "Waveshare drawing, mounting-hole centre-to-centre vertical"
+
+[mount_edge]
+value = 4.00
+unit = "mm"
+how = "Waveshare drawing, hole centre to nearest module edges"
+
+[usb_from_top_back]
+value = 32.90
+unit = "mm"
+how = "Waveshare back view, USB-C centre from top edge (left side when looking at back = right when looking at screen)"
+
+[uart_from_top_back]
+value = 12.93
+unit = "mm"
+how = "Waveshare back view, UART port centre from top edge (same side as USB-C: left on back = right when looking at screen)"
+
+[module_glass_to_pcb]
+value = 8.80
+unit = "mm"
+how = "user, from the Waveshare dimension drawing: glass front to the bare PCB, before anything screwed or soldered on it. Confirmed by scans/esp32-s3-touch-lcd-4_3.stp, section y: glass front at +4.80, PCB back at -3.70, so 8.50 for that span."
+
+[module_standoff_height]
+value = 4.00
+unit = "mm"
+how = "user: the module ships with four M2.5 standoffs on its back at the mount grid, 4 mm tall and taller than every component. They are what sits on the seat pads, so the pocket runs 8.80 + 4.00 = 12.80 mm from the pad tops to the frame rim."
+
+[module_rear_hardware]
+value = 7.40
+unit = "mm"
+how = "scans/esp32-s3-touch-lcd-4_3.stp, section y: the deepest rear part reaches -11.10, so 7.4 mm stands behind the PCB. Taller than the 4 mm standoffs, so it has to fall inside the rear opening or clear the plate. Recheck against the real board."
+
+[usbc_adapter_body]
+value = 8.00
+unit = "mm"
+how = "user: Delock right-angle USB-C adapter, 20 x 13 x 8 mm. 8 mm is the body across the plug axis; 13 mm sets the channel width, 20 mm runs out the open back."
+
+[usbc_adapter_travel]
+value = 8.00
+unit = "mm"
+how = "Straight run needed past the socket face to slide the adapter's male plug in. Sets cable_slot_depth with usbc_adapter_body: 8 + 8 = 16 mm."
+
+# Screw size is not on the drawing; community mounts for this module use M2.5.
+[screw_clearance]
+value = 2.9
+unit = "mm"
+how = "ISO 273 medium clearance for M2.5; Waveshare 4.3 community enclosures use M2.5"
+
+[screw_head_dia]
+value = 4.5
+unit = "mm"
+how = "ISO 4762 M2.5 socket cap head diameter"
+
+[screw_head_height]
+value = 2.5
+unit = "mm"
+how = "ISO 4762 M2.5 socket cap head height"

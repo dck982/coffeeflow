@@ -1,10 +1,10 @@
 from nurb import *
 
-from system import dims, outer_corners
+from system import dims, lid_hold_murets, outer_corners
 
 
 @part
-def couvercle(
+def couvercle_4w(
     longueur=37.0,
     largeur=32.0,
     hauteur=25.0,
@@ -12,10 +12,11 @@ def couvercle(
     jeu_couvercle=0.3,
     draft=False,
 ):
-    """Lid that nests into the Wago box and screws down on the slotted wall.
+    """Lid for the four-Wago box. Nests in and screws down on the slotted wall.
 
     Printed top-down: the outer face sits on the bed, the inner skirt grows in +Z.
     Screw heads sit on the lid; the two M3 holes line up with the box bosses.
+    Hold-down murets face the box dividers; a front bar stops the Wagos.
 
     longueur: inner length, must match the box
     largeur: inner width, must match the box
@@ -23,7 +24,7 @@ def couvercle(
     epaisseur_paroi: box wall, used to place the skirt and the screw holes
     jeu_couvercle: per-side clearance between skirt and inner wall
     """
-    d = dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle)
+    d = dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle, n=4)
     amin = (Align.MIN, Align.MIN, Align.MIN)
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)
 
@@ -44,7 +45,7 @@ def couvercle(
     end_b = Pos(ox + sx - d.jupe_th, oy, d.lid_th) * Box(
         d.jupe_th, sy, d.jupe_h, align=amin
     )
-    body = plate + back_skirt + end_a + end_b
+    body = plate + back_skirt + end_a + end_b + lid_hold_murets(d)
 
     for x, y_box in d.piliers:
         y = d.outer_y - y_box

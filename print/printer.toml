@@ -1,4 +1,4 @@
 # Bambu Lab A1 Mini, PETG HF Black (SKU 33102).
-# Fasteners on printed parts are M3 (2.5 mm tapping hole, confirmed).
+# Fasteners on printed parts are M3 (2.6 mm pilot for a plain M3×10).
 profile = "bambu_a1_mini"
 material = "petg"

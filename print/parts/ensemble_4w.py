@@ -4,14 +4,14 @@ from system import dims
 
 
 @assembly
-def ensemble(
+def ensemble_4w(
     ouvert=1.0,
     longueur=37.0,
     largeur=32.0,
     hauteur=25.0,
     epaisseur_paroi=1.6,
 ):
-    """Box and lid together, with four standing Wagos and the espresso chassis.
+    """Four-Wago box and lid, with standing Wagos and the espresso chassis.
 
     ouvert: 0 closed, 1 lid lifted 40 mm so the bays are visible
     longueur: inner length, passed to both parts
@@ -19,7 +19,13 @@ def ensemble(
     hauteur: box outer height
     epaisseur_paroi: wall thickness, passed to both parts
     """
-    d = dims(float(longueur), float(largeur), float(hauteur), float(epaisseur_paroi))
+    d = dims(
+        float(longueur),
+        float(largeur),
+        float(hauteur),
+        float(epaisseur_paroi),
+        n=4,
+    )
     lift = float(ouvert) * 40.0
     kw = dict(
         longueur=float(longueur),
@@ -27,11 +33,11 @@ def ensemble(
         hauteur=float(hauteur),
         epaisseur_paroi=float(epaisseur_paroi),
     )
-    box = use("boitier", **kw)
+    box = use("boitier_4w", **kw)
     lid = (
         Pos(0, d.outer_y, d.hauteur + d.lid_th + lift)
         * Rot(180, 0, 0)
-        * use("couvercle", **kw)
+        * use("couvercle_4w", **kw)
     )
 
     wagos = []

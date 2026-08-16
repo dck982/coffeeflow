@@ -6,8 +6,8 @@
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.
-# Fasteners: M3 throughout. A 2.5 mm printed hole takes a thread-forming M3
-# screw on this machine; do not switch to M4.
+# Fasteners: M3 throughout. A 2.6 mm printed pilot takes a plain M3
+# machine screw (10 mm) in PETG HF on this machine; do not switch to M4.
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
 # Mount: two 8 x 3 mm disc magnets, no drilling the chassis. The face the box
 # sits on runs about 40-50 °C, so Wagos stand on 2 mm rails and must not touch
@@ -50,9 +50,9 @@ unit = "mm"
 how = "user: magnet well inside diameter for a friction fit on an 8 mm disc."
 
 [puit_diametre_canal]
-value = 8.4
+value = 8.2
 unit = "mm"
-how = "user: deep side wells on the wire raceway. Looser than the box 8.15 so an 8 mm disc can be pushed all the way to the 0.6 mm face; part default matches this."
+how = "user: deep side wells on the wire raceway, tightened from 8.4 after canal_test showed 8.4 let the magnet fall out; 8.2 printed and confirmed a good fit, still reaching the 0.6 mm face. Part default matches this."
 
 [puit_fond]
 value = 0.6
@@ -90,9 +90,9 @@ unit = "mm"
 how = "ISO 4762 M3 socket-cap head height."
 
 [vis_autoforeuse]
-value = 2.5
+value = 2.6
 unit = "mm"
-how = "Printed hole for an M3 thread-forming screw in PETG HF 33102 on the A1 Mini. User printed a coupon and confirmed the screw taps and holds. Do not change to M4."
+how = "Printed pilot for a plain M3 machine screw (10 mm), PETG HF 33102 on the A1 Mini. Was 2.5 with a thread-forming screw; raised to 2.6 because a metric M3 needs less interference to cut into FDM without cracking the boss. Still a one-shot plastic thread — prefer a heat-set insert if the lid is opened often."
 
 [couvercle_epaisseur]
 value = 1.6
@@ -112,7 +112,7 @@ how = "Three perimeters."
 [pilier_diametre]
 value = 6.5
 unit = "mm"
-how = "Boss around the M3 thread-forming hole, fused into the slotted wall on the outer muret lines."
+how = "Boss around the M3 pilot hole. On 4w fused into the slotted wall on the outer muret lines; on 2w it is the side of the square middle block."
 
 [jeu_glissement]
 value = 0.3
@@ -127,7 +127,12 @@ how = "user: minimum empty run from the Wago front to the slotted wall, so the t
 [fente_hauteur]
 value = 10.0
 unit = "mm"
-how = "user: open-top slot height in the wall facing each Wago. Three Helutherm 145 (2.2 mm OD) stack in the 10 mm as the connector is dropped in."
+how = "Retired as a fixed height. Slots are now hauteur minus (floor + rails + fente_dessus_rail). Kept as a record of the old shallow 10 mm notch."
+
+[fente_dessus_rail]
+value = 5.0
+unit = "mm"
+how = "user: slot floor sits 5 mm above the Wago base (floor + 2 mm rails), so the three Helutherm wires do not kink into a shallow notch. Shared by the 4w and 2w boxes."
 
 [rail_porteur_hauteur]
 value = 2.0

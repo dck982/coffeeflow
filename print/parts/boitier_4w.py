@@ -4,7 +4,7 @@ from system import dims, outer_corners, u_cutter
 
 
 @part
-def boitier(
+def boitier_4w(
     longueur=37.0,
     largeur=32.0,
     hauteur=25.0,
@@ -20,7 +20,7 @@ def boitier(
     epaisseur_paroi: outer wall and floor thickness
     jeu_couvercle: per-side clearance for the lid skirt
     """
-    d = dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle)
+    d = dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle, n=4)
     amin = (Align.MIN, Align.MIN, Align.MIN)
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)
 
@@ -59,7 +59,7 @@ def boitier(
         )
 
     notch = u_cutter(d.fente_w, d.fente_h, d.wall + 4.0)
-    z_notch = d.hauteur - d.fente_h
+    z_notch = d.fente_bottom
     for x in d.fentes:
         body = body - Pos(x, d.outer_y - d.wall / 2.0, z_notch) * notch
 

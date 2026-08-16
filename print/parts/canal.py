@@ -3,7 +3,7 @@ from nurb import *
 
 @part
 def canal(
-    longueur=100.0,
+    longueur=170.0,
     largeur_interne=10.0,
     hauteur_interne=10.0,
     epaisseur_paroi=1.6,
@@ -11,6 +11,8 @@ def canal(
     puit_diametre=8.4,
     marge_puit=2.0,
     retour_biais=5.0,
+    marge_extremite=10.0,
+    ouverture=10.0,
     draft=False,
 ):
     """U-shaped wire raceway. Printed open-up; flip onto the chassis so the 0.6 mm magnet faces sit on the metal.
@@ -23,6 +25,8 @@ def canal(
     puit_diametre: well inside diameter (looser than the box 8.15, so the disc reaches the face)
     marge_puit: solid plastic around each well
     retour_biais: length of the 45-ish taper that blends each pad back into the channel wall
+    marge_extremite: gap between each end pad's leading edge and the nearest channel end
+    ouverture: width of the cable-exit notch cut into the wall opposite the magnet wells, at the near (low X) end of the channel
     """
     wall = epaisseur_paroi
     puit_fond = measured("puit_fond")
@@ -43,7 +47,7 @@ def canal(
         )
     if wall < 1.2:
         reject(
-            f"epaisseur_paroi {wall} is under 1.2 mm for a 100 mm run: raise it",
+            f"epaisseur_paroi {wall} is under 1.2 mm: raise it",
             param="epaisseur_paroi",
         )
     if aimants < 1:
@@ -65,7 +69,6 @@ def canal(
     # Local pad around each well, not a full-length rail.
     half = puit_r + marge_puit
     depth = puit_d + 2.0 * marge_puit
-    pad_len = 2.0 * half
     retour = retour_biais
 
     outer_x = longueur
@@ -92,12 +95,17 @@ def canal(
     )
     body = floor + left + right
 
-    # Keep pads clear of the open ends.
-    inset = half + retour + 1.0
-    if longueur < 2.0 * inset + pad_len:
+    # Gap from the channel end to the leading edge of the end pad; the well
+    # center sits half + retour further in, past the pad's angled return.
+    end_margin = marge_extremite
+    pad_clear = half + retour
+    first_x = end_margin + pad_clear
+    last_x = outer_x - end_margin - pad_clear
+    if first_x > last_x:
         reject(
-            f"longueur {longueur} is too short for {aimants} magnet(s): "
-            f"raise it above {2.0 * inset + pad_len:.0f}",
+            f"longueur {longueur} is too short for marge_extremite {end_margin} "
+            f"plus the pad ({pad_clear:.1f} mm) on both ends: raise it above "
+            f"{2.0 * (end_margin + pad_clear):.0f}",
             param="longueur",
         )
 
@@ -110,8 +118,8 @@ def canal(
     if aimants == 1:
         xs = [outer_x / 2.0]
     else:
-        span = outer_x - 2.0 * inset
-        xs = [inset + span * i / (aimants - 1) for i in range(aimants)]
+        span = last_x - first_x
+        xs = [first_x + span * i / (aimants - 1) for i in range(aimants)]
 
     for x in xs:
         # Trapezoid: pad around the well, angled returns back to the channel wall.
@@ -125,6 +133,19 @@ def canal(
         pad = extrude(Polygon(*pts, align=None), outer_z)
         body = body + pad
         body = body - Pos(x, y_well, 0) * Cylinder(puit_r, well_h, align=cmin)
+
+    # Cable-exit notch through the wall opposite the wells, at the near (low X) end.
+    if ouverture > 0:
+        if ouverture > outer_x + 1e-6:
+            reject(
+                f"ouverture {ouverture} is longer than longueur {longueur}: lower it",
+                param="ouverture",
+            )
+        margin = 0.5
+        notch = Pos(-margin, -margin, -margin) * Box(
+            ouverture + margin, wall + 2.0 * margin, outer_z + 2.0 * margin, align=amin
+        )
+        body = body - notch
 
     if draft:
         return body

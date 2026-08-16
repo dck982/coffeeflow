@@ -5,7 +5,7 @@ from system import dims, lid_hold_murets, outer_corners
 
 @part
 def couvercle_2w(
-    longueur=25.4,
+    longueur=30.0,
     largeur=32.0,
     hauteur=25.0,
     epaisseur_paroi=1.6,

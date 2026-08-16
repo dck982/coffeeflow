@@ -7,11 +7,13 @@ nurb sert **ce** dossier (un projet nurb est un répertoire qui contient `parts/
 ```
 cd print
 nurb dev          # http://127.0.0.1:7373
-nurb export boitier_4w --formats stl
-nurb export boitier_2w --formats stl
+nurb export boitier_4w
+nurb export boitier_2w
 ```
 
-Bambu Studio : ouvrir le **STL** dans `build/`, pas le 3MF nurb (version 1.41 non supportée, l'objet s'importe quand même).
+**Python :** sur cette machine, préférer **`uv`** (`uv run …`, `uv run --with nurb …`). Le binaire système `python` / `python3` n’est pas fiable ici ; `nurb` lui-même est installé via `uv tool install nurb` et reste sur le PATH.
+
+**Export :** format préféré **3MF** (`printer.toml` → `[export] formats = ["3mf"]`). Bambu Studio peut avertir sur la version 1.41 du 3MF nurb ; l’objet s’importe quand même. STL uniquement si besoin (`nurb export … --formats stl`).
 
 ## Roadmap des boîtiers
 

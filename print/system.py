@@ -2,7 +2,12 @@
 
 from types import SimpleNamespace
 
-from nurb import Axis, measured, reject
+from nurb import Align, Axis, Box, Cylinder, Pos, RegularPolygon, extrude, measured, reject
+
+# Mouth lead so a bed-flush nut trap still cuts the floor cleanly (same idea as
+# nurb.holes.counterbore).
+_NUT_LEAD = 1.0
+_NUT_SEATED = (Align.CENTER, Align.CENTER, Align.MIN)
 
 
 def dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle=0.3, n=4):
@@ -75,16 +80,18 @@ def dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle=0.3, n=4):
         bays_x = [x0 + bay / 2.0 + i * (bay + muret_ep) for i in range(n)]
         div_x = [x0 + bay + i * (bay + muret_ep) for i in range(n - 1)]
     else:
-        # End bays fixed at bay_fit. Middle gap is the square M3 block: as narrow
-        # as pilier_d, filled solid so the boss bonds to both murets and the back.
+        # End bays fixed at bay_fit. Middle gap is the square M3 block (nut trap):
+        # as narrow as carre_ecrou_min, filled solid so it bonds to both murets
+        # and the back. 4w still uses pilier_d for its round bosses.
         n_muret = 2
         wago_block = n * bay_fit + n_muret * muret_ep
         leftover = inner_x - wago_block
-        if leftover < pilier_d - 0.05:
+        carre_min = measured("carre_ecrou_min")
+        if leftover < carre_min - 0.05:
             reject(
                 f"longueur {longueur} leaves only {leftover:.2f} mm between the "
-                f"two end bays, under the {pilier_d} mm square M3 block: raise "
-                f"longueur above {wago_block + pilier_d}",
+                f"two end bays, under the {carre_min} mm square for an M3 nut: "
+                f"raise longueur above {wago_block + carre_min}",
                 param="longueur",
             )
         bay = bay_fit
@@ -212,6 +219,9 @@ def dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle=0.3, n=4):
         fentes=list(bays_x),
         vis_trou=vis_trou,
         vis_pass=vis_pass,
+        vis_longueur=measured("vis_longueur"),
+        ecrou_plats=measured("ecrou_m3_plats"),
+        ecrou_ep=measured("ecrou_m3_epaisseur"),
         pilier_r=pilier_r,
         piliers=piliers,
         carre=carre,
@@ -224,6 +234,49 @@ def dims(longueur, largeur, hauteur, epaisseur_paroi, jeu_couvercle=0.3, n=4):
         wago_y=wago_y,
         wago_z=wago_z,
     )
+
+
+def m3_nut_trap(shaft_dia, nut_af, nut_th, shoulder_z, depth, layer=1.0, slack=0.2):
+    """Captive M3 hex nut from the bed, clearance hole to the rim.
+
+    Mouth on the chassis face: hex prism up to `shoulder_z` (nut top bears there),
+    two sacrificial bridge slots like `counterbore`, then a shaft of `shaft_dia`
+    through `depth`. Size the hex on across-flats + slack; rotate so a flat faces
+    +Y for a cleaner socket. `depth` may overshoot the rim.
+    """
+    import math
+
+    if shaft_dia <= 0 or nut_af <= 0 or nut_th <= 0 or layer <= 0:
+        raise ValueError("m3_nut_trap needs positive dimensions")
+    if shoulder_z < nut_th:
+        reject(
+            f"nut shoulder at {shoulder_z:.2f} mm is under the {nut_th} mm nut: "
+            f"raise the box or shorten the screw",
+        )
+    if depth < shoulder_z + 2 * layer:
+        reject(
+            f"depth {depth:.2f} leaves no shaft above the nut seat at "
+            f"{shoulder_z:.2f} mm plus {2 * layer:.2f} mm of bridges",
+        )
+
+    af = nut_af + slack
+    hex_face = RegularPolygon(af / 2.0, 6, major_radius=False, rotation=30)
+    hex_prism = Pos(0, 0, -_NUT_LEAD) * extrude(hex_face, shoulder_z + _NUT_LEAD)
+    # Circumscribed circle of the pocket, for clipping the bridge slots.
+    ac = af / math.cos(math.radians(30))
+    inside = Pos(0, 0, shoulder_z) * Cylinder(ac / 2.0, 2 * layer, align=_NUT_SEATED)
+    first = (
+        Pos(0, 0, shoulder_z) * Box(ac, shaft_dia, layer, align=_NUT_SEATED) & inside
+    )
+    second = (
+        Pos(0, 0, shoulder_z + layer)
+        * Box(shaft_dia, ac, layer, align=_NUT_SEATED)
+        & inside
+    )
+    shaft = Pos(0, 0, -_NUT_LEAD) * Cylinder(
+        shaft_dia / 2.0, depth + _NUT_LEAD, align=_NUT_SEATED
+    )
+    return hex_prism + first + second + shaft
 
 
 def u_cutter(width, depth, length):

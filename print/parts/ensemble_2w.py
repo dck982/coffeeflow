@@ -6,7 +6,7 @@ from system import dims
 @assembly
 def ensemble_2w(
     ouvert=1.0,
-    longueur=25.4,
+    longueur=30.0,
     largeur=32.0,
     hauteur=25.0,
     epaisseur_paroi=1.6,

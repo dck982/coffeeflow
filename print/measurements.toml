@@ -6,13 +6,15 @@
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.
-# Fasteners: M3 throughout. A 2.6 mm printed pilot takes a plain M3
-# machine screw (10 mm) in PETG HF on this machine; do not switch to M4.
+# Fasteners: M3 throughout. boitier_2w uses a captive ISO hex nut from the
+# bed; boitier_4w still has a 2.6 mm printed pilot for a plain M3×10 until
+# the bosses grow. Do not switch to M4.
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
 # Mount: two 8 x 3 mm disc magnets, no drilling the chassis. The face the box
 # sits on runs about 40-50 °C, so Wagos stand on 2 mm rails and must not touch
 # the floor. A 3 mm lip in the magnet channel stops them sliding out of the bays.
-# Bambu Studio: nurb 3MF is spec 1.41 and Studio warns; export STL to open cleanly.
+# Bambu Studio: prefer 3MF from `nurb export` (printer.toml). Spec 1.41 may
+# warn in Studio; the object still imports. STL via `--formats stl` if needed.
 
 [wago_largeur]
 value = 18.7
@@ -92,7 +94,27 @@ how = "ISO 4762 M3 socket-cap head height."
 [vis_autoforeuse]
 value = 2.6
 unit = "mm"
-how = "Printed pilot for a plain M3 machine screw (10 mm), PETG HF 33102 on the A1 Mini. Was 2.5 with a thread-forming screw; raised to 2.6 because a metric M3 needs less interference to cut into FDM without cracking the boss. Still a one-shot plastic thread — prefer a heat-set insert if the lid is opened often."
+how = "Printed pilot for a plain M3 machine screw (10 mm), PETG HF 33102 on the A1 Mini. Was 2.5 with a thread-forming screw; raised to 2.6 because a metric M3 needs less interference to cut into FDM without cracking the boss. Still used on boitier_4w; boitier_2w uses a captive nut instead."
+
+[vis_longueur]
+value = 10.0
+unit = "mm"
+how = "M3×10 under-head length. Lid is 1.6 mm, so the tip reaches about 8.4 mm below the rim into the box."
+
+[ecrou_m3_plats]
+value = 5.5
+unit = "mm"
+how = "ISO 4032 M3 hex nut across flats; also marked 5.5 on the nut box."
+
+[ecrou_m3_epaisseur]
+value = 2.4
+unit = "mm"
+how = "ISO 4032 M3 hex nut thickness."
+
+[carre_ecrou_min]
+value = 11.0
+unit = "mm"
+how = "Minimum side of the 2w square boss so an M3 hex nut trap keeps about 2 mm of wall around the pocket (across-corners ~6.6 mm with 0.2 mm slack on the flats). Grows with longueur; end bays stay at bay_fit."
 
 [couvercle_epaisseur]
 value = 1.6

@@ -31,7 +31,7 @@ Inner default 37 × 32 mm, walls 1.6 mm, outer 40.2 × 35.2 × 25 mm. Magnet cha
 
 Four open-top slots, 2.5 mm wide. Slot floor is `floor + rails + 5 mm` (`fente_dessus_rail`), shared with `boitier_2w`, so the wires do not kink into a shallow notch. The lid plate closes them from above.
 
-Bambu Studio warns on nurb 3MF (spec 1.41). Export STL from `print/build/`.
+Bambu Studio: prefer 3MF from `print/build/` (`nurb export`). Spec 1.41 may warn; the object still imports.
 
 ## Don't
 

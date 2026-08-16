@@ -15,7 +15,7 @@ The plate is 1.6 mm and sits on the box walls, closing the four open-top slots f
 
 Hold-down: three murets on the box divider lines plus a full-width front stop bar just past the Wago depth (`wago_y + jeu_wago`), jupe height — same commercial Wago-lid pattern as `couvercle_2w`.
 
-Same inner 37 × 32 mm and 1.6 mm walls as `boitier_4w`. Bambu Studio: export STL, not nurb 3MF.
+Same inner 37 × 32 mm and 1.6 mm walls as `boitier_4w`. Prefer 3MF export (`nurb export`); Studio may warn on nurb 1.41.
 
 ## Don't
 

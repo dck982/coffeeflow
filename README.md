@@ -60,7 +60,7 @@ Traversée intérieur → extérieur : **quatre fils 230 V** + **un câble Grove
 
 ### Boîtiers 3D (`print/`)
 
-Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. Bambu Studio : ouvrir le **STL** (`print/build/`), pas le 3MF nurb (alerte de version 1.41).
+Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. Export préféré : **3MF** dans `print/build/` (Studio peut avertir sur la spec 1.41 ; l’objet s’importe). Sur cette machine, pour tout script Python (y compris hors `print/`) : **`uv run`**, pas le `python` système — détail dans `print/README.md`.
 
 | Pièce | Où | Rôle |
 | --- | --- | --- |

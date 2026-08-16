@@ -2,3 +2,5 @@
 *.env
 .DS_Store
 print/build/
+__pycache__/
+*.py[cod]

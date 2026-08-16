@@ -22,6 +22,7 @@ Waveshare ESP32-S3-Touch-LCD-4.3 carrier: large open rear plate on the bed, soli
 - Outer skirt **face** stays continuous. USB-C and UART get channels from the pocket wall into the border, 16 mm deep: 8 mm of Delock right-angle adapter body plus 8 mm to slide its plug in. They exit through the rear plate.
 - `border_side` is 20 mm **only** to buy that 8 mm of insertion travel; nothing else needs it. If the adapter can be plugged in first and the module then slid in at an angle, the channel only has to hold the 8 mm body: `cable_slot_depth` about 9 and `border_side` about 11 gets the part down to roughly 128 mm wide. The guard is `cable_slot_depth <= border_side - 1.0`. Waiting on the real board to find out.
 - Screw holes are M2.5 medium clearance (2.9 mm) with ISO 4762 head counterbore (4.5+0.4 mm), mouths on the bed.
+- Measurements came from the Waveshare drawing plus a STEP of the module that is no longer in the repo. Ask the user for any cote you need rather than hunting for the file.
 - **To verify on the real board**: `module_rear_hardware` says 7.4 mm stands behind the PCB while the standoffs are 4 mm, so something reaches 3.4 mm below the pad tops. It clears the 2.5 mm plate by 0.6 mm today. Raise `seat_height` if it fouls.
 - `screen_base` is out of scope for now.
 

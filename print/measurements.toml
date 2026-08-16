@@ -246,7 +246,7 @@ how = "Waveshare back view, UART port centre from top edge (same side as USB-C: 
 [module_glass_to_pcb]
 value = 8.80
 unit = "mm"
-how = "user, from the Waveshare dimension drawing: glass front to the bare PCB, before anything screwed or soldered on it. Confirmed by scans/esp32-s3-touch-lcd-4_3.stp, section y: glass front at +4.80, PCB back at -3.70, so 8.50 for that span."
+how = "user, from the Waveshare dimension drawing: glass front to the bare PCB, before anything screwed or soldered on it. Cross-checked against Waveshare's STEP of the module (since deleted, not in the repo): a y section put the glass front at +4.80 and the PCB back at -3.70, so 8.50 for the same span."
 
 [module_standoff_height]
 value = 4.00
@@ -256,7 +256,7 @@ how = "user: the module ships with four M2.5 standoffs on its back at the mount 
 [module_rear_hardware]
 value = 7.40
 unit = "mm"
-how = "scans/esp32-s3-touch-lcd-4_3.stp, section y: the deepest rear part reaches -11.10, so 7.4 mm stands behind the PCB. Taller than the 4 mm standoffs, so it has to fall inside the rear opening or clear the plate. Recheck against the real board."
+how = "Waveshare's STEP of the module (since deleted, not in the repo), y section: the deepest rear part reached -11.10, so 7.4 mm stands behind the PCB. Taller than the 4 mm standoffs, so it has to fall inside the rear opening or clear the plate. provisional: ask the user for a caliper reading on the real board."
 
 [usbc_adapter_body]
 value = 8.00

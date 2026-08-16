@@ -6,7 +6,7 @@ def canal_test(
     largeur_interne=10.0,
     hauteur_interne=10.0,
     epaisseur_paroi=1.6,
-    puit_diametre=8.4,
+    puit_diametre=8.2,
     marge_puit=2.0,
     retour_biais=5.0,
     marge_extremite=10.0,

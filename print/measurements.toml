@@ -251,12 +251,27 @@ how = "user, from the Waveshare dimension drawing: glass front to the bare PCB, 
 [module_standoff_height]
 value = 4.00
 unit = "mm"
-how = "user: the module ships with four M2.5 standoffs on its back at the mount grid, 4 mm tall and taller than every component. They are what sits on the seat pads, so the pocket runs 8.80 + 4.00 = 12.80 mm from the pad tops to the frame rim."
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, side view: the 4.00 under the 8.80 overall is the standoff at the module's back, at the mount grid, taller than every component. They are what sits on the seat pads, so the pocket runs 8.80 + 4.00 = 12.80 mm from the pad tops to the frame rim. The drawing gives the standoff's HEIGHT only; the depth and type of its M2.5 female thread are documented nowhere, which is why screen_wedge leaves 4.10 mm of plastic to cross so an M2.5x8 takes only 3.90 mm of it."
 
 [module_rear_hardware]
 value = 7.40
 unit = "mm"
 how = "Waveshare's STEP of the module (since deleted, not in the repo), y section: the deepest rear part reached -11.10, so 7.4 mm stands behind the PCB. Taller than the 4 mm standoffs, so it has to fall inside the rear opening or clear the plate. provisional: ask the user for a caliper reading on the real board."
+
+[usbc_plug_shell_width]
+value = 8.34
+unit = "mm"
+how = "USB Type-C spec, plug shell width (the receptacle opening is 8.34 x 2.56). Applies to the bare AliExpress right-angle USB-C plug (metal shell + solder PCB, no overmould) chosen for the screen wedge: it is no wider than the socket it plugs into."
+
+[usbc_plug_shell_height]
+value = 2.56
+unit = "mm"
+how = "USB Type-C spec, plug shell height."
+
+[usbc_plug_protrusion]
+value = 6.5
+unit = "mm"
+how = "provisional: how far the bare right-angle plug stands out past the socket face, shell plus its solder PCB. USB-C mated insertion depth is 6.5 mm and the wires leave at 90 degrees, so they need no extra run. Measure the real part with a caliper when it lands and drop the provisional flag."
 
 [usbc_adapter_body]
 value = 8.00

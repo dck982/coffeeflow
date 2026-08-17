@@ -10,21 +10,25 @@ from nurb import *
 
 @part
 def screen_wedge(
-    border_side=20.0,
-    border_top_bottom=10.0,
+    border_side=10.0,
+    border_top_bottom=5.0,
     rear_wall=2.5,
     pocket_depth=12.8,
     module_clearance=0.5,
     cutout_inset=12.0,
-    seat_height=4.0,
-    cable_slot_width=14.5,
-    cable_slot_depth=16.0,
+    seat_height=4.3,
+    cable_slot_width=9.6,
+    cable_slot_depth=7.0,
+    outer_wall=2.0,
     draft=False,
 ):
     """Open-back Waveshare 4.3 carrier: solid skirt, frame rim level with the glass.
 
-    border_side: how far the frame sticks past the glass left and right
-    border_top_bottom: how far the frame sticks past the glass top and bottom
+    border_side: how far the frame sticks past the glass left and right. This is
+        the only border that has a job: it houses the two USB-C channels
+    border_top_bottom: how far the frame sticks past the glass top and bottom.
+        The module already carries its own black bezel on the glass, so this
+        adds nothing visually and only has to be a sound wall
     rear_wall: thickness of the large rear plate (on the bed)
     pocket_depth: from the seat pad tops up to the frame rim, so the rim comes
         out level with the glass: 8.80 glass to PCB plus the module's own 4.00
@@ -32,10 +36,15 @@ def screen_wedge(
     module_clearance: free fit around the module inside the pocket
     cutout_inset: how far the rear opening stops short of the screw pads
     seat_height: how far the four seat pads stand off the rear plate. Under
-        3.2 the counterbore's bridging steps leave too little pad above them
-    cable_slot_width: width of the USB-C / UART channels
-    cable_slot_depth: how far each channel runs from the pocket into the border:
-        the right-angle adapter body plus the travel to plug it in
+        3.2 the counterbore's bridging steps leave too little pad above them.
+        It also sets the screw: an M2.5x8 crosses rear_wall + seat_height minus
+        the 2.7 head pocket, and whatever is left of the 8 goes into the
+        module's 4mm standoff, so raising this shortens the thread engagement
+    cable_slot_width: width of the USB-C / UART channels, set by the bare
+        right-angle plug's 8.34mm shell plus clearance
+    cable_slot_depth: how far each channel runs from the pocket into the border,
+        i.e. how far the plug stands out past the socket face
+    outer_wall: material left between the end of a channel and the outside face
     """
     module_w = measured("module_width")
     module_h = measured("module_height")
@@ -62,11 +71,12 @@ def screen_wedge(
             f"cutout_inset {cutout_inset} leaves a rear opening under 20mm; lower it",
             param="cutout_inset",
         )
-    border_t = (outer_w - pocket_w) / 2
-    if cable_slot_depth > border_t - 0.5:
+    left_over = border_side - module_clearance - cable_slot_depth - 0.1
+    if left_over < outer_wall:
         reject(
-            f"cable_slot_depth {cable_slot_depth} would break the outer wall; "
-            f"keep it under {border_t - 0.5:.1f}",
+            f"cable_slot_depth {cable_slot_depth} leaves only {left_over:.1f}mm of "
+            f"outer wall, under outer_wall {outer_wall}; shorten it or widen "
+            f"border_side past {module_clearance + cable_slot_depth + 0.1 + outer_wall:.1f}",
             param="cable_slot_depth",
         )
     slot_x = pocket_w / 2 + cable_slot_depth / 2
@@ -87,11 +97,29 @@ def screen_wedge(
     seat_z = rear_wall + seat_height
 
     # --- four seat pads standing in the pocket; the module lands on these ---
-    # Square and flush into the pocket corner: a round pad leaves a wedge of
-    # void between its arc and the corner, too thin for the printer to lay.
-    pad_span = (
-        max(pocket_w / 2 - mount_x / 2, pocket_h / 2 - mount_y / 2) + hole / 2 + 3.0
-    )
+    # Rectangular and flush into the pocket corner: a round pad leaves a wedge
+    # of void between its arc and the corner, too thin for the printer to lay.
+    # Sized to the doctrine's "a loaded hole earns a fastener diameter of wall",
+    # so 2.5mm of PETG around the M2.5 bore and not a millimetre more: the top
+    # pads share the border with the UART plug and every extra millimetre here
+    # is one the plug does not get.
+    pad_wall = 2.5
+    pad_x = (pocket_w / 2 - mount_x / 2) + hole / 2 + pad_wall
+    pad_y = (pocket_h / 2 - mount_y / 2) + hole / 2 + pad_wall
+
+    # The UART socket sits 12.93mm from the top edge while the screw sits 4.00mm
+    # from it, so the channel and the top pads are fighting over the same 8.9mm.
+    # This is what put a pad across the opening; the guard is what keeps it out.
+    pad_edge = pocket_h / 2 - pad_y
+    slot_edge = max(usb_y, uart_y) + cable_slot_width / 2
+    if slot_edge > pad_edge:
+        reject(
+            f"the upper channel reaches y {slot_edge:.2f} but the screw pad starts "
+            f"at y {pad_edge:.2f}, so the pad stands across the opening; drop "
+            f"cable_slot_width under {2 * (pad_edge - max(usb_y, uart_y)):.1f}",
+            param="cable_slot_width",
+        )
+
     pads = [
         (sx, sy)
         for sx in (-mount_x / 2, mount_x / 2)
@@ -101,10 +129,10 @@ def screen_wedge(
         dx = 1.0 if sx > 0 else -1.0
         dy = 1.0 if sy > 0 else -1.0
         body = body + Pos(
-            dx * (pocket_w / 2 - pad_span / 2),
-            dy * (pocket_h / 2 - pad_span / 2),
+            dx * (pocket_w / 2 - pad_x / 2),
+            dy * (pocket_h / 2 - pad_y / 2),
             seat_z / 2,
-        ) * Box(pad_span, pad_span, seat_z)
+        ) * Box(pad_x, pad_y, seat_z)
 
     # USB-C / UART, cut after the pads so a pad corner cannot leave a tongue in
     # the channel. The sockets hang under the PCB, so the channel runs from
@@ -125,18 +153,28 @@ def screen_wedge(
     if draft:
         return body
 
+    def in_pocket(b):
+        return (
+            abs(b.min.X + b.max.X) / 2 < pocket_w / 2 + 0.05
+            and abs(b.min.Y + b.max.Y) / 2 < pocket_h / 2 + 0.05
+        )
+
     def buried(edge):
         # Inside the pocket, below the seat: the module covers all of it, and a
         # 1mm chamfer there only shaves the seat pads into slivers.
         b = edge.bounding_box()
-        return (
-            b.max.Z < seat_z + 0.05
-            and abs(b.min.X + b.max.X) / 2 < pocket_w / 2 + 0.05
-            and abs(b.min.Y + b.max.Y) / 2 < pocket_h / 2 + 0.05
-        )
+        return b.max.Z < seat_z + 0.05 and in_pocket(b)
+
+    def against_glass(edge):
+        # The rim edge running round the top of the pocket is the one the glass
+        # sits in. A 1mm chamfer there opens the pocket by 1mm a side, so the
+        # 0.5mm fit gap reads as a 2.5mm bevelled shadow all the way round.
+        # This edge stays sharp; the outer rim, on the outside face, does not.
+        b = edge.bounding_box()
+        return b.min.Z > rim_z - 0.05 and in_pocket(b)
 
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
-    keep = keep.filter_by(lambda e: not buried(e))
+    keep = keep.filter_by(lambda e: not buried(e) and not against_glass(e))
     return polish(body, keep, 1.0)

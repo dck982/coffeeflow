@@ -1,52 +1,57 @@
 from nurb import *
 from math import sin, cos, radians
 
-# Wedge only for now — screen_base is out of scope. Print pose is large rear
-# plate on the bed; this stands it at tilt_degrees.
+# screen_wedge lying in screen_base's cradle. Both print flat and separately;
+# this is where the fit between them is checked. The wedge's rear plate lands on
+# the base's seat slope, its bottom face against the lip, its borders between
+# the two rails, and the base's two foot pins enter the wedge's sockets.
+#
+# `slide` walks the wedge back up the slope so the pins and the rebate are
+# visible in the viewer. Everything is seated at 0.
 
 
 @assembly
-def screen_assembly(tilt_degrees=60.0, draft=False):
-    """Waveshare carrier at desk tilt (base out of scope).
+def screen_assembly(slide=0.0, tilt=60.0, seat_height=20.0, draft=False):
+    """Waveshare 4.3 carrier seated in its cradle.
 
-    tilt_degrees: angle between the screen face and the desk
+    slide: how far up the slope the wedge is pulled, to see the joint. 0 is home
+    tilt: screen angle, and it has to be the same in both parts
+    seat_height: base height where the wedge's foot lands, shared the same way
     """
+    # Unwrap: the runtime hands an assembly its floats wrapped so the viewer can
+    # tie a slider to a hinge, and that wrapper does not survive `use()`.
+    tilt = float(tilt)
+    seat_height = float(seat_height)
+    slide = float(slide)
+
     wedge = use("screen_wedge")
+    base = use("screen_base", tilt=tilt, seat_height=seat_height)
 
     module_w = measured("module_width")
     module_h = measured("module_height")
     module_t = measured("module_thickness")
-    border_tb = 10.0
-    rear_wall = 2.5
-    cavity_depth = 10.0
-    frame_th = 1.6
-    face_h = module_h + 2 * border_tb
 
-    wedge_stood = _stand_wedge(wedge, tilt_degrees, face_h)
+    t = radians(tilt)
+    s, c = sin(t), cos(t)
 
-    tilt = radians(tilt_degrees)
-    outward = Vector(0, -sin(tilt), cos(tilt))
-    along = Vector(0, cos(tilt), sin(tilt))
-    # Print +Z toward the glass frame. Face centre at the small frame.
-    face_centre = (
-        along * (face_h / 2)
-        + outward * (rear_wall + cavity_depth + frame_th / 2)
+    # The base's own numbers, from the same expressions screen_base uses.
+    wedge_thickness = 19.60
+    wedge_length = module_h + 2 * 5.0          # border_top_bottom, both ends
+    rim_z = 19.60
+    seat_y = wedge_thickness * s
+    notch = Vector(0, seat_y, seat_height)
+    n = Vector(0, -s, c)                       # out of the seat
+    seat = Plane(origin=notch, x_dir=(1, 0, 0), z_dir=n)   # its y runs up the slope
+
+    placed = seat * Pos(0, wedge_length / 2 + slide, 0) * wedge
+
+    # The module drops into the pocket, glass flush with the rim.
+    module = (
+        seat
+        * Pos(0, wedge_length / 2 + slide, 0)
+        * Pos(0, 0, rim_z - module_t / 2)
+        * Box(module_w, module_h, module_t)
     )
+    obstacle(module, name="Waveshare 4.3 module")
 
-    module = Plane(
-        origin=face_centre + (-outward) * (frame_th / 2 + module_t / 2),
-        x_dir=(1, 0, 0),
-        z_dir=outward,
-    ) * Box(module_w, module_h, module_t)
-    obstacle(module, name="Waveshare 4.3 module (approx)")
-
-    return wedge_stood
-
-
-def _stand_wedge(wedge, tilt_degrees, face_h):
-    """Rear-on-bed print → desk pose: glass at tilt, bottom edge on Y=0 / Z=0."""
-    # Print +Y up the face, print +Z toward the glass — no Y180.
-    w = Pos(0, face_h / 2, 0) * wedge
-    w = Rot(tilt_degrees, 0, 0) * w
-    bb = w.bounding_box()
-    return Pos(0, -bb.min.Y, -bb.min.Z) * w
+    return base + placed

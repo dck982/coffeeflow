@@ -20,6 +20,9 @@ def screen_wedge(
     cable_slot_width=9.6,
     cable_slot_depth=7.0,
     outer_wall=2.0,
+    foot_hole_width=5.5,
+    foot_hole_depth=3.5,
+    foot_hole_span=60.0,
     draft=False,
 ):
     """Open-back Waveshare 4.3 carrier: solid skirt, frame rim level with the glass.
@@ -45,6 +48,13 @@ def screen_wedge(
     cable_slot_depth: how far each channel runs from the pocket into the border,
         i.e. how far the plug stands out past the socket face
     outer_wall: material left between the end of a channel and the outside face
+    foot_hole_width: the two sockets in the bottom face that screen_base's foot
+        pins plug into. Free fit on a 5mm pin, because two pins 60mm apart on a
+        separately printed part will never line up to a snug fit
+    foot_hole_depth: how deep those sockets go into the bottom border, which
+        has 4.5mm of solid before the pocket
+    foot_hole_span: centre-to-centre of the two sockets, matched to
+        screen_base's rib_span
     """
     module_w = measured("module_width")
     module_h = measured("module_height")
@@ -143,6 +153,22 @@ def screen_wedge(
         body = body - Pos(slot_x, y, (pcb_back_z - 1) / 2) * Box(
             cable_slot_depth + 0.2, cable_slot_width, pcb_back_z + 1
         )
+
+    # Sockets for screen_base's foot pins, drilled into the bottom face. The
+    # bottom border is solid from -outer_h/2 to -pocket_h/2, so there is
+    # (outer_h - pocket_h) / 2 of material and the socket must not eat it all.
+    border_solid = (outer_h - pocket_h) / 2
+    if foot_hole_depth > border_solid - 0.5:
+        reject(
+            f"foot_hole_depth {foot_hole_depth} leaves under 0.5mm behind the "
+            f"socket in a {border_solid:.1f}mm border; shorten it or raise "
+            f"border_top_bottom",
+            param="foot_hole_depth",
+        )
+    for sx in (-foot_hole_span / 2, foot_hole_span / 2):
+        body = body - Pos(
+            sx, -outer_h / 2 + foot_hole_depth / 2 - 0.5, rim_z / 2
+        ) * Box(foot_hole_width, foot_hole_depth + 1, foot_hole_width)
 
     # Counterbore mouths on the bed (M2.5 medium clearance).
     for sx, sy in pads:

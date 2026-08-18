@@ -20,6 +20,11 @@ def screen_wedge(
     cable_slot_width=9.6,
     cable_slot_depth=7.0,
     outer_wall=2.0,
+    cable_relief_depth=0.6,
+    cable_relief_width=18.0,
+    cable_relief_from_usb_edge=19.3,
+    cable_relief_height=5.0,
+    cable_relief_below_rim=1.0,
     foot_hole_width=5.5,
     foot_hole_depth=3.5,
     foot_hole_span=60.0,
@@ -48,6 +53,17 @@ def screen_wedge(
     cable_slot_depth: how far each channel runs from the pocket into the border,
         i.e. how far the plug stands out past the socket face
     outer_wall: material left between the end of a channel and the outside face
+    cable_relief_depth: how much thinner the bottom skirt gets where the LCD's
+        flat cable wraps round the panel edge and stands proud of the PCB
+    cable_relief_width: how wide that thinned stretch is, along the bottom edge.
+        The cable is a lozenge, 15mm across where it stands proudest, so this
+        carries margin on both sides rather than tracking that 15 exactly
+    cable_relief_from_usb_edge: centre of the thinned stretch, measured in from
+        the same edge the USB-C and UART sockets are on, i.e. onto the yellow
+        CAN connector. The cable is on the connector side, not the far side
+    cable_relief_height: how tall it is, matching the LCD stack the cable wraps
+    cable_relief_below_rim: frame left full thickness above the relief, so the
+        glass still sits against an unbroken rim
     foot_hole_width: the two sockets in the bottom face that screen_base's foot
         pins plug into. Free fit on a 5mm pin, because two pins 60mm apart on a
         separately printed part will never line up to a snug fit
@@ -106,6 +122,33 @@ def screen_wedge(
 
     seat_z = rear_wall + seat_height
 
+    # The LCD's flat cable wraps round the panel edge and stands proud of the
+    # PCB outline, so the bottom skirt is thinned over its width only. It stops
+    # cable_relief_below_rim short of the top: that lip is the glass thickness,
+    # and keeping it full width is what stops the frame line breaking where the
+    # relief is. The lip therefore prints as a cable_relief_depth overhang.
+    relief_cx = module_w / 2 - cable_relief_from_usb_edge
+    relief_top = rim_z - cable_relief_below_rim
+    relief_bot = relief_top - cable_relief_height
+    border_solid = (outer_h - pocket_h) / 2
+    socket_top_z = rim_z / 2 + foot_hole_width / 2
+    if relief_bot < socket_top_z:
+        left_behind = border_solid - cable_relief_depth - foot_hole_depth
+        if left_behind < 0.5:
+            reject(
+                f"the relief reaches down to z {relief_bot:.2f} while the foot "
+                f"sockets top out at z {socket_top_z:.2f}, and behind the thinned "
+                f"wall only {left_behind:.1f}mm is left of the {border_solid:.1f}mm "
+                f"border; raise cable_relief_height or shorten foot_hole_depth",
+                param="cable_relief_height",
+            )
+    if cable_relief_depth > 0:
+        body = body - Pos(
+            relief_cx,
+            -(pocket_h + cable_relief_depth) / 2,
+            (relief_bot + relief_top) / 2,
+        ) * Box(cable_relief_width, cable_relief_depth, cable_relief_height)
+
     # --- four seat pads standing in the pocket; the module lands on these ---
     # Rectangular and flush into the pocket corner: a round pad leaves a wedge
     # of void between its arc and the corner, too thin for the printer to lay.
@@ -157,7 +200,6 @@ def screen_wedge(
     # Sockets for screen_base's foot pins, drilled into the bottom face. The
     # bottom border is solid from -outer_h/2 to -pocket_h/2, so there is
     # (outer_h - pocket_h) / 2 of material and the socket must not eat it all.
-    border_solid = (outer_h - pocket_h) / 2
     if foot_hole_depth > border_solid - 0.5:
         reject(
             f"foot_hole_depth {foot_hole_depth} leaves under 0.5mm behind the "
@@ -199,8 +241,22 @@ def screen_wedge(
         b = edge.bounding_box()
         return b.min.Z > rim_z - 0.05 and in_pocket(b)
 
+    def in_relief(edge):
+        # The relief is 0.6mm deep and the module hides all of it. A 1mm
+        # chamfer here is bigger than the feature it would be chamfering.
+        b = edge.bounding_box()
+        return (
+            b.min.Z > relief_bot - 0.05
+            and b.max.Z < relief_top + 0.05
+            and b.min.Y < -pocket_h / 2 + 0.05
+            and b.min.X > relief_cx - cable_relief_width / 2 - 0.05
+            and b.max.X < relief_cx + cable_relief_width / 2 + 0.05
+        )
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
-    keep = keep.filter_by(lambda e: not buried(e) and not against_glass(e))
+    keep = keep.filter_by(
+        lambda e: not buried(e) and not against_glass(e) and not in_relief(e)
+    )
     return polish(body, keep, 1.0)

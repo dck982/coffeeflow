@@ -281,10 +281,15 @@ def screen_wedge(
         )
 
     def buried(edge):
-        # Inside the pocket, below the seat: the module covers all of it, and a
-        # 1mm chamfer there only shaves the seat pads into slivers.
+        # Inside the pocket, below the PCB's back plane: the module covers all
+        # of it, and a 1mm chamfer there only shaves the seat pads into
+        # slivers. The ceiling is pcb_back_z and not seat_z because the two
+        # channel mouths rise to exactly that plane, and they are as hidden as
+        # anything at the seat: a chamfer on the mouth against the top pad ran
+        # 0.72mm past the pad's edge in the pocket-wall plane, which reads as a
+        # bitten-off pad corner while removing nothing but skirt.
         b = edge.bounding_box()
-        return b.max.Z < seat_z + 0.05 and in_pocket(b)
+        return b.max.Z < pcb_back_z + 0.05 and in_pocket(b)
 
     def against_glass(edge):
         # The rim edge running round the top of the pocket is the one the glass

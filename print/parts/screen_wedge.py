@@ -15,11 +15,14 @@ def screen_wedge(
     rear_wall=2.5,
     pocket_depth=12.8,
     module_clearance=0.5,
-    cutout_inset=12.0,
+    rear_frame_margin=0.0,
     seat_height=4.3,
     cable_slot_width=9.6,
     cable_slot_depth=7.0,
     outer_wall=2.0,
+    connector_window_from_top=12.5,
+    connector_window_length=41.0,
+    connector_window_margin=1.5,
     cable_relief_depth=0.6,
     cable_relief_width=18.0,
     cable_relief_from_usb_edge=19.3,
@@ -42,7 +45,9 @@ def screen_wedge(
         out level with the glass: 8.80 glass to PCB plus the module's own 4.00
         M2.5 standoffs, which are what the pads carry
     module_clearance: free fit around the module inside the pocket
-    cutout_inset: how far the rear opening stops short of the screw pads
+    rear_frame_margin: how far the rear opening stops short of the seat pads.
+        0 puts it flush with them, so the rear plate is a frame exactly the
+        width of the pads and the whole back of the module is reachable
     seat_height: how far the four seat pads stand off the rear plate. Under
         3.2 the counterbore's bridging steps leave too little pad above them.
         It also sets the screw: an M2.5x8 crosses rear_wall + seat_height minus
@@ -53,6 +58,14 @@ def screen_wedge(
     cable_slot_depth: how far each channel runs from the pocket into the border,
         i.e. how far the plug stands out past the socket face
     outer_wall: material left between the end of a channel and the outside face
+    connector_window_from_top: the JST connectors live on the edge *opposite*
+        the USB-C / UART one, and plug in perpendicular to the PCB, so the rear
+        frame is notched out to the pocket wall in front of them. This is the
+        distance from the module's top edge to the nearest connector edge
+    connector_window_length: how far that run of connectors reaches, from the
+        first connector to the far side of the battery connector
+    connector_window_margin: added to the window at each end, so a caliper
+        reading off by a millimetre does not put plastic over a latch
     cable_relief_depth: how much thinner the bottom skirt gets where the LCD's
         flat cable wraps round the panel edge and stands proud of the PCB
     cable_relief_width: how wide that thinned stretch is, along the bottom edge.
@@ -90,12 +103,34 @@ def screen_wedge(
     usb_y = module_h / 2 - usb_from_top
     uart_y = module_h / 2 - uart_from_top
 
-    cut_w = mount_x - 2 * cutout_inset
-    cut_h = mount_y - 2 * cutout_inset
-    if cut_w < 20 or cut_h < 20:
+    # Pad size is arithmetic, and the rear frame is cut to it, so it has to be
+    # known before the openings even though the pads are built much later.
+    # Sized to the doctrine's "a loaded hole earns a fastener diameter of
+    # wall", so 2.5mm of PETG around the M2.5 bore and not a millimetre more:
+    # the top pads share the border with the UART plug and every extra
+    # millimetre here is one the plug does not get.
+    pad_wall = 2.5
+    pad_x = (pocket_w / 2 - mount_x / 2) + hole / 2 + pad_wall
+    pad_y = (pocket_h / 2 - mount_y / 2) + hole / 2 + pad_wall
+
+    # The rear plate is a frame the width of the seat pads: everything inboard
+    # of them is void. The pads take their strength from the skirt they are
+    # fused into, and the plate around the counterbore carries nothing (it sits
+    # *below* the shoulder the head bears on), so the plate's only job inboard
+    # of the pads was to exist.
+    frame_x = pocket_w / 2 - pad_x + rear_frame_margin
+    frame_y = pocket_h / 2 - pad_y + rear_frame_margin
+    bore_wall = min(
+        mount_x / 2 - (head_dia + 0.4) / 2 - frame_x,
+        mount_y / 2 - (head_dia + 0.4) / 2 - frame_y,
+    )
+    if bore_wall < 1.2:
         reject(
-            f"cutout_inset {cutout_inset} leaves a rear opening under 20mm; lower it",
-            param="cutout_inset",
+            f"rear_frame_margin {rear_frame_margin} leaves {bore_wall:.2f}mm of "
+            f"plate around the {head_dia + 0.4:.1f}mm head pocket, under the "
+            f"1.2mm the printer can lay; raise it past "
+            f"{rear_frame_margin + 1.2 - bore_wall:.2f}",
+            param="rear_frame_margin",
         )
     left_over = border_side - module_clearance - cable_slot_depth - 0.1
     if left_over < outer_wall:
@@ -118,7 +153,30 @@ def screen_wedge(
     body = body - Pos(0, 0, (rear_wall + rim_z + 1) / 2) * Box(
         pocket_w, pocket_h, rim_z + 1 - rear_wall
     )
-    body = body - Pos(0, 0, rear_wall / 2) * Box(cut_w, cut_h, rear_wall + 2)
+    body = body - Pos(0, 0, rear_wall / 2) * Box(
+        2 * frame_x, 2 * frame_y, rear_wall + 2
+    )
+
+    # The connector notch, from the frame's lip out to the pocket wall. It runs
+    # 1mm into the opening that is already void, so no cut face lands coplanar
+    # with another. It cannot go past the pocket wall: beyond it is the 9.5mm
+    # rail that ties the skirt to the rear plate on this side.
+    win_top = module_h / 2 - connector_window_from_top + connector_window_margin
+    win_bot = win_top - connector_window_length - 2 * connector_window_margin
+    if win_top > frame_y or win_bot < -frame_y:
+        reject(
+            f"the connector window runs y {win_bot:.2f} to {win_top:.2f} but the "
+            f"seat pads start at y {frame_y:.2f}, so it would undercut a screw "
+            f"pad; shorten connector_window_length below "
+            f"{2 * frame_y - 2 * connector_window_margin:.1f}",
+            param="connector_window_length",
+        )
+    win_w = pocket_w / 2 - frame_x + 1.0
+    body = body - Pos(
+        -(pocket_w / 2 + frame_x - 1.0) / 2,
+        (win_bot + win_top) / 2,
+        rear_wall / 2,
+    ) * Box(win_w, win_top - win_bot, rear_wall + 2)
 
     seat_z = rear_wall + seat_height
 
@@ -152,14 +210,9 @@ def screen_wedge(
     # --- four seat pads standing in the pocket; the module lands on these ---
     # Rectangular and flush into the pocket corner: a round pad leaves a wedge
     # of void between its arc and the corner, too thin for the printer to lay.
-    # Sized to the doctrine's "a loaded hole earns a fastener diameter of wall",
-    # so 2.5mm of PETG around the M2.5 bore and not a millimetre more: the top
-    # pads share the border with the UART plug and every extra millimetre here
-    # is one the plug does not get.
-    pad_wall = 2.5
-    pad_x = (pocket_w / 2 - mount_x / 2) + hole / 2 + pad_wall
-    pad_y = (pocket_h / 2 - mount_y / 2) + hole / 2 + pad_wall
-
+    # pad_x / pad_y are worked out above, with the rear frame that is cut to
+    # them.
+    #
     # The UART socket sits 12.93mm from the top edge while the screw sits 4.00mm
     # from it, so the channel and the top pads are fighting over the same 8.9mm.
     # This is what put a pad across the opening; the guard is what keeps it out.

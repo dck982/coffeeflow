@@ -5,6 +5,21 @@ Size: 126.10 x 77.80 x 19.60 mm, 53165.9 mm3, 1 solid, 136 faces
 Checks: 1 finding: 1 warn (overhang)
 <!-- /AUTO -->
 
+```toml
+[part]
+material = "PLA"
+```
+
+**PLA, and it is the only PLA part in the project.** Everything else is PETG: the
+chassis runs 40–50 °C and the top plate a little more, which is where PLA starts to
+creep under sustained load. This part is the exception on purpose — it is the visible
+one, and **ironing the top face** is a finish PETG cannot produce. The machine runs
+10–15 min twice a day and is at room temperature the rest of the time, so the wedge
+never reaches thermal equilibrium; it also sits highest in the stack, above
+`screen_base` and its 5 mm standoff grid. The thing to watch is that the 5 V supply
+lives in `screen_base` directly underneath and heat rises: if the frame ever warps,
+the answer is PETG and no ironing.
+
 ## What it is
 
 Waveshare ESP32-S3-Touch-LCD-4.3 carrier: open rear **frame** on the bed, solid border skirt, module pocket cut straight through it. The module drops in from the front and its own four M2.5 standoffs land on four seat pads; M2.5 screws come up from under the bed face and thread into those standoffs. The skirt's own top face is the frame, level with the glass. Outer size is glass + 10 mm sides + 5 mm top/bottom.
@@ -25,7 +40,7 @@ The rear plate is a frame exactly the width of the seat pads (`rear_frame_margin
 - **The connector window runs to the pocket wall, and a bigger rear opening cannot replace it.** The pads sit in the pocket corners, i.e. on the *same band as the PCB edge*, so a frame cut to them still leaves 9.00 mm of plate measured in from the module edge — and the connectors live in the first 5–6 mm of it. Enlarging the opening only shortens the notch, 16.55 → 8.25 mm; it never opens it. The notch is 8.25 × 44.00, from the frame's lip out to x −53.30, and it cannot go further: beyond the pocket wall is the 9.5 mm rail that ties the skirt to the rear plate on that side.
 - **The window covers 41 mm, not the 31 mm the three signal connectors need.** The extra 10 mm reaches the battery connector at the bottom — not because it has to be plugged, but because it is the tall one and a plate over it is a plate it could foul. `connector_window_margin` 1.5 adds to each end, so the cut is y −21.10 to +22.90 and a caliper reading off by a millimetre still misses every latch.
 - **The window is on the edge opposite USB-C, and `nurb diff` cannot catch a mirror.** Same trap as the cable relief. The check is the bed face's centroid in `nurb inspect`: it reads **x +2.33** because the material removed sits at −x. On the wrong side it would read about −6.
-- **Pad size is a fight with the UART channel, not a free choice.** The UART socket is 12.93 mm from the top edge and the screw 4.00 mm from it: 8.93 mm between centres, and both the pad and the plug want it. The pads are therefore sized to the doctrine minimum — 2.5 mm of PETG around the Ø2.9 bore, so `pad_y` 8.35 and `pad_x` 8.25 — and nothing more. The old square 9.0 mm pad reached y 25.40 while the bare socket ends at y 25.47: **it was touching the connector with 0.07 mm to spare**, and the 14.5 mm channel then cut across it, which is the pad-in-front-of-the-opening the viewer showed. Today the pad starts at y 26.05 and the channel ends at 25.77: **0.28 mm**. That is the tightest number in the part, and `reject` on `cable_slot_width` guards it.
+- **Pad size is a fight with the UART channel, not a free choice.** The UART socket is 12.93 mm from the top edge and the screw 4.00 mm from it: 8.93 mm between centres, and both the pad and the plug want it. The pads are therefore sized to the doctrine minimum — 2.5 mm of material around the Ø2.9 bore, so `pad_y` 8.35 and `pad_x` 8.25 — and nothing more. The old square 9.0 mm pad reached y 25.40 while the bare socket ends at y 25.47: **it was touching the connector with 0.07 mm to spare**, and the 14.5 mm channel then cut across it, which is the pad-in-front-of-the-opening the viewer showed. Today the pad starts at y 26.05 and the channel ends at 25.77: **0.28 mm**. That is the tightest number in the part, and `reject` on `cable_slot_width` guards it.
 - `seat_height` must stay above 3.2 mm: `counterbore` stacks two 1 mm bridging steps over the 2.7 mm head bore, and the pad needs solid material above them.
 - Nothing inside the pocket below **the PCB's back plane** is chamfered (`buried`) — the module covers it and the chamfers only made slivers there. The ceiling is `pcb_back_z` (10.80) and not `seat_z` (6.80) because the two channel mouths rise to exactly that plane and are just as hidden. At `seat_z` they missed the filter by height alone and got the full 1 mm: on the UART mouth, the mouth's top corner chamfer ran from (53.30, 26.77) to (54.30, 25.77), i.e. **0.72 mm past the top pad's edge in the pocket-wall plane**. It removed only skirt — the facet sits entirely at x ≥ 53.30 while the pad is x 45.05 → 53.30, so the pad kept all 2.50 mm around its bore — but it read as a bitten-off pad corner in the viewer. Raising the ceiling drops both mouths' chamfers: 6 faces, +26.4 mm³.
 - **The pocket rim stays sharp** (`against_glass`). A 1 mm chamfer there opens the pocket by 1 mm a side, so the 0.5 mm fit gap reads as a 2.5 mm bevelled shadow all the way round the glass. Dropping it is exactly 4 faces and 177.2 mm³ (351.8 mm of pocket perimeter × 0.5 mm²). The **outer** rim, on the outside face, is still chamfered and should stay that way.

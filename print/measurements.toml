@@ -186,12 +186,12 @@ how = "user: raised floor of the magnet channel. 1 mm above the 2 mm rails, so t
 [module_width]
 value = 106.10
 unit = "mm"
-how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall width 106.10±0.1"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall width 106.10±0.1. user, real module test-fitted 2026-08-19: the printed pocket at 106.10+2x0.5 was 0.5 mm loose across the width, so screen_wedge runs module_clearance_width 0.25 rather than shrinking this."
 
 [module_height]
 value = 67.80
 unit = "mm"
-how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall height 67.80±0.1"
+how = "Waveshare ESP32-S3-LCD-4.3 dimension drawing, overall height 67.80±0.1. This is the PCB, which is the tallest thing in the stack: user, real module in hand 2026-08-19, the PCB stands 0.8 mm past the front glass and all 0.8 is on the BOTTOM edge, i.e. Waveshare's own room for the LCD flat cable. The glass is therefore about 67.00. screen_wedge sizes its pocket to this and puts a 0.8 mm lip on the bottom wall in the glass band."
 
 [module_thickness]
 value = 8.80

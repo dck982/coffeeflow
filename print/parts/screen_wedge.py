@@ -14,7 +14,8 @@ def screen_wedge(
     border_top_bottom=5.0,
     rear_wall=2.5,
     pocket_depth=12.8,
-    module_clearance=0.5,
+    module_clearance_width=0.25,
+    module_clearance_height=0.5,
     rear_frame_margin=0.0,
     seat_height=4.3,
     cable_slot_width=9.6,
@@ -28,6 +29,8 @@ def screen_wedge(
     cable_relief_from_usb_edge=19.3,
     cable_relief_height=5.0,
     cable_relief_below_rim=1.0,
+    glass_lip_depth=0.8,
+    glass_lip_height=1.0,
     foot_hole_width=5.5,
     foot_hole_depth=3.5,
     foot_hole_span=60.0,
@@ -44,7 +47,11 @@ def screen_wedge(
     pocket_depth: from the seat pad tops up to the frame rim, so the rim comes
         out level with the glass: 8.80 glass to PCB plus the module's own 4.00
         M2.5 standoffs, which are what the pads carry
-    module_clearance: free fit around the module inside the pocket
+    module_clearance_width: free fit each side of the module, left and right.
+        Half what it is top and bottom: the real board came in 0.5mm narrower
+        than the drawing's 106.10 across the pocket
+    module_clearance_height: free fit above and below the module. The pocket is
+        sized to the PCB here, which is the tallest thing in the stack
     rear_frame_margin: how far the rear opening stops short of the seat pads.
         0 puts it flush with them, so the rear plate is a frame exactly the
         width of the pads and the whole back of the module is reachable
@@ -77,6 +84,14 @@ def screen_wedge(
     cable_relief_height: how tall it is, matching the LCD stack the cable wraps
     cable_relief_below_rim: frame left full thickness above the relief, so the
         glass still sits against an unbroken rim
+    glass_lip_depth: the PCB runs past the glass along the bottom edge only, so
+        the pocket's bottom wall carries a lip that overhangs the glass by this
+        much. The module goes in at an angle, bottom first, and the PCB slides
+        under it; the glass then lands against the lip with the same gap it has
+        everywhere else
+    glass_lip_height: how far that lip reaches down from the rim. It has to stop
+        well above the PCB's front face or the board cannot pass under it, so it
+        covers the glass thickness and nothing more
     foot_hole_width: the two sockets in the bottom face that screen_base's foot
         pins plug into. Free fit on a 5mm pin, because two pins 60mm apart on a
         separately printed part will never line up to a snug fit
@@ -97,8 +112,8 @@ def screen_wedge(
 
     outer_w = module_w + 2 * border_side
     outer_h = module_h + 2 * border_top_bottom
-    pocket_w = module_w + 2 * module_clearance
-    pocket_h = module_h + 2 * module_clearance
+    pocket_w = module_w + 2 * module_clearance_width
+    pocket_h = module_h + 2 * module_clearance_height
 
     usb_y = module_h / 2 - usb_from_top
     uart_y = module_h / 2 - uart_from_top
@@ -132,12 +147,12 @@ def screen_wedge(
             f"{rear_frame_margin + 1.2 - bore_wall:.2f}",
             param="rear_frame_margin",
         )
-    left_over = border_side - module_clearance - cable_slot_depth - 0.1
+    left_over = border_side - module_clearance_width - cable_slot_depth - 0.1
     if left_over < outer_wall:
         reject(
             f"cable_slot_depth {cable_slot_depth} leaves only {left_over:.1f}mm of "
             f"outer wall, under outer_wall {outer_wall}; shorten it or widen "
-            f"border_side past {module_clearance + cable_slot_depth + 0.1 + outer_wall:.1f}",
+            f"border_side past {module_clearance_width + cable_slot_depth + 0.1 + outer_wall:.1f}",
             param="cable_slot_depth",
         )
     slot_x = pocket_w / 2 + cable_slot_depth / 2
@@ -206,6 +221,30 @@ def screen_wedge(
             -(pocket_h + cable_relief_depth) / 2,
             (relief_bot + relief_top) / 2,
         ) * Box(cable_relief_width, cable_relief_depth, cable_relief_height)
+
+    # The PCB is glass_lip_depth taller than the glass in y, and all of that
+    # extra sits on the *bottom* edge (Waveshare's own room for the flat cable).
+    # The pocket is therefore sized to the PCB, which leaves the glass floating
+    # in an oversize hole at the bottom. A lip along the bottom wall, in the
+    # glass band only, closes it: the module goes in at an angle, bottom first,
+    # the PCB passes under the lip, and the glass then lands against it with the
+    # same module_clearance_height it has on the other three sides.
+    lip_bot = rim_z - glass_lip_height
+    pcb_front_z = rim_z - measured("module_glass_to_pcb")
+    if glass_lip_depth > 0 and lip_bot < pcb_front_z + 1.0:
+        reject(
+            f"the lip reaches down to z {lip_bot:.2f} but the PCB's front face is "
+            f"at z {pcb_front_z:.2f}, so the board cannot slide under it; drop "
+            f"glass_lip_height below "
+            f"{measured('module_glass_to_pcb') - 1.0:.1f}",
+            param="glass_lip_height",
+        )
+    if glass_lip_depth > 0:
+        body = body + Pos(
+            0,
+            -(pocket_h - glass_lip_depth) / 2,
+            (lip_bot + rim_z) / 2,
+        ) * Box(pocket_w, glass_lip_depth, glass_lip_height)
 
     # --- four seat pads standing in the pocket; the module lands on these ---
     # Rectangular and flush into the pocket corner: a round pad leaves a wedge
@@ -311,10 +350,25 @@ def screen_wedge(
             and b.max.X < relief_cx + cable_relief_width / 2 + 0.05
         )
 
+    def on_glass_lip(edge):
+        # The lip's underside runs the width of the pocket at z = lip_bot. A 1mm
+        # chamfer is larger than the 0.8mm it would be chamfering, and it would
+        # eat the very edge the glass is meant to land against.
+        b = edge.bounding_box()
+        return (
+            abs(b.min.Z - lip_bot) < 0.05
+            and abs(b.max.Z - lip_bot) < 0.05
+            and b.min.Y > -pocket_h / 2 + 0.05
+            and b.max.Y < -pocket_h / 2 + glass_lip_depth + 0.05
+        )
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
     keep = keep.filter_by(
-        lambda e: not buried(e) and not against_glass(e) and not in_relief(e)
+        lambda e: not buried(e)
+        and not against_glass(e)
+        and not in_relief(e)
+        and not on_glass_lip(e)
     )
     return polish(body, keep, 1.0)

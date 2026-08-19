@@ -23,7 +23,7 @@ Trois capteurs en feedback :
 
 - **Température du groupe** (sonde collée au groupe, pas l'eau du boiler)
 - **Pression** sur la plomberie, en amont de la vanne
-- **Débit** en ligne
+- **Débit** en amont de la pompe, côté basse pression (le capteur ne tient que 3 bar)
 
 Une **balance Acaia en BLE** (balance = master, Atom = client) donne le poids dans la tasse. L'Atom coupe l'infusion au poids cible.
 
@@ -52,11 +52,31 @@ Wifi sur l'écran (remontée backend) : hors scope.
 | MCU | M5Stack Atom Echo S3R | USB-C | GND, 5 V (depuis l'alim du haut), TX, RX (vers Atom Control) |
 | Température groupe | M5Stack KISOMeter | I2C sur **Port.A** — alim 5 V, signal 3,3 V | GND, 5 V, SDA, SCL |
 | Pression | XDB401 3,3 V | I2C sur **header** — alim et signal 3,3 V | GND, 3,3 V, SDA, SCL |
-| Débit | Digmesa FHKSC PVDF *(à confirmer à réception)* | collecteur ouvert NPN, sur **header** | GND, 5 V, Signal |
+| Débit | Digmesa FHKSC PVDF **932-9521-A** | collecteur ouvert NPN, sur **header** | GND, 5 V, Signal |
 
 Deux bus I2C à des tensions différentes : le KISOMeter sur Port.A (alim 5 V), le XDB401 sur le header en 3,3 V pur.
 
-Le débitmètre est en collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. En première version, la ligne est tenue par la **résistance de pull-up interne de l'ESP32-S3** (`INPUT_PULLUP` sur le GPIO), pas de composant externe. Elle est faible (~45 kΩ typ.), donc le front montant est mou ; sur les quelques dizaines de cm de fil du boîtier Sensor et aux fréquences d'impulsion du FHKSC, ça passe. Si les fronts sont sales ou qu'on voit des impulsions doublées, le correctif est une pull-up externe de 4,7–10 kΩ vers 3,3 V.
+Le débitmètre est en collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. La ligne est tenue par la **résistance de pull-up interne de l'ESP32-S3** (`INPUT_PULLUP` sur le GPIO), pas de composant externe. Elle est faible (~45 kΩ typ.), donc le front montant est mou — mais la ligne ne bat qu'à **2,5 Hz** en extraction, ce qui lui laisse plusieurs ordres de grandeur de marge. Si des impulsions doublées apparaissent malgré tout, le correctif est une pull-up externe de 4,7 kΩ vers 3,3 V.
+
+Le second bus I2C (XDB401 sur G5/G6) n'a en revanche **pas** de résistances de tirage : le Port.A a les siennes, celui-ci non. Il faut deux 4,7 kΩ vers le 3,3 V, une par ligne — **sauf si le module XDB401 les embarque déjà**, ce qui se vérifie à l'ohmmètre entre SDA et VCC hors tension. Détail et schémas : `docs/atom_sensor.html`.
+
+#### Débitmètre 932-9521-A
+
+| Paramètre | Valeur |
+| --- | --- |
+| Buse | 1,20 mm |
+| Sens de montage | 0° |
+| Impulsions | 1925 imp/L, soit 0,519 g/impulsion |
+| Plage linéaire | 0,075 – 0,569 L/min |
+| Perte de charge | ~0,42 bar à 0,6 L/min |
+| **Pression max** | **3 bar à 20 °C** |
+
+Deux conséquences qui ne relèvent pas du câblage :
+
+- **Le capteur va en amont de la pompe**, entre le réservoir et son entrée. La machine infuse à 9 bar et la pompe monte plus haut avant l'OPV : 3 bar de tenue interdisent le circuit haute pression. C'est la position habituelle d'un débitmètre sur une espresso, mais c'est une contrainte de plomberie qui ne se rattrape pas au montage.
+- **Une extraction se déroule au plancher de la plage linéaire.** 36 g en 28 s font 0,077 L/min contre une limite basse à 0,075. En cumul c'est exploitable — 69 impulsions par tasse, 0,52 g de résolution, 1,4 % — mais le débit instantané à 2,5 Hz est grossier pour du profilage : il faudra lisser sur plusieurs secondes ou mesurer les intervalles entre fronts. En pré-infusion (~1 Hz) on passe sous la plage, la valeur devient indicative.
+
+Le suffixe `-A` se distingue du `-B`, plus courant, par l'angle de sortie des raccords — sans effet sur le câblage.
 
 ### BOM — Atom Control (sur la machine)
 
@@ -151,6 +171,7 @@ Un point à surveiller malgré tout : `screen_base` contient l'alimentation, qui
 ```
 coffeeflow/
   README.md          ← cette vue d'ensemble
+  docs/              ← schémas de câblage (HTML, sans JS)
   print/             ← impressions 3D (nurb)
   sound_test/        ← sketch Arduino de test Atom S3
   tts/               ← génération WAV (Gemini TTS) pour le sketch

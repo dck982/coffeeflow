@@ -248,11 +248,23 @@
   <path class="w" stroke="#e0852f" d="M562 300 V230 H1000"/>
   <text class="sml" x="572" y="248">3,3 V → R3</text>
 
-  <!-- UART : segments droits vers G7 / G8 -->
-  <path class="w" stroke="#7d5ba6" d="M260 550 H588"/>
+  <!-- UART : LiYCY → 221-2411 → G7 / G8 -->
+  <rect class="boxsoft" x="330" y="534" width="160" height="32" rx="4"/>
+  <text class="pin" x="410" y="555" text-anchor="middle">RX · 221-2411</text>
+  <rect class="pad" x="322" y="542" width="16" height="16" rx="2"/>
+  <rect class="pad" x="482" y="542" width="16" height="16" rx="2"/>
+
+  <rect class="boxsoft" x="330" y="574" width="160" height="32" rx="4"/>
+  <text class="pin" x="410" y="595" text-anchor="middle">TX · 221-2411</text>
+  <rect class="pad" x="322" y="582" width="16" height="16" rx="2"/>
+  <rect class="pad" x="482" y="582" width="16" height="16" rx="2"/>
+
+  <path class="w" stroke="#7d5ba6" d="M260 550 H322"/>
+  <path class="w" stroke="#7d5ba6" d="M498 550 H588"/>
   <text class="wl" fill="#7d5ba6" x="268" y="542">RX</text>
 
-  <path class="w" stroke="#7d5ba6" d="M260 590 H588"/>
+  <path class="w" stroke="#7d5ba6" d="M260 590 H322"/>
+  <path class="w" stroke="#7d5ba6" d="M498 590 H588"/>
   <text class="wl" fill="#7d5ba6" x="268" y="582">TX</text>
 
   <!-- 5 V / GND du LiYCY → bornier (coudes à gauche de l'Atom) -->
@@ -328,6 +340,8 @@
     <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>GND XDB401</td><td>GND du Grove Hub · GND XDB401</td></tr>
     <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>3,3 V déporté</td><td>fil venu du nœud 3V3 · patte de R3</td></tr>
     <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SIGNAL</td><td>pin G38 · SIGNAL Digmesa · patte R3</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>UART RX</td><td>RX du LiYCY · pin G7</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>UART TX</td><td>TX du LiYCY · pin G8</td></tr>
     <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>5 V Digmesa</td><td>pin 5V header 4 · 5V Digmesa</td></tr>
     <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>GND Digmesa</td><td>pin GND header 4 · GND Digmesa · patte C1</td></tr>
     <tr><td class="qty">1</td><td>Résistance 1 kΩ · 1/4 W</td><td>R3</td><td>tirage du débitmètre, vers 3,3 V</td></tr>
@@ -336,7 +350,7 @@
   </tbody>
 </table>
 
-<p class="note">Les trois 221-2411 SCL / SDA / GND sont là pour pouvoir retirer le XDB401 sans toucher au Hub ni au header. Côté Digmesa, SIGNAL (221-413), 5 V (221-2411) et GND (221-413) jouent le même rôle. C1 a une patte sur le nœud SIGNAL et l'autre dans le 221-413 de masse.</p>
+<p class="note">Les trois 221-2411 SCL / SDA / GND sont là pour pouvoir retirer le XDB401 sans toucher au Hub ni au header. Côté Digmesa, SIGNAL (221-413), 5 V (221-2411) et GND (221-413) jouent le même rôle. C1 a une patte sur le nœud SIGNAL et l'autre dans le 221-413 de masse. Le LiYCY se débranche en RX et TX via deux 221-2411 ; 5 V et GND se débranchent en sortant le bornier USB-C.</p>
 
 <h2>Débitmètre Digmesa 932-9521-A</h2>
 
@@ -421,8 +435,8 @@
     <tr><td class="pin">3V3</td><td>alim 3,3 V</td><td>nœud 3,3 V (XDB401 + R3)</td></tr>
     <tr><td class="pin">G5</td><td class="free">libre</td><td class="free">réserve</td></tr>
     <tr><td class="pin">G6</td><td class="free">libre</td><td class="free">réserve</td></tr>
-    <tr><td class="pin">G7</td><td>UART RX</td><td>câble du haut ← TX de l'Atom Control</td></tr>
-    <tr><td class="pin">G8</td><td>UART TX</td><td>câble du haut → RX de l'Atom Control</td></tr>
+    <tr><td class="pin">G7</td><td>UART RX</td><td>221-2411 ← TX de l'Atom Control</td></tr>
+    <tr><td class="pin">G8</td><td>UART TX</td><td>221-2411 → RX de l'Atom Control</td></tr>
   </tbody>
 </table>
 </div>
@@ -446,7 +460,7 @@
 <ul>
   <li><b>Tout l'I2C passe par Port.A.</b> Le Hub étend le connecteur, le Weight-I2C s'y branche en 5 V comme n'importe quelle unit, le XDB401 s'y greffe en 3,3 V par un câble Grove sans fil rouge. G5 et G6, qui portaient autrefois le second bus, restent libres.</li>
   <li><b>Le 3,3 V du header ne sert plus qu'à deux choses</b> : alimenter le XDB401, et tirer la ligne du débitmètre. Un seul Wago 221-413 les réunit.</li>
-  <li><b>L'UART prend les deux positions du bas</b>, G7 et G8, les plus proches du port USB-C. Le LiYCY venant du haut arrive par là : ses deux fils d'alimentation entrent dans le bornier USB-C, ses deux fils de données montent de deux pins. Aucun fil ne traverse le module.</li>
+  <li><b>L'UART prend les deux positions du bas</b>, G7 et G8, les plus proches du port USB-C. Le LiYCY venant du haut arrive par là : ses deux fils d'alimentation entrent dans le bornier USB-C (c'est le bornier qui se débranche), ses deux fils de données passent chacun par un 221-2411 avant G7 et G8. Aucun fil ne traverse le module.</li>
   <li><b>Le Digmesa tient entièrement sur le header 4 pins</b> : GND, 5V et G38 sont ses trois conducteurs, contigus. Chacun passe par un Wago (221-2411 sur le 5 V, 221-413 sur SIGNAL et sur la masse) pour pouvoir retirer la sonde sans toucher au header. La masse reçoit aussi la patte de C1.</li>
   <li><b>Aucune de ces broches n'est un <em>strapping pin</em></b> de l'ESP32-S3 (0, 3, 45, 46). Rien de ce qui est branché ne peut perturber le démarrage, même si un capteur tire une ligne au moment du reset.</li>
   <li><b>G5, G6 et G39 restent libres.</b></li>
@@ -483,7 +497,7 @@
 </div>
 
 <div class="note">
-<b>TX et RX se croisent.</b> Les libellés du schéma sont ceux de l'Atom Sensor : son <code>G8</code> (TX) part vers le <b>RX</b> de l'Atom Control, son <code>G7</code> (RX) vient du <b>TX</b> du Control. À l'autre bout du LiYCY, 5 V et GND vont sur l'HNP-1205 (5 V / 2 A), TX et RX sur deux GPIO de l'Atom Echo S3R Control. Les masses sont communes via l'alimentation.
+<b>TX et RX se croisent.</b> Les libellés du schéma sont ceux de l'Atom Sensor : son <code>G8</code> (TX) part vers le <b>RX</b> de l'Atom Control, son <code>G7</code> (RX) vient du <b>TX</b> du Control. Chaque fil passe par un 221-2411, pour retirer le LiYCY sans toucher au header. À l'autre bout, 5 V et GND vont sur l'HNP-1205 (5 V / 2 A), TX et RX sur deux GPIO de l'Atom Echo S3R Control. Les masses sont communes via l'alimentation.
 </div>
 
 <div class="note">

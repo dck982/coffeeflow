@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>coffeeflow — câblage Atom Control</title>
+<style>
+  :root{
+    --gnd:#2b2b2b; --v5:#d1495b; --v33:#e0852f; --i2c:#2a7fb8;
+    --uart:#7d5ba6; --can:#b85a1a; --dim:#2f9e6e; --gpio:#c47c2b;
+    --bg:#faf9f7; --ink:#1c1c1c; --muted:#6b6b6b; --rule:#dcd8d2;
+    --pblue:#2a7fb8; --pblack:#2b2b2b; --pred:#d1495b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 32px 72px; background:var(--bg); color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  main{max-width:1400px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+  .lede{color:#333;margin:0 0 22px;max-width:62em}
+  h2{font-size:19px;margin:44px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  h3{font-size:15px;margin:26px 0 8px}
+  figure{margin:0}
+  svg{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--rule);border-radius:10px}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+  table{border-collapse:collapse;width:100%;margin:0 0 8px;font-size:14.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  tbody tr:last-child td{border-bottom:none}
+  td.pin{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600;white-space:nowrap}
+  .free{color:var(--muted);font-style:italic}
+  tr.grp td{
+    background:#f1efea; font-weight:600; font-size:12.5px; letter-spacing:.05em;
+    text-transform:uppercase; color:#4a4a4a; padding-top:11px; padding-bottom:11px;
+  }
+  td.qty{text-align:right;width:56px;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  .tbd{color:var(--v5)}
+  .cols{display:flex;gap:32px;flex-wrap:wrap}
+  .cols>div{flex:1 1 420px;min-width:340px}
+  .note{
+    border-left:3px solid var(--rule); padding:2px 0 2px 16px; margin:16px 0;
+    color:#333; font-size:15px;
+  }
+  .note.warn{border-left-color:var(--v5)}
+  .note b{font-weight:600}
+  ul{margin:10px 0;padding-left:20px}
+  li{margin:5px 0}
+  footer{margin-top:52px;padding-top:14px;border-top:1px solid var(--rule);color:var(--muted);font-size:13.5px}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Atom Control — câblage</h1>
+<p class="lede">Version définitive. Même Atom Echo S3R que le nœud capteurs, enfiché sur une Atomic Port ABC Base : les six GPIO du header arrière deviennent trois ports Grove (bleu, noir, rouge). PORT.A, toujours sur l'Atom, porte l'I2C vers un PbHub d'où partent le SSR brew et le relais NC. Le 5 V arrive de l'HNP-1205 via deux Wago 221-415, et entre dans l'Atom par un bornier USB-C. Le 230 V (SSR, relais, dimmer, fusible) n'est pas sur ce schéma.</p>
+
+<figure>
+<svg viewBox="0 0 1640 1100" role="img" aria-label="Câblage Atom Control, 5 V et signaux">
+  <defs>
+    <style>
+      .box{fill:#fff;stroke:#1c1c1c;stroke-width:1.6}
+      .boxsoft{fill:#f4f2ee;stroke:#9a958d;stroke-width:1.4}
+      .ttl{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1c1c1c}
+      .sml{font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#6b6b6b}
+      .pin{font:600 12.5px ui-monospace,Menlo,Consolas,monospace;fill:#1c1c1c}
+      .wl{font:600 12px ui-monospace,Menlo,Consolas,monospace}
+      .pad{fill:#e9e5dd;stroke:#1c1c1c;stroke-width:1.3}
+      .w{fill:none;stroke-width:3;stroke-linecap:square;stroke-linejoin:miter}
+      .grove{fill:none;stroke-width:7;stroke-linecap:butt;stroke-linejoin:miter}
+      .halo{fill:none;stroke:#fff;stroke-width:9}
+      .grovehalo{fill:none;stroke:#fff;stroke-width:14}
+      .dot{fill:#1c1c1c}
+    </style>
+  </defs>
+
+  <!-- ============ PbHub ============ -->
+  <rect class="box" x="40" y="24" width="290" height="118" rx="8"/>
+  <text class="ttl" x="58" y="52">M5Stack Unit PbHub</text>
+  <text class="sml" x="58" y="74">expandeur GPIO · I2C 0x61</text>
+  <text class="sml" x="58" y="92">6 ports Grove PORT.B</text>
+  <text class="sml" x="58" y="110">pull-up 10 kΩ SCL / SDA</text>
+  <text class="sml" x="58" y="128">2 ports utilisés, 4 libres</text>
+
+  <!-- ============ 4 modules alignés, même largeur ============ -->
+  <rect class="box" x="545" y="24" width="300" height="100" rx="8"/>
+  <text class="ttl" x="563" y="50">M5Stack Unit SSR</text>
+  <text class="sml" x="563" y="70">MOC3043 + BT136S · 2 A</text>
+  <text class="sml" x="563" y="88">GND · 5V · SIG · jaune = DIN</text>
+  <text class="sml" x="563" y="106">brew : vanne + pompe</text>
+
+  <rect class="box" x="545" y="136" width="300" height="100" rx="8"/>
+  <text class="ttl" x="563" y="162">M5Stack Unit Relay</text>
+  <text class="sml" x="563" y="182">HK4100F · SPDT · 5 V</text>
+  <text class="sml" x="563" y="200">GND · 5V · REL · câblé NC</text>
+  <text class="sml" x="563" y="218">bypass dimmer, mode manuel</text>
+
+  <path class="grove" stroke="#2a7fb8" d="M330 74 H545"/>
+  <text class="wl" fill="#2a7fb8" x="400" y="64">Grove</text>
+
+  <path class="grove" stroke="#2a7fb8" d="M330 100 H525 V186 H545"/>
+  <text class="wl" fill="#2a7fb8" x="400" y="122">Grove</text>
+
+  <!-- PORT.A → PbHub (dans le vide entre les deux boîtes) -->
+  <path class="grove" stroke="#2a7fb8" d="M190 142 V268"/>
+  <text class="wl" fill="#2a7fb8" x="204" y="188">Grove</text>
+  <text class="wl" fill="#6b6b6b" x="204" y="206">GND · 5V</text>
+  <text class="wl" fill="#6b6b6b" x="204" y="222">SDA G2 · SCL G1</text>
+
+  <!-- ============ ATOM + BASE sur le flanc droit ============ -->
+  <rect class="box" x="40" y="268" width="300" height="300" rx="10"/>
+  <text class="ttl" x="190" y="310" text-anchor="middle">M5Stack Atom Echo S3R</text>
+  <text class="sml" x="190" y="332" text-anchor="middle">ESP32-S3 · « Atom Control »</text>
+  <text class="sml" x="190" y="354" text-anchor="middle">header arrière enfiché</text>
+  <text class="sml" x="190" y="372" text-anchor="middle">dans la base</text>
+  <text class="sml" x="190" y="520" text-anchor="middle">3V3 de la base : caché, inutilisé</text>
+
+  <rect class="pad" x="150" y="256" width="80" height="24" rx="3"/>
+  <text class="pin" x="190" y="273" text-anchor="middle">PORT.A</text>
+  <rect class="pad" x="150" y="556" width="80" height="24" rx="3"/>
+  <text class="pin" x="190" y="573" text-anchor="middle">USB-C</text>
+
+  <rect class="box" x="340" y="268" width="158" height="300" rx="10"/>
+  <text class="ttl" x="419" y="292" text-anchor="middle">Port ABC</text>
+  <text class="sml" x="419" y="310" text-anchor="middle">A130 · base tournée</text>
+
+  <rect x="352" y="322" width="134" height="50" rx="5" fill="#f8e8ea" stroke="#d1495b" stroke-width="1.8"/>
+  <text class="pin" x="419" y="343" text-anchor="middle" fill="#d1495b">port rouge</text>
+  <text class="sml" x="419" y="360" text-anchor="middle">G38 · G39</text>
+
+  <rect x="352" y="402" width="134" height="50" rx="5" fill="#ececec" stroke="#2b2b2b" stroke-width="1.8"/>
+  <text class="pin" x="419" y="423" text-anchor="middle">port noir</text>
+  <text class="sml" x="419" y="440" text-anchor="middle">G7 · G8</text>
+
+  <rect x="352" y="492" width="134" height="50" rx="5" fill="#e8f2fa" stroke="#2a7fb8" stroke-width="1.8"/>
+  <text class="pin" x="419" y="513" text-anchor="middle" fill="#2a7fb8">port bleu</text>
+  <text class="sml" x="419" y="530" text-anchor="middle">G5 · G6</text>
+
+  <!-- ============ Unit CAN ============ -->
+  <rect class="box" x="545" y="268" width="300" height="150" rx="8"/>
+  <text class="ttl" x="563" y="296">M5Stack Unit CAN</text>
+  <text class="sml" x="563" y="316">CA-IS3050G · isolé</text>
+  <text class="sml" x="563" y="334">Grove GND · 5V · TX · RX</text>
+  <text class="sml" x="563" y="352">jaune CAN_TX · blanc CAN_RX</text>
+  <text class="sml" x="563" y="370">G38 TX · G39 RX</text>
+  <text class="sml" x="563" y="396">120 Ω fournie, aux deux bouts</text>
+
+  <path class="grove" stroke="#b85a1a" d="M486 347 H545"/>
+  <text class="wl" fill="#b85a1a" x="498" y="338">Grove</text>
+
+  <!-- ============ abaisseur 5 V → 3,3 V + Dimmer ============ -->
+  <rect class="boxsoft" x="505" y="444" width="50" height="50" rx="4"/>
+  <text class="pin" x="530" y="465" text-anchor="middle">5 V</text>
+  <text class="sml" x="530" y="481" text-anchor="middle">2411</text>
+
+  <rect class="box" x="570" y="428" width="170" height="88" rx="8"/>
+  <text class="ttl" x="583" y="452">N7803-1CW</text>
+  <text class="sml" x="583" y="470">Mean Well · 5 V → 3,3 V</text>
+  <text class="sml" x="583" y="486">+Vin Grove · +Vout dimmer</text>
+  <text class="sml" x="583" y="502">GND ← 221-415</text>
+
+  <rect class="boxsoft" x="755" y="444" width="50" height="50" rx="4"/>
+  <text class="pin" x="780" y="465" text-anchor="middle">3,3 V</text>
+  <text class="sml" x="780" y="481" text-anchor="middle">2411</text>
+
+  <rect class="box" x="870" y="428" width="270" height="195" rx="8"/>
+  <text class="ttl" x="888" y="454">RobotDyn AC Dimmer 4 A</text>
+  <text class="sml" x="888" y="474">header mâle, gauche → droite</text>
+  <rect class="pad" x="888" y="488" width="22" height="22" rx="2"/>
+  <rect class="pad" x="926" y="488" width="22" height="22" rx="2"/>
+  <rect class="pad" x="964" y="488" width="22" height="22" rx="2"/>
+  <rect class="pad" x="1002" y="488" width="22" height="22" rx="2"/>
+  <text class="pin" x="899" y="528" text-anchor="middle">GND</text>
+  <text class="pin" x="937" y="528" text-anchor="middle">VCC</text>
+  <text class="pin" x="975" y="528" text-anchor="middle">Z-C</text>
+  <text class="pin" x="1013" y="528" text-anchor="middle">Dim</text>
+  <text class="sml" x="888" y="552">VCC = 3,3 V (pas le 5 V Grove)</text>
+  <text class="sml" x="888" y="570">G7 = Z-C · G8 = Dim</text>
+  <text class="sml" x="888" y="588">Dupont VCC recoupé après N7803</text>
+  <text class="sml" x="888" y="606">GND Grove continu jusqu'au header</text>
+
+  <path class="grove" stroke="#2f9e6e" d="M486 427 H505"/>
+  <text class="wl" fill="#2f9e6e" x="470" y="418">Grove</text>
+
+  <path class="w" stroke="#d1495b" d="M505 427 V469"/>
+  <text class="wl" fill="#d1495b" x="470" y="444">5V</text>
+  <path class="w" stroke="#d1495b" d="M555 469 H570"/>
+  <path class="w" stroke="#e0852f" d="M740 469 H755"/>
+  <path class="w" stroke="#e0852f" d="M805 469 H937 V488"/>
+  <text class="wl" fill="#e0852f" x="760" y="436">3,3 V</text>
+  <text class="sml" x="758" y="512">Dupont VCC</text>
+
+  <path class="w" stroke="#2b2b2b" d="M505 427 V610 H870 V499 H888"/>
+  <text class="wl" fill="#2b2b2b" x="470" y="500">GND</text>
+
+  <path class="w" stroke="#2f9e6e" d="M505 427 V590 H870 V499 H964"/>
+  <text class="wl" fill="#2f9e6e" x="620" y="582">Z-C · Dim</text>
+
+  <!-- ============ UART Wagos + LiYCY ============ -->
+  <rect class="boxsoft" x="545" y="648" width="155" height="32" rx="4"/>
+  <text class="pin" x="623" y="669" text-anchor="middle">RX · 221-2411</text>
+  <rect class="pad" x="537" y="656" width="16" height="16" rx="2"/>
+  <rect class="pad" x="692" y="656" width="16" height="16" rx="2"/>
+
+  <rect class="boxsoft" x="545" y="692" width="155" height="32" rx="4"/>
+  <text class="pin" x="623" y="713" text-anchor="middle">TX · 221-2411</text>
+  <rect class="pad" x="537" y="700" width="16" height="16" rx="2"/>
+  <rect class="pad" x="692" y="700" width="16" height="16" rx="2"/>
+
+  <path class="grove" stroke="#7d5ba6" d="M486 517 H498 V680 H545"/>
+  <text class="wl" fill="#7d5ba6" x="470" y="600">Grove</text>
+
+  <rect class="box" x="790" y="640" width="240" height="168" rx="8"/>
+  <text class="ttl" x="808" y="668">Câble LiYCY</text>
+  <text class="sml" x="808" y="688">4×0,25 mm², paires droites</text>
+  <text class="sml" x="808" y="706">blindé, 30–40 cm</text>
+  <text class="sml" x="808" y="728">vers l'Atom Sensor</text>
+  <text class="sml" x="808" y="750">TX · RX → 221-2411</text>
+  <text class="sml" x="808" y="768">5V · GND → 221-415</text>
+  <text class="sml" x="808" y="786">jaune / blanc seuls sur le bleu</text>
+
+  <path class="w" stroke="#7d5ba6" d="M708 664 H790"/>
+  <text class="wl" fill="#7d5ba6" x="728" y="656">RX</text>
+  <path class="w" stroke="#7d5ba6" d="M708 708 H790"/>
+  <text class="wl" fill="#7d5ba6" x="728" y="700">TX</text>
+
+  <!-- ============ Écran, au-dessus de la légende ============ -->
+  <rect class="boxsoft" x="1060" y="640" width="210" height="168" rx="8"/>
+  <text class="ttl" x="1078" y="668">Écran ESP32</text>
+  <text class="sml" x="1078" y="688">Waveshare 4,3"</text>
+  <text class="sml" x="1078" y="706">alim 5 V du 221-415</text>
+  <text class="sml" x="1078" y="728">CANH · CANL</text>
+  <text class="sml" x="1078" y="746">bornier HT3.96 du Unit CAN</text>
+  <text class="sml" x="1078" y="768">120 Ω à ce bout aussi</text>
+  <text class="sml" x="1078" y="790">à gauche : LiYCY Sensor</text>
+
+  <!-- CANH / CANL parallèles, écartés -->
+  <path class="w" stroke="#b85a1a" stroke-dasharray="7 5" d="M845 310 H1288 V688 H1270"/>
+  <path class="w" stroke="#b85a1a" stroke-dasharray="7 5" d="M845 348 H1324 V728 H1270"/>
+  <text class="wl" fill="#b85a1a" x="1336" y="490">CANH</text>
+  <text class="wl" fill="#b85a1a" x="1336" y="540">CANL</text>
+
+  <!-- ============ USB-C + bornes 5 V / GND côte à côte ============ -->
+  <rect class="boxsoft" x="85" y="592" width="170" height="50" rx="6"/>
+  <text class="pin" x="101" y="614">Bornier USB-C</text>
+  <text class="sml" x="101" y="632">5V et GND seulement</text>
+
+  <rect class="boxsoft" x="40" y="656" width="125" height="44" rx="5"/>
+  <text class="pin" x="52" y="676">5 V · 221-415</text>
+  <rect class="pad" x="52" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="70" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="88" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="106" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="124" y="684" width="14" height="7" rx="1"/>
+
+  <rect class="boxsoft" x="175" y="656" width="125" height="44" rx="5"/>
+  <text class="pin" x="187" y="676">GND · 221-415</text>
+  <rect class="pad" x="187" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="205" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="223" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="241" y="684" width="14" height="7" rx="1"/>
+  <rect class="pad" x="259" y="684" width="14" height="7" rx="1"/>
+
+  <!-- ============ HNP, angle bas gauche ============ -->
+  <rect class="box" x="40" y="880" width="260" height="108" rx="8"/>
+  <text class="ttl" x="58" y="908">HNP-1205</text>
+  <text class="sml" x="58" y="928">alim 5 V / 2 A · screen_base</text>
+  <text class="sml" x="58" y="946">entrée 230 V hors schéma</text>
+  <text class="sml" x="58" y="964">fusible 315 mA en amont</text>
+
+  <!-- ================= FILS alim ================= -->
+
+  <path class="w" stroke="#d1495b" d="M170 592 V580"/>
+  <text class="wl" fill="#6b6b6b" x="178" y="588">5V+GND</text>
+
+  <path class="w" stroke="#d1495b" d="M120 642 V656"/>
+  <path class="w" stroke="#2b2b2b" d="M220 642 V656"/>
+
+  <path class="w" stroke="#d1495b" d="M100 880 V700"/>
+  <text class="wl" fill="#d1495b" x="108" y="860">5V</text>
+  <path class="w" stroke="#2b2b2b" d="M230 880 V700"/>
+  <text class="wl" fill="#2b2b2b" x="238" y="860">GND</text>
+  <circle class="dot" cx="100" cy="700" r="4"/>
+  <circle class="dot" cx="230" cy="700" r="4"/>
+
+  <path class="halo" d="M100 700 V718 H310 V832 H1160 V808"/>
+  <path class="w" stroke="#d1495b" d="M100 700 V718 H310 V832 H1160 V808"/>
+  <text class="wl" fill="#d1495b" x="318" y="824">5V</text>
+
+  <path class="halo" d="M230 700 V734 H330 V848 H1190 V808"/>
+  <path class="w" stroke="#2b2b2b" d="M230 700 V734 H330 V848 H1190 V808"/>
+  <text class="wl" fill="#2b2b2b" x="350" y="864">GND</text>
+  <circle class="dot" cx="330" cy="734" r="4"/>
+  <path class="halo" d="M330 734 H655 V516"/>
+  <path class="w" stroke="#2b2b2b" d="M330 734 H655 V516"/>
+  <text class="wl" fill="#2b2b2b" x="400" y="726">GND N7803</text>
+
+  <path class="w" stroke="#d1495b" d="M910 808 V832"/>
+  <path class="w" stroke="#2b2b2b" d="M940 808 V848"/>
+  <circle class="dot" cx="910" cy="832" r="4"/>
+  <circle class="dot" cx="940" cy="848" r="4"/>
+
+  <!-- ============ légende centrée, sous le GND ============ -->
+  <rect x="605" y="868" width="430" height="196" rx="8" fill="#fff" stroke="#dcd8d2" stroke-width="1.2"/>
+  <text class="ttl" x="621" y="894">Repères</text>
+  <path class="w" stroke="#2b2b2b" d="M621 916 H653"/><text class="sml" x="661" y="921">GND</text>
+  <path class="w" stroke="#d1495b" d="M733 916 H765"/><text class="sml" x="773" y="921">5 V</text>
+  <path class="w" stroke="#e0852f" d="M845 916 H877"/><text class="sml" x="885" y="921">3,3 V</text>
+  <path class="w" stroke="#2a7fb8" d="M621 942 H653"/><text class="sml" x="661" y="947">I2C / GPIO PbHub</text>
+  <path class="w" stroke="#7d5ba6" d="M785 942 H817"/><text class="sml" x="825" y="947">UART Sensor</text>
+  <path class="w" stroke="#b85a1a" d="M621 968 H653"/><text class="sml" x="661" y="973">CAN Grove</text>
+  <path class="w" stroke="#2f9e6e" d="M785 968 H817"/><text class="sml" x="825" y="973">dimmer (ZC · Dim)</text>
+  <path class="w" stroke="#b85a1a" stroke-dasharray="7 5" d="M621 994 H653"/><text class="sml" x="661" y="999">bus CANH / CANL</text>
+  <text class="sml" x="621" y="1024">Fil qui en enjambe un autre : pas de connexion.</text>
+  <text class="sml" x="621" y="1042">Le 230 V n'est pas dessiné.</text>
+  <text class="sml" x="621" y="1058">Base tournée : haut → bas = rouge, noir, bleu.</text>
+</svg>
+</figure>
+
+<h2>Bornes</h2>
+
+<table>
+  <thead><tr><th class="qty">Qté</th><th>Référence</th><th>Nœud</th><th>Conducteurs</th></tr></thead>
+  <tbody>
+    <tr><td class="qty">1</td><td>Wago 221-415 · 5 leviers</td><td>5 V</td><td>HNP-1205 · bornier USB-C Control · LiYCY Sensor · écran ESP32 · 1 levier libre</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-415 · 5 leviers</td><td>GND</td><td>HNP-1205 · bornier USB-C Control · LiYCY Sensor · écran ESP32 · N7803-1CW</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>UART RX</td><td>RX du LiYCY · fil UART du port bleu (vers G5 / G6)</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>UART TX</td><td>TX du LiYCY · l'autre fil UART du port bleu</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>5 V dimmer</td><td>fil rouge du Grove noir · +Vin du N7803-1CW</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>3,3 V dimmer</td><td>+Vout du N7803-1CW · Dupont VCC recoupé vers le RobotDyn</td></tr>
+    <tr><td class="qty">1</td><td>Bornier USB-C mâle ↔ 4 vis</td><td>alim Atom</td><td>5 V et GND du 221-415 ; 2 bornes sur 4 utilisées</td></tr>
+  </tbody>
+</table>
+
+<p class="note">Les deux 221-2411 UART sont le point de débranchement du LiYCY côté Control : on retire le câble Sensor sans toucher à la base. 5 V et GND du LiYCY se débranchent en sortant du 221-415. L'Atom Control lui-même se débranche en sortant le bornier USB-C. Le dimmer se débranche soit au Grove du port noir, soit aux Duponts sur le header — le fil VCC, lui, se sépare aux deux 221-2411 de part et d'autre du N7803. Pas de 221-413 : le GND du N7803 prend le 5<sup>e</sup> levier du 221-415 de masse.</p>
+
+<h2>Atomic Port ABC Base</h2>
+
+<p>L'Atom est enfiché sur la base : le header arrière n'est plus accessible. La broche 3V3 existe sur le connecteur, mais le module la recouvre — d'où le N7803-1CW sur le 5 V du port noir, pour alimenter le dimmer en 3,3 V. Chaque port Grove de la base emporte du 5 V et du GND, plus deux GPIO.</p>
+
+<table>
+  <thead><tr><th>Port (g. → d.)</th><th>Couleur</th><th>GPIO</th><th>Rôle</th><th>Câble</th></tr></thead>
+  <tbody>
+    <tr><td class="pin">gauche</td><td>bleu · PORT.C</td><td class="pin">G5, G6</td><td>UART vers l'Atom Sensor</td><td>Grove → deux 221-2411 (RX, TX seulement)</td></tr>
+    <tr><td class="pin">milieu</td><td>noir · PORT.B</td><td class="pin">G7, G8</td><td>dimmer RobotDyn en 3,3 V</td><td>Grove, 5 V coupé vers N7803-1CW</td></tr>
+    <tr><td class="pin">droite</td><td>rouge · PORT.A</td><td class="pin">G38, G39</td><td>Unit CAN vers l'écran</td><td>Grove 4 fils, tel quel</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+<b>Le port rouge de la base n'est pas de l'I2C.</b> Chez M5Stack le rouge est PORT.A, prévu I2C ; ici G38 et G39 portent le TWAI. L'I2C du Control passe uniquement par le PORT.A <em>de l'Atom</em> (G2 / G1), celui qui reste sur le module, vers le PbHub.
+</div>
+
+<h2>Dimmer RobotDyn 4 A</h2>
+
+<p>Le header mâle, de gauche à droite (silkscreen GND · VCC · Z-C · Dim). VCC n'est <b>pas</b> le 5 V du Grove : il vient du N7803-1CW, en 3,3 V.</p>
+
+<table>
+  <thead><tr><th>Pin dimmer</th><th>Fil</th><th>GPIO</th><th>Sens</th></tr></thead>
+  <tbody>
+    <tr><td class="pin">GND</td><td>noir du Grove, continu</td><td>—</td><td>masse du port noir jusqu'au header</td></tr>
+    <tr><td class="pin">VCC</td><td>Dupont recoupé ← 221-2411 3,3 V</td><td>—</td><td>3,3 V du N7803-1CW</td></tr>
+    <tr><td class="pin">Z-C</td><td>jaune du Grove</td><td class="pin">G7</td><td>entrée, zero-cross, collecteur ouvert tiré vers VCC</td></tr>
+    <tr><td class="pin">Dim / PSM</td><td>blanc du Grove</td><td class="pin">G8</td><td>entrée du module ← sortie GPIO</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+<b>Le fil 5 V du Grove est coupé, pas le câble entier.</b> Côté port noir, le rouge aboutit dans un 221-2411, puis au +Vin (rouge) du N7803-1CW. Le +Vout (jaune) ressort dans un second 221-2411, où se branche le Dupont femelle VCC recoupé, vers le header du RobotDyn. Jaune (Z-C) et blanc (Dim) restent continus. Le noir (GND) reste continu jusqu'au header du dimmer. Le GND du N7803-1CW part du 221-415 de masse (5<sup>e</sup> levier).
+</div>
+
+<div class="note">
+<b>Z-C suit VCC, donc 3,3 V.</b> Le zero-cross du RobotDyn est un collecteur ouvert, typiquement tiré vers VCC sur le module. En alimentant VCC en 3,3 V, G7 voit du 3,3 V, pas du 5 V. C'est pour ça que le 3V3 de la base, caché par l'Atom, est remplacé par le N7803-1CW. Pas de pull-up à ajouter côté Atom.
+</div>
+
+<div class="note">
+<b>Dim / PSM n'a pas besoin de pull-down.</b> C'est une <em>entrée</em> du module, pas une sortie. Elle attaque la LED de l'optocoupleur (MOC3021) en série avec ~470 Ω à 1 kΩ vers GND : au repos, GPIO en haute impédance, la ligne est déjà à 0 V. G8 se câble en direct, sortie numérique 3,3 V. Le courant LED passe aussi bien en 3,3 V qu'en 5 V ; ici VCC est en 3,3 V de toute façon. Pas de résistance externe.
+</div>
+
+<h2>Nomenclature</h2>
+
+<table>
+  <thead><tr><th class="qty">Qté</th><th>Référence</th><th>Rôle</th><th>Raccordement</th></tr></thead>
+  <tbody>
+    <tr class="grp"><td colspan="4">Modules</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Atom Echo S3R</td><td>MCU du nœud contrôle</td><td>USB-C, PORT.A, enfiché sur la base</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Atomic Port ABC Base · A130</td><td>Trois Grove GPIO + 5 V / GND</td><td>header arrière de l'Atom</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit PbHub · U041</td><td>6 GPIO Grove via I2C 0x61</td><td>PORT.A de l'Atom, câble Grove</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit SSR · U122</td><td>Relais statique brew, 2 A</td><td>Grove SIG depuis le PbHub</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit Relay · U023</td><td>SPDT, bypass dimmer en NC</td><td>Grove REL depuis le PbHub</td></tr>
+    <tr><td class="qty">1</td><td>RobotDyn AC Dimmer 4 A</td><td>Variation de pression, pompe</td><td>port noir, VCC en 3,3 V via N7803</td></tr>
+    <tr><td class="qty">1</td><td>Mean Well N7803-1CW</td><td>Abaisseur 5 V → 3,3 V, 1 A, 3 fils</td><td>+Vin ← Grove 5 V · GND ← 221-415 · +Vout → dimmer</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit CAN · U085</td><td>Transceiver CAN isolé vers l'écran</td><td>port rouge, Grove 4 fils</td></tr>
+    <tr><td class="qty">1</td><td>HNP-1205</td><td>Alim 5 V / 2 A</td><td>étoile 221-415</td></tr>
+
+    <tr class="grp"><td colspan="4">Câbles</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>PORT.A Atom → PbHub</td><td>Fourni avec le PbHub</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>PbHub → Unit SSR</td><td>GND, 5 V, SIG (jaune) ; blanc NC</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>PbHub → Unit Relay</td><td>GND, 5 V, REL (jaune) ; blanc NC</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>Port bleu → UART Sensor</td><td>Jaune / blanc sur 221-2411 ; rouge et noir non connectés</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove → Dupont femelle 4 fils</td><td>Port noir → dimmer</td><td>GND continu ; 5 V coupé vers N7803 ; Z-C et Dim continus ; Dupont VCC recoupé après le N7803</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>Port rouge → Unit CAN</td><td>GND, 5 V, CAN_TX, CAN_RX</td></tr>
+    <tr><td class="qty">1</td><td>LiYCY 4×0,25 mm², paires droites, blindé, 30–40 cm</td><td>Alim 5 V + UART vers le Sensor</td><td>5 V / GND → 221-415 ; TX / RX → 221-2411</td></tr>
+    <tr><td class="qty">2</td><td>Fil 0,25 mm²</td><td>5 V et GND vers l'écran</td><td>Depuis les 221-415</td></tr>
+    <tr><td class="qty">1</td><td>Paire CANH / CANL, courte</td><td>Unit CAN → connecteur CAN écran</td><td>Bornier HT3.96 ; 120 Ω à chaque bout</td></tr>
+
+    <tr class="grp"><td colspan="4">Divers</td></tr>
+    <tr><td class="qty">1</td><td>Bornier USB-C mâle ↔ 4 vis</td><td>Injecte le 5 V dans l'Atom</td><td>2 bornes sur 4 utilisées</td></tr>
+    <tr><td class="qty">1</td><td>Résistance 120 Ω (fournie avec le Unit CAN)</td><td>Terminaison bus CAN, côté Control</td><td>Entre CANH et CANL</td></tr>
+    <tr><td class="qty">1</td><td>Boîtier <span class="mono">screen_base</span> imprimé PETG</td><td>Objet nº 5 du projet</td><td>À dimensionner</td></tr>
+  </tbody>
+</table>
+
+<h2>Affectation des broches</h2>
+
+<div class="cols">
+<div>
+<table>
+  <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:0 0 8px">Atom — PORT.A et USB-C</caption>
+  <thead><tr><th>Pin</th><th>Signal</th><th>Vers</th></tr></thead>
+  <tbody>
+    <tr><td class="pin">PORT.A G2</td><td>I2C SDA</td><td>PbHub, câble Grove</td></tr>
+    <tr><td class="pin">PORT.A G1</td><td>I2C SCL</td><td>PbHub, câble Grove</td></tr>
+    <tr><td class="pin">USB-C 5V</td><td>alim 5 V</td><td>221-415 ← HNP-1205</td></tr>
+    <tr><td class="pin">USB-C GND</td><td>masse</td><td>221-415</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<table>
+  <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:0 0 8px">Base — trois Grove, gauche → droite</caption>
+  <thead><tr><th>Pin</th><th>Signal</th><th>Vers</th></tr></thead>
+  <tbody>
+    <tr><td class="pin">G5</td><td>UART (bleu)</td><td>221-2411 ↔ LiYCY Sensor</td></tr>
+    <tr><td class="pin">G6</td><td>UART (bleu)</td><td>221-2411 ↔ LiYCY Sensor</td></tr>
+    <tr><td class="pin">G7</td><td>Z-C dimmer</td><td>port noir, fil jaune, VCC module = 3,3 V</td></tr>
+    <tr><td class="pin">G8</td><td>Dim / PSM</td><td>port noir, fil blanc, sortie GPIO directe</td></tr>
+    <tr><td class="pin">G38</td><td>CAN TX</td><td>Unit CAN, fil jaune</td></tr>
+    <tr><td class="pin">G39</td><td>CAN RX</td><td>Unit CAN, fil blanc</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<table>
+  <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:8px 0">PbHub — I2C 0x61, ports Grove au choix</caption>
+  <thead><tr><th>Port PbHub</th><th>Signal</th><th>Vers</th></tr></thead>
+  <tbody>
+    <tr><td class="pin">un PORT.B</td><td>IO0 (fil jaune)</td><td>Unit SSR · DIN</td></tr>
+    <tr><td class="pin">un autre PORT.B</td><td>IO0 (fil jaune)</td><td>Unit Relay · DIN</td></tr>
+    <tr><td class="pin">× 4</td><td class="free">libres</td><td class="free">réserve</td></tr>
+  </tbody>
+</table>
+
+<h2>Pourquoi ces broches</h2>
+
+<ul>
+  <li><b>Les six GPIO du header sont tous pris.</b> UART Sensor, dimmer (ZC + PSM) et CAN tiennent chacun une paire. Il ne reste rien pour le SSR ni le relais : d'où le PbHub sur PORT.A, qui donne six Grove GPIO par I2C. ZC et PSM restent en GPIO natifs — le dimmer est du temps réel, le PbHub ne convient pas.</li>
+  <li><b>Le bleu est l'UART, le noir le GPIO, le rouge le CAN.</b> C'est l'ordre physique de la base (gauche → droite) et ça colle aux couleurs M5Stack (PORT.C / B / A), même si le rouge ne fait pas d'I2C ici.</li>
+  <li><b>G7 / G8 sur le noir.</b> Jaune = Z-C, blanc = Dim. Le 5 V du Grove ne va pas sur VCC : il passe par le N7803-1CW. G8 est une sortie GPIO vers l'entrée DIM, sans pull-down.</li>
+  <li><b>G38 / G39 sur le rouge suivent le pinout du Unit CAN.</b> Jaune = CAN_TX → G38, blanc = CAN_RX → G39. Câble Grove droit, sans permutation.</li>
+  <li><b>Aucune de ces broches n'est un <em>strapping pin</em></b> de l'ESP32-S3 (0, 3, 45, 46). Rien de ce qui est branché ne peut perturber le démarrage.</li>
+  <li><b>Le 3,3 V de la base est inaccessible.</b> L'Atom le recouvre. Le N7803-1CW fabrique ce 3,3 V à partir du 5 V du port noir, pour que Z-C (tiré vers VCC) reste compatible GPIO.</li>
+</ul>
+
+<h2>Points de vigilance</h2>
+
+<div class="note warn">
+<b>TX et RX se croisent, côté Sensor seulement.</b> Les libellés RX / TX des 221-2411 sont ceux de l'Atom Control. Le TX du Control part vers le <b>RX</b> du Sensor (<code>G7</code>), le RX du Control vient du <b>TX</b> du Sensor (<code>G8</code>). Voir <span class="mono">docs/atom_sensor.html</span>. Les masses sont communes via les 221-415.
+</div>
+
+<div class="note">
+<b>G5 / G6 : lequel est TX, lequel est RX.</b> La paire est certaine (port bleu). L'ordre jaune / blanc sur la base est celui de la carte pinout fournie avec l'A130 — à reporter dans <code>config.rs</code> une fois lu. Inverser TX et RX est une constante, pas un recâblage.
+</div>
+
+<div class="note">
+<b>Le PbHub n'est pas un Unit Hub.</b> Ce n'est pas un éclateur I2C : les six ports sont des GPIO commandés par le MCU interne (adresse <code>0x61</code>). On n'y branche pas un second bus I2C, et on n'empile pas deux PbHub. Les 10 kΩ sur SCL / SDA tiennent le bus PORT.A ; rien à ajouter.
+</div>
+
+<div class="note">
+<b>SSR et Relay : un seul fil de commande.</b> Grove PORT.B, fil jaune = DIN, fil blanc non connecté. N'importe lesquels deux des six ports. L'affectation de canal se fait en firmware, pas au fer.
+</div>
+
+<div class="note warn">
+<b>Le Unit Relay se câble en NC.</b> Bobine hors tension : contact fermé, le dimmer est shunté, la pompe répond au bouton machine. Bobine excitée : le bypass s'ouvre, le dimmer a la main. Câbler NO inverserait le manuel et le contrôlé. Le 230 V de ce contact, comme celui du SSR et du dimmer, est hors de ce document.
+</div>
+
+<div class="note">
+<b>Le Unit SSR est un zéro-crossing, 2 A, AC uniquement.</b> Il allume ou éteint le circuit brew (vanne + pompe en parallèle). Il ne module pas la pression — ça, c'est le RobotDyn. Ne pas y mettre de charge DC.
+</div>
+
+<div class="note">
+<b>Le bornier USB-C ne transporte que l'alimentation.</b> Quatre bornes à vis, deux utilisées : 5V et GND. Aucune donnée USB. La programmation se fait en débranchant ce bornier au profit d'un vrai câble USB-C data.
+</div>
+
+<div class="note">
+<b>Terminaison CAN.</b> Le Unit CAN livre une 120 Ω à monter entre CANH et CANL. Même chose à l'autre bout, sur l'écran. Deux nœuds, deux résistances, bus court (quelques centimètres dans <span class="mono">screen_assembly</span>).
+</div>
+
+<div class="note warn">
+<b>N7803-1CW : entrée nominale 6–36 V, Grove à 5 V.</b> La fiche Mean Well donne 6 V mini pour le N7803-1. Le port noir fournit du 5 V. À vérifier sur le module en main : s'il régule quand même à 3,3 V, on garde ; sinon il faudra un abaisseur prévu pour du 5 V, ou prendre le 3,3 V ailleurs. Ne pas alimenter le dimmer en 5 V « pour voir » — Z-C suivrait.
+</div>
+
+<div class="note">
+<b>À vérifier sur la pièce.</b>
+<ul>
+  <li>l'ordre jaune / blanc du port bleu (G5 vs G6 = TX vs RX) sur la carte pinout A130 ;</li>
+  <li>idem port rouge si G38 / G39 ne suivent pas jaune = TX, blanc = RX ;</li>
+  <li>le N7803-1CW : 3,3 V en sortie, VCC du dimmer, et Z-C à vide sur G7 (doit rester à 3,3 V) ;</li>
+  <li>le Unit CAN côté écran : le Waveshare a son propre transceiver — CANH / CANL seulement, pas les TX / RX Grove.</li>
+</ul>
+</div>
+
+<footer>
+coffeeflow · <span class="mono">docs/atom_control.html</span> · vue d'ensemble et BOM dans <span class="mono">README.md</span> · Sensor dans <span class="mono">docs/atom_sensor.html</span>
+</footer>
+
+</main>
+</body>
+</html>

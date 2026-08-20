@@ -103,7 +103,7 @@ si le rotor tourne.
 
 Dix minutes, et ça donne les deux chiffres manquants :
 
-1. Capteur monté **horizontalement**, sortie dans une tasse sur l'Acaia, compteur
+1. Capteur monté **horizontalement**, sortie dans une tasse sur une balance de référence, compteur
    d'impulsions sur l'Atom.
 2. Faire couler à débit décroissant : ~0,15 puis 0,10, 0,077, 0,05, 0,04, 0,03,
    0,02 L/min. Chaque palier assez long pour accumuler au moins 100 impulsions.
@@ -131,7 +131,7 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
   la pression d'ouverture de l'OPV les deux coïncident, mais pas sur une extraction à
   pleine puissance. Ça peut décider de l'emplacement plus sûrement que la plage de
   mesure.
-- **La balance reste le meilleur débitmètre** dès que l'eau tombe dans la tasse : l'Acaia
-  sort du 10–20 Hz au centigramme. L'intérêt propre de la turbine est de voir l'eau qui
+- **La balance reste le meilleur débitmètre** dès que l'eau tombe dans la tasse : une
+  balance de précision sort du 10–20 Hz au centigramme. L'intérêt propre de la turbine est de voir l'eau qui
   entre dans le groupe, y compris celle qu'absorbe la galette — soit précisément la
   phase que ni l'une ni l'autre ne mesure bien aujourd'hui.

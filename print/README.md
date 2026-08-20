@@ -21,12 +21,12 @@ nurb export boitier_2w
 | --- | --- | --- | --- | --- |
 | 1 | Dérivation 230 V (`boitier_4w` / `couvercle_4w`, `boitier_2w` / `couvercle_2w`) | intérieur, ~10 cm du boiler | PETG | actuel |
 | 2 | `canal` × 2 (230 V et 5 V, un de chaque côté du réservoir) | intérieur, ~20 cm du boiler | PETG | actuel |
-| 3 | Boîtier **Atom Sensor** (Atom Echo S3R, KISOMeter, XDB401, débitmètre) | intérieur | PETG | à faire |
+| 3 | Boîtier **Atom Sensor** (Atom Echo S3R, Unit Hub, Weight-I2C, XDB401, débitmètre) | intérieur | PETG | à faire |
 | 4 | `screen_wedge` (cadre écran Waveshare, sert de couvercle à la base) | dessus | **PLA** | en validation |
 | 5 | `screen_base` (Atom Control, PbHub, ACSSR, relais NC, RobotDyn, alim 5 V, fuse box) | dessus, sur le plateau | PETG | à dimensionner |
 | 6 | Grille d'entretoise 5 mm sous `screen_base` | dessus, contact plateau | PETG | à faire |
 
-Traversée intérieur → extérieur : 4 fils 230 V dans un canal, le câble USB-C Sensor → Control dans l'autre.
+Traversée intérieur → extérieur : 4 fils 230 V dans un canal, le LiYCY Sensor → Control dans l'autre.
 
 `screen_base` n'est pas encore dimensionnée : son volume découle du placement réel des modules du BOM (voir `../README.md`).
 

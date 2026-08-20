@@ -15,7 +15,8 @@
     font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   }
   main{max-width:1400px;margin:0 auto}
-  h1{font-size:26px;margin:0 0 20px;letter-spacing:-.01em}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+  .lede{color:#333;margin:0 0 22px;max-width:62em}
   h2{font-size:19px;margin:44px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
   h3{font-size:15px;margin:26px 0 8px}
   figure{margin:0}
@@ -44,43 +45,16 @@
   ul{margin:10px 0;padding-left:20px}
   li{margin:5px 0}
   footer{margin-top:52px;padding-top:14px;border-top:1px solid var(--rule);color:var(--muted);font-size:13.5px}
-
-  /* bascule de variante — CSS pur, aucun script */
-  .vswitch{position:absolute;left:-9999px}
-  .tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
-  .tabs label{
-    padding:9px 18px;border:1px solid var(--rule);border-radius:999px;background:#fff;
-    color:var(--muted);font-size:14px;cursor:pointer;-webkit-user-select:none;user-select:none;
-  }
-  .tabs label:hover{border-color:#b9b3a9;color:var(--ink)}
-  #va:checked ~ .tabs label[for="va"],
-  #vb:checked ~ .tabs label[for="vb"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-  .pane{display:none}
-  #va:checked ~ .pane-a{display:block}
-  #vb:checked ~ .pane-b{display:block}
-  .paneside{margin-top:18px}
 </style>
 </head>
 <body>
 <main>
 
 <h1>Atom Sensor — câblage</h1>
+<p class="lede">Version définitive. Un seul bus I2C sur Port.A, éclaté par un Unit Hub : le Weight-I2C s'y branche tel quel, le XDB401 y arrive en 3,3 V via un câble Grove dont le fil 5 V n'est pas connecté. Les tirages I2C sont ceux, internes, du Weight-I2C. Le débitmètre a son propre tirage 1 kΩ et un condensateur de 100 nF.</p>
 
-<div class="variants">
-<input class="vswitch" type="radio" name="v" id="va" checked>
-<input class="vswitch" type="radio" name="v" id="vb">
-
-<div class="tabs">
-  <label for="va">Débit sur pull-up interne · 2 résistances</label>
-  <label for="vb">Tous les tirages externes · 3 résistances</label>
-</div>
-
-<!-- ======================================================================= -->
-<!-- ================== VARIANTE A : pull-up interne débit ================== -->
-<!-- ======================================================================= -->
-<div class="pane pane-a">
 <figure>
-<svg viewBox="0 0 1400 990" role="img" aria-label="Câblage Atom Sensor, débitmètre sur pull-up interne">
+<svg viewBox="0 0 1640 1080" role="img" aria-label="Câblage Atom Sensor, version définitive">
   <defs>
     <style>
       .box{fill:#fff;stroke:#1c1c1c;stroke-width:1.6}
@@ -91,513 +65,278 @@
       .wl{font:600 12px ui-monospace,Menlo,Consolas,monospace}
       .pad{fill:#e9e5dd;stroke:#1c1c1c;stroke-width:1.3}
       .w{fill:none;stroke-width:3;stroke-linecap:square;stroke-linejoin:miter}
+      .grove{fill:none;stroke-width:7;stroke-linecap:butt;stroke-linejoin:miter}
       .halo{fill:none;stroke:#fff;stroke-width:9}
+      .grovehalo{fill:none;stroke:#fff;stroke-width:14}
       .res{fill:#fff;stroke:#1c1c1c;stroke-width:1.6}
       .dot{fill:#1c1c1c}
     </style>
   </defs>
 
-  <!-- ============ légende ============ -->
-  <rect x="40" y="60" width="520" height="158" rx="8" fill="#fff" stroke="#dcd8d2" stroke-width="1.2"/>
-  <text class="ttl" x="60" y="88">Repères</text>
-  <path class="w" stroke="#2b2b2b" d="M60 110 H92"/><text class="sml" x="100" y="115">GND</text>
-  <path class="w" stroke="#d1495b" d="M170 110 H202"/><text class="sml" x="210" y="115">5 V</text>
-  <path class="w" stroke="#e0852f" d="M270 110 H302"/><text class="sml" x="310" y="115">3,3 V</text>
-  <path class="w" stroke="#2a7fb8" d="M380 110 H412"/><text class="sml" x="420" y="115">I2C</text>
-  <path class="w" stroke="#7d5ba6" d="M60 138 H92"/><text class="sml" x="100" y="143">UART</text>
-  <path class="w" stroke="#2f9e6e" d="M170 138 H202"/><text class="sml" x="210" y="143">impulsions</text>
-  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M330 138 H362"/><text class="sml" x="370" y="143">thermocouple</text>
-  <path class="w" stroke="#e0852f" d="M60 172 H92"/><rect class="res" x="68" y="164" width="16" height="17"/><text class="sml" x="100" y="177">résistance de tirage</text>
-  <path class="w" stroke="#e0852f" d="M240 172 H272"/><path class="w" stroke="#e0852f" d="M272 164 V180"/><text class="sml" x="282" y="177">renvoi du nœud 3,3 V</text>
-  <text class="sml" x="60" y="204">Un fil qui en enjambe un autre (interruption blanche) n'y est pas connecté.</text>
+  <!-- ============ Unit Hub ============ -->
+  <rect class="box" x="600" y="40" width="250" height="118" rx="8"/>
+  <text class="ttl" x="618" y="68">M5Stack Unit Hub</text>
+  <text class="sml" x="618" y="90">expandeur Grove 1 → 3</text>
+  <text class="sml" x="618" y="108">ports en parallèle</text>
+  <text class="sml" x="618" y="126">3e port libre</text>
+  <text class="sml" x="618" y="144">pas de composant</text>
 
-  <!-- ============ KISOMeter ============ -->
-  <rect class="box" x="620" y="80" width="300" height="100" rx="8"/>
-  <text class="ttl" x="640" y="108">M5Stack KISOMeter</text>
-  <text class="sml" x="640" y="130">Thermocouple type K → I2C</text>
-  <text class="sml" x="640" y="150">alim 5 V, signal 3,3 V</text>
-  <text class="sml" x="640" y="170">câble Grove, 4 fils</text>
+  <!-- ============ Weight-I2C ============ -->
+  <rect class="box" x="940" y="40" width="270" height="118" rx="8"/>
+  <text class="ttl" x="956" y="68">M5Stack Unit Weight-I2C</text>
+  <text class="sml" x="956" y="90">HX711 + STM32 · I2C 0x26</text>
+  <text class="sml" x="956" y="108">alim 5 V · Grove 4 fils</text>
+  <text class="sml" x="956" y="126">pull-up 4,7 kΩ internes</text>
+  <text class="sml" x="956" y="144">tirent tout le bus I2C</text>
 
-  <rect class="boxsoft" x="1010" y="90" width="250" height="80" rx="8"/>
-  <text class="ttl" x="1028" y="120">Sonde K</text>
-  <text class="sml" x="1028" y="142">collée sur le groupe</text>
-  <text class="sml" x="1028" y="160">(pas l'eau du boiler)</text>
-  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M920 130 H1010"/>
+  <rect class="boxsoft" x="1230" y="52" width="155" height="94" rx="8"/>
+  <text class="ttl" x="1244" y="80">Cellule</text>
+  <text class="sml" x="1244" y="102">jauge, 4 fils</text>
+  <text class="sml" x="1244" y="120">HT3.96-4P</text>
+  <text class="sml" x="1244" y="138">(séparée)</text>
+  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M1210 99 H1230"/>
 
-  <path class="w" stroke="#2a7fb8" d="M760 180 V280"/>
-  <text class="wl" fill="#2a7fb8" x="772" y="214">Grove</text>
-  <text class="wl" fill="#6b6b6b" x="772" y="232">GND · 5V</text>
-  <text class="wl" fill="#6b6b6b" x="772" y="248">SDA (G2) · SCL (G1)</text>
+  <path class="grove" stroke="#2a7fb8" d="M850 99 H940"/>
+  <text class="wl" fill="#2a7fb8" x="858" y="118">Grove</text>
+  <text class="wl" fill="#6b6b6b" x="858" y="134">GND</text>
+  <text class="wl" fill="#6b6b6b" x="858" y="150">5V</text>
+  <text class="wl" fill="#6b6b6b" x="858" y="166">SDA</text>
+  <text class="wl" fill="#6b6b6b" x="858" y="182">SCL</text>
+
+  <!-- Port.A → Hub -->
+  <path class="grove" stroke="#2a7fb8" d="M760 158 V278"/>
+  <text class="wl" fill="#2a7fb8" x="808" y="252">Grove</text>
+  <text class="wl" fill="#6b6b6b" x="808" y="268">GND · 5V</text>
+  <text class="wl" fill="#6b6b6b" x="808" y="284">SDA (G2) · SCL (G1)</text>
 
   <!-- ============ XDB401 ============ -->
-  <rect class="box" x="70" y="300" width="240" height="180" rx="8"/>
-  <text class="ttl" x="88" y="330">Sonde pression</text>
-  <text class="sml" x="88" y="352">XDB401 · I2C 3,3 V</text>
-  <text class="sml" x="88" y="372">livrée avec 4 fils nus</text>
-  <text class="sml" x="88" y="398">en amont de la vanne</text>
-  <text class="sml" x="88" y="416">sur la plomberie 1/8"</text>
-  <text class="sml" x="88" y="450">alim ET signal en 3,3 V</text>
+  <rect class="box" x="50" y="270" width="230" height="175" rx="8"/>
+  <text class="ttl" x="68" y="298">Sonde pression</text>
+  <text class="sml" x="68" y="320">XDB401 · I2C 3,3 V</text>
+  <text class="sml" x="68" y="338">livrée avec 4 fils nus</text>
+  <text class="sml" x="68" y="364">en amont de la vanne</text>
+  <text class="sml" x="68" y="382">sur la plomberie 1/8"</text>
+  <text class="sml" x="68" y="408">alim ET signal en 3,3 V</text>
+  <text class="sml" x="68" y="426">pas de tirage à ajouter</text>
 
-  <!-- ============ réseau Wago + tirages ============ -->
-  <rect x="350" y="280" width="230" height="295" rx="8" fill="#f7f5f1" stroke="#9a958d" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text class="pin" x="465" y="302" text-anchor="middle">Wago + tirages I2C</text>
-  <rect class="boxsoft" x="365" y="320" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="341" text-anchor="middle">3V3 · 221-414</text>
-  <rect class="boxsoft" x="365" y="374" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="395" text-anchor="middle">SCL · 221-413</text>
-  <rect class="boxsoft" x="365" y="428" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="449" text-anchor="middle">SDA · 221-413</text>
-  <text class="sml" x="465" y="568" text-anchor="middle">R = 4,7 kΩ · 1/4 W</text>
+  <!-- ============ Wago déconnexion XDB401 ============ -->
+  <rect x="310" y="248" width="220" height="268" rx="8" fill="#f7f5f1" stroke="#9a958d" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text class="pin" x="420" y="270" text-anchor="middle">déconnexion XDB401</text>
+  <rect class="boxsoft" x="328" y="284" width="150" height="32" rx="4"/>
+  <text class="pin" x="403" y="305" text-anchor="middle">3V3 · 221-413</text>
+  <rect class="boxsoft" x="328" y="332" width="150" height="32" rx="4"/>
+  <text class="pin" x="403" y="353" text-anchor="middle">SCL · 221-2411</text>
+  <rect class="boxsoft" x="328" y="380" width="150" height="32" rx="4"/>
+  <text class="pin" x="403" y="401" text-anchor="middle">SDA · 221-2411</text>
+  <rect class="boxsoft" x="328" y="428" width="150" height="32" rx="4"/>
+  <text class="pin" x="403" y="449" text-anchor="middle">GND · 221-2411</text>
+  <text class="sml" x="420" y="500" text-anchor="middle">Grove sans le fil 5 V</text>
 
   <!-- ============ ATOM ============ -->
-  <rect class="box" x="600" y="280" width="320" height="340" rx="10"/>
-  <text class="ttl" x="760" y="330" text-anchor="middle">M5Stack Atom Echo S3R</text>
-  <text class="sml" x="760" y="352" text-anchor="middle">ESP32-S3 · « Atom Sensor »</text>
-  <text class="sml" x="760" y="600" text-anchor="middle">face arrière : 2 headers</text>
+  <rect class="box" x="600" y="290" width="320" height="340" rx="10"/>
+  <text class="ttl" x="760" y="338" text-anchor="middle">M5Stack Atom Echo S3R</text>
+  <text class="sml" x="760" y="360" text-anchor="middle">ESP32-S3 · « Atom Sensor »</text>
+  <text class="sml" x="760" y="608" text-anchor="middle">face arrière : 2 headers</text>
 
-  <rect class="pad" x="720" y="268" width="80" height="24" rx="3"/>
-  <text class="pin" x="760" y="285" text-anchor="middle">PORT.A</text>
-  <rect class="pad" x="720" y="608" width="80" height="24" rx="3"/>
-  <text class="pin" x="760" y="625" text-anchor="middle">USB-C</text>
+  <rect class="pad" x="720" y="278" width="80" height="24" rx="3"/>
+  <text class="pin" x="760" y="295" text-anchor="middle">PORT.A</text>
+  <rect class="pad" x="720" y="618" width="80" height="24" rx="3"/>
+  <text class="pin" x="760" y="635" text-anchor="middle">USB-C</text>
 
-  <rect class="pad" x="588" y="409" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="449" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="489" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="529" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="569" width="24" height="22" rx="2"/>
-  <text class="pin" x="624" y="425">3V3</text>
-  <text class="pin" x="624" y="465">G5</text>
-  <text class="pin" x="624" y="505">G6</text>
-  <text class="pin" x="624" y="545">G7</text>
-  <text class="pin" x="624" y="585">G8</text>
-  <text class="sml" x="662" y="425">→ XDB401</text>
-  <text class="sml" x="662" y="465">SCL XDB401</text>
-  <text class="sml" x="662" y="505">SDA XDB401</text>
-  <text class="sml" x="662" y="545">UART RX</text>
-  <text class="sml" x="662" y="585">UART TX</text>
-  <text class="sml" x="624" y="398">header 5</text>
+  <rect class="pad" x="588" y="419" width="24" height="22" rx="2"/>
+  <rect class="pad" x="588" y="459" width="24" height="22" rx="2"/>
+  <rect class="pad" x="588" y="499" width="24" height="22" rx="2"/>
+  <rect class="pad" x="588" y="539" width="24" height="22" rx="2"/>
+  <rect class="pad" x="588" y="579" width="24" height="22" rx="2"/>
+  <text class="pin" x="624" y="435">3V3</text>
+  <text class="pin" x="624" y="475">G5</text>
+  <text class="pin" x="624" y="515">G6</text>
+  <text class="pin" x="624" y="555">G7</text>
+  <text class="pin" x="624" y="595">G8</text>
+  <text class="sml" x="662" y="435">→ XDB401 + R3</text>
+  <text class="sml" x="662" y="475" fill="#6b6b6b">libre</text>
+  <text class="sml" x="662" y="515" fill="#6b6b6b">libre</text>
+  <text class="sml" x="662" y="555">UART RX</text>
+  <text class="sml" x="662" y="595">UART TX</text>
+  <text class="sml" x="624" y="408">header 5</text>
 
-  <rect class="pad" x="908" y="449" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="489" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="529" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="569" width="24" height="22" rx="2"/>
-  <text class="pin" x="896" y="465" text-anchor="end">G39</text>
-  <text class="pin" x="896" y="505" text-anchor="end">G38</text>
-  <text class="pin" x="896" y="545" text-anchor="end">5V</text>
-  <text class="pin" x="896" y="585" text-anchor="end">GND</text>
-  <text class="sml" x="846" y="465" text-anchor="end">libre</text>
-  <text class="sml" x="846" y="505" text-anchor="end">débit</text>
-  <text class="sml" x="896" y="438" text-anchor="end">header 4</text>
+  <rect class="pad" x="908" y="459" width="24" height="22" rx="2"/>
+  <rect class="pad" x="908" y="499" width="24" height="22" rx="2"/>
+  <rect class="pad" x="908" y="539" width="24" height="22" rx="2"/>
+  <rect class="pad" x="908" y="579" width="24" height="22" rx="2"/>
+  <text class="pin" x="896" y="475" text-anchor="end">G39</text>
+  <text class="pin" x="896" y="515" text-anchor="end">G38</text>
+  <text class="pin" x="896" y="555" text-anchor="end">5V</text>
+  <text class="pin" x="896" y="595" text-anchor="end">GND</text>
+  <text class="sml" x="846" y="475" text-anchor="end">libre</text>
+  <text class="sml" x="846" y="515" text-anchor="end">débit</text>
+  <text class="sml" x="896" y="448" text-anchor="end">header 4</text>
 
   <!-- ============ Digmesa ============ -->
-  <rect class="box" x="1060" y="460" width="260" height="170" rx="8"/>
-  <text class="ttl" x="1078" y="490">Sonde débit</text>
-  <text class="sml" x="1078" y="512">Digmesa FHKSC 932-9521-A</text>
-  <text class="sml" x="1078" y="530">buse 1,20 mm · 1925 imp/L</text>
-  <text class="sml" x="1078" y="552" style="fill:#d1495b">3 bar max → amont pompe</text>
-  <text class="sml" x="1078" y="574">collecteur ouvert NPN</text>
-  <text class="sml" x="1078" y="596">3 pins 1,56 mm</text>
-  <text class="sml" x="1078" y="614">→ câble à confectionner</text>
+  <rect class="box" x="1320" y="470" width="250" height="170" rx="8"/>
+  <text class="ttl" x="1338" y="500">Sonde débit</text>
+  <text class="sml" x="1338" y="522">Digmesa FHKSC 932-9521-A</text>
+  <text class="sml" x="1338" y="540">buse 1,20 mm · 1925 imp/L</text>
+  <text class="sml" x="1338" y="562" style="fill:#d1495b">3 bar max → amont pompe</text>
+  <text class="sml" x="1338" y="584">collecteur ouvert NPN</text>
+  <text class="sml" x="1338" y="606">3 pins 1,56 mm</text>
+  <text class="sml" x="1338" y="624">→ câble à confectionner</text>
+
+  <!-- ============ borne SIGNAL + R3 + C1 ============ -->
+  <rect class="boxsoft" x="960" y="304" width="180" height="34" rx="4"/>
+  <text class="pin" x="1050" y="326" text-anchor="middle">SIGNAL · 221-413</text>
+
+  <rect class="boxsoft" x="1100" y="534" width="120" height="32" rx="4"/>
+  <text class="pin" x="1160" y="555" text-anchor="middle">5V · 221-2411</text>
+  <rect class="pad" x="1092" y="542" width="16" height="16" rx="2"/>
+  <rect class="pad" x="1212" y="542" width="16" height="16" rx="2"/>
 
   <!-- ============ câble venant du haut ============ -->
-  <rect class="box" x="40" y="560" width="200" height="160" rx="8"/>
-  <text class="ttl" x="58" y="590">Câble 4 fils</text>
-  <text class="sml" x="58" y="612">depuis le haut de</text>
-  <text class="sml" x="58" y="630">la machine</text>
-  <text class="sml" x="58" y="656">30–40 cm, blindé</text>
-  <text class="sml" x="58" y="674">canal « 5 V »</text>
-  <text class="sml" x="58" y="700">alim + UART</text>
+  <rect class="box" x="40" y="528" width="220" height="175" rx="8"/>
+  <text class="ttl" x="58" y="556">Câble LiYCY</text>
+  <text class="sml" x="58" y="578">4×0,25 mm², paires droites</text>
+  <text class="sml" x="58" y="596">blindé, 30–40 cm</text>
+  <text class="sml" x="58" y="622">canal « 5 V »</text>
+  <text class="sml" x="58" y="648">5V · GND → HNP-1205</text>
+  <text class="sml" x="58" y="666">TX · RX → Atom Control</text>
+  <text class="sml" x="58" y="684">5 V / 2 A</text>
 
   <!-- ============ breakout USB-C ============ -->
-  <rect class="boxsoft" x="665" y="690" width="190" height="70" rx="6"/>
-  <text class="pin" x="681" y="714">Bornier USB-C</text>
-  <text class="sml" x="681" y="733">USB-C mâle ↔ 4 vis</text>
-  <text class="sml" x="681" y="751">seuls 5V et GND servent</text>
+  <rect class="boxsoft" x="665" y="700" width="190" height="70" rx="6"/>
+  <text class="pin" x="681" y="724">Bornier USB-C</text>
+  <text class="sml" x="681" y="743">USB-C mâle ↔ 4 vis</text>
+  <text class="sml" x="681" y="761">seuls 5V et GND servent</text>
 
-  <!-- ============ Wago 221-413 masse ============ -->
-  <rect class="boxsoft" x="900" y="800" width="260" height="74" rx="6"/>
-  <text class="pin" x="918" y="828">Wago 221-413</text>
-  <text class="sml" x="918" y="848">3 leviers — étoile de masse</text>
-  <text class="sml" x="918" y="866">Atom · XDB401 · Digmesa</text>
-  <rect class="pad" x="940" y="792" width="20" height="16" rx="2"/>
-  <rect class="pad" x="1100" y="792" width="20" height="16" rx="2"/>
-  <rect class="pad" x="892" y="829" width="16" height="20" rx="2"/>
+  <!-- ============ Wago 221-413 masse Digmesa ============ -->
+  <rect class="boxsoft" x="920" y="818" width="250" height="70" rx="6"/>
+  <text class="pin" x="938" y="842">Wago 221-413</text>
+  <text class="sml" x="938" y="860">3 leviers — masse débit</text>
+  <text class="sml" x="938" y="876">Atom · Digmesa · C1</text>
+  <rect class="pad" x="990" y="810" width="20" height="16" rx="2"/>
+  <rect class="pad" x="1055" y="810" width="20" height="16" rx="2"/>
+  <rect class="pad" x="1120" y="810" width="20" height="16" rx="2"/>
 
   <!-- ================= FILS ================= -->
 
-  <!-- masse XDB401 : long parcours, tracé en premier, il se fait enjamber -->
-  <path class="w" stroke="#2b2b2b" d="M305 480 V950 H870 V837 H892"/>
-  <text class="wl" fill="#2b2b2b" x="316" y="920">GND</text>
+  <!-- Grove custom Hub → Wago SCL/SDA/GND (pas de 5 V) -->
+  <path class="grove" stroke="#2a7fb8" d="M600 118 H500 V444"/>
+  <text class="wl" fill="#2a7fb8" x="508" y="112">Grove</text>
+  <text class="wl" fill="#6b6b6b" x="508" y="148">sans 5 V</text>
+  <path class="w" stroke="#2a7fb8" d="M500 348 H478"/>
+  <path class="w" stroke="#2a7fb8" d="M500 396 H478"/>
+  <path class="w" stroke="#2b2b2b" d="M500 444 H478"/>
+  <circle class="dot" cx="500" cy="348" r="4"/>
+  <circle class="dot" cx="500" cy="396" r="4"/>
+  <circle class="dot" cx="500" cy="444" r="4"/>
 
-  <!-- XDB401 -> bornes Wago -->
-  <path class="w" stroke="#e0852f" d="M310 336 H365"/>
-  <text class="wl" fill="#e0852f" x="318" y="328">3V3</text>
-  <path class="w" stroke="#2a7fb8" d="M310 390 H365"/>
-  <text class="wl" fill="#2a7fb8" x="318" y="382">SCL</text>
-  <path class="w" stroke="#2a7fb8" d="M310 444 H365"/>
-  <text class="wl" fill="#2a7fb8" x="318" y="436">SDA</text>
+  <!-- XDB401 → Wagos -->
+  <path class="w" stroke="#e0852f" d="M280 298 H328"/>
+  <text class="wl" fill="#e0852f" x="286" y="290">3V3</text>
+  <path class="w" stroke="#2a7fb8" d="M280 348 H328"/>
+  <text class="wl" fill="#2a7fb8" x="286" y="340">SCL</text>
+  <path class="w" stroke="#2a7fb8" d="M280 396 H328"/>
+  <text class="wl" fill="#2a7fb8" x="286" y="388">SDA</text>
+  <path class="w" stroke="#2b2b2b" d="M280 444 H328"/>
+  <text class="wl" fill="#2b2b2b" x="286" y="436">GND</text>
 
-  <!-- 3,3 V : borne -> rail des tirages, dérivation vers la pin 3V3 -->
-  <path class="w" stroke="#e0852f" d="M505 336 H562 V545 H516"/>
-  <path class="w" stroke="#e0852f" d="M562 420 H588"/>
-  <circle class="dot" cx="562" cy="420" r="4"/>
-  <circle class="dot" cx="536" cy="545" r="4"/>
+  <!-- 3V3 Wago → pin Atom, et renvoi vers R3 -->
+  <path class="halo" d="M478 300 H562 V430 H588"/>
+  <path class="w" stroke="#e0852f" d="M478 300 H562 V430 H588"/>
+  <circle class="dot" cx="562" cy="300" r="4"/>
+  <path class="grovehalo" d="M740 230 H780"/>
+  <path class="halo" d="M740 230 H780"/>
+  <path class="w" stroke="#e0852f" d="M562 300 V230 H1000"/>
+  <text class="sml" x="572" y="248">3,3 V → R3</text>
 
-  <!-- SCL : borne -> G5, et tirage vers le rail -->
-  <path class="w" stroke="#2a7fb8" d="M505 390 H536 V460"/>
-  <path class="halo" d="M536 460 H588"/>
-  <path class="w" stroke="#2a7fb8" d="M536 460 H588"/>
-  <circle class="dot" cx="536" cy="460" r="4"/>
-  <path class="halo" d="M536 460 V545"/>
-  <path class="w" stroke="#e0852f" d="M536 460 V545"/>
-  <rect class="res" x="528" y="487" width="16" height="26" rx="2"/>
+  <!-- UART : segments droits vers G7 / G8 -->
+  <path class="w" stroke="#7d5ba6" d="M260 550 H588"/>
+  <text class="wl" fill="#7d5ba6" x="268" y="542">RX</text>
 
-  <!-- SDA : borne -> G6, et tirage vers le rail -->
-  <path class="w" stroke="#2a7fb8" d="M505 444 H516 V500"/>
-  <path class="halo" d="M516 500 H588"/>
-  <path class="w" stroke="#2a7fb8" d="M516 500 H588"/>
-  <circle class="dot" cx="516" cy="500" r="4"/>
-  <path class="w" stroke="#e0852f" d="M516 500 V545"/>
-  <rect class="res" x="508" y="509" width="16" height="26" rx="2"/>
+  <path class="w" stroke="#7d5ba6" d="M260 590 H588"/>
+  <text class="wl" fill="#7d5ba6" x="268" y="582">TX</text>
 
-  <!-- UART RX -> G7 -->
-  <path class="halo" d="M240 590 H275 V540 H588"/>
-  <path class="w" stroke="#7d5ba6" d="M240 590 H275 V540 H588"/>
-  <text class="wl" fill="#7d5ba6" x="250" y="582">RX</text>
+  <!-- 5 V / GND du LiYCY → bornier (coudes à gauche de l'Atom) -->
+  <path class="halo" d="M260 630 H420 V720 H665"/>
+  <path class="w" stroke="#d1495b" d="M260 630 H420 V720 H665"/>
+  <text class="wl" fill="#d1495b" x="280" y="622">5V</text>
 
-  <!-- UART TX -> G8 -->
-  <path class="halo" d="M240 620 H295 V580 H588"/>
-  <path class="w" stroke="#7d5ba6" d="M240 620 H295 V580 H588"/>
-  <text class="wl" fill="#7d5ba6" x="250" y="612">TX</text>
+  <path class="halo" d="M260 660 H380 V745 H665"/>
+  <path class="w" stroke="#2b2b2b" d="M260 660 H380 V745 H665"/>
+  <text class="wl" fill="#2b2b2b" x="280" y="652">GND</text>
 
-  <!-- 5 V du câble -> bornier -->
-  <path class="halo" d="M240 660 H640 V710 H665"/>
-  <path class="w" stroke="#d1495b" d="M240 660 H640 V710 H665"/>
-  <text class="wl" fill="#d1495b" x="360" y="652">5V</text>
+  <path class="w" stroke="#d1495b" d="M760 700 V642"/>
+  <text class="wl" fill="#6b6b6b" x="772" y="680">5V+GND</text>
 
-  <!-- masse du câble -> bornier -->
-  <path class="halo" d="M240 690 H620 V735 H665"/>
-  <path class="w" stroke="#2b2b2b" d="M240 690 H620 V735 H665"/>
-  <text class="wl" fill="#2b2b2b" x="360" y="682">GND</text>
+  <!-- Atom header GND → 221-413 Digmesa -->
+  <path class="w" stroke="#2b2b2b" d="M932 590 H1000 V810"/>
+  <text class="wl" fill="#2b2b2b" x="1018" y="700">GND</text>
 
-  <path class="w" stroke="#d1495b" d="M760 690 V632"/>
-  <text class="wl" fill="#6b6b6b" x="772" y="670">5V+GND</text>
+  <!-- SIGNAL : borne → G38 et → Digmesa, R3 vers 3,3 V, C1 vers GND -->
+  <path class="w" stroke="#2f9e6e" d="M960 321 H946 V510 H932"/>
+  <path class="w" stroke="#2f9e6e" d="M1050 338 V500 H1320"/>
+  <text class="wl" fill="#2f9e6e" x="1180" y="492">SIGNAL</text>
 
-  <path class="w" stroke="#2b2b2b" d="M932 580 H950 V792"/>
-  <text class="wl" fill="#2b2b2b" x="960" y="700">GND</text>
+  <path class="w" stroke="#e0852f" d="M1000 304 V230"/>
+  <rect class="res" x="992" y="248" width="16" height="26" rx="2"/>
+  <circle class="dot" cx="1000" cy="230" r="4"/>
+  <text class="sml" x="1016" y="228" style="font-weight:600;fill:#1c1c1c">3,3 V · R3 = 1 kΩ</text>
+  <text class="sml" x="1016" y="246">221-2411 : fil du nœud 3V3 · patte de R3</text>
+  <text class="sml" x="1016" y="264">G38 en INPUT, pull-up interne off</text>
 
-  <!-- Digmesa : signal direct sur G38 -->
-  <path class="w" stroke="#2f9e6e" d="M1060 500 H932"/>
-  <text class="wl" fill="#2f9e6e" x="962" y="493">SIGNAL</text>
+  <!-- C1 : piquage sur SIGNAL, descente à gauche du Wago 5 V -->
+  <circle class="dot" cx="1050" cy="400" r="4"/>
+  <path class="w" stroke="#2f9e6e" d="M1050 400 H1040"/>
+  <path class="w" stroke="#1c1c1c" d="M1040 391 V409"/>
+  <path class="w" stroke="#1c1c1c" d="M1030 391 V409"/>
+  <path class="halo" d="M1025 542 V558"/>
+  <path class="w" stroke="#2b2b2b" d="M1030 400 H1025 V650 H1065 V810"/>
+  <text class="sml" x="1072" y="368" style="font-weight:600;fill:#1c1c1c">C1 = 100 nF</text>
+  <text class="sml" x="1072" y="386">→ 221-413 masse</text>
+  <text class="sml" x="1072" y="404">TRU TC-K100NF5</text>
 
-  <path class="w" stroke="#d1495b" d="M1060 540 H932"/>
-  <text class="wl" fill="#d1495b" x="985" y="533">5V</text>
+  <path class="w" stroke="#d1495b" d="M932 550 H1092"/>
+  <path class="w" stroke="#d1495b" d="M1228 550 H1320"/>
+  <text class="wl" fill="#d1495b" x="1250" y="543">5V</text>
 
-  <path class="w" stroke="#2b2b2b" d="M1110 630 V792"/>
-  <text class="wl" fill="#2b2b2b" x="1122" y="716">GND</text>
+  <path class="w" stroke="#2b2b2b" d="M1440 640 V810 H1130"/>
+  <text class="wl" fill="#2b2b2b" x="1450" y="730">GND</text>
 
-  <!-- pull-up interne : annotation, surtout pas un fil -->
-  <text class="sml" x="1000" y="300" style="font-weight:600;fill:#1c1c1c">Pull-up interne au SoC</text>
-  <text class="sml" x="1000" y="320">Entre le nœud G38 et le rail 3,3 V</text>
-  <text class="sml" x="1000" y="338">interne, ≈ 45 kΩ, activée par logiciel</text>
-  <text class="sml" x="1000" y="356">(INPUT_PULLUP). Rien à câbler.</text>
-  <path fill="none" stroke="#9a958d" stroke-width="1.4" stroke-dasharray="4 4" d="M1030 372 V488"/>
-  <polygon points="1025,487 1035,487 1030,497" fill="#9a958d"/>
+  <!-- ============ légende (sous le LiYCY) ============ -->
+  <rect x="40" y="718" width="320" height="148" rx="8" fill="#fff" stroke="#dcd8d2" stroke-width="1.2"/>
+  <text class="ttl" x="56" y="744">Repères</text>
+  <path class="w" stroke="#2b2b2b" d="M56 766 H88"/><text class="sml" x="96" y="771">GND</text>
+  <path class="w" stroke="#d1495b" d="M148 766 H180"/><text class="sml" x="188" y="771">5 V</text>
+  <path class="w" stroke="#e0852f" d="M230 766 H262"/><text class="sml" x="270" y="771">3,3 V</text>
+  <path class="w" stroke="#2a7fb8" d="M56 792 H88"/><text class="sml" x="96" y="797">I2C</text>
+  <path class="w" stroke="#7d5ba6" d="M148 792 H180"/><text class="sml" x="188" y="797">UART</text>
+  <path class="w" stroke="#2f9e6e" d="M230 792 H262"/><text class="sml" x="270" y="797">impulsions</text>
+  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M56 818 H88"/><text class="sml" x="96" y="823">jauge</text>
+  <path class="w" stroke="#e0852f" d="M160 818 H184"/><rect class="res" x="166" y="810" width="16" height="17"/><text class="sml" x="192" y="823">tirage</text>
+  <path class="w" stroke="#2b2b2b" d="M250 818 H266"/><path class="w" stroke="#1c1c1c" d="M266 810 V826"/><path class="w" stroke="#1c1c1c" d="M274 810 V826"/><text class="sml" x="282" y="823">C</text>
+  <text class="sml" x="56" y="848">Fil qui en enjambe un autre : pas de connexion.</text>
 </svg>
 </figure>
 
-<div class="paneside">
+<h2>Bornes</h2>
+
 <table>
-  <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:0 0 8px">Bornes et composants propres à cette variante</caption>
   <thead><tr><th class="qty">Qté</th><th>Référence</th><th>Nœud</th><th>Conducteurs</th></tr></thead>
   <tbody>
-    <tr><td class="qty">1</td><td>Wago 221-414 · 4 leviers</td><td>3,3 V</td><td>pin 3V3 · VCC XDB401 · patte R1 · patte R2</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SCL</td><td>pin G5 · SCL XDB401 · patte R1</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SDA</td><td>pin G6 · SDA XDB401 · patte R2</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>Masse</td><td>pin GND · GND XDB401 · GND Digmesa</td></tr>
-    <tr><td class="qty">2</td><td>Résistance 4,7 kΩ · 1/4 W</td><td>R1, R2</td><td>tirages I2C, une patte dans chaque borne</td></tr>
-  </tbody>
-</table>
-<p style="font-size:14.5px;color:#333;margin:10px 0 0"><b>4 bornes, 2 résistances.</b> Le débitmètre n'a aucun composant : sa ligne va en direct de <code>G38</code> au capteur, et c'est la pull-up interne de l'ESP32 qui la tient.</p>
-</div>
-</div>
-
-<!-- ======================================================================= -->
-<!-- ================ VARIANTE B : tous les tirages externes ================ -->
-<!-- ======================================================================= -->
-<div class="pane pane-b">
-<figure>
-<svg viewBox="0 0 1400 990" role="img" aria-label="Câblage Atom Sensor, tous les tirages externes">
-  <defs>
-    <style>
-      .box{fill:#fff;stroke:#1c1c1c;stroke-width:1.6}
-      .boxsoft{fill:#f4f2ee;stroke:#9a958d;stroke-width:1.4}
-      .ttl{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1c1c1c}
-      .sml{font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#6b6b6b}
-      .pin{font:600 12.5px ui-monospace,Menlo,Consolas,monospace;fill:#1c1c1c}
-      .wl{font:600 12px ui-monospace,Menlo,Consolas,monospace}
-      .pad{fill:#e9e5dd;stroke:#1c1c1c;stroke-width:1.3}
-      .w{fill:none;stroke-width:3;stroke-linecap:square;stroke-linejoin:miter}
-      .halo{fill:none;stroke:#fff;stroke-width:9}
-      .res{fill:#fff;stroke:#1c1c1c;stroke-width:1.6}
-      .dot{fill:#1c1c1c}
-    </style>
-  </defs>
-
-  <!-- ============ légende ============ -->
-  <rect x="40" y="60" width="520" height="158" rx="8" fill="#fff" stroke="#dcd8d2" stroke-width="1.2"/>
-  <text class="ttl" x="60" y="88">Repères</text>
-  <path class="w" stroke="#2b2b2b" d="M60 110 H92"/><text class="sml" x="100" y="115">GND</text>
-  <path class="w" stroke="#d1495b" d="M170 110 H202"/><text class="sml" x="210" y="115">5 V</text>
-  <path class="w" stroke="#e0852f" d="M270 110 H302"/><text class="sml" x="310" y="115">3,3 V</text>
-  <path class="w" stroke="#2a7fb8" d="M380 110 H412"/><text class="sml" x="420" y="115">I2C</text>
-  <path class="w" stroke="#7d5ba6" d="M60 138 H92"/><text class="sml" x="100" y="143">UART</text>
-  <path class="w" stroke="#2f9e6e" d="M170 138 H202"/><text class="sml" x="210" y="143">impulsions</text>
-  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M330 138 H362"/><text class="sml" x="370" y="143">thermocouple</text>
-  <path class="w" stroke="#e0852f" d="M60 172 H92"/><rect class="res" x="68" y="164" width="16" height="17"/><text class="sml" x="100" y="177">résistance de tirage</text>
-  <path class="w" stroke="#e0852f" d="M240 172 H272"/><path class="w" stroke="#e0852f" d="M272 164 V180"/><text class="sml" x="282" y="177">renvoi du nœud 3,3 V</text>
-  <text class="sml" x="60" y="204">Un fil qui en enjambe un autre (interruption blanche) n'y est pas connecté.</text>
-
-  <!-- ============ KISOMeter ============ -->
-  <rect class="box" x="620" y="80" width="300" height="100" rx="8"/>
-  <text class="ttl" x="640" y="108">M5Stack KISOMeter</text>
-  <text class="sml" x="640" y="130">Thermocouple type K → I2C</text>
-  <text class="sml" x="640" y="150">alim 5 V, signal 3,3 V</text>
-  <text class="sml" x="640" y="170">câble Grove, 4 fils</text>
-
-  <rect class="boxsoft" x="1010" y="90" width="250" height="80" rx="8"/>
-  <text class="ttl" x="1028" y="120">Sonde K</text>
-  <text class="sml" x="1028" y="142">collée sur le groupe</text>
-  <text class="sml" x="1028" y="160">(pas l'eau du boiler)</text>
-  <path class="w" stroke="#8a8a8a" stroke-dasharray="7 5" d="M920 130 H1010"/>
-
-  <path class="w" stroke="#2a7fb8" d="M760 180 V280"/>
-  <text class="wl" fill="#2a7fb8" x="772" y="214">Grove</text>
-  <text class="wl" fill="#6b6b6b" x="772" y="232">GND · 5V</text>
-  <text class="wl" fill="#6b6b6b" x="772" y="248">SDA (G2) · SCL (G1)</text>
-
-  <!-- ============ XDB401 ============ -->
-  <rect class="box" x="70" y="300" width="240" height="180" rx="8"/>
-  <text class="ttl" x="88" y="330">Sonde pression</text>
-  <text class="sml" x="88" y="352">XDB401 · I2C 3,3 V</text>
-  <text class="sml" x="88" y="372">livrée avec 4 fils nus</text>
-  <text class="sml" x="88" y="398">en amont de la vanne</text>
-  <text class="sml" x="88" y="416">sur la plomberie 1/8"</text>
-  <text class="sml" x="88" y="450">alim ET signal en 3,3 V</text>
-
-  <!-- ============ réseau Wago + tirages ============ -->
-  <rect x="350" y="280" width="230" height="295" rx="8" fill="#f7f5f1" stroke="#9a958d" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text class="pin" x="465" y="302" text-anchor="middle">Wago + tirages I2C</text>
-  <rect class="boxsoft" x="365" y="320" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="341" text-anchor="middle">3V3 · 221-415</text>
-  <rect class="boxsoft" x="365" y="374" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="395" text-anchor="middle">SCL · 221-413</text>
-  <rect class="boxsoft" x="365" y="428" width="140" height="32" rx="4"/>
-  <text class="pin" x="435" y="449" text-anchor="middle">SDA · 221-413</text>
-  <text class="sml" x="465" y="568" text-anchor="middle">R = 4,7 kΩ · 1/4 W</text>
-
-  <!-- ============ ATOM ============ -->
-  <rect class="box" x="600" y="280" width="320" height="340" rx="10"/>
-  <text class="ttl" x="760" y="330" text-anchor="middle">M5Stack Atom Echo S3R</text>
-  <text class="sml" x="760" y="352" text-anchor="middle">ESP32-S3 · « Atom Sensor »</text>
-  <text class="sml" x="760" y="600" text-anchor="middle">face arrière : 2 headers</text>
-
-  <rect class="pad" x="720" y="268" width="80" height="24" rx="3"/>
-  <text class="pin" x="760" y="285" text-anchor="middle">PORT.A</text>
-  <rect class="pad" x="720" y="608" width="80" height="24" rx="3"/>
-  <text class="pin" x="760" y="625" text-anchor="middle">USB-C</text>
-
-  <rect class="pad" x="588" y="409" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="449" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="489" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="529" width="24" height="22" rx="2"/>
-  <rect class="pad" x="588" y="569" width="24" height="22" rx="2"/>
-  <text class="pin" x="624" y="425">3V3</text>
-  <text class="pin" x="624" y="465">G5</text>
-  <text class="pin" x="624" y="505">G6</text>
-  <text class="pin" x="624" y="545">G7</text>
-  <text class="pin" x="624" y="585">G8</text>
-  <text class="sml" x="662" y="425">→ XDB401</text>
-  <text class="sml" x="662" y="465">SCL XDB401</text>
-  <text class="sml" x="662" y="505">SDA XDB401</text>
-  <text class="sml" x="662" y="545">UART RX</text>
-  <text class="sml" x="662" y="585">UART TX</text>
-  <text class="sml" x="624" y="398">header 5</text>
-
-  <rect class="pad" x="908" y="449" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="489" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="529" width="24" height="22" rx="2"/>
-  <rect class="pad" x="908" y="569" width="24" height="22" rx="2"/>
-  <text class="pin" x="896" y="465" text-anchor="end">G39</text>
-  <text class="pin" x="896" y="505" text-anchor="end">G38</text>
-  <text class="pin" x="896" y="545" text-anchor="end">5V</text>
-  <text class="pin" x="896" y="585" text-anchor="end">GND</text>
-  <text class="sml" x="846" y="465" text-anchor="end">libre</text>
-  <text class="sml" x="846" y="505" text-anchor="end">débit</text>
-  <text class="sml" x="896" y="438" text-anchor="end">header 4</text>
-
-  <!-- ============ Digmesa ============ -->
-  <rect class="box" x="1060" y="460" width="260" height="170" rx="8"/>
-  <text class="ttl" x="1078" y="490">Sonde débit</text>
-  <text class="sml" x="1078" y="512">Digmesa FHKSC 932-9521-A</text>
-  <text class="sml" x="1078" y="530">buse 1,20 mm · 1925 imp/L</text>
-  <text class="sml" x="1078" y="552" style="fill:#d1495b">3 bar max → amont pompe</text>
-  <text class="sml" x="1078" y="574">collecteur ouvert NPN</text>
-  <text class="sml" x="1078" y="596">3 pins 1,56 mm</text>
-  <text class="sml" x="1078" y="614">→ câble à confectionner</text>
-
-  <!-- ============ borne SIGNAL + tirage externe ============ -->
-  <rect class="boxsoft" x="960" y="296" width="180" height="34" rx="4"/>
-  <text class="pin" x="1050" y="318" text-anchor="middle">SIGNAL · 221-413</text>
-
-  <!-- ============ câble venant du haut ============ -->
-  <rect class="box" x="40" y="560" width="200" height="160" rx="8"/>
-  <text class="ttl" x="58" y="590">Câble 4 fils</text>
-  <text class="sml" x="58" y="612">depuis le haut de</text>
-  <text class="sml" x="58" y="630">la machine</text>
-  <text class="sml" x="58" y="656">30–40 cm, blindé</text>
-  <text class="sml" x="58" y="674">canal « 5 V »</text>
-  <text class="sml" x="58" y="700">alim + UART</text>
-
-  <!-- ============ breakout USB-C ============ -->
-  <rect class="boxsoft" x="665" y="690" width="190" height="70" rx="6"/>
-  <text class="pin" x="681" y="714">Bornier USB-C</text>
-  <text class="sml" x="681" y="733">USB-C mâle ↔ 4 vis</text>
-  <text class="sml" x="681" y="751">seuls 5V et GND servent</text>
-
-  <!-- ============ Wago 221-413 masse ============ -->
-  <rect class="boxsoft" x="900" y="800" width="260" height="74" rx="6"/>
-  <text class="pin" x="918" y="828">Wago 221-413</text>
-  <text class="sml" x="918" y="848">3 leviers — étoile de masse</text>
-  <text class="sml" x="918" y="866">Atom · XDB401 · Digmesa</text>
-  <rect class="pad" x="940" y="792" width="20" height="16" rx="2"/>
-  <rect class="pad" x="1100" y="792" width="20" height="16" rx="2"/>
-  <rect class="pad" x="892" y="829" width="16" height="20" rx="2"/>
-
-  <!-- ================= FILS ================= -->
-
-  <path class="w" stroke="#2b2b2b" d="M305 480 V950 H870 V837 H892"/>
-  <text class="wl" fill="#2b2b2b" x="316" y="920">GND</text>
-
-  <path class="w" stroke="#e0852f" d="M310 336 H365"/>
-  <text class="wl" fill="#e0852f" x="318" y="328">3V3</text>
-  <path class="w" stroke="#2a7fb8" d="M310 390 H365"/>
-  <text class="wl" fill="#2a7fb8" x="318" y="382">SCL</text>
-  <path class="w" stroke="#2a7fb8" d="M310 444 H365"/>
-  <text class="wl" fill="#2a7fb8" x="318" y="436">SDA</text>
-
-  <!-- 3,3 V : borne -> rail des tirages, dérivations vers la pin et vers R3 -->
-  <path class="w" stroke="#e0852f" d="M505 336 H562 V545 H470"/>
-  <path class="w" stroke="#e0852f" d="M562 420 H588"/>
-  <path class="w" stroke="#e0852f" d="M470 537 V553"/>
-  <text class="sml" x="462" y="541" text-anchor="end">3,3 V</text>
-  <text class="sml" x="462" y="558" text-anchor="end">→ R3 (débitmètre)</text>
-  <circle class="dot" cx="562" cy="420" r="4"/>
-  <circle class="dot" cx="536" cy="545" r="4"/>
-  <circle class="dot" cx="516" cy="545" r="4"/>
-
-  <path class="w" stroke="#2a7fb8" d="M505 390 H536 V460"/>
-  <path class="halo" d="M536 460 H588"/>
-  <path class="w" stroke="#2a7fb8" d="M536 460 H588"/>
-  <circle class="dot" cx="536" cy="460" r="4"/>
-  <path class="halo" d="M536 460 V545"/>
-  <path class="w" stroke="#e0852f" d="M536 460 V545"/>
-  <rect class="res" x="528" y="487" width="16" height="26" rx="2"/>
-
-  <path class="w" stroke="#2a7fb8" d="M505 444 H516 V500"/>
-  <path class="halo" d="M516 500 H588"/>
-  <path class="w" stroke="#2a7fb8" d="M516 500 H588"/>
-  <circle class="dot" cx="516" cy="500" r="4"/>
-  <path class="w" stroke="#e0852f" d="M516 500 V545"/>
-  <rect class="res" x="508" y="509" width="16" height="26" rx="2"/>
-
-  <path class="halo" d="M240 590 H275 V540 H588"/>
-  <path class="w" stroke="#7d5ba6" d="M240 590 H275 V540 H588"/>
-  <text class="wl" fill="#7d5ba6" x="250" y="582">RX</text>
-
-  <path class="halo" d="M240 620 H295 V580 H588"/>
-  <path class="w" stroke="#7d5ba6" d="M240 620 H295 V580 H588"/>
-  <text class="wl" fill="#7d5ba6" x="250" y="612">TX</text>
-
-  <path class="halo" d="M240 660 H640 V710 H665"/>
-  <path class="w" stroke="#d1495b" d="M240 660 H640 V710 H665"/>
-  <text class="wl" fill="#d1495b" x="360" y="652">5V</text>
-
-  <path class="halo" d="M240 690 H620 V735 H665"/>
-  <path class="w" stroke="#2b2b2b" d="M240 690 H620 V735 H665"/>
-  <text class="wl" fill="#2b2b2b" x="360" y="682">GND</text>
-
-  <path class="w" stroke="#d1495b" d="M760 690 V632"/>
-  <text class="wl" fill="#6b6b6b" x="772" y="670">5V+GND</text>
-
-  <path class="w" stroke="#2b2b2b" d="M932 580 H950 V792"/>
-  <text class="wl" fill="#2b2b2b" x="960" y="700">GND</text>
-
-  <!-- SIGNAL : borne -> G38 et -> Digmesa, tirage R3 vers le renvoi 3,3 V -->
-  <path class="w" stroke="#2f9e6e" d="M960 313 H946 V500 H932"/>
-  <path class="w" stroke="#2f9e6e" d="M1050 330 V500 H1060"/>
-  <text class="wl" fill="#2f9e6e" x="962" y="493">SIGNAL</text>
-  <path class="w" stroke="#e0852f" d="M1000 296 V240"/>
-  <rect class="res" x="992" y="252" width="16" height="26" rx="2"/>
-  <path class="w" stroke="#e0852f" d="M990 240 H1010"/>
-  <text class="sml" x="1016" y="244" style="font-weight:600;fill:#1c1c1c">3,3 V</text>
-  <text class="sml" x="1016" y="264">fil depuis le nœud 3V3 du réseau Wago,</text>
-  <text class="sml" x="1016" y="282">jonction sur un 221-2411 avec la patte de R3</text>
-
-  <path class="w" stroke="#d1495b" d="M1060 540 H932"/>
-  <text class="wl" fill="#d1495b" x="985" y="533">5V</text>
-
-  <path class="w" stroke="#2b2b2b" d="M1110 630 V792"/>
-  <text class="wl" fill="#2b2b2b" x="1122" y="716">GND</text>
-
-  <text class="sml" x="1000" y="380" style="font-weight:600;fill:#1c1c1c">Pull-up interne désactivée</text>
-  <text class="sml" x="1000" y="398">G38 en <tspan style="font-family:ui-monospace,Menlo,monospace">INPUT</tspan> simple : c'est R3 qui tient</text>
-  <text class="sml" x="1000" y="416">la ligne, avec un front montant bien plus raide.</text>
-</svg>
-</figure>
-
-<div class="paneside">
-<table>
-  <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:0 0 8px">Bornes et composants propres à cette variante</caption>
-  <thead><tr><th class="qty">Qté</th><th>Référence</th><th>Nœud</th><th>Conducteurs</th></tr></thead>
-  <tbody>
-    <tr><td class="qty">1</td><td>Wago 221-415 · 5 leviers</td><td>3,3 V</td><td>pin 3V3 · VCC XDB401 · R1 · R2 · fil vers R3</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SCL</td><td>pin G5 · SCL XDB401 · patte R1</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SDA</td><td>pin G6 · SDA XDB401 · patte R2</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>3,3 V</td><td>pin 3V3 · VCC XDB401 · fil vers R3</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>SCL</td><td>SCL du Grove Hub · SCL XDB401</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>SDA</td><td>SDA du Grove Hub · SDA XDB401</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>GND XDB401</td><td>GND du Grove Hub · GND XDB401</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>3,3 V déporté</td><td>fil venu du nœud 3V3 · patte de R3</td></tr>
     <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>SIGNAL</td><td>pin G38 · SIGNAL Digmesa · patte R3</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>Masse</td><td>pin GND · GND XDB401 · GND Digmesa</td></tr>
-    <tr><td class="qty">1</td><td>Wago 221-2411 · traversant</td><td>3,3 V déporté</td><td>fil venu du nœud 3V3 · autre patte de R3</td></tr>
-    <tr><td class="qty">3</td><td>Résistance 4,7 kΩ · 1/4 W</td><td>R1, R2, R3</td><td>une patte dans chaque borne concernée</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-2411 · tube 2 fils</td><td>5 V Digmesa</td><td>pin 5V header 4 · 5V Digmesa</td></tr>
+    <tr><td class="qty">1</td><td>Wago 221-413 · 3 leviers</td><td>GND Digmesa</td><td>pin GND header 4 · GND Digmesa · patte C1</td></tr>
+    <tr><td class="qty">1</td><td>Résistance 1 kΩ · 1/4 W</td><td>R3</td><td>tirage du débitmètre, vers 3,3 V</td></tr>
+    <tr><td class="qty">1</td><td>Condensateur 100 nF · 50 V</td><td>C1</td><td>une patte sur SIGNAL, l'autre dans le 221-413 de masse</td></tr>
     <tr><td class="qty">1</td><td>Fil 0,25 mm², ~15 cm</td><td>3,3 V déporté</td><td>du nœud 3V3 au 221-2411, côté débitmètre</td></tr>
   </tbody>
 </table>
-<p style="font-size:14.5px;color:#333;margin:10px 0 0"><b>6 bornes, 3 résistances, un fil de plus.</b> Le coût réel de la troisième résistance n'est pas la résistance : c'est qu'il faut amener le 3,3 V à l'autre bout du boîtier, ce qui demande une borne supplémentaire et un fil qui n'existait pas.</p>
-</div>
-</div>
 
-</div>
-
-<h2>Ce qui distingue les deux variantes</h2>
-
-<table>
-  <thead><tr><th>&nbsp;</th><th>Débit sur pull-up interne</th><th>Tous les tirages externes</th></tr></thead>
-  <tbody>
-    <tr><td>Résistances</td><td>2 (SDA, SCL)</td><td>3 (SDA, SCL, SIGNAL)</td></tr>
-    <tr><td>Bornes Wago</td><td>1 × 221-414, 3 × 221-413</td><td>1 × 221-415, 4 × 221-413, 1 × 221-2411</td></tr>
-    <tr><td>Fil supplémentaire</td><td class="free">aucun</td><td>3,3 V déporté vers le débitmètre</td></tr>
-    <tr><td>Front montant du débit</td><td>mou (≈ 45 kΩ interne)</td><td>raide (4,7 kΩ)</td></tr>
-    <tr><td>Config <code>G38</code></td><td><code>INPUT_PULLUP</code></td><td><code>INPUT</code></td></tr>
-    <tr><td>Réversible ?</td><td colspan="2">Oui, dans les deux sens : ajouter R3 ne change aucune broche, seulement une ligne de firmware.</td></tr>
-  </tbody>
-</table>
-
-<div class="note">
-<b>Commence par la première, et la fiche du débitmètre le confirme.</b> À 0,077 L/min et 1925 imp/L, la ligne bat à <b>2,5 Hz</b> : la pull-up interne de 45 kΩ y est surdimensionnée en temps de montée de plusieurs ordres de grandeur. La seconde variante n'a plus d'argument électrique côté débit ; elle reste le correctif à appliquer <em>si</em> tu observes des impulsions doublées, et elle ne coûte alors qu'un ajout, sans rien redéfaire.
-</div>
-
-<div class="note">
-<b>Et si le XDB401 embarque ses tirages, la comparaison change de nature.</b> R1 et R2 disparaissent des deux colonnes, le nœud 3,3 V retombe à un 221-2411, et la seule différence qui subsiste entre les deux variantes est la troisième résistance. Voir la mesure à faire, plus bas.
-</div>
+<p class="note">Les trois 221-2411 SCL / SDA / GND sont là pour pouvoir retirer le XDB401 sans toucher au Hub ni au header. Côté Digmesa, SIGNAL (221-413), 5 V (221-2411) et GND (221-413) jouent le même rôle. C1 a une patte sur le nœud SIGNAL et l'autre dans le 221-413 de masse.</p>
 
 <h2>Débitmètre Digmesa 932-9521-A</h2>
 
@@ -640,25 +379,29 @@
 </div>
 
 <div class="note">
-<b>2,5 Hz règle le débat sur le tirage.</b> À cette fréquence, la pull-up interne de 45 kΩ a tout le temps du monde pour remonter la ligne — le front mou n'a de conséquence qu'à des fréquences des ordres de grandeur au-dessus. La variante à trois résistances n'a plus d'argument électrique côté débitmètre ; elle ne resterait utile que si le câble s'allongeait beaucoup ou captait du bruit du dimmer.
+<b>Le filtre RC n'est pas là pour le temps de montée, il est là pour le moteur.</b> À 2,5 Hz n'importe quelle pull-up remonterait la ligne. R3 = <b>1 kΩ</b> vers le 3,3 V et C1 = <b>100 nF</b> vers la masse forment un passe-bas à ≈ 1,6 kHz : largement au-dessus du signal utile, assez bas pour tuer le bruit du dimmer et de la pompe. <code>G38</code> se configure en <code>INPUT</code> simple, pull-up interne éteinte — c'est R3 qui tient la ligne. Le Digmesa est alimenté en 5 V ; sa sortie collecteur ouvert n'impose aucune tension, c'est le tirage qui décide, donc 3,3 V côté GPIO.
 </div>
 
-<h2>Nomenclature commune</h2>
+<h2>Nomenclature</h2>
 
 <table>
   <thead><tr><th class="qty">Qté</th><th>Référence</th><th>Rôle</th><th>Raccordement</th></tr></thead>
   <tbody>
     <tr class="grp"><td colspan="4">Modules</td></tr>
     <tr><td class="qty">1</td><td>M5Stack Atom Echo S3R</td><td>MCU du nœud capteurs</td><td>USB-C, Port.A, 2 headers</td></tr>
-    <tr><td class="qty">1</td><td>M5Stack KISOMeter</td><td>Température du groupe</td><td>Grove I2C → Port.A</td></tr>
-    <tr><td class="qty">1</td><td>Sonde thermocouple type K</td><td>Collée sur le groupe</td><td>Bornier du KISOMeter</td></tr>
-    <tr><td class="qty">1</td><td>XDB401, I2C 3,3 V</td><td>Pression, amont vanne</td><td>4 fils nus → 3V3, G5, G6, masse</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit Hub</td><td>Éclateur Grove I2C</td><td>Port.A → 3 ports en parallèle</td></tr>
+    <tr><td class="qty">1</td><td>M5Stack Unit Weight-I2C</td><td>Transmetteur cellule, I2C 0x26</td><td>Grove 4 fils → Hub</td></tr>
+    <tr><td class="qty">1</td><td>Cellule de poids</td><td>Jauge de contrainte</td><td>HT3.96-4P du Weight-I2C</td></tr>
+    <tr><td class="qty">1</td><td>XDB401, I2C 3,3 V</td><td>Pression, amont vanne</td><td>3,3 V header + SCL/SDA/GND Grove</td></tr>
     <tr><td class="qty">1</td><td>Digmesa FHKSC PVDF <b>932-9521-A</b></td><td>Débit, collecteur ouvert NPN</td><td>3 pins 1,56 mm → 5V, G38, masse</td></tr>
+    <tr><td class="qty">1</td><td>HNP-1205</td><td>Alim 5 V / 2 A, autre bout du LiYCY</td><td>5V et GND du câble blindé</td></tr>
 
     <tr class="grp"><td colspan="4">Câbles</td></tr>
-    <tr><td class="qty">8</td><td>Fil à connecteur Dupont mâle</td><td>Vers les deux headers arrière</td><td>3V3, G5, G6, G7, G8, GND, 5V, G38</td></tr>
-    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>Bus I2C du KISOMeter</td><td>Fourni avec l'unit</td></tr>
-    <tr><td class="qty">1</td><td>Câble 4 conducteurs blindé, 30–40 cm</td><td>Alim 5 V + UART depuis le haut</td><td>Canal « 5 V » ; rayon de courbure = contrainte</td></tr>
+    <tr><td class="qty">6</td><td>Fil à connecteur Dupont mâle</td><td>Vers les deux headers arrière</td><td>3V3, G7, G8, GND, 5V, G38</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>Port.A → Hub</td><td>Fourni avec le Hub</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove 4 fils</td><td>Hub → Weight-I2C</td><td>Fourni avec l'unit</td></tr>
+    <tr><td class="qty">1</td><td>Câble Grove confectionné, <b>sans fil 5 V</b></td><td>Hub → XDB401</td><td>GND, SDA, SCL seulement</td></tr>
+    <tr><td class="qty">1</td><td>LiYCY 4×0,25 mm², paires droites, blindé, 30–40 cm</td><td>Alim 5 V + UART depuis le haut</td><td>Canal « 5 V » ; rayon de courbure = contrainte</td></tr>
     <tr><td class="qty">1</td><td>Câble 3 fils à confectionner</td><td>Queue de cochon du débitmètre</td><td>Connecteur 1,56 mm femelle 3 pins</td></tr>
 
     <tr class="grp"><td colspan="4">Divers</td></tr>
@@ -675,9 +418,9 @@
   <caption style="text-align:left;font-size:13px;color:#6b6b6b;padding:0 0 8px">Header 5 pins (gauche, USB vers le bas)</caption>
   <thead><tr><th>Pin</th><th>Signal</th><th>Vers</th></tr></thead>
   <tbody>
-    <tr><td class="pin">3V3</td><td>alim 3,3 V</td><td>nœud 3,3 V (XDB401 + tirages)</td></tr>
-    <tr><td class="pin">G5</td><td>I2C SCL</td><td>nœud SCL (XDB401 + R1)</td></tr>
-    <tr><td class="pin">G6</td><td>I2C SDA</td><td>nœud SDA (XDB401 + R2)</td></tr>
+    <tr><td class="pin">3V3</td><td>alim 3,3 V</td><td>nœud 3,3 V (XDB401 + R3)</td></tr>
+    <tr><td class="pin">G5</td><td class="free">libre</td><td class="free">réserve</td></tr>
+    <tr><td class="pin">G6</td><td class="free">libre</td><td class="free">réserve</td></tr>
     <tr><td class="pin">G7</td><td>UART RX</td><td>câble du haut ← TX de l'Atom Control</td></tr>
     <tr><td class="pin">G8</td><td>UART TX</td><td>câble du haut → RX de l'Atom Control</td></tr>
   </tbody>
@@ -689,10 +432,10 @@
   <thead><tr><th>Pin</th><th>Signal</th><th>Vers</th></tr></thead>
   <tbody>
     <tr><td class="pin">G39</td><td class="free">libre</td><td class="free">réserve</td></tr>
-    <tr><td class="pin">G38</td><td>impulsions débit</td><td>Digmesa SIGNAL, direct ou via le nœud SIGNAL</td></tr>
-    <tr><td class="pin">5V</td><td>alim 5 V</td><td>Digmesa</td></tr>
-    <tr><td class="pin">GND</td><td>masse</td><td>Wago 221-413 (étoile)</td></tr>
-    <tr><td class="pin">PORT.A</td><td>I2C + 5 V</td><td>KISOMeter, câble Grove</td></tr>
+    <tr><td class="pin">G38</td><td>impulsions débit</td><td>nœud SIGNAL (Digmesa + R3 + C1)</td></tr>
+    <tr><td class="pin">5V</td><td>alim 5 V</td><td>221-2411 → Digmesa</td></tr>
+    <tr><td class="pin">GND</td><td>masse</td><td>221-413 → GND Digmesa · C1</td></tr>
+    <tr><td class="pin">PORT.A</td><td>I2C + 5 V</td><td>Unit Hub, câble Grove</td></tr>
   </tbody>
 </table>
 </div>
@@ -701,41 +444,46 @@
 <h2>Pourquoi ces broches</h2>
 
 <ul>
-  <li><b>Le XDB401 occupe les trois positions du haut</b> — 3V3, G5, G6 sont contiguës, donc son alimentation et son bus sortent groupés d'un seul connecteur. C'est le seul endroit du module où le 3,3 V est disponible, ce qui fixait déjà la sonde sur ce header.</li>
-  <li><b>L'UART prend les deux positions du bas</b>, G7 et G8, les plus proches du port USB-C. Le câble à quatre fils venant du haut de la machine arrive par là : ses deux fils d'alimentation entrent dans le bornier USB-C, ses deux fils de données montent de deux pins. Aucun fil ne traverse le module.</li>
-  <li><b>Le Digmesa tient entièrement sur le header 4 pins</b> : GND, 5V et G38 sont ses trois conducteurs, contigus, et sa masse repart vers le Wago comme les autres.</li>
+  <li><b>Tout l'I2C passe par Port.A.</b> Le Hub étend le connecteur, le Weight-I2C s'y branche en 5 V comme n'importe quelle unit, le XDB401 s'y greffe en 3,3 V par un câble Grove sans fil rouge. G5 et G6, qui portaient autrefois le second bus, restent libres.</li>
+  <li><b>Le 3,3 V du header ne sert plus qu'à deux choses</b> : alimenter le XDB401, et tirer la ligne du débitmètre. Un seul Wago 221-413 les réunit.</li>
+  <li><b>L'UART prend les deux positions du bas</b>, G7 et G8, les plus proches du port USB-C. Le LiYCY venant du haut arrive par là : ses deux fils d'alimentation entrent dans le bornier USB-C, ses deux fils de données montent de deux pins. Aucun fil ne traverse le module.</li>
+  <li><b>Le Digmesa tient entièrement sur le header 4 pins</b> : GND, 5V et G38 sont ses trois conducteurs, contigus. Chacun passe par un Wago (221-2411 sur le 5 V, 221-413 sur SIGNAL et sur la masse) pour pouvoir retirer la sonde sans toucher au header. La masse reçoit aussi la patte de C1.</li>
   <li><b>Aucune de ces broches n'est un <em>strapping pin</em></b> de l'ESP32-S3 (0, 3, 45, 46). Rien de ce qui est branché ne peut perturber le démarrage, même si un capteur tire une ligne au moment du reset.</li>
-  <li><b>G39 reste libre</b>, sur le header le moins encombré.</li>
+  <li><b>G5, G6 et G39 restent libres.</b></li>
 </ul>
 
 <h2>Points de vigilance</h2>
 
 <div class="note warn">
-<b>Un bus I2C demande une résistance par ligne, donc deux.</b> SDA et SCL sont deux drains ouverts indépendants : chacune a besoin de son propre tirage, et une seule résistance laisserait l'autre ligne flottante. Le Port.A a les siennes, ce second bus non, et le XDB401 n'en embarque pas. Sans elles, les fronts montants deviennent des rampes et le bus rate des acquittements. <b>4,7 kΩ vers le 3,3 V, une sur SDA, une sur SCL</b>, dans les deux variantes.
+<b>Le fil rouge du Grove ne va pas sur le XDB401.</b> Port.A et le Hub transportent du 5 V sur VCC. Le XDB401 est un composant 3,3 V : son VCC vient du header, pas du Grove. Sur le câble confectionné, le conducteur 5 V n'est pas connecté — coupé, non serti, ou non enfiché, au choix, mais jamais abouti côté sonde.
 </div>
 
 <div class="note">
-<b>Une résistance de tirage n'est pas en série.</b> Elle ne coupe pas la ligne : le signal va en direct de la broche au capteur, et la résistance relie ce nœud au 3,3 V, en parallèle. C'est pourquoi chaque résistance a une patte dans deux bornes différentes — jamais deux pattes dans la même.
+<b>Le Unit Hub ne fait que paralléliser.</b> Les quatre broches de chaque port sont reliées entre elles, sans résistance ni buffer. Weight-I2C et XDB401 se retrouvent donc sur le même bus, à des adresses distinctes. Le 3e port reste disponible pour plus tard.
 </div>
 
 <div class="note">
-<b>Prendre du 1/4 W, pour le diamètre des pattes, pas pour la puissance.</b> Un Wago 221 pince à partir de 0,14 mm² en souple ; une patte de 1/4 W fait 0,6 mm de diamètre, soit 0,28 mm², bien dans la plage — une 1/8 W tombe à 0,16 mm², à la limite. Côté dissipation le calcul est sans suspense : 3,3 V ÷ 4,7 kΩ ≈ 0,7 mA, soit <b>2,3 mW</b>, cent fois moins que ce qu'une 1/4 W encaisse.
-</div>
-
-<div class="note">
-<b>La résistance devient le pont mécanique entre deux bornes.</b> Les Wago doivent donc être tenus par le boîtier imprimé : sinon c'est la patte qui porte, et une patte de résistance ne supporte pas les flexions répétées.
+<b>Les tirages I2C vivent dans le Weight-I2C.</b> Deux 4,7 kΩ internes tiennent SDA et SCL pour tout le bus, XDB401 compris. Il n'y a plus de résistances à câbler côté pression. Conséquence : débrancher le Weight-I2C laisse les lignes sans tirage — le XDB401 seul ne communiquera plus correctement.
 </div>
 
 <div class="note warn">
-<b>Tout tirage va vers le 3,3 V, jamais vers le 5 V.</b> Le 5 V est présent dans le boîtier — il alimente le Digmesa et le KISOMeter — et les GPIO de l'ESP32-S3 ne le tolèrent pas. Le Digmesa est alimenté en 5 V mais sa sortie collecteur ouvert n'impose aucune tension : c'est le tirage qui décide, donc la ligne monte à 3,3 V et l'entrée est en sécurité.
+<b>Tout tirage va vers le 3,3 V, jamais vers le 5 V.</b> Le 5 V est présent dans le boîtier — il alimente le Digmesa, le Hub et le Weight-I2C — et les GPIO de l'ESP32-S3 ne le tolèrent pas. Le Digmesa est alimenté en 5 V mais sa sortie collecteur ouvert n'impose aucune tension : c'est R3 qui décide, donc la ligne monte à 3,3 V et l'entrée est en sécurité.
 </div>
 
 <div class="note">
-<b>Les bornes servent aussi de point de débranchement.</b> Le XDB401 est livré en fils nus : le levier Wago est ce qui les transforme en connecteurs Dupont mâles sans sertissage ni soudure, et ce qui permet de retirer la sonde entière sans toucher aux pins de l'Atom.
+<b>Une résistance de tirage n'est pas en série.</b> R3 ne coupe pas la ligne : le signal va en direct de <code>G38</code> au capteur, et la résistance relie ce nœud au 3,3 V, en parallèle. C1 non plus : il est entre SIGNAL et GND, en parallèle de l'entrée.
 </div>
 
 <div class="note">
-<b>TX et RX se croisent.</b> Les libellés du schéma sont ceux de l'Atom Sensor : son <code>G8</code> (TX) part vers le <b>RX</b> de l'Atom Control, son <code>G7</code> (RX) vient du <b>TX</b> du Control. Les deux masses doivent être communes, ce que le même câble assure déjà via le bornier USB-C.
+<b>Prendre du 1/4 W, pour le diamètre des pattes, pas pour la puissance.</b> Un Wago 221 pince à partir de 0,14 mm² en souple ; une patte de 1/4 W fait 0,6 mm de diamètre, soit 0,28 mm², bien dans la plage. Côté dissipation : 3,3 V ÷ 1 kΩ = 3,3 mA, soit <b>11 mW</b>, négligeable.
+</div>
+
+<div class="note">
+<b>Les 221-2411 SCL, SDA et GND sont le point de débranchement du XDB401.</b> Le capteur arrive en fils nus : le tube Wago les transforme en prise, et permet de retirer la sonde entière sans toucher au Hub ni aux pins de l'Atom. Le 221-413 du 3,3 V joue le même rôle pour VCC.
+</div>
+
+<div class="note">
+<b>TX et RX se croisent.</b> Les libellés du schéma sont ceux de l'Atom Sensor : son <code>G8</code> (TX) part vers le <b>RX</b> de l'Atom Control, son <code>G7</code> (RX) vient du <b>TX</b> du Control. À l'autre bout du LiYCY, 5 V et GND vont sur l'HNP-1205 (5 V / 2 A), TX et RX sur deux GPIO de l'Atom Echo S3R Control. Les masses sont communes via l'alimentation.
 </div>
 
 <div class="note">
@@ -743,18 +491,11 @@
 </div>
 
 <div class="note">
-<b>Deux bus I2C, deux tensions.</b> Le KISOMeter est sur Port.A (alimenté en 5 V, signal 3,3 V), le XDB401 sur G5/G6 en 3,3 V pur. Ils sont volontairement séparés : sur un bus partagé, un esclave qui se bloque en tirant SDA à la masse emporte l'autre capteur avec lui, et la température sert à décider de couper le 230 V.
-</div>
-
-<div class="note warn">
-<b>La mesure qui décide de tout le réseau Wago : le XDB401 a-t-il ses tirages ?</b> Certaines variantes du module les portent sur le circuit. Un ohmmètre entre SDA et VCC, hors tension : quelques kΩ, et R1 et R2 n'ont plus lieu d'être — le réseau retombe à trois bornes sans aucun composant, et la seule question restante devient celle du débitmètre. Circuit ouvert, et les deux résistances sont obligatoires. Ce test coûte trente secondes et détermine la moitié de la nomenclature : à faire avant de commander quoi que ce soit.
-</div>
-
-<div class="note">
-<b>À vérifier.</b> Deux points restent déduits plutôt que lus :
+<b>À vérifier.</b> Trois points restent déduits plutôt que lus :
 <ul>
   <li>l'ordre <code>GND · 5V · G2 · G1</code> de Port.A suggère <code>G2 = SDA</code> et <code>G1 = SCL</code> (ordre Grove habituel), mais ce n'est pas lu dans la doc M5Stack ;</li>
-  <li>le brochage des 3 pins du Digmesa, à confirmer sur la pièce en main.</li>
+  <li>le brochage des 3 pins du Digmesa, à confirmer sur la pièce en main ;</li>
+  <li>l'adresse I2C du XDB401 ne doit pas coincider avec <code>0x26</code> (Weight-I2C, modifiable si besoin).</li>
 </ul>
 Le suffixe <b>-A</b> se distingue du <b>-B</b>, plus courant, par l'angle de sortie des raccords — information rapportée, non vérifiée ici, mais sans effet sur le câblage électrique. Le facteur K, lui, est désormais connu : <b>1925 imp/L</b> pour cette buse de 1,20 mm.
 </div>

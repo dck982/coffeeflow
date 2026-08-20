@@ -21,27 +21,25 @@ Alimentation du système de mod : uniquement quand la machine est allumée (phas
 
 Trois capteurs en feedback :
 
-- **Température du groupe** (sonde collée au groupe, pas l'eau du boiler)
+- **Poids** (cellule de contrainte via Unit Weight-I2C)
 - **Pression** sur la plomberie, en amont de la vanne
 - **Débit** en amont de la pompe, côté basse pression (le capteur ne tient que 3 bar)
 
-Une **balance Acaia en BLE** (balance = master, Atom = client) donne le poids dans la tasse. L'Atom coupe l'infusion au poids cible.
+L'Atom Control coupe l'infusion au poids cible, d'après les valeurs que l'Atom Sensor envoie en UART.
 
 ## Architecture électronique
 
 Trois nœuds ESP32 en chaîne UART, deux dedans/dessus la machine :
 
 ```
-[Atom Sensor]  --UART + 5V (USB-C)-->  [Atom Control]  --UART-->  [Waveshare LCD]
+[Atom Sensor]  --LiYCY (UART + 5 V)-->  [Atom Control]  --UART-->  [Waveshare LCD]
  dans la machine                        sur la machine             sur la machine
- débit, température, pression           230 V, dimmer, BLE         interface
+ débit, poids, pression                 230 V, dimmer              interface
 ```
 
 - **Atom Sensor** lit les trois capteurs et pousse les valeurs en UART.
 - **Atom Control** pilote le 230 V (ACSSR, relais NC, dimmer) et relaie tout à l'écran.
 - **Écran** affiche et renvoie la commande **départ**.
-
-Le BLE Acaia est porté par l'Atom Control, puisque c'est lui qui coupe l'infusion au poids cible — *à confirmer au moment du firmware*.
 
 Wifi sur l'écran (remontée backend) : hors scope.
 
@@ -49,16 +47,15 @@ Wifi sur l'écran (remontée backend) : hors scope.
 
 | Rôle | Matériel | Liaison | Fils |
 | --- | --- | --- | --- |
-| MCU | M5Stack Atom Echo S3R | USB-C | GND, 5 V (depuis l'alim du haut), TX, RX (vers Atom Control) |
-| Température groupe | M5Stack KISOMeter | I2C sur **Port.A** — alim 5 V, signal 3,3 V | GND, 5 V, SDA, SCL |
-| Pression | XDB401 3,3 V | I2C sur **header** — alim et signal 3,3 V | GND, 3,3 V, SDA, SCL |
-| Débit | Digmesa FHKSC PVDF **932-9521-A** | collecteur ouvert NPN, sur **header** | GND, 5 V, Signal |
+| MCU | M5Stack Atom Echo S3R | USB-C (bornier 5 V/GND) + UART header | LiYCY : 5 V/GND → HNP-1205, TX/RX → Atom Control |
+| Éclateur I2C | M5Stack Unit Hub | Grove sur **Port.A** | GND, 5 V, SDA, SCL — 3 ports en parallèle |
+| Poids | M5Stack Unit Weight-I2C + cellule | I2C Grove sur le Hub — alim 5 V, pull-up 4,7 kΩ internes | Grove 4 fils ; cellule en HT3.96-4P |
+| Pression | XDB401 3,3 V | I2C sur le **même bus**, Grove **sans fil 5 V** | 3,3 V header + SCL/SDA/GND |
+| Débit | Digmesa FHKSC PVDF **932-9521-A** | collecteur ouvert NPN, sur **header** | 5 V, G38, GND (via Wagos) |
 
-Deux bus I2C à des tensions différentes : le KISOMeter sur Port.A (alim 5 V), le XDB401 sur le header en 3,3 V pur.
+Un seul bus I2C, sur Port.A. Le Hub le duplique : le Weight-I2C s'y branche en 5 V comme n'importe quelle unit ; le XDB401 s'y greffe en 3,3 V par un câble Grove dont le fil rouge n'est pas connecté. Les tirages SDA/SCL sont ceux, internes, du Weight-I2C — rien à câbler côté pression. Débrancher le Weight-I2C laisse le bus sans pull-up.
 
-Le débitmètre est en collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. La ligne est tenue par la **résistance de pull-up interne de l'ESP32-S3** (`INPUT_PULLUP` sur le GPIO), pas de composant externe. Elle est faible (~45 kΩ typ.), donc le front montant est mou — mais la ligne ne bat qu'à **2,5 Hz** en extraction, ce qui lui laisse plusieurs ordres de grandeur de marge. Si des impulsions doublées apparaissent malgré tout, le correctif est une pull-up externe de 4,7 kΩ vers 3,3 V.
-
-Le second bus I2C (XDB401 sur G5/G6) n'a en revanche **pas** de résistances de tirage : le Port.A a les siennes, celui-ci non. Il faut deux 4,7 kΩ vers le 3,3 V, une par ligne — **sauf si le module XDB401 les embarque déjà**, ce qui se vérifie à l'ohmmètre entre SDA et VCC hors tension. Détail et schémas : `docs/atom_sensor.html`.
+Le débitmètre est en collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. R3 = **1 kΩ** vers le 3,3 V et C1 = **100 nF** vers la masse (passe-bas ≈ 1,6 kHz). `G38` en `INPUT`, pull-up interne éteinte. Le capteur est alimenté en 5 V ; c'est le tirage qui fixe le niveau haut à 3,3 V, donc l'entrée GPIO est en sécurité. Détail et schéma : `docs/atom_sensor.html`.
 
 #### Débitmètre 932-9521-A
 
@@ -102,16 +99,16 @@ Waveshare LCD tactile 4,3" avec ESP32-S3-VROOM : alimenté en USB-C, RX/TX de so
 | --- | --- | --- |
 | 230 V | Helutherm 145, **0,75 mm²**, Ø 2,2 mm | Wago 221 à leviers ; FASTON 6,3 × 0,8 mm côté machine |
 | 5 V / signaux | **0,25 mm²** | Grove, JST, header |
-| Sensor → Control | probablement un câble **USB-C data blindé** (alim + UART), 30–40 cm | USB-C |
+| Sensor → Control | **LiYCY 4×0,25 mm²**, paires droites, blindé, 30–40 cm | 5 V/GND → HNP-1205 et bornier USB-C côté Sensor ; TX/RX → GPIO des deux Atom |
 
-Le facteur limitant du câble USB-C est son **rayon de courbure**, pas sa longueur : il doit remonter d'un canal et entrer dans un boîtier fermé sans forcer sur le connecteur.
+Le facteur limitant du LiYCY est son **rayon de courbure**, pas sa longueur : il doit remonter d'un canal et entrer dans un boîtier fermé sans forcer sur le bornier USB-C.
 
 Les deux canaux séparent physiquement le 230 V du 5 V (un de chaque côté du réservoir) pour éviter que le dimmer, qui découpe la sinusoïde, ne pollue les signaux capteurs.
 
 ## Firmware
 
-- **Atom Sensor** : Rust `no_std` — I2C (KISOMeter, XDB401), comptage d'impulsions du débitmètre, émission UART
-- **Atom Control** : Rust `no_std` — dimmer et UART en temps réel, GPIO via PbHub, client BLE Acaia
+- **Atom Sensor** : Rust `no_std` — I2C (Weight-I2C, XDB401), comptage d'impulsions du débitmètre, émission UART
+- **Atom Control** : Rust `no_std` — dimmer et UART en temps réel, GPIO via PbHub
 - **Écran tactile** : Rust + lib graphique, UART vers l'Atom Control
 
 Le dépôt contient aujourd'hui un test Arduino (`sound_test/`) sur Atom S3 Voice. Le firmware Rust n'y est pas encore.
@@ -122,7 +119,7 @@ Le dépôt contient aujourd'hui un test Arduino (`sound_test/`) sur Atom S3 Voic
 
 **Sur la machine**, posé sur le plateau chauffant : `screen_base` (modules 230 V, alim 5 V, fusible, Atom Control) surélevée de 5 mm par une grille, et `screen_wedge` (Atom Voice + écran Waveshare) emboîté dessus. L'ensemble est `screen_assembly`.
 
-Traversée intérieur → extérieur : **quatre fils 230 V** dans un canal, **le câble USB-C Sensor → Control** dans l'autre.
+Traversée intérieur → extérieur : **quatre fils 230 V** dans un canal, **le LiYCY Sensor → Control** dans l'autre.
 
 ### Les six objets imprimés (`print/`)
 
@@ -132,7 +129,7 @@ Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. E
 | --- | --- | --- | --- | --- | --- |
 | 1 | `boitier_2w` / `boitier_4w` | intérieur, ~10 cm du boiler | PETG | Dérivation 230 V. FASTON nylon côté machine, Wago 221 côté mod. Évite les cosses piggyback. | existe |
 | 2 | `canal` (× 2) | intérieur, ~20 cm du boiler | PETG | Guidage des fils le long du réservoir. Un pour le 230 V, un pour le 5 V — séparation pour les interférences. | existe |
-| 3 | Boîtier **Atom Sensor** | intérieur | PETG | Atom Echo S3R, KISOMeter, XDB401, débitmètre et leur câblage. | à faire |
+| 3 | Boîtier **Atom Sensor** | intérieur | PETG | Atom Echo S3R, Unit Hub, Weight-I2C, XDB401, débitmètre et leur câblage. | à faire |
 | 4 | `screen_wedge` | dessus, le plus loin de la machine | **PLA** | Cadre de l'écran Waveshare. Sert aussi de couvercle à `screen_base`. | en validation |
 | 5 | `screen_base` | dessus, sur le plateau | PETG | Atom Control, PbHub, ACSSR, relais NC, RobotDyn, alim 5 V, fuse box, câblage. | à dimensionner |
 | 6 | Grille d'entretoise 5 mm | dessus, contact plateau | PETG | Surélève `screen_base` pour l'isoler thermiquement et faire passer des fils dessous. | à faire |

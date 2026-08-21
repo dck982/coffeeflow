@@ -24,8 +24,8 @@ ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's f
 @part
 def screen_base(
     wedge_width=126.1,
-    seat_height=20.0,
-    north_height=87.4,
+    seat_height=30.0,
+    backing=WEDGE_LENGTH,
     tilt=60.0,
     wall=2.0,
     floor=2.0,
@@ -49,9 +49,11 @@ def screen_base(
         channel fit and the two rails
     seat_height: box height where the wedge's bottom edge lands, set by the
         electronics that have to fit under the screen
-    north_height: height of the ridge. It also decides how much of the wedge the
-        slope backs: 87.4 backs all 77.8mm, and under 75 the top of the
-        touchscreen overhangs the slope and a press rocks the screen
+    backing: how much of the wedge's 77.8mm lies on the slope. 77.8 backs all of
+        it, so a press anywhere on the glass is compression into the slope; under
+        63.5 the top of the touchscreen overhangs the ridge and a press rocks the
+        screen. It sets the ridge height, which is why seat_height and tilt can
+        move without changing what the screen rests on
     tilt: seat slope, i.e. the screen angle
     wall: wall thickness
     floor: bottom thickness
@@ -78,18 +80,26 @@ def screen_base(
 
     crest = seat_height + WEDGE_THICKNESS * c
     seat_y = WEDGE_THICKNESS * s
-    run = (north_height - seat_height) / tan(t)
+    # The ridge is where `backing` mm up the slope lands, so seat_height and tilt
+    # move without changing how much of the wedge the slope carries.
+    north_height = seat_height + backing * s
+    run = backing * c
     north_y = seat_y + run
     depth = north_y + footing
-    backed = run / c
 
-    if backed < ACTIVE_TOP:
+    if backing < ACTIVE_TOP:
         reject(
-            f"the slope backs {backed:.1f}mm of the wedge but the touchscreen "
+            f"the slope backs {backing:.1f}mm of the wedge but the touchscreen "
             f"reaches {ACTIVE_TOP:.1f}mm, so a press up there rocks the screen off "
-            f"its seat; raise north_height past "
-            f"{seat_height + ACTIVE_TOP * c * tan(t):.1f}",
-            param="north_height",
+            f"its seat; raise backing past {ACTIVE_TOP:.1f}",
+            param="backing",
+        )
+    if backing > WEDGE_LENGTH:
+        reject(
+            f"backing {backing:.1f}mm is more slope than the wedge's "
+            f"{WEDGE_LENGTH:.1f}mm to lie on it, so the ridge stands proud of the "
+            "screen",
+            param="backing",
         )
     if footing_edge >= north_height:
         reject("footing_edge must stay under north_height", param="footing_edge")

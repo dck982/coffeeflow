@@ -11,7 +11,7 @@ from math import sin, cos, radians
 
 
 @assembly
-def screen_assembly(slide=0.0, tilt=60.0, seat_height=20.0, draft=False):
+def screen_assembly(slide=0.0, tilt=60.0, seat_height=30.0, draft=False):
     """Waveshare 4.3 carrier seated in its cradle.
 
     slide: how far up the slope the wedge is pulled, to see the joint. 0 is home

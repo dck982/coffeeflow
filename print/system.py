@@ -1,8 +1,24 @@
-"""Shared layout for the Wago derivation boxes and lids."""
+"""Shared geometry: Wago derivation box layout, and the printable thread."""
 
+import math
 from types import SimpleNamespace
 
-from nurb import Align, Axis, Box, Cylinder, Pos, RegularPolygon, extrude, measured, reject
+from nurb import (
+    Align,
+    Axis,
+    Box,
+    Cone,
+    Cylinder,
+    Helix,
+    Plane,
+    Polygon,
+    Pos,
+    RegularPolygon,
+    extrude,
+    measured,
+    reject,
+    sweep,
+)
 
 # Mouth lead so a bed-flush nut trap still cuts the floor cleanly (same idea as
 # nurb.holes.counterbore).
@@ -363,3 +379,99 @@ def outer_corners(body, outer_x, outer_y, bed):
         return on_x and on_y
 
     return body.edges().filter_by(Axis.Z).filter_by(keep)
+
+
+_CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
+
+
+def _fuse_one(shape):
+    """Boolean-union every solid in a compound. `+` sometimes leaves a compound."""
+    solids = list(shape.solids())
+    if not solids:
+        return shape
+    body = solids[0]
+    for s in solids[1:]:
+        body = body.fuse(s)
+    return body
+
+
+def barreau_filete(
+    major_dia,
+    pitch,
+    depth,
+    height,
+    jeu_radial=0.0,
+    start=0.8,
+    alpha=35.0,
+    collar_h=None,
+    chanfrein_tete=0.0,
+):
+    """Printable sawtooth thread, male bar or female cutter.
+
+    Profile taken off a cable gland found online: a sawtooth rather than an ISO
+    60° V. A pure 45° axial flank reads ~51° after helix/Frenet, so axial
+    `alpha` 35° is what lands the underside under 45°. Always fused to one
+    solid before return.
+
+    `start` is the plain run below the first turn, `collar_h` the full-major
+    cylinder at the bottom (defaults to start + 0.3). Used as a cutter for a
+    female thread, pass collar_h=0: a full-major collar there counterbores the
+    bore mouth and leaves the first thread ridge printing on air.
+    """
+    if collar_h is None:
+        collar_h = start + 0.3
+    r_maj = major_dia / 2.0 + jeu_radial
+    r_min = r_maj - depth
+    if r_min < 1.0:
+        reject(
+            f"thread minor radius {r_min:.2f} mm is under 1 mm: "
+            "lower depth or raise major_dia",
+        )
+    if height <= start + pitch:
+        reject(
+            f"thread height {height} mm is too short for a {start} mm plain "
+            f"run plus one {pitch} mm turn: raise it",
+        )
+    dz = depth / math.tan(math.radians(alpha))
+    bite = 0.15
+    # Crest flat = whatever the pitch has left once the 35° underside and a 45°
+    # return flank are paid for. A 0.12 mm crest is thinner than one 0.42 mm
+    # bead and fires min_wall; spending the slack on the flat is free.
+    flat = max(0.12, pitch - dz - (depth + bite))
+    if pitch + 0.05 < dz + flat + 0.2:
+        reject(
+            f"pitch {pitch} mm cannot fit a {alpha}° flank (dz {dz:.2f}) plus "
+            f"crest flat: lower depth or raise pitch",
+        )
+    # Sawtooth: gentle underside (printable), short crest flat, steeper return.
+    z_crest = dz + flat
+    pts = [
+        (r_min - bite, 0.0),
+        (r_maj, dz),
+        (r_maj, z_crest),
+        (r_min - bite, pitch),
+    ]
+    face = Plane.XZ * Polygon(*pts, align=None)
+    helix_h = height - start
+    path = Helix(pitch=pitch, height=helix_h, radius=r_min, center=(0, 0, start))
+    crest = sweep(face, path=path, is_frenet=True)
+    core = Cylinder(r_min, height + 0.2, align=_CMIN)
+    # Fuse the helix onto the core FIRST. `collar.fuse(core).fuse(crest)`
+    # silently returns the crest alone (measured: 94mm3 instead of 1179) —
+    # OCCT loses the operands when a coaxial cylinder pair meets a swept
+    # helix. Core + crest, then the collar, is stable.
+    body = _fuse_one(core + crest)
+    if collar_h > 0.0:
+        body = _fuse_one(body + Cylinder(r_maj, collar_h, align=_CMIN))
+    trim = Pos(0, 0, height) * Box(50, 50, pitch + 4.0, align=_CMIN)
+    body = _fuse_one(body - trim)
+    if chanfrein_tete > 0.0:
+        # Bolt-tip chamfer. Without it the trim plane knifes the last turn
+        # mid-tooth and leaves a 0.37 mm section (min_wall) at the tip.
+        z0 = height - chanfrein_tete
+        band = Pos(0, 0, z0) * Cylinder(r_maj + 1.0, chanfrein_tete, align=_CMIN)
+        cone = Pos(0, 0, z0) * Cone(
+            r_min + chanfrein_tete, r_min, chanfrein_tete, align=_CMIN
+        )
+        body = _fuse_one(body - (band - cone))
+    return body

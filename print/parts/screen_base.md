@@ -42,7 +42,7 @@ weight — this part is nowhere near its strength limit, see below.
   the pocket ceiling the module fits against, a 74 mm bridge over 111.0 mm², and 8
   regions whose first layer starts in mid-air. The two constraints are exclusive: the
   seat wants 60°, the pocket and its walls want ≤ 45°. There is no compromise angle.
-  Both reference designs in `samples/` split the same way — Waveshare's own is a case
+  Both reference designs found online split the same way — Waveshare's own is a case
   plus a separate stand, octopint is four screwed panels.
 - **`backing` is the parameter, and the ridge height is computed from it.**
   `north_height = seat_height + backing·sin(tilt)`. Backing is how much of the wedge's

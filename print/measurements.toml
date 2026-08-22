@@ -298,3 +298,85 @@ how = "ISO 4762 M2.5 socket cap head diameter"
 value = 2.5
 unit = "mm"
 how = "ISO 4762 M2.5 socket cap head height"
+
+# --- Passe-câble M16 (canal_angle floor hole) ---
+
+[cable_od_passe]
+value = 4.8
+unit = "mm"
+how = "user: two cables through the canal_angle Ø16, outer diameter 4.8 mm."
+
+[tole_epaisseur]
+value = 1.0
+unit = "mm"
+how = "user: sheet metal thickness the passe-câble flange clamps against, under the box floor."
+
+[passe_cable_trou]
+value = 16.4
+unit = "mm"
+how = "Box floor hole. Nominal sheet cutout is Ø16; +0.4 mm so the printed bore clears a 15.8 mm male (nurb fits table: 0.2 snug on the real sheet, 0.4 extra on the printed hole because vertical bores print small). canal_angle.trou_diametre default."
+
+[passe_cable_fut_diametre]
+value = 15.8
+unit = "mm"
+how = "Male barrel OD. 0.2 mm under the Ø16 sheet hole (nurb snug fit) so the printed cylinder passes the metal; threads stay at or under this major so they also pass. Record only: the live value is the `diametre_fut` slider on passe_cable and ecrou_passe_cable."
+
+[passe_cable_fut_jeu]
+value = 0.2
+unit = "mm"
+how = "nurb fits table, snug: extra on the Ø16 opening relative to the male. Realised by shrinking the male, not growing the sheet. Record only: realised by the `diametre_fut` slider, not read by any part."
+
+[passe_cable_bride_diametre]
+value = 20.0
+unit = "mm"
+how = "Flange disc OD, larger than the Ø16 hole so it bears on the sheet. 2 mm annulus; taste, not a datasheet. Record only: the live value is the `diametre_bride` slider on passe_cable."
+
+[passe_cable_bride_epaisseur]
+value = 1.6
+unit = "mm"
+how = "Matches canal_angle floor (epaisseur_paroi 1.6). 1.2 mm was considered to shorten the male: rejected — 1.2 mm is printable (six 0.2 mm layers) but the floor is a clamp washer around Ø16 with a thin east strip; 1.6 mm is four 0.42 mm perimeters, same as the walls, and 0.4 mm of extra barrel is nothing against 20.5 mm of interior height."
+
+[passe_cable_passage]
+value = 5.2
+unit = "mm"
+how = "Printed bore for a 4.8 mm cable. 4.8 + 0.4 mm (nurb fits, between snug 0.2 and free 0.5) because vertical bores print small and the cable must slide through. Record only: the live value is the `diametre_passage` slider on passe_cable."
+
+[passe_cable_entraxe]
+value = 6.4
+unit = "mm"
+how = "Centre distance of the two cable bores, symmetric about the Ø16 axis. 5.2 + 1.2 mm web (three perimeters). Record only: the live value is the `entraxe_passages` slider on passe_cable."
+
+[ecrou_m16_plats]
+value = 22.0
+unit = "mm"
+how = "SW 22 hex collar across flats (same envelope as a PA M16 cable-gland locknut). Flats face east-west in the box."
+
+[ecrou_m16_epaisseur]
+value = 5.0
+unit = "mm"
+how = "Hex collar height; also sets how far the passe_cable barrel rises above the floor."
+
+[ecrou_m16_diagonale]
+value = 25.4
+unit = "mm"
+how = "Across corners of a 22 mm AF hex: 22 / cos(30°) ≈ 25.4 mm. Record only: derived, no part reads it."
+
+[passe_cable_filet_pas]
+value = 2.0
+unit = "mm"
+how = "Chosen, not measured: the cable gland found online measures 1.41 mm crest to crest but a 1.41 pitch has no room left for a crest — 35° flank 0.71 + 45° return flank 0.65 = 1.36 of 1.41, so the crest flat is 0.12 mm, under one 0.42 mm bead (nurb min_wall). 2.0 mm buys a 0.64 mm crest with both flanks still at the printable limit. Male and female are both printed here, so the pair is self-consistent; a bought gland nut will NOT mate. User's call, 2026-08-22. Record only: the live value is the `pas_filet` slider on passe_cable and ecrou_passe_cable — keep the two in step."
+
+[passe_cable_filet_profondeur]
+value = 0.5
+unit = "mm"
+how = "Sawtooth depth. A section through the online gland showed ~0.65–0.78 mm; 0.5 mm with a 35° axial underside lands under 45° after helix/Frenet (a pure 45° axial V reads ~51° and fails nurb check). Record only: the live value is the `profondeur_filet` slider on both parts."
+
+[passe_cable_filet_jeu]
+value = 0.3
+unit = "mm"
+how = "nurb fits table, moving: extra on diameter between the printed male and female threads. Record only: the live value is the `jeu_filet` slider on ecrou_passe_cable."
+
+[passe_cable_amorce]
+value = 1.5
+unit = "mm"
+how = "Male thread past the seated nut (about three quarters of a turn of runout). Male thread height = nut 5.0 + this 1.5 = 6.5 mm = 3.25 turns at pitch 2.0; smooth collar below = tole 1.0 + floor 1.6."

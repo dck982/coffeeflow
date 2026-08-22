@@ -60,7 +60,11 @@ Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de 
 | `parts/couvercle_2w.py` | Couvercle M3 (1 vis) |
 | `parts/ensemble_2w.py` | Assemblage 2 Wago + châssis |
 | `parts/canal.py` | Canal de guidage des fils |
-| `parts/canal_test.py` | Coupon de fit du canal |
+| `parts/canal_angle.py` | Boîtier d'angle : carré fermé + rampe 45° |
+| `parts/canal_angle_couvercle.py` | Couvercle du boîtier d'angle (aimant) |
+| `parts/passe_cable.py` | Passe-câble fileté, deux câbles Ø4.8 |
+| `parts/ecrou_passe_cable.py` | Écrou SW22 du passe-câble |
+| `parts/ensemble_passe_cable.py` | Assemblage boîtier + passe-câble + écrou + tôle |
 | `parts/screen_wedge.py` | Cadre de l'écran Waveshare (PLA) |
 | `parts/screen_base.py` | Berceau du wedge, contiendra l'électronique |
 | `parts/screen_assembly.py` | Assemblage wedge + base |

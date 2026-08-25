@@ -380,3 +380,110 @@ how = "nurb fits table, moving: extra on diameter between the printed male and f
 value = 1.5
 unit = "mm"
 how = "Male thread past the seated nut (about three quarters of a turn of runout). Male thread height = nut 5.0 + this 1.5 = 6.5 mm = 3.25 turns at pitch 2.0; smooth collar below = tole 1.0 + floor 1.6."
+
+# --- Pesée du drip tray (docs/driptray.md, relevés utilisateur 2026-08-25) ---
+
+[bac_largeur]
+value = 192.0
+unit = "mm"
+how = "user: pied à coulisse, intérieur du bac de la Profitec Go, tôle à tôle, vis retirées. Repère X = ±96."
+
+[bac_profondeur]
+value = 140.0
+unit = "mm"
+how = "user: pied à coulisse, intérieur du bac, avant-arrière. Repère Y = ±70, l'avant est +Y."
+
+[bac_perforations_diametre]
+value = 80.0
+unit = "mm"
+how = "user: cercle d'évacuation percé dans le fond du bac. Rien du socle ne doit s'y poser (drainage)."
+
+[bac_perforations_y]
+value = 15.0
+unit = "mm"
+how = "user: centre du cercle de perforations à 55 mm de la paroi arrière, soit y = 55 - 70 = +15."
+
+[bac_vis_basse_x]
+value = 49.0
+unit = "mm"
+how = "user: les deux vis basses du bac, 47 mm depuis chaque paroi latérale, soit x = ±49. Entraxe 98 mm."
+
+[bac_vis_basse_y]
+value = -66.0
+unit = "mm"
+how = "user: vis basses à 4 mm de la paroi arrière, soit y = 4 - 70 = -66."
+
+[bac_vis_tete_diametre]
+value = 7.0
+unit = "mm"
+how = "user: tête cylindrique des quatre vis de fixation du bac au châssis."
+
+[bac_vis_tete_depassement]
+value = 4.0
+unit = "mm"
+how = "user: hauteur de la tête au-dessus du fond du bac. La poche borgne du socle la coiffe avec 0,5 mm de garde."
+
+[tray_masse]
+value = 900.0
+unit = "g"
+how = "user: balance de cuisine, drip tray vide de la Profitec Go."
+
+[tray_budget_vertical]
+value = 18.0
+unit = "mm"
+how = "user: hauteur d'un objet rigide posé sur le fond du bac sous le tray. 17 -> le tray quitte les rails ; 18 -> libre et de niveau ; 19 -> la cavité OPV le fait pencher. Cote de dessin, à réajuster au dixième après le premier essai."
+
+[barre_longueur]
+value = 75.5
+unit = "mm"
+how = "user: pied à coulisse, barre de charge 5 kg, bout à bout."
+
+[barre_section]
+value = 12.7
+unit = "mm"
+how = "user: pied à coulisse, section carrée de la barre."
+
+[barre_trou_exterieur]
+value = 32.75
+unit = "mm"
+how = "user: trou M4 traversant à 5 mm de chaque bout, soit 75,5/2 - 5 = 32,75 depuis le centre."
+
+[barre_trou_interieur]
+value = 22.75
+unit = "mm"
+how = "user: trou M4 traversant à 15 mm de chaque bout, soit 75,5/2 - 15 = 22,75 depuis le centre."
+
+[barre_capacite]
+value = 5.0
+unit = "kg"
+how = "user: sticker fléché « 5 kg » au bout chargé. Charge réelle ~1350 g = 27 % de la pleine échelle."
+
+[barre_fleche]
+value = 0.2
+unit = "mm"
+how = "Typique de ce format de barre à pleine échelle ; à confirmer sur la fiche. Sert au calcul de la butée de surcharge : 1,0 mm de chute = 25 kg sur une cellule détruite à 7,5 kg."
+
+[goujon_passage]
+value = 4.3
+unit = "mm"
+how = "Trou de passage ISO 273 close pour les goujons M4 sans tête du bout chargé. Colonne close et non medium : ici le trou LOCALISE le plateau sur les goujons, il ne fait pas que laisser passer une vis."
+
+[vis_fraisee_m4_tete]
+value = 8.96
+unit = "mm"
+how = "ISO 10642, vis M4 à tête fraisée hexagonale creuse : diamètre de tête publié. Cône à 90° inclus."
+
+[vis_fraisee_m4_tete_hauteur]
+value = 2.2
+unit = "mm"
+how = "ISO 10642 M4 : hauteur de tête. Dans un berceau de 3,0 mm il reste 0,8 mm sous la tête."
+
+[insert_m25_exterieur]
+value = 4.6
+unit = "mm"
+how = "user: photo de la fiche produit du lot de 100, insert laiton à emmancher à chaud M2,5 x 4 x 4,6 — 4,6 est le Ø hors tout du moletage, 4 la longueur. Record only : la valeur vive est le slider insert_m25_diametre de base_pesage."
+
+[insert_m25_trou]
+value = 4.0
+unit = "mm"
+how = "Puits imprimé pour l'insert Ø4,6 : hors tout moins 0,6 mm, la règle des fabricants d'inserts à emmancher (ruthex donne Ø4,0 pour un insert de 4,6). C'est le plastique déplacé qui fait la tenue, donc un trou au Ø nominal ne tient pas et un trou trop serré fend le bossage. Corrige le 3,6 de la première version, qui venait d'une cote manquante."

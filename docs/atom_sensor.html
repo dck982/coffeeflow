@@ -396,6 +396,10 @@
 <b>Le filtre RC n'est pas là pour le temps de montée, il est là pour le moteur.</b> À 2,5 Hz n'importe quelle pull-up remonterait la ligne. R3 = <b>1 kΩ</b> vers le 3,3 V et C1 = <b>100 nF</b> vers la masse forment un passe-bas à ≈ 1,6 kHz : largement au-dessus du signal utile, assez bas pour tuer le bruit du dimmer et de la pompe. <code>G38</code> se configure en <code>INPUT</code> simple, pull-up interne éteinte — c'est R3 qui tient la ligne. Le Digmesa est alimenté en 5 V ; sa sortie collecteur ouvert n'impose aucune tension, c'est le tirage qui décide, donc 3,3 V côté GPIO.
 </div>
 
+<div class="note">
+<b>Variante à l'étude : coupure plus basse.</b> Le signal utile plafonne à ~18 Hz (haut de plage du Digmesa, 0,569 L/min), donc la marge sous 1,6 kHz est confortable mais pas exploitée au maximum. En gardant R3 = 1 kΩ, un C1 = <b>330 nF</b> ramènerait la coupure vers ≈ 480 Hz (marge ×27 sur le signal), ou <b>1 µF</b> vers ≈ 160 Hz (marge ×9), pour mieux atténuer le bruit du dimmer sans toucher au temps de montée. Non tranché — 100 nF reste la valeur retenue tant que ce n'est pas mesuré sur pièce.
+</div>
+
 <h2>Nomenclature</h2>
 
 <table>

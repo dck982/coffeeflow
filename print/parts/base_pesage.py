@@ -26,7 +26,7 @@ def base_pesage(
     joue_hauteur=9.0,
     fils_degagement=3.0,
     fils_arrondi=18.0,
-    fils_cote_avant=False,
+    fils_cote_avant=True,
     cadre_largeur=110.0,
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,
@@ -76,7 +76,7 @@ def base_pesage(
     joue_hauteur: hauteur des joues, ce qui raidit la potence du berceau
     fils_degagement: de combien le haut des joues descend pour laisser sortir les fils de la cellule
     fils_arrondi: rayon de ce dégagement, donc la douceur de la pente sous les fils
-    fils_cote_avant: cochez si les fils sortent du côté AVANT de la barre ; par défaut ils sortent côté paroi arrière
+    fils_cote_avant: les fils sortent du côté avant de la barre ; décochez s'ils sortent côté paroi arrière
     cadre_largeur: largeur en X du plateau, que la cage doit entourer
     cadre_profondeur: profondeur en Y du plateau
     cadre_centre_y: centre en Y du plateau

@@ -28,6 +28,7 @@ def plateau_pesage(
     sangle_largeur=17.0,
     sangle_marge=5.0,
     goujon_passage=4.3,
+    goujon_peau=0.6,
     bride_epaisseur=3.0,
     bride_portee=3.0,
     butee_x=45.0,
@@ -59,7 +60,8 @@ def plateau_pesage(
     sangle_epaisseur: épaisseur de la sangle qui se pose sur le bout chargé de la barre
     sangle_largeur: largeur en Y de cette sangle
     sangle_marge: plastique autour de chaque trou de goujon
-    goujon_passage: trous traversants sur les deux goujons M4 sans tête
+    goujon_passage: diamètre des deux poches borgnes qui reçoivent les goujons M4 sans tête
+    goujon_peau: peau laissée côté tray au-dessus de chaque poche de goujon
     bride_epaisseur: hauteur de la bride arrière que la lèvre du socle vient coiffer
     bride_portee: de combien cette bride dépasse le tablier vers l'arrière
     butee_x: position en X de la butée de surcharge du socle, qui doit tomber sur une nervure
@@ -103,6 +105,25 @@ def plateau_pesage(
             f"barre pendant que le tablier la survole. Monte-la au-delà de "
             f"{tablier_epaisseur + 0.2:.1f}",
             param="sangle_epaisseur",
+        )
+    # La poche du goujon doit loger les 1,4 mm de saillie plus 0,2 de garde,
+    # sinon le goujon bute sur la peau et soulève le plateau au lieu de le poser
+    # sur la barre — une erreur de tare que rien ne signale.
+    goujon_poche = sangle_epaisseur - goujon_peau
+    if goujon_peau < 0.6:
+        reject(
+            f"goujon_peau {goujon_peau} est sous 0,6 mm : c'est la peau qui ferme la "
+            f"face d'appui du tray au-dessus du goujon, et sous trois couches elle se "
+            f"perce au réglage. Monte-la",
+            param="goujon_peau",
+        )
+    if goujon_poche < 1.6:
+        reject(
+            f"goujon_peau {goujon_peau} ne laisse que {goujon_poche:.2f} mm de poche "
+            f"dans une sangle de {sangle_epaisseur} : il en faut 1,6 pour les 1,4 mm "
+            f"de saillie du goujon plus la garde. Baisse-la sous "
+            f"{sangle_epaisseur - 1.6:.1f}",
+            param="goujon_peau",
         )
     if fenetre_demi_largeur < barre_s / 2.0 + 2.0:
         reject(
@@ -213,11 +234,15 @@ def plateau_pesage(
         -1.0, rib_top + 1.0,
     )
 
-    # --- trous des deux goujons M4 sans tête du bout chargé ---
+    # --- poches borgnes des deux goujons M4 sans tête du bout chargé ---
+    # Elles ne traversent PAS : la peau de goujon_peau est du côté du tray, donc
+    # elle est imprimée à même le lit, sans pont ni support, et la face d'appui
+    # du tray reste continue. Rien ne peut couler jusqu'à la barre, et il n'y a
+    # plus de cuvette Ø4,3 au-dessus d'un goujon réglé un peu court.
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)
     for x in (-trou_ext, -trou_int):
-        body -= Pos(x, barre_y, -0.5) * Cylinder(
-            goujon_passage / 2.0, sangle_epaisseur + 1.0, align=cmin
+        body -= Pos(x, barre_y, goujon_peau) * Cylinder(
+            goujon_passage / 2.0, sangle_epaisseur - goujon_peau + 1.0, align=cmin
         )
 
     solids = list(body.solids())

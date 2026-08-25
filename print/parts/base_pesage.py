@@ -24,6 +24,9 @@ def base_pesage(
     jeu_barre=0.4,
     joue_epaisseur=2.5,
     joue_hauteur=9.0,
+    fils_degagement=3.0,
+    fils_arrondi=18.0,
+    fils_cote_avant=False,
     cadre_largeur=110.0,
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,
@@ -40,9 +43,12 @@ def base_pesage(
     levre_jeu_vertical=1.5,
     pied_x=50.0,
     pied_y=40.0,
+    aimant_coin_x=48.0,
+    aimant_coin_y=-59.0,
+    aimant_paroi_z=5.0,
     puit_diametre=8.2,
     poche_diametre=7.4,
-    poche_profondeur=4.5,
+    poche_profondeur=4.0,
     poche_plafond=1.5,
     butee_x=45.0,
     butee_y=-8.0,
@@ -68,6 +74,9 @@ def base_pesage(
     jeu_barre: jeu entre la barre et chaque joue du berceau
     joue_epaisseur: épaisseur des deux joues qui encaissent la barre
     joue_hauteur: hauteur des joues, ce qui raidit la potence du berceau
+    fils_degagement: de combien le haut des joues descend pour laisser sortir les fils de la cellule
+    fils_arrondi: rayon de ce dégagement, donc la douceur de la pente sous les fils
+    fils_cote_avant: cochez si les fils sortent du côté AVANT de la barre ; par défaut ils sortent côté paroi arrière
     cadre_largeur: largeur en X du plateau, que la cage doit entourer
     cadre_profondeur: profondeur en Y du plateau
     cadre_centre_y: centre en Y du plateau
@@ -84,10 +93,13 @@ def base_pesage(
     levre_jeu_vertical: jeu vertical sous la lèvre (la pesée ne fait que 0,05 mm de course)
     pied_x: écartement en X des deux pieds avant à aimant
     pied_y: position en Y des deux pieds avant à aimant
+    aimant_coin_x: écartement en X des deux aimants ajoutés dans les angles arrière
+    aimant_coin_y: position en Y de ces deux aimants d'angle
+    aimant_paroi_z: hauteur de l'axe de l'aimant qui plaque le socle contre la paroi arrière
     puit_diametre: diamètre du puits d'aimant Ø8×3
-    poche_diametre: diamètre des deux poches qui coiffent les têtes de vis du bac
-    poche_profondeur: profondeur des poches (tête de 4 mm + garde)
-    poche_plafond: plastique laissé au-dessus de chaque poche
+    poche_diametre: largeur des deux poches qui coiffent les têtes de vis de la paroi arrière
+    poche_profondeur: de combien chaque poche s'enfonce en Y depuis la face nord (tête + garde)
+    poche_plafond: plastique laissé au-dessus du plafond de chaque poche
     butee_x: position en X de la butée de surcharge
     butee_y: position en Y de la butée, tenue hors de la fenêtre du plateau
     butee_jeu: chute autorisée avant que la butée n'arrête le plateau (un demi-tour de M3 = 0,25 mm)
@@ -110,7 +122,8 @@ def base_pesage(
     perfo_r = measured("bac_perforations_diametre") / 2.0
     perfo_y = measured("bac_perforations_y")
     vis_x = measured("bac_vis_basse_x")
-    vis_y = measured("bac_vis_basse_y")
+    vis_z = measured("bac_vis_basse_z")
+    tete_saillie = measured("bac_vis_tete_depassement")
     puit_fond = measured("puit_fond")
     aimant_h = measured("aimant_hauteur")
     bac_y = measured("bac_profondeur") / 2.0
@@ -120,6 +133,18 @@ def base_pesage(
     plat_dessous = hauteur_pile - tablier_epaisseur - nervure_hauteur
     levre_dessous = plat_dessous + bride_epaisseur + levre_jeu_vertical
     butee_saillie = plat_dessous - butee_jeu - socle_epaisseur
+
+    # Les têtes de vis sortent de la paroi ARRIÈRE, horizontalement : la poche est
+    # un tunnel qui perce la face nord, pas un lamage dans le fond. Elle est
+    # carrée et pas ronde, parce qu'un alésage rond couché a une voûte en arc que
+    # rien ne soutient, là où un plafond plat de 7,4 mm est un pont banal.
+    poche_r = poche_diametre / 2.0
+    poche_z0 = vis_z - poche_r
+    poche_z1 = vis_z + poche_r
+    poche_boss_hauteur = poche_z1 + poche_plafond
+    # Ce que la tête pénètre réellement dans le socle : sa saillie moins le jeu
+    # que le socle garde devant la paroi.
+    tete_penetration = tete_saillie - jeu_paroi_arriere
 
     if sangle < 1.6:
         reject(
@@ -168,6 +193,45 @@ def base_pesage(
             f"joue_hauteur {joue_hauteur} dépasse le dessus de la barre "
             f"({barre_dessus:.2f}) : baisse-la sous {barre_dessus - 1.0:.1f}",
             param="joue_hauteur",
+        )
+    if poche_profondeur < tete_penetration + 0.3:
+        reject(
+            f"poche_profondeur {poche_profondeur} ne coiffe pas une tête qui pénètre "
+            f"de {tete_penetration:.1f} mm dans le socle (saillie {tete_saillie} moins "
+            f"le jeu {jeu_paroi_arriere}) : le socle porterait sur les deux têtes au "
+            f"lieu de poser sur la tôle. Monte-la au-delà de "
+            f"{tete_penetration + 0.3:.1f}",
+            param="poche_profondeur",
+        )
+    if poche_z0 < 0.6:
+        reject(
+            f"l'axe des têtes à z={vis_z} ne laisse que {poche_z0:.2f} mm de fond sous "
+            f"la poche : sous 0,6 mm il n'y a plus de première couche pour la fermer. "
+            f"Baisse poche_diametre sous {2.0 * (vis_z - 0.6):.1f}",
+            param="poche_diametre",
+        )
+    if poche_boss_hauteur > cage_hauteur:
+        reject(
+            f"le bossage de poche monte à {poche_boss_hauteur:.1f} mm, au-dessus de la "
+            f"cage ({cage_hauteur}) : il toucherait le tray. Baisse poche_plafond sous "
+            f"{cage_hauteur - poche_z1:.1f}",
+            param="poche_plafond",
+        )
+    if joue_hauteur - fils_degagement < berceau_epaisseur + 2.0:
+        reject(
+            f"fils_degagement {fils_degagement} descend le haut des joues à "
+            f"{joue_hauteur - fils_degagement:.1f} mm, quand la barre commence à "
+            f"{berceau_epaisseur} : il ne resterait plus 2 mm de joue pour la tenir "
+            f"de flanc. Baisse-le sous {joue_hauteur - berceau_epaisseur - 2.0:.1f}",
+            param="fils_degagement",
+        )
+    if fils_degagement > 0.0 and fils_arrondi < 2.0 * fils_degagement:
+        reject(
+            f"fils_arrondi {fils_arrondi} est trop court devant un creux de "
+            f"{fils_degagement} : la cuvette deviendrait une encoche à flancs raides, "
+            f"ce qu'on cherche justement à éviter sous une gaine. Monte-le au-delà de "
+            f"{2.0 * fils_degagement:.1f}",
+            param="fils_arrondi",
         )
     if socle_epaisseur < puit_fond + aimant_h + 0.4:
         reject(
@@ -246,12 +310,33 @@ def base_pesage(
             x0, x1, cage_y_in, cage_y_in + levre_portee, levre_dessous, cage_hauteur
         ) - coupe
 
-    # --- bossages des deux poches qui coiffent les têtes de vis du bac ---
-    poche_r = poche_diametre / 2.0
+    # --- bossages des deux poches, adossés à la paroi arrière de la cage ---
+    # Ils montent maintenant à hauteur de tête (axe à 5,0, donc dessus à 8,7) au
+    # lieu des 6,0 mm que demandait un lamage dans le fond, et ils fusionnent
+    # avec la paroi de cage qui est juste devant.
     for s in (-1.0, 1.0):
         bx0, bx1 = sorted((s * (vis_x - poche_r - 2.5), s * (vis_x + poche_r + 2.5)))
+        body += _bb(bx0, bx1, arriere, cage_y_in, 0.0, poche_boss_hauteur)
+
+    # --- bossage de l'aimant qui plaque le socle contre la paroi arrière ---
+    # Il est le seul morceau du socle qui DÉPASSE la ligne des autres : il va
+    # jusqu'à -bac_y, donc sa peau touche la tôle pendant que le reste de la face
+    # nord garde son jeu_paroi_arriere. C'est lui qui fait le zéro en Y.
+    aimant_r = puit_diametre / 2.0
+    paroi_boss_hauteur = aimant_paroi_z + aimant_r + poche_plafond
+    body += _bb(
+        -aimant_r - 2.5, aimant_r + 2.5, -bac_y, cage_y_in, 0.0, paroi_boss_hauteur
+    )
+
+    # --- deux aimants de plus, dans les angles arrière, face au fond du bac ---
+    # La bande arrière ne fait que 6,3 mm de profondeur et les rails 8,5 mm de
+    # large : ni l'une ni les autres ne logent un puits Ø8,2, qui demande
+    # 12,2 × 12,2. D'où cette dalle locale, qui ne coûte que le morceau manquant
+    # entre le rail et l'aimant.
+    for s in (-1.0, 1.0):
+        dx0, dx1 = sorted((s * (aimant_coin_x - aimant_r - 2.0), s * cage_x_out))
         body += _bb(
-            bx0, bx1, arriere, cage_y_in, 0.0, poche_profondeur + poche_plafond
+            dx0, dx1, arriere, aimant_coin_y + aimant_r + 2.0, 0.0, socle_epaisseur
         )
 
     # --- potence du berceau : fond, deux joues, siège de la barre ---
@@ -273,6 +358,29 @@ def base_pesage(
         barre_y - joue_int, barre_y + joue_int,
         berceau_epaisseur, joue_hauteur + 1.0,
     )
+
+    # --- dégagement des fils de la cellule, dans le haut d'UNE seule joue ---
+    # Les fils sortent du FLANC de la barre, noyés dans la colle jusqu'au centre
+    # du trou intérieur, donc vers z = 9,3 quand le haut de la joue est à 9,0.
+    # Et entre le flanc et la joue il n'y a que jeu_barre (0,4) : ils ne peuvent
+    # que passer par-dessus. D'où cette cuvette, centrée là où ils quittent la
+    # colle. C'est un arc de cercle et pas une encoche : le rayon fait
+    # redescendre le haut de la joue en pente douce au lieu de fabriquer deux
+    # angles vifs contre lesquels la gaine travaillerait à chaque vibration.
+    # Cuvette dans une face du DESSUS : rien à soutenir à l'impression.
+    # Ils ne sortent que d'un côté, donc l'autre joue garde sa hauteur pleine.
+    if fils_degagement > 0.0:
+        s = 1.0 if fils_cote_avant else -1.0
+        fy0, fy1 = sorted(
+            (barre_y + s * (joue_int - 0.5), barre_y + s * (joue_ext + 1.0))
+        )
+        body -= Pos(
+            -trou_int,
+            (fy0 + fy1) / 2.0,
+            joue_hauteur - fils_degagement + fils_arrondi,
+        ) * Rot(90, 0, 0) * Cylinder(
+            fils_arrondi, fy1 - fy0, align=(Align.CENTER,) * 3
+        )
 
     # --- potence et bossage de la butée de surcharge ---
     boss_r = insert_m25_diametre / 2.0 + 2.0
@@ -339,10 +447,14 @@ def base_pesage(
         body -= Pos(x, barre_y, 0.0) * Cone(
             tete_d / 2.0, vis_fraisee_passage / 2.0, cone_h, align=cmin
         )
-    # Poches borgnes sur les têtes Ø7 : la paroi arrière du bac en rogne un croissant.
+    # Poches borgnes sur les têtes Ø7, percées dans la FACE NORD. Tunnel carré,
+    # fermé dessus et dessous : le fond de 1,3 mm est de la première couche et le
+    # plafond est un pont plat de 7,4 mm. Fermer les deux est ce qui empêche
+    # l'eau du bac d'entrer par le dessous du bossage.
     for s in (-1.0, 1.0):
-        body -= Pos(s * vis_x, vis_y, -0.5) * Cylinder(
-            poche_r, poche_profondeur + 0.5, align=cmin
+        x0, x1 = sorted((s * (vis_x - poche_r), s * (vis_x + poche_r)))
+        body -= _bb(
+            x0, x1, arriere - 1.0, arriere + poche_profondeur, poche_z0, poche_z1
         )
     # Puits d'aimant ouverts vers le HAUT : la pièce s'imprime dans sa position
     # d'usage, donc le fond de 0,6 mm est la première couche et c'est lui qui va
@@ -351,6 +463,19 @@ def base_pesage(
         body -= Pos(s * pied_x, pied_y, puit_fond) * Cylinder(
             puit_diametre / 2.0, socle_epaisseur - puit_fond + 0.5, align=cmin
         )
+    # Les deux aimants d'angle, mêmes puits, même sens : ils passent la tenue
+    # verticale de deux à quatre points, ce que demande une pompe vibratoire.
+    for s in (-1.0, 1.0):
+        body -= Pos(s * aimant_coin_x, aimant_coin_y, puit_fond) * Cylinder(
+            aimant_r, socle_epaisseur - puit_fond + 0.5, align=cmin
+        )
+    # Puits horizontal de l'aimant de paroi. La peau puit_fond reste sur la face
+    # NORD, contre la tôle, comme dans support_2x5w ; le puits est donc ouvert
+    # côté baie et l'aimant s'y enfile après l'impression, poussé au fond. Le
+    # jeu qui reste derrière lui est ce qui permet de le ressortir un jour.
+    body -= Plane(
+        origin=(0.0, -bac_y + puit_fond, aimant_paroi_z), z_dir=(0.0, 1.0, 0.0)
+    ) * Cylinder(aimant_r, (cage_y_in + bac_y - puit_fond) + 0.1, align=cmin)
     # Puits de l'insert laiton M2,5, borgne et ouvert vers le HAUT : l'insert
     # s'emmanche au fer par le dessus, la vis sans tête se règle par le dessus
     # elle aussi, plateau retiré. Le trou vaut le Ø hors tout du moletage moins

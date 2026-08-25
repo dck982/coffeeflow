@@ -404,14 +404,14 @@ unit = "mm"
 how = "user: centre du cercle de perforations à 55 mm de la paroi arrière, soit y = 55 - 70 = +15."
 
 [bac_vis_basse_x]
-value = 49.0
+value = 50.0
 unit = "mm"
-how = "user: les deux vis basses du bac, 47 mm depuis chaque paroi latérale, soit x = ±49. Entraxe 98 mm."
+how = "user (corrigé 2026-08-25, photo à l'appui): entraxe 100 mm entre les deux vis basses, soit x = ±50. La première valeur, 49 (entraxe 98), venait d'un relevé depuis les parois latérales."
 
-[bac_vis_basse_y]
-value = -66.0
+[bac_vis_basse_z]
+value = 5.0
 unit = "mm"
-how = "user: vis basses à 4 mm de la paroi arrière, soit y = 4 - 70 = -66."
+how = "user (2026-08-25): les deux vis basses ne sortent PAS du fond du bac, elles sortent de la paroi arrière, horizontalement. Axe de la tête à 5 mm au-dessus du fond, donc 5 mm au-dessus du lit d'impression. Remplace bac_vis_basse_y, qui supposait des vis verticales."
 
 [bac_vis_tete_diametre]
 value = 7.0
@@ -421,7 +421,7 @@ how = "user: tête cylindrique des quatre vis de fixation du bac au châssis."
 [bac_vis_tete_depassement]
 value = 4.0
 unit = "mm"
-how = "user: hauteur de la tête au-dessus du fond du bac. La poche borgne du socle la coiffe avec 0,5 mm de garde."
+how = "user: saillie HORIZONTALE de la tête depuis la paroi arrière, vers l'avant du bac. La tête occupe donc y = -70 à -66, z = 1,5 à 8,5. La poche du socle la coiffe avec 0,5 mm de garde."
 
 [tray_masse]
 value = 900.0

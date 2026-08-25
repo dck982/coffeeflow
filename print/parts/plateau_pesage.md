@@ -101,6 +101,12 @@ aucune tête n'y tient, et le plateau n'a rien à brider puisque les 900 g du tr
 le plaquent. Les goujons ne sont donc pas des vis, ce sont deux **pions de
 centrage** filetés, qui montent de 15,7 à 17,7 et restent 0,3 mm sous le tray.
 
+**Les deux goujons sont des M4 × 8 ISO 4026**, sans tête, six pans creux, bout
+plat, réglés à **2,0 mm de dépassement** : visser jusqu'à affleurer le dessus de
+la barre, puis ressortir de **2⅞ tours** (pas de 0,7 mm). Il reste 6,0 mm de
+prise dans l'acier, soit 1,5 × d. La visserie complète est dans
+`base_pesage.md`.
+
 **Les goujons prennent du frein-filet, et ce n'est pas optionnel.** La machine a
 une pompe vibratoire : un goujon sans tête vissé dans un trou traversant ne
 s'appuie sur rien, donc il n'a **aucune précharge**, et c'est exactement le cas où

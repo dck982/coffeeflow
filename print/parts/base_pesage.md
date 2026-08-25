@@ -126,6 +126,59 @@ La plaque de 25 × 40 à x ∈ [−90, −65] est un **repère visuel** pour le 
 d'amplification près de la sortie de câble, pas un boîtier : simple fond de
 2 mm, sans parois.
 
+## Visserie
+
+| Où | Quoi | Longueur | Prise |
+| --- | --- | --- | --- |
+| Bout fixe → socle, × 2 | **M4 ISO 10642**, tête fraisée 90°, six pans creux | **10 mm** | 7,0 mm dans la barre |
+| Bout chargé → plateau, × 2 | **M4** sans tête, bout indifférent | **8 ou 10 mm** | 6,0 à 7,0 mm, 2,0 mm dehors |
+| Butée de surcharge, × 1 | **M2,5 ISO 4026**, sans tête, **bout plat obligatoire** | **4 mm** | dans l'insert laiton |
+| Insert butée, × 1 | laiton à emmancher à chaud | M2,5 × 4 × 4,6 | puits Ø4,0 |
+| Aimants, × 2 | disque Ø8 × 3 | — | puits Ø8,2, fond 0,6 |
+
+**Les fraisées entrent par le dessous**, tête affleurante avec la face qui pose
+sur la tôle. Le cône est modélisé sur la tête **ISO 10642** exactement (Ø8,96,
+cône de 2,23 mm dans un berceau de 3,0) : une ISO 7046 cruciforme, tête Ø8,4,
+s'enfoncerait de 0,28 mm de trop dans le même cône. La barre va de 3,0 à 15,7,
+donc un M4 × 10 laisse la pointe 5,7 mm sous son dessus. Un × 12 passe aussi
+(9,0 mm de prise) ; **pas de × 16**, la pointe ressortirait de 0,3 mm.
+
+**« 90° » est l'angle inclus, pas la pente d'un flanc.** C'est la convention des
+vis métriques : 90° d'un flanc à l'autre en traversant l'axe, donc **45° par
+flanc**. Le code le construit ainsi sans le dire — Ø8,96 à Ø4,5 fait 2,23 mm de
+rayon perdu sur 2,23 mm de hauteur, pente 1:1. C'est aussi pourquoi le
+`bed_bevel` accepté plus haut parle d'une face à 45° : c'est ce cône vu par
+l'imprimante. Attention aux vis à bois américaines, à 82° inclus, qui ne
+porteraient que sur leur arête dans un cône à 90°.
+
+**Le bout des goujons est indifférent, contrairement à celui de la butée**, et
+c'est la seule pièce de la visserie où les deux se ressemblent assez pour être
+mélangées au montage. Un six pans creux n'a de logement de clé qu'à **une**
+extrémité ; comme il faut atteindre cette clé par le dessus pour régler le
+dépassement, c'est ce côté-là qui ressort et la pointe qui s'enterre dans la
+barre. Sur un M4 × 10 réglé à 2,0 mm dehors elle s'arrête à 8 mm dans un trou qui
+en fait 12,7, et le chanfrein d'amorce du côté clé guide même le plateau à la
+pose, ce qui aide avec 0,15 mm de jeu par côté. Une pointe conique coûte
+seulement du filet incomplet : la prise utile d'un × 10 tombe de 8,0 à ~7,0 mm,
+encore 1,75 × d. **La butée M2,5, elle, exige un bout plat** : c'est son bout qui
+travaille, contre une nervure du plateau, et une pointe y creuserait le PETG en
+faisant dériver le réglage au demi-tour.
+
+**Les goujons se règlent au repère à l'ongle**, comme la butée : visser jusqu'à
+affleurer le dessus de la barre, puis ressortir de **2⅞ tours** (pas de 0,7 mm)
+pour les 2,0 mm de dépassement. Ces 2,0 mm ne sont pas un calcul, c'est
+l'épaisseur de la sangle (2,3) moins une garde de 0,3 sous le plan du tray — le
+goujon localise, il ne serre rien. Le réglage est donc tolérant : trop haut, le
+tray pose sur la pointe du goujon, qui est vissée dans le bout chargé de la barre
+et l'y amène donc quand même, seulement 0,1 mm de travers ; trop bas, il localise
+encore à 1,5. Ne pas s'acharner au dixième. Frein-filet obligatoire, voir
+`plateau_pesage.md`.
+
+**Les quatre trous de la barre doivent être taraudés M4, pas de passage.** Tout
+le montage en dépend et rien ne le rattrape : les fraisées arrivent par le
+dessous sans écrou, et au bout chargé il n'y a que 3,0 mm sous la barre quand un
+écrou M4 en fait 3,2. À vérifier d'un coup de vis avant d'imprimer.
+
 ## Don't
 
 - **Ne pas refaire le bac en PETG.** Deux calculs l'écartent : pieds en place,
@@ -144,6 +197,22 @@ d'amplification près de la sortie de câble, pas un boîtier : simple fond de
   empilées.
 - **Aucune vis à tête cylindrique dans la pile verticale.** Entre 15,7 et 18,0
   il reste 2,3 mm ; une tête M4 en fait 4,0. C'est fraisé ou rien.
+- **Ne pas remplacer les fraisées du bout fixe par des ISO 4762** (tête
+  cylindrique classique) : Ø7,0 pour **4,0 mm de haut** sur un berceau de 3,0,
+  elle dépasserait de 1,0 mm sous le socle et le décollerait de la tôle. Et le
+  berceau ne peut pas grossir, il est bloqué par la pile verticale.
+- **La bombée ISO 7380 rentrerait, elle** (Ø7,6 × **2,2 mm**, soit la hauteur
+  exacte d'une fraisée, mêmes 0,8 mm de plastique au-dessus), mais elle a été
+  écartée sur la portée, pas sur l'encombrement. Le cône porte sur
+  **66,7 mm²** — le chiffre que `nurb check` annonce lui-même dans le
+  `bed_bevel` — contre **29,5 mm²** pour l'anneau plat d'une bombée, soit 2,3×
+  moins. Et le plastique que le cône recrute s'épaissit vers l'axe (0,77 mm au
+  bord, 3,0 sur l'axe) au lieu d'être un anneau constant de 0,8. Comme le joint
+  serre du PETG entre deux pièces d'acier à 40-50 °C, c'est un cas de fluage, et
+  le fluage suit la pression. Le cône centre aussi la barre, là où un passage
+  Ø4,5 lui laisse 0,25 mm de jeu par côté. À rouvrir seulement si le `bed_bevel`
+  se révèle sale à l'impression — auquel cas c'est un lamage et son plafond en
+  pont annulaire, pas un cône.
 - Ne pas descendre le jeu de cage à 0,5 mm pour « faire propre » : c'est un
   piège à café, et le pont sec qui s'y forme court-circuite la mesure.
 - Ne pas retourner les puits d'aimant comme ceux de `canal.py`. Ici la pièce ne
@@ -178,6 +247,9 @@ hold = [[-49.0, -66.0, 0.0], [49.0, -66.0, 0.0], [-50.0, 40.0, 0.0], [50.0, 40.0
 
 ## Changelog
 
+- 2026-08-25 — Table de visserie avec les longueurs, qui manquaient : M4 × 10
+  fraisées au bout fixe, M4 × 8 sans tête au bout chargé. Et le rappel que les
+  trous de la barre doivent être taraudés, sans quoi rien ne se monte.
 - 2026-08-25 — Puits de l'insert M2,5 porté de Ø3,6 à Ø4,0 : la fiche produit
   fournie par l'utilisateur donne un insert M2,5 × 4 × **4,6**, et la règle des
   fabricants est hors tout moins 0,6. Le bossage passe de Ø7,6 à Ø8,0.

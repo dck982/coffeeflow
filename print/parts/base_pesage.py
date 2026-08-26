@@ -17,7 +17,7 @@ def _sous_plan_45(y0, z0):
 
 @part
 def base_pesage(
-    hauteur_pile=18.0,
+    hauteur_pile=17.6,
     berceau_epaisseur=3.0,
     socle_epaisseur=4.0,
     barre_y=-25.0,
@@ -30,7 +30,7 @@ def base_pesage(
     cadre_largeur=110.0,
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,
-    tablier_epaisseur=2.0,
+    tablier_epaisseur=1.6,
     nervure_hauteur=10.0,
     bride_epaisseur=2.0,
     bride_portee=3.0,
@@ -52,22 +52,33 @@ def base_pesage(
     poche_plafond=1.5,
     butee_x=45.0,
     butee_y=-8.0,
-    butee_jeu=0.25,
-    insert_m25_diametre=4.0,
-    insert_m25_longueur=4.0,
+    butee_jeu=0.16,
+    butee_puits_diametre=4.0,
+    butee_puits_fond=0.6,
     butee_boss_hauteur=5.0,
     vis_fraisee_passage=4.5,
-    plaque_x=-90.0,
-    plaque_largeur=25.0,
-    plaque_profondeur=40.0,
+    plaque_largeur=17.0,
+    plaque_centre_y=-34.25,
     plaque_epaisseur=2.0,
+    plaque_paroi=2.0,
+    plaque_mur_hauteur=10.0,
+    module_longueur=28.6,
+    module_jeu=0.5,
+    module_courbure=5.0,
+    module_nervure_hauteur=0.5,
+    module_nervure_largeur=1.2,
+    module_nervure_portee=8.0,
+    fils_trou_cote=3.0,
+    fils_trou_y=-16.0,
+    fils_trou_z=3.0,
+    fils_rainure_fond=2.0,
     marge_perforations=2.0,
     jeu_paroi_arriere=0.5,
     draft=False,
 ):
     """Socle de pesage posé au fond du bac de la Profitec Go : berceau de la barre, cage du plateau, butée de surcharge.
 
-    hauteur_pile: hauteur du plan d'appui du tray au-dessus du fond du bac (18,0 mesuré ; à réajuster au dixième)
+    hauteur_pile: hauteur du plan d'appui du tray au-dessus du fond du bac (le bac en mesure 18,0 ; 17 fait décrocher le tray de ses rails)
     berceau_epaisseur: épaisseur de plastique sous le bout FIXE de la barre
     socle_epaisseur: épaisseur du fond du socle partout ailleurs
     barre_y: position en Y de l'axe de la barre de charge (là où se pose la tasse)
@@ -102,15 +113,26 @@ def base_pesage(
     poche_plafond: plastique laissé au-dessus du plafond de chaque poche
     butee_x: position en X de la butée de surcharge
     butee_y: position en Y de la butée, tenue hors de la fenêtre du plateau
-    butee_jeu: chute autorisée avant que la butée n'arrête le plateau (un demi-tour de M3 = 0,25 mm)
-    insert_m25_diametre: trou du boss pour l'insert laiton M2,5 (Ø4,6 hors tout) à emmancher à chaud
-    insert_m25_longueur: longueur de cet insert
-    butee_boss_hauteur: hauteur du bossage qui porte l'insert de la butée
+    butee_jeu: chute autorisée avant que la butée n'arrête le plateau (0,16 = arrêt vers 4 kg)
+    butee_puits_diametre: puits du bossage, qui reçoit la goupille imprimée `butee_goupille`
+    butee_puits_fond: plastique laissé sous le puits ; c'est le plan sur lequel la goupille pose
+    butee_boss_hauteur: hauteur du bossage qui porte la butée
     vis_fraisee_passage: passage des deux vis M4 fraisées qui tiennent le bout fixe
-    plaque_x: bord extérieur de la plaque du module d'amplification
-    plaque_largeur: largeur utile de cette plaque
-    plaque_profondeur: profondeur de cette plaque
-    plaque_epaisseur: épaisseur de cette plaque
+    plaque_largeur: largeur du HX711, en X ; l'emplacement se cale dessus et pousse son mur ouest d'autant
+    plaque_centre_y: position en Y de l'emplacement ; c'est elle qui met la zone de courbure en face du trou des fils
+    plaque_epaisseur: épaisseur du fond de l'emplacement
+    plaque_paroi: épaisseur des trois murs de repère qui entourent l'emplacement
+    plaque_mur_hauteur: hauteur de ces murs ; ils marquent la place, ils ne retiennent rien
+    module_longueur: longueur du HX711, en Y, celle que les deux nervures encadrent
+    module_jeu: jeu autour du module, en largeur comme entre les nervures
+    module_courbure: place laissée à chaque bout du module pour le rayon de courbure des quatre fils soudés
+    module_nervure_hauteur: hauteur des deux nervures qui centrent le module sur sa longueur
+    module_nervure_largeur: épaisseur en Y de chaque nervure
+    module_nervure_portee: longueur en X de chaque nervure, tenue côté ouest pour laisser le passage des fils libre contre la paroi
+    fils_trou_cote: côté du trou carré par lequel les fils de la cellule traversent la paroi ouest
+    fils_trou_y: position en Y de ce trou, à tenir en face de la sortie des fils de la barre
+    fils_trou_z: hauteur du seuil du trou ; c'est lui qui fait barrage à une flaque partie de la cage
+    fils_rainure_fond: plastique laissé sous la rainure qui amène les fils au trou en passant sous le plateau
     marge_perforations: de combien le socle s'écarte du cercle de perforations Ø80
     jeu_paroi_arriere: jeu entre le socle et la paroi arrière du bac
     """
@@ -133,6 +155,30 @@ def base_pesage(
     plat_dessous = hauteur_pile - tablier_epaisseur - nervure_hauteur
     levre_dessous = plat_dessous + bride_epaisseur + levre_jeu_vertical
     butee_saillie = plat_dessous - butee_jeu - socle_epaisseur
+    # La goupille pose au fond du puits, pas sur le dessus du fond : sa hauteur
+    # juste est celle-ci, et `butee_goupille` s'imprime volontairement au-dessus
+    # pour se poncer jusqu'à elle, la cellule servant de comparateur.
+    goupille_nominale = plat_dessous - butee_jeu - butee_puits_fond
+
+    # Emplacement du module HX711, couché parallèlement à la paroi de cage :
+    # 28,6 de long en Y, 17 de large en X. plaque_* décrit l'intérieur et les
+    # murs poussent vers l'extérieur, pour que les cotes affichées soient celles
+    # du module. Ce qui reste aux deux bouts est la zone de courbure des fils.
+    # La longueur de l'emplacement n'est pas un paramètre : elle est la somme de
+    # la pile en Y, du bas vers le haut — courbure, nervure, module, nervure,
+    # courbure. La poser en cote d'ensemble obligerait à la recalculer à chaque
+    # fois qu'un de ces cinq termes bouge.
+    module_pris = module_longueur + module_jeu
+    plaque_profondeur = module_pris + 2.0 * (
+        module_nervure_largeur + module_courbure
+    )
+    plaque_y0 = plaque_centre_y - plaque_profondeur / 2.0
+    plaque_y1 = plaque_centre_y + plaque_profondeur / 2.0
+    plaque_mur_y0 = plaque_y0 - plaque_paroi
+    plaque_mur_y1 = plaque_y1 + plaque_paroi
+    module_y0 = plaque_centre_y - module_pris / 2.0
+    module_y1 = plaque_centre_y + module_pris / 2.0
+    fils_demi = fils_trou_cote / 2.0
 
     # Les têtes de vis sortent de la paroi ARRIÈRE, horizontalement : la poche est
     # un tunnel qui perce la face nord, pas un lamage dans le fond. Elle est
@@ -184,9 +230,55 @@ def base_pesage(
         )
     if butee_saillie < 0.5:
         reject(
-            f"la vis de butée ne dépasserait que de {butee_saillie:.2f} mm du fond : "
-            f"baisse socle_epaisseur",
+            f"la butée ne dépasserait que de {butee_saillie:.2f} mm du fond "
+            f"(goupille de {goupille_nominale:.2f}) : baisse socle_epaisseur",
             param="socle_epaisseur",
+        )
+    if fils_trou_y - fils_demi < plaque_y0 or fils_trou_y + fils_demi > plaque_y1:
+        reject(
+            f"le trou des fils (y {fils_trou_y - fils_demi:.1f} à "
+            f"{fils_trou_y + fils_demi:.1f}) ne débouche pas dans l'emplacement du "
+            f"module (y {plaque_y0:.1f} à {plaque_y1:.1f}) : les fils sortiraient "
+            f"contre un mur. Déplace plaque_centre_y",
+            param="plaque_centre_y",
+        )
+    if module_y0 < fils_trou_y + fils_demi and fils_trou_y - fils_demi < module_y1:
+        reject(
+            f"le trou des fils (y {fils_trou_y - fils_demi:.1f} à "
+            f"{fils_trou_y + fils_demi:.1f}) débouche sur le HX711 lui-même "
+            f"(y {module_y0:.1f} à {module_y1:.1f}) et non dans une zone de courbure. "
+            f"Déplace plaque_centre_y pour le mettre en face d'un bout",
+            param="plaque_centre_y",
+        )
+    if module_courbure < fils_trou_cote + 0.4:
+        reject(
+            f"module_courbure {module_courbure} est sous le côté du trou des fils "
+            f"({fils_trou_cote}) plus 0,4 de garde : le trou ne tiendrait pas dans la "
+            f"zone de courbure et déboucherait à cheval sur une nervure. Monte-la "
+            f"au-delà de {fils_trou_cote + 0.4:.1f}",
+            param="module_courbure",
+        )
+    if fils_trou_z < plaque_epaisseur:
+        reject(
+            f"fils_trou_z {fils_trou_z} passe sous la face du fond de l'emplacement "
+            f"({plaque_epaisseur}) : le trou déboucherait dans l'épaisseur du fond. "
+            f"Monte-le au-delà de {plaque_epaisseur}",
+            param="fils_trou_z",
+        )
+    if fils_trou_z + fils_trou_cote > plat_dessous:
+        reject(
+            f"le haut du trou des fils ({fils_trou_z + fils_trou_cote:.1f}) dépasse le "
+            f"dessous du plateau ({plat_dessous:.2f}) : les fils buteraient dessus. "
+            f"Baisse fils_trou_z sous {plat_dessous - fils_trou_cote:.2f}",
+            param="fils_trou_z",
+        )
+    if not 1.0 <= fils_rainure_fond <= fils_trou_z - 0.5:
+        reject(
+            f"fils_rainure_fond {fils_rainure_fond} sort de la plage utile : il faut au "
+            f"moins 1,0 mm de fond sous la rainure et 0,5 mm de seuil sous le trou "
+            f"(donc au plus {fils_trou_z - 0.5:.1f}). C'est ce seuil qui empêche une "
+            f"flaque de la cage de couler sur le module",
+            param="fils_rainure_fond",
         )
     if joue_hauteur > barre_dessus - 1.0:
         reject(
@@ -383,7 +475,7 @@ def base_pesage(
         )
 
     # --- potence et bossage de la butée de surcharge ---
-    boss_r = insert_m25_diametre / 2.0 + 2.0
+    boss_r = butee_puits_diametre / 2.0 + 2.0
     body += _bb(
         butee_x - boss_r - 2.0, rail_x_in + 2.0, butee_y - boss_r, butee_y + boss_r,
         0.0, socle_epaisseur,
@@ -392,12 +484,32 @@ def base_pesage(
         boss_r, butee_boss_hauteur, align=(Align.CENTER, Align.CENTER, Align.MIN)
     )
 
-    # --- plaque repère du module d'amplification, simple fond ---
+    # --- emplacement du module : un fond, trois murs de repère, deux nervures ---
+    # Le quatrième côté est la paroi de cage elle-même, et c'est elle que les
+    # fils traversent. Les murs marquent la place, ils ne tiennent rien ; ce sont
+    # les deux nervures qui centrent le HX711 sur sa longueur.
+    plaque_x = -cage_x_out - (plaque_largeur + module_jeu)
+    plaque_mur_x = plaque_x - plaque_paroi
     body += _bb(
-        plaque_x, -cage_x_out + 2.0,
-        barre_y - plaque_profondeur / 2.0, barre_y + plaque_profondeur / 2.0,
+        plaque_mur_x, -cage_x_out + 2.0, plaque_mur_y0, plaque_mur_y1,
         0.0, plaque_epaisseur,
     )
+    body += _bb(
+        plaque_mur_x, plaque_x, plaque_mur_y0, plaque_mur_y1,
+        0.0, plaque_mur_hauteur,
+    )
+    for y0, y1 in ((plaque_mur_y0, plaque_y0), (plaque_y1, plaque_mur_y1)):
+        body += _bb(plaque_mur_x, -cage_x_out, y0, y1, 0.0, plaque_mur_hauteur)
+    # Les nervures ne courent que sur la moitié ouest de la largeur : contre la
+    # paroi, là où le trou débouche, les fils doivent passer sans rien enjamber.
+    for y0, y1 in (
+        (module_y1, module_y1 + module_nervure_largeur),
+        (module_y0 - module_nervure_largeur, module_y0),
+    ):
+        body += _bb(
+            plaque_x, plaque_x + module_nervure_portee, y0, y1,
+            0.0, plaque_epaisseur + module_nervure_hauteur,
+        )
 
     # --- le socle enjambe le cercle de perforations, il ne s'y pose jamais ---
     # Deux cuvettes, pas une. Partout le socle s'écarte de marge_perforations du
@@ -476,12 +588,34 @@ def base_pesage(
     body -= Plane(
         origin=(0.0, -bac_y + puit_fond, aimant_paroi_z), z_dir=(0.0, 1.0, 0.0)
     ) * Cylinder(aimant_r, (cage_y_in + bac_y - puit_fond) + 0.1, align=cmin)
-    # Puits de l'insert laiton M2,5, borgne et ouvert vers le HAUT : l'insert
-    # s'emmanche au fer par le dessus, la vis sans tête se règle par le dessus
-    # elle aussi, plateau retiré. Le trou vaut le Ø hors tout du moletage moins
-    # 0,6 : c'est le plastique déplacé qui fait la tenue.
-    body -= Pos(butee_x, butee_y, butee_boss_hauteur - insert_m25_longueur - 0.4) * (
-        Cylinder(insert_m25_diametre / 2.0, insert_m25_longueur + 0.5, align=cmin)
+    # Puits de la butée, borgne et ouvert vers le HAUT : la goupille imprimée
+    # `butee_goupille` s'y laisse tomber, pose sur le fond de butee_puits_fond et
+    # se change plateau retiré. Le puits est aussi la cote d'un insert laiton
+    # M2,5 (Ø4,6 hors tout moins 0,6), qui reste le repli si la goupille déçoit.
+    # La goupille juste vaut donc plat_dessous - butee_jeu - butee_puits_fond.
+    # Passage des fils de la cellule vers le module, en deux morceaux.
+    # Le trou traverse la paroi ouest, carré et pas rond pour la même raison que
+    # les poches de vis : couché, un alésage rond a une voûte que rien ne
+    # soutient, un plafond plat de 3 mm est un pont banal.
+    body -= _bb(
+        -cage_x_out - 0.1, -cage_x_in + 0.1,
+        fils_trou_y - fils_demi, fils_trou_y + fils_demi,
+        fils_trou_z, fils_trou_z + fils_trou_cote,
+    )
+    # Et une rainure dans le rail, parce que le plateau passe à plat_dessous et
+    # que le rail monte à socle_epaisseur : sans elle il ne reste que 2 mm entre
+    # les deux, et le faisceau ne rejoint pas le trou. Elle s'arrête à la paroi,
+    # dont le seuil reste plus haut : c'est le barrage à une flaque de la cage.
+    body -= _bb(
+        -cage_x_in, -rail_x_in,
+        fils_trou_y - fils_demi, fils_trou_y + fils_demi,
+        fils_rainure_fond, socle_epaisseur + 0.1,
+    )
+
+    body -= Pos(butee_x, butee_y, butee_puits_fond) * Cylinder(
+        butee_puits_diametre / 2.0,
+        butee_boss_hauteur - butee_puits_fond + 0.1,
+        align=cmin,
     )
 
     body = _fuse_one(body)
@@ -495,8 +629,8 @@ def base_pesage(
         (-cage_x_out, pied_y + rail_debord), (cage_x_out, pied_y + rail_debord),
         (-patte_x_in, pied_y + rail_debord),
         (patte_x_in, pied_y + rail_debord),
-        (plaque_x, barre_y - plaque_profondeur / 2.0),
-        (plaque_x, barre_y + plaque_profondeur / 2.0),
+        (plaque_mur_x, plaque_mur_y0),
+        (plaque_mur_x, plaque_mur_y1),
     ]
     conc = {
         (round(e.center().X, 2), round(e.center().Y, 2), round(e.center().Z, 2))

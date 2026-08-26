@@ -3,7 +3,7 @@ from nurb import *
 
 @assembly
 def ensemble_pesage(
-    hauteur_pile=18.0,
+    hauteur_pile=17.6,
     berceau_epaisseur=3.0,
     barre_y=-25.0,
     cadre_largeur=110.0,

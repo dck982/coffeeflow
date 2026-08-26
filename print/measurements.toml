@@ -382,6 +382,19 @@ unit = "mm"
 how = "Male thread past the seated nut (about three quarters of a turn of runout). Male thread height = nut 5.0 + this 1.5 = 6.5 mm = 3.25 turns at pitch 2.0; smooth collar below = tole 1.0 + floor 1.6."
 
 # --- Pesée du drip tray (docs/driptray.md, relevés utilisateur 2026-08-25) ---
+#
+# NOMENCLATURE (utilisateur, 2026-08-26) — trois pièces distinctes, à ne pas
+# confondre, et les cotes bac_* ci-dessous ne décrivent QUE la première :
+#   « bac »              : le bac vissé dans le châssis de la machine. Fixe.
+#                          C'est lui qui porte les cotes bac_*, les deux vis de
+#                          paroi arrière et le cercle de perforations Ø80.
+#   « bac du drip tray » : la partie mobile qui vient s'appuyer sur les faces
+#                          latérales du bac. C'est elle que le plateau de pesée
+#                          soulève, et elle qui collecte l'eau. C'est aussi elle
+#                          qui serait refaite en PETG dans la variante en réserve.
+#   « grille »           : la grille et ses faces latérales, qui s'insère dans le
+#                          bac du drip tray.
+# tray_masse (900 g) est le bac du drip tray et sa grille ensemble.
 
 [bac_largeur]
 value = 192.0
@@ -431,7 +444,7 @@ how = "user: balance de cuisine, drip tray vide de la Profitec Go."
 [tray_budget_vertical]
 value = 18.0
 unit = "mm"
-how = "user: hauteur d'un objet rigide posé sur le fond du bac sous le tray. 17 -> le tray quitte les rails ; 18 -> libre et de niveau ; 19 -> la cavité OPV le fait pencher. Cote de dessin, à réajuster au dixième après le premier essai."
+how = "user: hauteur d'un objet rigide posé sur le fond du bac sous le tray. 17 -> le tray quitte les rails ; 18 -> libre et de niveau ; 19 -> la cavité OPV le fait pencher. Cote de dessin, à réajuster au dixième après le premier essai. Le montage vise 17,6 depuis le 2026-08-26 (demande utilisateur), soit 0,6 mm de marge avant le décrochage des rails ; le plancher que les refus imposent est 17,55."
 
 [barre_longueur]
 value = 75.5
@@ -461,7 +474,7 @@ how = "user: sticker fléché « 5 kg » au bout chargé. Charge réelle ~1350 g
 [barre_fleche]
 value = 0.2
 unit = "mm"
-how = "Typique de ce format de barre à pleine échelle ; à confirmer sur la fiche. Sert au calcul de la butée de surcharge : 1,0 mm de chute = 25 kg sur une cellule détruite à 7,5 kg."
+how = "Typique de ce format de barre à pleine échelle ; à confirmer sur la fiche. C'est la constante de la butée de surcharge : 0,2 mm pour 5 kg fait 0,04 mm par kg, donc le jeu sous la butée EST son poids d'arrêt. Ne dépend pas de la capacité de la barre : une 2 kg au même format a la même flèche et se règle pareil."
 
 [goujon_passage]
 value = 4.3
@@ -478,10 +491,35 @@ value = 2.2
 unit = "mm"
 how = "ISO 10642 M4 : hauteur de tête. Dans un berceau de 3,0 mm il reste 0,8 mm sous la tête."
 
+[hx711_largeur]
+value = 17.0
+unit = "mm"
+how = "user 2026-08-26 : carte d'amplification HX711, petit côté. Posée dans base_pesage en X, contre la paroi de cage ouest. Record only : la valeur vive est le slider plaque_largeur."
+
+[hx711_longueur]
+value = 28.6
+unit = "mm"
+how = "user 2026-08-26 : HX711, grand côté. Posé en Y, parallèle à la paroi de cage, encadré par deux nervures de 0,5 mm. Record only : slider module_longueur."
+
+[hx711_courbure]
+value = 5.0
+unit = "mm"
+how = "user 2026-08-26 : place à laisser à chaque bout du HX711 pour le rayon de courbure des quatre fils soudés de la cellule. Portée de 3,6 à 5,0 le même jour, une fois vu qu'il restait de la marge en Y : à 3,45 réalisés, le trou de 3 mm n'avait que 0,2 mm de garde dans sa zone. La pile en Y devient 5 + nervure + 28,6 + nervure + 5 = 41,5. C'est en face de cette zone, et pas de la carte, que débouche le trou des fils. Record only : la valeur vive est le slider module_courbure."
+
+[fils_cellule_nombre]
+value = 4.0
+unit = "fils"
+how = "user 2026-08-26 : la cellule sort quatre fils séparés, très fins, sans gaine commune. C'est ce qui valide le trou carré de 3 x 3 dans la paroi de cage : un faisceau gainé aurait demandé plus. Record only, aucune pièce ne le lit."
+
+[butee_arret_consigne]
+value = 4.0
+unit = "kg"
+how = "user 2026-08-26 : poids auquel la butée de surcharge doit arrêter le plateau. Donne butee_jeu = 4 x 0,04 = 0,16 mm. Choisi bas exprès — le réglage se fait en chargeant la balance jusqu'au point d'arrêt, donc viser 6,2 kg reviendrait à tester à 83 % de la rupture (7,5 kg). Le risque réel n'est pas une charge posée mais un appui de la main pendant un nettoyage ; on ne pose pas 25 kg sur un drip tray."
+
 [insert_m25_exterieur]
 value = 4.6
 unit = "mm"
-how = "user: photo de la fiche produit du lot de 100, insert laiton à emmancher à chaud M2,5 x 4 x 4,6 — 4,6 est le Ø hors tout du moletage, 4 la longueur. Record only : la valeur vive est le slider insert_m25_diametre de base_pesage."
+how = "user: photo de la fiche produit du lot de 100, insert laiton à emmancher à chaud M2,5 x 4 x 4,6 — 4,6 est le Ø hors tout du moletage, 4 la longueur. Record only. N'est plus monté depuis le 2026-08-26 (la vis sans tête M2,5 était introuvable, la butée est devenue butee_goupille), mais le puits du socle garde cette cote pour que le repli reste possible."
 
 [insert_m25_trou]
 value = 4.0

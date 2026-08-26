@@ -14,7 +14,7 @@ def plateau_pesage(
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,
     barre_y=-25.0,
-    tablier_epaisseur=2.0,
+    tablier_epaisseur=1.6,
     nervure_hauteur=10.0,
     nervure_epaisseur=2.4,
     nervures_x=3,
@@ -24,7 +24,7 @@ def plateau_pesage(
     fenetre_demi_largeur=11.0,
     berceau_debord=2.75,
     fenetre_jeu=1.5,
-    sangle_epaisseur=2.3,
+    sangle_epaisseur=1.9,
     sangle_largeur=17.0,
     sangle_marge=5.0,
     goujon_passage=4.3,
@@ -106,9 +106,11 @@ def plateau_pesage(
             f"{tablier_epaisseur + 0.2:.1f}",
             param="sangle_epaisseur",
         )
-    # La poche du goujon doit loger les 1,4 mm de saillie plus 0,2 de garde,
-    # sinon le goujon bute sur la peau et soulève le plateau au lieu de le poser
-    # sur la barre — une erreur de tare que rien ne signale.
+    # La poche du goujon doit loger les 1,05 mm de saillie (1 tour et demi au pas
+    # de 0,7) plus 0,2 de garde, sinon le goujon bute sur la peau et soulève le
+    # plateau au lieu de le poser sur la barre — une erreur de tare que rien ne
+    # signale. C'était 1,4 mm et 2 tours tant que la sangle faisait 2,3 ; les
+    # 0,4 mm rendus à la pile verticale se sont payés ici, et nulle part ailleurs.
     goujon_poche = sangle_epaisseur - goujon_peau
     if goujon_peau < 0.6:
         reject(
@@ -117,12 +119,12 @@ def plateau_pesage(
             f"perce au réglage. Monte-la",
             param="goujon_peau",
         )
-    if goujon_poche < 1.6:
+    if goujon_poche < 1.25:
         reject(
             f"goujon_peau {goujon_peau} ne laisse que {goujon_poche:.2f} mm de poche "
-            f"dans une sangle de {sangle_epaisseur} : il en faut 1,6 pour les 1,4 mm "
+            f"dans une sangle de {sangle_epaisseur} : il en faut 1,25 pour les 1,05 mm "
             f"de saillie du goujon plus la garde. Baisse-la sous "
-            f"{sangle_epaisseur - 1.6:.1f}",
+            f"{sangle_epaisseur - 1.25:.2f}",
             param="goujon_peau",
         )
     if fenetre_demi_largeur < barre_s / 2.0 + 2.0:

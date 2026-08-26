@@ -7,14 +7,18 @@ from nurb import (
     Align,
     Axis,
     Box,
+    CenterArc,
     Cone,
+    Curve,
     Cylinder,
     Helix,
+    Line,
     Plane,
     Polygon,
     Pos,
     RegularPolygon,
     extrude,
+    make_face,
     measured,
     reject,
     sweep,
@@ -379,6 +383,77 @@ def outer_corners(body, outer_x, outer_y, bed):
         return on_x and on_y
 
     return body.edges().filter_by(Axis.Z).filter_by(keep)
+
+
+def puit_couche_toit(rayon, pont=2.0):
+    """Combien le toit de `puit_couche` monte au-dessus de l'axe du puits.
+
+    C'est la cote dont le plafond au-dessus du puits doit se pousser : le toit
+    remplace le sommet du cercle, il est donc plus haut que `rayon`.
+    """
+    return rayon * math.sqrt(2.0) - pont / 2.0
+
+
+def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
+    """Cutter d'un puits d'aimant dont l'axe est COUCHÉ sur le lit.
+
+    Repère local : l'axe est +Z, le puits court de z=0 (la bouche, dans le plan
+    de la face percée) à z=profondeur, et **le local +Y est le haut de
+    l'impression**. À placer avec un `Plane` dont on donne le `x_dir`, sinon le
+    toit part de travers.
+
+    Un alésage rond imprimé couché finit en porte-à-faux : la tangente à 45°
+    tombe à rayon/sqrt(2) au-dessus de l'axe, et tout ce qui est au-dessus
+    (six couches sur un Ø8,2 à 0,2 mm) s'affaisse dans le trou — d'où l'ovale et
+    le méplat au sommet. On remplace donc le haut du cercle par une tente à 45°
+    tangente à l'alésage, tronquée par un pont plat de `pont` : plus rien ne
+    dépasse 45° et la dernière portée est un pont banal. Le sommet monte à
+    `puit_couche_toit(rayon, pont)` au-dessus de l'axe.
+
+    La bouche prend un chanfrein `chanfrein` x 45° pour que l'aimant entre
+    droit ; `chanfrein=0` le supprime, ce que demande un puits trop près d'une
+    paroi pour lui laisser la place. Le cutter dépasse de `debord` en arrière de
+    la face pour la couper proprement.
+    """
+    if pont <= 0.0:
+        reject(f"pont {pont} doit être positif")
+    if chanfrein < 0.0 or chanfrein >= profondeur:
+        reject(f"chanfrein {chanfrein} ne tient pas dans un puits de {profondeur}")
+    tangente = rayon / math.sqrt(2.0)
+    toit = puit_couche_toit(rayon, pont)
+    # Le pont doit rester au-dessus du sommet de l'alésage, sinon il le rabote et
+    # l'aimant se coince entre deux plats au lieu de se poser dans un rond.
+    if toit <= rayon:
+        reject(
+            f"pont {pont} raboterait un alésage de rayon {rayon} : "
+            f"le réduire sous {2.0 * rayon * (math.sqrt(2.0) - 1.0):.2f}"
+        )
+
+    # Section dessinée d'un trait, pas unie de deux solides : la tente est
+    # tangente à l'alésage, et deux volumes qui se touchent sans se traverser
+    # laissent à OCCT une poignée de facettes sub-millimétriques par puits.
+    # L'arc part de 135°, fait le tour par le bas et ressort à 45° ; les deux
+    # pans de 45° montent de là au pont plat.
+    demi_pont = pont / 2.0
+    section = make_face(
+        Curve()
+        + [
+            CenterArc((0.0, 0.0), rayon, 135.0, 270.0),
+            Line((tangente, tangente), (demi_pont, toit)),
+            Line((demi_pont, toit), (-demi_pont, toit)),
+            Line((-demi_pont, toit), (-tangente, tangente)),
+        ]
+    )
+
+    # Le fût à la cote commence après le chanfrein d'entrée, qui évase la section
+    # elle-même à 45° pour que l'aimant entre droit ; `debord` prolonge dehors
+    # pour couper la face proprement.
+    cutter = extrude(Plane.XY.offset(chanfrein) * section, profondeur - chanfrein)
+    if chanfrein > 0.0:
+        bouche = cutter.faces().filter_by(Plane.XY).sort_by(Axis.Z)[0]
+        cutter = _fuse_one(cutter + extrude(bouche, chanfrein, taper=-45))
+    dehors = cutter.faces().filter_by(Plane.XY).sort_by(Axis.Z)[0]
+    return _fuse_one(cutter + extrude(dehors, debord))
 
 
 _CMIN = (Align.CENTER, Align.CENTER, Align.MIN)

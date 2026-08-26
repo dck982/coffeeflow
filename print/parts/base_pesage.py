@@ -1,5 +1,7 @@
 from nurb import *
 
+from system import puit_couche, puit_couche_toit
+
 
 def _bb(x0, x1, y0, y1, z0, z1):
     """Box from bounds, in the bac frame."""
@@ -407,7 +409,9 @@ def base_pesage(
     # jusqu'à -bac_y, donc sa peau touche la tôle pendant que le reste de la face
     # nord garde son jeu_paroi_arriere. C'est lui qui fait le zéro en Y.
     aimant_r = puit_diametre / 2.0
-    paroi_boss_hauteur = aimant_paroi_z + aimant_r + poche_plafond
+    # Le puits est couché : son toit à 45° monte plus haut que le rayon, et c'est
+    # lui que le plafond doit dégager.
+    paroi_boss_hauteur = aimant_paroi_z + puit_couche_toit(aimant_r) + poche_plafond
     body += _bb(
         -aimant_r - 2.5, aimant_r + 2.5, -bac_y, cage_y_in, 0.0, paroi_boss_hauteur
     )
@@ -577,9 +581,16 @@ def base_pesage(
     # NORD, contre la tôle, comme dans support_2x5w ; le puits est donc ouvert
     # côté baie et l'aimant s'y enfile après l'impression, poussé au fond. Le
     # jeu qui reste derrière lui est ce qui permet de le ressortir un jour.
+    # Couché sur le lit, un alésage rond finit par six couches à plus de 45° qui
+    # s'affaissent dedans : le trou sort ovale et l'aimant ne passe plus. D'où
+    # `puit_couche`, toit à 45° tronqué d'un pont plat, plus le chanfrein
+    # d'entrée que ces 6,2 mm de fût méritent. Le plan est orienté depuis la
+    # bouche vers le fond ; x_dir met le local +Y sur le +Z du monde.
     body -= Plane(
-        origin=(0.0, -bac_y + puit_fond, aimant_paroi_z), z_dir=(0.0, 1.0, 0.0)
-    ) * Cylinder(aimant_r, (cage_y_in + bac_y - puit_fond) + 0.1, align=cmin)
+        origin=(0.0, cage_y_in, aimant_paroi_z),
+        z_dir=(0.0, -1.0, 0.0),
+        x_dir=(1.0, 0.0, 0.0),
+    ) * puit_couche(aimant_r, cage_y_in + bac_y - puit_fond)
     # Puits de la butée, borgne et ouvert vers le HAUT : la goupille imprimée
     # `butee_goupille` s'y laisse tomber, pose sur le fond de butee_puits_fond et
     # se change plateau retiré. Le puits est aussi la cote d'un insert laiton

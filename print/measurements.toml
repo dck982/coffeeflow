@@ -456,6 +456,16 @@ value = 12.7
 unit = "mm"
 how = "user: pied à coulisse, section carrée de la barre."
 
+[selle_jeu]
+value = 0.4
+unit = "mm"
+how = "coupon PETG 12 mm, 2026-08-26, clip confirmé sur la barre 12,7. Même valeur que jeu_barre du berceau : la selle ne pince pas la cellule. Record ; la valeur vive est le slider crochet_jeu de plateau_pesage."
+
+[selle_recouvrement]
+value = 0.6
+unit = "mm"
+how = "coupon PETG 12 mm, 2026-08-26. Losange 45° sous l'arête inférieure. Aller-retour 2,0 mm sous la barre, 1,0 mm encore au fond (budget 3,0). Record ; slider crochet_recouvrement."
+
 [barre_trou_exterieur]
 value = 32.75
 unit = "mm"

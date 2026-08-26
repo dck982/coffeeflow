@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coffeeflow — selle de la barre, crochets 45°</title>
+<style>
+  :root{
+    --gnd:#2b2b2b; --v5:#d1495b; --v33:#e0852f; --i2c:#2a7fb8;
+    --pulse:#2f9e6e;
+    --bg:#faf9f7; --ink:#1c1c1c; --muted:#6b6b6b; --rule:#dcd8d2;
+    --paper:#fff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 32px 72px; background:var(--bg); color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  main{max-width:1280px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+  .lede{color:#333;margin:0 0 22px;max-width:62em}
+  h2{font-size:19px;margin:36px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+  .verdict{
+    border:1px solid #c8e2d4; background:#eef7f2; border-radius:10px;
+    padding:14px 18px; margin:0 0 22px; max-width:62em;
+  }
+  .verdict strong{color:#1d6b46}
+  .note{
+    border-left:3px solid var(--rule); padding:2px 0 2px 16px; margin:16px 0 24px;
+    color:#333; font-size:15px;
+  }
+  .note.warn{border-left-color:var(--v5)}
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:18px 28px; align-items:end;
+    padding:16px 18px; background:var(--paper); border:1px solid var(--rule);
+    border-radius:10px; margin:0 0 18px;
+  }
+  .seg{display:flex; gap:0; border:1px solid var(--rule); border-radius:8px; overflow:hidden}
+  .seg button{
+    appearance:none; border:0; background:#fff; color:var(--ink);
+    padding:8px 14px; font:600 13.5px/1 inherit; cursor:pointer;
+    border-right:1px solid var(--rule);
+  }
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--ink); color:#fff}
+  .slider{flex:1 1 280px; min-width:220px}
+  .slider label{
+    display:flex; justify-content:space-between; font-size:13px; color:var(--muted);
+    font-weight:600; letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px;
+  }
+  .slider output{color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:0; text-transform:none}
+  input[type=range]{width:100%; accent-color:var(--v33)}
+  .grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  @media (max-width:860px){ .grid{grid-template-columns:1fr} }
+  figure{margin:0}
+  figure.rejected{opacity:.62}
+  figcaption{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+    margin:0 0 8px; font-size:15px; font-weight:600;
+  }
+  .badge{
+    font:600 11.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    letter-spacing:.04em; text-transform:uppercase;
+    padding:5px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .badge.idle{background:#eeeae4; color:#555}
+  .badge.contact{background:#f8d4d8; color:#9b2232}
+  .badge.clear{background:#d8efe4; color:#1d6b46}
+  .badge.flex{background:#fde6cf; color:#8a3d12}
+  .badge.pick{background:#1d6b46; color:#fff}
+  .badge.drop{background:#eeeae4; color:#6b6b6b}
+  svg.panel{
+    width:100%; height:auto; display:block;
+    background:var(--paper); border:1px solid var(--rule); border-radius:10px;
+  }
+  .legend{
+    display:flex; flex-wrap:wrap; gap:10px 18px; margin:14px 0 0;
+    font-size:13.5px; color:var(--muted);
+  }
+  .legend i{
+    display:inline-block; width:14px; height:10px; border-radius:2px;
+    margin-right:6px; vertical-align:middle; border:1px solid var(--rule);
+  }
+  .status{
+    min-height:3.2em; margin:14px 0 0; color:#333; font-size:15px;
+  }
+  .status b{font-weight:600}
+  table{border-collapse:collapse; width:100%; margin:0 0 8px; font-size:14.5px}
+  th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--rule); vertical-align:top}
+  th{font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+  td.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+  footer{margin-top:52px; padding-top:14px; border-top:1px solid var(--rule); color:var(--muted); font-size:13.5px}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.92em}
+</style>
+</head>
+<body>
+<main>
+<h1>Selle de la barre — crochets 45°</h1>
+<p class="lede">
+  Coupe <span class="mono">YZ</span> au bout chargé, à l’échelle du coupon imprimé.
+  À droite : l’avant de la machine (<span class="mono">+Y</span>). Rien de tout ça
+  n’augmente la pile verticale : le plan d’appui du tray reste à 17,6 mm.
+</p>
+
+<div class="verdict">
+  <strong>Retenu le 26/08/2026</strong> — losange à 45° sous l’arête inférieure,
+  <span class="mono">jeu</span> 0,4 mm, <span class="mono">recouvrement</span> 0,6 mm.
+  Clip confirmé sur coupon PETG (12 mm) enfilé à la main sur la barre 12,7.
+  Le U sans crochet est écarté : il ne rattrape pas sous l’acier.
+</div>
+
+<div class="toolbar">
+  <div>
+    <div class="seg" role="group" aria-label="Mouvement">
+      <button type="button" id="mode-tip" aria-pressed="true">Basculement</button>
+      <button type="button" id="mode-lift" aria-pressed="false">Retrait</button>
+    </div>
+  </div>
+  <div class="slider">
+    <label>
+      <span id="slider-name">Angle vers l’avant</span>
+      <output id="slider-out" for="motion">0,0°</output>
+    </label>
+    <input id="motion" type="range" min="0" max="100" value="0" step="1">
+  </div>
+</div>
+
+<div class="grid">
+  <figure>
+    <figcaption>
+      Retenu · losange 45°
+      <span class="badge pick" id="badge-h">coupon confirmé</span>
+    </figcaption>
+    <svg class="panel" id="svg-h" viewBox="0 0 640 420" role="img" aria-label="Coupe retenue, crochets 45°"></svg>
+  </figure>
+  <figure class="rejected">
+    <figcaption>
+      Écarté · U seul
+      <span class="badge drop" id="badge-u">pas d’arrêt sous l’arête</span>
+    </figcaption>
+    <svg class="panel" id="svg-u" viewBox="0 0 640 420" role="img" aria-label="Coupe écartée, selle en U"></svg>
+  </figure>
+</div>
+
+<div class="legend">
+  <span><i style="background:#d8dce1;border-color:#3d4248"></i>barre, acier 12,7</span>
+  <span><i style="background:#f3d4c4;border-color:#c45c26"></i>selle PETG</span>
+  <span><i style="background:#c5e4f5;border-color:#2a7fb8"></i>jeu 0,4 (flancs)</span>
+  <span><i style="background:#f8d4d8;border-color:#d1495b"></i>contact</span>
+  <span><i style="background:#eeeae4;border-color:#9a958d"></i>fond du bac</span>
+</div>
+<p class="status" id="status"></p>
+
+<h2>Bout chargé, vue 3/4</h2>
+<p class="lede" style="margin-bottom:12px">La selle ne vit que sur les ~24 mm de sangle, à droite de la barre. Le coupon n’en faisait que 12, exprès plus souple.</p>
+<div class="grid">
+  <figure>
+    <figcaption>Retenu · crochets 45°</figcaption>
+    <svg class="panel" id="iso-h" viewBox="0 0 640 300" role="img" aria-label="Vue 3/4 retenue"></svg>
+  </figure>
+  <figure class="rejected">
+    <figcaption>Écarté · U</figcaption>
+    <svg class="panel" id="iso-u" viewBox="0 0 640 300" role="img" aria-label="Vue 3/4 écartée"></svg>
+  </figure>
+</div>
+
+<h2>Cotes du coupon, devenues celles de la pièce</h2>
+<div class="note">
+  Le 45° part de l’arête inférieure du carré. Les premiers 0,4 mm restent dans le jeu
+  latéral — c’est la garde de flèche de la cellule (0,05 mm en service, 0,16 à la butée).
+  Les 0,6 mm suivants passent sous l’acier. Aller-retour : <b>2,0 mm sous la barre</b>,
+  1,0 mm encore jusqu’au fond (budget 3,0).
+</div>
+
+<table>
+  <thead>
+    <tr><th></th><th>Valeur</th><th>Pourquoi</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Forme</td>
+      <td>losange 45°, pas un talon</td>
+      <td>un plat sous la barre est un overhang à 90° et mangerait les 3 mm</td>
+    </tr>
+    <tr>
+      <td><span class="mono">jeu</span></td>
+      <td class="num">0,4 mm par flanc</td>
+      <td>même valeur que <span class="mono">jeu_barre</span> du berceau ; ne pince pas la cellule</td>
+    </tr>
+    <tr>
+      <td><span class="mono">recouvrement</span></td>
+      <td class="num">0,6 mm sous l’arête</td>
+      <td>confirmé au coupon ; chaque 0,1 coûte 0,2 en Z</td>
+    </tr>
+    <tr>
+      <td>Sous la barre</td>
+      <td class="num">2,0 mm / 3,0 libres</td>
+      <td>crochets fins, 1,0 mm encore au fond du bac</td>
+    </tr>
+    <tr>
+      <td>Pile verticale</td>
+      <td class="num">17,6 mm, inchangée</td>
+      <td>tout vit sous le plan d’appui du tray</td>
+    </tr>
+    <tr>
+      <td>Retrait</td>
+      <td>cam 45° puis glisser vers le bout chargé</td>
+      <td>les goujons sont libres dès 1,05 mm de levée ; la selle reste autour du carré tant qu’on n’a pas glissé</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note warn">
+  <b>Ne pas revenir au U.</b> Sans crochet, le plateau bascule autour de l’arête avant
+  jusqu’à la lèvre du socle (~2,3°), et une partie de la charge passe dans la cage.
+  Écarté le 26/08 après le coupon.
+</div>
+</main>
+<footer>
+  coffeeflow · choix du 26/08/2026, coupon 12 mm sur barre 12,7 · profil reporté
+  dans <span class="mono">plateau_pesage</span> (<span class="mono">crochet_jeu</span>,
+  <span class="mono">crochet_recouvrement</span>).
+</footer>
+
+<script>
+(function () {
+  const BAR = 12.7;
+  const HALF = BAR / 2;
+  const Z0 = 3.0;
+  const Z1 = 15.7;
+  const TRAY = 17.6;
+  const SANGLE_H = 8.5;
+  const GAP = 0.4;
+  const CHEEK_IN = HALF + GAP;
+  const U_BOTTOM = 6.0;
+  const COVER = 0.6;
+  const INWARD = GAP + COVER;
+  const NUB = HALF - COVER;
+  const Z_TIP = Z0 - INWARD;
+  const Z_TOP = Z_TIP - INWARD;
+
+  const PX = 14;
+  const ORIGIN_Y = 320;
+  const ORIGIN_X = 320;
+
+  function xy(y, z) {
+    return [ORIGIN_X + y * PX, ORIGIN_Y - z * PX];
+  }
+  function pathFrom(pts, close) {
+    const parts = pts.map((p, i) => {
+      const [x, yy] = xy(p[0], p[1]);
+      return (i ? "L" : "M") + x.toFixed(1) + " " + yy.toFixed(1);
+    });
+    if (close) parts.push("Z");
+    return parts.join(" ");
+  }
+
+  function rot(y, z, cy, cz, deg) {
+    const t = deg * Math.PI / 180;
+    const c = Math.cos(t), s = Math.sin(t);
+    const dy = y - cy, dz = z - cz;
+    return [cy + dy * c + dz * s, cz - dy * s + dz * c];
+  }
+  function mapPts(pts, fn) {
+    return pts.map(([y, z]) => fn(y, z));
+  }
+
+  function uProfile() {
+    return [
+      [-SANGLE_H, TRAY],
+      [ SANGLE_H, TRAY],
+      [ SANGLE_H, U_BOTTOM],
+      [ CHEEK_IN, U_BOTTOM],
+      [ CHEEK_IN, Z1],
+      [-CHEEK_IN, Z1],
+      [-CHEEK_IN, U_BOTTOM],
+      [-SANGLE_H, U_BOTTOM],
+    ];
+  }
+
+  function hookProfile(flex) {
+    const f = flex || 0;
+    const inner = CHEEK_IN + f;
+    const nub = NUB + f;
+    const outer = SANGLE_H + f;
+    return [
+      [-outer, TRAY],
+      [ outer, TRAY],
+      [ outer, Z_TOP],
+      [ inner, Z_TOP],
+      [ nub, Z_TIP],
+      [ inner, Z0],
+      [ inner, Z1],
+      [-inner, Z1],
+      [-inner, Z0],
+      [-nub, Z_TIP],
+      [-inner, Z_TOP],
+      [-outer, Z_TOP],
+    ];
+  }
+
+  function polyHitsBar(pts) {
+    const eps = 0.02;
+    for (const [y, z] of pts) {
+      if (y > -HALF + eps && y < HALF - eps && z > Z0 + eps && z < Z1 - eps) return true;
+    }
+    const samples = 24;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      for (let s = 1; s < samples; s++) {
+        const t = s / samples;
+        const y = a[0] + (b[0] - a[0]) * t;
+        const z = a[1] + (b[1] - a[1]) * t;
+        if (y > -HALF + eps && y < HALF - eps && z > Z0 + eps && z < Z1 - eps) return true;
+      }
+    }
+    return false;
+  }
+
+  function maxTipAngle(profileFn) {
+    const pivotY = HALF, pivotZ = Z1;
+    let lo = 0, hi = 8;
+    for (let i = 0; i < 22; i++) {
+      const mid = (lo + hi) / 2;
+      const pts = mapPts(profileFn(0), (y, z) => rot(y, z, pivotY, pivotZ, mid));
+      if (polyHitsBar(pts)) hi = mid; else lo = mid;
+    }
+    return lo;
+  }
+
+  const MAX_U = maxTipAngle(uProfile);
+  const MAX_H = maxTipAngle(hookProfile);
+
+  function dims(svg) {
+    const ns = "http://www.w3.org/2000/svg";
+    function el(name, attrs, text) {
+      const n = document.createElementNS(ns, name);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (text != null) n.textContent = text;
+      svg.appendChild(n);
+      return n;
+    }
+    const [x0, yFloor] = xy(-22, 0);
+    const [x1] = xy(22, 0);
+    el("rect", { x: x0, y: yFloor, width: x1 - x0, height: 18, fill: "#eeeae4", stroke: "#c8c3bb", "stroke-width": "1" });
+    el("text", { x: ORIGIN_X, y: yFloor + 13, fill: "#8a8580", "font-size": "11", "text-anchor": "middle", "font-family": "ui-monospace, Menlo, monospace" }, "fond du bac · 3 mm sous la barre");
+
+    const [bx, bz] = xy(-HALF, Z0);
+    const [bx2, bz2] = xy(HALF, Z1);
+    el("rect", {
+      x: bx, y: bz2, width: bx2 - bx, height: bz - bz2,
+      fill: "#d8dce1", stroke: "#3d4248", "stroke-width": "1.6"
+    });
+    el("text", {
+      x: ORIGIN_X, y: (bz + bz2) / 2 + 4,
+      fill: "#3d4248", "font-size": "12", "text-anchor": "middle", "font-weight": "600",
+      "font-family": "-apple-system, BlinkMacSystemFont, sans-serif"
+    }, "barre");
+
+    const trayY = xy(0, TRAY)[1];
+    el("line", {
+      x1: xy(-21, TRAY)[0], y1: trayY, x2: xy(21, TRAY)[0], y2: trayY,
+      stroke: "#c45c26", "stroke-width": "1", "stroke-dasharray": "4 3", opacity: "0.7"
+    });
+    el("text", {
+      x: xy(21.2, TRAY)[0], y: trayY + 4,
+      fill: "#c45c26", "font-size": "11", "font-family": "ui-monospace, Menlo, monospace"
+    }, "17,6");
+
+    el("text", {
+      x: xy(18, 1.2)[0], y: xy(18, 1.2)[1],
+      fill: "#6b6b6b", "font-size": "11", "font-family": "ui-monospace, Menlo, monospace"
+    }, "+Y avant");
+    el("path", {
+      d: `M ${xy(14.5, 0.7)[0]} ${xy(14.5, 0.7)[1]} L ${xy(18.5, 0.7)[0]} ${xy(18.5, 0.7)[1]} L ${xy(17.4, 1.3)[0]} ${xy(17.4, 1.3)[1]} M ${xy(18.5, 0.7)[0]} ${xy(18.5, 0.7)[1]} L ${xy(17.4, 0.1)[0]} ${xy(17.4, 0.1)[1]}`,
+      fill: "none", stroke: "#6b6b6b", "stroke-width": "1.2"
+    });
+  }
+
+  function gapMarks(svg, kind) {
+    const ns = "http://www.w3.org/2000/svg";
+    function el(name, attrs) {
+      const n = document.createElementNS(ns, name);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      svg.appendChild(n);
+    }
+    const zMid = (Z0 + Z1) / 2;
+    el("rect", {
+      x: xy(HALF, zMid + 3)[0], y: xy(HALF, zMid + 3)[1],
+      width: (xy(CHEEK_IN, zMid + 3)[0] - xy(HALF, zMid + 3)[0]),
+      height: xy(HALF, zMid - 3)[1] - xy(HALF, zMid + 3)[1],
+      fill: "#c5e4f5", opacity: "0.9"
+    });
+    if (kind === "hook") {
+      el("line", {
+        x1: xy(-HALF, 0)[0], y1: xy(-HALF, Z0)[1],
+        x2: xy(HALF, 0)[0], y2: xy(HALF, Z0)[1],
+        stroke: "#2a7fb8", "stroke-width": "1", "stroke-dasharray": "3 3"
+      });
+    }
+  }
+
+  function drawPetg(svg, pts, contact) {
+    const ns = "http://www.w3.org/2000/svg";
+    const p = document.createElementNS(ns, "path");
+    p.setAttribute("d", pathFrom(pts, true));
+    p.setAttribute("fill", contact ? "#f8d4d8" : "#f3d4c4");
+    p.setAttribute("stroke", contact ? "#d1495b" : "#c45c26");
+    p.setAttribute("stroke-width", contact ? "2.2" : "1.7");
+    p.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(p);
+  }
+
+  function callouts(svg, kind, resting) {
+    if (!resting) return;
+    const ns = "http://www.w3.org/2000/svg";
+    function el(name, attrs, text) {
+      const n = document.createElementNS(ns, name);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (text != null) n.textContent = text;
+      svg.appendChild(n);
+    }
+    const z = kind === "u" ? (U_BOTTOM + Z1) / 2 : 10;
+    el("line", {
+      x1: xy(HALF, z)[0], y1: xy(HALF, z)[1],
+      x2: xy(CHEEK_IN, z)[0], y2: xy(CHEEK_IN, z)[1],
+      stroke: "#2a7fb8", "stroke-width": "2"
+    });
+    el("text", {
+      x: xy(CHEEK_IN + 0.6, z + 0.3)[0], y: xy(CHEEK_IN + 0.6, z + 0.3)[1],
+      fill: "#2a7fb8", "font-size": "11", "font-weight": "600",
+      "font-family": "ui-monospace, Menlo, monospace"
+    }, "jeu 0,4");
+    if (kind === "hook") {
+      el("text", {
+        x: xy(-2.2, 0.55)[0], y: xy(-2.2, 0.55)[1],
+        fill: "#2a7fb8", "font-size": "11", "font-weight": "600",
+        "font-family": "ui-monospace, Menlo, monospace"
+      }, "2,0 sous la barre · recouvrement 0,6");
+    } else {
+      el("text", {
+        x: xy(-SANGLE_H, U_BOTTOM - 0.8)[0], y: xy(-SANGLE_H, U_BOTTOM - 0.8)[1],
+        fill: "#6b6b6b", "font-size": "11",
+        "font-family": "ui-monospace, Menlo, monospace"
+      }, "joues arrêtées à plat_dessous");
+    }
+  }
+
+  const modeTip = document.getElementById("mode-tip");
+  const modeLift = document.getElementById("mode-lift");
+  const slider = document.getElementById("motion");
+  const sliderName = document.getElementById("slider-name");
+  const sliderOut = document.getElementById("slider-out");
+  const status = document.getElementById("status");
+  let mode = "tip";
+
+  function badge(id, kind, label) {
+    const n = document.getElementById(id);
+    if (kind === "idle" && id === "badge-h") {
+      n.className = "badge pick";
+      n.textContent = "coupon confirmé";
+      return;
+    }
+    if (kind === "idle" && id === "badge-u") {
+      n.className = "badge drop";
+      n.textContent = "pas d’arrêt sous l’arête";
+      return;
+    }
+    n.className = "badge " + kind;
+    n.textContent = label;
+  }
+
+  function frame(kind, angle, lift) {
+    const svg = document.getElementById(kind === "u" ? "svg-u" : "svg-h");
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    dims(svg);
+
+    let pts = kind === "u" ? uProfile() : hookProfile(0);
+    let contact = false;
+    let state = "idle";
+    let label = "au repos";
+
+    if (mode === "tip") {
+      const cap = kind === "u" ? MAX_U : MAX_H;
+      const used = Math.min(angle, cap);
+      contact = angle >= cap - 0.02 && angle > 0.05;
+      pts = mapPts(pts, (y, z) => rot(y, z, HALF, Z1, used));
+      if (contact) {
+        state = "contact";
+        label = kind === "u" ? "flanc avant en appui" : "losange arrière en appui";
+      } else if (angle > 0.05) {
+        state = "idle";
+        label = "jeu qui se ferme";
+      }
+    } else if (kind === "hook") {
+      const need = COVER + 0.08;
+      if (lift < need) {
+        const flex = (lift / need) * (COVER + 0.08);
+        pts = mapPts(hookProfile(flex), (y, z) => [y, z + lift]);
+        state = lift > 0.05 ? "flex" : "idle";
+        label = lift > 0.05 ? "cam 45° · joues qui s’ouvrent" : "au repos";
+        contact = lift > 0.05;
+      } else {
+        pts = mapPts(hookProfile(COVER + 0.08), (y, z) => [y, z + lift]);
+        state = "clear";
+        label = "le long des flancs · glisser en X";
+      }
+    } else {
+      pts = mapPts(uProfile(), (y, z) => [y, z + lift]);
+      state = lift > 0.15 ? "clear" : "idle";
+      label = lift > 0.15 ? "glisse vers le haut" : "au repos";
+    }
+
+    if ((mode === "tip" && angle < 0.05) || (mode === "lift" && lift < 0.05)) {
+      gapMarks(svg, kind === "u" ? "u" : "hook");
+    }
+    drawPetg(svg, pts, contact);
+    callouts(svg, kind === "u" ? "u" : "hook", mode === "tip" ? angle < 0.08 : lift < 0.08);
+    badge(kind === "u" ? "badge-u" : "badge-h", state, label);
+    return { contact, state, label };
+  }
+
+  function fmt(n, unit) {
+    return n.toFixed(1).replace(".", ",") + unit;
+  }
+
+  function render() {
+    const t = slider.value / 100;
+    let angle = 0, lift = 0;
+    if (mode === "tip") {
+      angle = t * 6;
+      sliderName.textContent = "Angle vers l’avant";
+      sliderOut.textContent = fmt(angle, "°");
+    } else {
+      lift = t * 3.2;
+      sliderName.textContent = "Soulèvement";
+      sliderOut.textContent = fmt(lift, " mm");
+    }
+    const h = frame("h", angle, lift);
+    frame("u", angle, lift);
+
+    if (mode === "tip") {
+      status.innerHTML = t === 0
+        ? "Au repos, la selle porte sur le <b>dessus</b> de la barre. Les crochets ne touchent pas : le 45° commence dans le jeu latéral, la cellule garde sa course."
+        : "Basculement autour de l’arête avant. Le losange rattrape à <b>" +
+          fmt(MAX_H, "°") +
+          "</b>. Le U (écarté) n’avait un appui de flanc qu’à <b>" +
+          fmt(MAX_U, "°") +
+          "</b> — trop tard, la lèvre du socle est à ~2,3°.";
+    } else {
+      status.innerHTML = t === 0
+        ? "Retrait : le 45° came les joues, puis on glisse vers le bout chargé. Les goujons sont libres dès 1,05 mm."
+        : "<b>" + h.label + "</b>. Une fois ouvertes, les joues sont encore autour du carré : le dégagement se fait en X, pas en soulevant tout le plateau.";
+    }
+  }
+
+  modeTip.addEventListener("click", () => {
+    mode = "tip";
+    modeTip.setAttribute("aria-pressed", "true");
+    modeLift.setAttribute("aria-pressed", "false");
+    slider.value = 0;
+    render();
+  });
+  modeLift.addEventListener("click", () => {
+    mode = "lift";
+    modeTip.setAttribute("aria-pressed", "false");
+    modeLift.setAttribute("aria-pressed", "true");
+    slider.value = 0;
+    render();
+  });
+  slider.addEventListener("input", render);
+
+  function iso(x, y, z, ox, oy) {
+    return [ox + x * 7.2 - y * 7.2, oy - z * 7.6 + x * 4.2 + y * 4.2];
+  }
+  function isoFace(svg, corners, fill, stroke, width) {
+    const ns = "http://www.w3.org/2000/svg";
+    const p = document.createElementNS(ns, "path");
+    p.setAttribute("d", corners.map((c, i) => (i ? "L" : "M") + c[0].toFixed(1) + " " + c[1].toFixed(1)).join(" ") + " Z");
+    p.setAttribute("fill", fill);
+    p.setAttribute("stroke", stroke);
+    p.setAttribute("stroke-width", width || "1.3");
+    p.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(p);
+  }
+  function isoText(svg, x, y, z, ox, oy, label, fill) {
+    const ns = "http://www.w3.org/2000/svg";
+    const t = document.createElementNS(ns, "text");
+    const [px, py] = iso(x, y, z, ox, oy);
+    t.setAttribute("x", px.toFixed(1));
+    t.setAttribute("y", py.toFixed(1));
+    t.setAttribute("fill", fill || "#6b6b6b");
+    t.setAttribute("font-size", "12");
+    t.setAttribute("font-family", "ui-monospace, Menlo, monospace");
+    t.textContent = label;
+    svg.appendChild(t);
+  }
+  function drawIso(id, kind) {
+    const svg = document.getElementById(id);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const ox = 210, oy = 210;
+    const x0 = 0, x1 = 42;
+    const xs = 10, xe = 34;
+    const yb0 = -HALF, yb1 = HALF, zb0 = Z0, zb1 = Z1;
+    isoFace(svg, [iso(x0, yb1, zb0, ox, oy), iso(x1, yb1, zb0, ox, oy), iso(x1, yb0, zb0, ox, oy), iso(x0, yb0, zb0, ox, oy)], "#c5c9ce", "#3d4248");
+    isoFace(svg, [iso(x0, yb1, zb0, ox, oy), iso(x1, yb1, zb0, ox, oy), iso(x1, yb1, zb1, ox, oy), iso(x0, yb1, zb1, ox, oy)], "#d8dce1", "#3d4248");
+    isoFace(svg, [iso(x1, yb1, zb0, ox, oy), iso(x1, yb0, zb0, ox, oy), iso(x1, yb0, zb1, ox, oy), iso(x1, yb1, zb1, ox, oy)], "#e4e7ea", "#3d4248");
+    isoFace(svg, [iso(x0, yb1, zb1, ox, oy), iso(x1, yb1, zb1, ox, oy), iso(x1, yb0, zb1, ox, oy), iso(x0, yb0, zb1, ox, oy)], "#cfd3d8", "#3d4248");
+
+    const prof = kind === "u" ? uProfile() : hookProfile(0);
+    function ring(x) { return prof.map(([y, z]) => iso(x, y, z, ox, oy)); }
+    const back = ring(xs), front = ring(xe);
+    for (let i = 0; i < prof.length; i++) {
+      const j = (i + 1) % prof.length;
+      isoFace(svg, [back[i], back[j], front[j], front[i]], "#f3d4c4", "#c45c26", "1.1");
+    }
+    isoFace(svg, front, "#f7e0d4", "#c45c26", "1.5");
+    isoText(svg, x1 + 3, 0, 8, ox, oy, "bout chargé", "#3d4248");
+    isoText(svg, xs - 2, SANGLE_H + 2, TRAY + 1.2, ox, oy, "sangle 24 mm", "#c45c26");
+  }
+  drawIso("iso-u", "u");
+  drawIso("iso-h", "h");
+  render();
+})();
+</script>
+</body>
+</html>

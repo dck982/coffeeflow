@@ -27,6 +27,8 @@ def plateau_pesage(
     sangle_epaisseur=1.9,
     sangle_largeur=17.0,
     sangle_marge=5.0,
+    crochet_jeu=0.4,
+    crochet_recouvrement=0.6,
     goujon_passage=4.3,
     goujon_peau=0.6,
     bride_epaisseur=3.0,
@@ -60,6 +62,8 @@ def plateau_pesage(
     sangle_epaisseur: épaisseur de la sangle qui se pose sur le bout chargé de la barre
     sangle_largeur: largeur en Y de cette sangle
     sangle_marge: plastique autour de chaque trou de goujon
+    crochet_jeu: jeu de chaque côté entre les joues et le flanc du carré
+    crochet_recouvrement: de combien le losange 45° passe sous l'arête inférieure
     goujon_passage: diamètre des deux poches borgnes qui reçoivent les goujons M4 sans tête
     goujon_peau: peau laissée côté tray au-dessus de chaque poche de goujon
     bride_epaisseur: hauteur de la bride arrière que la lèvre du socle vient coiffer
@@ -132,6 +136,32 @@ def plateau_pesage(
             f"fenetre_demi_largeur {fenetre_demi_largeur} frotte sur une barre de "
             f"{barre_s} : monte-la au-delà de {barre_s / 2.0 + 2.0:.1f}",
             param="fenetre_demi_largeur",
+        )
+
+    crochet_inner = barre_s / 2.0 + crochet_jeu
+    crochet_outer = sangle_largeur / 2.0
+    crochet_paroi = crochet_outer - crochet_inner
+    crochet_inward = crochet_jeu + crochet_recouvrement
+    crochet_sous = 2.0 * crochet_inward
+    if crochet_paroi < 1.2:
+        reject(
+            f"sangle_largeur {sangle_largeur} ne laisse que {crochet_paroi:.2f} mm de "
+            f"joue autour d'une barre de {barre_s} plus crochet_jeu {crochet_jeu} : "
+            f"monte-la au-delà de {2.0 * (crochet_inner + 1.2):.1f}",
+            param="sangle_largeur",
+        )
+    if crochet_recouvrement < 0.3:
+        reject(
+            f"crochet_recouvrement {crochet_recouvrement} est trop court pour un clip : "
+            f"un 45° de moins de 0,3 mm ne rattrape rien. Monte-le",
+            param="crochet_recouvrement",
+        )
+    if crochet_sous > 3.0:
+        reject(
+            f"les crochets descendent de {crochet_sous:.2f} mm sous la barre, plus que "
+            f"les 3 mm libres jusqu'au fond du bac. Baisse crochet_recouvrement ou "
+            f"crochet_jeu (chaque dixième coûte deux dixièmes en Z)",
+            param="crochet_recouvrement",
         )
 
     # X local = -X du bac. La sangle couvre les deux goujons plus leur marge.
@@ -246,6 +276,34 @@ def plateau_pesage(
         body -= Pos(x, barre_y, goujon_peau) * Cylinder(
             goujon_passage / 2.0, sangle_epaisseur - goujon_peau + 1.0, align=cmin
         )
+
+    # --- selle à crochets 45°, le profil du coupon du 26/08 ---
+    # Losange imprimable : le premier crochet_jeu mm du 45° reste dans le jeu
+    # latéral (garde de flèche), crochet_recouvrement passe sous l'acier.
+    # 2,0 mm sous la barre, 1,0 mm encore au fond. Confirmé sur coupon 12 mm.
+    nub = barre_s / 2.0 - crochet_recouvrement
+    z_bar_bot = sangle_epaisseur + barre_s
+    z_tip = z_bar_bot + crochet_inward
+    z_top = z_tip + crochet_inward
+    oy = barre_y
+    pts = [
+        (oy - crochet_outer, 0.0),
+        (oy + crochet_outer, 0.0),
+        (oy + crochet_outer, z_top),
+        (oy + crochet_inner, z_top),
+        (oy + nub, z_tip),
+        (oy + crochet_inner, z_bar_bot),
+        (oy + crochet_inner, sangle_epaisseur),
+        (oy - crochet_inner, sangle_epaisseur),
+        (oy - crochet_inner, z_bar_bot),
+        (oy - nub, z_tip),
+        (oy - crochet_inner, z_top),
+        (oy - crochet_outer, z_top),
+    ]
+    selle = Pos(sangle_x0, 0, 0) * extrude(
+        Plane.YZ * Polygon(*pts, align=None), sangle_x1 - sangle_x0
+    )
+    body += selle
 
     solids = list(body.solids())
     if len(solids) > 1:

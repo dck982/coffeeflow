@@ -34,9 +34,7 @@ tray et sa grille, soit les 900 g de `tray_masse`.
 | --- | --- |
 | 0,0 → 3,0 | `berceau_epaisseur`, sous le bout fixe |
 | 3,0 → 15,7 | la barre, 12,7 de section |
-| 15,7 → 16,75 | deux goujons M4 sans tête, en poche borgne |
 | 15,7 → 17,6 | la sangle du plateau, 1,9 mm |
-| 17,0 → 17,6 | la peau de 0,6 qui ferme les poches, côté tray |
 
 `hauteur_pile` (**17,6** depuis le 2026-08-26) est **le** paramètre à retoucher
 après le premier essai : c'est une cote empilée sur de l'acier et du plastique
@@ -52,19 +50,16 @@ que trois termes, et l'acier n'en négocie aucun :
   *ancré* sous précharge permanente à 40-50 °C. C'est le cas de fluage que la
   section « fraisé ici et pas au bout chargé » argumente déjà ;
 - **donc la sangle, 2,3 → 1,9.** Elle entraîne `tablier_epaisseur` 2,0 → **1,6**
-  (la sangle doit dépasser le tablier, sinon plus de décrochement) et la saillie
-  du goujon 1,4 → **1,05**, soit 1½ tour au lieu de 2. Le détail est dans
-  `plateau_pesage.md`, y compris ce que le tablier mince coûte en raideur.
+  (la sangle doit dépasser le tablier, sinon plus de décrochement). Le détail
+  est dans `plateau_pesage.md`, y compris ce que le tablier mince coûte en raideur.
 
 `tablier_epaisseur` descend de la même quantité que `hauteur_pile`, donc
 `plat_dessous` vaut **toujours 6,00** : la cage, les lèvres, la fenêtre et la
 goupille de butée sont inchangées, et `nurb diff` confirme que la géométrie du
 socle n'a pas bougé d'un mm³.
 
-**Le plancher dur du montage est 17,55**, et c'est le plateau qui le pose : en
-dessous, la poche du goujon passe sous les 1,25 mm qu'il faut à 1,05 de saillie
-plus la garde. Le socle seul, lui, tiendrait jusqu'à 17,3 (sangle sous 1,6). À
-17,6 il reste donc **0,05 mm** avant le refus.
+**Le plancher dur du montage est 17,5**, posé par le décrochement sangle /
+tablier (la sangle doit rester plus épaisse). À 17,6 il reste de la marge.
 
 **Ancrage, sans visserie nouvelle.** Les deux vis basses du châssis sortent de
 la **paroi arrière**, horizontalement, pas du fond : entraxe **100** (x = ±50),
@@ -125,9 +120,8 @@ encaisse tout le moment, donc il lui faut une tête qui bride, et elle arrive pa
 le dessous, sur la face qui pose sur la tôle du bac — une tête saillante
 décollerait le socle. D'où le fraisage. Au bout chargé il n'y a que 1,9 mm entre
 le dessus de la barre et le plan d'appui du tray : aucune tête n'y tient, et le
-plateau n'a rien à brider. Ce sont donc deux goujons de centrage, avec du
-frein-filet parce qu'ils n'ont aucune précharge et que la pompe est vibratoire ;
-voir `plateau_pesage.md`.
+plateau n'a rien à brider. Depuis le 26/08 c'est la selle à crochets qui
+localise ce bout, plus de goujons ; voir `plateau_pesage.md`.
 
 **Le fraisage est un compromis assumé, à deux baselines.** Une tête fraisée M4
 ISO 10642 fait 2,2 mm dans un berceau de 3,0. Trois dispositions ont été
@@ -352,32 +346,10 @@ rayon perdu sur 2,23 mm de hauteur, pente 1:1. C'est aussi pourquoi le
 l'imprimante. Attention aux vis à bois américaines, à 82° inclus, qui ne
 porteraient que sur leur arête dans un cône à 90°.
 
-**Les goujons veulent un bout plat, comme la butée**, et pour la même raison :
-depuis que la sangle du plateau se termine par une peau de 0,6 mm au lieu d'un
-trou traversant, c'est le bout du goujon qui vient en face de cette peau. Un
-cône ne la toucherait que par sa pointe. **ISO 4026, bout plat**, donc, et les
-deux vis sans tête du montage se ressemblent maintenant assez pour être
-mélangées : la butée est une M2,5 × 4, les goujons des M4 × 8 ou × 10.
-
-Un six pans creux n'a de logement de clé qu'à **une** extrémité ; comme il faut
-atteindre cette clé par le dessus pour régler le dépassement, c'est ce côté-là
-qui ressort et l'autre bout qui s'enterre dans la barre. Sur un M4 × 10 réglé à
-1,05 mm dehors il s'arrête à 8,95 mm dans un trou qui en fait 12,7.
-
-**Les goujons se règlent au repère à l'ongle**, comme la butée, et le réglage est
-tombé juste : visser jusqu'à affleurer le dessus de la barre, puis ressortir de
-**1½ tour** (pas de 0,7 mm) pour les **1,05 mm** de dépassement. Ces 1,05 mm
-sont la poche de la sangle (1,9 − 0,6 de peau = 1,3) moins 0,25 de garde sous la
-peau — le goujon localise, il ne serre rien. Le risque a changé de côté avec la
-peau : trop bas, il localise encore et rien ne se voit ; **trop haut, il pousse
-sur 0,6 mm de PETG et soulève le plateau au lieu de le poser sur la barre**, ce
-qui fausse la tare sans rien signaler. Le tour et demi depuis un repère franc est
-ce qui l'évite, et la garde n'est plus que de 0,25 mm depuis la pile à 17,6. Frein-filet obligatoire, voir `plateau_pesage.md`.
-
-**Les quatre trous de la barre doivent être taraudés M4, pas de passage.** Tout
-le montage en dépend et rien ne le rattrape : les fraisées arrivent par le
-dessous sans écrou, et au bout chargé il n'y a que 3,0 mm sous la barre quand un
-écrou M4 en fait 3,2. À vérifier d'un coup de vis avant d'imprimer.
+**Les deux trous du bout fixe doivent être taraudés M4, pas de passage.** Les
+fraisées arrivent par le dessous sans écrou. Au bout chargé, les deux M4 restent
+vides depuis que la selle localise (26/08) : un écrou n'y tiendrait pas non plus
+(3,2 mm, 3,0 mm sous la barre). À vérifier d'un coup de vis avant d'imprimer.
 
 ## Don't
 
@@ -524,6 +496,9 @@ hold = [[-48.0, -59.0, 0.0], [48.0, -59.0, 0.0], [-50.0, 40.0, 0.0], [50.0, 40.0
 
 ## Changelog
 
+- 2026-08-26 — **Goujons du bout chargé retirés** (c'est `plateau_pesage` qui
+  change). Pile verticale : plus de ligne 15,7 → 16,75. Les deux M4 de la barre
+  restent vides de ce côté.
 - 2026-08-26 — **Aimant de paroi retiré**, demande utilisateur : les quatre du
   fond tiennent assez pour que la pièce ne bouge plus, le cinquième n'apportait
   plus grand-chose. Disparaissent le puits couché, son bossage jusqu'à y = −70,

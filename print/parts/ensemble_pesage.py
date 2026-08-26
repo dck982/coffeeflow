@@ -29,8 +29,6 @@ def ensemble_pesage(
     """
     barre_l = measured("barre_longueur")
     barre_s = measured("barre_section")
-    trou_int = measured("barre_trou_interieur")
-    trou_ext = measured("barre_trou_exterieur")
 
     commun = dict(
         cadre_largeur=float(cadre_largeur),
@@ -59,14 +57,6 @@ def ensemble_pesage(
     silicone = Pos(0, float(barre_y), float(berceau_epaisseur) + barre_s) * Box(
         30.0, barre_s, 1.0, align=cmid
     )
-    dessus_barre = float(berceau_epaisseur) + barre_s
-    goujons = None
-    for x in (trou_int, trou_ext):
-        g = Pos(x, float(barre_y), dessus_barre) * Cylinder(
-            2.0, float(hauteur_pile) - dessus_barre, align=cmid
-        )
-        goujons = g if goujons is None else goujons + g
-
     tray = Pos(0, 0, float(hauteur_pile)) * Box(
         166.0, 140.0, float(tray_epaisseur), align=cmid
     )
@@ -76,6 +66,5 @@ def ensemble_pesage(
         plateau,
         obstacle(barre, "barre de charge 5 kg, 75,5 x 12,7 x 12,7"),
         obstacle(silicone, "pâte silicone centrale, 1 mm au-dessus de la barre"),
-        obstacle(goujons, "deux goujons M4 sans tête, bout chargé"),
         obstacle(tray, "drip tray, tôle 166 x 140 posée sur le plateau"),
     )

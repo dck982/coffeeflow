@@ -29,8 +29,7 @@ def plateau_pesage(
     sangle_marge=5.0,
     crochet_jeu=0.4,
     crochet_recouvrement=0.6,
-    goujon_passage=4.3,
-    goujon_peau=0.6,
+    selle_degagement=3.0,
     bride_epaisseur=3.0,
     bride_portee=3.0,
     butee_x=45.0,
@@ -61,11 +60,10 @@ def plateau_pesage(
     fenetre_jeu: jeu autour de la barre, en bout de fenêtre comme le long du couloir
     sangle_epaisseur: épaisseur de la sangle qui se pose sur le bout chargé de la barre
     sangle_largeur: largeur en Y de cette sangle
-    sangle_marge: plastique autour de chaque trou de goujon
+    sangle_marge: plastique de chaque côté de la sangle au-delà des deux M4 du bout chargé
     crochet_jeu: jeu de chaque côté entre les joues et le flanc du carré
     crochet_recouvrement: de combien le losange 45° passe sous l'arête inférieure
-    goujon_passage: diamètre des deux poches borgnes qui reçoivent les goujons M4 sans tête
-    goujon_peau: peau laissée côté tray au-dessus de chaque poche de goujon
+    selle_degagement: jeu en Y entre les nervures et les joues de la selle, pour qu'elles fléchissent comme le coupon
     bride_epaisseur: hauteur de la bride arrière que la lèvre du socle vient coiffer
     bride_portee: de combien cette bride dépasse le tablier vers l'arrière
     butee_x: position en X de la butée de surcharge du socle, qui doit tomber sur une nervure
@@ -110,27 +108,6 @@ def plateau_pesage(
             f"{tablier_epaisseur + 0.2:.1f}",
             param="sangle_epaisseur",
         )
-    # La poche du goujon doit loger les 1,05 mm de saillie (1 tour et demi au pas
-    # de 0,7) plus 0,2 de garde, sinon le goujon bute sur la peau et soulève le
-    # plateau au lieu de le poser sur la barre — une erreur de tare que rien ne
-    # signale. C'était 1,4 mm et 2 tours tant que la sangle faisait 2,3 ; les
-    # 0,4 mm rendus à la pile verticale se sont payés ici, et nulle part ailleurs.
-    goujon_poche = sangle_epaisseur - goujon_peau
-    if goujon_peau < 0.6:
-        reject(
-            f"goujon_peau {goujon_peau} est sous 0,6 mm : c'est la peau qui ferme la "
-            f"face d'appui du tray au-dessus du goujon, et sous trois couches elle se "
-            f"perce au réglage. Monte-la",
-            param="goujon_peau",
-        )
-    if goujon_poche < 1.25:
-        reject(
-            f"goujon_peau {goujon_peau} ne laisse que {goujon_poche:.2f} mm de poche "
-            f"dans une sangle de {sangle_epaisseur} : il en faut 1,25 pour les 1,05 mm "
-            f"de saillie du goujon plus la garde. Baisse-la sous "
-            f"{sangle_epaisseur - 1.25:.2f}",
-            param="goujon_peau",
-        )
     if fenetre_demi_largeur < barre_s / 2.0 + 2.0:
         reject(
             f"fenetre_demi_largeur {fenetre_demi_largeur} frotte sur une barre de "
@@ -163,15 +140,21 @@ def plateau_pesage(
             f"crochet_jeu (chaque dixième coûte deux dixièmes en Z)",
             param="crochet_recouvrement",
         )
+    if selle_degagement < 1.0:
+        reject(
+            f"selle_degagement {selle_degagement} est sous 1 mm : les nervures se "
+            f"recolleraient aux joues et le clip ne s'ouvrirait plus. Monte-le",
+            param="selle_degagement",
+        )
 
-    # X local = -X du bac. La sangle couvre les deux goujons plus leur marge.
-    sangle_x0 = -trou_ext - goujon_passage / 2.0 - sangle_marge
-    sangle_x1 = -trou_int + goujon_passage / 2.0 + sangle_marge
+    # X local = -X du bac. La sangle couvre le bout chargé (les deux M4 de la
+    # barre, laissés vides : la selle localise, plus de goujons).
+    sangle_x0 = -trou_ext - sangle_marge
+    sangle_x1 = -trou_int + sangle_marge
     if sangle_x0 < -demi:
         reject(
-            f"cadre_largeur {cadre_largeur} ne couvre pas le goujon extérieur plus "
-            f"sangle_marge : monte-la au-delà de "
-            f"{2.0 * (trou_ext + goujon_passage / 2.0 + sangle_marge):.0f}",
+            f"cadre_largeur {cadre_largeur} ne couvre pas la sangle au bout chargé : "
+            f"monte-la au-delà de {2.0 * (trou_ext + sangle_marge):.0f}",
             param="cadre_largeur",
         )
 
@@ -201,9 +184,23 @@ def plateau_pesage(
     ys = sorted(ys)
 
     body = _bb(-demi, demi, ty0, y1, 0.0, tablier_epaisseur)
+    selle_y0 = barre_y - sangle_largeur / 2.0
+    selle_y1 = barre_y + sangle_largeur / 2.0
     for x in xs:
         a = min(max(x - e / 2.0, -demi), demi - e)
-        body += _bb(a, a + e, ty0, y1, 0.0, rib_top)
+        # Une nervure qui court en Y et vient buter contre une joue empêche le
+        # 45° de camber : le coupon de 12 mm clipse, le plateau non. On coupe
+        # toute nervure qui traverse la sangle, avec selle_degagement de chaque
+        # côté, pour que les joues fléchissent comme sur le coupon.
+        if a < sangle_x1 and a + e > sangle_x0:
+            y_cut0 = selle_y0 - selle_degagement
+            y_cut1 = selle_y1 + selle_degagement
+            if y_cut0 - ty0 > e:
+                body += _bb(a, a + e, ty0, y_cut0, 0.0, rib_top)
+            if y1 - y_cut1 > e:
+                body += _bb(a, a + e, y_cut1, y1, 0.0, rib_top)
+        else:
+            body += _bb(a, a + e, ty0, y1, 0.0, rib_top)
     for y in ys:
         b = min(max(y - e / 2.0, ty0), y1 - e)
         body += _bb(-demi, demi, b, b + e, 0.0, rib_top)
@@ -231,9 +228,8 @@ def plateau_pesage(
     )
 
     # --- ajours du tablier, une case sur deux entre nervures ---
-    # La sangle est une exclusion au même titre qu'une nervure : la case du coin
-    # arrière la traversait de part en part, à 3 mm du goujon extérieur. Elle
-    # garde donc sa bande pleine de ajour_marge, comme tout le reste.
+    # La sangle est une exclusion au même titre qu'une nervure : une case
+    # tombait pile sur elle et la perçait. Elle garde sa bande pleine.
     garde_sangle = _bb(
         sangle_x0 - ajour_marge, sangle_x1 + ajour_marge,
         barre_y - sangle_largeur / 2.0 - ajour_marge,
@@ -265,17 +261,6 @@ def plateau_pesage(
         barre_y - fenetre_demi_largeur, barre_y + fenetre_demi_largeur,
         -1.0, rib_top + 1.0,
     )
-
-    # --- poches borgnes des deux goujons M4 sans tête du bout chargé ---
-    # Elles ne traversent PAS : la peau de goujon_peau est du côté du tray, donc
-    # elle est imprimée à même le lit, sans pont ni support, et la face d'appui
-    # du tray reste continue. Rien ne peut couler jusqu'à la barre, et il n'y a
-    # plus de cuvette Ø4,3 au-dessus d'un goujon réglé un peu court.
-    cmin = (Align.CENTER, Align.CENTER, Align.MIN)
-    for x in (-trou_ext, -trou_int):
-        body -= Pos(x, barre_y, goujon_peau) * Cylinder(
-            goujon_passage / 2.0, sangle_epaisseur - goujon_peau + 1.0, align=cmin
-        )
 
     # --- selle à crochets 45°, le profil du coupon du 26/08 ---
     # Losange imprimable : le premier crochet_jeu mm du 45° reste dans le jeu

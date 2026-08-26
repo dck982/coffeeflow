@@ -185,7 +185,7 @@ def base_pesage(
     # carrée et pas ronde, parce qu'un alésage rond couché a une voûte en arc que
     # rien ne soutient, là où un plafond plat de 7,4 mm est un pont banal.
     poche_r = poche_diametre / 2.0
-    poche_z1 = vis_z + poche_r
+    poche_z1 = vis_z + poche_r + 0.4
     poche_boss_hauteur = poche_z1 + poche_plafond
     # Ce que la tête pénètre réellement dans le socle : sa saillie moins le jeu
     # que le socle garde devant la paroi.
@@ -552,8 +552,9 @@ def base_pesage(
             tete_d / 2.0, vis_fraisee_passage / 2.0, cone_h, align=cmin
         )
     # Poches sur les têtes Ø7, percées dans la FACE NORD. Ouvertes en bas (jusqu'au
-    # lit) pour ne pas gêner les vis de la machine. Le plafond est un pont plat
-    # de 7,4 mm à poche_plafond au-dessus de la vis.
+    # lit) pour ne pas gêner les vis de la machine, et surélevées de 0,4 mm en Z
+    # pour servir de guide plutôt que d'ajustement. Le plafond est un pont plat à
+    # poche_plafond au-dessus de la poche.
     for s in (-1.0, 1.0):
         x0, x1 = sorted((s * (vis_x - poche_r), s * (vis_x + poche_r)))
         body -= _bb(

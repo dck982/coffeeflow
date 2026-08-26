@@ -1,7 +1,5 @@
 from nurb import *
 
-from system import puit_couche, puit_couche_toit
-
 
 def _bb(x0, x1, y0, y1, z0, z1):
     """Box from bounds, in the bac frame."""
@@ -47,7 +45,6 @@ def base_pesage(
     pied_y=40.0,
     aimant_coin_x=48.0,
     aimant_coin_y=-59.0,
-    aimant_paroi_z=5.0,
     puit_diametre=8.2,
     poche_diametre=7.4,
     poche_profondeur=4.0,
@@ -98,7 +95,7 @@ def base_pesage(
     bride_epaisseur: épaisseur de la bride basse du plateau, que la lèvre vient coiffer
     bride_portee: de combien cette bride dépasse le tablier vers l'arrière
     jeu_cage: jeu entre le plateau et la cage sur les côtés et l'arrière (1,0–1,5 : plus fin, le café sèche en pont)
-    jeu_cage_avant: jeu à l'avant, plus large pour pouvoir dégager le plateau des lèvres à la main
+    jeu_cage_avant: jeu à l'avant, entre le plateau et la traverse qui referme le cadre
     paroi_cage: épaisseur des parois de la cage
     cage_hauteur: hauteur des parois de la cage
     rail_debord: largeur de fond que chaque rail latéral glisse sous le plateau
@@ -108,7 +105,6 @@ def base_pesage(
     pied_y: position en Y des deux pieds avant à aimant
     aimant_coin_x: écartement en X des deux aimants ajoutés dans les angles arrière
     aimant_coin_y: position en Y de ces deux aimants d'angle
-    aimant_paroi_z: hauteur de l'axe de l'aimant qui plaque le socle contre la paroi arrière
     puit_diametre: diamètre du puits d'aimant Ø8×3
     poche_diametre: largeur des deux poches qui coiffent les têtes de vis de la paroi arrière
     poche_profondeur: de combien chaque poche s'enfonce en Y depuis la face nord (tête + garde)
@@ -222,11 +218,11 @@ def base_pesage(
             f"Baisse-la sous {hauteur_pile - 2.0:.1f}",
             param="cage_hauteur",
         )
-    if jeu_cage_avant < bride_portee + 0.5:
+    if jeu_cage_avant < jeu_cage:
         reject(
-            f"jeu_cage_avant {jeu_cage_avant} ne laisse pas basculer le plateau pour "
-            f"dégager une bride de {bride_portee} : monte-le au-delà de "
-            f"{bride_portee + 0.5}",
+            f"jeu_cage_avant {jeu_cage_avant} est plus serré que jeu_cage ({jeu_cage}) : "
+            f"le café y sécherait en pont contre la traverse. Monte-le au-delà de "
+            f"{jeu_cage}",
             param="jeu_cage_avant",
         )
     if butee_saillie < 0.5:
@@ -381,6 +377,9 @@ def base_pesage(
         body += _bb(px0, px1, stop_y_in, pied_y + rail_debord, 0.0, socle_epaisseur)
 
     # --- cage : parois latérales, paroi arrière, butées avant ---
+    # La traverse qui referme le U est ajoutée APRÈS la cuvette Ø80 : le
+    # cercle la mangerait sur ~82 mm, et un contact coplanaire avec les
+    # butées ne fusionne pas. Voir plus bas.
     for s in (-1.0, 1.0):
         x0, x1 = sorted((s * cage_x_in, s * cage_x_out))
         body += _bb(x0, x1, cage_y_in, stop_y_in, 0.0, cage_hauteur)
@@ -404,23 +403,12 @@ def base_pesage(
         bx0, bx1 = sorted((s * (vis_x - poche_r - 2.5), s * (vis_x + poche_r + 2.5)))
         body += _bb(bx0, bx1, arriere, cage_y_in, 0.0, poche_boss_hauteur)
 
-    # --- bossage de l'aimant qui plaque le socle contre la paroi arrière ---
-    # Il est le seul morceau du socle qui DÉPASSE la ligne des autres : il va
-    # jusqu'à -bac_y, donc sa peau touche la tôle pendant que le reste de la face
-    # nord garde son jeu_paroi_arriere. C'est lui qui fait le zéro en Y.
-    aimant_r = puit_diametre / 2.0
-    # Le puits est couché : son toit à 45° monte plus haut que le rayon, et c'est
-    # lui que le plafond doit dégager.
-    paroi_boss_hauteur = aimant_paroi_z + puit_couche_toit(aimant_r) + poche_plafond
-    body += _bb(
-        -aimant_r - 2.5, aimant_r + 2.5, -bac_y, cage_y_in, 0.0, paroi_boss_hauteur
-    )
-
     # --- deux aimants de plus, dans les angles arrière, face au fond du bac ---
     # La bande arrière ne fait que 6,3 mm de profondeur et les rails 8,5 mm de
     # large : ni l'une ni les autres ne logent un puits Ø8,2, qui demande
     # 12,2 × 12,2. D'où cette dalle locale, qui ne coûte que le morceau manquant
     # entre le rail et l'aimant.
+    aimant_r = puit_diametre / 2.0
     for s in (-1.0, 1.0):
         dx0, dx1 = sorted((s * (aimant_coin_x - aimant_r - 2.0), s * cage_x_out))
         body += _bb(
@@ -528,6 +516,19 @@ def base_pesage(
     body -= large - emprise
     body -= etroit.intersect(emprise)
 
+    # --- traverse avant, qui referme le U ---
+    # Sans elle les aimants du fond plient les parois latérales en les
+    # plaquant à la tôle : un cadre fermé les tient à l'écartement. Le
+    # plateau se retire vers le haut (crochets 45°), plus par bascule, donc
+    # le U ouvert n'a plus de raison d'être. Posée après la cuvette, avec
+    # 2 mm d'overlap dans chaque butée : un contact coplanaire ne fusionne
+    # pas. Elle traverse le Ø80 sur une bande de paroi_cage ; le tray est
+    # étanche, le bac est normalement sec.
+    body += _bb(
+        -patte_x_in - 2.0, patte_x_in + 2.0,
+        stop_y_in, stop_y_out, 0.0, cage_hauteur,
+    )
+
     # --- percages ---
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)
     # Vis M4 fraisées ISO 10642 par le dessous. Le cône à 90° débouche EXACTEMENT
@@ -577,20 +578,6 @@ def base_pesage(
         body -= Pos(s * aimant_coin_x, aimant_coin_y, puit_fond) * Cylinder(
             aimant_r, socle_epaisseur - puit_fond + 0.5, align=cmin
         )
-    # Puits horizontal de l'aimant de paroi. La peau puit_fond reste sur la face
-    # NORD, contre la tôle, comme dans support_2x5w ; le puits est donc ouvert
-    # côté baie et l'aimant s'y enfile après l'impression, poussé au fond. Le
-    # jeu qui reste derrière lui est ce qui permet de le ressortir un jour.
-    # Couché sur le lit, un alésage rond finit par six couches à plus de 45° qui
-    # s'affaissent dedans : le trou sort ovale et l'aimant ne passe plus. D'où
-    # `puit_couche`, toit à 45° tronqué d'un pont plat, plus le chanfrein
-    # d'entrée que ces 6,2 mm de fût méritent. Le plan est orienté depuis la
-    # bouche vers le fond ; x_dir met le local +Y sur le +Z du monde.
-    body -= Plane(
-        origin=(0.0, cage_y_in, aimant_paroi_z),
-        z_dir=(0.0, -1.0, 0.0),
-        x_dir=(1.0, 0.0, 0.0),
-    ) * puit_couche(aimant_r, cage_y_in + bac_y - puit_fond)
     # Puits de la butée, borgne et ouvert vers le HAUT : la goupille imprimée
     # `butee_goupille` s'y laisse tomber, pose sur le fond de butee_puits_fond et
     # se change plateau retiré. Le puits est aussi la cote d'un insert laiton

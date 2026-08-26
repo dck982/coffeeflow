@@ -185,7 +185,6 @@ def base_pesage(
     # carrée et pas ronde, parce qu'un alésage rond couché a une voûte en arc que
     # rien ne soutient, là où un plafond plat de 7,4 mm est un pont banal.
     poche_r = poche_diametre / 2.0
-    poche_z0 = vis_z - poche_r
     poche_z1 = vis_z + poche_r
     poche_boss_hauteur = poche_z1 + poche_plafond
     # Ce que la tête pénètre réellement dans le socle : sa saillie moins le jeu
@@ -294,13 +293,6 @@ def base_pesage(
             f"lieu de poser sur la tôle. Monte-la au-delà de "
             f"{tete_penetration + 0.3:.1f}",
             param="poche_profondeur",
-        )
-    if poche_z0 < 0.6:
-        reject(
-            f"l'axe des têtes à z={vis_z} ne laisse que {poche_z0:.2f} mm de fond sous "
-            f"la poche : sous 0,6 mm il n'y a plus de première couche pour la fermer. "
-            f"Baisse poche_diametre sous {2.0 * (vis_z - 0.6):.1f}",
-            param="poche_diametre",
         )
     if poche_boss_hauteur > cage_hauteur:
         reject(
@@ -559,14 +551,13 @@ def base_pesage(
         body -= Pos(x, barre_y, 0.0) * Cone(
             tete_d / 2.0, vis_fraisee_passage / 2.0, cone_h, align=cmin
         )
-    # Poches borgnes sur les têtes Ø7, percées dans la FACE NORD. Tunnel carré,
-    # fermé dessus et dessous : le fond de 1,3 mm est de la première couche et le
-    # plafond est un pont plat de 7,4 mm. Fermer les deux est ce qui empêche
-    # l'eau du bac d'entrer par le dessous du bossage.
+    # Poches sur les têtes Ø7, percées dans la FACE NORD. Ouvertes en bas (jusqu'au
+    # lit) pour ne pas gêner les vis de la machine. Le plafond est un pont plat
+    # de 7,4 mm à poche_plafond au-dessus de la vis.
     for s in (-1.0, 1.0):
         x0, x1 = sorted((s * (vis_x - poche_r), s * (vis_x + poche_r)))
         body -= _bb(
-            x0, x1, arriere - 1.0, arriere + poche_profondeur, poche_z0, poche_z1
+            x0, x1, arriere - 1.0, arriere + poche_profondeur, -0.5, poche_z1
         )
     # Puits d'aimant ouverts vers le HAUT : la pièce s'imprime dans sa position
     # d'usage, donc le fond de 0,6 mm est la première couche et c'est lui qui va

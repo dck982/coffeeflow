@@ -13,7 +13,7 @@ def plateau_pesage(
     cadre_largeur=110.0,
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,
-    barre_y=-25.0,
+    barre_y=0.0,
     tablier_epaisseur=1.6,
     nervure_hauteur=10.0,
     nervure_epaisseur=2.4,
@@ -25,11 +25,12 @@ def plateau_pesage(
     berceau_debord=2.75,
     fenetre_jeu=1.5,
     sangle_epaisseur=1.9,
-    sangle_largeur=17.0,
+    sangle_largeur=16.3,
     sangle_marge=5.0,
-    crochet_jeu=0.4,
-    crochet_recouvrement=0.6,
-    selle_degagement=3.0,
+    tube_paroi=1.6,
+    tube_amorce=3.0,
+    tube_recouvrement=0.6,
+    selle_degagement=-0.5,
     bride_epaisseur=3.0,
     bride_portee=3.0,
     butee_x=45.0,
@@ -59,11 +60,12 @@ def plateau_pesage(
     berceau_debord: de combien les joues du berceau dépassent le bout de la barre
     fenetre_jeu: jeu autour de la barre, en bout de fenêtre comme le long du couloir
     sangle_epaisseur: épaisseur de la sangle qui se pose sur le bout chargé de la barre
-    sangle_largeur: largeur en Y de cette sangle
+    sangle_largeur: largeur extérieure du tube en Y ; le jeu autour de la barre en découle (sangle_largeur/2 − tube_paroi − demi-section)
     sangle_marge: plastique de chaque côté de la sangle au-delà des deux M4 du bout chargé
-    crochet_jeu: jeu de chaque côté entre les joues et le flanc du carré
-    crochet_recouvrement: de combien le losange 45° passe sous l'arête inférieure
-    selle_degagement: jeu en Y entre les nervures et les joues de la selle, pour qu'elles fléchissent comme le coupon
+    tube_paroi: épaisseur des joues du tube et des deux plots de verrouillage
+    tube_amorce: longueur du lead-in à 45° à la bouche d'entrée, pour glisser la barre dans l'alésage sans accrocher
+    tube_recouvrement: de combien le retour 45° passe sous l'arête de la barre pour la retenir (et donner une paroi au grub)
+    selle_degagement: recouvrement (négatif) ou jeu (positif) en Y entre les murets et les joues du tube ; −0,5 les fait mordre pour fusionner en appui, plus besoin de fléchir
     bride_epaisseur: hauteur de la bride arrière que la lèvre du socle vient coiffer
     bride_portee: de combien cette bride dépasse le tablier vers l'arrière
     butee_x: position en X de la butée de surcharge du socle, qui doit tomber sur une nervure
@@ -115,35 +117,45 @@ def plateau_pesage(
             param="fenetre_demi_largeur",
         )
 
-    crochet_inner = barre_s / 2.0 + crochet_jeu
-    crochet_outer = sangle_largeur / 2.0
-    crochet_paroi = crochet_outer - crochet_inner
-    crochet_inward = crochet_jeu + crochet_recouvrement
-    crochet_sous = 2.0 * crochet_inward
-    if crochet_paroi < 1.2:
+    bore_half = sangle_largeur / 2.0 - tube_paroi
+    tube_jeu = bore_half - barre_s / 2.0
+    # Le retour 45° descend 2·(jeu + recouvrement) sous le dessus de la barre.
+    tube_inward = tube_jeu + tube_recouvrement
+    tube_sous = 2.0 * tube_inward
+    if tube_recouvrement < 0.3:
         reject(
-            f"sangle_largeur {sangle_largeur} ne laisse que {crochet_paroi:.2f} mm de "
-            f"joue autour d'une barre de {barre_s} plus crochet_jeu {crochet_jeu} : "
-            f"monte-la au-delà de {2.0 * (crochet_inner + 1.2):.1f}",
+            f"tube_recouvrement {tube_recouvrement} est trop court pour retenir la barre : "
+            f"un 45° de moins de 0,3 mm sous l'arête ne rattrape rien, et le grub n'aurait "
+            f"pas de paroi en face. Monte-le",
+            param="tube_recouvrement",
+        )
+    if tube_jeu < 0.2:
+        reject(
+            f"sangle_largeur {sangle_largeur} avec une paroi de {tube_paroi} ne laisse "
+            f"que {tube_jeu:.2f} mm de jeu autour d'une barre de {barre_s} : le tube ne "
+            f"l'accepterait pas. Monte sangle_largeur au-delà de "
+            f"{2.0 * (barre_s / 2.0 + tube_paroi + 0.2):.1f}",
             param="sangle_largeur",
         )
-    if crochet_recouvrement < 0.3:
+    if tube_jeu > 0.9:
         reject(
-            f"crochet_recouvrement {crochet_recouvrement} est trop court pour un clip : "
-            f"un 45° de moins de 0,3 mm ne rattrape rien. Monte-le",
-            param="crochet_recouvrement",
+            f"jeu de {tube_jeu:.2f} mm autour de la barre : le tube flotte et le "
+            f"tangage revient. Baisse sangle_largeur sous "
+            f"{2.0 * (barre_s / 2.0 + tube_paroi + 0.9):.1f} ou monte tube_paroi",
+            param="sangle_largeur",
         )
-    if crochet_sous > 3.0:
+    if tube_sous > 3.0:
         reject(
-            f"les crochets descendent de {crochet_sous:.2f} mm sous la barre, plus que "
-            f"les 3 mm libres jusqu'au fond du bac. Baisse crochet_recouvrement ou "
-            f"crochet_jeu (chaque dixième coûte deux dixièmes en Z)",
-            param="crochet_recouvrement",
+            f"le retour descend de {tube_sous:.2f} mm sous la barre "
+            f"(2·(jeu {tube_jeu:.2f} + recouvrement {tube_recouvrement})), plus que les "
+            f"3 mm libres jusqu'au fond du bac. Baisse tube_recouvrement ou le jeu",
+            param="tube_recouvrement",
         )
-    if selle_degagement < 1.0:
+    if selle_degagement < bore_half - sangle_largeur / 2.0 + 0.1:
         reject(
-            f"selle_degagement {selle_degagement} est sous 1 mm : les nervures se "
-            f"recolleraient aux joues et le clip ne s'ouvrirait plus. Monte-le",
+            f"selle_degagement {selle_degagement} fait mordre les murets dans l'alésage "
+            f"du tube : ils gêneraient la barre. Garde-le au-dessus de "
+            f"{bore_half - sangle_largeur / 2.0 + 0.1:.2f}",
             param="selle_degagement",
         )
 
@@ -230,10 +242,15 @@ def plateau_pesage(
     # --- ajours du tablier, une case sur deux entre nervures ---
     # La sangle est une exclusion au même titre qu'une nervure : une case
     # tombait pile sur elle et la perçait. Elle garde sa bande pleine.
+    # Du côté du cadre le plus proche, cette bande va jusqu'à la face
+    # latérale : une marge de 4 mm laissait 0,45 mm de lucarne entre la
+    # garde et le muret (deux slivers de 0,72 mm²), et la base de la sangle
+    # ne rejoignait pas le cadre.
+    garde_y0 = ty0 if (selle_y0 - ty0) <= (y1 - selle_y1) else (selle_y0 - ajour_marge)
+    garde_y1 = y1 if (y1 - selle_y1) <= (selle_y0 - ty0) else (selle_y1 + ajour_marge)
     garde_sangle = _bb(
         sangle_x0 - ajour_marge, sangle_x1 + ajour_marge,
-        barre_y - sangle_largeur / 2.0 - ajour_marge,
-        barre_y + sangle_largeur / 2.0 + ajour_marge,
+        garde_y0, garde_y1,
         -1.0, rib_top + 1.0,
     )
     for i in range(len(xs) - 1):
@@ -262,33 +279,58 @@ def plateau_pesage(
         -1.0, rib_top + 1.0,
     )
 
-    # --- selle à crochets 45°, le profil du coupon du 26/08 ---
-    # Losange imprimable : le premier crochet_jeu mm du 45° reste dans le jeu
-    # latéral (garde de flèche), crochet_recouvrement passe sous l'acier.
-    # 2,0 mm sous la barre, 1,0 mm encore au fond. Confirmé sur coupon 12 mm.
-    nub = barre_s / 2.0 - crochet_recouvrement
-    z_bar_bot = sangle_epaisseur + barre_s
-    z_tip = z_bar_bot + crochet_inward
-    z_top = z_tip + crochet_inward
+    # --- tube du bout chargé : losange fermé où la barre coulisse ---
+    # Profil Y-Z extrudé en X sur la longueur de la sangle : sangle porteuse en
+    # bas (paroi haute en usage), deux joues SERRÉES, et deux RETOURS 45° qui
+    # passent sous les arêtes de la barre. Les joues rigides (bracées par les
+    # murets, selle_degagement < 0) encaissent le tangage ; les retours retiennent
+    # la barre — roulis + rétention — et donnent au grub une paroi EN FACE : sans
+    # eux, serrer un grub ne ferait que soulever le plateau. Le 45° s'auto-supporte
+    # (dessous à 45°), là où un plafond plat pontait sur 13,8 mm. La barre s'enfile
+    # en X depuis la fenêtre, le jeu vertical la laissant passer sous les retours.
+    # Le grub (optionnel) se serre par le JOUR CENTRAL entre les deux retours, là
+    # où débouchent les M4 de la barre — aucun trou à percer.
+    outer_half = sangle_largeur / 2.0
+    tube_z_bar_top = sangle_epaisseur + barre_s
+    z_tip = tube_z_bar_top + tube_inward
+    z_top = z_tip + tube_inward
+    nub = barre_s / 2.0 - tube_recouvrement
     oy = barre_y
     pts = [
-        (oy - crochet_outer, 0.0),
-        (oy + crochet_outer, 0.0),
-        (oy + crochet_outer, z_top),
-        (oy + crochet_inner, z_top),
+        (oy - outer_half, 0.0),
+        (oy + outer_half, 0.0),
+        (oy + outer_half, z_top),
+        (oy + bore_half, z_top),
         (oy + nub, z_tip),
-        (oy + crochet_inner, z_bar_bot),
-        (oy + crochet_inner, sangle_epaisseur),
-        (oy - crochet_inner, sangle_epaisseur),
-        (oy - crochet_inner, z_bar_bot),
+        (oy + bore_half, tube_z_bar_top),
+        (oy + bore_half, sangle_epaisseur),
+        (oy - bore_half, sangle_epaisseur),
+        (oy - bore_half, tube_z_bar_top),
         (oy - nub, z_tip),
-        (oy - crochet_inner, z_top),
-        (oy - crochet_outer, z_top),
+        (oy - bore_half, z_top),
+        (oy - outer_half, z_top),
     ]
-    selle = Pos(sangle_x0, 0, 0) * extrude(
+    body += Pos(sangle_x0, 0, 0) * extrude(
         Plane.YZ * Polygon(*pts, align=None), sangle_x1 - sangle_x0
     )
-    body += selle
+    # Amorce à la bouche d'entrée (sangle_x1) : l'obstacle à l'insertion, ce sont
+    # les RETOURS 45° (le sommet du U), pas les joues. On les rabote en rampe à
+    # l'entrée — pleine hauteur à la bouche, retours pleins tube_amorce plus loin —
+    # pour que le bout de la barre passe dessous en la glissant, sans buter sur le
+    # premier débord du 45°. Un seul rabot en travers, pas deux vides dans les joues.
+    if tube_amorce > 0.0:
+        # Point bas à z_top − tube_amorce (sous le dessus de la barre) pour que la
+        # diagonale monte à 45° pile jusqu'au sommet du U et coupe franchement la
+        # lèvre, au lieu d'une pente molle qui l'effleure.
+        ramp = [
+            (sangle_x1 + 0.1, z_top - tube_amorce),
+            (sangle_x1 + 0.1, z_top + 0.1),
+            (sangle_x1 - tube_amorce, z_top + 0.1),
+        ]
+        # extrude sur Plane.XZ va vers −Y : on part de la face +Y du tube.
+        body -= Pos(0.0, barre_y + outer_half + 0.1, 0.0) * extrude(
+            Plane.XZ * Polygon(*ramp, align=None), 2.0 * outer_half + 0.2
+        )
 
     solids = list(body.solids())
     if len(solids) > 1:

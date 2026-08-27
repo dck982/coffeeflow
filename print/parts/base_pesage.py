@@ -20,7 +20,7 @@ def base_pesage(
     hauteur_pile=17.6,
     berceau_epaisseur=3.0,
     socle_epaisseur=4.0,
-    barre_y=-25.0,
+    barre_y=0.0,
     jeu_barre=0.4,
     joue_epaisseur=2.5,
     joue_hauteur=9.0,
@@ -57,7 +57,7 @@ def base_pesage(
     butee_boss_hauteur=5.0,
     vis_fraisee_passage=4.5,
     plaque_largeur=17.0,
-    plaque_centre_y=-34.25,
+    plaque_centre_y=-9.25,
     plaque_epaisseur=2.0,
     plaque_paroi=2.0,
     plaque_mur_hauteur=10.0,
@@ -68,7 +68,7 @@ def base_pesage(
     module_nervure_largeur=1.2,
     module_nervure_portee=8.0,
     fils_trou_cote=3.0,
-    fils_trou_y=-16.0,
+    fils_trou_y=9.0,
     fils_trou_z=3.0,
     fils_rainure_fond=2.0,
     marge_perforations=2.0,
@@ -495,12 +495,15 @@ def base_pesage(
             0.0, plaque_epaisseur + module_nervure_hauteur,
         )
 
-    # --- le socle enjambe le cercle de perforations, il ne s'y pose jamais ---
-    # Deux cuvettes, pas une. Partout le socle s'écarte de marge_perforations du
-    # Ø80. Sur l'emprise du berceau il s'arrête au Ø80 nu : la tête fraisée
-    # intérieure, à 46 mm du centre du cercle, dégage les trous de 1,5 mm toute
-    # seule, alors que la marge de 2 mm la couperait et laisserait 0,4 mm de
-    # section. Rien n'est posé sur une perforation dans les deux cas.
+    # --- le socle enjambe le cercle de perforations, sauf sous le berceau ---
+    # Partout le socle s'écarte de marge_perforations du Ø80 pour laisser le
+    # drainage ouvert. MAIS sous le berceau il reste PLEIN sur les perforations :
+    # depuis que la barre est centrée (barre_y = 0) le berceau tombe au milieu du
+    # cercle, et l'ancrage repose sur les petits trous plutôt que de les enjamber
+    # — choix utilisateur assumé, le reste du fond apporte la rigidité. On ne
+    # creuse donc plus le Ø80 nu sous l'emprise (l'ancienne seconde cuvette
+    # `etroit ∩ emprise`, qui laissait un voile de 0,19 mm une fois le berceau
+    # centré). L'emprise ne sert plus qu'à protéger le berceau du carve du drain.
     cbot = (Align.CENTER, Align.CENTER, Align.MIN)
     emprise = _bb(
         -barre_l / 2.0 - 3.5, berceau_x_int + 1.0,
@@ -510,11 +513,7 @@ def base_pesage(
     large = Pos(0, perfo_y, -1.0) * Cylinder(
         perfo_r + marge_perforations, cage_hauteur + 2.0, align=cbot
     )
-    etroit = Pos(0, perfo_y, -1.0) * Cylinder(
-        perfo_r, cage_hauteur + 2.0, align=cbot
-    )
     body -= large - emprise
-    body -= etroit.intersect(emprise)
 
     # --- traverse avant, qui referme le U ---
     # Sans elle les aimants du fond plient les parois latérales en les

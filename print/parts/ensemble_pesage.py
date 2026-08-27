@@ -5,7 +5,7 @@ from nurb import *
 def ensemble_pesage(
     hauteur_pile=17.6,
     berceau_epaisseur=3.0,
-    barre_y=-25.0,
+    barre_y=0.0,
     cadre_largeur=110.0,
     cadre_profondeur=80.0,
     cadre_centre_y=-22.0,

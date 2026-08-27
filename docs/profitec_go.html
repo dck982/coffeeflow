@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>coffeeflow — Profitec Go</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#faf9f7; --ink:#1c1c1c; --muted:#6b6b6b; --rule:#dcd8d2;
+    --coral:#d96b4c; --panel:#fff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  canvas{display:block}
+  #hud{
+    position:absolute; top:16px; left:16px; z-index:2;
+    background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+    padding:14px 16px 12px; width:320px;
+    box-shadow:0 8px 24px rgba(28,28,28,.06);
+  }
+  #hud h1{font-size:15px;margin:0 0 4px;letter-spacing:-.01em}
+  #hud p{margin:0;color:var(--muted);font-size:13px}
+  #hud .dims{margin:10px 0 0;font-variant-numeric:tabular-nums;font-size:13px}
+  #hud .dims div{display:flex;justify-content:space-between;gap:16px;padding:2px 0}
+  #hud .dims b{font-weight:600;color:var(--ink)}
+  #views{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  button{
+    font:600 12px/1 inherit; color:var(--ink); background:#f1efea;
+    border:1px solid var(--rule); border-radius:6px; padding:6px 10px; cursor:pointer;
+  }
+  button:hover{background:#e8e4dc}
+  button.on{background:var(--coral); color:#fff; border-color:var(--coral)}
+  #hud a{color:var(--coral); font-weight:600}
+  #hint{position:absolute; bottom:14px; left:16px; z-index:2;
+    color:var(--muted); font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="hud">
+  <h1>Profitec Go — maquette</h1>
+  <p>Encombrements internes. Le boîtier AC se dessine à part : <a href="ac_box.html">ac_box.html</a>.</p>
+  <div class="dims">
+    <div>Machine <b>207 × 305 × 368</b></div>
+    <div>1 · surplomb boiler/groupe <b>125</b></div>
+    <div>2 · baie composants <b>70</b></div>
+    <div>Cloison réservoir <b>195 de la façade</b></div>
+    <div>3 · réservoir <b>110</b></div>
+    <div>Boiler Ø90 × 120, centre à 70 de la façade</div>
+    <div>Vanne (encombrement) <b>Y 125–155 · Z 175–225 · X ±20</b></div>
+    <div>PID <b>Y 125–175 · X 10–75 depuis l’est · Z 90–120</b></div>
+    <div>SSR <b>Y 125–165 · X 40–80 depuis l’est · Z 130–160</b></div>
+    <div>Cadran <b>Y 125–160 · X 10–78 depuis l’ouest · Z 70–130</b></div>
+    <div>Pompe <b>Y 170–225 · Z 0–80 · X de +40 (est) à +80 (ouest)</b></div>
+    <div>Boîtier AC max <b>130 haut × 60 baie × 30 depuis l’ouest</b></div>
+  </div>
+  <div id="views">
+    <button type="button" data-view="arriere">Arrière</button>
+    <button type="button" data-view="dessus">Dessus</button>
+    <button type="button" data-view="baie">Baie 70</button>
+    <button type="button" data-view="cote">Côté</button>
+    <button type="button" data-view="ouest">Ouest</button>
+    <button type="button" data-view="est">Est</button>
+    <button type="button" id="btn-vol" class="on">Volumes</button>
+    <button type="button" id="btn-axes">Axes</button>
+  </div>
+</div>
+<div id="hint">Glisser : orbite · molette : zoom · clic droit : pan · 1 unité = 1 mm · Z vers le haut · face à la machine : gauche = ouest (cadran), droite = est (PID)</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/*
+  Contraintes pour le boîtier AC (docs/ac_box.html). 1 unité = 1 mm.
+
+  Repère : origine centre X, face arrière Y = 0, sol Z = 0.
+  Face à la machine : gauche = ouest (cadran), droite = est (PID).
+  Y des pièces = millimètres depuis la FAÇADE (fromFront).
+  X des pièces = millimètres depuis la paroi ouest ou est, vers l'intérieur.
+
+  Baie composants : 70 mm de profond, pleine hauteur, entre le surplomb (125 mm
+  depuis la façade) et la cloison réservoir (195 mm). Pas de cloison physique
+  entre boiler et baie : c'est le passage des câbles.
+
+  Boîtier AC visé : aimants sur la FACE OUEST de cette baie, fond vertical.
+  Enveloppe max provisoire (docs/ac_box.html) : 130 × 60 × 30 (X × Y × Z
+  fond au sol). Une fois dressée : 130 mm en Z machine, 60 mm dans la baie
+  (Y), 30 mm depuis la paroi ouest vers l'intérieur. print/parts/ac_box
+  (75,5×115×30) est un reliquat, à ignorer. Contenu : RobotDyn DimmerLink
+  4 A, M5Stack Unit SSR, RECOM RAC05-05SK-277-W — détail BOM dans
+  README.md § Boîtier AC.
+*/
+
+// millimètres. Origine : centre X, face arrière Y = 0, sol Z = 0.
+// Face à la machine : gauche = ouest (cadran), droite = est (PID).
+// Regard vers −Y (vue avant, Z-up) : l’écran inverse X, donc ouest = +X, est = −X.
+const W = 207;
+const D = 305;
+const H = 368;
+const OVERHANG = 125;                 // compartiment 1, boiler + groupe
+const BAY_D = 70;                     // compartiment 2, pleine hauteur
+const TANK_D = D - OVERHANG - BAY_D;  // 110, compartiment 3
+const PLATE_FROM_FRONT = OVERHANG + BAY_D; // 195
+const VOID_H = 210;
+const TRAY_H = 50;
+const OVER_H = H - VOID_H;            // 158
+const T = 1.6;
+
+const fromFront = (mm) => D - mm;
+const fromWest = (mm) => W / 2 - mm;  // paroi cadran, vers l'intérieur
+const fromEast = (mm) => -W / 2 + mm; // paroi PID, vers l'intérieur
+const span = (a, b) => ({ size: Math.abs(b - a), mid: (a + b) / 2 });
+
+const BOILER_DIA = 90;
+const BOILER_H = 120;
+const BOILER_FROM_FRONT = 70;
+
+const VALVE = {
+  yFront: 125,
+  yBack: 155,
+  z0: 175,
+  z1: 225,
+  xMargin: 20,
+};
+
+const PID = {
+  yFront: 125,
+  yBack: 175,
+  x0: 10,
+  x1: 75,
+  z0: 90,
+  z1: 120,
+};
+
+const SSR = {
+  yFront: 125,
+  yBack: 165,
+  x0: 40,
+  x1: 80,
+  z0: 130,
+  z1: 160,
+};
+
+const CADRAN = {
+  yFront: 125,
+  yBack: 160,
+  x0: 10,
+  x1: 78,
+  z0: 70,
+  z1: 130,
+};
+
+const PUMP = {
+  yFront: 170,
+  yBack: 225,
+  z0: 0,
+  z1: 80,
+  xMarginEast: 40,
+  xMarginWest: 80,
+};
+
+const CORAL = 0xd96b4c;
+const CORAL_IN = 0xc45d41;
+const STEEL = 0xc8ccd0;
+const BRASS = 0xc4a35a;
+const INSUL = 0x2a2a2a;
+const WATER = 0x7aa0b8;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xfaf9f7);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 4000);
+camera.up.set(0, 0, 1);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+scene.add(new THREE.HemisphereLight(0xf5f0ea, 0x8a7068, 1.15));
+const sun = new THREE.DirectionalLight(0xfff6ee, 1.35);
+sun.position.set(220, -280, 420);
+scene.add(sun);
+scene.add(new THREE.DirectionalLight(0xe8eef5, 0.45).translateX(-180).translateY(120).translateZ(200));
+
+const grid = new THREE.GridHelper(800, 16, 0xdcd8d2, 0xeeeae4);
+grid.rotateX(Math.PI / 2);
+grid.position.z = -0.2;
+scene.add(grid);
+
+const coral = mat(CORAL, 0.72, 0.08);
+const coralIn = mat(CORAL_IN, 0.78, 0.06);
+const steel = mat(STEEL, 0.28, 0.85);
+const brass = mat(BRASS, 0.35, 0.7);
+const insul = mat(INSUL, 0.9, 0.05);
+const water = mat(WATER, 0.45, 0.15);
+water.transparent = true;
+water.opacity = 0.45;
+
+const machine = new THREE.Group();
+scene.add(machine);
+
+const rearH = TANK_D + BAY_D; // 175, pleine hauteur (baie + réservoir)
+
+side(+1);
+side(-1);
+
+function side(sign) {
+  const x = sign * (W / 2 - T / 2);
+  box(machine, T, rearH, H, x, rearH / 2, H / 2, coral);
+  box(machine, T, OVERHANG, OVER_H, x, rearH + OVERHANG / 2, VOID_H + OVER_H / 2, coral);
+}
+
+box(machine, W - 2 * T, rearH, T, 0, rearH / 2, T / 2, coralIn);
+box(machine, W - 2 * T, T, VOID_H - T, 0, rearH - T / 2, T + (VOID_H - T) / 2, coralIn);
+box(machine, W - 2 * T, OVERHANG - T, T, 0, rearH + (OVERHANG - T) / 2, VOID_H + T / 2, coralIn);
+box(machine, W - 2 * T, T, OVER_H - T, 0, D - T / 2, VOID_H + T + (OVER_H - T) / 2, coral);
+
+// Cloison réservoir : rectangle vertical transverse, toute hauteur.
+const plateMat = new THREE.MeshStandardMaterial({
+  color: 0xdde1e5, transparent: true, opacity: 0.18,
+  metalness: 0.35, roughness: 0.4, side: THREE.DoubleSide, depthWrite: false,
+});
+const plate = new THREE.Mesh(new THREE.PlaneGeometry(W - 2 * T, H), plateMat);
+plate.rotation.x = Math.PI / 2;
+plate.position.set(0, TANK_D, H / 2);
+machine.add(plate);
+const plateEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(plate.geometry),
+  new THREE.LineBasicMaterial({ color: 0x6a7380, transparent: true, opacity: 0.55 })
+);
+plateEdges.position.copy(plate.position);
+plateEdges.rotation.copy(plate.rotation);
+machine.add(plateEdges);
+
+box(machine, 166, OVERHANG - 8, TRAY_H - 2, 0, rearH + 4 + (OVERHANG - 8) / 2, (TRAY_H - 2) / 2, steel);
+
+// Plateau du réservoir.
+box(machine, W - 2 * T - 8, TANK_D - 10, 4, 0, (TANK_D - 4) / 2, T + 2, steel);
+
+const tank = box(machine, W - 40, TANK_D - 24, 180, 0, TANK_D / 2 - 4, T + 4 + 90, water);
+tank.material = water;
+
+// Boiler posé sur le porte-à-faux, axe 70 mm derrière la façade.
+const boilerG = new THREE.Group();
+const boilerBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(BOILER_DIA / 2, BOILER_DIA / 2, BOILER_H, 36),
+  insul
+);
+const boilerCap = new THREE.Mesh(
+  new THREE.CylinderGeometry(BOILER_DIA / 2 - 1, BOILER_DIA / 2 - 1, 5, 36),
+  brass
+);
+boilerCap.position.y = BOILER_H / 2 - 2.5;
+boilerG.add(boilerBody, boilerCap);
+boilerG.add(new THREE.LineSegments(
+  new THREE.EdgesGeometry(boilerBody.geometry),
+  new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.4 })
+));
+boilerG.rotation.x = Math.PI / 2;
+boilerG.position.set(0, D - BOILER_FROM_FRONT, VOID_H + BOILER_H / 2);
+machine.add(boilerG);
+
+// Vanne : encombrement (corps + arrivée groupe + connecteurs), pas la pièce seule.
+const valveY0 = fromFront(VALVE.yBack);
+const valveY1 = fromFront(VALVE.yFront);
+const valve = keepout(
+  W - 2 * VALVE.xMargin,
+  valveY1 - valveY0,
+  VALVE.z1 - VALVE.z0,
+  0,
+  (valveY0 + valveY1) / 2,
+  (VALVE.z0 + VALVE.z1) / 2,
+  0x3d8b6e
+);
+machine.add(valve);
+
+const pidY0 = fromFront(PID.yBack);
+const pidY1 = fromFront(PID.yFront);
+const pidX = span(fromEast(PID.x0), fromEast(PID.x1));
+const pid = keepout(
+  pidX.size,
+  pidY1 - pidY0,
+  PID.z1 - PID.z0,
+  pidX.mid,
+  (pidY0 + pidY1) / 2,
+  (PID.z0 + PID.z1) / 2,
+  0xb0b6bc
+);
+machine.add(pid);
+
+const ssrY0 = fromFront(SSR.yBack);
+const ssrY1 = fromFront(SSR.yFront);
+const ssrX = span(fromEast(SSR.x0), fromEast(SSR.x1));
+const ssr = keepout(
+  ssrX.size,
+  ssrY1 - ssrY0,
+  SSR.z1 - SSR.z0,
+  ssrX.mid,
+  (ssrY0 + ssrY1) / 2,
+  (SSR.z0 + SSR.z1) / 2,
+  0x3a3a3a
+);
+machine.add(ssr);
+
+const cadranY0 = fromFront(CADRAN.yBack);
+const cadranY1 = fromFront(CADRAN.yFront);
+const cadranX = span(fromWest(CADRAN.x0), fromWest(CADRAN.x1));
+const cadran = keepout(
+  cadranX.size,
+  cadranY1 - cadranY0,
+  CADRAN.z1 - CADRAN.z0,
+  cadranX.mid,
+  (cadranY0 + cadranY1) / 2,
+  (CADRAN.z0 + CADRAN.z1) / 2,
+  0xc9a227
+);
+machine.add(cadran);
+
+const pumpY0 = fromFront(PUMP.yBack);
+const pumpY1 = fromFront(PUMP.yFront);
+const pumpX = span(fromEast(PUMP.xMarginEast), fromWest(PUMP.xMarginWest));
+const pump = keepout(
+  pumpX.size,
+  pumpY1 - pumpY0,
+  PUMP.z1 - PUMP.z0,
+  pumpX.mid,
+  (pumpY0 + pumpY1) / 2,
+  (PUMP.z0 + PUMP.z1) / 2,
+  0x4a8f4a
+);
+machine.add(pump);
+
+const AC_BOX = { alongZ: 130, alongBay: 60, thick: 30 };
+const acX = span(fromWest(T), fromWest(T + AC_BOX.thick));
+const acBox = keepout(
+  acX.size,
+  AC_BOX.alongBay,
+  AC_BOX.alongZ,
+  acX.mid,
+  TANK_D + BAY_D / 2,
+  AC_BOX.alongZ / 2,
+  0xd96b4c
+);
+machine.add(acBox);
+
+const volumes = new THREE.Group();
+scene.add(volumes);
+volumes.add(ghost(W - 2 * T - 4, OVERHANG - 4, OVER_H - 4, 0, rearH + OVERHANG / 2, VOID_H + OVER_H / 2, 0xe8a87c));
+volumes.add(ghost(W - 2 * T - 4, BAY_D - 4, H - 8, 0, TANK_D + BAY_D / 2, H / 2, 0xf4d35e));
+volumes.add(ghost(W - 2 * T - 4, TANK_D - 8, H - 8, 0, TANK_D / 2, H / 2, 0x7aa0b8));
+
+const axes = new THREE.AxesHelper(80);
+axes.visible = false;
+scene.add(axes);
+
+const labels = new THREE.Group();
+scene.add(labels);
+labels.add(tag('arrière (ouvert)', 0, -18, 24, 90));
+labels.add(tag('avant', 0, D + 18, VOID_H + OVER_H / 2, 70));
+labels.add(tag('ouest', W / 2 + 22, TANK_D + BAY_D / 2, H * 0.55, 60));
+labels.add(tag('est', -W / 2 - 22, TANK_D + BAY_D / 2, H * 0.55, 50));
+labels.add(tag('cloison 195', 0, TANK_D, H + 18, 90));
+labels.add(tag('réservoir 110', 0, TANK_D / 2, H + 14, 90));
+labels.add(tag('baie 70', 0, TANK_D + BAY_D / 2, H + 14, 80));
+labels.add(tag('surplomb 125', 0, rearH + OVERHANG / 2, H + 14, 90));
+labels.add(tag('boiler Ø90', 0, D - BOILER_FROM_FRONT, VOID_H + BOILER_H + 16, 80));
+labels.add(tag('vanne', 0, (valveY0 + valveY1) / 2, VALVE.z1 + 14, 60));
+labels.add(tag('PID', pidX.mid, (pidY0 + pidY1) / 2, PID.z1 + 12, 50));
+labels.add(tag('SSR', ssrX.mid, (ssrY0 + ssrY1) / 2, SSR.z1 + 12, 50));
+labels.add(tag('cadran', cadranX.mid, (cadranY0 + cadranY1) / 2, CADRAN.z1 + 12, 60));
+labels.add(tag('pompe', pumpX.mid, (pumpY0 + pumpY1) / 2, PUMP.z1 + 12, 60));
+labels.add(tag('AC max', acX.mid, TANK_D + BAY_D / 2, AC_BOX.alongZ + 14, 70));
+labels.add(tag('207', 0, rearH / 2, -14, 50));
+labels.add(tag('305', W / 2 + 28, D / 2, 12, 50));
+labels.add(tag('368', W / 2 + 22, 12, H / 2, 50));
+
+const views = {
+  arriere: { pos: [240, -260, 300], target: [0, rearH * 0.4, H * 0.35] },
+  dessus:  { pos: [20, 140, 720],   target: [0, D * 0.45, 0] },
+  baie:    { pos: [-40, -80, 420],  target: [0, TANK_D + BAY_D / 2, 140] },
+  cote:    { pos: [520, 140, 220],  target: [0, D * 0.45, H * 0.4] },
+  ouest:   { pos: [420, 160, 200],  target: [W / 4, TANK_D + BAY_D / 2, 140] },
+  est:     { pos: [-420, 160, 200], target: [-W / 4, TANK_D + BAY_D / 2, 140] },
+  avant:   { pos: [80, 620, 240],   target: [0, rearH, H * 0.45] },
+};
+
+function go(name) {
+  const v = views[name];
+  camera.position.set(...v.pos);
+  controls.target.set(...v.target);
+  controls.update();
+}
+const start = new URLSearchParams(location.search).get('view');
+go(views[start] ? start : 'dessus');
+
+document.getElementById('views').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.view) go(btn.dataset.view);
+});
+document.getElementById('btn-vol').addEventListener('click', (e) => {
+  volumes.visible = !volumes.visible;
+  e.currentTarget.classList.toggle('on', volumes.visible);
+});
+document.getElementById('btn-axes').addEventListener('click', (e) => {
+  axes.visible = !axes.visible;
+  e.currentTarget.classList.toggle('on', axes.visible);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+function mat(color, roughness, metalness) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness, metalness, side: THREE.DoubleSide,
+  });
+}
+
+function keepout(sx, sy, sz, x, y, z, color) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(sx, sy, sz),
+    new THREE.MeshStandardMaterial({
+      color, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  m.position.set(x, y, z);
+  const e = new THREE.LineSegments(
+    new THREE.EdgesGeometry(m.geometry),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 })
+  );
+  e.position.copy(m.position);
+  const g = new THREE.Group();
+  g.add(m, e);
+  return g;
+}
+
+function ghost(sx, sy, sz, x, y, z, color) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(sx, sy, sz),
+    new THREE.MeshStandardMaterial({
+      color, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  m.position.set(x, y, z);
+  const e = new THREE.LineSegments(
+    new THREE.EdgesGeometry(m.geometry),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 })
+  );
+  e.position.copy(m.position);
+  const g = new THREE.Group();
+  g.add(m, e);
+  return g;
+}
+
+function box(parent, sx, sy, sz, x, y, z, material) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(mesh.geometry),
+    new THREE.LineBasicMaterial({ color: 0x5a2e22, transparent: true, opacity: 0.35 })
+  );
+  edges.position.copy(mesh.position);
+  parent.add(edges);
+  return mesh;
+}
+
+function tag(text, x, y, z, width) {
+  const cw = 512, ch = 128;
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(28,28,28,0.82)';
+  round(ctx, 24, 24, cw - 48, ch - 48, 20);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = '600 44px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, cw / 2, ch / 2);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), transparent: true, depthTest: false,
+  }));
+  spr.position.set(x, y, z);
+  spr.scale.set(width, width * (ch / cw), 1);
+  return spr;
+}
+
+function round(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+</script>
+</body>
+</html>

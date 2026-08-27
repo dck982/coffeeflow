@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>coffeeflow — boîtier AC</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#faf9f7; --ink:#1c1c1c; --muted:#6b6b6b; --rule:#dcd8d2;
+    --coral:#d96b4c; --panel:#fff; --dc:#3d7ea6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  canvas{display:block}
+  #hud{
+    position:absolute; top:16px; left:16px; z-index:2;
+    background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+    padding:14px 16px 12px; width:320px;
+    box-shadow:0 8px 24px rgba(28,28,28,.06);
+  }
+  #hud h1{font-size:15px;margin:0 0 4px;letter-spacing:-.01em}
+  #hud p{margin:0;color:var(--muted);font-size:13px}
+  #hud a{color:var(--coral); font-weight:600}
+  #hud .dims{margin:10px 0 0;font-variant-numeric:tabular-nums;font-size:13px}
+  #hud .dims div{display:flex;justify-content:space-between;gap:16px;padding:2px 0}
+  #hud .dims b{font-weight:600;color:var(--ink)}
+  .legend{display:flex;gap:14px;margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .swatch.ac{background:var(--coral)}
+  .swatch.dc{background:var(--dc)}
+  .swatch.wago{background:#e87722}
+  .slide{display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .slide .row{display:flex;justify-content:space-between}
+  input[type=range]{width:100%;accent-color:var(--coral)}
+  #views{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  button{
+    font:600 12px/1 inherit; color:var(--ink); background:#f1efea;
+    border:1px solid var(--rule); border-radius:6px; padding:6px 10px; cursor:pointer;
+  }
+  button:hover{background:#e8e4dc}
+  button.on{background:var(--coral); color:#fff; border-color:var(--coral)}
+  .warn{color:#9b2f1a;font-size:12.5px;margin:8px 0 0}
+  #hint{position:absolute; bottom:14px; left:16px; z-index:2;
+    color:var(--muted); font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="hud">
+  <h1>Boîtier AC</h1>
+  <p>Enveloppe max face ouest : <b>130 × 60 × 30</b>. Fond au sol ; plus tard fond vertical contre la paroi. Machine : <a href="profitec_go.html">profitec_go.html</a>.</p>
+  <div class="legend">
+    <span><i class="swatch ac"></i> AC 230 V</span>
+    <span><i class="swatch dc"></i> DC</span>
+    <span><i class="swatch wago"></i> Wago</span>
+  </div>
+  <div class="dims">
+    <div>Hors-tout <b id="out-size">122 × 60 × 30</b></div>
+    <div>Intérieur <b id="in-size">—</b></div>
+    <div>Dimmer <b id="dim-size">53 × 16 × 14</b></div>
+    <div>SSR <b id="ssr-size">65 × 13 × 24</b></div>
+    <div>Alim <b id="psu-size">31.1 × 21.8 × 26.1</b></div>
+    <div>Wago 221-423 <b id="wago-423">18.8 × 18.6 × 8.4</b></div>
+    <div>Wago 221-415 <b id="wago-415">30.0 × 18.6 × 8.4</b></div>
+    <div>Sélection <b id="sel">clic un module</b></div>
+    <div>Position <b id="sel-pos">—</b></div>
+  </div>
+  <p class="warn" id="bay-warn" hidden>La profondeur dépasse la baie de 70 mm.</p>
+  <label class="slide">
+    <span class="row"><span>Largeur X (max 130)</span><b id="v-w">122</b></span>
+    <input type="range" id="w" min="40" max="130" value="122">
+  </label>
+  <label class="slide">
+    <span class="row"><span>Profondeur Y (baie 70, max 60)</span><b id="v-d">60</b></span>
+    <input type="range" id="d" min="30" max="60" value="60">
+  </label>
+  <label class="slide">
+    <span class="row"><span>Hauteur Z (max 30)</span><b id="v-h">30</b></span>
+    <input type="range" id="h" min="16" max="30" value="30">
+  </label>
+  <label class="slide">
+    <span class="row"><span>Épaisseur paroi</span><b id="v-t">1.6</b></span>
+    <input type="range" id="t" min="1.2" max="3.2" step="0.4" value="1.6">
+  </label>
+  <label class="slide">
+    <span class="row"><span>Dégagement fils</span><b id="v-c">10</b></span>
+    <input type="range" id="c" min="0" max="25" value="10">
+  </label>
+  <div id="views">
+    <button type="button" data-view="dessus">Dessus</button>
+    <button type="button" data-view="interieur">Intérieur</button>
+    <button type="button" data-view="inventaire">Inventaire</button>
+    <button type="button" data-view="cote">Côté</button>
+    <button type="button" id="btn-keep" class="on">Dégagements</button>
+    <button type="button" id="btn-axes">Axes</button>
+  </div>
+</div>
+<div id="hint">Clic un module : gizmo · glisser le gizmo : déplacer (1 mm) · W déplacer · E tourner · fond : orbite · Échap : relâcher</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+const BAY_D = 70;
+const MAX = { w: 130, d: 60, h: 30 };
+const PETG = 0x3a3a3a;
+const AC = 0xd96b4c;
+const DC = 0x3d7ea6;
+
+const DIMMER = { sx: 53, sy: 16, sz: 14, name: 'Dimmer' };
+// Placement 2×2 dans la boîte 122×60 : SSR / dimmer à gauche (long en X),
+// alim / Wago à droite. Alim tournée 180° pour envoyer les fils vers +Y.
+const LAYOUT = {
+  Dimmer:      { x: -17, y: -20, rz: 0 },
+  SSR:         { x: -17, y:  22, rz: 0 },
+  Alim:        { x:  44, y:  15, rz: Math.PI },
+  'Wago 3P':   { x:  44, y: -16, rz: 0 },
+  'Wago 3P-2': { x: 100, y:  32, rz: 0 },
+  'Wago 5P-1': { x: 100, y:   0, rz: 0 },
+  'Wago 5P-2': { x: 100, y: -32, rz: 0 },
+};
+// M5Stack Unit SSR : 65 × 24 × 13, sur le flanc étroit 65×13, Z = 24.
+const SSRM   = { sx: 65, sy: 13, sz: 24, name: 'SSR' };
+// RECOM RAC05 wired : 31.1 × 26.1 × 21.8. Barrière AC/DC sur 31.1.
+// À plat, 26.1 de haut. 31.1 en X (AC −X, DC +X), fils sur le côté Y.
+const PSU    = { sx: 31.1, sy: 21.8, sz: 26.1, name: 'Alim' };
+// Wago 221-423 : 3 pôles, 18.8 × 8.4 × 18.6. 221-415 : 5 pôles, 30 × 8.4 × 18.6.
+const WAGO_423 = { sx: 18.8, sy: 18.6, sz: 8.4, poles: 3, name: 'Wago 3P' };
+const WAGO_415 = { sx: 30.0, sy: 18.6, sz: 8.4, poles: 5, name: 'Wago 5P' };
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xfaf9f7);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 2000);
+camera.up.set(0, 0, 1);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+const transform = new TransformControls(camera, renderer.domElement);
+transform.setMode('translate');
+transform.setTranslationSnap(1);
+transform.setRotationSnap(THREE.MathUtils.degToRad(15));
+transform.setSize(0.85);
+const transformHelper = typeof transform.getHelper === 'function' ? transform.getHelper() : transform;
+scene.add(transformHelper);
+
+let dragging = false;
+transform.addEventListener('dragging-changed', (e) => {
+  dragging = e.value;
+  controls.enabled = !e.value;
+});
+transform.addEventListener('objectChange', updateSel);
+
+scene.add(new THREE.HemisphereLight(0xf5f0ea, 0x6a6a6a, 1.2));
+const sun = new THREE.DirectionalLight(0xfff6ee, 1.2);
+sun.position.set(120, -160, 220);
+scene.add(sun);
+
+const grid = new THREE.GridHelper(400, 20, 0xdcd8d2, 0xeeeae4);
+grid.rotateX(Math.PI / 2);
+grid.position.z = -0.2;
+scene.add(grid);
+
+const WAGO_ORANGE = 0xe87722;
+const WAGO_LEVER = 0xc45d18;
+
+const petg = solidMat(PETG, 0.55, 0.05);
+const acMat = solidMat(AC, 0.55, 0.08);
+const dcMat = solidMat(DC, 0.55, 0.08);
+const wagoMat = solidMat(WAGO_ORANGE, 0.4, 0.04);
+const leverMat = solidMat(WAGO_LEVER, 0.45, 0.04);
+const splitMat = solidMat(0x1c1c1c, 0.5, 0.05);
+const acKeep = keepMat(AC);
+const dcKeep = keepMat(DC);
+const wagoKeep = keepMat(WAGO_ORANGE);
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55 });
+const acEdge = new THREE.LineBasicMaterial({ color: AC, transparent: true, opacity: 0.85 });
+const dcEdge = new THREE.LineBasicMaterial({ color: DC, transparent: true, opacity: 0.85 });
+const wagoEdge = new THREE.LineBasicMaterial({ color: WAGO_LEVER, transparent: true, opacity: 0.9 });
+
+const boxRoot = new THREE.Group();
+const partsRoot = new THREE.Group();
+scene.add(boxRoot, partsRoot);
+
+const maxEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(MAX.w, MAX.d, MAX.h)),
+  new THREE.LineBasicMaterial({ color: 0xd96b4c, transparent: true, opacity: 0.5 })
+);
+maxEdges.position.set(0, 0, MAX.h / 2);
+scene.add(maxEdges);
+
+const axes = new THREE.AxesHelper(40);
+axes.visible = false;
+scene.add(axes);
+
+const $ = (id) => document.getElementById(id);
+const sliders = { w: $('w'), d: $('d'), h: $('h'), t: $('t'), c: $('c') };
+
+function val(id) { return +sliders[id].value; }
+
+let invTarget = [80, 0, 16];
+let partGroups = [];
+let selectedName = null;
+const savedPose = {};
+let showKeep = true;
+
+function rebuild() {
+  snapshotPoses();
+  transform.detach();
+
+  const w = val('w'), d = val('d'), h = val('h'), t = val('t'), c = val('c');
+  $('v-w').textContent = w;
+  $('v-d').textContent = d;
+  $('v-h').textContent = h;
+  $('v-t').textContent = t;
+  $('v-c').textContent = c;
+  $('out-size').textContent = `${w} × ${d} × ${h}`;
+  const iw = Math.max(0, w - 2 * t);
+  const idp = Math.max(0, d - 2 * t);
+  const ih = Math.max(0, h - t);
+  $('in-size').textContent = `${iw.toFixed(1)} × ${idp.toFixed(1)} × ${ih.toFixed(1)}`;
+  $('dim-size').textContent = `${DIMMER.sx + 2 * c} × ${DIMMER.sy} × ${DIMMER.sz}`;
+  $('ssr-size').textContent = `${SSRM.sx + 2 * c} × ${SSRM.sy} × ${SSRM.sz}`;
+  $('psu-size').textContent = `${PSU.sx} × ${PSU.sy + c} × ${PSU.sz}`;
+  $('wago-423').textContent = `${WAGO_423.sx} × ${WAGO_423.sy + c} × ${WAGO_423.sz}`;
+  $('wago-415').textContent = `${WAGO_415.sx} × ${WAGO_415.sy + c} × ${WAGO_415.sz}`;
+  $('bay-warn').hidden = d <= BAY_D;
+
+  clearGroup(boxRoot);
+  clearGroup(partsRoot);
+  partGroups = [];
+
+  addPlate(w, d, t, 0, 0, t / 2);
+  const wh = h - t;
+  const wz = t + wh / 2;
+  addPlate(w, t, wh, 0,  d / 2 - t / 2, wz);
+  addPlate(w, t, wh, 0, -d / 2 + t / 2, wz);
+  addPlate(t, d - 2 * t, wh,  w / 2 - t / 2, 0, wz);
+  addPlate(t, d - 2 * t, wh, -w / 2 + t / 2, 0, wz);
+
+  invTarget = [0, 0, h / 2];
+
+  addEndsModule(DIMMER, c);
+  addEndsModule(SSRM, c);
+  addPsu(c);
+  addWago(WAGO_423, c);
+  addWago({ ...WAGO_423, name: 'Wago 3P-2' }, c);
+  addWago({ ...WAGO_415, name: 'Wago 5P-1' }, c);
+  addWago({ ...WAGO_415, name: 'Wago 5P-2' }, c);
+
+  applyKeepVisible();
+  if (selectedName) attachByName(selectedName);
+  else updateSel();
+}
+
+function makePart(name) {
+  const g = new THREE.Group();
+  g.userData.name = name;
+  g.userData.pick = true;
+  const pose = LAYOUT[name];
+  g.position.set(pose.x, pose.y, 0);
+  g.rotation.z = pose.rz;
+  restorePose(g);
+  partsRoot.add(g);
+  partGroups.push(g);
+  return g;
+}
+
+function snapshotPoses() {
+  for (const g of partGroups) {
+    savedPose[g.userData.name] = {
+      p: g.position.clone(),
+      q: g.quaternion.clone(),
+    };
+  }
+}
+
+function restorePose(g) {
+  const s = savedPose[g.userData.name];
+  if (!s) return;
+  g.position.copy(s.p);
+  g.quaternion.copy(s.q);
+}
+
+function addEndsModule(spec, c) {
+  const g = makePart(spec.name);
+  const z = spec.sz / 2;
+  addBipolar(g, spec.sx, spec.sy, spec.sz, 0, 0, z);
+  if (c > 0) {
+    addKeep(g, c, spec.sy, spec.sz, -spec.sx / 2 - c / 2, 0, z, acKeep, acEdge);
+    addKeep(g, c, spec.sy, spec.sz,  spec.sx / 2 + c / 2, 0, z, dcKeep, dcEdge);
+  }
+  g.add(tag(spec.name, 0, 0, spec.sz + 8, 42));
+}
+
+function addPsu(c) {
+  const g = makePart(PSU.name);
+  const z = PSU.sz / 2;
+  const bodyY = c / 2;
+  const hx = PSU.sx / 2;
+  addBody(g, hx, PSU.sy, PSU.sz, -hx / 2, bodyY, z, acMat, acEdge);
+  addBody(g, hx, PSU.sy, PSU.sz,  hx / 2, bodyY, z, dcMat, dcEdge);
+  addBody(g, 0.5, PSU.sy + 0.2, PSU.sz + 0.2, 0, bodyY, z, splitMat, edgeMat);
+  if (c > 0) {
+    addKeep(g, hx, c, PSU.sz, -hx / 2, -PSU.sy / 2, z, acKeep, acEdge);
+    addKeep(g, hx, c, PSU.sz,  hx / 2, -PSU.sy / 2, z, dcKeep, dcEdge);
+  }
+  g.add(tag(PSU.name, 0, bodyY, PSU.sz + 8, 36));
+}
+
+function addWago(spec, c) {
+  const g = makePart(spec.name);
+  const z = spec.sz / 2;
+  const bodyY = c / 2;
+  addBody(g, spec.sx, spec.sy, spec.sz, 0, bodyY, z, wagoMat, wagoEdge);
+  const n = spec.poles;
+  const pitch = spec.sx / n;
+  const leverW = pitch - 0.6;
+  const leverD = spec.sy * 0.62;
+  const leverH = 1.2;
+  for (let i = 0; i < n; i++) {
+    addBody(
+      g, leverW, leverD, leverH,
+      (i - (n - 1) / 2) * pitch, bodyY - 1.2, z + spec.sz / 2 + leverH / 2,
+      leverMat, wagoEdge,
+    );
+  }
+  if (c > 0) {
+    addKeep(g, spec.sx, c, spec.sz, 0, -spec.sy / 2, z, wagoKeep, wagoEdge);
+  }
+  g.add(tag(spec.name, 0, bodyY, spec.sz + 10, spec.poles === 5 ? 52 : 48));
+}
+
+function addBipolar(parent, sx, sy, sz, x, y, z) {
+  const hx = sx / 2;
+  addBody(parent, hx, sy, sz, x - hx / 2, y, z, acMat, acEdge);
+  addBody(parent, hx, sy, sz, x + hx / 2, y, z, dcMat, dcEdge);
+}
+
+function addBody(parent, sx, sy, sz, x, y, z, material, lines) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), lines);
+  e.position.copy(mesh.position);
+  parent.add(e);
+}
+
+function addKeep(parent, sx, sy, sz, x, y, z, material, lines) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+  mesh.position.set(x, y, z);
+  mesh.userData.keep = true;
+  parent.add(mesh);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), lines);
+  e.position.copy(mesh.position);
+  e.userData.keep = true;
+  parent.add(e);
+}
+
+function addPlate(sx, sy, sz, x, y, z) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), petg);
+  mesh.position.set(x, y, z);
+  boxRoot.add(mesh);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), edgeMat);
+  e.position.copy(mesh.position);
+  boxRoot.add(e);
+}
+
+function clearGroup(g) {
+  while (g.children.length) {
+    const c = g.children[0];
+    g.remove(c);
+    c.traverse((o) => {
+      o.geometry?.dispose?.();
+      if (o.material?.map) o.material.map.dispose();
+      if (o.material && o.material !== petg && o.material !== acMat && o.material !== dcMat
+          && o.material !== wagoMat && o.material !== leverMat && o.material !== splitMat
+          && o.material !== acKeep && o.material !== dcKeep && o.material !== wagoKeep
+          && o.material !== edgeMat && o.material !== acEdge && o.material !== dcEdge
+          && o.material !== wagoEdge) {
+        o.material.dispose();
+      }
+    });
+  }
+}
+
+function solidMat(color, roughness, metalness) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness, metalness, side: THREE.DoubleSide,
+  });
+}
+
+function keepMat(color) {
+  return new THREE.MeshStandardMaterial({
+    color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide,
+  });
+}
+
+function tag(text, x, y, z, width) {
+  const cw = 512, ch = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(28,28,28,0.82)';
+  round(ctx, 24, 24, cw - 48, ch - 48, 20);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = '600 44px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, cw / 2, ch / 2);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(canvas), transparent: true, depthTest: false,
+  }));
+  spr.position.set(x, y, z);
+  spr.scale.set(width, width * (ch / cw), 1);
+  return spr;
+}
+
+function round(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+const views = {
+  dessus:     { pos: [0, -20, 220],    target: [0, 0, 15] },
+  interieur:  { pos: [40, -140, 70],   target: [0, 0, 15] },
+  inventaire: { pos: [200, -80, 110],  target: [90, 0, 12] },
+  cote:       { pos: [220, 0, 40],     target: [0, 0, 15] },
+};
+
+function go(name) {
+  const v = views[name];
+  camera.position.set(...v.pos);
+  const target = name === 'inventaire' ? invTarget : v.target;
+  controls.target.set(...target);
+  controls.update();
+}
+
+function applyKeepVisible() {
+  partsRoot.traverse((o) => {
+    if (o.userData.keep) o.visible = showKeep;
+  });
+}
+
+function updateSel() {
+  const g = partGroups.find((p) => p.userData.name === selectedName);
+  if (!g) {
+    $('sel').textContent = 'clic un module';
+    $('sel-pos').textContent = '—';
+    return;
+  }
+  const p = g.position;
+  $('sel').textContent = g.userData.name;
+  $('sel-pos').textContent = `${p.x.toFixed(1)} · ${p.y.toFixed(1)} · ${p.z.toFixed(1)}`;
+}
+
+function attachByName(name) {
+  const g = partGroups.find((p) => p.userData.name === name);
+  if (!g) {
+    selectedName = null;
+    transform.detach();
+    updateSel();
+    return;
+  }
+  selectedName = name;
+  transform.attach(g);
+  updateSel();
+}
+
+function partFromObject(obj) {
+  let o = obj;
+  while (o) {
+    if (o.userData.pick) return o;
+    o = o.parent;
+  }
+  return null;
+}
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let downX = 0, downY = 0;
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  downX = e.clientX;
+  downY = e.clientY;
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (dragging) return;
+  if (transform.axis) return;
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 4) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(partGroups, true);
+  const part = hits.length ? partFromObject(hits[0].object) : null;
+  if (part) attachByName(part.userData.name);
+  else {
+    selectedName = null;
+    transform.detach();
+    updateSel();
+  }
+});
+
+for (const s of Object.values(sliders)) s.addEventListener('input', rebuild);
+document.getElementById('views').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.view) go(btn.dataset.view);
+});
+document.getElementById('btn-keep').addEventListener('click', (e) => {
+  showKeep = !showKeep;
+  applyKeepVisible();
+  e.currentTarget.classList.toggle('on', showKeep);
+});
+document.getElementById('btn-axes').addEventListener('click', (e) => {
+  axes.visible = !axes.visible;
+  e.currentTarget.classList.toggle('on', axes.visible);
+});
+addEventListener('keydown', (e) => {
+  if (e.target.closest('input')) return;
+  if (e.key === 'w' || e.key === 'W') transform.setMode('translate');
+  if (e.key === 'e' || e.key === 'E') transform.setMode('rotate');
+  if (e.key === 'Escape') {
+    selectedName = null;
+    transform.detach();
+    updateSel();
+  }
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+rebuild();
+go('dessus');
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

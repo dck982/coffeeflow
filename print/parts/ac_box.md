@@ -7,6 +7,8 @@ Checks: clean
 
 ## What it is
 
+**Ignoré.** Reliquat d'un placement Atom Control, plus le boîtier AC actuel (baie 70 mm, face ouest). Ne pas reprendre ces cotes. Machine : `docs/profitec_go.html`. Boîtier : `docs/ac_box.html`.
+
 Plateau ouvert (boîte sans couvercle) pour l'Atom Control. **Cotes hors-tout : 75,5 × 115 × 30 mm**, parois comprises. Quatre faces de 1,6 mm et un fond de 1,6 mm, donc un volume intérieur de 72,3 × 111,8 × 28,4 mm.
 
 Une **encoche de câble 10 × 10 mm** est ouverte en haut du mur le plus éloigné en Y (la petite face de 75,5 mm), à l'extrémité droite, débouchante sur la rive. Elle est **retirée de 1,6 mm du bord** (une épaisseur de paroi) : elle s'arrête pile sur la face intérieure du mur long, qui reste donc entier.
@@ -31,6 +33,7 @@ Impression à plat, fond sur le lit : 48 min, 38 g (profil A1 mini, gyroid 10 %,
 
 ## Don't
 
+- **Ignorer cette pièce pour le boîtier AC actuel.** Placement Atom Control, pas la baie de 70 mm. Ne pas reprendre 75,5 × 115 × 30.
 - Ne pas traiter les cotes comme des cotes intérieures. 75,5 / 115 / 30 sont les cotes hors-tout, parois incluses — c'est explicite dans la demande.
 - Ne pas ajouter de couvercle, de trous ou d'inserts tant que ce n'est pas demandé.
 - Ne pas ramener l'encoche à ras du bord. Le retrait d'une épaisseur de paroi est ce qui garde le mur long entier.

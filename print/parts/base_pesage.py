@@ -35,6 +35,7 @@ def base_pesage(
     bride_epaisseur=2.0,
     bride_portee=3.0,
     jeu_cage=1.2,
+    jeu_cage_arriere=2.7,
     jeu_cage_avant=4.0,
     paroi_cage=2.5,
     cage_hauteur=14.0,
@@ -94,7 +95,8 @@ def base_pesage(
     nervure_hauteur: profondeur des nervures du plateau, pour situer leur face basse
     bride_epaisseur: épaisseur de la bride basse du plateau, que la lèvre vient coiffer
     bride_portee: de combien cette bride dépasse le tablier vers l'arrière
-    jeu_cage: jeu entre le plateau et la cage sur les côtés et l'arrière (1,0–1,5 : plus fin, le café sèche en pont)
+    jeu_cage: jeu entre le plateau et la cage sur les côtés X (1,0–1,5 : plus fin, le café sèche en pont)
+    jeu_cage_arriere: jeu à l'arrière, entre le plateau et le mur arrière de la cage (découplé des côtés X)
     jeu_cage_avant: jeu à l'avant, entre le plateau et la traverse qui referme le cadre
     paroi_cage: épaisseur des parois de la cage
     cage_hauteur: hauteur des parois de la cage
@@ -329,7 +331,7 @@ def base_pesage(
     plat_y1 = cadre_centre_y + cadre_profondeur / 2.0
     cage_x_in = plat_x + jeu_cage
     cage_x_out = cage_x_in + paroi_cage
-    cage_y_in = plat_y0 - jeu_cage
+    cage_y_in = plat_y0 - jeu_cage_arriere
     cage_y_out = cage_y_in - paroi_cage
     stop_y_in = plat_y1 + jeu_cage_avant
     stop_y_out = stop_y_in + paroi_cage

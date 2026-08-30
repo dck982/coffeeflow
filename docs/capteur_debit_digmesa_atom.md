@@ -62,5 +62,5 @@ Formule : `f (Hz) = débit (l/min) × 1925 / 60`
 - Le fabricant garantit la linéarité de calibration à partir de **0.07 l/min** (début de la plage linéaire pour cette buse). En dessous (notre cas à 0.06 l/min), s'attendre à une précision de mesure dégradée par rapport à la valeur nominale de 1925 pulses/litre — une calibration spécifique au point bas est recommandée si la précision y est critique.
 
 ## Sources
-- Datasheet Digmesa FHKSC 932-9521-B90 (fiche fournie par l'utilisateur)
+- Datasheet Digmesa FHKSC 932-952x-Bxxx : `docs/datasheets/flowmeter-digmesa.pdf`
 - Datasheet Digmesa FHKSC 974-950X/XXX (schémas d'interfaçage collecteur ouvert, génériques à la famille FHKSC)

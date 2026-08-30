@@ -1,43 +1,46 @@
 # Débitmètres — fiches et comparaison
 
-Notes de référence pour le capteur de débit de l'**Atom Sensor**. Le câblage en vigueur
-est celui du Digmesa : voir `atom_sensor.html`. Ce fichier existe pour ne pas perdre les
-chiffres du second capteur, commandé comme point de comparaison.
+Le câblage électrique en vigueur est celui du Digmesa (collecteur ouvert NPN) :
+voir `atom_sensor.html` pour le RC, `README.md` pour le MCU actuel.
+Fiche famille FHKSC 932-952x-B : `docs/datasheets/flowmeter-digmesa.pdf`
+(courbe 1,00 mm 0° = #932-9525-B). Ce fichier compare les buses et le OOTDTY.
 
-## Les deux capteurs
+## Les capteurs
 
-| | Digmesa FHKSC 932-9521-A | OOTDTY POM 1,2 mm |
-| --- | --- | --- |
-| État | **en service**, reçu | commandé, ~3 CHF, non reçu |
-| Buse / diamètre interne | 1,20 mm | 1,20 mm |
-| Plage annoncée | 0,075 – 0,569 L/min (linéaire) | 0,05 – 1 L/min ±3 % |
-| Loi d'impulsions | 1925 imp/L | `Hz = 86 × Q` ±2 %, Q en L/min |
-| **Impulsions / litre** | **1925** | **5160** |
-| Masse par impulsion | 0,519 g | 0,194 g |
-| Pression max | **3 bar** à 20 °C | **0,8 MPa = 8 bar** |
-| Température | PVDF | 0 – 80 °C, corps POM |
-| Perte de charge | ~0,42 bar à 0,6 L/min | non spécifiée |
-| Alimentation | 5 V | DC 3,5 – 24 V, 15 mA à 5 V |
-| **Sortie** | **collecteur ouvert NPN** | **push-pull** (>4,5 V haut, <0,5 V bas à 5 V) |
-| Sens de montage | 0° | horizontal (l'étalonnage y est donné) |
-| Précision | — | ±3 % sur la plage, ±2 % sur la loi |
+| | Digmesa FHKSC 932-9521-A | Digmesa FHKSC 932-9525-B | OOTDTY POM 1,2 mm |
+| --- | --- | --- | --- |
+| État | **en service**, reçu | **commandé** | reçu (banc ; POM non tracé food-grade) |
+| Buse / diamètre interne | 1,20 mm | **1,00 mm** | 1,20 mm |
+| Plage linéaire (fiche) | 0,075 – 0,569 L/min | **0,033 – 0,40 L/min** | 0,05 – 1 L/min ±3 % |
+| Loi d'impulsions | 1925 imp/L | **2382 imp/L** (montage 0°) | `Hz = 86 × Q` ±2 %, Q en L/min |
+| **Impulsions / litre** | **1925** | **2382** | **5160** |
+| Masse par impulsion | 0,519 g | **0,42 g** | 0,194 g |
+| Pression max | **3 bar** à 20 °C | **3 bar** à 20 °C | **0,8 MPa = 8 bar** |
+| Température | PVDF, NSF | PVDF, NSF | 0 – 80 °C, corps POM |
+| Perte de charge | ~0,42 bar à 0,6 L/min | ~0,48 bar (à ~0,40 L/min) | non spécifiée |
+| Alimentation | 5 V (OC, 3,8–20 V) | idem | DC 3,5 – 24 V, 15 mA à 5 V |
+| **Sortie** | **collecteur ouvert NPN** | **collecteur ouvert NPN** | **push-pull** (>4,5 V haut à 5 V) |
+| Sens de montage | 0° | 0° | horizontal (étalonnage) |
+
+Courbe Digmesa 1,00 mm 0° : 2382 imp/L, 0,42 g/imp, linéaire dès **0,033 L/min** (0,55 g/s). L'emballage / la famille cite souvent 0,03 – 0,41 L/min ; 0,03 L/min = **0,5 g/s**.
 
 Le OOTDTY existe aussi en 2,5 mm (`Hz = 43 × Q`, 0,3 – 4 L/min) — trop haut pour cet usage.
 
 ## Ce que ça donne sur une extraction
 
-Base de calcul : 36 g en 28 s, soit 1,29 g/s ≈ **0,077 L/min**.
+Base de calcul : 36 g en 28 s, soit 1,29 g/s ≈ **0,077 L/min**. Pré-infusion visée ~**0,5 g/s** = 0,03 L/min.
 
-| | Digmesa | OOTDTY |
-| --- | --- | --- |
-| Position dans la plage | 1,03 × le minimum | **1,54 ×** |
-| Fréquence | 2,5 Hz | **6,6 Hz** |
-| Impulsions par tasse | 69 | **186** |
-| Résolution | 0,52 g (1,4 %) | **0,19 g (0,5 %)** |
-| Impulsions par fenêtre de 1 s | 2 – 3 | 6 – 7 |
+| | Digmesa 1,2 mm | Digmesa 1,0 mm | OOTDTY |
+| --- | --- | --- | --- |
+| Extraction vs min. linéaire | 1,03 × (plancher) | **2,3 ×** | 1,54 × |
+| Pré-infusion 0,5 g/s | **sous** le linéaire (0,075) | **au bas** du linéaire (0,033) | sous 0,05, turbine peut-être |
+| Fréquence à 0,077 L/min | 2,5 Hz | **3,1 Hz** | 6,6 Hz |
+| Impulsions par tasse 36 g | 69 | **86** | 186 |
+| Résolution | 0,52 g (1,4 %) | **0,42 g (1,2 %)** | 0,19 g (0,5 %) |
 
-Le OOTDTY fait passer le débit instantané d'inutilisable à exploitable. Le Digmesa reste
-correct en cumul.
+Le 1,0 mm Digmesa est le bon compromis **alimentaire + pré-infusion** : même interface NPN que le 1,2 mm, PVDF/NSF, et 0,5 g/s n'est plus hors plage. Plafond **0,40 L/min** — une chasse pompe ouverte côté aspiration peut saturer ; une extraction non.
+
+Le OOTDTY reste plus fin en impulsions, mais sortie push-pull 5 V et POM sans certificat.
 
 ## Le piège du OOTDTY : sortie push-pull
 
@@ -67,25 +70,26 @@ Deux sorties possibles, à trancher **avant de le brancher** :
 
 ## En dessous de la plage : que se passe-t-il vraiment ?
 
-C'est la question de la pré-infusion, autour de **0,03 L/min** (~0,5 g/s), sous le seuil
-de 0,05 des deux capteurs. La réponse n'est ni « il voit tout » ni « il ne voit rien » :
-il y a **trois régimes**, et le seuil publié n'est pas celui qu'on croit.
+C'est la question de la pré-infusion, autour de **0,03 L/min** (~0,5 g/s). Sur le
+1,2 mm Digmesa et le OOTDTY, ce point est **sous** le linéaire (0,075 et 0,05). Sur le
+**932-9525-B (1,0 mm), 0,033 L/min est le début de plage Digmesa** — 0,5 g/s n'est plus
+hors spec. La turbine et l'inertie restent des sujets ; le seuil publié n'est toujours
+pas le point d'arrêt.
 
-1. **Au-dessus de 0,05 L/min** — plage spécifiée, loi linéaire, ±3 %.
-2. **Entre le décrochage et 0,05** — la turbine tourne, mais le frottement des paliers
+1. **Au-dessus du min. linéaire** — plage spécifiée, loi linéaire (±2 % Digmesa, ±3 % OOTDTY).
+2. **Entre le décrochage et ce min.** — la turbine tourne, mais le frottement des paliers
    pèse lourd face au couple moteur : le capteur **sous-compte**, de façon systématique
    et donc corrigeable, mais d'un facteur non spécifié.
 3. **Sous le décrochage** — le couple hydraulique ne suffit plus à vaincre l'adhérence
    au repos. La turbine reste immobile, l'eau passe, et **rien n'est compté**.
 
-Le point important : **le 0,05 L/min annoncé est le bas de la plage *précise*, pas le
-point d'arrêt.** Le décrochage réel est plus bas, mais aucun des deux fabricants ne le
-publie — et sur une pièce à 3 CHF il varie d'un exemplaire à l'autre.
+Le point important : **le min. publié est le bas de la plage *précise*, pas le
+point d'arrêt.** Le décrochage réel est plus bas, non publié — et sur une pièce à 3 CHF
+il varie d'un exemplaire à l'autre.
 
-Donc, pour ta question précise : **oui, un volume est plus facile à obtenir qu'un débit**
-dans cette zone, parce qu'une erreur d'échelle systématique se corrige par un
-coefficient, alors qu'un débit instantané à 1 Hz n'a aucune finesse. Mais ça ne suffit
-pas, pour deux raisons :
+Donc : **un volume est plus facile à obtenir qu'un débit** dans cette zone, parce qu'une
+erreur d'échelle systématique se corrige par un coefficient, alors qu'un débit instantané
+à 1 Hz n'a aucune finesse. Mais ça ne suffit pas, pour deux raisons :
 
 - **On ne sait pas si la turbine tourne.** Si le décrochage est au-dessus de ton débit de
   pré-infusion, le coefficient de correction ne sert à rien : il n'y a rien à corriger.
@@ -95,9 +99,8 @@ pas, pour deux raisons :
   5 à 10 s, ces deux effets ne sont pas négligeables et ils ne se compensent pas de
   façon fiable.
 
-Côté résolution, en revanche, rien n'empêche : une pré-infusion de 8 g fait ~41
-impulsions sur le OOTDTY (contre 15 sur le Digmesa). Il y a largement de quoi mesurer —
-si le rotor tourne.
+Côté résolution : une pré-infusion de 8 g fait ~19 impulsions sur le Digmesa 1,0 mm
+(15 sur le 1,2 mm, ~41 sur le OOTDTY). Il y a de quoi mesurer — si le rotor tourne.
 
 ### Le protocole qui répond, à faire à réception
 

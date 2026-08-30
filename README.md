@@ -132,21 +132,24 @@ Les **4,7 kΩ du Yufavor** tiennent SDA et SCL pour tout le bus (dimmer compris)
 
 Quatre fils : **rouge VCC**, **noir GND**, **vert SDA**, **blanc SCL**. Gaine type silicone, **fine feuille de blindage** : **pas de continuité feuille ↔ GND** — relier la feuille à la masse **uniquement côté ESP32** (côté sonde : coupée et isolée, pas de boucle). Pull-up **4,7 kΩ** sur SDA et sur SCL, non débrayable. Filetage **G1/8**, d'où le choix (plomberie machine en 1/8").
 
-#### Débitmètre Digmesa FHKSC 932-9521-A
+#### Débitmètre Digmesa FHKSC
 
-| Paramètre | Valeur |
-| --- | --- |
-| Buse | 1,20 mm |
-| Sens de montage | 0° |
-| Impulsions | 1925 imp/L, soit 0,519 g/impulsion |
-| Plage linéaire | 0,075 – 0,569 L/min |
-| Perte de charge | ~0,42 bar à 0,6 L/min |
-| **Pression max** | **3 bar à 20 °C** |
+En service : **932-9521-A**, buse **1,20 mm**. Commandé : **932-9525-B**, buse **1,00 mm** (même famille, même collecteur ouvert NPN, PVDF/NSF). Fiche : `docs/datasheets/flowmeter-digmesa.pdf`.
+
+| | 932-9521-A | 932-9525-B |
+| --- | --- | --- |
+| Buse | 1,20 mm | 1,00 mm |
+| Sens de montage | 0° | 0° |
+| Impulsions | 1925 imp/L (0,519 g) | **2382 imp/L (0,42 g)** |
+| Plage linéaire | 0,075 – 0,569 L/min | **0,033 – 0,40 L/min** |
+| Pré-infusion 0,5 g/s | sous le linéaire | **bas de plage** |
+| Perte de charge | ~0,42 bar à 0,6 L/min | ~0,48 bar vers 0,40 L/min |
+| **Pression max** | **3 bar à 20 °C** | **3 bar à 20 °C** |
 
 Deux conséquences qui ne relèvent pas du câblage :
 
 - **Le capteur va en amont de la pompe**, entre le réservoir et son entrée. La machine infuse à 9 bar et la pompe monte plus haut avant l'OPV : 3 bar de tenue interdisent le circuit haute pression.
-- **Une extraction se déroule au plancher de la plage linéaire.** 36 g en 28 s font 0,077 L/min contre une limite basse à 0,075. En cumul c'est exploitable — 69 impulsions par tasse, 0,52 g de résolution, 1,4 % — mais le débit instantané à 2,5 Hz est grossier pour du profilage.
+- **Le 1,20 mm pose l'extraction au plancher** (36 g / 28 s = 0,077 L/min contre 0,075). Le **1,00 mm** met 0,077 L/min à 2,3 × le minimum, et 0,5 g/s (0,03 L/min) au début du linéaire. Plafond 0,40 L/min : une chasse pompe ouverte peut saturer. Comparaison OOTDTY : `docs/debitmetres.md`.
 
 Sortie collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. R = **1 kΩ** vers le 3,3 V et C = **100 nF** vers la masse (passe-bas ≈ 1,6 kHz). GPIO en `INPUT`, pull-up interne éteinte. Le capteur est alimenté en 5 V ; c'est le tirage qui fixe le niveau haut à 3,3 V. Comparaison avec un second capteur : `docs/debitmetres.md`. Le schéma Atom (`docs/atom_sensor.html`, `docs/capteur_debit_digmesa_atom.md`) reste juste pour le RC — plus pour le MCU.
 
@@ -252,7 +255,7 @@ Le châssis mesure **40–50 °C** en fonctionnement. La machine tourne 10–15 
 ```
 coffeeflow/
   README.md          ← cette vue d'ensemble
-  docs/              ← schémas et notes (atom_*.html = OUTDATED)
+  docs/              ← schémas et notes (atom_*.html = OUTDATED) ; datasheets/
   tests/             ← scripts MicroPython de banc (Atom Echo S3R)
   print/             ← impressions 3D (nurb)
   sound_test/        ← sketch Arduino de test Atom S3 (reliquat)

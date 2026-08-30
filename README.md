@@ -85,7 +85,7 @@ Tout le 230 V. Fixé par aimants contre la face **ouest** du compartiment techni
 
 | Rôle | Matériel retenu | Notes |
 | --- | --- | --- |
-| Dimmer pompe | **RobotDyn AC Dimmer 4 A**, option **DimmerLink I2C** (rbdimmer.com) | Pilotage **3,3 V** en I2C. **Pas de pull-up onboard** — les 4,7 kΩ vivent sur le bus, côté DC. Le zero-cross et le triac restent sur le module : l'ESP32 n'a plus de pins ZC / DIM à gérer en temps réel. |
+| Dimmer pompe | **RobotDyn AC Dimmer 4 A**, option **DimmerLink I2C** (rbdimmer.com) | Banc 2026-08-30 : **déjà en I2C** (plus d'UART). Logique **3,3 V**. **Pas de pull-up.** Header, module face à soi, gauche → droite : **VCC, GND, SDA, SCL**. Le Cortex du DimmerLink gère ZC / triac ; l'ESP32 ne voit que l'I2C. Sans **mains** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes. Sur quelques centimètres, les pull-ups internes de l'ESP32 suffisent ; pas sur le câble DC↔AC. |
 | SSR vanne | **M5Stack Unit SSR** (2 A) | Alim **5 V**, commande un signal low/high. |
 | Alimentation DC | **RECOM RAC05-05SK-277-W** | 5 W, 5 V / 1 A, version **fils**. Encapsulée, 85–305 VAC. |
 
@@ -116,15 +116,21 @@ Centralise les capteurs et commande les deux modules AC. Intérieur, **zone froi
 | Rôle | Matériel | Liaison |
 | --- | --- | --- |
 | MCU | **Seeed Studio XIAO ESP32-S3** | Enfiché sur son **extension Grove** (4 ports Grove). Alim **5 V** sur les broches 5 V. Logique 3,3 V. |
-| Dimmer | vers DimmerLink du boîtier AC | I2C 3,3 V — pas de pull-up sur le dimmer |
+| Dimmer | vers DimmerLink du boîtier AC | I2C 3,3 V — pas de pull-up sur le dimmer (voir banc ci-dessus) |
 | Vanne | vers Unit SSR du boîtier AC | GPIO high/low ; le SSR s'alimente en 5 V |
 | Débit | Digmesa FHKSC effet Hall, impulsions | Collecteur ouvert NPN, pull-up 1 kΩ vers 3,3 V + 100 nF (voir ci-dessous) |
-| Pression | Capteur I2C **3,3 V** (XDB401) | Même bus I2C que le dimmer, **sans le fil 5 V** |
+| Pression | **Yufavor** I2C, filetage **G1/8** (compat. protocole Xidibei XDB401) | Même bus I2C que le dimmer. VCC **3,3 V** (l'emballage dit 5 V ; émulation XDB401 complète en 3,3 V, vérifié au banc). |
 | Pesée | **HX711** | Pas encore décidé. Alternative : Acaia Lunar en BLE depuis l'écran — dans ce cas le HX711 disparaît |
 | Climat (optionnel) | Température / humidité **dans le boîtier** | OneWire |
 | CAN | **M5Stack Unit CAN** d'abord (encombrant, RX/TX → TWAI), puis **Adafruit CAN Pal** | 120 Ω incluse dans les deux cas |
 
 Un seul bus I2C 3,3 V pour le dimmer et la pression. Le HX711, s'il vient, a ses propres lignes (DT/SCK). Le débitmètre est une GPIO d'impulsions, pas de l'I2C.
+
+Les **4,7 kΩ du Yufavor** tiennent SDA et SCL pour tout le bus (dimmer compris). Le DimmerLink n'en a pas. Conséquence : retirer le capteur de pression laisse les lignes sans tirage — le dimmer seul ne parlera plus, sauf câble très court (pull-ups internes ESP32). Ne pas empiler un second 4,7 kΩ côté MCU tant que le Yufavor est sur le bus.
+
+#### Pression Yufavor (compat. XDB401)
+
+Quatre fils : **rouge VCC**, **noir GND**, **vert SDA**, **blanc SCL**. Gaine type silicone, **fine feuille de blindage** : **pas de continuité feuille ↔ GND** — relier la feuille à la masse **uniquement côté ESP32** (côté sonde : coupée et isolée, pas de boucle). Pull-up **4,7 kΩ** sur SDA et sur SCL, non débrayable. Filetage **G1/8**, d'où le choix (plomberie machine en 1/8").
 
 #### Débitmètre Digmesa FHKSC 932-9521-A
 
@@ -247,12 +253,17 @@ Le châssis mesure **40–50 °C** en fonctionnement. La machine tourne 10–15 
 coffeeflow/
   README.md          ← cette vue d'ensemble
   docs/              ← schémas et notes (atom_*.html = OUTDATED)
+  tests/             ← scripts MicroPython de banc (Atom Echo S3R)
   print/             ← impressions 3D (nurb)
   sound_test/        ← sketch Arduino de test Atom S3 (reliquat)
   tts/               ← génération WAV (Gemini TTS) pour le sketch
 ```
 
 Contraintes et cotes d'une pièce : `print/parts/<nom>.md` + `print/measurements.toml`.
+
+## Banc
+
+Multimètre : **M5Stack Atom Echo S3R** + **Unit VMeter** (Grove PORT.A, ±36 V DC, bornes vis). Script `tests/test_vmeter.py`. Ne pas mesurer au GPIO de l'ESP32 (3,3 V max, pas 5 V).
 
 ## Sketch de test (`sound_test/`)
 

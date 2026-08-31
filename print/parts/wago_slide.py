@@ -33,7 +33,7 @@ def _taille_logement(largeur_borne):
 
 
 @part
-def wago_clip(
+def wago_slide(
     largeur_borne=30.0,
     jeu_glissiere=0.4,
     epaisseur_plancher=2.0,
@@ -41,16 +41,16 @@ def wago_clip(
     epaisseur_u=2.0,
     epaisseur_retour=1.8,
     jeu_fente=0.2,
-    largeur_languette=14.0,
-    largeur_fente=1.0,
-    depassement_languette=2.0,
-    hauteur_levre=1.0,
+    avance_devant=10.0,
+    retrait_slot=5.0,
+    hauteur_reglette=1.0,
+    rebord_ailette=2.0,
     hauteur_plaque=23.2,
     recul_serre_cable=5.0,
     largeur_serre_cable=38.0,
     draft=False,
 ):
-    """Plaque à deux U : le fond de wagox5 y glisse, languette devant, aimants 8x3 dans la plaque.
+    """Plaque à deux U en T : toit 10 mm devant les bornes, slot en retrait, réglette au bord.
 
     largeur_borne: même slider que wagox5 (30 = 221-415, 18.8 = 221-423)
     jeu_glissiere: extra total sur la largeur pour que les ailes coulissent
@@ -59,10 +59,10 @@ def wago_clip(
     epaisseur_u: paroi extérieure de chaque U
     epaisseur_retour: retour de chaque U, au-dessus de l'aile
     jeu_fente: extra de hauteur dans la fente, au-dessus des 2 mm d'aile
-    largeur_languette: languette de maintien, entre les deux fentes
-    largeur_fente: fentes qui séparent la languette du plancher
-    depassement_languette: la languette dépasse devant le plancher
-    hauteur_levre: lèvre d'accroche au bout de la languette
+    avance_devant: toit en Z devant les bornes, au moins 10 mm (murs en Y compris)
+    retrait_slot: le retour en X (le slot) s'arrête d'autant avant le bord du toit
+    hauteur_reglette: débord au bord du toit, goutte pendante et cran à plat
+    rebord_ailette: petit mur en Y au-delà du retour, transforme le L en T
     hauteur_plaque: hauteur de la plaque (sur le mur, une fois collée)
     recul_serre_cable: distance en Y entre la plaque et les fentes (1 à 10 mm ; plus grand = plus de place pour des câbles rigides)
     largeur_serre_cable: largeur de cette plaque, centrée en X
@@ -79,6 +79,7 @@ def wago_clip(
     y_sol = epaisseur_plancher
     y_fente = y_sol + BASE_WAGO + jeu_fente
     y_u = y_fente + epaisseur_retour
+    y_mur = y_u + rebord_ailette
 
     if jeu_glissiere < 0.2:
         reject(
@@ -111,25 +112,53 @@ def wago_clip(
             f"jeu_fente {jeu_fente} est sous 0.1 mm : l'aile coince. Remonte au-dessus de 0.1",
             param="jeu_fente",
         )
-    if largeur_languette < 8.0:
+    if avance_devant < 10.0:
         reject(
-            f"largeur_languette {largeur_languette} is under 8 mm: raise it",
-            param="largeur_languette",
+            f"avance_devant {avance_devant} est sous 10 mm : le toit ne dépasse plus "
+            f"assez des bornes. Monte au-dessus de 10",
+            param="avance_devant",
         )
-    if largeur_fente < 0.8:
+    if retrait_slot < 2.0:
         reject(
-            f"largeur_fente {largeur_fente} is under 0.8 mm: the slit will close. Raise it",
-            param="largeur_fente",
+            f"retrait_slot {retrait_slot} est sous 2 mm : plus d'angle d'entrée. "
+            f"Monte au-dessus de 2",
+            param="retrait_slot",
         )
-    if hauteur_levre < 0.6:
+    if retrait_slot > avance_devant - epaisseur_retour:
         reject(
-            f"hauteur_levre {hauteur_levre} is under 0.6 mm: it will not catch. Raise it",
-            param="hauteur_levre",
+            f"retrait_slot {retrait_slot} mange le logement assis "
+            f"(toit {avance_devant} mm, rampe 45° {epaisseur_retour} mm). "
+            f"Descends sous {avance_devant - epaisseur_retour:.1f}",
+            param="retrait_slot",
         )
-    if y_u + 1.0 > hauteur_plaque:
+    if hauteur_reglette < 0.6:
+        reject(
+            f"hauteur_reglette {hauteur_reglette} is under 0.6 mm: it will not catch. "
+            f"Raise it",
+            param="hauteur_reglette",
+        )
+    if hauteur_reglette > y_fente - y_sol - 0.4:
+        reject(
+            f"hauteur_reglette {hauteur_reglette} bouche le slot "
+            f"({y_fente - y_sol:.1f} mm). Descends sous {y_fente - y_sol - 0.4:.1f}",
+            param="hauteur_reglette",
+        )
+    if 2.0 * hauteur_reglette >= retrait_slot:
+        reject(
+            f"hauteur_reglette {hauteur_reglette} empiète sur le slot "
+            f"(rampe 2× = {2.0 * hauteur_reglette:.1f}, retrait {retrait_slot}). "
+            f"Descends sous {retrait_slot / 2.0:.1f}",
+            param="hauteur_reglette",
+        )
+    if rebord_ailette < 1.2:
+        reject(
+            f"rebord_ailette {rebord_ailette} is under 1.2 mm: raise it",
+            param="rebord_ailette",
+        )
+    if y_mur + 1.0 > hauteur_plaque:
         reject(
             f"hauteur_plaque {hauteur_plaque} n'est pas plus haute que les U "
-            f"({y_u:.1f} mm). Monte au-dessus de {y_u + 1.0:.1f}",
+            f"({y_mur:.1f} mm). Monte au-dessus de {y_mur + 1.0:.1f}",
             param="hauteur_plaque",
         )
     if recul_serre_cable < 1.0:
@@ -182,55 +211,79 @@ def wago_clip(
         )
 
     z_front = epaisseur_plaque + cav_y
-    z_tongue = z_front + depassement_languette
-    # Hinge at the plaque; slits run through the tip so the tongue
-    # is free of the two U's all the way to the top.
-    z_slit0 = epaisseur_plaque + 2.0
-    slit_z = z_tongue - z_slit0 + 0.2
+    z_end = z_front + avance_devant
+    z_retour = z_end - retrait_slot
+    ramp_retour = epaisseur_retour
 
     plaque = Box(2.0 * x_outer, hauteur_plaque, epaisseur_plaque, align=cmin)
-    shelf = Box(2.0 * x_outer, y_sol, z_tongue, align=cmin)
+    shelf = Box(2.0 * x_outer, y_sol, z_end, align=cmin)
+
+    # 1 mm at both corners of the T-stem tip (same as polish). On the
+    # default 2 mm wall that meets in a ridge along Z.
+    tip = min(1.0, epaisseur_u / 2.0, rebord_ailette)
+    y_tip = y_mur - tip
+    peaked = epaisseur_u - 2.0 * tip < 0.05
 
     us = None
     for sign in (-1.0, 1.0):
-        wall = Pos(sign * (x_wall_in + epaisseur_u / 2.0), 0, 0) * Box(
-            epaisseur_u, y_u, z_front, align=cmin
-        )
+        x_left = min(sign * x_wall_in, sign * x_outer)
+        x_right = max(sign * x_wall_in, sign * x_outer)
+        if peaked:
+            wall_pts = [
+                (x_left, 0),
+                (x_right, 0),
+                (x_right, y_tip),
+                ((x_left + x_right) / 2.0, y_mur),
+                (x_left, y_tip),
+            ]
+        else:
+            wall_pts = [
+                (x_left, 0),
+                (x_right, 0),
+                (x_right, y_tip),
+                (x_right - tip, y_mur),
+                (x_left + tip, y_mur),
+                (x_left, y_tip),
+            ]
+        wall = extrude(Plane.XY * Polygon(*wall_pts, align=None), z_end)
         retour_w = x_wall_in - x_retour
-        retour = Pos(sign * (x_retour + retour_w / 2.0), y_fente, 0) * Box(
-            retour_w, epaisseur_retour, z_front, align=cmin
+        # Slot ceiling ends 5 mm before the roof; 45° at the mouth so the
+        # wing can enter at an angle.
+        retour_pts = [
+            (y_fente, 0),
+            (y_u, 0),
+            (y_u, z_retour),
+            (y_fente, z_retour - ramp_retour),
+        ]
+        x0 = x_retour if sign > 0 else -x_wall_in
+        retour = Pos(x0, 0, 0) * extrude(
+            Plane.YZ * Polygon(*retour_pts, align=None), retour_w
         )
         u = wall + retour
         us = u if us is None else us + u
 
-    # Lip: vertical catch facing the plaque, 45° lead-in from the front.
-    z_catch = z_front + 0.3
-    z_lip_flat = z_catch + 0.7
+    # Full-width drip / catch at the roof edge. 45° toward the housing
+    # (stop if you stay flat, duck to pass), 1 mm flat at the drip so
+    # the tip is not a knife (min_wall 0.6).
+    h_lip = hauteur_reglette
     lip_pts = [
-        (y_sol, z_catch),
-        (y_sol + hauteur_levre, z_catch),
-        (y_sol + hauteur_levre, z_lip_flat),
-        (y_sol, z_tongue),
+        (y_sol, z_end - 2.0 * h_lip),
+        (y_sol + h_lip, z_end - h_lip),
+        (y_sol + h_lip, z_end),
+        (y_sol, z_end),
     ]
-    lip = Pos(-largeur_languette / 2.0, 0, 0) * extrude(
-        Plane.YZ * Polygon(*lip_pts, align=None), largeur_languette
+    lip = Pos(-x_outer, 0, 0) * extrude(
+        Plane.YZ * Polygon(*lip_pts, align=None), 2.0 * x_outer
     )
 
     body = plaque + shelf + us + lip
 
-    for sign in (-1.0, 1.0):
-        x_slit = sign * (largeur_languette / 2.0 + largeur_fente / 2.0)
-        slit = Pos(x_slit, -0.1, z_slit0) * Box(
-            largeur_fente, y_sol + 0.2, slit_z, align=cmin
-        )
-        body = body - slit
-
-    y_well_min = y_u + puit_r + 1.0
+    y_well_min = y_mur + puit_r + 1.0
     y_well_max = hauteur_plaque - puit_r - 1.0
     if y_well_min > y_well_max:
         reject(
             f"hauteur_plaque {hauteur_plaque} is too short for a Ø{puit_d} well "
-            f"above the U. Raise it above {y_u + puit_d + 2.0:.1f}",
+            f"above the U. Raise it above {y_mur + puit_d + 2.0:.1f}",
             param="hauteur_plaque",
         )
     y_well = 0.5 * (y_well_min + y_well_max)
@@ -319,9 +372,10 @@ def wago_clip(
         dz = bb.max.Z - bb.min.Z
         on_x = abs(cx - hx) < 0.4
         on_bed_y = abs(cy - hy0) < 0.4
-        at_front = abs(cz - z_front) < 0.4
+        at_front = abs(cz - z_end) < 0.4
         on_pad = abs(cx - x_pad) < 0.4 and abs(cy - hy_pad) < 0.4
-        # Long Z edges: plaque corners and the pad's outer corners. Not the U top.
+        # Long Z edges: plaque corners and the pad's outer corners. Not the
+        # T-stem ridge (already 45°) and not the 1.8 mm return top.
         if dx < 0.3 and dy < 0.3 and dz > 1.5:
             return (on_x and on_bed_y) or on_pad
         # Front outer corners of each U, rising from the shelf.

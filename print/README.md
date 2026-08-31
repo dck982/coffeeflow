@@ -62,8 +62,8 @@ Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de 
 | --- | --- |
 | `parts/canal.py` | Canal de guidage des fils |
 | `parts/wagox5.py` | Logement deux Wago 221 (semelle, clips au sommet) |
-| `parts/wago_clip.py` | Plaque aimantée, U de glissière, serre-câble |
-| `parts/wago_montage.py` | Assemblage logement dans le clip |
+| `parts/wago_slide.py` | Plaque aimantée, U de glissière en T, serre-câble |
+| `parts/wago_montage.py` | Assemblage logement dans la glissière |
 | `parts/passe_cable.py` | Passe-câble fileté, deux câbles Ø4.8 |
 | `parts/ecrou_passe_cable.py` | Écrou SW22 du passe-câble |
 | `parts/ensemble_passe_cable.py` | Assemblage passe-câble + écrou + tôle Ø16 |

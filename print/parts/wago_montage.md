@@ -7,7 +7,7 @@ Checks: clean
 Variant trois_fils: 43.90 x 35.20 x 25.90 mm, 10561.6 mm3, 2 solids, 102 faces, 1 under 1.0mm2, clean
 <!-- /AUTO -->
 
-Assemblage du logement dans les U du clip. `insertion` le fait coulisser.
+Assemblage du logement dans les U de la glissière. `insertion` le fait coulisser.
 
 ```toml
 [variants.trois_fils]
@@ -19,18 +19,19 @@ largeur_borne = 18.8
 
 ## What it is
 
-`wagox5` couché dans `wago_clip` : la semelle sur le plancher des U, les ailes dans les retours, le dos contre la plaque. `insertion` 0 = enfoncé, 1 = sorti de 30 mm vers l'avant. La lèvre de la languette se trouve juste devant le logement, elle n'entre pas dedans.
+`wagox5` couché dans `wago_slide` : la semelle sur le plancher des U, les ailes dans les retours, le dos contre la plaque. `insertion` 0 = enfoncé, 1 = sorti de 30 mm vers l'avant. Toit et murs en Y dépassent de 10 mm ; le slot s'arrête 5 mm avant la réglette du bord.
 
 ## Design notes
 
-Le logement est modelé debout (+Z). Ici un `Rot(-90, 0, 0)` le couche : +Z du logement devient +Y du clip (le long de la plaque), +Y du logement devient −Z (dos contre la plaque). Les paramètres `largeur_borne`, `epaisseur_plancher`, `epaisseur_plaque` et `recul_serre_cable` sont passés aux deux pièces. Toujours `float()` avant `use()` : un `_Named` nurb dans `use()` lève `TypeError`.
+Le logement est modelé debout (+Z). Ici un `Rot(-90, 0, 0)` le couche : +Z du logement devient +Y de la glissière (le long de la plaque), +Y du logement devient −Z (dos contre la plaque). Les paramètres `largeur_borne`, `epaisseur_plancher`, `epaisseur_plaque` et `recul_serre_cable` sont passés aux deux pièces. Toujours `float()` avant `use()` : un `_Named` nurb dans `use()` lève `TypeError`.
 
 ## Don't
 
-- Ne pas glisser le logement en +Z du clip sans la rotation : les ailes ne rentrent pas dans les U.
+- Ne pas glisser le logement en +Z de la glissière sans la rotation : les ailes ne rentrent pas dans les U.
 - Ne pas passer les sliders nurb bruts à `use()`.
 
 ## Changelog
 
 - 2026-08-31 — assemblage du logement dans les U, slider `insertion` le long de la glissière.
 - 2026-08-31 — `recul_serre_cable` passé au clip (jusqu'à 10 mm).
+- 2026-08-31 — `wago_clip` remplacé par `wago_slide` (plus de languette, +10 mm devant).

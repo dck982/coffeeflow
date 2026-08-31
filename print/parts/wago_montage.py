@@ -1,6 +1,6 @@
 from nurb import *
 
-# Assembly of wagox5 in wago_clip. Rebuilds when either sibling changes.
+# Assembly of wagox5 in wago_slide. Rebuilds when either sibling changes.
 
 
 @assembly
@@ -11,13 +11,13 @@ def wago_montage(
     epaisseur_plaque=4.0,
     recul_serre_cable=5.0,
 ):
-    """Le logement glissé dans les U du clip. insertion 0 = assis, 1 = sorti de 30 mm.
+    """Le logement glissé dans les U de la glissière. insertion 0 = assis, 1 = sorti de 30 mm.
 
     largeur_borne: 30 = 221-415, 18.8 = 221-423 — passé aux deux pièces
     insertion: 0 le logement est enfoncé contre la plaque, 1 il est sorti vers l'avant
     epaisseur_plancher: fond des U, le logement pose dessus
-    epaisseur_plaque: plaque du clip, pour caler le fond du logement
-    recul_serre_cable: distance plaque → fentes du serre-câble, passé au clip (1 à 10 mm)
+    epaisseur_plaque: plaque de la glissière, pour caler le fond du logement
+    recul_serre_cable: distance plaque → fentes du serre-câble, passé à la glissière (1 à 10 mm)
     """
     if insertion < 0.0:
         reject("insertion cannot be negative", param="insertion")
@@ -28,8 +28,8 @@ def wago_montage(
     y0 = float(epaisseur_plancher)
     z0 = float(epaisseur_plaque)
     recul = float(recul_serre_cable)
-    clip = use(
-        "wago_clip",
+    slide = use(
+        "wago_slide",
         largeur_borne=w,
         epaisseur_plancher=y0,
         epaisseur_plaque=z0,
@@ -37,7 +37,7 @@ def wago_montage(
     )
     holder = use("wagox5", largeur_borne=w)
 
-    # wagox5 is modelled standing on its base (+Z). In the clip the base lies
+    # wagox5 is modelled standing on its base (+Z). In the slide the base lies
     # on the shelf (print +Y) and the wings slide along +Z toward the plaque.
     # Rot(-90,0,0): holder +Z -> +Y, holder +Y -> -Z (back against the plaque).
     epaisseur = measured("wago_epaisseur")
@@ -50,4 +50,4 @@ def wago_montage(
         * Rot(-90, 0, 0)
         * holder
     )
-    return clip, holder
+    return slide, holder

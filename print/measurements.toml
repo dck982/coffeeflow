@@ -40,7 +40,7 @@ how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm. wagox5 stacks two connect
 [wago_415_largeur]
 value = 30.0
 unit = "mm"
-how = "WAGO 221-415 datasheet width, 5-conductor. Default largeur_borne on wagox5 and wago_clip."
+how = "WAGO 221-415 datasheet width, 5-conductor. Default largeur_borne on wagox5 and wago_slide."
 
 [jeu_wago]
 value = 0.3

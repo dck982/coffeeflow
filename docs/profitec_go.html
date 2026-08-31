@@ -39,7 +39,7 @@
 <body>
 <div id="hud">
   <h1>Profitec Go — maquette</h1>
-  <p>Encombrements internes. Le boîtier AC se dessine à part : <a href="ac_box.html">ac_box.html</a>.</p>
+  <p>Encombrements internes. Le boîtier AC se dessine dans la baie 70 mm, face ouest.</p>
   <div class="dims">
     <div>Machine <b>207 × 305 × 368</b></div>
     <div>1 · surplomb boiler/groupe <b>125</b></div>
@@ -79,7 +79,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 /*
-  Contraintes pour le boîtier AC (docs/ac_box.html). 1 unité = 1 mm.
+  Contraintes pour le boîtier AC. 1 unité = 1 mm.
 
   Repère : origine centre X, face arrière Y = 0, sol Z = 0.
   Face à la machine : gauche = ouest (cadran), droite = est (PID).
@@ -91,10 +91,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   entre boiler et baie : c'est le passage des câbles.
 
   Boîtier AC visé : aimants sur la FACE OUEST de cette baie, fond vertical.
-  Enveloppe max provisoire (docs/ac_box.html) : 130 × 60 × 30 (X × Y × Z
+  Enveloppe max provisoire : 130 × 60 × 30 (X × Y × Z
   fond au sol). Une fois dressée : 130 mm en Z machine, 60 mm dans la baie
   (Y), 30 mm depuis la paroi ouest vers l'intérieur. print/parts/ac_box
-  (75,5×115×30) est un reliquat, à ignorer. Contenu : RobotDyn DimmerLink
+  est deprecated (reliquat Atom Control). Contenu : RobotDyn DimmerLink
   4 A, M5Stack Unit SSR, RECOM RAC05-05SK-277-W — détail BOM dans
   README.md § Boîtier AC.
 */

@@ -92,7 +92,7 @@ def support_2x5w(
 
     # Horizontal wells open from the cavity (+Y into the north wall). The
     # puit_fond skin stays on the outer north face — same idea as the floor
-    # wells in boitier_*, just sideways.
+    # wells elsewhere, just sideways.
     # With mur_nord=3 the pocket is 2.4 mm: an 8x3 disc seats against the
     # skin and stands ~0.6 mm proud into the cavity.
     # Le puits est couché : `puit_couche` remplace le sommet du cercle par une

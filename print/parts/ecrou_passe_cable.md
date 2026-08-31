@@ -8,7 +8,7 @@ Checks: clean
 
 ## What it is
 
-Écrou hex SW22 × 5 mm, taraudé au même profil que le `passe_cable` (dents de scie, pas 2.0, jeu diamétral 0.3). Il se visse sur le fût depuis l'intérieur du `canal_angle` et serre le fond + la tôle contre la bride. Hors-tout repris d'un écrou de presse-étoupe trouvé en ligne (22 × 24.8 × 5) ; ce n'est pas une pièce du commerce et il ne va que sur ce passe-câble.
+Écrou hex SW22 × 5 mm, taraudé au même profil que le `passe_cable` (dents de scie, pas 2.0, jeu diamétral 0.3). Il se visse sur le fût depuis l'intérieur et serre la tôle contre la bride. Hors-tout repris d'un écrou de presse-étoupe trouvé en ligne (22 × 24.8 × 5) ; ce n'est pas une pièce du commerce et il ne va que sur ce passe-câble.
 
 ## Design notes
 
@@ -16,7 +16,7 @@ Checks: clean
 
 **Le cône d'amorce est sur la face du HAUT à l'impression.** Le fût entre par la face qui regarde la tôle, donc on retourne l'écrou pour le visser (l'assemblage le pose comme ça). Amorce coupée en bas à la place : le cône dépose une arête vive à 45° sur la première couche, `bed_bevel` sur 41.5 mm2.
 
-Plats orientés est-ouest : `canal_angle` dimensionne son mur est sur l'apothème SW22 (11 mm + 0.5 libre). Ne pas tourner l'écrou de 30° dans l'assemblage — c'est le passe-câble qui prend la phase du filet.
+Ne pas tourner l'écrou de 30° dans l'assemblage — c'est le passe-câble qui prend la phase du filet.
 
 2.5 tours de prise sur 5 mm de hauteur.
 
@@ -26,7 +26,7 @@ Plats orientés est-ouest : `canal_angle` dimensionne son mur est sur l'apothèm
 - Ne pas mettre l'amorce sur la face du bas (arête vive sur la première couche).
 - Ne pas creuser de gorge périphérique (plafond en l'air).
 - Ne pas percer un trou de serrage M3 horizontal sans goutte d'eau.
-- Ne pas tourner les plats : le mur est du boîtier est calculé sur l'apothème.
+- Ne pas tourner les plats : la phase du filet se rattrape sur le passe-câble.
 
 ```toml
 [part]

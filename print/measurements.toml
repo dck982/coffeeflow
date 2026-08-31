@@ -3,13 +3,11 @@
 # Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
 # Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
 # coffeeflow repo root (sound_test/, tts/). In progress: Waveshare 4.3 screen
-# shell (frame / wedge / base); Wago boxes already ship.
+# shell (frame / wedge / base); Wago support_2x5w; passe-câble Ø16.
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.
-# Fasteners: M3 throughout on the Wago boxes. boitier_2w uses a captive ISO
-# hex nut from the bed; boitier_4w still has a 2.6 mm printed pilot for a plain
-# M3×10 until the bosses grow. Do not switch to M4. The Waveshare 4.3 module
+# Fasteners: M3 on the Wago supports. Do not switch to M4. The Waveshare 4.3 module
 # uses M2.5 at its four corners (see screw_clearance below).
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.
 # Mount: 8 x 3 mm disc magnets (aimant_*), no drilling the chassis. Same discs
@@ -97,7 +95,7 @@ how = "ISO 4762 M3 socket-cap head height."
 [vis_autoforeuse]
 value = 2.6
 unit = "mm"
-how = "Printed pilot for a plain M3 machine screw (10 mm), PETG HF 33102 on the A1 Mini. Was 2.5 with a thread-forming screw; raised to 2.6 because a metric M3 needs less interference to cut into FDM without cracking the boss. Still used on boitier_4w; boitier_2w uses a captive nut instead."
+how = "Printed pilot for a plain M3 machine screw (10 mm), PETG HF 33102 on the A1 Mini. Was 2.5 with a thread-forming screw; raised to 2.6 because a metric M3 needs less interference to cut into FDM without cracking the boss."
 
 [vis_longueur]
 value = 10.0
@@ -299,22 +297,22 @@ value = 2.5
 unit = "mm"
 how = "ISO 4762 M2.5 socket cap head height"
 
-# --- Passe-câble M16 (canal_angle floor hole) ---
+# --- Passe-câble M16 (trou Ø16, ex-bouton brew) ---
 
 [cable_od_passe]
 value = 4.8
 unit = "mm"
-how = "user: two cables through the canal_angle Ø16, outer diameter 4.8 mm."
+how = "user: two cables through the Ø16 sheet hole, outer diameter 4.8 mm."
 
 [tole_epaisseur]
 value = 1.0
 unit = "mm"
-how = "user: sheet metal thickness the passe-câble flange clamps against, under the box floor."
+how = "user: sheet metal thickness the passe-câble flange clamps against."
 
 [passe_cable_trou]
 value = 16.4
 unit = "mm"
-how = "Box floor hole. Nominal sheet cutout is Ø16; +0.4 mm so the printed bore clears a 15.8 mm male (nurb fits table: 0.2 snug on the real sheet, 0.4 extra on the printed hole because vertical bores print small). canal_angle.trou_diametre default."
+how = "Printed hole for the Ø16 sheet cutout. Nominal sheet cutout is Ø16; +0.4 mm so the printed bore clears a 15.8 mm male (nurb fits table: 0.2 snug on the real sheet, 0.4 extra on the printed hole because vertical bores print small)."
 
 [passe_cable_fut_diametre]
 value = 15.8
@@ -334,7 +332,7 @@ how = "Flange disc OD, larger than the Ø16 hole so it bears on the sheet. 2 mm 
 [passe_cable_bride_epaisseur]
 value = 1.6
 unit = "mm"
-how = "Matches canal_angle floor (epaisseur_paroi 1.6). 1.2 mm was considered to shorten the male: rejected — 1.2 mm is printable (six 0.2 mm layers) but the floor is a clamp washer around Ø16 with a thin east strip; 1.6 mm is four 0.42 mm perimeters, same as the walls, and 0.4 mm of extra barrel is nothing against 20.5 mm of interior height."
+how = "Flange thickness 1.6 mm (four 0.42 mm perimeters). 1.2 mm was considered to shorten the male: rejected — printable (six 0.2 mm layers) but thinner than the rest of the clamp washer around Ø16."
 
 [passe_cable_passage]
 value = 5.2

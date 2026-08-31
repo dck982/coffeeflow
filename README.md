@@ -57,7 +57,7 @@ Trois boîtiers, deux nœuds ESP32. Le 230 V ne sort plus de la machine.
 - **Boîtier DC** — commande le dimmer et le SSR, lit les capteurs, parle CAN à l'écran.
 - **Boîtier UI** — affichage et commandes. **Seul module à utiliser la radio** (Wi‑Fi / BLE).
 
-Maquettes Three.js (ouvrir dans le navigateur) : machine `docs/profitec_go.html`, boîtier AC `docs/ac_box.html`.
+Maquettes Three.js (ouvrir dans le navigateur) : machine `docs/profitec_go.html`. `docs/ac_box.html` est **deprecated** (reliquat Atom Control).
 
 Les schémas `docs/atom_sensor.html` et `docs/atom_control.html` décrivent l'ancienne chaîne de trois Atom en UART. Ils sont **OUTDATED**.
 
@@ -221,9 +221,8 @@ Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. E
 
 | Pièce | Où | Matière | Rôle | Statut |
 | --- | --- | --- | --- | --- |
-| `boitier_2w` / `boitier_4w` | intérieur, ~10 cm du boiler | PETG | Dérivation 230 V. FASTON nylon côté machine, Wago 221 côté mod. Évite les cosses piggyback. | existe |
-| `canal` (+ angle) | intérieur | PETG | Guidage des fils. | existe |
-| **Boîtier AC** | intérieur, baie 70 mm, face ouest | PETG | Dimmer, SSR, alim RECOM. | à faire (`print/parts/ac_box` ignoré) |
+| `canal` | intérieur | PETG | Guidage des fils. | existe |
+| **Boîtier AC** | intérieur, baie 70 mm, face ouest | PETG | Dimmer, SSR, alim RECOM. | à faire (`print/parts/ac_box` **deprecated**) |
 | **Boîtier DC** | intérieur, zone froide | PETG | XIAO + Grove, capteurs, CAN. | à faire |
 | `screen_wedge` | façade | **PLA** | Cadre de l'écran Waveshare, vis M2.5 à l'arrière. | en validation |
 | `screen_base` | façade | PETG | Accueille le wedge. Plus de modules 230 V dedans. | existe (berceau de bureau) ; **fixation façade à reprendre** |

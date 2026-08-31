@@ -8,7 +8,7 @@ Checks: clean
 
 ## What it is
 
-Passe-câble pour le trou du `canal_angle` : bride Ø20 × 1.6 mm sous la tôle 1 mm, fût lisse Ø15.8 qui traverse tôle + fond, puis 6.5 mm de filet mâle. Deux alésages Ø5.2 traversants (câbles Ø4.8) à entraxe 6.4, symétriques par rapport à l'axe. Serrage par `ecrou_passe_cable`.
+Passe-câble pour le trou Ø16 (ex-bouton brew) : bride Ø20 × 1.6 mm sous la tôle 1 mm, fût lisse Ø15.8 qui traverse la tôle, puis 6.5 mm de filet mâle. Deux alésages Ø5.2 traversants (câbles Ø4.8) à entraxe 6.4, symétriques par rapport à l'axe. Serrage par `ecrou_passe_cable`.
 
 ## Design notes
 

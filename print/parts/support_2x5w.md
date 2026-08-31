@@ -11,7 +11,7 @@ Support ouvert pour deux Wago 221-415. Bac à fond et trois murs fins (E/O/S), m
 
 ## Design notes
 
-Inner default 30 × 16.5 mm. Walls E/O/S and floor 1.6 mm; north wall 3 mm. Outer 33.2 × 21.1 × 12.0 mm. Horizontal wells open from the cavity into the north wall and stop at the 0.6 mm outer skin — same magnet face as `boitier_*`, sideways. Pocket depth is 2.4 mm, so an 8×3 disc stands ~0.6 mm proud into the cavity when seated. Wells use `puit_diametre` (8.15), mid-height, inset 2 mm from the east/west ends. Height is 12 mm: c'est le toit à 45° du puits, et non le cercle, qui commande la marge du dessus (voir ci-dessous).
+Inner default 30 × 16.5 mm. Walls E/O/S and floor 1.6 mm; north wall 3 mm. Outer 33.2 × 21.1 × 12.0 mm. Horizontal wells open from the cavity into the north wall and stop at the 0.6 mm outer skin — same magnet face as `canal`, sideways. Pocket depth is 2.4 mm, so an 8×3 disc stands ~0.6 mm proud into the cavity when seated. Wells use `puit_diametre` (8.15), mid-height, inset 2 mm from the east/west ends. Height is 12 mm: c'est le toit à 45° du puits, et non le cercle, qui commande la marge du dessus (voir ci-dessous).
 
 **Le puits est couché sur le lit, donc son sommet n'est pas un arc.** Un alésage rond d'axe horizontal passe 45° d'inclinaison à `rayon/√2` au-dessus de son axe, soit 2.88 mm ici : les six dernières couches (1.19 mm à 0.2 mm de couche) ne portent sur rien, s'affaissent dans le trou, et le puits sort ovale — plein en X, court en Z — avec un méplat au sommet. `system.puit_couche` remplace donc le haut du cercle par une **tente à 45° tangente à l'alésage, tronquée par un pont plat de 2 mm** : plus rien ne dépasse 45°, et la dernière portée est un pont de 2 mm que l'A1 Mini franchit sans discuter. Le toit monte à `puit_couche_toit` = 4.76 mm au-dessus de l'axe au lieu de 4.08, ce qui est la cote que `hauteur` doit dégager — d'où le refus à moins de 11.53 mm, et `hauteur` = 12.
 
@@ -30,7 +30,7 @@ hold = [[6.1, 21.1, 5.2], [27.1, 21.1, 5.2]]
 ## Don't
 
 - Do not open the wells from the outside: the 0.6 mm skin must face the chassis (north exterior), magnet in from the cavity.
-- Do not thicken the 0.6 mm outer skin for the default min_wall; that is the measured `puit_fond` (same intentional warn as `boitier_*`).
+- Do not thicken the 0.6 mm outer skin for the default min_wall; that is the measured `puit_fond` (intentional warn).
 - Do not drop `hauteur` back to 10 without accepting a min_wall warn around the wells.
 - Do not push the wells flush with the east/west faces: tangent placement left a ~0.6 mm knife edge at the NE/NW corners.
 - Do not switch to vertical floor-style wells without revisiting outer Y — a vertical Ø8.15 centred in the 3 mm north wall breaks both faces.

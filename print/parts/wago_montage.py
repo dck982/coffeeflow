@@ -40,10 +40,10 @@ def wago_montage(
     # wagox5 is modelled standing on its base (+Z). In the slide the base lies
     # on the shelf (print +Y) and the wings slide along +Z toward the plaque.
     # Rot(-90,0,0): holder +Z -> +Y, holder +Y -> -Z (back against the plaque).
-    epaisseur = measured("wago_epaisseur")
-    jeu = 0.3
+    corps = measured("wago_epaisseur_corps")
+    jeu = measured("wagox5_jeu")
     jupe = 1.2
-    log_y = 2.0 * epaisseur + jeu + 2.0 * jupe
+    log_y = 2.0 * corps + jeu + 2.0 * jupe
     seated_z = z0 + log_y / 2.0
     holder = (
         Pos(0, y0, seated_z + float(insertion) * 30.0)

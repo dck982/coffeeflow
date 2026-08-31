@@ -35,7 +35,12 @@ how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need 
 [wago_epaisseur]
 value = 8.4
 unit = "mm"
-how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm. wagox5 stacks two connectors on this edge. Distinct from wago_hauteur (8.3), which is the standing 221-423 in the older boxes with lever clearance."
+how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. Not the cradle: wagox5 uses wago_epaisseur_corps (8.0) at the wire-end."
+
+[wago_epaisseur_corps]
+value = 8.0
+unit = "mm"
+how = "user 2026-08-31: Wago 221 body at the end that sits in the wagox5 cradle, without the lever bulge. Two stacked plus wagox5_jeu -0.2 = 15.8 mm inner_y."
 
 [wago_415_largeur]
 value = 30.0
@@ -45,7 +50,12 @@ how = "WAGO 221-415 datasheet width, 5-conductor. Default largeur_borne on wagox
 [jeu_wago]
 value = 0.3
 unit = "mm"
-how = "Minimum clearance between a Wago 221-423 and the box walls or dividers."
+how = "Minimum clearance between a Wago 221-423 and the box walls or dividers. Not wagox5: that press-fit is wagox5_jeu."
+
+[wagox5_jeu]
+value = -0.2
+unit = "mm"
+how = "user 2026-08-31: press-fit in wagox5. 221-415 30 mm → 29.8 mm between faces; 221-423 18.8 mm → 18.6 mm. Same -0.2 on the 8.0 mm cradle stack."
 
 [aimant_diametre]
 value = 8.0

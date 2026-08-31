@@ -2,12 +2,13 @@ from nurb import *
 
 # Keep in phase with wagox5 defaults: two Wagos, same jeu / walls / wings.
 N_BORNES = 2
-JEU_WAGO = 0.3
+JEU_WAGO = -0.2
+EPAISSEUR_BORNE_WAGO = 8.0
 EPAISSEUR_MUR_WAGO = 1.2
 EPAISSEUR_JUPE_WAGO = 1.2
 EXTENSION_WAGO = 9.0
 BASE_WAGO = 2.0
-PORTEE_RENFORT_WAGO = 3.5
+PORTEE_RENFORT_WAGO = 1.6
 JEU_RENFORT = 0.5
 
 # Zip-tie pass on the plaque extension. Slot centres ±10.3, canal 4 mm in Y.
@@ -23,9 +24,8 @@ CONGE_COLLIER = 0.2
 
 def _taille_logement(largeur_borne):
     """Outer footprint of wagox5 at the same largeur_borne, matching its defaults."""
-    epaisseur = measured("wago_epaisseur")
     inner_x = largeur_borne + JEU_WAGO
-    inner_y = N_BORNES * epaisseur + JEU_WAGO
+    inner_y = N_BORNES * EPAISSEUR_BORNE_WAGO + JEU_WAGO
     body_x = inner_x + 2.0 * EPAISSEUR_MUR_WAGO
     body_y = inner_y + 2.0 * EPAISSEUR_JUPE_WAGO
     base_x = body_x + 2.0 * EXTENSION_WAGO
@@ -201,7 +201,7 @@ def wago_slide(
             param="largeur_serre_cable",
         )
     x_wall_in = cav_x / 2.0
-    # Goussets sit on the first 3.5 mm of wing; the U return starts after that.
+    # Goussets sit on the first 1.6 mm of wing; the U return starts after that.
     x_retour = body_x / 2.0 + PORTEE_RENFORT_WAGO + JEU_RENFORT
     if x_retour >= x_wall_in - 1.5:
         reject(

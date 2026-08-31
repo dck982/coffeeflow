@@ -13,32 +13,33 @@ EPAISSEUR_LEVRE = 1.0
 @part
 def wagox5(
     largeur_borne=30.0,
-    jeu=0.3,
+    epaisseur_borne=8.0,
+    jeu=-0.2,
     epaisseur_base=2.0,
     extension_base=9.0,
     hauteur_jupe=4.0,
     epaisseur_jupe=1.2,
     epaisseur_mur=1.2,
     surplomb=1.0,
-    hauteur_renfort=10.0,
-    portee_renfort=3.5,
+    hauteur_renfort=18.6,
+    portee_renfort=1.6,
     draft=False,
 ):
     """Logement pour deux Wago 221, fils vers le haut, verrouillage au sommet.
 
-    largeur_borne: largeur d'une borne (30 = 221-415 cinq fils, 18.8 = 221-423 trois fils)
-    jeu: extra total dans le logement, partagé sur les deux côtés
+    largeur_borne: largeur d'une borne en X (30 = 221-415, 18.8 = 221-423)
+    epaisseur_borne: épaisseur d'une borne au fond du berceau, sans le levier (8 mm)
+    jeu: press-fit (négatif) ; berceau = 2×epaisseur_borne + jeu, faces = largeur_borne + jeu
     epaisseur_base: semelle
     extension_base: prolongement de la semelle de chaque côté (à la place des demi-disques)
     hauteur_jupe: jupes sur la longueur, au-dessus de la semelle, sans bloquer les leviers
     epaisseur_jupe: épaisseur des jupes
     epaisseur_mur: murs de clip sur la largeur ; plus mince = plus souple
     surplomb: dépassement de la lèvre vers l'intérieur (1 mm de palier, 45° en-dessous, à fleur du sommet)
-    hauteur_renfort: jusqu'où les goussets montent sur le mur (plus bas = plus de flex)
-    portee_renfort: saillie des goussets derrière le mur
+    hauteur_renfort: jusqu'où les goussets montent sur le mur (18.6 = jusqu'en haut)
+    portee_renfort: saillie des goussets derrière le mur (étroit, comme l'original)
     """
     profondeur = measured("wago_profondeur")
-    epaisseur = measured("wago_epaisseur")
     zmin = (Align.CENTER, Align.CENTER, Align.MIN)
 
     if largeur_borne < 12.0:
@@ -47,10 +48,21 @@ def wagox5(
             f"Remonte au-dessus de 12",
             param="largeur_borne",
         )
-    if jeu < 0.1:
+    if jeu < -0.5:
         reject(
-            f"jeu {jeu} est sous 0.1 mm : ça coince selon l'imprimante. Remonte au-dessus de 0.1",
+            f"jeu {jeu} est sous -0.5 mm : la borne n'entre plus. Remonte au-dessus de -0.5",
             param="jeu",
+        )
+    if jeu > 0.3:
+        reject(
+            f"jeu {jeu} est au-dessus de 0.3 mm : la borne flotte. Descends sous 0.3",
+            param="jeu",
+        )
+    if epaisseur_borne < 6.0:
+        reject(
+            f"epaisseur_borne {epaisseur_borne} est sous 6 mm : ce n'est plus une Wago 221. "
+            f"Remonte au-dessus de 6",
+            param="epaisseur_borne",
         )
     if epaisseur_mur < 1.0:
         reject(
@@ -81,10 +93,10 @@ def wagox5(
             f"({extension_base} mm). Descends sous {extension_base - 0.5:.1f}",
             param="portee_renfort",
         )
-    if hauteur_renfort > profondeur - 1.0:
+    if hauteur_renfort > profondeur + 0.2:
         reject(
-            f"hauteur_renfort {hauteur_renfort} arrive sous le crochet et empêche le mur "
-            f"de plier. Descends sous {profondeur - 1.0:.1f}",
+            f"hauteur_renfort {hauteur_renfort} dépasse le mur ({profondeur:.1f} mm). "
+            f"Descends sous {profondeur + 0.2:.1f}",
             param="hauteur_renfort",
         )
     if hauteur_renfort < BEC_RENFORT + 2.0:
@@ -95,7 +107,7 @@ def wagox5(
         )
 
     inner_x = largeur_borne + jeu
-    inner_y = N_BORNES * epaisseur + jeu
+    inner_y = N_BORNES * epaisseur_borne + jeu
     wall_top = epaisseur_base + profondeur
     body_x = inner_x + 2.0 * epaisseur_mur
     body_y = inner_y + 2.0 * epaisseur_jupe

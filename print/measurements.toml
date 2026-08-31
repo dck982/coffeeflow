@@ -18,9 +18,9 @@
 # warn in Studio; the object still imports. STL via `--formats stl` if needed.
 
 [wago_largeur]
-value = 18.7
+value = 18.8
 unit = "mm"
-how = "user: Wago 221-423 across the three levers. Datasheet 221-423 is 18.8 mm width."
+how = "user 2026-08-31: Wago 221-423 across the three levers, 18.8 mm. Matches WAGO datasheet width."
 
 [wago_profondeur]
 value = 18.6
@@ -553,3 +553,101 @@ how = "wago3.stl section x=-37.51 mm: Y pitch between identical clip features (t
 value = 2.50
 unit = "mm"
 how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_snap replaces it with epaisseur_face 3.6 mm; DIN hooks discarded."
+
+# --- Boîtier intérieur (docs/boitier.pdf) ---
+# Cotes EXTERNES du fond, origine = coin théorique bas-gauche (le chanfrein
+# coupe (0,0)). Les murs poussent vers l'intérieur. Contour CCW, 2026-08-31 :
+# section haute jusqu'à gouttiere_x ; à droite, gouttière 10 mm internes,
+# 10 mm sous y_max (à peu près centrée sur les 35 mm de la section haute).
+# Encoche du PDF (90/100/85) : plus sur la pièce, cotes conservées en record.
+# (0, chanfrein) → (chanfrein, 0) → (aile_x, 0) → (aile_x, aile_y) →
+# (gouttiere_x, aile_y) → (gouttiere_x, gout_bas) → (x, gout_bas) →
+# (x, gout_haut) → (gouttiere_x, gout_haut) → (gouttiere_x, y) →
+# (marche_x, y) → (marche_x, marche_y) → (0, marche_y).
+
+[boitier_int_x]
+value = 120.0
+unit = "mm"
+how = "user 2026-08-31: la gouttière va jusqu'à 120 mm ; la pièce fait 12 cm de part en part. (PDF 130, retiré avec l'aile droite.)"
+
+[boitier_int_y]
+value = 95.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: bord haut du fond, cote externe."
+
+[boitier_int_aile_x]
+value = 50.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: paroi verticale du L, à gauche de l'aile droite."
+
+[boitier_int_aile_y]
+value = 60.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: bord bas de l'aile droite."
+
+[boitier_int_chanfrein]
+value = 20.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: coupe 45° du coin (0,0), de (0,20) à (20,0)."
+
+[boitier_int_marche_x]
+value = 12.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: paroi verticale de la marche haute-gauche."
+
+[boitier_int_marche_y]
+value = 48.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: palier de la marche haute-gauche."
+
+[boitier_int_encoche_gauche]
+value = 90.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: paroi gauche de l'encoche du bord haut."
+
+[boitier_int_encoche_droite]
+value = 100.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: paroi droite de l'encoche du bord haut."
+
+[boitier_int_encoche_fond]
+value = 85.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: fond de l'encoche du bord haut."
+
+[boitier_int_puit_droit]
+value = 15.0
+unit = "mm"
+how = "user 2026-08-31: le puits d'aimant de l'aile droite est à 15 mm du bord droit (x = boitier_int_x − 15). Record only : l'aile a été remplacée par la gouttière."
+
+[boitier_int_gouttiere_x]
+value = 85.0
+unit = "mm"
+how = "user 2026-08-31: tout x > 85 mm est la gouttière. Paroi droite de la section haute."
+
+[boitier_int_gouttiere_largeur]
+value = 10.0
+unit = "mm"
+how = "user 2026-08-31: largeur interne de la gouttière en Y, murs non compris. 10 mm sous y_max, plus alignée sur aile_y."
+
+[boitier_int_puit_bas_x]
+value = 15.0
+unit = "mm"
+how = "user 2026-08-31: puits unique en bas à gauche, 15 mm du bord gauche (x)."
+
+[boitier_int_puit_bas_y]
+value = 25.0
+unit = "mm"
+how = "user 2026-08-31: puits unique en bas à gauche, 25 mm du bord bas (y)."
+
+# --- Boîtier AC ---
+
+[boitier_ac_longueur]
+value = 90.0
+unit = "mm"
+how = "user 2026-08-31: cote externe du bac AC, grand côté."
+
+[boitier_ac_largeur]
+value = 50.0
+unit = "mm"
+how = "user 2026-08-31: cote externe du bac AC, petit côté."

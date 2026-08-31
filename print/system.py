@@ -109,7 +109,59 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
     return _fuse_one(cutter + extrude(dehors, debord))
 
 
+# Standing magnet well: 1.6 mm of plastic around the bore (four 0.4 mm
+# perimeters on the A1 Mini). Same as the project walls. No lateral load
+# on these discs — they pull through the 0.6 mm floor — so 2 mm was spare.
+MARGE_PUIT = 1.6
+
 _CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
+
+
+def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
+    """Pad + cutter of a standing Ø8×3 well. Pad is `fond + aimant_h` tall.
+
+    Place the pad first, clip it to the outer solid if the well sits in a
+    wall, then subtract the cutter. The cutter overshoots the pad by 0.1 mm
+    so the pocket has no ceiling.
+    """
+    r = diametre / 2.0
+    pad_h = fond + aimant_h
+    pad = Pos(cx, cy, 0) * Cylinder(r + marge, pad_h, align=_CMIN)
+    cutter = Pos(cx, cy, fond) * Cylinder(r, aimant_h + 0.1, align=_CMIN)
+    return pad, cutter
+
+
+def entretoise_m2(
+    hauteur=3.0,
+    diametre_base=4.0,
+    diametre_pion=2.0,
+    hauteur_pion=2.0,
+):
+    """Entretoise M2 réutilisable : épaulement Ø4 à `hauteur`, pion Ø2 dessus.
+
+    Le pion se loge dans un trou M2. C'est un nubby de positionnement, pas
+    un plot chargé : 2 mm de haut sur Ø2, trop court pour le `pin` de nurb.
+    Imprimée avec la pièce qui l'appelle.
+    """
+    if diametre_base < diametre_pion + 1.2:
+        reject(
+            f"diametre_base {diametre_base} leaves under 0.6 mm of shoulder "
+            f"around a {diametre_pion} mm pin: raise it",
+        )
+    if hauteur < 1.2:
+        reject(f"hauteur {hauteur} is under 1.2 mm: raise it")
+    if diametre_pion < 2.0:
+        reject(
+            f"diametre_pion {diametre_pion} is under 2 mm: the nozzle will "
+            "smear it. Raise it or drop the pin",
+        )
+    if hauteur_pion < 0.8:
+        reject(f"hauteur_pion {hauteur_pion} is under 0.8 mm: raise it")
+    base = Cylinder(diametre_base / 2.0, hauteur, align=_CMIN)
+    pion = Pos(0, 0, hauteur) * Cylinder(
+        diametre_pion / 2.0, hauteur_pion, align=_CMIN
+    )
+    return _fuse_one(base + pion)
 
 
 def _fuse_one(shape):

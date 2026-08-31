@@ -32,6 +32,16 @@ value = 8.3
 unit = "mm"
 how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need extra room to open."
 
+[wago_epaisseur]
+value = 8.4
+unit = "mm"
+how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm. wagox5 stacks two connectors on this edge. Distinct from wago_hauteur (8.3), which is the standing 221-423 in the older boxes with lever clearance."
+
+[wago_415_largeur]
+value = 30.0
+unit = "mm"
+how = "WAGO 221-415 datasheet width, 5-conductor. Default largeur_borne on wagox5 and wago_clip."
+
 [jeu_wago]
 value = 0.3
 unit = "mm"

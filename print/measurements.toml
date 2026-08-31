@@ -543,3 +543,13 @@ how = "user: photo de la fiche produit du lot de 100, insert laiton à emmancher
 value = 4.0
 unit = "mm"
 how = "Puits imprimé pour l'insert Ø4,6 : hors tout moins 0,6 mm, la règle des fabricants d'inserts à emmancher (ruthex donne Ø4,0 pour un insert de 4,6). C'est le plastique déplacé qui fait la tenue, donc un trou au Ø nominal ne tient pas et un trou trop serré fend le bossage. Corrige le 3,6 de la première version, qui venait d'une cote manquante."
+
+[clip_pas]
+value = 28.93
+unit = "mm"
+how = "wago3.stl section x=-37.51 mm: Y pitch between identical clip features (tooth tip -9.28 vs -38.21). Two stacked logements on wago_snap."
+
+[clip_mur_origine]
+value = 2.50
+unit = "mm"
+how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_snap replaces it with epaisseur_face 3.6 mm; DIN hooks discarded."

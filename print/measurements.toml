@@ -57,6 +57,11 @@ value = -0.2
 unit = "mm"
 how = "user 2026-08-31: press-fit in wagox5. 221-415 30 mm → 29.8 mm between faces; 221-423 18.8 mm → 18.6 mm. Same -0.2 on the 8.0 mm cradle stack."
 
+[wagox5_jeu_sommet]
+value = 0.2
+unit = "mm"
+how = "user 2026-09-01: printed wagox5, the top rails sat on the Wago tops instead of clipping over them. Raise the clip walls 0.2 mm in Z so the lip is just above the terminal."
+
 [aimant_diametre]
 value = 8.0
 unit = "mm"

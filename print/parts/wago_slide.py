@@ -42,7 +42,7 @@ def wago_slide(
     epaisseur_retour=1.8,
     jeu_fente=0.2,
     avance_devant=10.0,
-    retrait_slot=5.0,
+    retrait_slot=0.0,
     hauteur_reglette=1.0,
     rebord_ailette=2.0,
     hauteur_plaque=23.2,
@@ -50,7 +50,7 @@ def wago_slide(
     largeur_serre_cable=38.0,
     draft=False,
 ):
-    """Plaque à deux U en T : toit 10 mm devant les bornes, slot en retrait, réglette au bord.
+    """Plaque à deux U en T : toit 10 mm devant les bornes, retour sur le dos du logement, réglette au bord.
 
     largeur_borne: même slider que wagox5 (30 = 221-415, 18.8 = 221-423)
     jeu_glissiere: extra total sur la largeur pour que les ailes coulissent
@@ -60,7 +60,7 @@ def wago_slide(
     epaisseur_retour: retour de chaque U, au-dessus de l'aile
     jeu_fente: extra de hauteur dans la fente, au-dessus des 2 mm d'aile
     avance_devant: toit en Z devant les bornes, au moins 10 mm (murs en Y compris)
-    retrait_slot: le retour en X (le slot) s'arrête d'autant avant le bord du toit
+    retrait_slot: extra de recul du retour en X, au-delà du dos de wagox5 (0 = pile sur les 18,2 mm)
     hauteur_reglette: débord au bord du toit, goutte pendante et cran à plat
     rebord_ailette: petit mur en Y au-delà du retour, transforme le L en T
     hauteur_plaque: hauteur de la plaque (sur le mur, une fois collée)
@@ -118,17 +118,10 @@ def wago_slide(
             f"assez des bornes. Monte au-dessus de 10",
             param="avance_devant",
         )
-    if retrait_slot < 2.0:
+    if retrait_slot < 0.0:
         reject(
-            f"retrait_slot {retrait_slot} est sous 2 mm : plus d'angle d'entrée. "
-            f"Monte au-dessus de 2",
-            param="retrait_slot",
-        )
-    if retrait_slot > avance_devant - epaisseur_retour:
-        reject(
-            f"retrait_slot {retrait_slot} mange le logement assis "
-            f"(toit {avance_devant} mm, rampe 45° {epaisseur_retour} mm). "
-            f"Descends sous {avance_devant - epaisseur_retour:.1f}",
+            f"retrait_slot {retrait_slot} est négatif : le retour dépasserait "
+            f"le dos de wagox5. Remets à 0",
             param="retrait_slot",
         )
     if hauteur_reglette < 0.6:
@@ -143,11 +136,24 @@ def wago_slide(
             f"({y_fente - y_sol:.1f} mm). Descends sous {y_fente - y_sol - 0.4:.1f}",
             param="hauteur_reglette",
         )
-    if 2.0 * hauteur_reglette >= retrait_slot:
+    # Return covers wagox5's back face (log_y = 18.2 mm), not the roof.
+    z_corps = epaisseur_plaque + log_y
+    z_retour = z_corps - retrait_slot
+    if z_retour < epaisseur_plaque + epaisseur_retour + 2.0:
+        reject(
+            f"retrait_slot {retrait_slot} mange le retour "
+            f"(il resterait {z_retour - epaisseur_plaque:.1f} mm sur le dos). "
+            f"Descends sous {log_y - epaisseur_retour - 2.0:.1f}",
+            param="retrait_slot",
+        )
+    z_front = epaisseur_plaque + cav_y
+    z_end = z_front + avance_devant
+    ouverture_entree = z_end - z_retour
+    if 2.0 * hauteur_reglette >= ouverture_entree:
         reject(
             f"hauteur_reglette {hauteur_reglette} empiète sur le slot "
-            f"(rampe 2× = {2.0 * hauteur_reglette:.1f}, retrait {retrait_slot}). "
-            f"Descends sous {retrait_slot / 2.0:.1f}",
+            f"(rampe 2× = {2.0 * hauteur_reglette:.1f}, ouverture {ouverture_entree:.1f}). "
+            f"Descends sous {ouverture_entree / 2.0:.1f}",
             param="hauteur_reglette",
         )
     if rebord_ailette < 1.2:
@@ -210,9 +216,6 @@ def wago_slide(
             param="largeur_borne",
         )
 
-    z_front = epaisseur_plaque + cav_y
-    z_end = z_front + avance_devant
-    z_retour = z_end - retrait_slot
     ramp_retour = epaisseur_retour
 
     plaque = Box(2.0 * x_outer, hauteur_plaque, epaisseur_plaque, align=cmin)
@@ -247,8 +250,8 @@ def wago_slide(
             ]
         wall = extrude(Plane.XY * Polygon(*wall_pts, align=None), z_end)
         retour_w = x_wall_in - x_retour
-        # Slot ceiling ends 5 mm before the roof; 45° at the mouth so the
-        # wing can enter at an angle.
+        # Slot ceiling covers wagox5's back face (log_y), not the roof;
+        # 45° at the mouth so the wing can enter at an angle.
         retour_pts = [
             (y_fente, 0),
             (y_u, 0),

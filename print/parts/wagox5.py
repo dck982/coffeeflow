@@ -1,6 +1,6 @@
 from nurb import *
 
-# Dual Wago 221 holder; hook is flush with the connector top.
+# Dual Wago 221 holder; hook sits 0.2 mm above the connector top.
 
 N_BORNES = 2
 EPAISSEUR_RENFORT = 1.6
@@ -21,7 +21,8 @@ def wagox5(
     epaisseur_jupe=1.2,
     epaisseur_mur=1.2,
     surplomb=1.0,
-    hauteur_renfort=18.6,
+    jeu_sommet=0.2,
+    hauteur_renfort=18.8,
     portee_renfort=1.6,
     draft=False,
 ):
@@ -35,8 +36,9 @@ def wagox5(
     hauteur_jupe: jupes sur la longueur, au-dessus de la semelle, sans bloquer les leviers
     epaisseur_jupe: épaisseur des jupes
     epaisseur_mur: murs de clip sur la largeur ; plus mince = plus souple
-    surplomb: dépassement de la lèvre vers l'intérieur (1 mm de palier, 45° en-dessous, à fleur du sommet)
-    hauteur_renfort: jusqu'où les goussets montent sur le mur (18.6 = jusqu'en haut)
+    surplomb: dépassement de la lèvre vers l'intérieur (1 mm de palier, 45° en-dessous)
+    jeu_sommet: les murs de clip dépassent le sommet de la borne d'autant (0,2 mm pour clipper dessus)
+    hauteur_renfort: jusqu'où les goussets montent sur le mur (18.8 = jusqu'en haut)
     portee_renfort: saillie des goussets derrière le mur (étroit, comme l'original)
     """
     profondeur = measured("wago_profondeur")
@@ -93,10 +95,23 @@ def wagox5(
             f"({extension_base} mm). Descends sous {extension_base - 0.5:.1f}",
             param="portee_renfort",
         )
-    if hauteur_renfort > profondeur + 0.2:
+    if jeu_sommet < 0.0:
         reject(
-            f"hauteur_renfort {hauteur_renfort} dépasse le mur ({profondeur:.1f} mm). "
-            f"Descends sous {profondeur + 0.2:.1f}",
+            f"jeu_sommet {jeu_sommet} est négatif : le crochet rentre dans la borne. "
+            f"Remets au-dessus de 0",
+            param="jeu_sommet",
+        )
+    if jeu_sommet > 1.0:
+        reject(
+            f"jeu_sommet {jeu_sommet} est au-dessus de 1 mm : le crochet ne clippe plus. "
+            f"Descends sous 1",
+            param="jeu_sommet",
+        )
+    if hauteur_renfort > profondeur + jeu_sommet:
+        reject(
+            f"hauteur_renfort {hauteur_renfort} dépasse le mur "
+            f"({profondeur + jeu_sommet:.1f} mm). "
+            f"Descends sous {profondeur + jeu_sommet:.1f}",
             param="hauteur_renfort",
         )
     if hauteur_renfort < BEC_RENFORT + 2.0:
@@ -108,7 +123,7 @@ def wagox5(
 
     inner_x = largeur_borne + jeu
     inner_y = N_BORNES * epaisseur_borne + jeu
-    wall_top = epaisseur_base + profondeur
+    wall_top = epaisseur_base + profondeur + jeu_sommet
     body_x = inner_x + 2.0 * epaisseur_mur
     body_y = inner_y + 2.0 * epaisseur_jupe
     base_x = body_x + 2.0 * extension_base
@@ -136,8 +151,8 @@ def wagox5(
         hook = ix - sign * surplomb
         z_catch = wall_top - EPAISSEUR_LEVRE
         z_45 = z_catch - surplomb
-        # Flush top, 1 mm vertical catch, 45° lead-in below. Overlaps the wall
-        # (ix→ox) so it fuses; the 45° starts on the inner face, true 45°.
+        # 0.2 mm above the Wago top, 1 mm vertical catch, 45° lead-in below.
+        # Overlaps the wall (ix→ox) so it fuses; the 45° starts on the inner face.
         pts = (
             [
                 (ix, z_45),

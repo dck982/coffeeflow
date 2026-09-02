@@ -4,8 +4,9 @@ from nurb import *
 # skirt rising, module pocket cut through it. The skirt top *is* the frame: it
 # lands level with the glass, so there is no plate bridging the pocket. The
 # module's own four M2.5 standoffs land on the seat pads and the screws come up
-# from under the bed face into them. Outer face stays closed; USB-C / UART drop
-# through skirt channels and out the rear plate.
+# from under the bed face into them. USB-C / UART channels run through the
+# skirt and out the outer face as well as the rear plate, so a wrapping base
+# can still reach the plugs from the side.
 
 
 @part
@@ -20,7 +21,7 @@ def screen_wedge(
     seat_height=4.3,
     cable_slot_width=9.6,
     cable_slot_depth=7.0,
-    outer_wall=2.0,
+    outer_wall=0.0,
     connector_window_from_top=12.5,
     connector_window_length=41.0,
     connector_window_margin=1.5,
@@ -62,9 +63,11 @@ def screen_wedge(
         module's 4mm standoff, so raising this shortens the thread engagement
     cable_slot_width: width of the USB-C / UART channels, set by the bare
         right-angle plug's 8.34mm shell plus clearance
-    cable_slot_depth: how far each channel runs from the pocket into the border,
-        i.e. how far the plug stands out past the socket face
-    outer_wall: material left between the end of a channel and the outside face
+    cable_slot_depth: how far the plug stands out past the socket face; the
+        opening itself runs past this to the outer face when outer_wall is 0
+    outer_wall: material left between the channel and the outside face. 0
+        opens the outer face so a wrapping base can reach the plugs from the
+        side; raise it to close the skirt again
     connector_window_from_top: the JST connectors live on the edge *opposite*
         the USB-C / UART one, and plug in perpendicular to the PCB, so the rear
         frame is notched out to the pocket wall in front of them. This is the
@@ -148,6 +151,12 @@ def screen_wedge(
             param="rear_frame_margin",
         )
     left_over = border_side - module_clearance_width - cable_slot_depth - 0.1
+    if outer_wall < 0:
+        reject(
+            f"outer_wall {outer_wall} is negative: raise it to 0 to open the "
+            "outer face, or above 0 to leave a closed wall",
+            param="outer_wall",
+        )
     if left_over < outer_wall:
         reject(
             f"cable_slot_depth {cable_slot_depth} leaves only {left_over:.1f}mm of "
@@ -155,7 +164,13 @@ def screen_wedge(
             f"border_side past {module_clearance_width + cable_slot_depth + 0.1 + outer_wall:.1f}",
             param="cable_slot_depth",
         )
-    slot_x = pocket_w / 2 + cable_slot_depth / 2
+    slot_inner = pocket_w / 2 - 0.1
+    if outer_wall < 0.05:
+        slot_outer = outer_w / 2 + 0.2
+    else:
+        slot_outer = outer_w / 2 - outer_wall
+    slot_len = slot_outer - slot_inner
+    slot_x = (slot_inner + slot_outer) / 2
 
     # --- volumes first: rear plate on the bed, then the skirt up to the rim ---
     rim_z = rear_wall + seat_height + pocket_depth
@@ -282,11 +297,13 @@ def screen_wedge(
     # USB-C / UART, cut after the pads so a pad corner cannot leave a tongue in
     # the channel. The sockets hang under the PCB, so the channel runs from
     # under the bed face up to the PCB's own back plane, which roofs it. Any
-    # higher and it would slice the frame rim.
+    # higher and it would slice the frame rim. With outer_wall 0 the cut also
+    # breaks the outer face, so the plugs can be reached from the side once a
+    # wrapping base hides this skirt.
     pcb_back_z = rim_z - measured("module_glass_to_pcb")
     for y in (usb_y, uart_y):
         body = body - Pos(slot_x, y, (pcb_back_z - 1) / 2) * Box(
-            cable_slot_depth + 0.2, cable_slot_width, pcb_back_z + 1
+            slot_len, cable_slot_width, pcb_back_z + 1
         )
 
     # Sockets for screen_base's foot pins, drilled into the bottom face. The

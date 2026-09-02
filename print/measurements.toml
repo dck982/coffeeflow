@@ -3,7 +3,7 @@
 # Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
 # Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
 # coffeeflow repo root (sound_test/, tts/). In progress: Waveshare 4.3 screen
-# shell (frame / wedge / base); Wago support_2x5w; passe-câble Ø16.
+# shell (frame / wedge / base); Wago (wagox5 / wago_slide); passe-câble Ø16.
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.

@@ -145,7 +145,7 @@ mécanique, si la 5 kg déçoit.
 7. **Deux têtes de vis M4 ne rentrent pas dans les 5,3 mm** restants (18 − 12,7). Voir
    la pile ci-dessous.
 8. **Zéro perçage, zéro collage.** Tout se reprend sur les vis existantes, complété par
-   des aimants (puits Ø8, 3 de haut, fond de 0,6 — voir `canal.py`, `support_2x5w.py`).
+   des aimants (puits Ø8, 3 de haut, fond de 0,6 — voir `canal.py`).
    **Vérifié 2026-08-25 : un aimant tient sur le fond du bac.**
 9. **Tenue en température du plateau.** De l'eau à 93 °C peut couler dans le tray, mais
    par périodes de moins d'une minute et jamais stagnante (utilisateur, 2026-08-25). La

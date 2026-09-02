@@ -658,11 +658,154 @@ how = "user 2026-08-31: puits unique en bas à gauche, 25 mm du bord bas (y)."
 # --- Boîtier AC ---
 
 [boitier_ac_longueur]
-value = 90.0
+value = 110.0
 unit = "mm"
-how = "user 2026-08-31: cote externe du bac AC, grand côté."
+how = "user 2026-09-01: cote externe du bac AC, grand côté. Was 90."
+
+[boitier_ac_muret_depuis_bas]
+value = 10.0
+unit = "mm"
+how = "user 2026-09-01: rainure 1 mm de haut sur la dimension courte (Y), 10 mm du bas intérieur (X min)."
+
+[boitier_ac_ouverture_depuis_haut]
+value = 20.0
+unit = "mm"
+how = "user 2026-09-01: ouverture du mur long (+Y), 20 mm du haut intérieur (X max)."
+
+[boitier_ac_ouverture_longueur]
+value = 15.0
+unit = "mm"
+how = "user 2026-09-01: longueur de l'ouverture du mur long, le long de X."
+
+[boitier_ac_reglette_depuis_droite]
+value = 18.6
+unit = "mm"
+how = "user 2026-09-01: réglette 1 mm, copie de la rainure, 18.6 mm du bord droit extérieur (X max). Wago 221 depth (wago_profondeur)."
 
 [boitier_ac_largeur]
+value = 48.2
+unit = "mm"
+how = "derived: largeur_interne 45 + 2 × 1.6 mm walls. Was 50 hors-tout until 2026-09-01."
+
+[boitier_ac_largeur_interne]
+value = 45.0
+unit = "mm"
+how = "user 2026-09-01: largeur Y intérieure du bac AC, murs non compris."
+
+# --- Boîtier power supply ---
+
+[boitier_ps_longueur_interne]
 value = 50.0
 unit = "mm"
-how = "user 2026-08-31: cote externe du bac AC, petit côté."
+how = "user 2026-09-01: cavité X du boîtier alim."
+
+[boitier_ps_largeur_interne]
+value = 87.6
+unit = "mm"
+how = "user 2026-09-02: 70 + 17.6 mm au nord so the north Wago bay is 16 mm wall-to-wall. Was 86.8 (15.2 mm clear)."
+
+[boitier_ps_alim]
+value = 21.8
+unit = "mm"
+how = "user 2026-09-01: berceau alim en X, 28 → 21.8 mm du muret au mur X max. Flanc droit de la réglette à 50 − 21.8 = 28.2."
+
+[boitier_ps_alim_y]
+value = 27.8
+unit = "mm"
+how = "user 2026-09-01: 28 → 27.8 mm en Y pour l'alim. Flanc sud (muret batterie) à Y = 42.2 ; flanc nord du volume à Y = 70."
+
+[boitier_ps_alim_z]
+value = 35.0
+unit = "mm"
+how = "user 2026-09-02: hauteur du volume alim au-dessus du fond, et hauteur du muret nord (largeur X = alim_x seulement)."
+
+[boitier_ps_surplus_nord]
+value = 17.6
+unit = "mm"
+how = "user 2026-09-02: 16 mm wall-to-wall north of the PSU wall plus the 1.6 mm wall. Was 16.8 (15.2 mm clear). PSU north face stays at Y = 70."
+
+[boitier_ps_reglette_alim_x]
+value = 28.2
+unit = "mm"
+how = "user 2026-09-01: flanc droit de la réglette, pas le centre. 50 − 21.8 = 28.2 (was 22 when the pocket was 28 mm)."
+
+[boitier_ps_wago_largeur]
+value = 29.8
+unit = "mm"
+how = "user 2026-09-01: 28.8 was too tight; 29.8 mm along X for 221-415 (datasheet 30 mm, same −0.2 as wagox5). Right face of the muret at 50 − 29.8 = 20.2."
+
+[boitier_ps_wago_entre_murets]
+value = 19.0
+unit = "mm"
+how = "user 2026-09-01: vide face à face en Y, 19.8 → 19.0 mm. Réglette sud 0.8 mm plus haut (nord à 21.6), muret ouest plus court. Sud du muret Y=42.2 à 40.6. Not centre-to-centre; walls are 1.6 mm."
+
+[boitier_ps_ouverture_gauche_haut]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-02: 5 mm on the west wall, Y = 81.0 → 86.0 (1.6 mm south of inner Y max), so the north face runs to the west corner. Was briefly 10 mm (Y = 76 → 86); was flush with Y max before that."
+
+[boitier_ps_ouverture_z]
+value = 25.0
+unit = "mm"
+how = "user 2026-09-02: sill of all three cable openings, above the floor. Was 15 mm (Wago platform)."
+
+[boitier_ps_ouverture_bas]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-02: 5 mm in the Y min wall, flush right (X = 45 → 50). Was 10 mm (X = 40 → 50)."
+
+[boitier_ps_wago_surplomb_longueur]
+value = 8.0
+unit = "mm"
+how = "user 2026-09-01: retour Z du muret Wago (axe Y) sur 8 mm au nord seulement, pour entrer les bornes en biais. 8 mm exposés dans la baie, collés au muret batterie."
+
+[boitier_ps_wago_muret_z]
+value = 32.5
+unit = "mm"
+how = "user 2026-09-02: murs qui bordent les Wago +15 mm (17.5 → 32.5), pour les monter sur une plateforme de 15 mm. Le surplomb reste 0.5 mm au-dessus de deux 221-415 de 8.4 mm."
+
+[boitier_ps_wago_rebord_z]
+value = 15.0
+unit = "mm"
+how = "user 2026-09-02: front lip of both Wago bays, flush with the 15 mm platform. Was 16 mm (1 mm above the rails); the extra millimetre snagged the terminals, and the cables already stop the Wagos sliding out."
+
+[boitier_ps_wago_rail_ecart]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-02: rails 5 mm off the west and east walls so those walls can flex when inserting the Wagos."
+
+[boitier_ps_puit]
+value = 8.2
+unit = "mm"
+how = "user 2026-09-02: three standing magnet wells Ø8.2. Centres: Wago bay middle, (10, 30) and (10, 60) from inner SW origin. Was (15, 30) / (15, 60); 5 mm west so the bore clears the Wago wall. Same 8.2 as canal / boitier_int, not the tighter 8.15 box well."
+
+[boitier_ps_nord_wago_z]
+value = 19.8
+unit = "mm"
+how = "user 2026-09-02: catch 1 mm above the 18.8 mm 221-423 body (on edge) and the 15 mm platform. Was 18.8, flush with the body."
+
+[boitier_ps_nord_wago_x]
+value = 18.6
+unit = "mm"
+how = "user 2026-09-02: 221-423 depth in X, outputs west. Same as wago_profondeur. East face of the west muret at 50 − 18.6 = 31.4."
+
+[boitier_ps_insert]
+value = 4.0
+unit = "mm"
+how = "user 2026-09-02: heat insert bore Ø4 mm, 5 mm deep, 1.6 mm wall. 45° corbel from the face (5.6 mm Z = 5.6 mm inboard), pad 5.6 × 7.2 mm. Not a tower from the floor."
+
+[serre_fil_epaisseur]
+value = 1.0
+unit = "mm"
+how = "user 2026-09-02: cable-tie thickness. Gap on the anti-tirage U is 1.2 mm."
+
+[serre_fil_largeur]
+value = 2.5
+unit = "mm"
+how = "user 2026-09-02: cable-tie width. Inner slot of the anti-tirage U is 3 mm."
+
+[boitier_ps_anti_tirage_x]
+value = 10.0
+unit = "mm"
+how = "user 2026-09-02: west edge of the U on the inner south face, 10 mm from the SW corner."
+

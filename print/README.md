@@ -32,7 +32,7 @@ nurb export canal
 
 Traversée intérieur → façade : câble DC (5 V ± CAN) par le trou **Ø 16 mm** de l'ancien bouton brew. Le 230 V reste dans le compartiment technique.
 
-`parts/ac_box` et `docs/ac_box.html` sont **deprecated** (reliquat Atom Control, autre placement). Encombrements machine : `docs/profitec_go.html`. `boitier_int` a été fendu en `boitier_dc` (bas, face est +5 mm) et `boitier_ac` (haut). Encoches d'assemblage plus tard.
+`parts/ac_box` et `docs/ac_box.html` sont **deprecated** (reliquat Atom Control, autre placement). Encombrements machine : `docs/profitec_go.html`. `boitier_int` a été fendu en `boitier_dc` (bas, nord +11 mm) et `boitier_ac` (haut, décrochage sud-ouest). Encoches de liaison plus tard.
 
 La grille d'entretoise 5 mm sous le plateau chauffant et le logement 230 V dans `screen_base` n'ont plus lieu : l'UI n'est plus posée sur la machine, et plus aucun module secteur n'y vit.
 

@@ -3,19 +3,19 @@ from nurb import *
 from system import MARGE_PUIT, _fuse_one, add_well, offset_in
 
 
-def _contour(prolongement_est):
+def _contour(prolongement_nord):
     aile_x = measured("boitier_int_aile_x")
     aile_y = measured("boitier_int_aile_y")
     chanfrein = measured("boitier_int_chanfrein")
     marche_x = measured("boitier_int_marche_x")
     marche_y = measured("boitier_int_marche_y")
-    east = aile_x + prolongement_est
+    nord = aile_y + prolongement_nord
     return [
         (0.0, chanfrein),
         (chanfrein, 0.0),
-        (east, 0.0),
-        (east, aile_y),
-        (marche_x, aile_y),
+        (aile_x, 0.0),
+        (aile_x, nord),
+        (marche_x, nord),
         (marche_x, marche_y),
         (0.0, marche_y),
     ]
@@ -25,17 +25,17 @@ def _contour(prolongement_est):
 def boitier_dc(
     hauteur=10.0,
     epaisseur_paroi=1.6,
-    prolongement_est=5.0,
+    prolongement_nord=11.0,
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
     draft=False,
 ):
-    """Boîtier DC : partie basse du bac intérieur, face est +5 mm, coin plein.
+    """Boîtier DC : partie basse, face est à x = 50, nord +11 mm.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
-    prolongement_est: extra sur la face est, pour le composant qui dépasse en +Y
+    prolongement_nord: extra en +Y (11 mm), le module le long de la face est dépasse au nord
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
@@ -57,10 +57,10 @@ def boitier_dc(
             f"raise it above {wall + 2.0:.1f}",
             param="hauteur",
         )
-    if prolongement_est < 0.0:
+    if prolongement_nord < 0.0:
         reject(
-            f"prolongement_est {prolongement_est} is negative: raise it",
-            param="prolongement_est",
+            f"prolongement_nord {prolongement_nord} is negative: raise it",
+            param="prolongement_nord",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -85,9 +85,8 @@ def boitier_dc(
             param="hauteur",
         )
 
-    outer_pts = _contour(prolongement_est)
+    outer_pts = _contour(prolongement_nord)
     inner_pts = offset_in(outer_pts, wall)
-    amin = (Align.MIN, Align.MIN, Align.MIN)
 
     outer = extrude(Polygon(*outer_pts, align=None), hauteur)
     cavity = Pos(0, 0, wall) * extrude(

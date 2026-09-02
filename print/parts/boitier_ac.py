@@ -3,15 +3,19 @@ from nurb import *
 from system import MARGE_PUIT, _fuse_one, add_well, offset_in
 
 
-def _contour(vide_haut):
+def _contour(vide_haut, decrochage):
     x_max = measured("boitier_int_x")
     y_max = measured("boitier_int_y")
+    aile_x = measured("boitier_int_aile_x")
     aile_y = measured("boitier_int_aile_y")
     marche_x = measured("boitier_int_marche_x")
     gout_x = measured("boitier_int_gouttiere_x")
     gout_haut = y_max - vide_haut
+    sud_ouest = aile_y + decrochage
     return [
-        (marche_x, aile_y),
+        (marche_x, sud_ouest),
+        (aile_x, sud_ouest),
+        (aile_x, aile_y),
         (x_max, aile_y),
         (x_max, gout_haut),
         (gout_x, gout_haut),
@@ -24,20 +28,18 @@ def _contour(vide_haut):
 def boitier_ac(
     hauteur=10.0,
     epaisseur_paroi=1.6,
-    prolongement_est=5.0,
-    decrochage=5.0,
+    decrochage=11.0,
     gouttiere_vide_haut=10.0,
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
     draft=False,
 ):
-    """Boîtier AC : partie haute du bac intérieur, face sud jusqu'à l'est.
+    """Boîtier AC : partie haute, décrochage sud-ouest sur la largeur du DC.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
-    prolongement_est: où commence le palier sud, à l'est du DC (même 5 mm)
-    decrochage: palier 5 mm sur la face sud, hors du DC
+    decrochage: face sud-ouest 11 mm plus au nord, largeur du DC (x = 12 à 50)
     gouttiere_vide_haut: vide sous y max à droite de x = 85 (contrainte machine)
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
@@ -48,7 +50,6 @@ def boitier_ac(
     aimant_h = measured("aimant_hauteur")
     x_max = measured("boitier_int_x")
     y_max = measured("boitier_int_y")
-    aile_x = measured("boitier_int_aile_x")
     aile_y = measured("boitier_int_aile_y")
     gout_x = measured("boitier_int_gouttiere_x")
 
@@ -62,11 +63,6 @@ def boitier_ac(
             f"hauteur {hauteur} leaves under 2 mm of wall above a {wall} mm floor: "
             f"raise it above {wall + 2.0:.1f}",
             param="hauteur",
-        )
-    if prolongement_est < 0.0:
-        reject(
-            f"prolongement_est {prolongement_est} is negative: raise it",
-            param="prolongement_est",
         )
     if decrochage < 0.0:
         reject(
@@ -85,6 +81,12 @@ def boitier_ac(
             f"gouttiere_vide_haut {gouttiere_vide_haut} leaves no east bay "
             f"above y={aile_y}: lower it",
             param="gouttiere_vide_haut",
+        )
+    if aile_y + decrochage >= gout_haut - wall:
+        reject(
+            f"decrochage {decrochage} pushes the south-west face into the "
+            f"east bay: lower it",
+            param="decrochage",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -109,24 +111,14 @@ def boitier_ac(
             param="hauteur",
         )
 
-    outer_pts = _contour(gouttiere_vide_haut)
+    outer_pts = _contour(gouttiere_vide_haut, decrochage)
     inner_pts = offset_in(outer_pts, wall)
-    amin = (Align.MIN, Align.MIN, Align.MIN)
 
     outer = extrude(Polygon(*outer_pts, align=None), hauteur)
     cavity = Pos(0, 0, wall) * extrude(
         Polygon(*inner_pts, align=None), hauteur + 0.2
     )
     body = outer - cavity
-
-    # 5 mm step on the south face, starting east of DC's east face
-    # (aile_x + 5) so it does not occupy DC's corner. Linking notches later.
-    dc_est = aile_x + prolongement_est
-    palier = Pos(dc_est, aile_y - decrochage, 0) * Box(
-        decrochage, decrochage, hauteur, align=amin
-    )
-    body = body + palier
-    outer = outer + palier
 
     puit_cx = (gout_x + x_max) / 2.0
     puit_cy = (aile_y + gout_haut) / 2.0

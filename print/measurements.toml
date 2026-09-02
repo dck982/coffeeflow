@@ -572,8 +572,8 @@ how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_sna
 # --- Boîtier intérieur (docs/boitier.pdf), fendu en boitier_dc + boitier_ac ---
 # Cotes EXTERNES du fond, origine = coin théorique bas-gauche (le chanfrein
 # coupe (0,0)). Les murs poussent vers l'intérieur. Contour machine inchangé.
-# DC = partie basse, face est +5 mm, coin nord-est plein.
-# AC = partie haute, face sud jusqu'à x = 120, palier 5 mm à l'est du DC.
+# DC = partie basse, face est à x = 50, nord +11 mm.
+# AC = partie haute, face sud jusqu'à x = 120, sud-ouest +11 mm sur la largeur du DC.
 # Encoche du PDF (90/100/85) : plus sur la pièce, cotes conservées en record.
 
 [boitier_int_x]
@@ -642,9 +642,9 @@ unit = "mm"
 how = "user 2026-08-31: largeur interne de la gouttière en Y. Record only since 2026-09-02: AC's south face runs at aile_y to x = 120 instead."
 
 [boitier_emboitement]
-value = 5.0
+value = 11.0
 unit = "mm"
-how = "user 2026-09-02: DC east face +5 mm so the component along that wall clears at the north. AC's 5 mm south step starts east of that face. Not a linking notch."
+how = "user 2026-09-02: DC north +11 mm (was 5, then +6) so the module along the east wall clears in Y. AC's south-west face is 11 mm further north over DC's width (x = 12–50)."
 
 [boitier_int_puit_bas_x]
 value = 15.0

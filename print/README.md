@@ -25,14 +25,14 @@ nurb export canal
 | Pièce | Où | Matière | Statut |
 | --- | --- | --- | --- |
 | `canal` | intérieur | PETG | actuel |
-| **Boîtier AC** | intérieur, baie 70 mm, face ouest | PETG | **à faire** — `parts/ac_box` **deprecated** |
-| **Boîtier DC** | intérieur, zone froide (entre PID et cadran, face purge vanne) | PETG | à faire |
+| `boitier_ac` | intérieur, partie haute de l'enveloppe | PETG | premier jet — fendu de `boitier_int` |
+| `boitier_dc` | intérieur, partie basse de l'enveloppe | PETG | premier jet — fendu de `boitier_int` |
 | `screen_wedge` (cadre Waveshare, vis M2.5 à l'arrière) | façade | **PLA** | en validation |
 | `screen_base` (accueille le wedge) | façade | PETG | existe en berceau de bureau ; **fixation façade à reprendre** |
 
 Traversée intérieur → façade : câble DC (5 V ± CAN) par le trou **Ø 16 mm** de l'ancien bouton brew. Le 230 V reste dans le compartiment technique.
 
-`parts/ac_box` et `docs/ac_box.html` sont **deprecated** (reliquat Atom Control, autre placement). Encombrements machine : `docs/profitec_go.html`. Le boîtier AC reste à dessiner dans la baie de 70 mm, face ouest.
+`parts/ac_box` et `docs/ac_box.html` sont **deprecated** (reliquat Atom Control, autre placement). Encombrements machine : `docs/profitec_go.html`. `boitier_int` a été fendu en `boitier_dc` (bas, face est +5 mm) et `boitier_ac` (haut). Encoches d'assemblage plus tard.
 
 La grille d'entretoise 5 mm sous le plateau chauffant et le logement 230 V dans `screen_base` n'ont plus lieu : l'UI n'est plus posée sur la machine, et plus aucun module secteur n'y vit.
 
@@ -61,6 +61,9 @@ Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de 
 | Fichier | Rôle |
 | --- | --- |
 | `parts/canal.py` | Canal de guidage des fils |
+| `parts/boitier_dc.py` | Bac intérieur, partie basse (ex-`boitier_int`) |
+| `parts/boitier_ac.py` | Bac intérieur, partie haute (remplace le bac rectangle) |
+| `parts/ensemble_boitiers.py` | Assemblage DC + AC |
 | `parts/wagox5.py` | Logement deux Wago 221 (semelle, clips au sommet) |
 | `parts/wago_slide.py` | Plaque aimantée, U de glissière en T, serre-câble |
 | `parts/wago_montage.py` | Assemblage logement dans la glissière |

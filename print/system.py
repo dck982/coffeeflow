@@ -1,4 +1,4 @@
-"""Shared geometry: printable thread, magnet wells, outer-corner polish."""
+"""Shared geometry: printable thread, magnet wells, contour offset."""
 
 import math
 
@@ -22,20 +22,40 @@ from nurb import (
 )
 
 
-def outer_corners(body, outer_x, outer_y, bed):
-    """Vertical edges on the four outer corners, above the bed. Inner junctions stay sharp."""
+def _intersect(a1, a2, b1, b2):
+    ax, ay = a1
+    bx, by = a2[0] - a1[0], a2[1] - a1[1]
+    cx, cy = b1
+    dx, dy = b2[0] - b1[0], b2[1] - b1[1]
+    det = bx * dy - by * dx
+    if abs(det) < 1e-12:
+        return a2
+    t = ((cx - ax) * dy - (cy - ay) * dx) / det
+    return (ax + t * bx, ay + t * by)
 
-    def keep(edge):
-        bb = edge.bounding_box()
-        if bb.min.Z < bed - 0.05:
-            return False
-        mx = 0.5 * (bb.min.X + bb.max.X)
-        my = 0.5 * (bb.min.Y + bb.max.Y)
-        on_x = mx < 0.4 or mx > outer_x - 0.4
-        on_y = my < 0.4 or my > outer_y - 0.4
-        return on_x and on_y
 
-    return body.edges().filter_by(Axis.Z).filter_by(keep)
+def _inward(p0, p1):
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    length = (dx * dx + dy * dy) ** 0.5
+    return (-dy / length, dx / length)
+
+
+def offset_in(pts, d):
+    """Inward offset of a CCW polygon: intersect consecutive offset edges."""
+    n = len(pts)
+    shifted = []
+    for i in range(n):
+        p0, p1 = pts[i], pts[(i + 1) % n]
+        nx, ny = _inward(p0, p1)
+        shifted.append(
+            ((p0[0] + nx * d, p0[1] + ny * d), (p1[0] + nx * d, p1[1] + ny * d))
+        )
+    out = []
+    for i in range(n):
+        a1, a2 = shifted[i - 1]
+        b1, b2 = shifted[i]
+        out.append(_intersect(a1, a2, b1, b2))
+    return out
 
 
 def puit_couche_toit(rayon, pont=2.0):
@@ -129,6 +149,15 @@ def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
     pad = Pos(cx, cy, 0) * Cylinder(r + marge, pad_h, align=_CMIN)
     cutter = Pos(cx, cy, fond) * Cylinder(r, aimant_h + 0.1, align=_CMIN)
     return pad, cutter
+
+
+def add_well(body, outer, cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
+    """Fuse a standing magnet pad into `body` and cut the pocket, clipped to `outer`."""
+    pad, cutter = puit_debout(cx, cy, diametre, fond, aimant_h, marge)
+    clipped = pad.intersect(outer)
+    if clipped is not None:
+        body = body + clipped
+    return body - cutter
 
 
 def entretoise_m2(

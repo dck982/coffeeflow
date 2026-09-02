@@ -569,16 +569,12 @@ value = 2.50
 unit = "mm"
 how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_snap replaces it with epaisseur_face 3.6 mm; DIN hooks discarded."
 
-# --- Boîtier intérieur (docs/boitier.pdf) ---
+# --- Boîtier intérieur (docs/boitier.pdf), fendu en boitier_dc + boitier_ac ---
 # Cotes EXTERNES du fond, origine = coin théorique bas-gauche (le chanfrein
-# coupe (0,0)). Les murs poussent vers l'intérieur. Contour CCW, 2026-08-31 :
-# section haute jusqu'à gouttiere_x ; à droite, gouttière 10 mm internes,
-# 10 mm sous y_max (à peu près centrée sur les 35 mm de la section haute).
+# coupe (0,0)). Les murs poussent vers l'intérieur. Contour machine inchangé.
+# DC = partie basse, face est +5 mm, coin nord-est plein.
+# AC = partie haute, face sud jusqu'à x = 120, palier 5 mm à l'est du DC.
 # Encoche du PDF (90/100/85) : plus sur la pièce, cotes conservées en record.
-# (0, chanfrein) → (chanfrein, 0) → (aile_x, 0) → (aile_x, aile_y) →
-# (gouttiere_x, aile_y) → (gouttiere_x, gout_bas) → (x, gout_bas) →
-# (x, gout_haut) → (gouttiere_x, gout_haut) → (gouttiere_x, y) →
-# (marche_x, y) → (marche_x, marche_y) → (0, marche_y).
 
 [boitier_int_x]
 value = 120.0
@@ -643,7 +639,12 @@ how = "user 2026-08-31: tout x > 85 mm est la gouttière. Paroi droite de la sec
 [boitier_int_gouttiere_largeur]
 value = 10.0
 unit = "mm"
-how = "user 2026-08-31: largeur interne de la gouttière en Y, murs non compris. 10 mm sous y_max, plus alignée sur aile_y."
+how = "user 2026-08-31: largeur interne de la gouttière en Y. Record only since 2026-09-02: AC's south face runs at aile_y to x = 120 instead."
+
+[boitier_emboitement]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-02: DC east face +5 mm so the component along that wall clears at the north. AC's 5 mm south step starts east of that face. Not a linking notch."
 
 [boitier_int_puit_bas_x]
 value = 15.0
@@ -655,7 +656,9 @@ value = 25.0
 unit = "mm"
 how = "user 2026-08-31: puits unique en bas à gauche, 25 mm du bord bas (y)."
 
-# --- Boîtier AC ---
+# --- Boîtier AC (bac rectangle, retiré 2026-09-02) ---
+# Record only: the rectangle tray was replaced by the upper half of the
+# interior contour (split of boitier_int). No part reads these.
 
 [boitier_ac_longueur]
 value = 110.0

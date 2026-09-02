@@ -3,42 +3,39 @@ from nurb import *
 from system import MARGE_PUIT, _fuse_one, add_well, offset_in
 
 
-def _contour(vide_haut):
-    x_max = measured("boitier_int_x")
-    y_max = measured("boitier_int_y")
+def _contour(prolongement_est):
+    aile_x = measured("boitier_int_aile_x")
     aile_y = measured("boitier_int_aile_y")
+    chanfrein = measured("boitier_int_chanfrein")
     marche_x = measured("boitier_int_marche_x")
-    gout_x = measured("boitier_int_gouttiere_x")
-    gout_haut = y_max - vide_haut
+    marche_y = measured("boitier_int_marche_y")
+    east = aile_x + prolongement_est
     return [
+        (0.0, chanfrein),
+        (chanfrein, 0.0),
+        (east, 0.0),
+        (east, aile_y),
         (marche_x, aile_y),
-        (x_max, aile_y),
-        (x_max, gout_haut),
-        (gout_x, gout_haut),
-        (gout_x, y_max),
-        (marche_x, y_max),
+        (marche_x, marche_y),
+        (0.0, marche_y),
     ]
 
 
 @part
-def boitier_ac(
+def boitier_dc(
     hauteur=10.0,
     epaisseur_paroi=1.6,
     prolongement_est=5.0,
-    decrochage=5.0,
-    gouttiere_vide_haut=10.0,
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
     draft=False,
 ):
-    """Boîtier AC : partie haute du bac intérieur, face sud jusqu'à l'est.
+    """Boîtier DC : partie basse du bac intérieur, face est +5 mm, coin plein.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
-    prolongement_est: où commence le palier sud, à l'est du DC (même 5 mm)
-    decrochage: palier 5 mm sur la face sud, hors du DC
-    gouttiere_vide_haut: vide sous y max à droite de x = 85 (contrainte machine)
+    prolongement_est: extra sur la face est, pour le composant qui dépasse en +Y
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
@@ -46,11 +43,8 @@ def boitier_ac(
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
     aimant_h = measured("aimant_hauteur")
-    x_max = measured("boitier_int_x")
-    y_max = measured("boitier_int_y")
-    aile_x = measured("boitier_int_aile_x")
-    aile_y = measured("boitier_int_aile_y")
-    gout_x = measured("boitier_int_gouttiere_x")
+    puit_bas_x = measured("boitier_int_puit_bas_x")
+    puit_bas_y = measured("boitier_int_puit_bas_y")
 
     if wall < 1.2:
         reject(
@@ -67,24 +61,6 @@ def boitier_ac(
         reject(
             f"prolongement_est {prolongement_est} is negative: raise it",
             param="prolongement_est",
-        )
-    if decrochage < 0.0:
-        reject(
-            f"decrochage {decrochage} is negative: raise it",
-            param="decrochage",
-        )
-    if gouttiere_vide_haut < 0.5:
-        reject(
-            f"gouttiere_vide_haut {gouttiere_vide_haut} collapses the top "
-            "edge of the east bay into y_max: raise it",
-            param="gouttiere_vide_haut",
-        )
-    gout_haut = y_max - gouttiere_vide_haut
-    if gout_haut <= aile_y + 2.0 * wall:
-        reject(
-            f"gouttiere_vide_haut {gouttiere_vide_haut} leaves no east bay "
-            f"above y={aile_y}: lower it",
-            param="gouttiere_vide_haut",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -109,7 +85,7 @@ def boitier_ac(
             param="hauteur",
         )
 
-    outer_pts = _contour(gouttiere_vide_haut)
+    outer_pts = _contour(prolongement_est)
     inner_pts = offset_in(outer_pts, wall)
     amin = (Align.MIN, Align.MIN, Align.MIN)
 
@@ -119,19 +95,40 @@ def boitier_ac(
     )
     body = outer - cavity
 
-    # 5 mm step on the south face, starting east of DC's east face
-    # (aile_x + 5) so it does not occupy DC's corner. Linking notches later.
-    dc_est = aile_x + prolongement_est
-    palier = Pos(dc_est, aile_y - decrochage, 0) * Box(
-        decrochage, decrochage, hauteur, align=amin
-    )
-    body = body + palier
-    outer = outer + palier
-
-    puit_cx = (gout_x + x_max) / 2.0
-    puit_cy = (aile_y + gout_haut) / 2.0
     body = add_well(
-        body, outer, puit_cx, puit_cy, puit_diametre, puit_peau, aimant_h, marge_puit
+        body,
+        outer,
+        puit_bas_x,
+        puit_bas_y,
+        puit_diametre,
+        puit_peau,
+        aimant_h,
+        marge_puit,
+    )
+
+    # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost
+    # corner to the midpoint. Floor stays.
+    chanfrein = measured("boitier_int_chanfrein")
+    s2 = 2.0 ** 0.5
+    tx, ty = 1.0 / s2, -1.0 / s2
+    nx, ny = 1.0 / s2, 1.0 / s2
+    ax, ay = 0.0, chanfrein
+    mx, my = chanfrein / 2.0, chanfrein / 2.0
+    past = 1.0
+    inn = wall + 2.0
+    margin = 0.5
+    body = body - (
+        Pos(0, 0, wall)
+        * extrude(
+            Polygon(
+                (ax - past * tx - margin * nx, ay - past * ty - margin * ny),
+                (mx + margin * tx - margin * nx, my + margin * ty - margin * ny),
+                (mx + margin * tx + inn * nx, my + margin * ty + inn * ny),
+                (ax - past * tx + inn * nx, ay - past * ty + inn * ny),
+                align=None,
+            ),
+            hauteur + 0.2,
+        )
     )
 
     body = _fuse_one(body)

@@ -3,19 +3,18 @@ from nurb import *
 from system import MARGE_PUIT, _fuse_one, add_well, offset_in
 
 
-def _contour(prolongement_nord):
+def _contour():
     aile_x = measured("boitier_int_aile_x")
-    aile_y = measured("boitier_int_aile_y")
+    y_max = measured("boitier_int_y")
     chanfrein = measured("boitier_int_chanfrein")
     marche_x = measured("boitier_int_marche_x")
     marche_y = measured("boitier_int_marche_y")
-    nord = aile_y + prolongement_nord
     return [
         (0.0, chanfrein),
         (chanfrein, 0.0),
         (aile_x, 0.0),
-        (aile_x, nord),
-        (marche_x, nord),
+        (aile_x, y_max),
+        (marche_x, y_max),
         (marche_x, marche_y),
         (0.0, marche_y),
     ]
@@ -25,17 +24,15 @@ def _contour(prolongement_nord):
 def boitier_dc(
     hauteur=10.0,
     epaisseur_paroi=1.6,
-    prolongement_nord=11.0,
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
     draft=False,
 ):
-    """Boîtier DC : partie basse, face est à x = 50, nord +11 mm.
+    """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
-    prolongement_nord: extra en +Y (11 mm), le module le long de la face est dépasse au nord
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
@@ -56,11 +53,6 @@ def boitier_dc(
             f"hauteur {hauteur} leaves under 2 mm of wall above a {wall} mm floor: "
             f"raise it above {wall + 2.0:.1f}",
             param="hauteur",
-        )
-    if prolongement_nord < 0.0:
-        reject(
-            f"prolongement_nord {prolongement_nord} is negative: raise it",
-            param="prolongement_nord",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -85,7 +77,7 @@ def boitier_dc(
             param="hauteur",
         )
 
-    outer_pts = _contour(prolongement_nord)
+    outer_pts = _contour()
     inner_pts = offset_in(outer_pts, wall)
 
     outer = extrude(Polygon(*outer_pts, align=None), hauteur)

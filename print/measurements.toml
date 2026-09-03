@@ -572,8 +572,8 @@ how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_sna
 # --- Boîtier intérieur (docs/boitier.pdf), fendu en boitier_dc + boitier_ac ---
 # Cotes EXTERNES du fond, origine = coin théorique bas-gauche (le chanfrein
 # coupe (0,0)). Les murs poussent vers l'intérieur. Contour machine inchangé.
-# DC = partie basse, face est à x = 50, nord +11 mm.
-# AC = partie haute, face sud jusqu'à x = 120, sud-ouest +11 mm sur la largeur du DC.
+# DC = partie ouest, face est à x = 50, nord à y = 95.
+# AC = partie est, face ouest à x = 50, sud à y = 60 jusqu'à x = 120.
 # Encoche du PDF (90/100/85) : plus sur la pièce, cotes conservées en record.
 
 [boitier_int_x]
@@ -634,17 +634,52 @@ how = "user 2026-08-31: le puits d'aimant de l'aile droite est à 15 mm du bord 
 [boitier_int_gouttiere_x]
 value = 85.0
 unit = "mm"
-how = "user 2026-08-31: tout x > 85 mm est la gouttière. Paroi droite de la section haute."
+how = "user 2026-08-31: paroi ouest de l'encoche vis sur le bord nord (x = 85). Was the start of the east gutter."
 
 [boitier_int_gouttiere_largeur]
 value = 10.0
 unit = "mm"
 how = "user 2026-08-31: largeur interne de la gouttière en Y. Record only since 2026-09-02: AC's south face runs at aile_y to x = 120 instead."
 
+[boitier_ac_degagement_vis]
+value = 8.0
+unit = "mm"
+how = "user 2026-09-03: gap in X between the east and west screw walls. Was 7 then 10. Visual head is this plus two 1.6 mm walls."
+
+[boitier_ac_vis_x]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-03: screw envelope in X. Notch stays wider (degagement_vis) because it may be 5.1 mm."
+
+[boitier_ac_vis_y]
+value = 8.0
+unit = "mm"
+how = "user 2026-09-03: screw envelope in Y, against the north edge."
+
+[boitier_ac_vis_z]
+value = 15.0
+unit = "mm"
+how = "user 2026-09-03: screw envelope in Z. U walls and platform underside sit at this height."
+
+[boitier_ac_puit_depuis_ouest]
+value = 10.0
+unit = "mm"
+how = "user 2026-09-03: magnet well centre 10 mm from the outer west face of AC (x = 50 + 10)."
+
+[boitier_ac_puit_depuis_nord]
+value = 10.0
+unit = "mm"
+how = "user 2026-09-03: magnet well centre 10 mm from the outer north face of AC (y = 95 − 10)."
+
+[boitier_ac_module_y]
+value = 16.0
+unit = "mm"
+how = "user 2026-09-03: module width in Y, sits on the 18 mm platform (appui_y). Length along X. Record; slider is appui_y."
+
 [boitier_emboitement]
 value = 11.0
 unit = "mm"
-how = "user 2026-09-02: DC north +11 mm (was 5, then +6) so the module along the east wall clears in Y. AC's south-west face is 11 mm further north over DC's width (x = 12–50)."
+how = "Record only since 2026-09-03: was the Y nest (DC north +11 mm, AC south-west raised over x = 12–50). Split is now a straight wall at x = 50; DC runs to y = 95."
 
 [boitier_int_puit_bas_x]
 value = 15.0

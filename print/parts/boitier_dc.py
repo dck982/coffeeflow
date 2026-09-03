@@ -97,10 +97,13 @@ def boitier_dc(
         marge_puit,
     )
 
-    # Second magnet well: 30mm from the north face, along the west wall.
-    # In the NW zone the west face is at x=marche_x (12), not x=0.
+    # Second magnet well: west wall of the marche, fused to the NW Wago
+    # sill. Centre so the well circle meets the sill's south face, then
+    # 0.2 mm into the sill so the pad does not leave a sliver at the west.
     y_n = measured("boitier_int_y")
-    puit2_cy = y_n - 26.5  # pad fused into the NW Wago sill
+    wago_span = 18.6
+    seuil_y_sud = y_n - 2.0 * wall - wago_span
+    puit2_cy = seuil_y_sud - puit_diametre / 2.0 + 0.2
     pad_r = puit_diametre / 2.0 + marge_puit
     marche_x_val = measured("boitier_int_marche_x")
     puit2_cx = marche_x_val + pad_r  # pad fused into the marche west wall
@@ -180,7 +183,6 @@ def boitier_dc(
     # Raised 2mm above the floor on a platform.
     marche_x = measured("boitier_int_marche_x")
     wago_depth = 8.4
-    wago_span = 18.6
     wago_z = 18.8
     wago_raise = 2.0  # platform height above the floor
     overlap = 0.4

@@ -7,11 +7,17 @@ Checks: clean
 
 ## What it is
 
-Partie est de l'ancien `boitier_int`. Murs 30 mm. Face nord continue au-dessus du logement vis (linteau dès z = 16,6). Plateforme vis « bonhomme carré ». Mini-tour 1,6×3 mm au sud de chaque jambe et du muret (X = paroi, Y = 3 mm), du lit jusqu'à 2 mm au-dessus de la plateforme (z = 18,6).Traverse : face nord 8 mm au sud de la face sud des tours, décalée de 3 mm vers l'ouest. Butée-triangle 18×18 à 4 mm de l'ouest (face est à x = 54), 45° sous la face nord, sans crochet. Fentes câbles sur la face est : `fente_nord_est` 15 mm dès z = 20, `fente_sud_est` 10 mm dès z = 5,6 (4 mm au-dessus du fond). Fente ouest de 8 mm en face de l'écart tours–traverse, ouverte du sommet jusqu'à z = 7. Deux puits d'aimant au même Y, 10 mm de chaque côté.
+Bac AC de 73,5 × 39 × 30mm, partie est du boîtier intérieur. Il porte deux modules, un logement de vis isolé, deux puits pour aimants Ø8×3 et quatre ouvertures de câbles alignées avec `boitier_dc`.
 
 ## Design notes
 
-Printed floor on the bed. Walls 30 mm except the screw platform and the west support bar (both 16.6 mm from z = 0). North face is a full-width wall from z = 16.6 to 30; the screw opening is only the housing interior below the slab. Slab 1.6 mm, underside at 15 mm (15 mm effective pocket). Screw gap 10 mm in X (`degagement_vis`; screw is ~5 mm, maybe 5.1). Slab 10 × 10 × 1.6 mm between the E/W walls. Visual head 13.2 × 11.6 mm including the three housing walls; E/W walls continue south to y = 77 (18 mm total, 6.4 mm of legs under the head). Three solid 45° gussets under the slab. No south closer. A 1.6 × 3 mm tower at the south of each rest (two legs and the muret; X stays the wall, Y is `tour_y`), from z = 0 to 2 mm above the wall top (`rebord`, z = 18.6). Traverse between the muret and the east leg: north face 8 mm south of the tower south faces (`traverse_depuis_crochet_sud`), whole bar shifted 3 mm west (`traverse_decalage_x`). Support bar 20 mm from the outer west face (x = 70), same 16.6 × 18 mm recipe. West module stop: east face 4 mm from `aile_x` (`butee_depuis_ouest`, x = 52.4–54), so the dimmer sits closer to the west wall; 18 mm in Y like the muret, top 2 mm above the platform (z = 18.6). Right triangle 18×18 on the north wall, 45° underside from 18 mm below the finished top (z = 0.6 at the north), empty below so the magnet well stays clear. No south hook on this stop. Two magnet wells at the same Y (`puit_depuis_nord` = 10 mm, y = 85): west (60, 85) and east (110, 85), both 10 mm from their outer side face (`puit_depuis_cote`). Two cable slots on the east face: `fente_sud_est` 10 mm against the inner south corner (y = 61.6–71.6), open from the top down to `fente_sud_est_z` = 5.6 (4 mm above the floor); `fente_nord_est` 15 mm against the inner north corner (y = 78.4–93.4), open down to `fente_nord_est_z` = 20. N/S walls still run to the east corner. West cable slot on the 8 mm gap between tower south and traverse north (`trav_y_nord`…`tour_y_sud`, y = 66–74), open from the west-wall top down to `fente_ouest_z` = 7 mm. 0.6 mm chamfer on the vertical jambs (1 mm would collide across the 1.6 mm wall). No cable-tie rings on AC.
+- Fond imprimé sur le lit. Enveloppe actuelle : x=45…118,5, y=56…95, z=0…30. La périphérie ouest est 5mm plus basse que la zone du logement de vis.
+- Logement de vis au nord : passage de 10mm en X, vide utile de 15mm sous une dalle pleine de 1,6mm, trois goussets à 45° et linteau continu jusqu'à z=30.
+- Deux jambes et une barre d'appui à x=70 montent à z=16,6. Leurs tours sud font 1,6 × 3mm et montent à z=18,6.
+- La traverse est séparée des tours par 8mm et décalée de 3mm vers l'ouest. La butée du module ouest est un triangle 18 × 18mm dont la face est est à x=54.
+- Puits d'aimants aux centres (60 ; 85) et (110 ; 85), avec alésage Ø8,2 et peau de 0,6mm.
+- Face ouest : ouverture dimmer y=77…93,4 dès z=18,6 et ouverture SSR y=66…74 dès z=7, partagées avec `boitier_dc` via `system.ouvertures_modules`.
+- Face est : fente sud y=57,6…67,6 dès z=5,6 et fente nord y=78,4…93,4 dès z=20. Les jambages gardent un chanfrein de 0,6mm.
 
 ```toml
 [part]
@@ -20,69 +26,16 @@ min_wall = 0.6
 
 ## Don't
 
-- Do not restore the Y nest / décrochage west of x = 50: AC starts at the DC east face (user 2026-09-03).
-- Do not grow a palier/encoche south of y = 60: that tab was unused (user 2026-09-02).
-- Do not pick the west slot Y by hand: it is `trav_y_nord` to `tour_y_sud` (the 8 mm gap). Do not close it or raise the sill above z = 7 (user 2026-09-03).
-- Do not restore the 10 mm gutter: the east south face runs to x = 120 at `aile_y`.
-- Do not restore the seven M2 spacers or the Wago platform.
-- Do not restore the rectangle AC tray (réglettes, ouverture, triangle).
-- Do not drill the screw slab: it stays solid (electrical isolation, user 2026-09-03). Keep-out under the slab is 5×8 mm, top of the pocket is the gussets / slab underside.
-- Do not shrink `degagement_vis` to 8 mm: too tight for the screw (user 2026-09-03). Do not shrink it to 5 mm either: the screw may be 5.1 mm.
-- Do not invert the 45° under the slab into cuts: they are solid gussets that support the platform (user 2026-09-03).
-- Do not add 1 mm 45° leftover-polish strips on the U: the requested gussets are 1.6 mm, matching the wall.
-- Do not restore the 30 mm south closer of the platform: retention is the three 1.6 mm towers, not a closing wall (user 2026-09-03).
-- Do not restore the 45° south catch / platform on the wall tops: replaced by towers from z = 0 to 2 mm above the wall, 1.6 mm in X and 3 mm in Y (user 2026-09-03).
-- Do not grow the towers in X: they stay wall-thick; only Y is 3 mm (user 2026-09-03).
-- Do not raise the east/west legs or the muret to 30 mm: they would block the module's span (user 2026-09-03).
-- Do not drop `hauteur_vis` back to 15 mm: the slab would eat the pocket (13.4 mm). 16.6 mm gives 15 mm effective (user 2026-09-03).
-- Do not leave the north face open above the screw housing: from the slab top (z = 16.6) it is full width in X (user 2026-09-03).
-- Do not chamfer the Z edges of the north opening (user 2026-09-03).
-- Do not drop the east well, nor split `puit_depuis_cote` into two sliders: both centres sit 10 mm from their outer side face, same Y as each other (user 2026-09-03).
-- Do not flush the east cable slots with Y min/max: 1.6 mm of north and south wall stays so those faces run to the east corner (user 2026-09-03).
-- Do not merge `fente_nord_est` and `fente_sud_est` back into one slider: north-east is 15 mm, south-east is 10 mm (user 2026-09-03).
-- Do not restore a shared `fente_z`: each east slot has its own bottom (`fente_nord_est_z` = 20, `fente_sud_est_z` = 5.6). Do not raise the south sill: 4 mm above the floor (user 2026-09-03).
-- Do not shrink `fente_nord_est` back to 5 mm, nor `fente_sud_est` back to 5 mm (user 2026-09-03).
-- Do not skip the 0.6 mm chamfer on the slot jambs: 1 mm collides across the 1.6 mm wall, and sharp lips cut sheaths.
-- Do not restore anti-tirage rings on AC, nor `anneau_z` / `anneau_depuis_est`: both rings were removed (user 2026-09-03).
-- Do not put a south hook on the west module stop: no PCB to catch there (user 2026-09-03).
-- Do not make that stop a floor-to-top wall: it would hit the magnet well; it is an 18×18 45° triangle on the north face (user 2026-09-03).
-- Do not measure `butee_depuis_ouest` to the west face of the stop: the slider is the east face, 4 mm from `aile_x` so the wall occupies x = 52.4–54. Do not restore 7 mm: the dimmer must sit closer to the west wall (user 2026-09-03).
-- Do not measure `traverse_depuis_crochet_sud` from the muret south (`plat_y0`): it is the gap from the south face of the towers to the north face of the traverse, 8 mm (user 2026-09-03).
-- Do not restore that gap to 14 mm: 14 mm was from the muret, not from the towers (user 2026-09-03).
-- Do not keep the traverse flush with the muret and east-leg outer faces in X: it is shifted 3 mm west as a whole (`traverse_decalage_x`, user 2026-09-03).
+- Garder la dalle du logement de vis pleine, le passage à 10mm et les goussets solides. Ne pas chanfreiner les arêtes Z de son ouverture nord.
+- Garder le linteau nord continu au-dessus de z=16,6 et les jambes/barres à cette hauteur ; les monter à 30mm bloquerait les modules.
+- Garder les trois tours sud à 1,6 × 3mm, sans mur de fermeture ni crochet sud.
+- Mesurer l'écart de traverse depuis les tours : 8mm. Conserver son décalage de 3mm vers l'ouest.
+- Garder la butée ouest triangulaire, sans crochet, avec sa face est à x=54 afin de libérer le puits d'aimant.
+- Garder les deux puits au même Y et à 10mm de leur face latérale respective.
+- Conserver les dimensions et hauteurs indépendantes des fentes est, la fente ouest issue de `ouvertures_modules` et les chanfreins de jambage à 0,6mm.
+- Ne pas réintroduire d'anneaux anti-tirage dans ce boîtier.
 
 ## Changelog
 
-- 2026-09-03 — `butee_depuis_ouest` 7 → 4 mm so the dimmer sits closer to the west wall.
-- 2026-09-03 — East slot Z split: `fente_nord_est_z` = 20, `fente_sud_est_z` = 5.6 (4 mm above the floor).
-- 2026-09-03 — Housekeeping: `fente_nord_est` / `fente_sud_est` (south 10 mm); dropped unused `anneau_z` and `anneau_depuis_est`.
-- 2026-09-03 — West slot facing the tower–traverse 8 mm gap, open down to z = 7 (`fente_ouest_z`).
-- 2026-09-03 — East cable slots split: `nord_est` 15 mm, `sud_est` 5 mm (was a shared 5 mm).
-- 2026-09-03 — Traverse shifted 3 mm west (`traverse_decalage_x`).
-- 2026-09-03 — Traverse north face 8 mm south of the tower south faces (`traverse_depuis_crochet_sud` measured from the towers, not the muret).
-- 2026-09-03 — South towers extended to 3 mm in Y; X stays 1.6 mm.
-- 2026-09-03 — South 45° catches replaced by 1.6 × 1.6 mm towers from z = 0 to 2 mm above the wall.
-- 2026-09-03 — North anti-tirage ring removed (conflicts with the module). South ring stays.
-- 2026-09-03 — Second magnet well at the same Y, 10 mm from the east face. Shared slider `puit_depuis_cote`.
-- 2026-09-03 — Anti-tirage rings raised to z = 18 (cable slope down to the platform).
-- 2026-09-03 — West module stop: 18×18 45° triangle on the north wall, east face 7 mm from west, top 2 mm above the platform, no south hook (magnet well stays clear underneath).
-
-- 2026-09-03 — 2 mm south catch on both legs and the muret: 45° extension then 2 mm vertical lip.
-- 2026-09-03 — Screw housing, legs and muret raised 1.6 mm (`hauteur_vis` 16.6). Pocket under the slab is 15 mm effective; lintel follows the slab top.
-- 2026-09-03 — Anti-tirage rings dropped to z = 15 (below the east slots).
-- 2026-09-03 — Two 5 mm cable slots on the east face (inner N/S corners, z = 20–30), 0.6 mm jamb chamfers. Anti-tirage rings on inner north and south at z = 20, 10 mm west of the east, shared `anti_tirage_ns`.
-- 2026-09-03 — Screw gap back to 10 mm (8 mm was too tight). 45° gussets unchanged, remaining underside is a short bridge.
-- 2026-09-03 — North lintel dropped to z = 15 (flush with the slab). Platform top stays at 15 mm; pocket under the slab is 13.4 mm.
-- 2026-09-03 — North face continuous from z = 16.6 (lintel over the screw housing); opening only at the housing interior.
-- 2026-09-03 — Screw platform rebuilt: 8 mm gap, 15 mm tall, slab 8×10 mm, visual head 11.2×11.6 mm, E/W legs to 18 mm Y, no south closer. Solid 45° gussets under the slab (not cuts). Muret same 15×18 mm.
-- 2026-09-03 — Magnet well moved to NW, centre 10 mm from north and west faces (60, 85).
-- 2026-09-03 — South frame rail to 30 mm (backstop). East/west rails stay at 16.6 so the module can reach the muret.
-- 2026-09-03 — South extension is a hollow frame; muret 20 mm from the outer west face (x = 70).
-- 2026-09-03 — Platform widened wall-to-wall in the north opening; no polish on those Z edges.
-- 2026-09-03 — Walls 30 mm. Screw U at 15 mm, solid 7×18 mm platform at z = 16.6, hollow south U, support bar 20 mm from west. Notch X 10 → 7 mm.
-- 2026-09-03 — North-east filled to y = 95. Screw notch 10×10 at x = 85–95 (`degagement_vis`).
-- 2026-09-03 — West face at x = 50. Dropped the south-west L and `decrochage`.
-- 2026-09-02 — South-west face raised another 6 mm (11 mm total, y = 71).
-- 2026-09-02 — South-west face raised 5 mm over DC's width (x = 12–50). Palier on the south wall removed.
-- 2026-09-02 — South step moved east of DC (x = 55). No tenon into DC.
-- 2026-09-02 — Replaced the rectangle tray with the upper half of `boitier_int`.
+- 2026-09-03 — Design actuel : enveloppe décalée 73,5×39×30, logement de vis isolé et support des deux modules finalisés.
+- 2026-09-03 — Deux puits d'aimant et quatre ouvertures de câbles finalisés ; anneaux anti-tirage supprimés.

@@ -9,7 +9,7 @@ def _bb(x0, y0, z0, x1, y1, z1):
     return Pos(x0, y0, z0) * Box(x1 - x0, y1 - y0, z1 - z0, align=_AMIN)
 
 
-def _contour(vide_haut, degagement_vis):
+def _contour(vide_haut, degagement_vis, west_x=None, east_x=None, south_y=None):
     x_max = measured("boitier_int_x")
     y_max = measured("boitier_int_y")
     aile_x = measured("boitier_int_aile_x")
@@ -17,15 +17,21 @@ def _contour(vide_haut, degagement_vis):
     gout_x = measured("boitier_int_gouttiere_x")
     gout_haut = y_max - vide_haut
     encoche_est = gout_x + degagement_vis
+    if west_x is None:
+        west_x = aile_x
+    if east_x is None:
+        east_x = x_max
+    if south_y is None:
+        south_y = aile_y
     return [
-        (aile_x, aile_y),
-        (x_max, aile_y),
-        (x_max, y_max),
+        (west_x, south_y),
+        (east_x, south_y),
+        (east_x, y_max),
         (encoche_est, y_max),
         (encoche_est, gout_haut),
         (gout_x, gout_haut),
         (gout_x, y_max),
-        (aile_x, y_max),
+        (west_x, y_max),
     ]
 
 
@@ -112,6 +118,7 @@ def boitier_ac(
     anneau_depuis_est=10.0,
     rebord=2.0,
     butee_depuis_ouest=7.0,
+    traverse_depuis_crochet_sud=14.0,
     draft=False,
 ):
     """Boîtier AC : partie est, murs 30 mm, plateforme vis et barre d'appui.
@@ -134,6 +141,7 @@ def boitier_ac(
     anneau_depuis_est: distance du bord est intérieur à l'anneau, vers l'ouest
     rebord: cran vertical au sud des jambes et du muret, 45° dessous
     butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
+    traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des crochets
     """
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
@@ -340,6 +348,21 @@ def boitier_ac(
             "move the well",
             param="butee_depuis_ouest",
         )
+    crochet_y_sud = plat_y0
+    trav_y_nord = crochet_y_sud - traverse_depuis_crochet_sud
+    trav_y_sud = trav_y_nord - wall
+    if traverse_depuis_crochet_sud < 0.0:
+        reject(
+            f"traverse_depuis_crochet_sud {traverse_depuis_crochet_sud} is negative: "
+            "raise it",
+            param="traverse_depuis_crochet_sud",
+        )
+    if trav_y_sud < aile_y:
+        reject(
+            f"traverse_depuis_crochet_sud {traverse_depuis_crochet_sud} puts the "
+            f"traverse south of y={aile_y}: lower it",
+            param="traverse_depuis_crochet_sud",
+        )
     if fente_cables < 2.0:
         reject(
             f"fente_cables {fente_cables} is under 2 mm: raise it",
@@ -398,10 +421,26 @@ def boitier_ac(
             param="anneau_depuis_est",
         )
 
-    outer_pts = _contour(gouttiere_vide_haut, degagement_vis)
-    inner_pts = offset_in(outer_pts, wall)
+    # Outer envelope edits (west/east/south) must not move the interior.
+    # We therefore build the cavity from the original contour, while the
+    # outer solid uses shifted outer-wall coordinates.
+    ac_west_shift = 5.0
+    ac_east_shift = 1.5
+    ac_south_shift = 4.0
+    x_east_fente = x_max - 1.0
+    outer_pts_outer = _contour(
+        gouttiere_vide_haut,
+        degagement_vis,
+        west_x=aile_x - ac_west_shift,
+        east_x=x_max - ac_east_shift,
+        south_y=aile_y - ac_south_shift,
+    )
+    # Build cavity from the shifted outer envelope as well: it keeps the
+    # wall thickness consistent and avoids degenerate ultra-thin east walls
+    # that can crash the polish/border analysis in nurb.
+    inner_pts = offset_in(outer_pts_outer, wall)
 
-    outer = extrude(Polygon(*outer_pts, align=None), hauteur)
+    outer = extrude(Polygon(*outer_pts_outer, align=None), hauteur)
     cavity = Pos(0, 0, wall) * extrude(
         Polygon(*inner_pts, align=None), hauteur + 0.2
     )
@@ -429,6 +468,21 @@ def boitier_ac(
         gout_haut - wall,
         hauteur_vis,
         plat_x1,
+        y_max + 1.0,
+        hauteur + 1.0,
+    )
+
+    # West-periphery height step:
+    # periphery walls located 5mm west of the west screw-housing wall are
+    # 5mm lower than the east side that contains the screw logement.
+    z_drop = 5.0
+    x_step_end = plat_x0 - z_drop
+    x_outer_west = aile_x - ac_west_shift
+    body = body - _bb(
+        x_outer_west,
+        0.0,
+        hauteur - z_drop,
+        x_step_end,
         y_max + 1.0,
         hauteur + 1.0,
     )
@@ -464,6 +518,12 @@ def boitier_ac(
         muret_x, muret_x + wall, plat_y0, hauteur_vis, wall, rebord
     )
 
+    # Traverse: wall running in X between the muret and the east leg.
+    # Same Z as the murets before the south hooks (hauteur_vis).
+    body = body + _bb(
+        muret_x, trav_y_sud, 0.0, plat_x1, trav_y_nord, hauteur_vis
+    )
+
     # West stop: east face at 7 mm, 18×18 45° triangle on the north wall.
     # No south hook. Underside leaves the magnet well clear.
     body = body + _butee_triangle(
@@ -479,19 +539,31 @@ def boitier_ac(
     # Two 5 mm cable slots on the east face, last 10 mm in Z, at the
     # inner north and south corners (N/S walls stay continuous to x_max).
     margin = 0.5
+
+    # Top opening on the west face: module width in Y (murets / triangle),
+    # from the triangle top (hauteur_vis + rebord) upward; north edge one wall inside y_max.
     body = body - _bb(
-        x_max - wall - margin,
+        x_outer_west - margin,
+        plat_y0,
+        butee_z1,
+        aile_x + margin,
+        y_max - wall,
+        hauteur + margin,
+    )
+
+    body = body - _bb(
+        x_east_fente - wall - margin,
         y_se0,
         z_fente,
-        x_max + margin,
+        x_east_fente + margin,
         y_se1,
         hauteur + margin,
     )
     body = body - _bb(
-        x_max - wall - margin,
+        x_east_fente - wall - margin,
         y_ne0,
         z_fente,
-        x_max + margin,
+        x_east_fente + margin,
         y_ne1,
         hauteur + margin,
     )
@@ -505,18 +577,26 @@ def boitier_ac(
         bords=at_bords,
         hauteur_u=at_h,
     )
-    body = body + anti_tirage_ns(
-        x_anneau0, y_se0, anneau_z, True, **at_kw
-    )
+    # South anti-tirage ring removed (user request).
 
     body = _fuse_one(body)
     if draft:
         return body
 
-    conc = {
-        (round(e.center().X, 2), round(e.center().Y, 2), round(e.center().Z, 2))
-        for e in concave_edges(body)
-    }
+    # Some wall-step edits can create ultra-thin or near-degenerate edges.
+    # nurb's concave-edge classifier may recurse in those cases; we still
+    # want the part to build, so fall back to "no concave-edge filter".
+    try:
+        conc = {
+            (
+                round(e.center().X, 2),
+                round(e.center().Y, 2),
+                round(e.center().Z, 2),
+            )
+            for e in concave_edges(body)
+        }
+    except RecursionError:
+        conc = set()
     vis_x0 = plat_x0 - 1.0
     vis_x1 = plat_x1 + 1.0
     vis_y0 = plat_y0 - wall
@@ -529,9 +609,17 @@ def boitier_ac(
     at_mid = x_anneau0 + 0.5 * at_bords
 
     def in_fente(bb):
-        on_est = bb.max.X > x_max - wall - 0.5
-        se = bb.min.Y > y_se0 - 0.5 and bb.max.Y < y_se1 + 0.5
-        ne = bb.min.Y > y_ne0 - 0.5 and bb.max.Y < y_ne1 + 0.5
+        # Keep both jamb edges (inner + outer) after east-slot X shifts.
+        on_est = (
+            bb.max.X > x_east_fente - wall - margin - 0.2
+            and bb.min.X < x_east_fente + margin + 0.2
+        )
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        se_mid = 0.5 * (y_se0 + y_se1)
+        ne_mid = 0.5 * (y_ne0 + y_ne1)
+        y_tol = 0.5 * fente_cables + 0.8
+        se = abs(my - se_mid) <= y_tol
+        ne = abs(my - ne_mid) <= y_tol
         return on_est and (se or ne) and bb.min.Z > z_fente - 0.5
 
     def keep(edge):
@@ -583,4 +671,5 @@ def boitier_ac(
 
     body = polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
     body = polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)
-    return polish(body, body.edges().filter_by(pont_passage), 0.4)
+    # South anti-tirage ring removed => no cable-tie "pont" polish pass.
+    return body

@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import MARGE_PUIT, _fuse_one, add_well, offset_in
+from system import MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
 
 
 def _contour():
@@ -331,6 +331,24 @@ def boitier_dc(
         )
     )
 
+    # East-face slots matching AC west: dimmer (north module) and SSR (south).
+    # Y from y_max so the north faces stay aligned; Z from AC (open to the top).
+    dimmer, ssr = ouvertures_modules(y_n, wall)
+    dimmer_y0, dimmer_y1, dimmer_z = dimmer
+    ssr_y0, ssr_y1, ssr_z = ssr
+    body = body - Pos(x_e - wall - margin, dimmer_y0, dimmer_z) * Box(
+        wall + 2 * margin,
+        dimmer_y1 - dimmer_y0,
+        hauteur + margin - dimmer_z,
+        align=_amin,
+    )
+    body = body - Pos(x_e - wall - margin, ssr_y0, ssr_z) * Box(
+        wall + 2 * margin,
+        ssr_y1 - ssr_y0,
+        hauteur + margin - ssr_z,
+        align=_amin,
+    )
+
     body = _fuse_one(body)
     if draft:
         return body
@@ -339,9 +357,57 @@ def boitier_dc(
         (round(e.center().X, 2), round(e.center().Y, 2), round(e.center().Z, 2))
         for e in concave_edges(body)
     }
+    chanfrein_fente = 0.6
+
+    def in_angle_ne(bb):
+        """Inner NE corner only (x ≈ 48.4, y ≈ 93.4), not the outer (50, 95)."""
+        mx = 0.5 * (bb.min.X + bb.max.X)
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        return abs(mx - x_inner_e) < 1.2 and abs(my - y_inner_n) < 1.2
+
+    def in_fente_est(bb):
+        on_est = (
+            bb.max.X > x_e - wall - margin - 0.2
+            and bb.min.X < x_e + margin + 0.2
+        )
+        if not on_est:
+            return False
+        if in_angle_ne(bb):
+            return False
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        dimmer_mid = 0.5 * (dimmer_y0 + dimmer_y1)
+        ssr_mid = 0.5 * (ssr_y0 + ssr_y1)
+        dimmer_hit = (
+            abs(my - dimmer_mid) <= 0.5 * (dimmer_y1 - dimmer_y0) + 0.8
+            and bb.min.Z > dimmer_z - 0.5
+        )
+        ssr_hit = (
+            abs(my - ssr_mid) <= 0.5 * (ssr_y1 - ssr_y0) + 0.8
+            and bb.min.Z > ssr_z - 0.5
+        )
+        return dimmer_hit or ssr_hit
 
     def keep(edge):
         c = edge.center()
-        return (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) not in conc
+        if (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) in conc:
+            return False
+        bb = edge.bounding_box()
+        if in_angle_ne(bb):
+            return False
+        if in_fente_est(bb):
+            return False
+        return True
 
-    return polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
+    def fente_keep(edge):
+        bb = edge.bounding_box()
+        dx = bb.max.X - bb.min.X
+        dy = bb.max.Y - bb.min.Y
+        dz = bb.max.Z - bb.min.Z
+        if (dx * dx + dy * dy + dz * dz) ** 0.5 < 2.0:
+            return False
+        if dz < 4.0:
+            return False
+        return in_fente_est(bb)
+
+    body = polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
+    return polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)

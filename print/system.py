@@ -161,6 +161,32 @@ def add_well(body, outer, cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
     return body - cutter
 
 
+def ouvertures_modules(
+    y_max,
+    wall,
+    appui_y=18.0,
+    tour_y=3.0,
+    traverse_depuis_crochet_sud=8.0,
+    hauteur_vis=16.6,
+    rebord=2.0,
+    fente_ouest_z=7.0,
+):
+    """Dimmer (north) and SSR (south) slots shared by AC west / DC east.
+
+    North faces aligned. Each tuple is (y_sud, y_nord, z_bas), open to the
+    wall top. Defaults match boitier_ac. Distances from y_max: dimmer
+    18 mm / 1.6 mm, SSR 29 mm / 21 mm.
+    """
+    dimmer_sud = y_max - appui_y
+    dimmer_nord = y_max - wall
+    ssr_nord = dimmer_sud - tour_y
+    ssr_sud = ssr_nord - traverse_depuis_crochet_sud
+    return (
+        (dimmer_sud, dimmer_nord, hauteur_vis + rebord),
+        (ssr_sud, ssr_nord, fente_ouest_z),
+    )
+
+
 def entretoise_m2(
     hauteur=3.0,
     diametre_base=4.0,

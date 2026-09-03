@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import MARGE_PUIT, _fuse_one, add_well, anti_tirage_ns, offset_in
+from system import MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
 
 _AMIN = (Align.MIN, Align.MIN, Align.MIN)
 
@@ -67,21 +67,9 @@ def _gousset_y(y_wall, x0, x1, z_slab_bot, run, toward_plus_y):
     return extrude(plane * _gousset_section(run), span)
 
 
-def _rebord_sud(x0, x1, y_sud, z_top, run, rebord):
-    """45° south extension then a vertical catch. y_sud is the wall's south face."""
-    z0 = z_top - run
-    z1 = z_top + rebord
-    return Pos(x0, 0, 0) * extrude(
-        Plane.YZ
-        * Polygon(
-            (y_sud, z0),
-            (y_sud, z1),
-            (y_sud - run, z1),
-            (y_sud - run, z_top),
-            align=None,
-        ),
-        x1 - x0,
-    )
+def _tour_sud(x0, y_sud, wall, tour_y, z_top):
+    """Tower at the south end of a wall: wall in X, tour_y in Y, bed to z_top."""
+    return _bb(x0, y_sud - tour_y, 0.0, x0 + wall, y_sud, z_top)
 
 
 def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
@@ -112,13 +100,16 @@ def boitier_ac(
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
-    fente_cables=5.0,
-    fente_z=10.0,
-    anneau_z=18.0,
-    anneau_depuis_est=10.0,
+    fente_nord_est=15.0,
+    fente_nord_est_z=20.0,
+    fente_sud_est=10.0,
+    fente_sud_est_z=5.6,
+    fente_ouest_z=7.0,
     rebord=2.0,
-    butee_depuis_ouest=7.0,
-    traverse_depuis_crochet_sud=14.0,
+    tour_y=3.0,
+    butee_depuis_ouest=4.0,
+    traverse_depuis_crochet_sud=8.0,
+    traverse_decalage_x=3.0,
     draft=False,
 ):
     """Boîtier AC : partie est, murs 30 mm, plateforme vis et barre d'appui.
@@ -135,13 +126,16 @@ def boitier_ac(
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
-    fente_cables: largeur en Y des deux fentes sur la face est
-    fente_z: hauteur des fentes, les derniers millimètres sous le sommet
-    anneau_z: bas de l'anneau anti-tirage sud (z = 18, dans la pente vers la plateforme)
-    anneau_depuis_est: distance du bord est intérieur à l'anneau, vers l'ouest
-    rebord: cran vertical au sud des jambes et du muret, 45° dessous
+    fente_nord_est: largeur en Y de la fente nord sur la face est
+    fente_nord_est_z: bas de la fente nord-est, ouverte du sommet jusqu'à ce Z
+    fente_sud_est: largeur en Y de la fente sud sur la face est
+    fente_sud_est_z: bas de la fente sud-est (4 mm au-dessus du fond)
+    fente_ouest_z: bas de la fente ouest (écart tours–traverse), ouverte du sommet jusqu'à ce Z
+    rebord: dépassement des tours sud au-dessus du muret / plateforme
+    tour_y: longueur des tours en Y, collées au sud des murets (X reste l'épaisseur de paroi)
     butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
-    traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des crochets
+    traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des tours
+    traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue)
     """
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
@@ -233,11 +227,15 @@ def boitier_ac(
             f"hauteur {hauteur}: lower it",
             param="rebord",
         )
-    if plat_y0 - wall < aile_y:
+    if tour_y < 0.8:
         reject(
-            f"rebord would hit the south wall: raise appui_y or lower "
-            "epaisseur_paroi",
-            param="appui_y",
+            f"tour_y {tour_y} is under 0.8 mm: raise it",
+            param="tour_y",
+        )
+    if plat_y0 - tour_y < aile_y:
+        reject(
+            f"tour_y {tour_y} hits the south wall: lower it or raise appui_y",
+            param="tour_y",
         )
     if muret_depuis_ouest < wall:
         reject(
@@ -348,9 +346,11 @@ def boitier_ac(
             "move the well",
             param="butee_depuis_ouest",
         )
-    crochet_y_sud = plat_y0
-    trav_y_nord = crochet_y_sud - traverse_depuis_crochet_sud
+    tour_y_sud = plat_y0 - tour_y
+    trav_y_nord = tour_y_sud - traverse_depuis_crochet_sud
     trav_y_sud = trav_y_nord - wall
+    trav_x0 = muret_x - traverse_decalage_x
+    trav_x1 = plat_x1 - traverse_decalage_x
     if traverse_depuis_crochet_sud < 0.0:
         reject(
             f"traverse_depuis_crochet_sud {traverse_depuis_crochet_sud} is negative: "
@@ -363,62 +363,72 @@ def boitier_ac(
             f"traverse south of y={aile_y}: lower it",
             param="traverse_depuis_crochet_sud",
         )
-    if fente_cables < 2.0:
+    if traverse_decalage_x < 0.0:
         reject(
-            f"fente_cables {fente_cables} is under 2 mm: raise it",
-            param="fente_cables",
+            f"traverse_decalage_x {traverse_decalage_x} is negative: raise it",
+            param="traverse_decalage_x",
         )
-    if fente_z < 2.0:
+    if trav_x0 < aile_x + wall:
         reject(
-            f"fente_z {fente_z} is under 2 mm: raise it",
-            param="fente_z",
+            f"traverse_decalage_x {traverse_decalage_x} runs the traverse into "
+            f"the west wall: lower it",
+            param="traverse_decalage_x",
         )
-    z_fente = hauteur - fente_z
-    if z_fente < wall + 2.0:
+    if fente_nord_est < 2.0:
         reject(
-            f"fente_z {fente_z} leaves the slots too close to the floor: "
+            f"fente_nord_est {fente_nord_est} is under 2 mm: raise it",
+            param="fente_nord_est",
+        )
+    if fente_sud_est < 2.0:
+        reject(
+            f"fente_sud_est {fente_sud_est} is under 2 mm: raise it",
+            param="fente_sud_est",
+        )
+    if fente_nord_est_z < wall:
+        reject(
+            f"fente_nord_est_z {fente_nord_est_z} cuts the floor: raise it "
+            f"above {wall:.1f}",
+            param="fente_nord_est_z",
+        )
+    if fente_nord_est_z >= hauteur:
+        reject(
+            f"fente_nord_est_z {fente_nord_est_z} is not below hauteur "
+            f"{hauteur}: lower it",
+            param="fente_nord_est_z",
+        )
+    if fente_sud_est_z < wall:
+        reject(
+            f"fente_sud_est_z {fente_sud_est_z} cuts the floor: raise it "
+            f"above {wall:.1f}",
+            param="fente_sud_est_z",
+        )
+    if fente_sud_est_z >= hauteur:
+        reject(
+            f"fente_sud_est_z {fente_sud_est_z} is not below hauteur "
+            f"{hauteur}: lower it",
+            param="fente_sud_est_z",
+        )
+    if fente_ouest_z < wall:
+        reject(
+            f"fente_ouest_z {fente_ouest_z} cuts the floor: raise it above "
+            f"{wall:.1f}",
+            param="fente_ouest_z",
+        )
+    if fente_ouest_z >= hauteur:
+        reject(
+            f"fente_ouest_z {fente_ouest_z} is not below hauteur {hauteur}: "
             "lower it",
-            param="fente_z",
+            param="fente_ouest_z",
         )
     y_se0 = aile_y + wall
-    y_se1 = y_se0 + fente_cables
+    y_se1 = y_se0 + fente_sud_est
     y_ne1 = y_max - wall
-    y_ne0 = y_ne1 - fente_cables
+    y_ne0 = y_ne1 - fente_nord_est
     if y_se1 + 2.0 > y_ne0:
         reject(
-            f"fente_cables {fente_cables} makes the two east slots overlap: "
-            "lower it",
-            param="fente_cables",
-        )
-    at_jeu = 1.2
-    at_largeur = 3.0
-    at_bords = 5.6
-    at_h = 5.0
-    at_out = at_jeu + wall
-    if anneau_z - at_out < wall + 0.4:
-        reject(
-            f"anneau_z {anneau_z} plus the 45° ramps hit the floor: raise it",
-            param="anneau_z",
-        )
-    if anneau_z + at_h + at_out > hauteur:
-        reject(
-            f"anneau_z {anneau_z} plus the 45° ramps stick out above "
-            f"hauteur {hauteur}: lower it",
-            param="anneau_z",
-        )
-    if anneau_depuis_est < 0.0:
-        reject(
-            f"anneau_depuis_est {anneau_depuis_est} is negative: raise it",
-            param="anneau_depuis_est",
-        )
-    x_inner = x_max - wall
-    x_anneau1 = x_inner - anneau_depuis_est
-    x_anneau0 = x_anneau1 - at_bords
-    if x_anneau0 < encoche_est + wall + 2.0:
-        reject(
-            f"anneau_depuis_est {anneau_depuis_est} runs the ring into the "
-            "screw platform: raise it",
-            param="anneau_depuis_est",
+            f"fente_nord_est {fente_nord_est} and fente_sud_est {fente_sud_est} "
+            "make the two east slots overlap: lower one",
+            param="fente_nord_est",
         )
 
     # Outer envelope edits (west/east/south) must not move the interior.
@@ -507,21 +517,16 @@ def boitier_ac(
         muret_x, plat_y0, 0.0, muret_x + wall, y_max, hauteur_vis
     )
 
-    # 2 mm catch at the south of each rest: 45° out, then vertical.
-    body = body + _rebord_sud(
-        plat_x0, plat_x0 + wall, plat_y0, hauteur_vis, wall, rebord
-    )
-    body = body + _rebord_sud(
-        plat_x1 - wall, plat_x1, plat_y0, hauteur_vis, wall, rebord
-    )
-    body = body + _rebord_sud(
-        muret_x, muret_x + wall, plat_y0, hauteur_vis, wall, rebord
-    )
+    # Mini-tower at the south of each rest: wall in X, tour_y in Y, bed to 2 mm above.
+    tour_z = hauteur_vis + rebord
+    body = body + _tour_sud(plat_x0, plat_y0, wall, tour_y, tour_z)
+    body = body + _tour_sud(plat_x1 - wall, plat_y0, wall, tour_y, tour_z)
+    body = body + _tour_sud(muret_x, plat_y0, wall, tour_y, tour_z)
 
-    # Traverse: wall running in X between the muret and the east leg.
-    # Same Z as the murets before the south hooks (hauteur_vis).
+    # Traverse: same length, shifted west by traverse_decalage_x.
+    # Same Z as the murets (hauteur_vis), not the south towers.
     body = body + _bb(
-        muret_x, trav_y_sud, 0.0, plat_x1, trav_y_nord, hauteur_vis
+        trav_x0, trav_y_sud, 0.0, trav_x1, trav_y_nord, hauteur_vis
     )
 
     # West stop: east face at 7 mm, 18×18 45° triangle on the north wall.
@@ -536,25 +541,47 @@ def boitier_ac(
         plat_x0, y_max - wall, lintel_z, plat_x1, y_max, hauteur
     )
 
-    # Two 5 mm cable slots on the east face, last 10 mm in Z, at the
-    # inner north and south corners (N/S walls stay continuous to x_max).
+    # Cable slots on the east face: north last 10 mm in Z, south down to
+    # 4 mm above the floor. N/S walls stay so those faces run to the corner.
     margin = 0.5
 
-    # Top opening on the west face: module width in Y (murets / triangle),
-    # from the triangle top (hauteur_vis + rebord) upward; north edge one wall inside y_max.
+    # Top opening on the west face: dimmer (north module), same recipe as DC east.
+    # From the triangle top upward; north edge one wall inside y_max.
+    dimmer, ssr = ouvertures_modules(
+        y_max,
+        wall,
+        appui_y,
+        tour_y,
+        traverse_depuis_crochet_sud,
+        hauteur_vis,
+        rebord,
+        fente_ouest_z,
+    )
+    dimmer_y0, dimmer_y1, dimmer_z = dimmer
+    ssr_y0, ssr_y1, ssr_z = ssr
     body = body - _bb(
         x_outer_west - margin,
-        plat_y0,
-        butee_z1,
+        dimmer_y0,
+        dimmer_z,
         aile_x + margin,
-        y_max - wall,
+        dimmer_y1,
+        hauteur + margin,
+    )
+
+    # West slot facing the SSR gap (tower south … traverse north).
+    body = body - _bb(
+        x_outer_west - margin,
+        ssr_y0,
+        ssr_z,
+        aile_x + margin,
+        ssr_y1,
         hauteur + margin,
     )
 
     body = body - _bb(
         x_east_fente - wall - margin,
         y_se0,
-        z_fente,
+        fente_sud_est_z,
         x_east_fente + margin,
         y_se1,
         hauteur + margin,
@@ -562,22 +589,11 @@ def boitier_ac(
     body = body - _bb(
         x_east_fente - wall - margin,
         y_ne0,
-        z_fente,
+        fente_nord_est_z,
         x_east_fente + margin,
         y_ne1,
         hauteur + margin,
     )
-
-    # Cable-tie U on the inner south only, 10 mm west of the east inner
-    # face, at z = 18. North ring conflicts with the module.
-    at_kw = dict(
-        wall=wall,
-        jeu=at_jeu,
-        largeur=at_largeur,
-        bords=at_bords,
-        hauteur_u=at_h,
-    )
-    # South anti-tirage ring removed (user request).
 
     body = _fuse_one(body)
     if draft:
@@ -599,14 +615,12 @@ def boitier_ac(
         conc = set()
     vis_x0 = plat_x0 - 1.0
     vis_x1 = plat_x1 + 1.0
-    vis_y0 = plat_y0 - wall
+    vis_y0 = plat_y0 - tour_y
     muret_x0 = muret_x - 0.5
     muret_x1 = muret_x + wall + 0.5
     butee_skip_x0 = butee_x0 - 0.5
     butee_skip_x1 = butee_x1 + 0.5
     chanfrein_fente = 0.6
-    at_u1 = anneau_z + at_h
-    at_mid = x_anneau0 + 0.5 * at_bords
 
     def in_fente(bb):
         # Keep both jamb edges (inner + outer) after east-slot X shifts.
@@ -617,10 +631,29 @@ def boitier_ac(
         my = 0.5 * (bb.min.Y + bb.max.Y)
         se_mid = 0.5 * (y_se0 + y_se1)
         ne_mid = 0.5 * (y_ne0 + y_ne1)
-        y_tol = 0.5 * fente_cables + 0.8
-        se = abs(my - se_mid) <= y_tol
-        ne = abs(my - ne_mid) <= y_tol
-        return on_est and (se or ne) and bb.min.Z > z_fente - 0.5
+        se = (
+            abs(my - se_mid) <= 0.5 * fente_sud_est + 0.8
+            and bb.min.Z > fente_sud_est_z - 0.5
+        )
+        ne = (
+            abs(my - ne_mid) <= 0.5 * fente_nord_est + 0.8
+            and bb.min.Z > fente_nord_est_z - 0.5
+        )
+        return on_est and (se or ne)
+
+    def in_fente_ouest(bb):
+        on_ouest = (
+            bb.max.X > x_outer_west - margin - 0.2
+            and bb.min.X < aile_x + margin + 0.2
+        )
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        mid = 0.5 * (ssr_y0 + ssr_y1)
+        y_tol = 0.5 * (ssr_y1 - ssr_y0) + 0.8
+        return (
+            on_ouest
+            and abs(my - mid) <= y_tol
+            and bb.min.Z > ssr_z - 0.5
+        )
 
     def keep(edge):
         c = edge.center()
@@ -634,7 +667,7 @@ def boitier_ac(
             return False
         if butee_skip_x0 <= c.X <= butee_skip_x1 and c.Y >= vis_y0:
             return False
-        if in_fente(edge.bounding_box()):
+        if in_fente(edge.bounding_box()) or in_fente_ouest(edge.bounding_box()):
             return False
         return True
 
@@ -647,29 +680,8 @@ def boitier_ac(
             return False
         if dz < 8.0:
             return False
-        return in_fente(bb)
-
-    def pont_passage(edge):
-        bb = edge.bounding_box()
-        dx = bb.max.X - bb.min.X
-        dy = bb.max.Y - bb.min.Y
-        dz = bb.max.Z - bb.min.Z
-        span = (dx * dx + dy * dy + dz * dz) ** 0.5
-        if abs(span - at_largeur) > 0.4:
-            return False
-        if dz > 0.4:
-            return False
-        zmid = 0.5 * (bb.min.Z + bb.max.Z)
-        if abs(zmid - anneau_z) > 0.3 and abs(zmid - at_u1) > 0.3:
-            return False
-        mx = 0.5 * (bb.min.X + bb.max.X)
-        my = 0.5 * (bb.min.Y + bb.max.Y)
-        if abs(mx - at_mid) > 2.0:
-            return False
-        sud = abs(my - (y_se0 + at_jeu)) < 0.3
-        return sud
+        return in_fente(bb) or in_fente_ouest(bb)
 
     body = polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
     body = polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)
-    # South anti-tirage ring removed => no cable-tie "pont" polish pass.
     return body

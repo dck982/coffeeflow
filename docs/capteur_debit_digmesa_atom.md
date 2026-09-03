@@ -43,6 +43,18 @@
 - Le pull-up est câblé vers **3.3V**, pas 5V, car les GPIO de l'ESP32-S3 ne sont pas tolérants au 5V. Le capteur peut être alimenté en 5V sans problème car sa sortie est en collecteur ouvert : le niveau haut du signal est fixé par la tension du pull-up, pas par l'alimentation du capteur.
 - Le pull-up interne du GPIO (~45 kΩ, activé par défaut par MicroPython) n'est **pas utilisé** ici : une résistance externe plus forte (1 kΩ) associée au condensateur de filtrage offre une bien meilleure immunité au bruit électromagnétique, ce qui est important à proximité d'une pompe/moteur.
 
+### Choix de C1
+
+Avec R1 = 1 kΩ fixe, la fréquence de coupure du filtre RC dépend uniquement de C1. Fréquence utile max ≈ 15.9 Hz (buse 1.0 mm, 0.40 l/min, cf. `docs/debitmetres.md`) — la contrainte de non-déformation du signal impose τ = R×C très inférieur à la période la plus courte (~63 ms), donc C1 < 1 µF laisse une marge confortable.
+
+| C1 | τ = R1×C1 | Coupure -3dB | Marge vs fréquence utile max | Effet |
+|---|---|---|---|---|
+| **100 nF (retenu)** | 100 ns | ≈ 1.6 kHz | ~100× | filtrage HF léger, très large marge |
+| 470 nF | 470 ns | ≈ 340 Hz | ~21× | meilleure immunité EMI, encore très sûr |
+| 1 µF | 1 µs | ≈ 160 Hz | ~10× | limite raisonnable, marge encore correcte |
+
+Retenu : **100 nF**, marge la plus confortable. À reconsidérer (470 nF ou 1 µF) si du bruit est observé en pratique à proximité de la pompe/moteur.
+
 ## Débit attendu et fréquence des impulsions
 
 **Plage de débit visée : 0.06 à 0.18 l/min**

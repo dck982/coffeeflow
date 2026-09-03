@@ -86,11 +86,24 @@ def boitier_dc(
     )
     body = outer - cavity
 
+    # Move the SW well northwest on a 45° line and fuse it to the sill with
+    # the same proven recipe as the NW well: bore edge 0.2mm under the sill,
+    # hence the full 1.6mm crown plus 0.2mm of overlap.
+    wago_span = 18.6
+    pad_r = puit_diametre / 2.0 + marge_puit
+    puit_bas_cy0 = puit_bas_y - 6.0
+    seuil2_south_y = (
+        measured("boitier_int_marche_y") + 3.0 - wall - wago_span - wall
+    )
+    puit_bas_target_cy = seuil2_south_y - puit_diametre / 2.0 + 0.2
+    puit_bas_shift = puit_bas_target_cy - puit_bas_cy0
+    puit_bas_cx = puit_bas_x - puit_bas_shift
+    puit_bas_cy = puit_bas_target_cy
     body = add_well(
         body,
         outer,
-        puit_bas_x,
-        puit_bas_y - 6.0,
+        puit_bas_cx,
+        puit_bas_cy,
         puit_diametre,
         puit_peau,
         aimant_h,
@@ -101,10 +114,8 @@ def boitier_dc(
     # sill. Centre so the well circle meets the sill's south face, then
     # 0.2 mm into the sill so the pad does not leave a sliver at the west.
     y_n = measured("boitier_int_y")
-    wago_span = 18.6
     seuil_y_sud = y_n - 2.0 * wall - wago_span
     puit2_cy = seuil_y_sud - puit_diametre / 2.0 + 0.2
-    pad_r = puit_diametre / 2.0 + marge_puit
     marche_x_val = measured("boitier_int_marche_x")
     puit2_cx = marche_x_val + pad_r  # pad fused into the marche west wall
     body = add_well(
@@ -157,13 +168,12 @@ def boitier_dc(
             wall, y_top - y_bot, insert_depth, align=_amin
         )
 
-    # Four M2.5 heat-insert housings for the second module.
+    # Three M2.5 heat-insert housings for the second module.
     # Coordinates from the SE corner of the module (x=aile_x, y=0).
     mod2_inserts = [
         (x_e - 3.9, 25.6),   # SE
         (x_e - 3.9, 60.6),   # NE
         (x_e - 23.9, 60.6),  # NW
-        (x_e - 23.9, 25.6),  # SW
     ]
     for cx, cy in mod2_inserts:
         outer_pad = Pos(cx, cy, z_insert0) * Cylinder(
@@ -177,6 +187,15 @@ def boitier_dc(
         if clipped is not None:
             body = body + clipped
         body = body - inner_void
+
+    # SW board support: solid Ø3mm pin instead of an insert housing, to clear
+    # the component beneath the board while the other three screws retain it.
+    pin_sw_cx = x_e - 23.9
+    pin_sw_cy = 25.6
+    pin_sw = Pos(pin_sw_cx, pin_sw_cy, z_insert0) * Cylinder(
+        1.5, insert_depth, align=cyl_amin
+    )
+    body = body + pin_sw.intersect(outer)
 
     # Wago 221-423 bay in the NW corner.
     # In the NW zone (y > marche_y), the west face is at x=marche_x, not x=0.
@@ -200,18 +219,22 @@ def boitier_dc(
     )
     body = body + platform_box.intersect(outer)
 
-    # East muret, from the real floor, height = wago_z + wago_raise
+    # East muret, from the real floor, 1mm above the Wago so the catch
+    # descends onto its top instead of ending against its side.
+    surplomb = 1.0
     muret_box = Pos(muret_x0, muret_y0, -overlap) * Box(
-        wall, wago_span + wall + overlap, wago_z + wago_raise + wall + overlap, align=_amin
+        wall,
+        wago_span + wall + overlap,
+        wago_z + wago_raise + wall + overlap + surplomb,
+        align=_amin,
     )
     body = body + muret_box.intersect(outer)
 
     # Surplomb (catch): 1mm return from the muret toward the west wall,
-    # at the top of the muret, 45° below. 8mm long in Y, placed against
-    # the north inner face (so the Wago can be tilted in from the south).
-    surplomb = 1.0
+    # with its vertical face starting at the Wago top and its 45° lead-in
+    # starting 1mm below. 8mm long in Y, against the north inner face.
     surplomb_len = 8.0
-    z_top_w = z_wago_floor + wago_z
+    z_top_w = z_wago_floor + wago_z + surplomb
     z_catch = z_top_w - surplomb
     z_45 = z_catch - surplomb
     hook_pts = [
@@ -238,6 +261,14 @@ def boitier_dc(
     )
     body = body + seuil_box.intersect(outer)
 
+    # Re-open the full north Ø8.2 pocket after its sill/platform fusion.
+    puit2_cutter = Pos(puit2_cx, puit2_cy, puit_peau) * Cylinder(
+        puit_diametre / 2.0,
+        hauteur,
+        align=cyl_amin,
+    )
+    body = body - puit2_cutter
+
     # Second Wago bay: angle of the marche (SW zone, against west wall x=0).
     # Two terminals (3-way + 2-way), muret depth 16.8mm, span 18.6mm in Y,
     # muret height 13.2mm. Two surplombs: one at muret z=13.2 (small terminal),
@@ -251,16 +282,29 @@ def boitier_dc(
     y_inner_marche = marche_y_val - wall  # inner south face of the marche wall
     muret2_x0 = x_inner_w_sw + wago2_depth
     muret2_y0 = y_inner_marche - wago2_span
+    z_wago2_floor = wall + wago_raise
 
-    # East muret
+    # Same raised platform as the NW bay: 2mm above the inner floor.
+    platform2_box = Pos(-overlap, muret2_y0, -overlap) * Box(
+        wago2_depth + wall + 2 * overlap,
+        wago2_span + wall + overlap,
+        z_wago2_floor + overlap,
+        align=_amin,
+    )
+    body = body + platform2_box.intersect(outer)
+
+    # East muret: 1mm above the small Wago so its catch clips over the top.
     muret2_box = Pos(muret2_x0, muret2_y0, -overlap) * Box(
-        wall, wago2_span + wall + overlap, wago2_z + wall + overlap, align=_amin
+        wall,
+        wago2_span + wall + overlap,
+        wago2_z + wago_raise + wall + overlap + surplomb,
+        align=_amin,
     )
     body = body + muret2_box.intersect(outer)
 
-    # Surplomb 1: on the muret (east side), at z = wall + wago2_z,
-    # 8mm long against the marche wall (north end of the bay).
-    z_top_w2 = wall + wago2_z
+    # Surplomb 1: on the muret (east side), its vertical face starts at
+    # the raised Wago top; 8mm long against the north end of the bay.
+    z_top_w2 = z_wago2_floor + wago2_z + surplomb
     z_catch2 = z_top_w2 - surplomb
     z_45_2 = z_catch2 - surplomb
     hook2_pts = [
@@ -269,9 +313,9 @@ def boitier_dc(
         (muret2_x0 - surplomb, z_top_w2),
         (muret2_x0 + overlap, z_top_w2),
     ]
-    hook2_y0 = y_inner_marche - surplomb_len
+    hook2_east_y0 = y_inner_marche - surplomb_len
     hook2_solid = (
-        Pos(0, hook2_y0, 0)
+        Pos(0, hook2_east_y0, 0)
         * extrude(
             Plane.XZ * Polygon(*hook2_pts, align=None),
             surplomb_len + wall + overlap,
@@ -279,9 +323,9 @@ def boitier_dc(
     )
     body = body + hook2_solid.intersect(outer)
 
-    # Surplomb 2: against the west wall (x=0 side) at z = wall + 18.8,
-    # for the larger terminal. Hook runs along Y, profile in YZ plane.
-    z_top_w2b = wall + wago2_z_big
+    # Surplomb 2: against the west wall for the larger terminal. Its vertical
+    # face starts at the raised Wago top; hook runs along Y.
+    z_top_w2b = z_wago2_floor + wago2_z_big + surplomb
     z_catch2b = z_top_w2b - surplomb
     z_45_2b = z_catch2b - surplomb
     hook2b_pts = [
@@ -290,8 +334,11 @@ def boitier_dc(
         (x_inner_w_sw + surplomb, z_top_w2b),
         (x_inner_w_sw - overlap, z_top_w2b),
     ]
+    # The mirrored west profile extrudes toward -Y, unlike the east profile.
+    # Start beyond the north wall so its exposed 8mm aligns with the east catch.
+    hook2_west_y0 = y_inner_marche + wall + overlap
     hook2b_solid = (
-        Pos(0, hook2_y0, 0)
+        Pos(0, hook2_west_y0, 0)
         * extrude(
             Plane.XZ * Polygon(*hook2b_pts, align=None),
             surplomb_len + wall + overlap,
@@ -302,9 +349,21 @@ def boitier_dc(
     # Entry sill for second Wago bay
     seuil2_y0 = muret2_y0
     seuil2_box = Pos(-overlap, seuil2_y0 - wall, -overlap) * Box(
-        wago2_depth + wall + 2 * overlap, wall, wall + seuil_z + overlap, align=_amin
+        wago2_depth + wall + 2 * overlap,
+        wall,
+        wall + wago_raise + seuil_z + overlap,
+        align=_amin,
     )
     body = body + seuil2_box.intersect(outer)
+
+    # Re-open the full Ø8.2 pocket after fusing the sill, which otherwise
+    # intrudes 0.2mm into the bore. Preserve the 0.6mm magnet skin below.
+    puit_bas_cutter = Pos(puit_bas_cx, puit_bas_cy, puit_peau) * Cylinder(
+        puit_diametre / 2.0,
+        hauteur,
+        align=cyl_amin,
+    )
+    body = body - puit_bas_cutter
 
     # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost
     # corner to the midpoint. Floor stays.

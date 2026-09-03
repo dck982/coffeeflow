@@ -1,4 +1,4 @@
-"""Shared geometry: printable thread, magnet wells, contour offset."""
+"""Shared geometry: printable thread, magnet wells, contour offset, cable-tie U."""
 
 import math
 
@@ -135,6 +135,7 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
 MARGE_PUIT = 1.6
 
 _CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
+_AMIN = (Align.MIN, Align.MIN, Align.MIN)
 
 
 def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
@@ -202,6 +203,162 @@ def _fuse_one(shape):
     for s in solids[1:]:
         body = body.fuse(s)
     return body
+
+
+def anti_tirage_ns(
+    x0,
+    y_inner,
+    z0,
+    toward_plus_y,
+    wall=1.6,
+    jeu=1.2,
+    largeur=3.0,
+    bords=5.6,
+    hauteur_u=5.0,
+):
+    """Cable-tie U on a north or south inner wall, extruded in X.
+
+    `z0` is the bottom of the 5 mm slot (where the tie sits). 45° ramps
+    above and below, 3 mm centre open top and bottom so the tie comes
+    out vertically. Fuse the result onto the box.
+    """
+    overlap = 0.4
+    margin = 0.5
+    at_out = jeu + wall
+    at_leg = 0.5 * (bords - largeur)
+    at_u0 = z0
+    at_u1 = z0 + hauteur_u
+    at_bot = at_u0 - at_out
+    at_top = at_u1 + at_out
+    span = bords
+    if toward_plus_y:
+        body = Pos(x0, 0, 0) * extrude(
+            Plane.YZ
+            * Polygon(
+                (y_inner - overlap, at_bot),
+                (y_inner, at_bot),
+                (y_inner + at_out, at_u0),
+                (y_inner + at_out, at_u1),
+                (y_inner, at_top),
+                (y_inner - overlap, at_top),
+                align=None,
+            ),
+            span,
+        )
+        y_cut = y_inner
+        y_sz = at_out + margin
+        y_jeu = jeu
+    else:
+        body = Pos(x0 + span, 0, 0) * extrude(
+            Plane.YZ
+            * Polygon(
+                (y_inner + overlap, at_bot),
+                (y_inner, at_bot),
+                (y_inner - at_out, at_u0),
+                (y_inner - at_out, at_u1),
+                (y_inner, at_top),
+                (y_inner + overlap, at_top),
+                align=None,
+            ),
+            span,
+        )
+        y_cut = y_inner - at_out
+        y_sz = at_out
+        y_jeu = jeu
+        y_inner_gap = y_inner - jeu
+    body = body - (
+        Pos(x0 + at_leg, y_cut, at_bot - margin)
+        * Box(largeur, y_sz, at_out + margin, align=_AMIN)
+    )
+    if toward_plus_y:
+        body = body - (
+            Pos(x0 + at_leg, y_inner, at_u0)
+            * Box(largeur, y_jeu, hauteur_u, align=_AMIN)
+        )
+    else:
+        body = body - (
+            Pos(x0 + at_leg, y_inner_gap, at_u0)
+            * Box(largeur, y_jeu, hauteur_u, align=_AMIN)
+        )
+    body = body - (
+        Pos(x0 + at_leg, y_cut, at_u1)
+        * Box(largeur, y_sz, at_out + margin, align=_AMIN)
+    )
+    return _fuse_one(body)
+
+
+def anti_tirage_ew(
+    y0,
+    x_inner,
+    z0,
+    toward_plus_x,
+    wall=1.6,
+    jeu=1.2,
+    largeur=3.0,
+    bords=5.6,
+    hauteur_u=5.0,
+):
+    """Cable-tie U on an east or west inner wall, extruded in Y.
+
+    Same recipe as `anti_tirage_ns`. `toward_plus_x` True is a west wall
+    (inward +X); False is an east wall (inward −X).
+    """
+    overlap = 0.4
+    margin = 0.5
+    at_out = jeu + wall
+    at_leg = 0.5 * (bords - largeur)
+    at_u0 = z0
+    at_u1 = z0 + hauteur_u
+    at_bot = at_u0 - at_out
+    at_top = at_u1 + at_out
+    span = bords
+    if toward_plus_x:
+        body = Pos(0, y0, 0) * extrude(
+            Plane.XZ
+            * Polygon(
+                (x_inner - overlap, at_bot),
+                (x_inner, at_bot),
+                (x_inner + at_out, at_u0),
+                (x_inner + at_out, at_u1),
+                (x_inner, at_top),
+                (x_inner - overlap, at_top),
+                align=None,
+            ),
+            span,
+        )
+        x_cut = x_inner
+        x_sz = at_out + margin
+        x_gap = x_inner
+    else:
+        body = Pos(0, y0, 0) * extrude(
+            Plane.XZ
+            * Polygon(
+                (x_inner + overlap, at_bot),
+                (x_inner, at_bot),
+                (x_inner - at_out, at_u0),
+                (x_inner - at_out, at_u1),
+                (x_inner, at_top),
+                (x_inner + overlap, at_top),
+                align=None,
+            ),
+            span,
+        )
+        x_cut = x_inner - at_out
+        x_sz = at_out
+        x_gap = x_inner - jeu
+    body = body - (
+        Pos(x_cut, y0 + at_leg, at_bot - margin)
+        * Box(x_sz, largeur, at_out + margin, align=_AMIN)
+    )
+    body = body - (
+        Pos(x_gap, y0 + at_leg, at_u0)
+        * Box(jeu, largeur, hauteur_u, align=_AMIN)
+    )
+    body = body - (
+        Pos(x_cut, y0 + at_leg, at_u1)
+        * Box(x_sz, largeur, at_out + margin, align=_AMIN)
+    )
+    return _fuse_one(body)
 
 
 def barreau_filete(

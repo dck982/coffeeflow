@@ -53,12 +53,14 @@ Printed floor on the bed. Inner origin (0, 0). Outer 53.2 × 90.8 × 40 mm. Inne
 - Do not put the south insert's east edge anywhere but X = 40 (10 mm from the east). It is not tied to the 5 mm opening.
 - Do not model those lips as square shelves: 1 mm catch, 45° underneath, same as the 221-415.
 - Do not put the anti-tirage on the outer face, nor skip one: south at X = 10, east at Y = 10, north at X = 10, one per opening.
+- Do not duplicate the cable-tie U in the part file: it lives in `system.anti_tirage_ns` / `anti_tirage_ew` (shared with boitier_ac).
 - Do not open the anti-tirage sides: the 1.3 mm walls stay. The tie exits vertically through the open top (same 3 mm as the bottom), not sideways.
 - Do not let the lower anti-tirage subtract eat the wall: stop at the inner face. Extra margin in +Y (north) or +X (east) nicks the face.
 - Do not drop the 1.2 mm gap to 1 mm: the tie is 1 mm thick.
 
 ## Changelog
 
+- 2026-09-03 — Cable-tie U extracted to `system.anti_tirage_ns` / `anti_tirage_ew` (shared with boitier_ac). Geometry unchanged.
 - 2026-09-02 — Front Wago lip 16 → 15 mm on both bays, flush with the platform. 0.4 mm chamfer on the two inner edges under each cable-tie bar.
 - 2026-09-02 — Anti-tirage sides closed again; 3 mm opening through the top so the tie comes out vertically.
 - 2026-09-02 — North and east anti-tirage lower cuts stop at the inner face (no recess in the wall).

@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import MARGE_PUIT, puit_debout
+from system import MARGE_PUIT, anti_tirage_ew, anti_tirage_ns, puit_debout
 
 
 @part
@@ -481,99 +481,22 @@ def boitier_ps(
     )
 
     # One cable-tie U per opening, 10 mm from the corner, same Z as the
-    # sill. 1.3 mm side walls, 1.2 mm × 3 mm gap, open top and bottom so
-    # the tie comes out vertically. 45° legs above and below, centre open.
+    # sill. Shared `anti_tirage_*` from system.py.
     at_u0 = z_ouv
     at_u1 = at_u0 + anti_tirage_z
     at_span = anti_tirage_bords
     at_x0 = anti_tirage_x
-    body = body + (
-        Pos(at_x0, 0, 0)
-        * extrude(
-            Plane.YZ
-            * Polygon(
-                (-overlap, at_bot),
-                (0.0, at_bot),
-                (at_out, at_u0),
-                (at_out, at_u1),
-                (0.0, at_top),
-                (-overlap, at_top),
-                align=None,
-            ),
-            at_span,
-        )
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, 0, at_bot - margin)
-        * Box(anti_tirage_largeur, at_out + margin, at_out + margin, align=amin)
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, 0, at_u0)
-        * Box(anti_tirage_largeur, anti_tirage_jeu, anti_tirage_z, align=amin)
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, 0, at_u1)
-        * Box(anti_tirage_largeur, at_out + margin, at_out + margin, align=amin)
-    )
-    # East inner face, 10 mm from the south (this winding extrudes +Y).
     at_y0 = anti_tirage_x
-    body = body + (
-        Pos(0, at_y0, 0)
-        * extrude(
-            Plane.XZ
-            * Polygon(
-                (inner_x + overlap, at_bot),
-                (inner_x, at_bot),
-                (inner_x - at_out, at_u0),
-                (inner_x - at_out, at_u1),
-                (inner_x, at_top),
-                (inner_x + overlap, at_top),
-                align=None,
-            ),
-            at_span,
-        )
+    kw = dict(
+        wall=wall,
+        jeu=anti_tirage_jeu,
+        largeur=anti_tirage_largeur,
+        bords=anti_tirage_bords,
+        hauteur_u=anti_tirage_z,
     )
-    body = body - (
-        Pos(inner_x - at_out, at_y0 + at_leg, at_bot - margin)
-        * Box(at_out, anti_tirage_largeur, at_out + margin, align=amin)
-    )
-    body = body - (
-        Pos(inner_x - anti_tirage_jeu, at_y0 + at_leg, at_u0)
-        * Box(anti_tirage_jeu, anti_tirage_largeur, anti_tirage_z, align=amin)
-    )
-    body = body - (
-        Pos(inner_x - at_out, at_y0 + at_leg, at_u1)
-        * Box(at_out, anti_tirage_largeur, at_out + margin, align=amin)
-    )
-    # North inner face, 10 mm from the west (this winding extrudes −X).
-    body = body + (
-        Pos(at_x0 + at_span, 0, 0)
-        * extrude(
-            Plane.YZ
-            * Polygon(
-                (inner_y + overlap, at_bot),
-                (inner_y, at_bot),
-                (inner_y - at_out, at_u0),
-                (inner_y - at_out, at_u1),
-                (inner_y, at_top),
-                (inner_y + overlap, at_top),
-                align=None,
-            ),
-            at_span,
-        )
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, inner_y - at_out, at_bot - margin)
-        * Box(anti_tirage_largeur, at_out, at_out + margin, align=amin)
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, inner_y - anti_tirage_jeu, at_u0)
-        * Box(anti_tirage_largeur, anti_tirage_jeu, anti_tirage_z, align=amin)
-    )
-    body = body - (
-        Pos(at_x0 + at_leg, inner_y - at_out, at_u1)
-        * Box(anti_tirage_largeur, at_out, at_out + margin, align=amin)
-    )
+    body = body + anti_tirage_ns(at_x0, 0.0, at_u0, True, **kw)
+    body = body + anti_tirage_ew(at_y0, inner_x, at_u0, False, **kw)
+    body = body + anti_tirage_ns(at_x0, inner_y, at_u0, False, **kw)
 
     # PSU réglette: right face at X = 28.2, along alim_y only, 2 mm above the floor.
     body = body + (

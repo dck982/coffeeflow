@@ -642,9 +642,9 @@ unit = "mm"
 how = "user 2026-08-31: largeur interne de la gouttière en Y. Record only since 2026-09-02: AC's south face runs at aile_y to x = 120 instead."
 
 [boitier_ac_degagement_vis]
-value = 8.0
+value = 10.0
 unit = "mm"
-how = "user 2026-09-03: gap in X between the east and west screw walls. Was 7 then 10. Visual head is this plus two 1.6 mm walls."
+how = "user 2026-09-03: gap in X between the east and west screw walls. Was 10, then 7, then 8; 8 mm was too tight, back to 10. Visual head is this plus two 1.6 mm walls."
 
 [boitier_ac_vis_x]
 value = 5.0
@@ -659,12 +659,12 @@ how = "user 2026-09-03: screw envelope in Y, against the north edge."
 [boitier_ac_vis_z]
 value = 15.0
 unit = "mm"
-how = "user 2026-09-03: screw envelope in Z. U walls and platform underside sit at this height."
+how = "user 2026-09-03: screw envelope in Z, 15 mm effective. Walls and slab top sit 1.6 mm above (hauteur_vis = 16.6)."
 
-[boitier_ac_puit_depuis_ouest]
+[boitier_ac_puit_depuis_cote]
 value = 10.0
 unit = "mm"
-how = "user 2026-09-03: magnet well centre 10 mm from the outer west face of AC (x = 50 + 10)."
+how = "user 2026-09-03: both magnet well centres 10 mm from their outer side face (west x = 50 + 10, east x = 120 − 10)."
 
 [boitier_ac_puit_depuis_nord]
 value = 10.0

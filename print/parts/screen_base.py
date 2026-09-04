@@ -1,5 +1,7 @@
 from nurb import *
-from math import radians, tan, sin, cos, hypot
+from math import radians, tan, sin, cos, hypot, sqrt
+
+from system import anti_tirage_ns
 
 # Side profile, front (south) to back:
 #   - front wall rising to the lip crest
@@ -8,7 +10,8 @@ from math import radians, tan, sin, cos, hypot
 #     lives on the side walls and on the ergots only, never as a full-width
 #     plate: a plate there is a 30 deg downward face over 2470mm2.
 #   - the notch, then the seat slope at 60 deg, backing the whole wedge
-#   - the ridge, then a back face falling to the end of the footing
+#   - the ridge, then a back face dropping straight down to the floor, plaqued
+#     against a vertical surface
 #
 # Each side wall is a rebate: a shelf whose top lies on the slope, for the
 # wedge's border to rest on, and a rail standing proud of it that stops the
@@ -24,13 +27,11 @@ ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's f
 @part
 def screen_base(
     wedge_width=126.1,
-    seat_height=30.0,
+    seat_height=5.0,
     backing=WEDGE_LENGTH,
     tilt=45.0,
     wall=2.0,
     floor=2.0,
-    footing=0.0,
-    footing_edge=4.0,
     channel_fit=0.4,
     rail_width=2.0,
     rail_height=3.0,
@@ -42,6 +43,21 @@ def screen_base(
     foot_pin_length=3.0,
     side_panel_depth=WEDGE_THICKNESS,
     side_panel_fit=-0.1,
+    back_opening_width=16.0,
+    back_opening_height=16.0,
+    back_opening_from_left=25.0,
+    back_opening_below_top=40.0,
+    back_opening_chamfer=4.0,
+    magnet_diameter=5.0,
+    magnet_cover=0.6,
+    magnet_wall=1.6,
+    cable_tie_gap=1.2,
+    cable_tie_slot_width=3.0,
+    cable_tie_span=5.6,
+    cable_tie_height=5.0,
+    cable_tie_low_z=15.0,
+    cable_tie_right_high_z=30.0,
+    cable_tie_left_z=40.0,
     draft=False,
 ):
     """Hollow wedge cradle. The wedge lies on the slope and is the lid.
@@ -58,12 +74,6 @@ def screen_base(
     tilt: seat slope, i.e. the screen angle
     wall: wall thickness
     floor: bottom thickness
-    footing: how far the floor runs behind the ridge, the mason's footing. At 0
-        the back face drops straight down from the ridge instead, for mounting
-        against a vertical surface, and footing_edge is unused
-    footing_edge: height of the short vertical face at the back tip, so the
-        falling face does not end in a feather edge. Only applies when footing
-        is above 0
     channel_fit: total play between the wedge and the two rails, side to side
     rail_width: thickness of the rail that stops the wedge sliding sideways
     rail_height: how far each rail stands proud of the seat
@@ -79,6 +89,32 @@ def screen_base(
         rail
     side_panel_fit: clearance between the side panels and the wedge's edge,
         negative for a press fit so the wedge grips instead of sliding loose
+    back_opening_width: width of the port cut through the back face
+    back_opening_height: height of the port cut through the back face
+    back_opening_from_left: distance from the base's left edge to the port's centre
+    back_opening_below_top: distance down from the top of the back face to the
+        port's centre
+    back_opening_chamfer: size of the 45deg cut on the port's top two corners,
+        standing in for a circle without the overhang a round hole would print
+    magnet_diameter: diameter of the two magnets set into the back face, near
+        the top, flush with the seat plane so they sit right under the wedge.
+        Each well runs through to the back face for the magnet to be pushed
+        in from behind
+    magnet_cover: plastic left over the magnet on the seat-facing side, thin
+        enough for the magnet to still act through it
+    magnet_wall: plastic thickness wrapped around each magnet, front and sides
+    cable_tie_gap: clearance between the ring and the wall, enough for a
+        cable tie to pass through
+    cable_tie_slot_width: width of the vertical channel the tie threads
+        through
+    cable_tie_span: overall width of the ring across both legs
+    cable_tie_height: how tall the ring's channel stands
+    cable_tie_low_z: height up the back face of the lower ring, at the
+        right-hand magnet well's X
+    cable_tie_right_high_z: height up the back face of the upper ring at the
+        right-hand magnet well's X
+    cable_tie_left_z: height up the back face of the lone ring at the
+        left-hand magnet well's X
     """
     t = radians(tilt)
     s, c = sin(t), cos(t)
@@ -94,7 +130,7 @@ def screen_base(
     north_height = seat_height + backing * s
     run = backing * c
     north_y = seat_y + run
-    depth = north_y + footing
+    depth = north_y
 
     if backing < ACTIVE_TOP:
         reject(
@@ -110,13 +146,36 @@ def screen_base(
             "screen",
             param="backing",
         )
-    if footing > 0 and footing_edge >= north_height:
-        reject("footing_edge must stay under north_height", param="footing_edge")
     if shelf_width < 3.0:
         reject(
             f"shelf_width {shelf_width} is less than the 3mm of ledge the wedge's "
             "border needs to sit on",
             param="shelf_width",
+        )
+    if back_opening_chamfer * 2 >= back_opening_height:
+        reject(
+            f"back_opening_chamfer {back_opening_chamfer:.1f}mm leaves no flat top "
+            f"on a {back_opening_height:.1f}mm-tall opening",
+            param="back_opening_chamfer",
+        )
+    back_opening_x = -outer_half + back_opening_from_left
+    back_opening_z = north_height - back_opening_below_top
+    if abs(back_opening_x) + back_opening_width / 2 > outer_half:
+        reject(
+            f"back_opening_from_left {back_opening_from_left:.1f}mm puts the "
+            f"{back_opening_width:.1f}mm-wide opening past the base's {width:.1f}mm "
+            "width",
+            param="back_opening_from_left",
+        )
+    if (
+        back_opening_z - back_opening_height / 2 < 0
+        or back_opening_z + back_opening_height / 2 > north_height
+    ):
+        reject(
+            f"back_opening_below_top {back_opening_below_top:.1f}mm puts the "
+            f"{back_opening_height:.1f}mm-tall opening past the {north_height:.1f}mm "
+            "back face",
+            param="back_opening_below_top",
         )
     if side_panel_depth < WEDGE_THICKNESS:
         reject(
@@ -125,20 +184,50 @@ def screen_base(
             "exposed past the panel",
             param="side_panel_depth",
         )
+    if cable_tie_slot_width < 2.5:
+        reject(
+            f"cable_tie_slot_width {cable_tie_slot_width:.1f}mm is tighter "
+            "than a cable tie needs: raise it",
+            param="cable_tie_slot_width",
+        )
+    if cable_tie_gap < 1.0:
+        reject(
+            f"cable_tie_gap {cable_tie_gap:.1f}mm will not pass a cable tie: "
+            "raise it",
+            param="cable_tie_gap",
+        )
+    cable_tie_leg = 0.5 * (cable_tie_span - cable_tie_slot_width)
+    if cable_tie_leg < 1.0:
+        reject(
+            f"cable_tie_span {cable_tie_span:.1f}mm leaves only "
+            f"{cable_tie_leg:.1f}mm each side of the {cable_tie_slot_width:.1f}mm "
+            "slot: raise it",
+            param="cable_tie_span",
+        )
+    cable_tie_out = cable_tie_gap + wall
+    for label, z_center in (
+        ("cable_tie_low_z", cable_tie_low_z),
+        ("cable_tie_right_high_z", cable_tie_right_high_z),
+        ("cable_tie_left_z", cable_tie_left_z),
+    ):
+        top = z_center + cable_tie_height / 2 + cable_tie_out
+        bottom = z_center - cable_tie_height / 2 - cable_tie_out
+        if top > north_height:
+            reject(
+                f"{label} {z_center:.1f}mm plus the ring's own height runs "
+                f"past the {north_height:.1f}mm back face",
+                param=label,
+            )
+        if bottom < 0:
+            reject(f"{label} {z_center:.1f}mm puts the ring below the floor", param=label)
     up = Vector(0, c, s)                       # up the slope
     n = Vector(0, -s, c)                       # out of the seat
     notch = Vector(0, seat_y, seat_height)
 
     # --- the seat silhouette: the shelf, and the outline the shell is clipped
-    #     to so nothing overshoots. With no footing the back face is already
-    #     vertical, so footing_edge's own short face would be a zero-length
-    #     redundant vertex; it only earns its place once footing pushes the
-    #     back face into a slope that would otherwise end in a feather edge. ---
-    back_tail = (
-        [(north_y, north_height), (depth, footing_edge), (depth, 0.0)]
-        if footing > 0
-        else [(north_y, north_height), (depth, 0.0)]
-    )
+    #     to so nothing overshoots. The back face is vertical, plaqued
+    #     against a wall, so the tail is a straight drop from the ridge. ---
+    back_tail = [(north_y, north_height), (depth, 0.0)]
     seat_pts = [
         (0.0, 0.0),
         (0.0, crest),
@@ -167,17 +256,39 @@ def screen_base(
     body += Pos(0, wall / 2, crest / 2) * Box(width, wall, crest)
 
     ay, az = north_y, north_height
-    by, bz = (depth, footing_edge) if footing > 0 else (depth, 0.0)
-    length = hypot(by - ay, bz - az)
-    back_n = Vector(0, (az - bz) / length, (by - ay) / length)
-    back_mid = Vector(0, (ay + by) / 2, (az + bz) / 2)
+    back_n = Vector(0, 1, 0)
+    back_mid = Vector(0, ay, az / 2)
     body += Plane(
         origin=back_mid - back_n * (wall / 2), x_dir=(1, 0, 0), z_dir=back_n
-    ) * Box(width, length + 4 * wall, wall)
+    ) * Box(width, az + 4 * wall, wall)
 
-    # --- the ergots: the lip triangle only, standing on the floor ---
+    # --- the back opening: a port through the back face, standing in for a
+    #     circle without the overhang one would print. Flat bottom and sides,
+    #     since only the roof of a horizontal hole ever overhangs; the two top
+    #     corners are cut at 45deg so the last few millimetres close as a
+    #     short bridge instead of a horizontal ceiling. ---
+    hw = back_opening_width / 2
+    hh = back_opening_height / 2
+    ch = back_opening_chamfer
+    ox, oz = back_opening_x, back_opening_z
+    opening_pts = [
+        (ox - hw, oz - hh),
+        (ox + hw, oz - hh),
+        (ox + hw, oz + hh - ch),
+        (ox + hw - ch, oz + hh),
+        (ox - hw + ch, oz + hh),
+        (ox - hw, oz + hh - ch),
+    ]
+    opening_profile = Plane.XZ * Polygon(*opening_pts, align=None)
+    body -= Pos(0, north_y, 0) * extrude(opening_profile, amount=wall * 2, both=True)
+
+    # --- the ergots: standing on the floor. The underside runs flat at Z=0
+    #     instead of tapering to the origin point-first: at low seat_height
+    #     that taper is a shallow ramp (overhangs past 45deg once seat_height
+    #     drops much below ~14mm at this tilt), where a flat base prints with
+    #     no overhang at all. ---
     lip = Plane.YZ * Polygon(
-        (0.0, 0.0), (0.0, crest), (seat_y, seat_height), align=None
+        (0.0, 0.0), (0.0, crest), (seat_y, seat_height), (seat_y, 0.0), align=None
     )
     xs = (
         [0.0]
@@ -186,6 +297,87 @@ def screen_base(
     )
     for px in xs:
         body += Pos(px, 0, 0) * extrude(lip, amount=rib_width / 2, both=True)
+
+    # --- magnet wells: two bosses on the back face's interior side, near the
+    #     top, each holding a magnet flush with the seat plane so it sits
+    #     right under the screen_wedge underside once the wedge is seated.
+    #     Each boss is a triangular prism standing off the interior wall
+    #     face: a 45deg ramp away from the wall, then a 45deg ramp back to
+    #     it, so the second ramp's face is parallel to the seat plane at
+    #     tilt=45. The well runs all the way through the boss and the back
+    #     wall to the exterior face, so the magnet is pushed in from behind;
+    #     only magnet_cover is left standing between it and the seat side,
+    #     thin enough for the magnet to still act through it. ---
+    well_width = magnet_diameter + 2 * magnet_wall
+    ramp = well_width / sqrt(2)
+    climb = 2 * ramp
+
+    interior_y = ay - wall * back_n.Y
+    interior_z = az - wall * back_n.Y * tan(t)
+    z_start = interior_z - climb
+
+    magnet_profile = Plane.YZ * Polygon(
+        (interior_y, z_start),
+        (interior_y - ramp, z_start + ramp),
+        (interior_y, z_start + climb),
+        align=None,
+    )
+
+    # the hole's axis, from the ramp face, to where it breaks out the back
+    # wall's own exterior face (the plane through the ridge, normal back_n).
+    # Offset 1mm down-slope from the face's own midpoint: screen_wedge cuts
+    # its matching well from the same face, carried through the assembly's
+    # seat transform, and at the exact midpoint that well straddles the
+    # wedge's pocket boundary by 0.07mm — a sliver. 1mm down clears it on
+    # both sides (0.6mm to the ramp's own apex, 0.9mm to the pocket edge).
+    # See screen_wedge.py's magnet_x/magnet_y, which must move the same
+    # amount if this does.
+    inward = Vector(0, 1, -1).normalized()
+    ramp_mid_y = interior_y - ramp / 2 - up.Y
+    ramp_mid_z = z_start + 1.5 * ramp - up.Z
+    denom = inward.Y * back_n.Y + inward.Z * back_n.Z
+    to_exterior = (
+        (ay - ramp_mid_y) * back_n.Y + (az - ramp_mid_z) * back_n.Z
+    ) / denom
+    # the bore meets the exterior face at an angle, so its flat end cap only
+    # fully clears the face once it overshoots by about the hole's own
+    # radius, not by the wall thickness alone
+    bore_length = to_exterior - magnet_cover + magnet_diameter
+
+    for sx in (-1, 1):
+        x0 = sx * outer_half / 3
+        body += Pos(x0, 0, 0) * extrude(magnet_profile, amount=well_width / 2, both=True)
+
+        ramp_mid = Vector(x0, ramp_mid_y, ramp_mid_z)
+        bore_start = ramp_mid + inward * magnet_cover
+        body -= Plane(origin=bore_start, x_dir=(1, 0, 0), z_dir=inward) * Cylinder(
+            magnet_diameter / 2, bore_length,
+            align=(Align.CENTER, Align.CENTER, Align.MIN),
+        )
+
+    # --- cable-tie rings: three loops against the back face's own interior
+    #     side, standing off `interior_y` (the same interior-face Y the
+    #     magnet ramps stand off), for a tie to strap cables against the
+    #     wall. Same shape as boitier_ps's anti_tirage_ns, called on this
+    #     wall the same way as its own north wall (toward_plus_y False, the
+    #     ring projecting into the box's interior). Centred on the magnet
+    #     wells' own X: two on the right-hand well's column, one lone one on
+    #     the left-hand well's column. ---
+    cable_tie_kw = dict(
+        wall=wall,
+        jeu=cable_tie_gap,
+        largeur=cable_tie_slot_width,
+        bords=cable_tie_span,
+        hauteur_u=cable_tie_height,
+    )
+    for x_center, z_center in (
+        (outer_half / 3, cable_tie_low_z),
+        (outer_half / 3, cable_tie_right_high_z),
+        (-outer_half / 3, cable_tie_left_z),
+    ):
+        tie_x0 = x_center - cable_tie_span / 2
+        tie_z0 = z_center - cable_tie_height / 2
+        body += anti_tirage_ns(tie_x0, interior_y, tie_z0, False, **cable_tie_kw)
 
     body = body & silhouette
 
@@ -273,8 +465,19 @@ def screen_base(
             or on_flat_face(edge, -shelf_inner)
         )
 
+    def on_magnet_well(edge):
+        # the hole's rim, and the boss's own two end faces (the well's flat
+        # X-bounds) — a chamfer on any of these eats into the magnet_wall
+        # thickness that's already sized tight around the hole.
+        if edge.geom_type == GeomType.CIRCLE and abs(edge.radius - magnet_diameter / 2) < 0.05:
+            return True
+        for x0 in (-outer_half / 3, outer_half / 3):
+            if on_flat_face(edge, x0 - well_width / 2) or on_flat_face(edge, x0 + well_width / 2):
+                return True
+        return False
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
-    keep = keep.filter_by(lambda e: not seating(e))
+    keep = keep.filter_by(lambda e: not seating(e) and not on_magnet_well(e))
     return polish(body, keep, 1.0)

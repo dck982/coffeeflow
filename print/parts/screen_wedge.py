@@ -1,5 +1,7 @@
 from nurb import *
 
+from system import PETIT_PUIT_DIAMETRE, petit_puit
+
 # Waveshare 4.3 carrier. Print pose: large rear plate on the bed, solid border
 # skirt rising, module pocket cut through it. The skirt top *is* the frame: it
 # lands level with the glass, so there is no plate bridging the pocket. The
@@ -35,6 +37,8 @@ def screen_wedge(
     foot_hole_width=5.5,
     foot_hole_depth=3.5,
     foot_hole_span=60.0,
+    magnet_diameter=PETIT_PUIT_DIAMETRE,
+    magnet_cover=0.6,
     draft=False,
 ):
     """Open-back Waveshare 4.3 carrier: solid skirt, frame rim level with the glass.
@@ -102,6 +106,11 @@ def screen_wedge(
         has 4.5mm of solid before the pocket
     foot_hole_span: centre-to-centre of the two sockets, matched to
         screen_base's rib_span
+    magnet_diameter: bore diameter for the two magnets set into the rear
+        plate, facing screen_base's own pair once seated. Defaults to
+        system.py's PETIT_PUIT_DIAMETRE, 0.2mm over the 5mm disc
+    magnet_cover: plastic left over each magnet on the bed-facing side, thin
+        enough for the magnet to still act through it
     """
     module_w = measured("module_width")
     module_h = measured("module_height")
@@ -325,6 +334,28 @@ def screen_wedge(
     for sx, sy in pads:
         body = body - Pos(sx, sy, 0) * counterbore(
             hole, head_dia + 0.4, head_h + 0.2, seat_z
+        )
+
+    # Magnet wells, mirroring screen_base's pair on the back face: a magnet
+    # here, glued in from the pocket side, faces one there through 0.6mm a
+    # side. magnet_x/magnet_y are screen_base's own well position carried
+    # through the assembly's seat transform (screen_assembly.py) at its
+    # current defaults (tilt 45, seat_height 5) — the wedge itself still
+    # takes neither parameter, so this pairing only holds there; see the
+    # card. magnet_cover sits on the bed side (this prints rear-plate-down),
+    # so the well starts above it and stops flush at rear_wall, at the seam
+    # with the skirt box above: no overshoot, because past this well's edge
+    # that seam is where the pocket cut already meets solid skirt, and
+    # cutting even 0.1mm into it there reopened the tangent-sliver the
+    # notch relief hit on screen_base (see that card's Don't).
+    magnet_x = 21.75
+    magnet_y = 30.97
+    for sx in (-1, 1):
+        body -= petit_puit(
+            sx * magnet_x, magnet_y, 0,
+            profondeur=rear_wall - magnet_cover,
+            diametre=magnet_diameter,
+            puit_peau=magnet_cover,
         )
 
     if draft:

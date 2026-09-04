@@ -163,6 +163,28 @@ def add_well(body, outer, cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
     return body - cutter
 
 
+# Flat Ø5 disc magnet, the small pair screen_base/screen_wedge each carry —
+# separate from the Ø8x3 discs puit_debout/add_well size for boitier_*.
+PETIT_AIMANT_DIAMETRE = 5.0
+PETIT_AIMANT_HAUTEUR = 2.0
+PETIT_PUIT_DIAMETRE = 5.2  # 0.2 mm clearance, friction fit on the 5 mm disc
+
+
+def petit_puit(cx, cy, z0, profondeur=PETIT_AIMANT_HAUTEUR, diametre=PETIT_PUIT_DIAMETRE, puit_peau=0.6, debord=0.0):
+    """Cutter for a flat, straight magnet well, axis +Z from `z0`.
+
+    Starts `puit_peau` above `z0` (plastic left over the magnet on that
+    face) and runs `profondeur` long, plus `debord` to break a far face
+    cleanly. `debord` defaults to 0, unlike `puit_debout`'s fixed 0.1
+    overshoot: a well that already reaches an interior seam has to land
+    flush there, not past it — on screen_wedge, 0.1 mm past the skirt seam
+    reopened a tangent sliver there (see that card's Don't).
+    """
+    return Pos(cx, cy, z0 + puit_peau) * Cylinder(
+        diametre / 2.0, profondeur + debord, align=_CMIN
+    )
+
+
 def ouvertures_modules(
     y_max,
     wall,

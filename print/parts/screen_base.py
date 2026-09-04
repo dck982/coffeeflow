@@ -1,7 +1,7 @@
 from nurb import *
 from math import radians, tan, sin, cos, hypot, sqrt
 
-from system import anti_tirage_ns
+from system import PETIT_PUIT_DIAMETRE, anti_tirage_ns
 
 # Side profile, front (south) to back:
 #   - front wall rising to the lip crest
@@ -48,7 +48,7 @@ def screen_base(
     back_opening_from_left=25.0,
     back_opening_below_top=40.0,
     back_opening_chamfer=4.0,
-    magnet_diameter=5.0,
+    magnet_diameter=PETIT_PUIT_DIAMETRE,
     magnet_cover=0.6,
     magnet_wall=1.6,
     cable_tie_gap=1.2,
@@ -96,10 +96,13 @@ def screen_base(
         port's centre
     back_opening_chamfer: size of the 45deg cut on the port's top two corners,
         standing in for a circle without the overhang a round hole would print
-    magnet_diameter: diameter of the two magnets set into the back face, near
-        the top, flush with the seat plane so they sit right under the wedge.
-        Each well runs through to the back face for the magnet to be pushed
-        in from behind
+    magnet_diameter: bore diameter for the two magnets set into the back
+        face, near the top, flush with the seat plane so they sit right
+        under the wedge. Each well runs through to the back face for the
+        magnet to be pushed in from behind. Defaults to system.py's
+        PETIT_PUIT_DIAMETRE, 0.2mm over the 5mm disc — this well is its own
+        angled shape (a ramp cut into a sloped face), not the shared
+        petit_puit, but the diameter matches screen_wedge's
     magnet_cover: plastic left over the magnet on the seat-facing side, thin
         enough for the magnet to still act through it
     magnet_wall: plastic thickness wrapped around each magnet, front and sides

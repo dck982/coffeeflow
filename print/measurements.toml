@@ -3,7 +3,7 @@
 # Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
 # Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
 # coffeeflow repo root (sound_test/, tts/). In progress: Waveshare 4.3 screen
-# shell (frame / wedge / base); Wago (wagox5 / wago_slide); passe-câble Ø16.
+# shell (frame / wedge / base); Wago 221 (cotes bornes); passe-câble Ø16.
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
 # Filament: Bambu Lab PETG HF Black, SKU 33102.
@@ -35,32 +35,22 @@ how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need 
 [wago_epaisseur]
 value = 8.4
 unit = "mm"
-how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. Not the cradle: wagox5 uses wago_epaisseur_corps (8.0) at the wire-end."
+how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. Body without lever bulge is wago_epaisseur_corps (8.0) at the wire-end."
 
 [wago_epaisseur_corps]
 value = 8.0
 unit = "mm"
-how = "user 2026-08-31: Wago 221 body at the end that sits in the wagox5 cradle, without the lever bulge. Two stacked plus wagox5_jeu -0.2 = 15.8 mm inner_y."
+how = "user 2026-08-31: Wago 221 body at the wire-end, without the lever bulge."
 
 [wago_415_largeur]
 value = 30.0
 unit = "mm"
-how = "WAGO 221-415 datasheet width, 5-conductor. Default largeur_borne on wagox5 and wago_slide."
+how = "WAGO 221-415 datasheet width, 5-conductor."
 
 [jeu_wago]
 value = 0.3
 unit = "mm"
-how = "Minimum clearance between a Wago 221-423 and the box walls or dividers. Not wagox5: that press-fit is wagox5_jeu."
-
-[wagox5_jeu]
-value = -0.2
-unit = "mm"
-how = "user 2026-08-31: press-fit in wagox5. 221-415 30 mm → 29.8 mm between faces; 221-423 18.8 mm → 18.6 mm. Same -0.2 on the 8.0 mm cradle stack."
-
-[wagox5_jeu_sommet]
-value = 0.2
-unit = "mm"
-how = "user 2026-09-01: printed wagox5, the top rails sat on the Wago tops instead of clipping over them. Raise the clip walls 0.2 mm in Z so the lip is just above the terminal."
+how = "Minimum clearance between a Wago 221-423 and the box walls or dividers."
 
 [aimant_diametre]
 value = 8.0
@@ -559,16 +549,6 @@ value = 4.0
 unit = "mm"
 how = "Puits imprimé pour l'insert Ø4,6 : hors tout moins 0,6 mm, la règle des fabricants d'inserts à emmancher (ruthex donne Ø4,0 pour un insert de 4,6). C'est le plastique déplacé qui fait la tenue, donc un trou au Ø nominal ne tient pas et un trou trop serré fend le bossage. Corrige le 3,6 de la première version, qui venait d'une cote manquante."
 
-[clip_pas]
-value = 28.93
-unit = "mm"
-how = "wago3.stl section x=-37.51 mm: Y pitch between identical clip features (tooth tip -9.28 vs -38.21). Two stacked logements on wago_snap."
-
-[clip_mur_origine]
-value = 2.50
-unit = "mm"
-how = "wago3.stl mid-height section: back wall from z=15.93 to z=18.43. wago_snap replaces it with epaisseur_face 3.6 mm; DIN hooks discarded."
-
 # --- Boîtier intérieur (docs/boitier.pdf), fendu en boitier_dc + boitier_ac ---
 # Cotes EXTERNES du fond, origine = coin théorique bas-gauche (le chanfrein
 # coupe (0,0)). Les murs poussent vers l'intérieur. Contour machine inchangé.
@@ -770,7 +750,7 @@ how = "user 2026-09-01: flanc droit de la réglette, pas le centre. 50 − 21.8 
 [boitier_ps_wago_largeur]
 value = 29.8
 unit = "mm"
-how = "user 2026-09-01: 28.8 was too tight; 29.8 mm along X for 221-415 (datasheet 30 mm, same −0.2 as wagox5). Right face of the muret at 50 − 29.8 = 20.2."
+how = "user 2026-09-01: 28.8 was too tight; 29.8 mm along X for 221-415 (datasheet 30 mm, press-fit −0.2). Right face of the muret at 50 − 29.8 = 20.2."
 
 [boitier_ps_wago_entre_murets]
 value = 19.0

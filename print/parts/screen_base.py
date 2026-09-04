@@ -1,7 +1,7 @@
 from nurb import *
 from math import radians, tan, sin, cos, hypot, sqrt
 
-from system import PETIT_PUIT_DIAMETRE, anti_tirage_ns
+from system import MARGE_PUIT, PETIT_PUIT_DIAMETRE, anti_tirage_ns, puit_couche
 
 # Side profile, front (south) to back:
 #   - front wall rising to the lip crest
@@ -51,13 +51,18 @@ def screen_base(
     magnet_diameter=PETIT_PUIT_DIAMETRE,
     magnet_cover=0.6,
     magnet_wall=1.6,
+    magnet_slot_gap=2.2,
+    straight_magnet_diameter=8.2,
+    straight_magnet_height=3.0,
+    straight_magnet_cover=0.6,
+    straight_magnet_from_right=15.0,
     cable_tie_gap=1.2,
     cable_tie_slot_width=3.0,
     cable_tie_span=5.6,
     cable_tie_height=5.0,
     cable_tie_low_z=15.0,
     cable_tie_right_high_z=30.0,
-    cable_tie_left_z=40.0,
+    cable_tie_left_z=37.0,
     draft=False,
 ):
     """Hollow wedge cradle. The wedge lies on the slope and is the lid.
@@ -106,6 +111,16 @@ def screen_base(
     magnet_cover: plastic left over the magnet on the seat-facing side, thin
         enough for the magnet to still act through it
     magnet_wall: plastic thickness wrapped around each magnet, front and sides
+    magnet_slot_gap: width of the coin slot each of these two magnets slides
+        in through, across its own 2mm thickness
+    straight_magnet_diameter: bore for a third magnet, Ø8x3, on a
+        horizontal (lying) axis through the back face rather than off the
+        sloped ramp the pair above stand on
+    straight_magnet_height: how deep that magnet's pocket runs
+    straight_magnet_cover: plastic left on the exterior back face over that
+        magnet
+    straight_magnet_from_right: distance from the base's right edge to that
+        magnet's centre
     cable_tie_gap: clearance between the ring and the wall, enough for a
         cable tie to pass through
     cable_tie_slot_width: width of the vertical channel the tie threads
@@ -307,11 +322,18 @@ def screen_base(
     #     Each boss is a triangular prism standing off the interior wall
     #     face: a 45deg ramp away from the wall, then a 45deg ramp back to
     #     it, so the second ramp's face is parallel to the seat plane at
-    #     tilt=45. The well runs all the way through the boss and the back
-    #     wall to the exterior face, so the magnet is pushed in from behind;
-    #     only magnet_cover is left standing between it and the seat side,
-    #     thin enough for the magnet to still act through it. ---
-    well_width = magnet_diameter + 2 * magnet_wall
+    #     tilt=45. That triangle is unchanged. The magnet is a coin slid in
+    #     like a coin slot rather than pushed into a round bore: a hole bored
+    #     straight into the ramp face (perpendicular to it) is round, and
+    #     printed lying on its side it overhangs past 45deg at its own top,
+    #     same problem the straight well below solves with puit_couche's
+    #     teardrop. A slot instead: mouth cut into the exterior back face
+    #     itself, magnet_cover below the ridge (north_height, at max_y), then
+    #     straight down-and-in at 45deg (-up) until magnet_wall of material
+    #     is left before it would break out through the boss's first ramp
+    #     (A→B) near its own peak. The slot's own flat side walls get it
+    #     there without a round hole to overhang. ---
+    well_width = magnet_diameter + 2 * magnet_wall + 0.9
     ramp = well_width / sqrt(2)
     climb = 2 * ramp
 
@@ -326,37 +348,88 @@ def screen_base(
         align=None,
     )
 
-    # the hole's axis, from the ramp face, to where it breaks out the back
-    # wall's own exterior face (the plane through the ridge, normal back_n).
-    # Offset 1mm down-slope from the face's own midpoint: screen_wedge cuts
-    # its matching well from the same face, carried through the assembly's
-    # seat transform, and at the exact midpoint that well straddles the
-    # wedge's pocket boundary by 0.07mm — a sliver. 1mm down clears it on
-    # both sides (0.6mm to the ramp's own apex, 0.9mm to the pocket edge).
-    # See screen_wedge.py's magnet_x/magnet_y, which must move the same
-    # amount if this does.
-    inward = Vector(0, 1, -1).normalized()
-    ramp_mid_y = interior_y - ramp / 2 - up.Y
-    ramp_mid_z = z_start + 1.5 * ramp - up.Z
-    denom = inward.Y * back_n.Y + inward.Z * back_n.Z
-    to_exterior = (
-        (ay - ramp_mid_y) * back_n.Y + (az - ramp_mid_z) * back_n.Z
-    ) / denom
-    # the bore meets the exterior face at an angle, so its flat end cap only
-    # fully clears the face once it overshoots by about the hole's own
-    # radius, not by the wall thickness alone
-    bore_length = to_exterior - magnet_cover + magnet_diameter
+    # Mouth at the exterior back face, dropped below the ridge; travels -up
+    # (z and y both decreasing at 45deg) until it would break out through
+    # the first ramp (A→B, A = (interior_y, z_start), B = the peak,
+    # (interior_y - ramp, z_start + ramp)) — solved as the line-line
+    # intersection between the ray and A→B — minus magnet_wall of material
+    # left standing there. The slot's top face ends up parallel to the B→C
+    # ramp (both contain X and the 45deg "up" direction), magnet_cover apart
+    # from it — but a straight drop in Z only closes *that* gap by
+    # magnet_cover/sqrt(2) (it's not normal to the ramp), so the drop itself
+    # has to be magnet_cover*sqrt(2) for the skin left there to actually be
+    # magnet_cover thick.
+    mouth = Vector(0, ay, az - magnet_cover * sqrt(2))
+    slot_dir = -up
+    a_pt_y, a_pt_z = interior_y, z_start
+    ab_y, ab_z = -ramp, ramp  # B - A
+    denom = slot_dir.Y * ab_z - slot_dir.Z * ab_y
+    to_break = ((a_pt_y - mouth.Y) * ab_z - (a_pt_z - mouth.Z) * ab_y) / denom
+    slot_length = to_break - magnet_wall
+    # mouth is the slot's own TOP edge (magnet_cover below the ridge), not
+    # its centre — Align.MAX on the thickness axis hangs the box below that
+    # line instead of straddling it, which ate into the ramp's own top skin.
+    slot_cutter = Box(
+        magnet_diameter,
+        magnet_slot_gap,
+        slot_length,
+        align=(Align.CENTER, Align.MAX, Align.MIN),
+    )
 
+    # Both wells are built by this one function, called once per side, so
+    # the boss and the slot's own dimensions can't drift apart between them
+    # — the only thing that ever differs is x0.
+    def ramp_magnet_well(x0):
+        boss = Pos(x0, 0, 0) * extrude(magnet_profile, amount=well_width / 2, both=True)
+        slot_solid = Plane(
+            origin=(x0, mouth.Y, mouth.Z), x_dir=(1, 0, 0), z_dir=slot_dir
+        ) * slot_cutter
+        return boss, slot_solid
+
+    magnet_slot_bounds = []
     for sx in (-1, 1):
-        x0 = sx * outer_half / 3
-        body += Pos(x0, 0, 0) * extrude(magnet_profile, amount=well_width / 2, both=True)
+        boss, slot_solid = ramp_magnet_well(sx * outer_half / 3)
+        body += boss
+        magnet_slot_bounds.append(slot_solid.bounding_box())
+        body -= slot_solid
 
-        ramp_mid = Vector(x0, ramp_mid_y, ramp_mid_z)
-        bore_start = ramp_mid + inward * magnet_cover
-        body -= Plane(origin=bore_start, x_dir=(1, 0, 0), z_dir=inward) * Cylinder(
-            magnet_diameter / 2, bore_length,
-            align=(Align.CENTER, Align.CENTER, Align.MIN),
+    # --- straight magnet well: a third magnet, bored through the back face
+    #     with a horizontal (lying) axis rather than off the 45deg ramp the
+    #     pair above stand on. A round hole printed with its axis lying flat
+    #     overhangs past 45deg at its own top, same as any puit_couche bore;
+    #     system.py's puit_couche cuts the teardrop roof that replaces it, the
+    #     same shape base_pesage's own wall magnet used before it was retired
+    #     (see that file's history). puit_couche is a cutter only, so the pad
+    #     is a plain box here rather than puit_debout's round one: a box's
+    #     side faces are all vertical or upward, and only the boss's own
+    #     protrusion past the plain wall (straight_magnet_cover +
+    #     straight_magnet_height - wall) is unsupported underneath, short
+    #     enough to bridge. The magnet is pushed in from the interior — the
+    #     mouth, where puit_couche's own entry chamfer sits — and travels
+    #     toward the exterior, stopping straight_magnet_cover short of it,
+    #     the thickness the user asked the back face be reduced to here. ---
+    straight_magnet_r = straight_magnet_diameter / 2
+    straight_magnet_half = straight_magnet_r + MARGE_PUIT
+    straight_magnet_x = outer_half - wall - straight_magnet_from_right
+    straight_magnet_z = back_opening_z
+    if abs(straight_magnet_x) + straight_magnet_half > outer_half:
+        reject(
+            f"straight_magnet_from_right {straight_magnet_from_right:.1f}mm puts "
+            f"the well past the base's {width:.1f}mm width",
+            param="straight_magnet_from_right",
         )
+    straight_magnet_mouth_y = north_y - straight_magnet_cover - straight_magnet_height
+    body += Pos(straight_magnet_x, (straight_magnet_mouth_y + north_y) / 2, straight_magnet_z) * Box(
+        2 * straight_magnet_half,
+        north_y - straight_magnet_mouth_y,
+        2 * straight_magnet_half,
+    )
+    straight_magnet_plane = Plane(
+        origin=(straight_magnet_x, straight_magnet_mouth_y, straight_magnet_z),
+        x_dir=(-1, 0, 0),
+        z_dir=(0, 1, 0),
+    )
+    body -= straight_magnet_plane * puit_couche(straight_magnet_r, straight_magnet_height)
 
     # --- cable-tie rings: three loops against the back face's own interior
     #     side, standing off `interior_y` (the same interior-face Y the
@@ -469,18 +542,44 @@ def screen_base(
         )
 
     def on_magnet_well(edge):
-        # the hole's rim, and the boss's own two end faces (the well's flat
-        # X-bounds) — a chamfer on any of these eats into the magnet_wall
-        # thickness that's already sized tight around the hole.
-        if edge.geom_type == GeomType.CIRCLE and abs(edge.radius - magnet_diameter / 2) < 0.05:
-            return True
+        # the boss's own two end faces (the well's flat X-bounds) — a
+        # chamfer on either eats into the magnet_wall thickness that's
+        # already sized tight around the slot.
         for x0 in (-outer_half / 3, outer_half / 3):
             if on_flat_face(edge, x0 - well_width / 2) or on_flat_face(edge, x0 + well_width / 2):
+                return True
+        # the straight well's own boss: a plain box sitting flush against
+        # the back wall, tangent with it at the boss's own outer frame —
+        # chamfering that frame tessellates a sliver at the tangency, same
+        # failure mode as the ramped wells' end faces above.
+        if on_flat_face(edge, straight_magnet_x - straight_magnet_half) or on_flat_face(
+            edge, straight_magnet_x + straight_magnet_half
+        ):
+            return True
+        return False
+
+    def on_magnet_slot(edge):
+        # no chamfers anywhere on the coin slot — its mouth, side walls and
+        # rim are all cut close together, and a chamfer on any of them
+        # either narrows the slot below magnet_slot_gap or nicks the ramp's
+        # own thin top skin right next to it.
+        b = edge.bounding_box()
+        for slot_bb in magnet_slot_bounds:
+            if (
+                slot_bb.min.X - 0.1 <= b.min.X
+                and b.max.X <= slot_bb.max.X + 0.1
+                and slot_bb.min.Y - 0.1 <= b.min.Y
+                and b.max.Y <= slot_bb.max.Y + 0.1
+                and slot_bb.min.Z - 0.1 <= b.min.Z
+                and b.max.Z <= slot_bb.max.Z + 0.1
+            ):
                 return True
         return False
 
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
-    keep = keep.filter_by(lambda e: not seating(e) and not on_magnet_well(e))
+    keep = keep.filter_by(
+        lambda e: not seating(e) and not on_magnet_well(e) and not on_magnet_slot(e)
+    )
     return polish(body, keep, 1.0)

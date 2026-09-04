@@ -26,10 +26,10 @@ def screen_base(
     wedge_width=126.1,
     seat_height=30.0,
     backing=WEDGE_LENGTH,
-    tilt=60.0,
+    tilt=45.0,
     wall=2.0,
     floor=2.0,
-    footing=30.0,
+    footing=0.0,
     footing_edge=4.0,
     channel_fit=0.4,
     rail_width=2.0,
@@ -40,7 +40,8 @@ def screen_base(
     rib_span=60.0,
     foot_pin_diameter=5.0,
     foot_pin_length=3.0,
-    fit=0.5,
+    side_panel_depth=WEDGE_THICKNESS,
+    side_panel_fit=-0.1,
     draft=False,
 ):
     """Hollow wedge cradle. The wedge lies on the slope and is the lid.
@@ -57,9 +58,12 @@ def screen_base(
     tilt: seat slope, i.e. the screen angle
     wall: wall thickness
     floor: bottom thickness
-    footing: how far the floor runs behind the ridge, the mason's footing
+    footing: how far the floor runs behind the ridge, the mason's footing. At 0
+        the back face drops straight down from the ridge instead, for mounting
+        against a vertical surface, and footing_edge is unused
     footing_edge: height of the short vertical face at the back tip, so the
-        falling face does not end in a feather edge
+        falling face does not end in a feather edge. Only applies when footing
+        is above 0
     channel_fit: total play between the wedge and the two rails, side to side
     rail_width: thickness of the rail that stops the wedge sliding sideways
     rail_height: how far each rail stands proud of the seat
@@ -69,7 +73,12 @@ def screen_base(
     rib_span: centre-to-centre of the ergots
     foot_pin_diameter: the pin on each ergot, plugging into the wedge's foot
     foot_pin_length: how far each foot pin stands out of the lip face
-    fit: clearance in the notch, so the wedge's polish chamfer does not bind
+    side_panel_depth: how far the two closing side panels reach out from the
+        seat, perpendicular to the slope. Has to clear the wedge's full
+        19.6mm thickness or its USB-C openings stay exposed above the low
+        rail
+    side_panel_fit: clearance between the side panels and the wedge's edge,
+        negative for a press fit so the wedge grips instead of sliding loose
     """
     t = radians(tilt)
     s, c = sin(t), cos(t)
@@ -101,7 +110,7 @@ def screen_base(
             "screen",
             param="backing",
         )
-    if footing_edge >= north_height:
+    if footing > 0 and footing_edge >= north_height:
         reject("footing_edge must stay under north_height", param="footing_edge")
     if shelf_width < 3.0:
         reject(
@@ -109,20 +118,32 @@ def screen_base(
             "border needs to sit on",
             param="shelf_width",
         )
-
+    if side_panel_depth < WEDGE_THICKNESS:
+        reject(
+            f"side_panel_depth {side_panel_depth:.1f}mm is under the wedge's "
+            f"{WEDGE_THICKNESS:.1f}mm thickness, so its USB-C openings stay "
+            "exposed past the panel",
+            param="side_panel_depth",
+        )
     up = Vector(0, c, s)                       # up the slope
     n = Vector(0, -s, c)                       # out of the seat
     notch = Vector(0, seat_y, seat_height)
 
     # --- the seat silhouette: the shelf, and the outline the shell is clipped
-    #     to so nothing overshoots ---
+    #     to so nothing overshoots. With no footing the back face is already
+    #     vertical, so footing_edge's own short face would be a zero-length
+    #     redundant vertex; it only earns its place once footing pushes the
+    #     back face into a slope that would otherwise end in a feather edge. ---
+    back_tail = (
+        [(north_y, north_height), (depth, footing_edge), (depth, 0.0)]
+        if footing > 0
+        else [(north_y, north_height), (depth, 0.0)]
+    )
     seat_pts = [
         (0.0, 0.0),
         (0.0, crest),
         (seat_y, seat_height),
-        (north_y, north_height),
-        (depth, footing_edge),
-        (depth, 0.0),
+        *back_tail,
     ]
     seat_profile = Plane.YZ * Polygon(*seat_pts, align=None)
     silhouette = extrude(seat_profile, amount=outer_half, both=True)
@@ -137,9 +158,7 @@ def screen_base(
         (0.0, crest),
         (rail_notch.Y, rail_notch.Z),
         (rail_ridge.Y, rail_ridge.Z),
-        (north_y, north_height),
-        (depth, footing_edge),
-        (depth, 0.0),
+        *back_tail,
     ]
     rail_profile = Plane.YZ * Polygon(*rail_pts, align=None)
 
@@ -148,7 +167,7 @@ def screen_base(
     body += Pos(0, wall / 2, crest / 2) * Box(width, wall, crest)
 
     ay, az = north_y, north_height
-    by, bz = depth, footing_edge
+    by, bz = (depth, footing_edge) if footing > 0 else (depth, 0.0)
     length = hypot(by - ay, bz - az)
     back_n = Vector(0, (az - bz) / length, (by - ay) / length)
     back_mid = Vector(0, (ay + by) / 2, (az + bz) / 2)
@@ -181,16 +200,30 @@ def screen_base(
             rail_profile, amount=rail_width / 2, both=True
         )
 
-    # --- notch relief: the inside-corner relief the doctrine asks for at a
-    #     load-bearing junction, so the wedge lands on the seat and the lip
-    #     rather than perching on the corner between them. It stops at the
-    #     rails: cut full width it breaks out through the outside faces. ---
-    if fit > 0:
-        body -= Plane(
-            origin=(0, seat_y, seat_height), x_dir=(1, 0, 0), z_dir=(0, c, s)
-        ) * Box(
-            2 * channel_half, fit * 2, fit * 2,
-            align=(Align.CENTER, Align.CENTER, Align.MAX),
+    # --- side panels: close the outer sides over the wedge's full thickness,
+    #     not just the rail's rail_height stub, so the USB-C openings
+    #     screen_wedge cuts into its own border are hidden rather than
+    #     showing above the low rail. Positioned off wedge_width itself, with
+    #     side_panel_fit negative, so the wedge presses into place. Follows
+    #     the wedge's own back corner exactly, flush, rather than cutting a
+    #     chamfer there: cutting it back exposes the wedge behind it, since
+    #     the wedge fills right up to that corner too. screen_wedge drops its
+    #     own chamfer on that same edge so the two land flush with no reveal.
+    #     Added after the notch relief above so that cut never touches it. ---
+    press_half = wedge_width / 2 + side_panel_fit / 2
+    notch_out = notch + n * side_panel_depth
+    ridge_out = ridge + n * side_panel_depth
+    side_panel_profile = Plane.YZ * Polygon(
+        (seat_y, seat_height),
+        (north_y, north_height),
+        (ridge_out.Y, ridge_out.Z),
+        (notch_out.Y, notch_out.Z),
+        align=None,
+    )
+    for sx in (-1, 1):
+        panel_mid = sx * (press_half + outer_half) / 2
+        body += Pos(panel_mid, 0, 0) * extrude(
+            side_panel_profile, amount=(outer_half - press_half) / 2, both=True
         )
 
     # --- foot pins: one per ergot, standing out of the lip face along the
@@ -217,8 +250,28 @@ def screen_base(
                     return False
         return True
 
+    def on_flat_face(edge, x):
+        # any edge lying flat on a face perpendicular to X, at +-x — used for
+        # the panel's inner (mating) face at press_half and the shelf's inner
+        # face at channel_half - shelf_width. Chamfering any edge on either
+        # face recedes it behind the wedge, which presses or rests flush
+        # against the whole face, not just the one named edge a narrower
+        # check might anticipate.
+        b = edge.bounding_box()
+        return abs(b.min.X - x) < 0.05 and abs(b.max.X - x) < 0.05
+
+    shelf_inner = channel_half - shelf_width
+
     def seating(edge):
-        return on_plane(edge, notch, n) or on_plane(edge, notch, up)
+        return (
+            on_plane(edge, notch, n)
+            or on_plane(edge, notch, up)
+            or on_plane(edge, notch_out, n)
+            or on_flat_face(edge, press_half)
+            or on_flat_face(edge, -press_half)
+            or on_flat_face(edge, shelf_inner)
+            or on_flat_face(edge, -shelf_inner)
+        )
 
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)

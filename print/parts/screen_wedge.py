@@ -367,6 +367,14 @@ def screen_wedge(
             and b.max.X < relief_cx + cable_relief_width / 2 + 0.05
         )
 
+    def on_outer_rim(edge):
+        # The rim's outer perimeter, where screen_base's side panels press
+        # flush against it to hide the USB-C openings. A 1mm chamfer there
+        # recedes the wedge behind the panel's flat face, opening a reveal
+        # along the join instead of a flush line.
+        b = edge.bounding_box()
+        return b.min.Z > rim_z - 0.05 and not in_pocket(b)
+
     def on_glass_lip(edge):
         # The lip's underside runs the width of the pocket at z = lip_bot. A 1mm
         # chamfer is larger than the 0.8mm it would be chamfering, and it would
@@ -387,5 +395,6 @@ def screen_wedge(
         and not against_glass(e)
         and not in_relief(e)
         and not on_glass_lip(e)
+        and not on_outer_rim(e)
     )
     return polish(body, keep, 1.0)

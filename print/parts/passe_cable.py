@@ -8,13 +8,13 @@ def passe_cable(
     diametre_bride=20.0,
     epaisseur_bride=1.6,
     diametre_fut=15.8,
-    diametre_passage=5.2,
+    diametre_passage=3.5,
     entraxe_passages=6.4,
     pas_filet=2.0,
     profondeur_filet=0.5,
     draft=False,
 ):
-    """Passe-câble fileté : bride sous la tôle, fût mâle, deux câbles Ø4.8.
+    """Passe-câble fileté : bride sous la tôle, fût mâle, deux câbles Ø3.1.
 
     Profil en dents de scie relevé sur un presse-étoupe trouvé en ligne, mais
     au pas 2.0 et non 1.41 : à 1.41 la crête ne fait plus que 0.12 mm, sous une

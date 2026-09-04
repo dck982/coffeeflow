@@ -325,9 +325,9 @@ how = "ISO 4762 M2.5 socket cap head height"
 # --- Passe-câble M16 (trou Ø16, ex-bouton brew) ---
 
 [cable_od_passe]
-value = 4.8
+value = 3.1
 unit = "mm"
-how = "user: two cables through the Ø16 sheet hole, outer diameter 4.8 mm."
+how = "user: two cables through the Ø16 sheet hole, each a twisted pair of 2x0.25mm² conductors under a heat-shrink sleeve, outer diameter 3.1 mm. Was 4.8 mm for 0.75mm² conductors, no longer used — the wiring switched to 0.25mm²."
 
 [tole_epaisseur]
 value = 1.0
@@ -360,9 +360,9 @@ unit = "mm"
 how = "Flange thickness 1.6 mm (four 0.42 mm perimeters). 1.2 mm was considered to shorten the male: rejected — printable (six 0.2 mm layers) but thinner than the rest of the clamp washer around Ø16."
 
 [passe_cable_passage]
-value = 5.2
+value = 3.5
 unit = "mm"
-how = "Printed bore for a 4.8 mm cable. 4.8 + 0.4 mm (nurb fits, between snug 0.2 and free 0.5) because vertical bores print small and the cable must slide through. Record only: the live value is the `diametre_passage` slider on passe_cable."
+how = "Printed bore for a 3.1 mm cable. 3.1 + 0.4 mm (nurb fits, between snug 0.2 and free 0.5) because vertical bores print small and the cable must slide through. Record only: the live value is the `diametre_passage` slider on passe_cable."
 
 [passe_cable_entraxe]
 value = 6.4

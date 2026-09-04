@@ -167,9 +167,8 @@ def ouvertures_modules(
     appui_y=18.0,
     tour_y=3.0,
     traverse_depuis_crochet_sud=8.0,
-    hauteur_vis=16.6,
-    rebord=2.0,
-    fente_ouest_z=7.0,
+    fente_nord_ouest_z=18.6,
+    fente_sud_ouest_z=7.0,
 ):
     """Dimmer (north) and SSR (south) slots shared by AC west / DC east.
 
@@ -182,8 +181,8 @@ def ouvertures_modules(
     ssr_nord = dimmer_sud - tour_y
     ssr_sud = ssr_nord - traverse_depuis_crochet_sud
     return (
-        (dimmer_sud, dimmer_nord, hauteur_vis + rebord),
-        (ssr_sud, ssr_nord, fente_ouest_z),
+        (dimmer_sud, dimmer_nord, fente_nord_ouest_z),
+        (ssr_sud, ssr_nord, fente_sud_ouest_z),
     )
 
 

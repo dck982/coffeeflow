@@ -88,26 +88,28 @@ def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
 
 @part
 def boitier_ac(
-    hauteur=30.0,
+    hauteur=27.0,
     epaisseur_paroi=1.6,
     gouttiere_vide_haut=10.0,
     degagement_vis=10.0,
     hauteur_vis=16.6,
     appui_y=18.0,
-    muret_depuis_ouest=20.0,
+    muret_depuis_ouest=23.0,
     puit_depuis_cote=10.0,
     puit_depuis_nord=10.0,
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
     fente_nord_est=15.0,
-    fente_nord_est_z=20.0,
+    fente_nord_est_z=10.0,
     fente_sud_est=10.0,
     fente_sud_est_z=5.6,
-    fente_ouest_z=7.0,
-    rebord=2.0,
+    fente_sud_ouest_z=7.0,
+    fente_nord_ouest_z=13.6,
+    rebord=4.0,
     tour_y=3.0,
-    butee_depuis_ouest=4.0,
+    butee_depuis_ouest=8.0,
+    butee_y=10.0,
     traverse_depuis_crochet_sud=8.0,
     traverse_decalage_x=3.0,
     draft=False,
@@ -130,12 +132,15 @@ def boitier_ac(
     fente_nord_est_z: bas de la fente nord-est, ouverte du sommet jusqu'à ce Z
     fente_sud_est: largeur en Y de la fente sud sur la face est
     fente_sud_est_z: bas de la fente sud-est (4 mm au-dessus du fond)
-    fente_ouest_z: bas de la fente ouest (écart tours–traverse), ouverte du sommet jusqu'à ce Z
+    fente_sud_ouest_z: bas de la fente sud-ouest (écart tours–traverse), ouverte du sommet jusqu'à ce Z
+    fente_nord_ouest_z: bas de la fente nord-ouest (dimmer), ouverte du sommet jusqu'à ce Z
     rebord: dépassement des tours sud au-dessus du muret / plateforme
     tour_y: longueur des tours en Y, collées au sud des murets (X reste l'épaisseur de paroi)
     butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
+    butee_y: hauteur/longueur en Y de la butée à 45°, indépendante de appui_y
     traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des tours
-    traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue)
+    traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue) ; le côté
+        est de la traverse est en plus décalé de 10 mm vers l'est, ce qui l'élargit
     """
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
@@ -268,18 +273,24 @@ def boitier_ac(
             "lower it",
             param="butee_depuis_ouest",
         )
-    butee_z1 = hauteur_vis + rebord
-    butee_z0 = butee_z1 - appui_y
+    if butee_y < 2.0:
+        reject(
+            f"butee_y {butee_y} is under 2 mm: raise it",
+            param="butee_y",
+        )
+    butee_y_sud = y_max - butee_y
+    if butee_y_sud < aile_y:
+        reject(
+            f"butee_y {butee_y} runs the stop south of y={aile_y}: lower it",
+            param="butee_y",
+        )
+    butee_z1 = hauteur_vis
+    butee_z0 = butee_z1 - butee_y
     if butee_z0 < 0.0:
         reject(
-            f"appui_y {appui_y} is taller than the stop top "
+            f"butee_y {butee_y} is taller than the stop top "
             f"({butee_z1:.1f} mm): lower it",
-            param="appui_y",
-        )
-    if butee_z1 > hauteur:
-        reject(
-            f"butee top {butee_z1:.1f} exceeds hauteur {hauteur}: lower rebord",
-            param="rebord",
+            param="butee_y",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -408,17 +419,29 @@ def boitier_ac(
             f"{hauteur}: lower it",
             param="fente_sud_est_z",
         )
-    if fente_ouest_z < wall:
+    if fente_sud_ouest_z < wall:
         reject(
-            f"fente_ouest_z {fente_ouest_z} cuts the floor: raise it above "
+            f"fente_sud_ouest_z {fente_sud_ouest_z} cuts the floor: raise it above "
             f"{wall:.1f}",
-            param="fente_ouest_z",
+            param="fente_sud_ouest_z",
         )
-    if fente_ouest_z >= hauteur:
+    if fente_sud_ouest_z >= hauteur:
         reject(
-            f"fente_ouest_z {fente_ouest_z} is not below hauteur {hauteur}: "
+            f"fente_sud_ouest_z {fente_sud_ouest_z} is not below hauteur {hauteur}: "
             "lower it",
-            param="fente_ouest_z",
+            param="fente_sud_ouest_z",
+        )
+    if fente_nord_ouest_z < wall:
+        reject(
+            f"fente_nord_ouest_z {fente_nord_ouest_z} cuts the floor: raise it above "
+            f"{wall:.1f}",
+            param="fente_nord_ouest_z",
+        )
+    if fente_nord_ouest_z >= hauteur:
+        reject(
+            f"fente_nord_ouest_z {fente_nord_ouest_z} is not below hauteur {hauteur}: "
+            "lower it",
+            param="fente_nord_ouest_z",
         )
     y_se0 = aile_y + wall
     y_se1 = y_se0 + fente_sud_est
@@ -482,20 +505,7 @@ def boitier_ac(
         hauteur + 1.0,
     )
 
-    # West-periphery height step:
-    # periphery walls located 5mm west of the west screw-housing wall are
-    # 5mm lower than the east side that contains the screw logement.
-    z_drop = 5.0
-    x_step_end = plat_x0 - z_drop
     x_outer_west = aile_x - ac_west_shift
-    body = body - _bb(
-        x_outer_west,
-        0.0,
-        hauteur - z_drop,
-        x_step_end,
-        y_max + 1.0,
-        hauteur + 1.0,
-    )
 
     # Slab between the E/W walls, top flush with the wall tops.
     # Underside at 15 mm so the screw pocket is 15 mm effective.
@@ -523,16 +533,31 @@ def boitier_ac(
     body = body + _tour_sud(plat_x1 - wall, plat_y0, wall, tour_y, tour_z)
     body = body + _tour_sud(muret_x, plat_y0, wall, tour_y, tour_z)
 
-    # Traverse: same length, shifted west by traverse_decalage_x.
-    # Same Z as the murets (hauteur_vis), not the south towers.
+    # Traverse: same length, shifted west by traverse_decalage_x. Same Z as
+    # the murets (hauteur_vis), not the south towers.
     body = body + _bb(
         trav_x0, trav_y_sud, 0.0, trav_x1, trav_y_nord, hauteur_vis
+    )
+
+    # Stop wall 10 mm east of the traverse's east edge (module mounted
+    # upside down, connector clears the west stop and needs a stop of its
+    # own past the traverse): 3 mm tall from the floor (z=1,6 to z=4,6),
+    # 1,6 mm thick to the east, 10 mm in Y, south side flush with the
+    # traverse's south side.
+    butee_arret_x0 = trav_x1 + 11.0
+    body = body + _bb(
+        butee_arret_x0,
+        trav_y_sud,
+        wall,
+        butee_arret_x0 + wall,
+        trav_y_sud + 10.0,
+        wall + 3.0,
     )
 
     # West stop: east face at 7 mm, 18×18 45° triangle on the north wall.
     # No south hook. Underside leaves the magnet well clear.
     body = body + _butee_triangle(
-        butee_x0, butee_x1, plat_y0, y_max, butee_z0, butee_z1
+        butee_x0, butee_x1, butee_y_sud, y_max, butee_z0, butee_z1
     )
 
     # North face is open only at the housing interior. From the slab top
@@ -553,9 +578,8 @@ def boitier_ac(
         appui_y,
         tour_y,
         traverse_depuis_crochet_sud,
-        hauteur_vis,
-        rebord,
-        fente_ouest_z,
+        fente_nord_ouest_z,
+        fente_sud_ouest_z,
     )
     dimmer_y0, dimmer_y1, dimmer_z = dimmer
     ssr_y0, ssr_y1, ssr_z = ssr

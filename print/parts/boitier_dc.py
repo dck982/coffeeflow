@@ -22,7 +22,7 @@ def _contour():
 
 @part
 def boitier_dc(
-    hauteur=25.0,
+    hauteur=24.0,
     epaisseur_paroi=1.6,
     puit_diametre=8.2,
     puit_peau=0.6,
@@ -140,8 +140,8 @@ def boitier_dc(
     y_n2 = measured("boitier_int_y")
     x_inner_e = x_e - wall
     y_inner_n = y_n2 - wall
-    insert1_cx = x_inner_e - x_face_clear - hole_r + 1.5
-    insert1_cy = y_inner_n - x_face_clear - hole_r + 1.5
+    insert1_cx = x_inner_e - x_face_clear - hole_r + 1.5 - 2.0
+    insert1_cy = y_inner_n - x_face_clear - hole_r + 1.5 - 2.5
     insert2_cx = insert1_cx - 16.0
     insert2_cy = insert1_cy
     cyl_amin = (Align.CENTER, Align.CENTER, Align.MIN)
@@ -424,6 +424,12 @@ def boitier_dc(
         my = 0.5 * (bb.min.Y + bb.max.Y)
         return abs(mx - x_inner_e) < 1.2 and abs(my - y_inner_n) < 1.2
 
+    def in_muret_ouest_bas(bb):
+        """South end of the west insert support wall: left it unchamfered."""
+        mx = 0.5 * (bb.min.X + bb.max.X)
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        return abs(mx - insert2_cx) < 1.0 and abs(my - y_bot) < 1.0
+
     def in_fente_est(bb):
         on_est = (
             bb.max.X > x_e - wall - margin - 0.2
@@ -454,6 +460,8 @@ def boitier_dc(
         if in_angle_ne(bb):
             return False
         if in_fente_est(bb):
+            return False
+        if in_muret_ouest_bas(bb):
             return False
         return True
 

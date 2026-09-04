@@ -5,10 +5,10 @@ from system import passe_cable_body, passe_cable_demi
 
 @part
 def passe_cable_demi_b(
-    diametre_bride=20.0,
+    diametre_bride=25.0,
     epaisseur_bride=1.6,
     diametre_fut=15.8,
-    diametre_passage=3.5,
+    diametre_passage=4.6,
     entraxe_passages=6.4,
     pas_filet=2.0,
     profondeur_filet=0.5,

@@ -1,7 +1,13 @@
 from nurb import *
 from math import radians, tan, sin, cos, hypot, sqrt
 
-from system import MARGE_PUIT, PETIT_PUIT_DIAMETRE, anti_tirage_ns, puit_couche
+from system import (
+    MARGE_PUIT,
+    PETIT_PUIT_DIAMETRE,
+    anti_tirage_ns,
+    back_face_layout,
+    puit_couche,
+)
 
 # Side profile, front (south) to back:
 #   - front wall rising to the lip crest
@@ -147,16 +153,26 @@ def screen_base(
     s, c = sin(t), cos(t)
 
     channel_half = wedge_width / 2 + channel_fit / 2
-    outer_half = channel_half + rail_width
-    width = 2 * outer_half
-
     crest = seat_height + WEDGE_THICKNESS * c
     seat_y = WEDGE_THICKNESS * s
+
     # The ridge is where `backing` mm up the slope lands, so seat_height and tilt
     # move without changing how much of the wedge the slope carries.
-    north_height = seat_height + backing * s
-    run = backing * c
-    north_y = seat_y + run
+    layout = back_face_layout(
+        wedge_width=wedge_width,
+        seat_height=seat_height,
+        backing=backing,
+        tilt=tilt,
+        channel_fit=channel_fit,
+        rail_width=rail_width,
+        back_opening_from_left=back_opening_from_left,
+        back_opening_below_top=back_opening_below_top,
+        second_opening_offset_x=second_opening_offset_x,
+    )
+    outer_half = layout["outer_half"]
+    width = layout["width"]
+    north_height = layout["north_height"]
+    north_y = layout["north_y"]
     depth = north_y
 
     if backing < ACTIVE_TOP:
@@ -185,8 +201,8 @@ def screen_base(
             f"on a {back_opening_height:.1f}mm-tall opening",
             param="back_opening_chamfer",
         )
-    back_opening_x = -outer_half + back_opening_from_left
-    back_opening_z = north_height - back_opening_below_top
+    back_opening_x = layout["back_opening_x"]
+    back_opening_z = layout["back_opening_z"]
     if abs(back_opening_x) + back_opening_width / 2 > outer_half:
         reject(
             f"back_opening_from_left {back_opening_from_left:.1f}mm puts the "

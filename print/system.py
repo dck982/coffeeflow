@@ -622,3 +622,45 @@ def passe_cable_demi(body, garder):
     if not solids:
         reject(f"splitting side {garder!r} removed everything: check parameters")
     return max(solids, key=lambda s: s.volume)
+
+
+def back_face_layout(
+    wedge_width=126.1,
+    seat_height=5.0,
+    backing=77.80,
+    tilt=45.0,
+    wedge_thickness=19.60,
+    channel_fit=0.4,
+    rail_width=2.0,
+    back_opening_from_left=25.0,
+    back_opening_below_top=40.0,
+    second_opening_offset_x=20.0,
+):
+    """screen_base's back face: its own size, and its two openings' centres,
+    in screen_base's frame. Shared with screen_assembly, which places an
+    obstacle plate (the espresso machine's rear panel) against this same
+    face and needs its size and opening centres without recomputing them —
+    call with the same keyword values passed to screen_base, or the two
+    drift apart."""
+    t = math.radians(tilt)
+    s, c = math.sin(t), math.cos(t)
+    channel_half = wedge_width / 2 + channel_fit / 2
+    outer_half = channel_half + rail_width
+    width = 2 * outer_half
+    seat_y = wedge_thickness * s
+    north_height = seat_height + backing * s
+    north_y = seat_y + backing * c
+    back_opening_x = -outer_half + back_opening_from_left
+    back_opening_z = north_height - back_opening_below_top
+    second_opening_x = back_opening_x + second_opening_offset_x
+    second_opening_z = back_opening_z
+    return dict(
+        width=width,
+        outer_half=outer_half,
+        north_y=north_y,
+        north_height=north_height,
+        back_opening_x=back_opening_x,
+        back_opening_z=back_opening_z,
+        second_opening_x=second_opening_x,
+        second_opening_z=second_opening_z,
+    )

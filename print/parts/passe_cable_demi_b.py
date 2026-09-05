@@ -12,6 +12,7 @@ def passe_cable_demi_b(
     entraxe_passages=6.4,
     pas_filet=2.0,
     profondeur_filet=0.5,
+    epaisseur_a_traverser=2.6,
     draft=False,
 ):
     """Moitié B du passe_cable fendu — se referme avec `passe_cable_demi_a`
@@ -31,6 +32,7 @@ def passe_cable_demi_b(
         entraxe_passages,
         pas_filet,
         profondeur_filet,
+        epaisseur_a_traverser,
         draft,
     )
     return passe_cable_demi(body, "b")

@@ -20,6 +20,7 @@ def screen_assembly(
     show_machine_face=True,
     machine_face_thickness=2.0,
     machine_face_overhang=10.0,
+    show_cable_gland=True,
     draft=False,
 ):
     """Waveshare 4.3 carrier seated in its cradle.
@@ -34,6 +35,10 @@ def screen_assembly(
     machine_face_overhang: how far the panel runs past screen_base's back
         face in -Z and +X, to read as its own surface rather than a patch cut
         to size
+    show_cable_gland: show `passe_cable` and `ecrou_passe_cable` seated in the
+        16mm back opening, flange inside screen_base, nut screwed down flush
+        against the machine panel's inner face. Only drawn when
+        show_machine_face is also on, since its length is sized to cross both
     """
     # Unwrap: the runtime hands an assembly its floats wrapped so the viewer can
     # tie a slider to a hinge, and that wrapper does not survive `use()`.
@@ -98,6 +103,41 @@ def screen_assembly(
                 dia / 2, machine_face_thickness, align=(Align.CENTER, Align.CENTER, Align.MIN)
             )
         obstacle(plate, name="espresso machine rear panel")
+
+        if show_cable_gland:
+            # passe_cable seated in the 16mm opening: flange inside
+            # screen_base against the wall's interior face, barrel crossing
+            # the back wall then the machine panel, nut screwed down flush
+            # against the panel's inner face on the far (machine) side.
+            back_wall_thickness = 2.0  # screen_base's own `wall` default
+            bride_epaisseur = 1.6      # passe_cable's own `epaisseur_bride`
+            ecrou_epaisseur = 5.0      # ecrou_passe_cable's own `epaisseur`
+            epaisseur_a_traverser = back_wall_thickness + machine_face_thickness
+            interior_y = layout["north_y"] - back_wall_thickness
+            gland_plane = Plane(
+                origin=(
+                    layout["back_opening_x"],
+                    interior_y - bride_epaisseur,
+                    layout["back_opening_z"],
+                ),
+                x_dir=(1, 0, 0),
+                z_dir=(0, 1, 0),
+            )
+            # 90deg about the barrel's own axis is the thread phase that mates
+            # cleanly with the nut, measured in `ensemble_passe_cable` (0.0
+            # interpenetration at 90 deg, 12.5mm3 at 0).
+            gland = gland_plane * Rot(0, 0, 90) * use(
+                "passe_cable", epaisseur_a_traverser=epaisseur_a_traverser
+            )
+            thread_start = bride_epaisseur + epaisseur_a_traverser
+            ecrou = (
+                gland_plane
+                * Pos(0, 0, thread_start + ecrou_epaisseur)
+                * Rot(180, 0, 0)
+                * use("ecrou_passe_cable")
+            )
+            return base + placed, plate, gland, ecrou
+
         return base + placed, plate
 
     return base + placed

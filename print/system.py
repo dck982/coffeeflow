@@ -500,13 +500,12 @@ def passe_cable_body(
     entraxe_passages,
     pas_filet,
     profondeur_filet,
+    epaisseur_a_traverser,
     draft,
 ):
     """The full passe_cable solid, shared by `passe_cable` and the split
     `passe_cable_demi_a` / `passe_cable_demi_b` halves, which cut this same
     body along the Y=0 plane (the plane through both cable-bore axes)."""
-    ep_tole = measured("tole_epaisseur")
-    ep_fond = measured("passe_cable_bride_epaisseur")
     ep_ecrou = measured("ecrou_m16_epaisseur")
     amorce = measured("passe_cable_amorce")
     cable = measured("cable_od_passe")
@@ -556,7 +555,7 @@ def passe_cable_body(
             param="pas_filet",
         )
 
-    h_col = ep_tole + ep_fond
+    h_col = epaisseur_a_traverser
     h_filet = ep_ecrou + amorce
 
     body = Cylinder(diametre_bride / 2.0, epaisseur_bride, align=_CMIN)

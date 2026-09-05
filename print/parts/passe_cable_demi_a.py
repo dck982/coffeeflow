@@ -12,6 +12,7 @@ def passe_cable_demi_a(
     entraxe_passages=6.4,
     pas_filet=2.0,
     profondeur_filet=0.5,
+    epaisseur_a_traverser=2.6,
     draft=False,
 ):
     """Moitié A du passe_cable fendu, pour un câble déjà terminé aux deux
@@ -35,6 +36,8 @@ def passe_cable_demi_a(
     entraxe_passages: distance entre les centres des deux alésages
     pas_filet: pas du filet (2.0 mm, choisi pour une crête imprimable)
     profondeur_filet: profondeur radiale d'une dent
+    epaisseur_a_traverser: longueur de fût lisse entre la bride et le début du
+        filet — la longueur dans l'axe (Z) à traverser
     """
     body = passe_cable_body(
         diametre_bride,
@@ -44,6 +47,7 @@ def passe_cable_demi_a(
         entraxe_passages,
         pas_filet,
         profondeur_filet,
+        epaisseur_a_traverser,
         draft,
     )
     return passe_cable_demi(body, "a")

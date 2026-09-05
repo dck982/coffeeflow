@@ -48,6 +48,9 @@ def screen_base(
     back_opening_from_left=25.0,
     back_opening_below_top=40.0,
     back_opening_chamfer=4.0,
+    second_opening_width=6.0,
+    second_opening_height=6.0,
+    second_opening_offset_x=20.0,
     magnet_diameter=PETIT_PUIT_DIAMETRE,
     magnet_cover=0.6,
     magnet_wall=1.6,
@@ -101,6 +104,12 @@ def screen_base(
         port's centre
     back_opening_chamfer: size of the 45deg cut on the port's top two corners,
         standing in for a circle without the overhang a round hole would print
+    second_opening_width: width of a second, smaller port through the back
+        face, centred second_opening_offset_x to the right of the first
+        port's centre, at the same height
+    second_opening_height: height of that second port
+    second_opening_offset_x: distance from the first port's centre to the
+        second port's centre, along X
     magnet_diameter: bore diameter for the two magnets set into the back
         face, near the top, flush with the seat plane so they sit right
         under the wedge. Each well runs through to the back face for the
@@ -195,6 +204,24 @@ def screen_base(
             "back face",
             param="back_opening_below_top",
         )
+    second_opening_x = back_opening_x + second_opening_offset_x
+    second_opening_z = back_opening_z
+    if abs(second_opening_x) + second_opening_width / 2 > outer_half:
+        reject(
+            f"second_opening_offset_x {second_opening_offset_x:.1f}mm puts the "
+            f"{second_opening_width:.1f}mm-wide second opening past the base's "
+            f"{width:.1f}mm width",
+            param="second_opening_offset_x",
+        )
+    if (
+        second_opening_z - second_opening_height / 2 < 0
+        or second_opening_z + second_opening_height / 2 > north_height
+    ):
+        reject(
+            f"second_opening_offset_x puts the {second_opening_height:.1f}mm-tall "
+            f"second opening past the {north_height:.1f}mm back face",
+            param="second_opening_offset_x",
+        )
     if side_panel_depth < WEDGE_THICKNESS:
         reject(
             f"side_panel_depth {side_panel_depth:.1f}mm is under the wedge's "
@@ -284,7 +311,10 @@ def screen_base(
     #     circle without the overhang one would print. Flat bottom and sides,
     #     since only the roof of a horizontal hole ever overhangs; the two top
     #     corners are cut at 45deg so the last few millimetres close as a
-    #     short bridge instead of a horizontal ceiling. ---
+    #     short bridge instead of a horizontal ceiling. A plate is plaqued
+    #     against the back face once the box is mounted, covering this
+    #     opening and the second one below, so neither needs its rim
+    #     chamfered by `polish` — see the `on_back_opening` filter below. ---
     hw = back_opening_width / 2
     hh = back_opening_height / 2
     ch = back_opening_chamfer
@@ -299,6 +329,13 @@ def screen_base(
     ]
     opening_profile = Plane.XZ * Polygon(*opening_pts, align=None)
     body -= Pos(0, north_y, 0) * extrude(opening_profile, amount=wall * 2, both=True)
+
+    # --- the second opening: a small square port next to the first, same
+    #     plate covers it so its rim goes unchamfered too, but at only 6mm
+    #     wide its own roof bridges clean with no corner relief needed. ---
+    body -= Pos(second_opening_x, north_y, second_opening_z) * Box(
+        second_opening_width, wall * 2, second_opening_height, align=Align.CENTER
+    )
 
     # --- the ergots: standing on the floor. The underside runs flat at Z=0
     #     instead of tapering to the origin point-first: at low seat_height
@@ -576,10 +613,32 @@ def screen_base(
                 return True
         return False
 
+    def on_back_opening(edge):
+        # a plate is plaqued against the back face over both openings once
+        # the box is mounted, hiding whatever chamfer would sit on their
+        # rims — so neither gets one.
+        b = edge.bounding_box()
+        for cx, cz, w, h in (
+            (back_opening_x, back_opening_z, back_opening_width, back_opening_height),
+            (second_opening_x, second_opening_z, second_opening_width, second_opening_height),
+        ):
+            margin = 0.1
+            if (
+                cx - w / 2 - margin <= b.min.X
+                and b.max.X <= cx + w / 2 + margin
+                and cz - h / 2 - margin <= b.min.Z
+                and b.max.Z <= cz + h / 2 + margin
+            ):
+                return True
+        return False
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
     keep = keep.filter_by(
-        lambda e: not seating(e) and not on_magnet_well(e) and not on_magnet_slot(e)
+        lambda e: not seating(e)
+        and not on_magnet_well(e)
+        and not on_magnet_slot(e)
+        and not on_back_opening(e)
     )
     return polish(body, keep, 1.0)

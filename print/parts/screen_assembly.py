@@ -136,7 +136,30 @@ def screen_assembly(
                 * Rot(180, 0, 0)
                 * use("ecrou_passe_cable")
             )
-            return base + placed, plate, gland, ecrou
+
+            # Index pin in the second (6x6mm square) opening, 20mm to the
+            # right of the cable gland: the only thing stopping screen_base
+            # spinning about the gland's axis, since the magnet further out
+            # in X doesn't grip hard enough on its own. Its square key locks
+            # into screen_base's own square hole — the machine's hole is
+            # round, so no shape there can block rotation, only friction from
+            # a close fit. No Z rotation needed: a square is unchanged by a
+            # 90deg turn about its own axis.
+            pin_plane = Plane(
+                origin=(
+                    layout["second_opening_x"],
+                    interior_y,
+                    layout["second_opening_z"],
+                ),
+                x_dir=(1, 0, 0),
+                z_dir=(0, 1, 0),
+            )
+            pin = pin_plane * use(
+                "goujon_indexage",
+                cle_longueur=back_wall_thickness,
+                fut_longueur=machine_face_thickness + 2.0,
+            )
+            return base + placed, plate, gland, ecrou, pin
 
         return base + placed, plate
 

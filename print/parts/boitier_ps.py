@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import MARGE_PUIT, anti_tirage_ew, anti_tirage_ns, puit_debout
+from system import INSERT_M3, MARGE_PUIT, anti_tirage_ew, anti_tirage_ns, puit_debout
 
 
 @part
@@ -34,8 +34,8 @@ def boitier_ps(
     puit_y_nord=60.0,
     nord_wago_z=19.8,
     nord_wago_x=18.6,
-    insert_diametre=4.0,
-    insert_profondeur=5.0,
+    insert_diametre=INSERT_M3.diametre_percage,
+    insert_profondeur=INSERT_M3.profondeur_min,
     anti_tirage_jeu=1.2,
     anti_tirage_largeur=3.0,
     anti_tirage_bords=5.6,

@@ -60,6 +60,7 @@ Printed floor on the bed. Inner origin (0, 0). Outer 53.2 × 90.8 × 40 mm. Inne
 
 ## Changelog
 
+- 2026-09-05 — `insert_diametre` / `insert_profondeur` defaults now read from `system.INSERT_M3` (Ø perçage 4,0 mm, profondeur 5,0 mm) instead of literals. Same values, same geometry — only the source of truth moved so it stays in sync with the M2.5/M2 inserts used on `boitier_dc`.
 - 2026-09-03 — Cable-tie U extracted to `system.anti_tirage_ns` / `anti_tirage_ew` (shared with boitier_ac). Geometry unchanged.
 - 2026-09-02 — Front Wago lip 16 → 15 mm on both bays, flush with the platform. 0.4 mm chamfer on the two inner edges under each cable-tie bar.
 - 2026-09-02 — Anti-tirage sides closed again; 3 mm opening through the top so the tie comes out vertically.

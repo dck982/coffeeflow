@@ -1,6 +1,7 @@
 """Shared geometry: printable thread, magnet wells, contour offset, cable-tie U."""
 
 import math
+from collections import namedtuple
 
 from nurb import (
     Align,
@@ -135,6 +136,35 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
 # perimeters on the A1 Mini). Same as the project walls. No lateral load
 # on these discs — they pull through the 0.6 mm floor — so 2 mm was spare.
 MARGE_PUIT = 1.6
+
+
+# Heat-insert bores. `encombrement` is the outer diameter of the housing
+# (perçage + 2x l'épaisseur de paroi mini), for a circular pad or annulus
+# around the bore; a part using a square/rectangular pad instead can still
+# size it off `encombrement` as the footprint's side.
+HeatInsert = namedtuple(
+    "HeatInsert",
+    "diametre_percage epaisseur_paroi_min profondeur_min encombrement",
+)
+
+INSERT_M3 = HeatInsert(
+    diametre_percage=4.0,
+    epaisseur_paroi_min=1.6,
+    profondeur_min=5.0,
+    encombrement=7.2,
+)
+INSERT_M25 = HeatInsert(
+    diametre_percage=3.9,
+    epaisseur_paroi_min=1.5,
+    profondeur_min=4.5,
+    encombrement=6.9,
+)
+INSERT_M2 = HeatInsert(
+    diametre_percage=3.2,
+    epaisseur_paroi_min=1.2,
+    profondeur_min=3.5,
+    encombrement=5.6,
+)
 
 _CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
 _AMIN = (Align.MIN, Align.MIN, Align.MIN)

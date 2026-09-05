@@ -1,6 +1,14 @@
 from nurb import *
 
-from system import MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
+from system import (
+    INSERT_M2,
+    INSERT_M25,
+    MARGE_PUIT,
+    _fuse_one,
+    add_well,
+    offset_in,
+    ouvertures_modules,
+)
 
 
 def _contour():
@@ -22,7 +30,7 @@ def _contour():
 
 @part
 def boitier_dc(
-    hauteur=24.0,
+    hauteur=27.0,
     epaisseur_paroi=1.6,
     puit_diametre=8.2,
     puit_peau=0.6,
@@ -129,29 +137,28 @@ def boitier_dc(
         marge_puit,
     )
 
-    # Two M2.5 heat-insert housings in the top NE corner.
+    # Two M2.5 heat-insert housings in the top NE corner (module CAN).
     insert_depth = 5.0
-    insert_hole_d = measured("insert_m25_exterieur")
-    hole_r = insert_hole_d / 2.0
-    ring_outer_r = hole_r + wall
+    hole_r_can = INSERT_M25.diametre_percage / 2.0
+    ring_outer_r_can = INSERT_M25.encombrement / 2.0
     z_insert0 = wall
     x_face_clear = 1.5
     x_e = measured("boitier_int_aile_x")
     y_n2 = measured("boitier_int_y")
     x_inner_e = x_e - wall
     y_inner_n = y_n2 - wall
-    insert1_cx = x_inner_e - x_face_clear - hole_r + 1.5 - 2.0
-    insert1_cy = y_inner_n - x_face_clear - hole_r + 1.5 - 2.5
+    insert1_cx = x_inner_e - x_face_clear - hole_r_can + 1.5 - 2.0
+    insert1_cy = y_inner_n - x_face_clear - hole_r_can + 1.5 - 2.5
     insert2_cx = insert1_cx - 16.0
     insert2_cy = insert1_cy
     cyl_amin = (Align.CENTER, Align.CENTER, Align.MIN)
     _amin = (Align.MIN, Align.MIN, Align.MIN)
     for cx, cy in ((insert1_cx, insert1_cy), (insert2_cx, insert2_cy)):
         outer_pad = Pos(cx, cy, z_insert0) * Cylinder(
-            ring_outer_r, insert_depth, align=cyl_amin
+            ring_outer_r_can, insert_depth, align=cyl_amin
         )
         inner_void = Pos(cx, cy, z_insert0) * Cylinder(
-            hole_r, insert_depth, align=cyl_amin
+            hole_r_can, insert_depth, align=cyl_amin
         )
         ring = outer_pad - inner_void
         clipped = ring.intersect(outer)
@@ -159,17 +166,20 @@ def boitier_dc(
             body = body + clipped
         body = body - inner_void
 
-    # Two support walls running 10mm south from each insert annulus.
+    # Two support walls running 10mm south from each insert annulus,
+    # centred on the insert and starting from the housing's outer diameter.
     support_run = 10.0
     for cx in (insert1_cx, insert2_cx):
-        y_top = insert1_cy - ring_outer_r
+        y_top = insert1_cy - ring_outer_r_can
         y_bot = y_top - support_run
         body = body + Pos(cx - wall / 2.0, y_bot, z_insert0) * Box(
             wall, y_top - y_bot, insert_depth, align=_amin
         )
 
-    # Three M2.5 heat-insert housings for the second module.
+    # Three M2 heat-insert housings for the second module (XIAO ESP32).
     # Coordinates from the SE corner of the module (x=aile_x, y=0).
+    hole_r_xiao = INSERT_M2.diametre_percage / 2.0
+    ring_outer_r_xiao = INSERT_M2.encombrement / 2.0
     mod2_inserts = [
         (x_e - 3.9, 25.6),   # SE
         (x_e - 3.9, 60.6),   # NE
@@ -177,10 +187,10 @@ def boitier_dc(
     ]
     for cx, cy in mod2_inserts:
         outer_pad = Pos(cx, cy, z_insert0) * Cylinder(
-            ring_outer_r, insert_depth, align=cyl_amin
+            ring_outer_r_xiao, insert_depth, align=cyl_amin
         )
         inner_void = Pos(cx, cy, z_insert0) * Cylinder(
-            hole_r, insert_depth, align=cyl_amin
+            hole_r_xiao, insert_depth, align=cyl_amin
         )
         ring = outer_pad - inner_void
         clipped = ring.intersect(outer)

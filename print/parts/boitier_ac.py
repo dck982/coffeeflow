@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
+from system import INSERT_M3, MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
 
 _AMIN = (Align.MIN, Align.MIN, Align.MIN)
 
@@ -112,6 +112,7 @@ def boitier_ac(
     butee_y=10.0,
     traverse_depuis_crochet_sud=8.0,
     traverse_decalage_x=3.0,
+    insert_sud_decalage_x=0.0,
     draft=False,
 ):
     """Boîtier AC : partie est, murs 30 mm, plateforme vis et barre d'appui.
@@ -141,6 +142,8 @@ def boitier_ac(
     traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des tours
     traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue) ; le côté
         est de la traverse est en plus décalé de 10 mm vers l'est, ce qui l'élargit
+    insert_sud_decalage_x: décalage du heat insert M3 (face sud) depuis le centre de
+        cette face ; 0 le centre
     """
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
@@ -533,6 +536,49 @@ def boitier_ac(
     body = body + _tour_sud(plat_x1 - wall, plat_y0, wall, tour_y, tour_z)
     body = body + _tour_sud(muret_x, plat_y0, wall, tour_y, tour_z)
 
+    # M3 corbel heat insert, centred on the south wall: same overhang recipe
+    # as boitier_ps/boitier_dc, full thickness only over the top
+    # insert_profondeur so it costs little material below the rim.
+    east_x_outer = x_max - ac_east_shift
+    ins_diametre = INSERT_M3.diametre_percage
+    ins_profondeur = INSERT_M3.profondeur_min
+    ins_r = ins_diametre / 2.0
+    ins_plat = ins_diametre + wall
+    ins_along = ins_diametre + 2.0 * wall
+    ins_half = ins_along / 2.0
+    z_ins = hauteur - ins_profondeur
+    z_ins_45 = z_ins - ins_plat
+    ov = 0.4
+    south_pts = [
+        (-ov, z_ins_45),
+        (0.0, z_ins_45),
+        (ins_plat, z_ins),
+        (ins_plat, hauteur),
+        (-ov, hauteur),
+    ]
+    y_south_face = aile_y - ac_south_shift + wall
+    insert_sud_x = 0.5 * (x_outer_west + east_x_outer) + insert_sud_decalage_x
+    if insert_sud_x - ins_half < x_outer_west + wall:
+        reject(
+            f"insert_sud_decalage_x {insert_sud_decalage_x} runs the south "
+            "insert into the west wall: raise it",
+            param="insert_sud_decalage_x",
+        )
+    if insert_sud_x + ins_half > east_x_outer - wall:
+        reject(
+            f"insert_sud_decalage_x {insert_sud_decalage_x} runs the south "
+            "insert into the east wall: lower it",
+            param="insert_sud_decalage_x",
+        )
+    body = body + (
+        Pos(insert_sud_x - ins_half, y_south_face, 0)
+        * extrude(Plane.YZ * Polygon(*south_pts, align=None), ins_along)
+    )
+    body = body - (
+        Pos(insert_sud_x, y_south_face + ins_r, z_ins)
+        * Cylinder(ins_r, ins_profondeur + 0.1, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    )
+
     # Traverse: same length, shifted west by traverse_decalage_x. Same Z as
     # the murets (hauteur_vis), not the south towers.
     body = body + _bb(
@@ -679,6 +725,14 @@ def boitier_ac(
             and bb.min.Z > ssr_z - 0.5
         )
 
+    def in_angle_nw_outer(bb):
+        """Outer NW corner (x = x_outer_west, y = y_max): left square so it
+        reads as one continuous face with boitier_dc's outer NE corner
+        across the seam in `ensemble_boitiers`."""
+        mx = 0.5 * (bb.min.X + bb.max.X)
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        return abs(mx - x_outer_west) < 1.2 and abs(my - y_max) < 1.2
+
     def keep(edge):
         c = edge.center()
         if (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) in conc:
@@ -692,6 +746,8 @@ def boitier_ac(
         if butee_skip_x0 <= c.X <= butee_skip_x1 and c.Y >= vis_y0:
             return False
         if in_fente(edge.bounding_box()) or in_fente_ouest(edge.bounding_box()):
+            return False
+        if in_angle_nw_outer(edge.bounding_box()):
             return False
         return True
 

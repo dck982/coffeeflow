@@ -207,6 +207,75 @@ def boitier_dc(
     )
     body = body + pin_sw.intersect(outer)
 
+    # Two M2 corbel heat inserts: same recipe as boitier_ps's wall corbels,
+    # an overhang from the wall's inner face near the rim (not a tower from
+    # the floor) to spend minimum material. Thin at z_corbel_45, full
+    # `corbel_plat` thick from z_corbel to the rim; the bore drills down
+    # `corbel_profondeur` from the rim.
+    corbel_diametre = INSERT_M2.diametre_percage
+    corbel_profondeur = 5.0
+    corbel_r = corbel_diametre / 2.0
+    corbel_plat = corbel_diametre + wall
+    corbel_along = corbel_diametre + 2.0 * wall
+    corbel_half = corbel_along / 2.0
+    z_corbel = hauteur - corbel_profondeur
+    z_corbel_45 = z_corbel - corbel_plat
+    ov = 0.4
+    corbel_pts = [
+        (-ov, z_corbel_45),
+        (0.0, z_corbel_45),
+        (corbel_plat, z_corbel),
+        (corbel_plat, hauteur),
+        (-ov, hauteur),
+    ]
+
+    # First: top of the upper west face (x = marche_x), Y taken from the
+    # module XIAO's two north inserts (y = 60.6).
+    marche_x_ne = measured("boitier_int_marche_x")
+    x_inner_marche = marche_x_ne + wall
+    corbel1_cy = 60.6
+    body = body + (
+        Pos(x_inner_marche, corbel1_cy + corbel_half, 0)
+        * extrude(Plane.XZ * Polygon(*corbel_pts, align=None), corbel_along)
+    )
+    body = body - (
+        Pos(x_inner_marche + corbel_r, corbel1_cy, z_corbel)
+        * Cylinder(corbel_r, corbel_profondeur + 0.1, align=cyl_amin)
+    )
+
+    # Second: edge of the SW diagonal opening, on the solid (east) half of
+    # the chamfer wall, right after the open west half ends. Local frame:
+    # x_dir along the inward normal (growth into the cavity), z_dir along
+    # the tangent from (0, chanfrein) toward (chanfrein, 0) (extrude axis).
+    chanfrein_cb = measured("boitier_int_chanfrein")
+    s2 = 2.0 ** 0.5
+    tan_x, tan_y = 1.0 / s2, -1.0 / s2
+    nrm_x, nrm_y = 1.0 / s2, 1.0 / s2
+    mid_x, mid_y = chanfrein_cb / 2.0, chanfrein_cb / 2.0
+    cut_margin = 0.5
+    edge_clear = 1.0
+    offset_from_mid = cut_margin + edge_clear + corbel_half
+    wall_face_x = mid_x + offset_from_mid * tan_x + wall * nrm_x
+    wall_face_y = mid_y + offset_from_mid * tan_y + wall * nrm_y
+    corbel2_plane = Plane(
+        origin=(
+            wall_face_x - corbel_half * tan_x,
+            wall_face_y - corbel_half * tan_y,
+            0.0,
+        ),
+        x_dir=(nrm_x, nrm_y, 0.0),
+        z_dir=(tan_x, tan_y, 0.0),
+    )
+    body = body + extrude(corbel2_plane * Polygon(*corbel_pts, align=None), corbel_along)
+    body = body - (
+        Pos(
+            wall_face_x + corbel_r * nrm_x,
+            wall_face_y + corbel_r * nrm_y,
+            z_corbel,
+        )
+        * Cylinder(corbel_r, corbel_profondeur + 0.1, align=cyl_amin)
+    )
+
     # Wago 221-423 bay in the NW corner.
     # In the NW zone (y > marche_y), the west face is at x=marche_x, not x=0.
     # Raised 2mm above the floor on a platform.
@@ -434,11 +503,19 @@ def boitier_dc(
         my = 0.5 * (bb.min.Y + bb.max.Y)
         return abs(mx - x_inner_e) < 1.2 and abs(my - y_inner_n) < 1.2
 
-    def in_muret_ouest_bas(bb):
+    def in_angle_ne_outer(bb):
+        """Outer NE corner (x = 50, y = 95): left square so it reads as one
+        continuous face with boitier_ac's outer NW corner across the seam
+        in `ensemble_boitiers`."""
+        mx = 0.5 * (bb.min.X + bb.max.X)
+        my = 0.5 * (bb.min.Y + bb.max.Y)
+        return abs(mx - x_e) < 1.2 and abs(my - y_n2) < 1.2
+
+    def in_muret_bas(bb):
         """South end of the west insert support wall: left it unchamfered."""
         mx = 0.5 * (bb.min.X + bb.max.X)
         my = 0.5 * (bb.min.Y + bb.max.Y)
-        return abs(mx - insert2_cx) < 1.0 and abs(my - y_bot) < 1.0
+        return ((abs(mx - insert2_cx) < 1.0) or (abs(mx - insert1_cx) < 1.0)) and abs(my - y_bot) < 1.0
 
     def in_fente_est(bb):
         on_est = (
@@ -460,7 +537,7 @@ def boitier_dc(
             abs(my - ssr_mid) <= 0.5 * (ssr_y1 - ssr_y0) + 0.8
             and bb.min.Z > ssr_z - 0.5
         )
-        return dimmer_hit or ssr_hit
+        return dimmer_hit or ssr_hit        
 
     def keep(edge):
         c = edge.center()
@@ -469,9 +546,11 @@ def boitier_dc(
         bb = edge.bounding_box()
         if in_angle_ne(bb):
             return False
+        if in_angle_ne_outer(bb):
+            return False
         if in_fente_est(bb):
             return False
-        if in_muret_ouest_bas(bb):
+        if in_muret_bas(bb):
             return False
         return True
 

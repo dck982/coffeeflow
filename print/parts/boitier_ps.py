@@ -128,7 +128,7 @@ def boitier_ps(
             param="ouverture_gauche_haut",
         )
     # 1.6 mm of west wall stays at Y max so the north face runs to the corner.
-    y_nw_max = inner_y - wall
+    y_nw_max = inner_y
     y_nw_min = y_nw_max - ouverture_gauche_haut
     if y_nw_min < ouverture_gauche + 4.0:
         reject(

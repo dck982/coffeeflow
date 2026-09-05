@@ -207,12 +207,12 @@ def boitier_dc(
     )
     body = body + pin_sw.intersect(outer)
 
-    # Two M2 corbel heat inserts: same recipe as boitier_ps's wall corbels,
+    # Two M2.5 corbel heat inserts: same recipe as boitier_ps's wall corbels,
     # an overhang from the wall's inner face near the rim (not a tower from
     # the floor) to spend minimum material. Thin at z_corbel_45, full
     # `corbel_plat` thick from z_corbel to the rim; the bore drills down
     # `corbel_profondeur` from the rim.
-    corbel_diametre = INSERT_M2.diametre_percage
+    corbel_diametre = INSERT_M25.diametre_percage
     corbel_profondeur = 5.0
     corbel_r = corbel_diametre / 2.0
     corbel_plat = corbel_diametre + wall
@@ -253,7 +253,7 @@ def boitier_dc(
     nrm_x, nrm_y = 1.0 / s2, 1.0 / s2
     mid_x, mid_y = chanfrein_cb / 2.0, chanfrein_cb / 2.0
     cut_margin = 0.5
-    edge_clear = 1.0
+    edge_clear = 2.0
     offset_from_mid = cut_margin + edge_clear + corbel_half
     wall_face_x = mid_x + offset_from_mid * tan_x + wall * nrm_x
     wall_face_y = mid_y + offset_from_mid * tan_y + wall * nrm_y

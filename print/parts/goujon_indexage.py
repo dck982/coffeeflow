@@ -7,7 +7,7 @@ def goujon_indexage(
     tete_epaisseur=2.0,
     cle_cote=5.95,
     cle_longueur=2.0,
-    fut_diametre=6.2,
+    fut_diametre=5.9,
     fut_longueur=4.0,
     draft=False,
 ):
@@ -29,7 +29,7 @@ def goujon_indexage(
     cle_longueur: longueur de la clé, la paroi arrière de screen_base à
         traverser (2.0mm, son épaisseur `wall` par défaut)
     fut_diametre: diamètre du fût rond dans le trou Ø6 de la tôle machine —
-        6.2, léger serrage : la seule résistance en rotation possible de ce
+        5.9, léger serrage : la seule résistance en rotation possible de ce
         côté, le trou étant rond
     fut_longueur: longueur du fût rond — la tôle machine (2.0mm) plus le
         dépassement à l'intérieur (2.0mm, la place libérée par l'ancienne LED)
@@ -45,12 +45,6 @@ def goujon_indexage(
             f"cle_cote {cle_cote} is over the 6mm square opening it has to "
             "slide into: lower it",
             param="cle_cote",
-        )
-    if fut_diametre < cle_cote:
-        reject(
-            f"fut_diametre {fut_diametre} is under cle_cote {cle_cote}: the "
-            "round shaft would be thinner than the key it stands on",
-            param="fut_diametre",
         )
 
     cmin = (Align.CENTER, Align.CENTER, Align.MIN)

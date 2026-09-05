@@ -145,10 +145,11 @@ def screen_assembly(
             # round, so no shape there can block rotation, only friction from
             # a close fit. No Z rotation needed: a square is unchanged by a
             # 90deg turn about its own axis.
+            pin_tete_epaisseur = 2.0  # goujon_indexage's own `tete_epaisseur`
             pin_plane = Plane(
                 origin=(
                     layout["second_opening_x"],
-                    interior_y,
+                    interior_y - pin_tete_epaisseur,
                     layout["second_opening_z"],
                 ),
                 x_dir=(1, 0, 0),

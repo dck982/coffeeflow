@@ -65,7 +65,12 @@ def goujon_indexage(
     if draft:
         return body
 
-    bed = body.bounding_box().min.Z
-    keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
+    # Only the round shaft's own edges get a polish chamfer. The head's top
+    # face has to plaque flat against screen_base's interior wall — a
+    # chamfer there is a bevel around the bearing surface for no reason,
+    # since it's never seen once assembled. The key is hidden inside the
+    # 6x6mm hole the same way, so it earns nothing either.
+    shaft_z0 = tete_epaisseur + cle_longueur
+    keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > shaft_z0 - 0.05)
     keep = keep - concave_edges(body)
     return polish(body, keep, 1.0)

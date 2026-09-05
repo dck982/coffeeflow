@@ -12,7 +12,7 @@ def boitier_ps(
     ouverture_bas=5.0,
     ouverture_gauche=5.0,
     ouverture_gauche_haut=5.0,
-    ouverture_z=25.0,
+    ouverture_z=15.0,
     alim_x=21.8,
     alim_y=27.8,
     alim_z=35.0,

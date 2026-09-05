@@ -56,7 +56,7 @@ def screen_base(
     back_opening_chamfer=4.0,
     second_opening_width=6.0,
     second_opening_height=6.0,
-    second_opening_offset_x=20.0,
+    second_opening_offset_x=19.0,
     magnet_diameter=PETIT_PUIT_DIAMETRE,
     magnet_cover=0.6,
     magnet_wall=1.6,

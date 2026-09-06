@@ -72,13 +72,26 @@ def _tour_sud(x0, y_sud, wall, tour_y, z_top):
     return _bb(x0, y_sud - tour_y, 0.0, x0 + wall, y_sud, z_top)
 
 
-def _crochet_tour(x0, y_sud, wall, tour_y, z_top, hauteur_crochet, saillie):
+def _crochet_tour(x0, y_sud, wall, tour_y, z_top, hauteur_crochet, saillie, chanfrein):
     """Hook at the top of a tower: same footprint as the tower, `saillie` mm
     past its north face (y_sud), `hauteur_crochet` mm above z_top. The PCB
-    slides under it from the side, resting on the tower below."""
-    return _bb(
-        x0, y_sud - tour_y, z_top, x0 + wall, y_sud + saillie, z_top + hauteur_crochet
-    )
+    is pressed in from above and slides out the same way, so the tip's
+    north corners are both cut at 45° over `chanfrein` mm each way: the top
+    one cams the hook back on the way in, the bottom one on the way out,
+    leaving a flat vertical strip between them for the actual retention."""
+    y0 = y_sud - tour_y
+    y1 = y_sud + saillie
+    z0 = z_top
+    z1 = z_top + hauteur_crochet
+    pts = [
+        (y0, z0),
+        (y1 - chanfrein, z0),
+        (y1, z0 + chanfrein),
+        (y1, z1 - chanfrein),
+        (y1 - chanfrein, z1),
+        (y0, z1),
+    ]
+    return Pos(x0, 0, 0) * extrude(Plane.YZ * Polygon(*pts, align=None), wall)
 
 
 def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
@@ -119,6 +132,7 @@ def boitier_ac(
     tour_y=3.0,
     crochet_hauteur=1.0,
     crochet_saillie=1.0,
+    crochet_chanfrein=0.3,
     butee_depuis_ouest=8.0,
     butee_y=10.0,
     butee_z_offset=2.0,
@@ -152,6 +166,9 @@ def boitier_ac(
     crochet_hauteur: hauteur en Z du crochet ajouté au sommet des tours, au-dessus de rebord
     crochet_saillie: débordement en +Y du crochet, vers la plateforme, par-delà la face
         nord des tours
+    crochet_chanfrein: chanfrein à 45° sur les deux angles nord du crochet (haut et bas,
+        largeur en Y et en Z), pour que le PCB fasse levier à l'insertion comme au retrait
+        au lieu de buter à angle droit
     butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
     butee_y: hauteur/longueur en Y de la butée à 45°, indépendante de appui_y
     butee_z_offset: décalage vers le haut du sommet de la butée triangle,
@@ -277,6 +294,24 @@ def boitier_ac(
             f"crochet_hauteur {crochet_hauteur} raises the tower hook above "
             f"hauteur {hauteur}: lower it",
             param="crochet_hauteur",
+        )
+    if crochet_chanfrein <= 0.0:
+        reject(
+            f"crochet_chanfrein {crochet_chanfrein} must be positive: raise it",
+            param="crochet_chanfrein",
+        )
+    if crochet_chanfrein >= crochet_saillie:
+        reject(
+            f"crochet_chanfrein {crochet_chanfrein} is not under crochet_saillie "
+            f"{crochet_saillie}: it would remove the whole hook tip, lower it",
+            param="crochet_chanfrein",
+        )
+    if 2.0 * crochet_chanfrein >= crochet_hauteur:
+        reject(
+            f"crochet_chanfrein {crochet_chanfrein} taken on both the top and "
+            f"bottom corners is not under crochet_hauteur {crochet_hauteur}: "
+            "it would remove the whole hook tip, lower it",
+            param="crochet_chanfrein",
         )
     if muret_depuis_ouest < wall:
         reject(
@@ -574,7 +609,14 @@ def boitier_ac(
     for tx in (plat_x0, plat_x1 - wall, muret_x):
         body = body + _tour_sud(tx, plat_y0, wall, tour_y, tour_z)
         body = body + _crochet_tour(
-            tx, plat_y0, wall, tour_y, tour_z, crochet_hauteur, crochet_saillie
+            tx,
+            plat_y0,
+            wall,
+            tour_y,
+            tour_z,
+            crochet_hauteur,
+            crochet_saillie,
+            crochet_chanfrein,
         )
 
     # M3 corbel heat insert, centred on the south wall: same overhang recipe

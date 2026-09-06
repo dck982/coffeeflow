@@ -26,31 +26,29 @@ def _contour_dc():
     ]
 
 
-def _contour_ac(ac_west_shift, ac_east_shift, ac_south_shift, ac_degagement_vis, ac_gouttiere_vide_haut):
+def _contour_ac(ac_west_shift, ac_east_shift, ac_south_shift):
     """boitier_ac's own outer contour, in the ensemble frame (shifted east
     so its west face lands flush on boitier_dc's east wall). Must track
-    `boitier_ac._contour`."""
+    `boitier_ac._contour`.
+
+    Plain rectangle: the north-face screw-notch step (`encoche_est` /
+    `gout_x`) only cuts boitier_ac's wall up to `hauteur_vis` — above that
+    its lintel is deliberately continuous (`boitier_ac.md`), so both the
+    plate and the rim stay solid there too (2026-09-06, user: a notched
+    contour here punches a hole in the couvercle over solid material)."""
     x_max = measured("boitier_int_x")
     y_max = measured("boitier_int_y")
     aile_x = measured("boitier_int_aile_x")
     aile_y = measured("boitier_int_aile_y")
-    gout_x = measured("boitier_int_gouttiere_x")
 
     ac_shift = ac_west_shift
     south_y = aile_y - ac_south_shift
     east_x = x_max - ac_east_shift + ac_shift
-    encoche_est = gout_x + ac_degagement_vis + ac_shift
-    gout_haut = y_max - ac_gouttiere_vide_haut
-    gout_x_e = gout_x + ac_shift
 
     return [
         (aile_x, south_y),
         (east_x, south_y),
         (east_x, y_max),
-        (encoche_est, y_max),
-        (encoche_est, gout_haut),
-        (gout_x_e, gout_haut),
-        (gout_x_e, y_max),
         (aile_x, y_max),
     ]
 
@@ -81,14 +79,7 @@ def couvercle_acdc(
     ac_west_shift=5.0,
     ac_east_shift=1.5,
     ac_south_shift=4.0,
-    ac_degagement_vis=10.0,
-    ac_gouttiere_vide_haut=10.0,
-    ac_appui_y=18.0,
-    ac_tour_y=3.0,
-    ac_muret_depuis_ouest=23.0,
-    ac_appui_pcb_profondeur=6.4,
-    ac_appui_pcb_largeur=20.0,
-    ac_appui_pcb_jeu=0.0,
+    ac_appui_pcb_hauteur=6.0,
     vis_m25_diametre=2.9,
     vis_m3_diametre=None,
     draft=False,
@@ -122,23 +113,11 @@ def couvercle_acdc(
         sa valeur interne
     ac_south_shift: retrait de la face sud de boitier_ac, doit rester égal
         à sa valeur interne
-    ac_degagement_vis: largeur de l'encoche NE de boitier_ac, doit rester
-        égale à `degagement_vis`
-    ac_gouttiere_vide_haut: profondeur de l'encoche NE de boitier_ac, doit
-        rester égale à `gouttiere_vide_haut`
-    ac_appui_y: longueur en Y des murs est/ouest du module sud de boitier_ac,
-        doit rester égale à `appui_y`
-    ac_tour_y: longueur en Y des tours du module sud de boitier_ac, doit
-        rester égale à `tour_y`
-    ac_muret_depuis_ouest: distance du muret intermédiaire (troisième tour)
-        depuis la face ouest, doit rester égale à `muret_depuis_ouest`
-    ac_appui_pcb_profondeur: profondeur du plot d'appui PCB depuis le dessous
-        de la plaque, pour venir toucher le sommet du PCB du module sud
-        (hauteur − hauteur_vis − rebord côté boitier_ac, 6,4 mm par défaut)
-    ac_appui_pcb_largeur: largeur en X du plot d'appui PCB, centré sur la
-        plateforme du module sud
-    ac_appui_pcb_jeu: jeu retranché à `ac_appui_pcb_profondeur` (positif =
-        le plot s'arrête plus tôt ; négatif = interférence/préchage)
+    ac_appui_pcb_hauteur: profondeur du rebord nord de boitier_ac sur son
+        tiers central en X (aile_x + (east_x−aile_x)/3 à aile_x +
+        (east_x−aile_x)*2/3) : presse le PCB du module sud par le dessus.
+        Valeur empirique, indépendante des cotes internes de boitier_ac
+        (muret_depuis_ouest, tour_y, rebord...).
     vis_m25_diametre: passage des deux vis M2.5 (boitier_dc)
     vis_m3_diametre: passage de la vis M3 (boitier_ac) ; par défaut la cote
         mesurée `vis_passage`
@@ -180,19 +159,11 @@ def couvercle_acdc(
     chanfrein_cb = measured("boitier_int_chanfrein")
 
     dc_pts = _contour_dc()
-    ac_pts = _contour_ac(
-        ac_west_shift, ac_east_shift, ac_south_shift, ac_degagement_vis, ac_gouttiere_vide_haut
-    )
+    ac_pts = _contour_ac(ac_west_shift, ac_east_shift, ac_south_shift)
 
     # Plate matches the two boxes' outer footprint exactly: it must not
-    # overhang. On boitier_ac's north face, the screw-notch step (encoche_est
-    # / gout_x) only cuts the wall up to hauteur_vis: above that, the north
-    # lintel is deliberately continuous (boitier_ac.md), so the plate must
-    # be solid there too, not notched like `ac_pts` (which follows the
-    # cavity shape for the rim). Drop the notch's four inner points for the
-    # plate only, straight across from the east wall to the west wall.
-    ac_pts_plate = [ac_pts[0], ac_pts[1], ac_pts[2], ac_pts[7]]
-    plate_pts = _contour_union(dc_pts, ac_pts_plate)
+    # overhang.
+    plate_pts = _contour_union(dc_pts, ac_pts)
     body = extrude(Polygon(*plate_pts, align=None), wall)
 
     # Each box's rim comes from its OWN contour, offset inward by
@@ -280,38 +251,28 @@ def couvercle_acdc(
     ) * Box(along_3, plat_3 + margin, prof + 1.0, align=_AMIN)
     vis3 = (corbel3_x, south_y + wall + r_3)
 
-    # PCB press pad (boitier_ac south module): its three towers (`tour_y`,
-    # `rebord`) sit on the screw-platform's two legs (plat_x0_ac / plat_x1_ac,
-    # must track boitier_ac's own plat_x0/plat_x1) plus the intermediate
-    # muret further west (`ac_muret_depuis_ouest`, must track
-    # `muret_depuis_ouest`) — the three towers span muret_x_ac..plat_x1_ac.
-    # A short pad, centred in X and only ac_appui_pcb_largeur wide, presses
-    # down on the PCB's top face from above: `ac_appui_pcb_profondeur` mm
-    # below the plate matches boitier_ac's hauteur − hauteur_vis − rebord.
-    gout_x = measured("boitier_int_gouttiere_x")
-    y_max = measured("boitier_int_y")
-    plat_x1_ac = gout_x + ac_west_shift + ac_degagement_vis + wall
-    muret_x_ac = aile_x + ac_muret_depuis_ouest + ac_west_shift
-    if ac_appui_pcb_largeur > plat_x1_ac - muret_x_ac:
+    # PCB press: the north rim segment (boitier_ac) runs deeper than
+    # `gouttiere_profondeur` over the box's middle third in X, to press down
+    # on the south module's PCB from above. Tied only to the rim's own
+    # geometry (its north strip, thickness `gouttiere_epaisseur`, offset in
+    # by `epaisseur_paroi + gouttiere_jeu`), not to boitier_ac's internal
+    # tower/leg coordinates: `ac_appui_pcb_hauteur` is an empirical value,
+    # set by test fit, independent of what is actually inside the box
+    # (user 2026-09-06).
+    aile_x_ac = ac_pts[0][0]
+    east_x_ac = ac_pts[2][0]
+    y_max = ac_pts[2][1]
+    appui_x0 = aile_x_ac + (east_x_ac - aile_x_ac) / 3.0
+    appui_x1 = aile_x_ac + (east_x_ac - aile_x_ac) * 2.0 / 3.0
+    appui_y1 = y_max - (wall + jeu)
+    appui_y0 = y_max - (wall + jeu + ep)
+    if ac_appui_pcb_hauteur <= 0.0:
         reject(
-            f"ac_appui_pcb_largeur {ac_appui_pcb_largeur} is wider than the "
-            f"three towers' span ({plat_x1_ac - muret_x_ac:.1f} mm): lower it",
-            param="ac_appui_pcb_largeur",
+            f"ac_appui_pcb_hauteur {ac_appui_pcb_hauteur} is not positive: raise it",
+            param="ac_appui_pcb_hauteur",
         )
-    appui_pcb_depth = ac_appui_pcb_profondeur - ac_appui_pcb_jeu
-    if appui_pcb_depth <= 0.0:
-        reject(
-            f"ac_appui_pcb_jeu {ac_appui_pcb_jeu} eats all of "
-            f"ac_appui_pcb_profondeur {ac_appui_pcb_profondeur}: lower it",
-            param="ac_appui_pcb_jeu",
-        )
-    appui_pcb_x_mid = 0.5 * (muret_x_ac + plat_x1_ac)
-    appui_pcb_y1 = y_max - ac_appui_y
-    appui_pcb_y0 = appui_pcb_y1 - ac_tour_y
-    body = body + Pos(
-        appui_pcb_x_mid - ac_appui_pcb_largeur / 2.0, appui_pcb_y0, wall
-    ) * Box(
-        ac_appui_pcb_largeur, appui_pcb_y1 - appui_pcb_y0, appui_pcb_depth, align=_AMIN
+    body = body + Pos(appui_x0, appui_y0, wall) * Box(
+        appui_x1 - appui_x0, appui_y1 - appui_y0, ac_appui_pcb_hauteur, align=_AMIN
     )
 
     body = body + rib_dc + rib_ac

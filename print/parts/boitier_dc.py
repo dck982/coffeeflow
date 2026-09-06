@@ -149,7 +149,7 @@ def boitier_dc(
     y_inner_n = y_n2 - wall
     insert1_cx = x_inner_e - x_face_clear - hole_r_can + 1.5 - 2.0
     insert1_cy = y_inner_n - x_face_clear - hole_r_can + 1.5 - 2.5
-    insert2_cx = insert1_cx - 16.0
+    insert2_cx = insert1_cx - 15.0
     insert2_cy = insert1_cy
     cyl_amin = (Align.CENTER, Align.CENTER, Align.MIN)
     _amin = (Align.MIN, Align.MIN, Align.MIN)

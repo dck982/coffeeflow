@@ -72,6 +72,15 @@ def _tour_sud(x0, y_sud, wall, tour_y, z_top):
     return _bb(x0, y_sud - tour_y, 0.0, x0 + wall, y_sud, z_top)
 
 
+def _crochet_tour(x0, y_sud, wall, tour_y, z_top, hauteur_crochet, saillie):
+    """Hook at the top of a tower: same footprint as the tower, `saillie` mm
+    past its north face (y_sud), `hauteur_crochet` mm above z_top. The PCB
+    slides under it from the side, resting on the tower below."""
+    return _bb(
+        x0, y_sud - tour_y, z_top, x0 + wall, y_sud + saillie, z_top + hauteur_crochet
+    )
+
+
 def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
     """Right triangle on the north wall: 45° underside, flat top. Empty below."""
     return Pos(x0, 0, 0) * extrude(
@@ -108,8 +117,11 @@ def boitier_ac(
     fente_nord_ouest_z=13.6,
     rebord=4.0,
     tour_y=3.0,
+    crochet_hauteur=1.0,
+    crochet_saillie=1.0,
     butee_depuis_ouest=8.0,
     butee_y=10.0,
+    butee_z_offset=2.0,
     traverse_depuis_crochet_sud=8.0,
     traverse_decalage_x=3.0,
     insert_sud_decalage_x=0.0,
@@ -137,8 +149,13 @@ def boitier_ac(
     fente_nord_ouest_z: bas de la fente nord-ouest (dimmer), ouverte du sommet jusqu'à ce Z
     rebord: dépassement des tours sud au-dessus du muret / plateforme
     tour_y: longueur des tours en Y, collées au sud des murets (X reste l'épaisseur de paroi)
+    crochet_hauteur: hauteur en Z du crochet ajouté au sommet des tours, au-dessus de rebord
+    crochet_saillie: débordement en +Y du crochet, vers la plateforme, par-delà la face
+        nord des tours
     butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
     butee_y: hauteur/longueur en Y de la butée à 45°, indépendante de appui_y
+    butee_z_offset: décalage vers le haut du sommet de la butée triangle,
+        indépendant de hauteur_vis (toute la butée, base comprise, monte d'autant)
     traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des tours
     traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue) ; le côté
         est de la traverse est en plus décalé de 10 mm vers l'est, ce qui l'élargit
@@ -245,6 +262,22 @@ def boitier_ac(
             f"tour_y {tour_y} hits the south wall: lower it or raise appui_y",
             param="tour_y",
         )
+    if crochet_hauteur < 0.4:
+        reject(
+            f"crochet_hauteur {crochet_hauteur} is under 0.4 mm: raise it",
+            param="crochet_hauteur",
+        )
+    if crochet_saillie < 0.4:
+        reject(
+            f"crochet_saillie {crochet_saillie} is under 0.4 mm: raise it",
+            param="crochet_saillie",
+        )
+    if hauteur_vis + rebord + crochet_hauteur > hauteur:
+        reject(
+            f"crochet_hauteur {crochet_hauteur} raises the tower hook above "
+            f"hauteur {hauteur}: lower it",
+            param="crochet_hauteur",
+        )
     if muret_depuis_ouest < wall:
         reject(
             f"muret_depuis_ouest {muret_depuis_ouest} is under one wall: raise it",
@@ -287,13 +320,19 @@ def boitier_ac(
             f"butee_y {butee_y} runs the stop south of y={aile_y}: lower it",
             param="butee_y",
         )
-    butee_z1 = hauteur_vis
+    butee_z1 = hauteur_vis + butee_z_offset
     butee_z0 = butee_z1 - butee_y
     if butee_z0 < 0.0:
         reject(
             f"butee_y {butee_y} is taller than the stop top "
             f"({butee_z1:.1f} mm): lower it",
             param="butee_y",
+        )
+    if butee_z1 > hauteur:
+        reject(
+            f"butee_z_offset {butee_z_offset} raises the stop top to "
+            f"{butee_z1:.1f} mm, above hauteur {hauteur}: lower it",
+            param="butee_z_offset",
         )
     if puit_diametre < aimant_d + 0.1:
         reject(
@@ -532,9 +571,11 @@ def boitier_ac(
 
     # Mini-tower at the south of each rest: wall in X, tour_y in Y, bed to 2 mm above.
     tour_z = hauteur_vis + rebord
-    body = body + _tour_sud(plat_x0, plat_y0, wall, tour_y, tour_z)
-    body = body + _tour_sud(plat_x1 - wall, plat_y0, wall, tour_y, tour_z)
-    body = body + _tour_sud(muret_x, plat_y0, wall, tour_y, tour_z)
+    for tx in (plat_x0, plat_x1 - wall, muret_x):
+        body = body + _tour_sud(tx, plat_y0, wall, tour_y, tour_z)
+        body = body + _crochet_tour(
+            tx, plat_y0, wall, tour_y, tour_z, crochet_hauteur, crochet_saillie
+        )
 
     # M3 corbel heat insert, centred on the south wall: same overhang recipe
     # as boitier_ps/boitier_dc, full thickness only over the top

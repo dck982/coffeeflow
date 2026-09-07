@@ -5,3 +5,17 @@ print/build/
 __pycache__/
 *.py[cod]
 tmp/
+
+# ESP-IDF build artefacts et config générée localement — voir
+# firmware/IDF_VERSION.md pour la version figée.
+firmware/*/build/
+firmware/*/sdkconfig
+firmware/*/managed_components/
+firmware/*/dependencies.lock
+
+# Généré depuis firmware/common/codegen/log_codes.yaml, jamais commité.
+firmware/common/generated/
+
+# Config locale déposée par `eim` (ESP-IDF Installation Manager).
+eim_config.toml
+

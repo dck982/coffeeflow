@@ -371,6 +371,7 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
 | --- | --- |
 | Langage | C++ / ESP-IDF 5.x, les deux cartes, `common/` partagé |
 | Encodage CAN | binaire, type dans l'ID, une trame par message |
+| Endianness | little-endian pour tous les champs multi-octets des charges utiles |
 | Réassemblage | uniquement pour `FLASH`, par blocs de 2 ko acquittés |
 | Télémétrie | valeurs brutes, calibration côté écran |
 | Surpression | traitée par l'OPV (11 bar), pas par le firmware |

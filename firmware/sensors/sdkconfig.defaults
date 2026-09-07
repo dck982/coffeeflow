@@ -1,0 +1,21 @@
+# Défauts de projet — module capteurs (XIAO ESP32-S3, flash 8 Mo).
+# Complète, ne remplace pas, la config par défaut d'ESP-IDF v5.1 (voir
+# firmware/IDF_VERSION.md).
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# Table de partitions custom : factory + ota_0/ota_1 + rollback.
+# Voir partitions.csv et docs/firmware.md, section "Mise à jour".
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+
+# Rollback applicatif : une image en PENDING_VERIFY qui ne se valide pas
+# revient à la précédente. Le firmware appelle explicitement
+# esp_ota_mark_app_valid_cancel_rollback() une fois le ping/pong CAN
+# reconfirmé (phase 4) — jamais de validation automatique au boot.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Watchdog de tâche : filet si le temporisateur d'invalidation d'OTA
+# (phase 4) devait lui-même se bloquer.
+CONFIG_ESP_TASK_WDT_EN=y

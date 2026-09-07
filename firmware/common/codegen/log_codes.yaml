@@ -1,0 +1,68 @@
+# Source unique de la table de codes LOG (docs/firmware.md, message 0x30).
+#
+# Générée vers :
+#   - firmware/common/generated/log_codes.hpp   (C++, consommé par sensors/ et screen/)
+#   - firmware/common/generated/log_codes.py    (Python, consommé par l'outil Mac, phase 1)
+#
+# Ne jamais éditer les fichiers générés à la main : lancer
+# `python3 firmware/common/codegen/gen_log_codes.py`.
+#
+# severity : debug | info | warn | error
+
+- name: BOOT
+  severity: info
+  comment: Démarrage de l'image.
+- name: READY
+  severity: info
+  comment: Initialisation terminée, prêt à répondre au bus.
+- name: REBOOT_REQUESTED
+  severity: info
+  comment: RESET reçu ou demandé localement.
+- name: LEASE_EXPIRED
+  severity: warn
+  comment: Bail SET expiré, actionneurs remis à zéro.
+- name: PRESENCE_LOST
+  severity: warn
+  comment: Plus de PING/PONG du pair depuis ~3 s, repli sécurité.
+- name: RUNTIME_LOCKOUT_TRIGGERED
+  severity: error
+  comment: Plafond 60 s dépassé, verrou posé jusqu'à coupure secteur. arg32 = ms d'activation.
+- name: COMMAND_REFUSED_LOCKED
+  severity: warn
+  comment: SET reçu alors que le verrou 60 s est actif.
+- name: I2C_ERROR
+  severity: error
+  comment: Échec de transaction I2C. arg16 = adresse.
+- name: DIMMER_CALIBRATING
+  severity: warn
+  comment: Dimmer sans secteur, en Calibrating, écriture refusée.
+- name: DIMMER_ERROR
+  severity: error
+  comment: Registre erreur 0x02 du dimmer non nul. arg16 = valeur du registre.
+- name: XDB401_TIMEOUT
+  severity: error
+  comment: Pas de réponse du XDB401 après le délai de conversion.
+- name: FLOWMETER_SILENT
+  severity: warn
+  comment: Aucune impulsion débitmètre alors qu'un débit est attendu.
+- name: FLASH_BEGIN
+  severity: info
+  comment: Début d'un flash, arg32 = taille annoncée.
+- name: FLASH_PROGRESS
+  severity: debug
+  comment: Progression d'un flash. arg32 = octets écrits.
+- name: FLASH_DONE
+  severity: info
+  comment: Flash terminé, CRC32 global vérifié.
+- name: FLASH_FAILED
+  severity: error
+  comment: Flash abandonné ou CRC invalide.
+- name: OTA_PENDING_VERIFY
+  severity: info
+  comment: Nouvelle image démarrée, en attente de validation par ping/pong CAN.
+- name: OTA_VALIDATED
+  severity: info
+  comment: Nouvelle image validée, devient l'image courante.
+- name: OTA_ROLLBACK
+  severity: error
+  comment: Validation échouée, retour à l'image précédente.

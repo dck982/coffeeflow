@@ -1,0 +1,14 @@
+# Table de partitions — Waveshare ESP32-S3-Touch-LCD-4.3, flash 16 Mo.
+# factory + ota_0/ota_1 + rollback, plus une partition de données pour les
+# ressources LVGL (images, polices) — voir docs/firmware.md, section
+# "Mise à jour". Tailles provisoires, revues en phase 6 une fois le poids
+# réel de l'application connu (LVGL + BLE + Wi-Fi + httpd).
+#
+# Name,     Type, SubType,  Offset,  Size,  Flags
+nvs,        data, nvs,      ,        0x6000,
+phy_init,   data, phy,      ,        0x1000,
+otadata,    data, ota,      ,        0x2000,
+factory,    app,  factory,  ,        1000K,
+ota_0,      app,  ota_0,    ,        3500K,
+ota_1,      app,  ota_1,    ,        3500K,
+assets,     data, spiffs,   ,        4000K,

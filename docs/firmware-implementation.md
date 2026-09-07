@@ -1,5 +1,29 @@
 # Firmware — séquence d'implémentation
 
+## Où on en est
+
+**Phase 0 (socle) en cours, presque bouclée.**
+
+Fait :
+
+- Version ESP-IDF figée : v6.1 (stable courante, la LTS v5.1 visée initialement était déjà en fin de vie), notée dans `firmware/IDF_VERSION.md`. Installée via `eim`, sélectionnée.
+- **`idf.py build` vérifié pour de vrai sur les deux projets** (`sensors/` et `screen/`, cible `esp32s3`) : bootloader + image applicative générés sans erreur. Un bug de `common/CMakeLists.txt` a été corrigé au passage (l'`add_custom_command` de génération des codes LOG doit venir *après* `idf_component_register`, sinon ESP-IDF le rejette lors de sa phase de lecture en mode script).
+- Squelettes des deux projets ESP-IDF (`firmware/sensors/`, `firmware/screen/`), chacun avec sa table de partitions (factory + ota_0/ota_1 + rollback) et son `sdkconfig.defaults`.
+- `firmware/common/` : identifiant CAN (encode/decode 11 bits), charges utiles de tous les messages du protocole (`SET`, `PONG`, `REQSTATUS`, `STATUS_*`, `LOG`, `FLASH_CTRL`), CRC16/CRC32.
+- Table de codes `LOG` générée depuis une source unique (`firmware/common/codegen/log_codes.yaml` → `.hpp` pour le C++, `.py` pour l'outil Mac à venir).
+- Numéro de version (`common::kFirmwareVersion{Major,Minor,Patch}`), à incrémenter à chaque image.
+- Tests hôte (`firmware/common/test/run_tests.sh`) : aller-retour pack/unpack de chaque message, ordre de priorité des ID CAN, vecteurs de test CRC16/CRC32. Tournent sur le Mac, sans matériel — **vérifiés, au vert**.
+
+Pas fait / à savoir avant de continuer :
+
+- Layout de `FLASH_CTRL` (sous-commandes `BEGIN`/`BLOCK_ACK`/`END`/`ABORT`) est une première proposition dans `common/messages.hpp` — `firmware.md` ne fige pas les octets exacts, à revalider en phase 4.
+- Tailles des partitions posées large mais provisoires, comme prévu par le plan.
+- Rien dans `main.cpp` des deux projets au-delà d'un `ESP_LOGI` de démarrage — normal pour la phase 0.
+
+Prochaine étape : phase 1, l'outil Mac (décodeur/encodeur de trames), avant de toucher à une carte.
+
+---
+
 Conception, protocole et décisions : `firmware.md`. Ce fichier ne dit pas *comment* coder, il dit **dans quel ordre**, et ce qu'il ne faut pas oublier avant de passer à la suite.
 
 L'objectif de bout en bout est un point précis : **débrancher l'USB**. Tout ce qui vient avant existe pour rendre ce moment sans risque ; tout ce qui vient après arrive par OTA.

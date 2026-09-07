@@ -2,7 +2,7 @@
 # table de codes LOG. Voir docs/firmware.md et docs/firmware-implementation.md.
 
 idf_component_register(
-  SRCS "src/crc.cpp"
+  SRCS "src/crc.cpp" "src/framing.cpp"
   INCLUDE_DIRS "include" "generated"
 )
 

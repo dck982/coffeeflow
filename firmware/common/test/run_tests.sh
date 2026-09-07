@@ -11,7 +11,7 @@ python3 "$ROOT/codegen/gen_log_codes.py"
 BIN="$(mktemp -t common_tests)"
 c++ -std=c++17 -Wall -Wextra -Werror \
   -I "$ROOT/include" -I "$ROOT/generated" \
-  "$ROOT/src/crc.cpp" test_common.cpp \
+  "$ROOT/src/crc.cpp" "$ROOT/src/framing.cpp" test_common.cpp \
   -o "$BIN"
 "$BIN"
 rm -f "$BIN"

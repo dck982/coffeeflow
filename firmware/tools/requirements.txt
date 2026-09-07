@@ -1,0 +1,6 @@
+# Dépendances optionnelles de l'outil Mac — voir docs/firmware-implementation.md,
+# phase 1. Décoder un fichier enregistré ou lancer les tests hôte n'exige
+# aucune de ces deux (import différé dans transport.py).
+pyserial   # SerialTransport (USB, phases 2-3)
+websockets # WebSocketTransport (phase 6)
+pytest     # tests hôte, voir test/run_tests.sh

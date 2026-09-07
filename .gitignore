@@ -4,6 +4,7 @@
 print/build/
 __pycache__/
 *.py[cod]
+.pytest_cache/
 tmp/
 
 # ESP-IDF build artefacts et config générée localement — voir

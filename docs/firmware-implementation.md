@@ -2,7 +2,25 @@
 
 ## Où on en est
 
-**Phase 0 (socle) en cours, presque bouclée.**
+**Phase 0 (socle) et phase 1 (outil Mac) faites.**
+
+Phase 1 :
+
+- Cadrage série défini et figé dans `firmware/common/` (source commune, comme le reste) : PDU `id/dlc/data/crc16` + COBS sur le fil USB, WebSocket transportant le PDU nu. Voir `firmware/common/include/common/framing.hpp` pour le détail et le pourquoi (zéros d'une image OTA, resynchronisation après un octet perdu). Tests hôte C++ inclus dans `common/test/`, au vert.
+- `firmware/tools/coffeetool/` : portage Python à la main de `common/` (protocole, messages, CRC, cadrage) — même pattern que `log_codes` mais sans génération commune, donc des tests croisés dédiés (`test_framing.py::test_golden_vectors_from_cpp` compare des trames encodées côté C++ octet à octet).
+- Décodeur de trames en texte lisible et horodaté (`decoder.py`), utilisant la table `LOG` générée en phase 0.
+- Deux transports derrière la même interface (`transport.py`) : `SerialTransport` (COBS, USB) et `WebSocketTransport` (PDU nu) — seul l'USB a un consommateur réel avant la phase 3, le reste est écrit par avance comme demandé.
+- Émission à la main (`send`) : `PING`, `PONG`, `STOP`, `RESET`, `SET`, `REQSTATUS`.
+- Enregistrement / relecture (`recorder.py`) en JSON Lines, format qui deviendra la fixture des tests d'algorithme en phase 6.
+- Client de flash (`flash_client.py`) : `BEGIN` / blocs de 2 ko acquittés / `END`, contre le layout `FLASH_CTRL` provisoire de `messages.hpp` — à revalider pour de vrai en phase 4, contre du matériel.
+- `firmware/tools/test/` : 27 tests hôte, aucune dépendance matérielle, `run_tests.sh` régénère d'abord `log_codes.py` comme en phase 0.
+
+Pas fait / à savoir avant de continuer :
+
+- Le client de flash n'a jamais parlé à une vraie carte : la sémantique exacte d'un nouvel essai après un bloc refusé (qui, côté récepteur, doit rejouer quoi) n'est pas fixée — `messages.hpp` le dit déjà, mais ça vaut aussi pour la logique de réception à écrire en phase 4.
+- `WebSocketTransport` n'a jamais été exercé contre un vrai serveur (aucun serveur avant la phase 6) : seul l'encodage/décodage du PDU est testé.
+
+**Phase 0 (socle), pour mémoire.**
 
 Fait :
 
@@ -20,7 +38,7 @@ Pas fait / à savoir avant de continuer :
 - Tailles des partitions posées large mais provisoires, comme prévu par le plan.
 - Rien dans `main.cpp` des deux projets au-delà d'un `ESP_LOGI` de démarrage — normal pour la phase 0.
 
-Prochaine étape : phase 1, l'outil Mac (décodeur/encodeur de trames), avant de toucher à une carte.
+Prochaine étape : phase 2, les capteurs factory sur la table — première fois qu'une carte tourne du code.
 
 ---
 
@@ -86,6 +104,18 @@ Le XIAO seul, alimenté en USB, hors de la machine, sans aucun périphérique br
 **Piège :** le verrou 60 s doit survivre à un `RESET` logiciel et ne se lever que sur un démarrage à froid. À vérifier explicitement, pas à supposer.
 
 **Sortie :** l'outil Mac, branché sur un adaptateur CAN ou sur la seconde carte en phase 3, voit les pongs. Le verrou se déclenche à la commande et ne se lève qu'à la coupure d'alimentation.
+
+### `firmware/can-monitor` — l'adaptateur CAN de secours
+
+Un troisième firmware, indépendant de `sensors/` et `screen/`, pour avoir un moyen de regarder le bus sans dépendre de l'écran (utile avant la phase 3, et comme filet ensuite) :
+
+- Cible : M5Stack Atom S3 + M5Stack Unit CAN (TJA1051/3, même transceiver que le CAN Pal), relié par le Port.A.
+- GPIO déclarés **en haut du fichier**, modifiables sans fouiller le reste du code — valeurs par défaut `TX = GPIO 26`, `RX = GPIO 36` (Port.A de l'Atom S3).
+- TWAI à 500 kbit/s, accept-all, aucune émission : un pur moniteur.
+- Chaque trame reçue est imprimée sur l'UART USB-C (id, dlc, octets) — pas de décodage du protocole ici, juste du texte brut lisible au moniteur série. Le décodage fin reste le travail de l'outil Mac (`firmware/tools`).
+- Rien d'autre : pas de PING/PONG, pas d'identité, pas de sécurité. Ce n'est pas un nœud du protocole, juste une sonde.
+
+**Usage :** flasher une fois, laisser branché sur le bus au besoin, lire le texte qui défile sur le port USB-C de l'Atom (`idf.py monitor` ou n'importe quel moniteur série).
 
 ---
 

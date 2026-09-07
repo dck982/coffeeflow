@@ -6,6 +6,7 @@
 #include <string>
 
 #include "common/crc.hpp"
+#include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/protocol.hpp"
 #include "log_codes.hpp"
@@ -194,6 +195,104 @@ void test_flash_ctrl_payload_roundtrip() {
   }
 }
 
+void test_framing_pdu_roundtrip() {
+  RawFrame in{};
+  in.can_id = encode_can_id({MessageType::kPong, Dest::kScreen, Node::kSensors});
+  in.dlc = 8;
+  for (int i = 0; i < 8; ++i) in.data[static_cast<size_t>(i)] = static_cast<uint8_t>(0x10 + i);
+
+  uint8_t pdu[kMaxPduSize];
+  const size_t pdu_len = encode_pdu(in, pdu);
+  CHECK(pdu_len == 3 + in.dlc + 2);
+
+  RawFrame out{};
+  CHECK(decode_pdu(pdu, pdu_len, &out));
+  CHECK(out.can_id == in.can_id);
+  CHECK(out.dlc == in.dlc);
+  CHECK(out.data == in.data);
+}
+
+void test_framing_pdu_rejects_bad_crc() {
+  RawFrame in{};
+  in.can_id = encode_can_id({MessageType::kPing, Dest::kBroadcast, Node::kScreen});
+  in.dlc = 0;
+  uint8_t pdu[kMaxPduSize];
+  const size_t pdu_len = encode_pdu(in, pdu);
+  pdu[pdu_len - 1] ^= 0xFF;  // corrompt le CRC
+  RawFrame out{};
+  CHECK(!decode_pdu(pdu, pdu_len, &out));
+}
+
+void test_cobs_roundtrip_with_zeros() {
+  // Un bloc FLASH_DATA plein de zéros est le cas que COBS doit absorber.
+  uint8_t data[kMaxPduSize] = {0};
+  data[1] = 0x05;  // un seul octet non nul au milieu
+
+  uint8_t encoded[kMaxCobsSize];
+  const size_t encoded_len = cobs_encode(data, sizeof(data), encoded);
+  for (size_t i = 0; i < encoded_len; ++i) CHECK(encoded[i] != 0x00);
+
+  uint8_t decoded[kMaxPduSize];
+  const size_t decoded_len = cobs_decode(encoded, encoded_len, decoded);
+  CHECK(decoded_len == sizeof(data));
+  for (size_t i = 0; i < decoded_len; ++i) CHECK(decoded[i] == data[i]);
+}
+
+void test_encode_framed_roundtrip_via_stream_decoder() {
+  RawFrame in{};
+  in.can_id = encode_can_id({MessageType::kSet, Dest::kSensors, Node::kScreen});
+  in.dlc = 5;
+  in.data = {0x03, 0x01, 42, 0xF4, 0x01, 0, 0, 0};
+
+  uint8_t framed[kMaxCobsSize + 1];
+  const size_t framed_len = encode_framed(in, framed);
+  CHECK(framed_len > 0);
+  CHECK(framed[framed_len - 1] == 0x00);
+
+  static RawFrame received{};
+  static int received_count = 0;
+  received_count = 0;
+  StreamDecoder decoder;
+  for (size_t i = 0; i < framed_len; ++i) {
+    decoder.push_byte(framed[i], [](const RawFrame& f, void*) {
+      received = f;
+      ++received_count;
+    }, nullptr);
+  }
+  CHECK(received_count == 1);
+  CHECK(received.can_id == in.can_id);
+  CHECK(received.dlc == in.dlc);
+  CHECK(received.data == in.data);
+  CHECK(decoder.dropped_count == 0);
+}
+
+void test_stream_decoder_resyncs_after_garbage() {
+  // Un octet perdu (ou un branchement en cours de trame) ne doit coûter que
+  // la trame en cours, pas bloquer les suivantes.
+  RawFrame in{};
+  in.can_id = encode_can_id({MessageType::kPing, Dest::kBroadcast, Node::kSensors});
+  in.dlc = 0;
+
+  uint8_t framed[kMaxCobsSize + 1];
+  const size_t framed_len = encode_framed(in, framed);
+
+  static int received_count = 0;
+  received_count = 0;
+  StreamDecoder decoder;
+
+  const uint8_t garbage[] = {0x7A, 0x11, 0x00};  // trame invalide, close par 0x00
+  for (uint8_t b : garbage) {
+    decoder.push_byte(b, [](const RawFrame&, void*) { ++received_count; }, nullptr);
+  }
+  CHECK(received_count == 0);
+  CHECK(decoder.dropped_count == 1);
+
+  for (size_t i = 0; i < framed_len; ++i) {
+    decoder.push_byte(framed[i], [](const RawFrame&, void*) { ++received_count; }, nullptr);
+  }
+  CHECK(received_count == 1);
+}
+
 void test_crc16_known_vector() {
   // "123456789" -> 0x29B1 en CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF).
   const uint8_t data[] = "123456789";
@@ -220,6 +319,11 @@ int main() {
   test_status_actuators_payload_roundtrip();
   test_log_payload_roundtrip();
   test_flash_ctrl_payload_roundtrip();
+  test_framing_pdu_roundtrip();
+  test_framing_pdu_rejects_bad_crc();
+  test_cobs_roundtrip_with_zeros();
+  test_encode_framed_roundtrip_via_stream_decoder();
+  test_stream_decoder_resyncs_after_garbage();
   test_crc16_known_vector();
   test_crc32_known_vector();
 

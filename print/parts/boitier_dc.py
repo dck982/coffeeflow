@@ -10,6 +10,13 @@ from system import (
     ouvertures_modules,
 )
 
+# CAN module (canpal), from scans/canpal.stl + the slicer's own reading of the
+# official model (user 2026-09-07): 20.32mm wide, mounting holes on a
+# 15.24mm pitch, 2.54mm from each hole centre to the module's own edge.
+CAN_MODULE_WIDTH_X = 20.32
+CAN_MODULE_SCREW_DISTANCE = 15.24
+CAN_MODULE_HOLE_EDGE = 2.54
+
 
 def _contour():
     aile_x = measured("boitier_int_aile_x")
@@ -35,7 +42,8 @@ def boitier_dc(
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
-    xiao_west_depuis_wago=1.8,
+    xiao_west_depuis_wago=1.7,
+    jeu_can_x=0.0,
     draft=False,
 ):
     """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
@@ -45,6 +53,8 @@ def boitier_dc(
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
+    jeu_can_x: jeu total en X autour du module CAN (20.32mm de large), entre
+        le mur Wago nord et le mur est — la moitié de chaque côté
     xiao_west_depuis_wago: écart entre la face est du mur du compartiment wago
         sud-ouest et le mur xiao_west, à l'ouest du plot XIAO. Le mur fait
         l'épaisseur d'un mur (epaisseur_paroi), comme les autres murs
@@ -151,13 +161,20 @@ def boitier_dc(
     y_n2 = measured("boitier_int_y")
     x_inner_e = x_e - wall
     y_inner_n = y_n2 - wall
-    insert1_cx = x_inner_e - x_face_clear - hole_r_can + 1.5 - 2.0
-    insert1_cy = y_inner_n - x_face_clear - hole_r_can + 1.5 - 2.5
-    insert2_cx = insert1_cx - 15.0
-    insert2_cy = insert1_cy
+    # Both hole centres are placed off the module's own published dimensions
+    # (CAN_MODULE_*, from scans/canpal.stl): insert_can_east_cx sits
+    # CAN_MODULE_HOLE_EDGE in from the east wall, insert_can_west_cx is
+    # CAN_MODULE_SCREW_DISTANCE further west, on the real hole pitch.
+    insert_can_east_cx = x_inner_e - CAN_MODULE_HOLE_EDGE
+    insert_can_east_cy = y_inner_n - x_face_clear - hole_r_can + 1.5 - 2.5
+    insert_can_west_cx = insert_can_east_cx - CAN_MODULE_SCREW_DISTANCE
+    insert_can_west_cy = insert_can_east_cy
     cyl_amin = (Align.CENTER, Align.CENTER, Align.MIN)
     _amin = (Align.MIN, Align.MIN, Align.MIN)
-    for cx, cy in ((insert1_cx, insert1_cy), (insert2_cx, insert2_cy)):
+    for cx, cy in (
+        (insert_can_east_cx, insert_can_east_cy),
+        (insert_can_west_cx, insert_can_west_cy),
+    ):
         outer_pad = Pos(cx, cy, z_insert0) * Cylinder(
             ring_outer_r_can, insert_depth, align=cyl_amin
         )
@@ -173,8 +190,8 @@ def boitier_dc(
     # Two support walls running 10mm south from each insert annulus,
     # centred on the insert and starting from the housing's outer diameter.
     support_run = 10.0
-    for cx in (insert1_cx, insert2_cx):
-        y_top = insert1_cy - ring_outer_r_can
+    for cx in (insert_can_east_cx, insert_can_west_cx):
+        y_top = insert_can_east_cy - ring_outer_r_can
         y_bot = y_top - support_run
         body = body + Pos(cx - wall / 2.0, y_bot, z_insert0) * Box(
             wall, y_top - y_bot, insert_depth, align=_amin
@@ -303,10 +320,23 @@ def boitier_dc(
     body = body + platform_box.intersect(outer)
 
     # East muret, from the real floor, 1mm above the Wago so the catch
-    # descends onto its top instead of ending against its side.
+    # descends onto its top instead of ending against its side. Its east
+    # face (muret_x1) is set from the east wall backward, leaving exactly
+    # the CAN module's own width plus jeu_can_x — west face (muret_x0) and
+    # the surplomb hook, which references it, are unaffected.
     surplomb = 1.0
+    if jeu_can_x < 0.0:
+        reject(f"jeu_can_x {jeu_can_x} is negative: raise it", param="jeu_can_x")
+    muret_x1 = x_inner_e - CAN_MODULE_WIDTH_X - jeu_can_x * 2
+    if muret_x1 <= muret_x0:
+        reject(
+            f"jeu_can_x {jeu_can_x} leaves no room for the {CAN_MODULE_WIDTH_X}mm "
+            f"CAN module between the Wago wall (x={muret_x0:.1f}) and the east "
+            f"wall (x={x_inner_e:.1f}): lower it",
+            param="jeu_can_x",
+        )
     muret_box = Pos(muret_x0, muret_y0, -overlap) * Box(
-        wall,
+        muret_x1 - muret_x0,
         wago_span + wall + overlap,
         wago_z + wago_raise + wall + overlap + surplomb,
         align=_amin,
@@ -547,7 +577,9 @@ def boitier_dc(
         """South end of the west insert support wall: left it unchamfered."""
         mx = 0.5 * (bb.min.X + bb.max.X)
         my = 0.5 * (bb.min.Y + bb.max.Y)
-        return ((abs(mx - insert2_cx) < 1.0) or (abs(mx - insert1_cx) < 1.0)) and abs(my - y_bot) < 1.0
+        return (
+            (abs(mx - insert_can_west_cx) < 1.0) or (abs(mx - insert_can_east_cx) < 1.0)
+        ) and abs(my - y_bot) < 1.0
 
     def in_fente_est(bb):
         on_est = (

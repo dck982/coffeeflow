@@ -1,262 +1,390 @@
 # Firmware
 
-Two ESP32-S3 boards run the machine. The Waveshare 4.3" lives on the front and is the only node that talks to the outside world (touch UI, Wi-Fi, BLE). The XIAO lives in `boitier_dc`, in the hot technical compartment, and is the only node that touches sensors and 230 V actuators. They meet on a one-segment CAN bus that already has 120 Ω termination at both ends.
+Deux cartes ESP32-S3 font tourner la machine. Le **Waveshare 4,3"** est en façade et il est le seul nœud qui parle au monde extérieur (tactile, Wi-Fi, BLE). Le **XIAO** vit dans `boitier_dc`, dans le compartiment technique, et il est le seul à toucher les capteurs et les actionneurs 230 V. Ils se rejoignent sur un bus CAN d'un seul segment, terminé 120 Ω aux deux bouts.
 
-This note is the firmware plan: what each module does, which peripherals it owns, the brew features the screen will eventually run, and the bootstrap that lets both boards move into their boxes and be flashed without USB. Language, CAN encoding, and the OTA layout are left as follow-ups at the end — they are the three decisions to settle before writing code.
+Vue d'ensemble du matériel : `../README.md`. Détail fil par fil : `cablage.md`.
 
-Placeholder trees: `firmware/screen/` and `firmware/sensors/`. A shared library can sit next to them later if both firmwares speak the same protocol from the same source.
-
-## Split of work
-
-The screen is the brain. It owns the brew algorithm, the UI, the Acaia Lunar (BLE GATT client), and any talk to the LAN. It never drives the pump or the valve directly.
-
-The sensors module is the hands. It executes commands (SSR, dimmer), counts the flowmeter, reads pressure and temperature, and publishes telemetry when asked. It has no radio. If the screen disappears, the sensors module fails safe: SSR off, dimmer at 0, streaming off.
-
-That split is also a thermal and electrical one. The XIAO is specified to 85 °C and sits in a compartment that reaches 45–50 °C. The Waveshare stays on the fascia. 230 V never leaves the machine; only the CAN pair comes out through the old brew-button hole.
-
-## Sensors module (XIAO ESP32-S3)
-
-Grove Shield pinout, as wired:
-
-| Port | Device | Bus | GPIO |
-| --- | --- | --- | --- |
-| R1 | XDB401 pressure/temperature | I2C | SDA 4, SCL 5 |
-| L4 | RBDimmer DimmerLink | I2C (same bus) | SDA 4, SCL 5 |
-| R2 | Digmesa FHKSC 932-9525-B | pulse, falling edge | 7 |
-| R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX 8, RX 9 |
-| R4 | M5Stack Unit SSR | GPIO out | 10 |
-
-I2C is shared. The dimmer is at `0x50`, the XDB401 at `0x7F`. The only pull-ups on that bus are the 4.7 kΩ on the XDB401; take the pressure sensor off and the dimmer goes mute. Access must be serialised (a mutex around the bus). Do not add a second pair of pull-ups while the XDB401 is fitted.
-
-### SSR
-
-GPIO 10, HIGH = valve open, LOW = closed. The Unit SSR is zero-crossing (MOC3043), so there is no zero-cross ISR to write and no timing to get right beyond “the pin is high or it isn’t”. Default and fail-safe is LOW. The 5 V rail for the module comes from the Wago, not from the Grove port.
-
-### Dimmer
-
-I2C DimmerLink, not UART. The dimmer’s own Cortex does zero-cross and triac timing; the XIAO only writes registers. Bench code already talks to it (`tests/test_rbi2c.py`):
-
-- `0x10` level, 0–100 % — the command that matters every shot
-- `0x00` status, `0x02` error, `0x11` curve, `0x20` mains frequency — worth exposing so the screen can show “dimmer not ready” instead of silently doing nothing
-
-Without mains on the dimmer the module sits in `Calibrating...` and rejects writes. Command `0x03` switches the dimmer to UART **and stores that in its EEPROM**; do not call it from firmware. The pump stalls below some level — that number is a calibration, not a guess in source.
-
-### Flowmeter
-
-Digmesa 932-9525-B, 1.00 mm nozzle, **2382 impulses per litre** (0.42 g per pulse), open-collector NPN. An RC on the shield (1 kΩ to 3.3 V, 10 nF to GND) makes a 3.3 V falling edge on GPIO 7; the internal pull-up stays off. An ISR increments a counter. A task turns that counter into:
-
-- **volume** — millilitres since last reset (`count × 1000 / 2382`)
-- **flow** — ml/s over a short window (a few hundred milliseconds). Instantaneous Hz is coarse: a typical 36 g / 28 s shot is about 3.1 pulses per second.
-
-A CAN command from the screen resets the accumulator at the start of a brew. The sensor is upstream of the pump and only rated 3 bar, so it measures pump inlet, not group pressure. Pre-infusion at ~0.5 g/s sits at the bottom of the linear range; volume is more trustworthy than instantaneous flow there (see `docs/debitmetres.md`).
-
-### XDB401
-
-Same I2C bus. Trigger a conversion (`0x30` / `0x0A`), wait ~50 ms, read 5 bytes from `0x06`: 24-bit pressure, 16-bit temperature. Full scale is a property of the part (the bench script assumes 10 bar — confirm against the unit on the machine). This is group-side pressure, upstream of the solenoid.
-
-## Screen module (Waveshare ESP32-S3-Touch-LCD-4.3)
-
-800 × 480 RGB panel, GT911 touch, 16 MB flash, 8 MB PSRAM, TJA1051T/3 on board. CAN is GPIO 15 TX / 16 RX. `CAN_SEL` is CH422G EXIO5 and **must be held high** or the transceiver is not selected (that line is also USB_SEL, active low). Bring-up notes for the CH422G and GT911 live in `tests/screen/hello_waveshare/`.
-
-The screen does four concurrent jobs, and they do not all matter at the same time:
-
-| Job | When it is hot |
-| --- | --- |
-| LVGL UI | always, especially during a brew |
-| BLE client → Acaia Lunar | during a brew (weight) |
-| CAN → sensors | during a brew (status + commands) |
-| Wi-Fi / HTTP | configuration, flashing, posting a shot to a local server at the end |
-
-Wi-Fi is idle mid-shot. BLE + CAN + LVGL are not. Pin LVGL (and the brew loop that reads weight and telemetry) on one core; leave Wi-Fi and the BLE stack on the other, which is where Espressif already puts them. CAN is interrupt + queue, drained by whichever task owns the protocol.
-
-Wi-Fi credentials are entered once — either on the touchscreen or through a temporary access point and a landing page — and stored in **NVS** (the ESP32 has no EEPROM). They never appear in source. A shared HTTP secret lives in a header that is not committed (`secrets.h` or equivalent), used as an `Authorization` header. The server is HTTP, not HTTPS; the secret only keeps the LAN from being a toy.
-
-HTTP, first cut:
-
-- `GET` — latest streamed telemetry (pressure, temperature, flow, volume, dimmer, SSR, and whatever the screen itself knows: weight, brew state)
-- `POST` — set dimmer level and SSR
-- `POST` firmware image, with a destination of **screen** or **sensors**
-- optional `POST` to enable a WebSocket; or a compile-time flag. A connected client sees CAN traffic, at least read-only, so a laptop can replace USB serial once the boards are in their boxes. Read-write on that socket is nice if it is cheap.
-
-## Features the screen will run (after bootstrap)
-
-These are not the first firmware. They are why the sensors interface looks the way it does.
-
-- **Flush** — SSR on, dimmer 100 %, for 5 s or while the button is held.
-- **Brew by weight** — run until the Acaia hits the target, minus a stop-early offset for the last drops in the group.
-- **Brew by time** — fallback when the scale is missing.
-- **Pre-infusion** — low pressure into the headspace (pressure sensor + flowmeter to know when it is full), pause on the puck, then ramp the pump toward a target that may be less than 100 % dimmer.
-- **Flow control** — if flow or pressure collapses (channeling), back the pump off.
-
-Plenty of calibration sits under this: flowmeter K-factor at low flow, dimmer-to-pressure map, stall floor of the vibratory pump, stop-early grams. Keep those in NVS, not compiled in.
-
-## Bootstrap — get off USB first
-
-The boards will live in printed boxes, with only CAN and 5 V between them. USB is a workshop luxury. The first firmwares therefore exist to make USB unnecessary:
-
-1. **Sensors** — CAN only, plus the flash/reset/ping subset of the protocol. Actuators stay safe (SSR low, dimmer 0) even if a truncated image is parsed. No brew logic.
-2. **Screen** — Wi-Fi provisioning (AP + landing page is enough; on-screen SSID entry can wait for LVGL), the same CAN protocol, HTTP so a laptop can push a `.bin`, local OTA for itself, and a CAN-tunnelled OTA for the sensors. A WebSocket CAN tap so debug does not need a cable.
-
-Once that works, both boards go into their housings. Every later feature — LVGL, BLE, dimmer, flowmeter, brew — arrives as an OTA image.
-
-## Safety, even in the bootstrap
-
-A lost screen, a wedged LVGL task, or a CAN wire that falls off must not leave the solenoid open and the pump at 100 %. The sensors module treats “no pong from the screen” as “everything off, stop streaming”. A command watchdog is the same idea at shorter scale: if streaming is on and status has been flowing, a gap longer than a second or two still kills the actuators. The SSR defaults to off at boot. None of this waits for the brew algorithm; it belongs in the first sensors image that is allowed to drive GPIO 10.
-
----
-
-# Follow-up 1 — C++ vs Rust, and which framework
-
-**Recommendation: C++ on ESP-IDF 5.x for both boards, with a shared protocol library. FreeRTOS tasks, not Arduino `loop()`.**
-
-The temptation of Rust + `esp-hal` / Embassy on the sensors module is real and well aimed. That board is exactly the kind of firmware Rust is good at: GPIO, I2C, an ISR, TWAI, no Wi-Fi, no GUI. Embassy’s async model matches “a CAN command can arrive at any moment” without a nest of queues. The XIAO ESP32-S3 is a supported target.
-
-The screen is the opposite. The Waveshare 4.3" is a board-support problem: CH422G expander, GT911 on the same I2C as the expander (the Arduino `bb_captouch` library already mis-identifies the CH422G — see the hello-world sketch), RGB LCD via `esp_lcd`, LVGL, BLE GATT client for a device whose sample code you already have, `esp_http_server`, WebSocket, NVS, dual-core pinout. That stack is documented in C/C++. `lvgl-rs` lags, there is no maintained BSP for this Waveshare in Embassy, and a BLE GATT *client* on ESP32 in Rust is still the sharp edge of `esp-idf-svc`. Dual-language also means two copies of the CAN codec, or a codegen story, for a bus that will carry firmware images.
-
-So: one language, because the protocol and the OTA framing must be identical, and because the screen is not optional. ESP-IDF rather than Arduino-as-application, because we need a custom partition table, `esp_ota_ops` rollback, the TWAI driver, `httpd` with WebSocket, and the ability to pin LVGL to core 1. Arduino-ESP32 3.x can still be pulled in as an IDF component if a library demands it; the Waveshare hello-world can stay as a bring-up reference, not as the architecture.
-
-Rust on the sensors remains a legitimate later rewrite, once the factory image (CAN + OTA) is boring and proven in C++. That factory image should stay on the well-trodden stack — it is the one you cannot USB-recover when it is wrong.
-
-Concrete shape:
+Arborescence :
 
 ```
 firmware/
-  common/     CAN codec, message types, CRC (built by both)
-  sensors/    ESP-IDF project, XIAO ESP32-S3
-  screen/     ESP-IDF project, ESP32-S3-WROOM-1-N16R8
+  common/     protocole CAN, types de messages, table de codes LOG, CRC
+  sensors/    projet ESP-IDF, XIAO ESP32-S3
+  screen/     projet ESP-IDF, ESP32-S3-WROOM-1-N16R8
+  tools/      décodeur Mac (USB série et WebSocket)
 ```
 
-On the sensors side, tasks: TWAI RX, I2C poll (pressure + dimmer status), flowmeter (ISR → counter, task → flow/volume), stream publisher, presence/fail-safe. On the screen: LVGL + brew on core 1; HTTP and the NimBLE client on core 0; a CAN task in the middle.
+**Langage : C++ sur ESP-IDF 5.x pour les deux cartes**, tâches FreeRTOS, pas de `loop()` Arduino. Une seule langue parce que le codec du protocole et le cadrage OTA doivent être identiques des deux côtés, et parce que l'écran (CH422G, GT911, RGB via `esp_lcd`, LVGL, client GATT BLE, `esp_http_server`, NVS) n'est documenté qu'en C. Rust sur le module capteurs reste une réécriture légitime plus tard, une fois l'image factory ennuyeuse et prouvée. Arduino-ESP32 peut être tiré comme composant IDF si une bibliothèque l'exige.
+
+## Répartition
+
+L'**écran est le cerveau**. Il porte l'algorithme d'infusion, l'UI, l'Acaia Lunar (client BLE GATT), le LAN, et **toutes les calibrations**. Il ne pilote jamais la pompe ni la vanne directement.
+
+Le module **capteurs est les mains**. Il exécute des commandes (SSR, dimmer), compte les impulsions du débitmètre, lit la pression et la température, et publie de la télémétrie quand on la lui demande. Pas de radio. Pas de calibration. Pas d'interprétation : il transporte des valeurs brutes.
+
+Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 °C et vit dans un compartiment à 45–50 °C ; le Waveshare reste en façade. Le 230 V ne sort jamais de la machine, seule la paire CAN passe par le trou de l'ancien bouton brew.
 
 ---
 
-# Follow-up 2 — CAN protocol
+## Module capteurs (XIAO ESP32-S3)
 
-**Recommendation: 500 kbit/s, 11-bit IDs for dest/src/priority, line-oriented ASCII with a 7-byte fragmentation header, and a separate binary ID for flash payloads.**
+Brochage Grove Shield, tel que câblé :
 
-ESP32 TWAI is classic CAN 2.0, 8 bytes, no CAN FD. An ASCII protocol that people can read on a WebSocket therefore cannot be “one text line = one frame” except for the shortest commands. It can still *look* like ASCII once reassembled, which is what you actually want from a Mac sniffer.
+| Port | Périphérique | Bus | GPIO |
+| --- | --- | --- | --- |
+| R1 | XDB401 pression / température | I2C | SDA 4, SCL 5 |
+| L4 | Dimmer RBDimmer DimmerLink | I2C (même bus) | SDA 4, SCL 5 |
+| R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | 7 |
+| R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX 8, RX 9 |
+| R4 | M5Stack Unit SSR | sortie GPIO | 10 |
 
-### Identity
+**I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
 
-One letter in the text, a nibble in the ID:
+**Le mutex I2C ne couvre pas l'attente de conversion du XDB401.** Déclencher, relâcher le mutex, attendre ~50 ms, reprendre, lire. Sinon une rampe dimmer à 10 Hz se prend 50 ms de latence pour rien.
 
-| Letter | Nibble | Node |
-| --- | --- | --- |
-| `*` | 0 | broadcast |
-| `S` | 1 | screen |
-| `X` | 2 | sensors (xiao) |
+### SSR — vanne solénoïde
 
-The ID nibble is what the TWAI acceptance filter uses. The letter is what the WebSocket prints. They must match.
+GPIO 10, HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
 
-11-bit ID, lower number = higher bus priority:
+### Dimmer — pompe
 
-```
-bits 10–8  priority   0 = command / reset / ping
-                      1 = flash control
-                      2 = status stream
-                      3 = log
-bits  7–4  destination
-bits  3–0  source
-```
+DimmerLink en I2C, pas UART. Le Cortex du module gère le passage par zéro et le triac ; le XIAO n'écrit que des registres.
 
-A `CMD` that turns the SSR off then wins against a flood of `STATUS` frames. That matters.
+- `0x10` niveau, 0–100 % — la seule commande du cycle d'infusion
+- `0x00` statut, `0x02` erreur, `0x11` courbe, `0x20` fréquence secteur — remontés dans les flags de `STATUS_ACTUATORS` pour que l'écran affiche « dimmer pas prêt » au lieu de ne rien faire silencieusement
 
-### Framing
+**Sans secteur sur le dimmer, le module reste en `Calibrating...`** et refuse toute écriture. La commande `0x03` bascule le dimmer en UART **et l'écrit dans son EEPROM** : à ne jamais appeler depuis le firmware. Le seuil de calage de la pompe vibratoire est une calibration, mesurée sur la machine, stockée côté écran — pas une constante dans le source.
 
-Byte 0 of each data frame: `more` flag in bit 7, sequence 0–127 in bits 6–0. Bytes 1–7: UTF-8 text (ASCII in practice). Sequence 0 starts a message. Reassemble until `more` is clear. A complete message is one line, no embedded newline, spaces as separators.
+Code de banc existant : `../tests/test_rbi2c.py`.
 
-Ping and pong should fit in a **single** frame so they do not depend on the reassembly state:
+### Débitmètre
 
-```
-* PING
-S PONG screen 0.1.0
-X PONG sensors 0.1.0
-```
+Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 7 ; pull-up interne éteinte. Une ISR incrémente un compteur 32 bits et mémorise l'horodatage du dernier front.
 
-Everything else can span frames.
+**Le module capteurs ne calcule ni volume ni débit.** Il publie le compteur cumulé et la date de la dernière impulsion ; l'écran en dérive tout, avec le facteur K et la courbe de correction qu'il détient. Trois raisons :
 
-### Messages
+- un compteur cumulé est idempotent : une trame perdue ne coûte rien, un delta perdu est un volume perdu pour toujours ;
+- recalibrer devient rétroactif sur les shots déjà enregistrés ;
+- l'horodatage du dernier front donne la période inter-impulsion réelle, indépendamment de la fréquence de publication.
 
-```
-* PING
-S PONG screen <version>
-X PONG sensors <version>
+**Ce que ce capteur peut et ne peut pas faire.** À 1–2 ml/s en extraction, il sort 2,4 à 4,8 impulsions par seconde. Un débit à ±10 % demande une dizaine d'impulsions, donc **~4 s de moyennage à 1 ml/s**. C'est un totaliseur de volume, pas un capteur de débit temps réel : il ne peut pas être la boucle rapide d'un flow control. Les signaux rapides sont la pression (50 ms) et le poids Acaia (10 Hz).
 
-* LOG <from> <text>              boot banner, errors, flash progress
-X CMD ssr <0|1>
-X CMD dim <0-100>
-X CMD volume reset
-X RESET
-X STREAM <hz>                    0 = stop; default at boot is 0
-X STATUS p=<bar> t=<c> f=<ml/s> v=<ml> d=<0-100> s=<0|1>
+Le capteur est **en amont de la pompe** (3 bar de tenue), dans la ligne qui va de l'adaptateur du réservoir à la pompe en passant par le filtre.
 
-X FLASH begin <size> <crc32>
-X FLASH data                     (binary frames, see below)
-X FLASH end
-X FLASH abort
-X BOOT factory                   optional, jump back to the recovery slot
-```
+**L'OPV ne renvoie pas au réservoir**, elle renvoie à l'entrée de la pompe, sur l'adaptateur qui presse contre la soupape de fond du bac. Le débitmètre est donc dans la boucle de recirculation, et il mesure le **débit de la pompe**, pas le débit net tiré du réservoir. Conséquence, et c'est la bonne :
 
-`LOG` is the general text message. A node emits one at boot with name and version; it also carries flash progress (`LOG sensors flash 40%`). The screen mirrors `LOG` and every raw frame onto the WebSocket.
+- **OPV fermée** — toute la sortie de la pompe traverse la galette. Débit pompe = débit d'infusion, le capteur lit exactement ce qu'on veut.
+- **OPV ouverte** — le capteur compte en plus l'eau recirculée, et il sur-lit.
 
-`STREAM <hz>` is a request from the screen. The sensors module starts publishing `STATUS` at that rate and stops if presence is lost or if it reboots. It never streams by default.
+Avec l'OPV réglée à 11 bar pour un fonctionnement à 9 bar, **elle ne s'ouvre jamais pendant une extraction**. Le seul régime où la lecture ne veut plus rien dire est la purge de backflush, où on ne mesure rien de toute façon. Un flow control fondé sur le débit reste donc légitime ; ce qui le limite est la résolution du capteur (ci-dessus), pas la plomberie. Voir `debitmetres.md`.
 
-Commands are idempotent and last-wins. The screen may send `CMD dim` at 10 Hz during a ramp; the sensors module does not queue a backlog of dimmer writes, it applies the latest.
+### XDB401 — pression et température
 
-### Presence (ping / pong)
+Même bus I2C. Déclencher une conversion (`0x30` / `0x0A`), attendre ~50 ms, lire 5 octets à partir de `0x06` : pression 24 bits, température 16 bits. Ces 5 octets partent **tels quels** sur le CAN. La pleine échelle est une propriété de la pièce (le script de banc suppose 10 bar, à confirmer sur l'exemplaire monté) et c'est une calibration : elle vit côté écran.
 
-Every node keeps `last_presence`. A **pong received**, or a **ping received**, both count as presence — the peer is alive. If nothing has counted for **5 s plus `rand() ∈ [0, 2 s]`**, the node sends `* PING`. Whoever hears a ping answers immediately with its own `PONG`. Seeing that pong (or any pong) resets everyone else’s timer, so the bus does not chatter.
-
-The node that *answered* must reset its own timer too: TWAI does not loop its own frames back. Receiving the ping is the signal that the other side is there.
-
-If the sensors module’s presence of the screen expires: stop streaming, SSR low, dimmer 0. A lone board on the bench will ping every 5–7 s forever and never see a pong; that is the correct idle.
-
-### Flash data plane
-
-ASCII hex of a 1 MB image over 7-byte chunks is painful. Give flash payload a dedicated ID (same dest/src, priority 1) whose 8 bytes are raw image content, sequenced in software (offset in an ASCII `FLASH begin`, then a running counter). Control stays ASCII (`FLASH begin|end|abort`, `LOG` progress). Streaming pauses during a flash so the bus is not shared with `STATUS`.
-
-500 kbit/s on a short, terminated pair is conservative; 1 Mbit/s is plausible later. Start at 500.
-
-### Why not fully binary?
-
-A binary codec is smaller and easier to parse. It is worse on the WebSocket, worse to type in a test, and worse when the first debugging session is “is anything on the wire”. ASCII with a thin fragment header is the right trade for two nodes you own. If a third node appears, the ID space still works.
+Mesure côté groupe, en amont de la vanne solénoïde.
 
 ---
 
-# Follow-up 3 — Firmware update
+## Module écran (Waveshare ESP32-S3-Touch-LCD-4.3)
 
-**Recommendation: factory recovery image that is never overwritten, two OTA slots, app-rollback, and CAN used only as a dumb pipe for the sensors `.bin`.**
+Dalle RGB 800 × 480, tactile GT911, 16 Mo de flash, 8 Mo de PSRAM, TJA1051T/3 intégré. CAN sur GPIO 15 TX / 16 RX. `CAN_SEL` est l'EXIO5 du CH422G et **doit être tenu haut**, sinon le transceiver n'est pas sélectionné (cette ligne est aussi USB_SEL, actif bas). Notes de bring-up CH422G / GT911 : `../tests/screen/hello_waveshare/`.
 
-Both chips have enough flash (XIAO typically 8 MB, Waveshare 16 MB). Partition table, same layout on both, sizes tuned per chip:
+Quatre travaux concurrents, qui ne sont pas chauds en même temps :
+
+| Travail | Quand ça compte |
+| --- | --- |
+| UI LVGL | toujours, surtout pendant une infusion |
+| Client BLE → Acaia Lunar | pendant une infusion (poids) |
+| CAN → capteurs | pendant une infusion (commandes + télémétrie) |
+| Wi-Fi / HTTP | configuration, flash, envoi du shot en fin de cycle |
+
+Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LVGL et la boucle d'infusion sur un cœur ; Wi-Fi et pile BLE sur l'autre, là où Espressif les met déjà. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
+
+### Les capteurs vus depuis l'écran
+
+Tout ce qui est mesuré est derrière une seule interface, quel que soit le transport : pression, température, débit et volume arrivent par CAN, le poids par BLE, mais l'algorithme d'infusion ne le sait pas.
+
+Une source expose un échantillon `{ horodatage, valeur brute, validité }` ; la calibration est une couche au-dessus. Deux bénéfices directs :
+
+- l'algorithme se teste sur le Mac, sans machine ;
+- **le dump de l'outil de monitoring est le format de fixture des tests** : on enregistre un vrai shot, on le rejoue dans l'algorithme.
+
+### Réseau
+
+Les identifiants Wi-Fi sont saisis une fois — au tactile ou via un point d'accès temporaire et une page d'accueil — et stockés en **NVS** (pas d'EEPROM sur ESP32). Ils n'apparaissent jamais dans le source. Un secret HTTP partagé vit dans un en-tête non commité, utilisé en `Authorization`. Le serveur est en HTTP, pas HTTPS : le secret évite juste que le LAN soit un jouet.
+
+Première mouture de l'API :
+
+- `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)
+- `POST` — niveau dimmer et SSR
+- `POST` image firmware, avec destination **screen** ou **sensors**
+- WebSocket — miroir de tout le trafic CAN, brut. C'est le sniffer une fois les cartes en boîte.
+
+Le **même flux de trames** sort en USB série sur l'image factory (voir plus bas) : un seul décodeur côté Mac pour les deux transports.
+
+---
+
+## Sécurité
+
+Une surpression n'est pas un problème de firmware : **c'est l'OPV qui la traite**, mécaniquement. Réglage visé **11 bar**, fonctionnement normal à **9 bar** — en usage courant l'OPV ne s'ouvre jamais, sauf sur la purge de backflush. C'est ce qui autorise le module capteurs à transporter la pression sans la comprendre.
+
+Ce que le firmware doit garantir, c'est qu'on ne laisse pas la vanne ouverte et la pompe à fond. Trois mécanismes distincts, qui ne se remplacent pas :
+
+### 1. Bail sur commande (~500 ms)
+
+Chaque `SET` porte un TTL. À l'expiration, le module capteurs remet SSR à 0 et dimmer à 0. L'écran qui rampe le dimmer à 10 Hz renouvelle le bail sans y penser ; un écran **mort** coupe tout en un demi-tour de seconde.
+
+C'est le mécanisme rapide, et le seul qui compte pendant un shot.
+
+### 2. Présence (ping toutes les 1–2 s)
+
+Chaque nœud tient un `last_presence`. Un `PONG` reçu **ou** un `PING` reçu comptent tous les deux : le pair est vivant. Sans rien pendant ~3 s, on émet un `PING` ; qui l'entend répond immédiatement. Le nœud qui **répond** remet aussi son propre compteur à zéro : TWAI ne boucle pas ses propres trames, c'est la réception du ping qui est le signal.
+
+Perte de présence côté capteurs : arrêt du streaming, SSR bas, dimmer 0. Une carte seule sur la table pingue toutes les 1–2 s et ne voit jamais de pong : c'est le repos correct.
+
+### 3. Plafond de temps de marche — 60 s, verrouillé jusqu'à coupure secteur
+
+Si le SSR ou le dimmer restent actifs **plus de 60 s d'affilée**, le module capteurs coupe tout (SSR bas, dimmer 0) et **reste dans cet état jusqu'à une coupure d'alimentation**. Il continue de répondre au ping et de publier son état, il refuse toute commande d'actionneur et le dit par un code `LOG`.
+
+Ce mécanisme protège contre un écran **fou** (bug qui commande en boucle), là où le bail protège contre un écran **mort**. Il n'est donc **pas renouvelable** par une rafale de `SET`.
+
+Détails qui font que ça tient :
+
+- **Rearmement.** Le compteur est un temps d'activation continu, remis à zéro par un passage OFF → ON. Deux shots de 30 s ne déclenchent rien. Pour fermer la porte à un bug qui commuterait toutes les 59 s, le rearmement exige **au moins 2 s d'arrêt** — jamais un problème pour un usage humain.
+- **Le verrou survit à un reset logiciel.** Il est tenu en mémoire RTC et n'est levé que sur un vrai démarrage à froid (`ESP_RST_POWERON`). Une commande `RESET` venue du bus ne le lève pas : sinon l'écran fou l'effacerait lui-même.
+- **Le gros bouton de façade est le reset.** Tout le mod est alimenté depuis l'interrupteur principal de la machine : couper la machine coupe le XIAO. La procédure de sortie de verrou est celle que n'importe qui applique déjà à une machine à café.
+- **Ça vaut aussi pour la vanne.** La bobine OLAB fait 15 VA ; ouverte en continu elle mérite la même surveillance que la pompe. Même plafond.
+- **60 s est aussi une limite matérielle.** La pompe vibratoire chauffe et finit par ouvrir son thermique. Aucun essai utile ne dure plus longtemps.
+
+Le SSR est bas au boot, avant toute initialisation du CAN.
+
+---
+
+## Protocole CAN
+
+**500 kbit/s, identifiants 11 bits, charge utile binaire, un seul message par trame — sauf le flash.**
+
+TWAI est du CAN 2.0 classique : 8 octets par trame, pas de CAN FD. C'est trop peu pour de l'ASCII ; le texte se fabrique côté Mac, par un décodeur qui connaît les types. Le bus transporte des octets, pas des phrases.
+
+### Identifiant
+
+Le **type de message est dans l'ID**, pas dans la charge utile : l'ID est arbitré et filtré gratuitement, et les 8 octets restent disponibles pour les données.
 
 ```
-nvs        data  nvs      24K
-otadata    data  ota      8K
-phy_init   data  phy      4K
-factory    app   factory  recovery image (this bootstrap)
-ota_0      app   ota_0    current
-ota_1      app   ota_1    next
+bits 10..5   type   (64 valeurs) — valeur basse = priorité bus haute
+bits  4..3   dest   (0 broadcast, 1 écran, 2 capteurs)
+bits  2..0   src    (1 écran, 2 capteurs)
 ```
 
-The factory app is the USB-free lifeboat: sensors = CAN + FLASH + ping; screen = Wi-Fi + HTTP + CAN + FLASH. It is not upgraded in place. `X BOOT factory` (and a matching HTTP route on the screen) points `otadata` at it and resets. If an OTA image is broken, that is how you come back without opening the box.
+Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrage contre un flash en cours, par construction.
 
-### Local flash (the screen)
+À deux nœuds, le filtre d'acceptation ne sert à rien : pression 10 Hz + débit 5 Hz + actionneurs 2 Hz + ping ≈ 18 trames/s, soit ~0,5 % du bus. Accept-all, aiguillage sur le type. Un troisième nœud remettrait la question.
 
-`POST /firmware?target=screen` with the `.bin` body, `Authorization` header required. Write the inactive OTA slot with `esp_ota_begin/write/end`, set it bootable, reset. After boot the new image must call `esp_ota_mark_app_valid_cancel_rollback()` **only once CAN ping/pong still works** (and, for the screen, once Wi-Fi or at least the AP still comes up). If it doesn’t, the IDF rollback timer reboots the previous slot. That is the fail-proof path for the board you can no longer reach with USB.
+### Types
 
-### Remote flash (the sensors, through the screen)
+| Type | Message | Sens | Charge utile |
+| --- | --- | --- | --- |
+| `0x00` | `STOP` | S → X | vide |
+| `0x01` | `SET` | S → X | actionneurs + bail |
+| `0x02` | `RESET` | S → X | vide |
+| `0x08` | `PING` | ↔ | vide |
+| `0x09` | `PONG` | ↔ | identité + uptime |
+| `0x10` | `REQSTATUS` | S → X | quoi, à quelle période |
+| `0x20` | `STATUS_PRESSURE` | X → S | XDB401 brut |
+| `0x21` | `STATUS_FLOW` | X → S | compteur d'impulsions |
+| `0x22` | `STATUS_ACTUATORS` | X → S | état + santé |
+| `0x30` | `LOG` | ↔ | code + arguments |
+| `0x38` | `FLASH_CTRL` | ↔ | sous-commande |
+| `0x39` | `FLASH_DATA` | ↔ | 8 octets bruts |
 
-Same HTTP endpoint, `target=sensors`. The screen does not parse the image. It sends `FLASH begin <size> <crc32>`, then binary chunks, then `FLASH end`. The sensors module erases the inactive slot, writes, verifies CRC, sets boot, reports `LOG` progress on the bus (which the WebSocket shows), and resets. After reboot it must pong with the new version; the screen waits for that pong. If it never comes, the sensors rollback kicks in on its own — the screen can also send `BOOT factory` if the recovery image is still the one answering.
+### Charges utiles
 
-During flash, actuators stay off. A `FLASH abort` or a lost presence aborts the write and does not flip `otadata`.
+`SET` (0x01)
 
-### Why factory + two OTA, not only two OTA
+```
+[0]     masque      bit0 = SSR, bit1 = dimmer
+[1]     ssr         0 | 1
+[2]     dimmer      0..100
+[3..4]  ttl_ms      uint16, 0 = défaut (500)
+[5..7]  réservé
+```
 
-Two OTA slots with rollback cover “the new app crashed”. They do not cover “the new app boots, marks itself valid, then has a CAN bug that cannot flash again”. The factory image never marks itself as anything; it only speaks the bootstrap protocol. Keep it small and do not put LVGL or brew in it.
+`PONG` (0x09)
 
-### First images to build, in order
+```
+[0]     nœud        1 écran, 2 capteurs
+[1..3]  version     majeure, mineure, correctif
+[4..7]  uptime_s    uint32
+```
 
-1. Sensors factory: TWAI up, ping/pong, `LOG` at boot, `RESET`, `FLASH` into `ota_0`, GPIO 10 held low.
-2. Screen factory: CH422G `CAN_SEL` high, TWAI up, same protocol, AP + landing page writing SSID/password to NVS, HTTP `GET/POST` with the auth header, local OTA, proxy OTA to sensors, WebSocket CAN tap.
-3. Box the boards.
-4. OTA the real applications into `ota_0` / `ota_1`.
+`REQSTATUS` (0x10)
+
+```
+[0]     type visé   0x20 | 0x21 | 0x22
+[1..2]  periode_ms  uint16, 0 = arrêt
+[3..7]  réservé
+```
+
+Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Plancher utile côté XDB401 : 50 ms de conversion, donc pas en dessous de ~100 ms.
+
+`STATUS_PRESSURE` (0x20) — recopie du registre `0x06`
+
+```
+[0..2]  pression brute      24 bits
+[3..4]  température brute   16 bits
+[5..6]  horodatage ms       uint16 (16 bits bas)
+[7]     flags               I2C ok, timeout de conversion
+```
+
+`STATUS_FLOW` (0x21)
+
+```
+[0..3]  impulsions          uint32 cumulé depuis reset
+[4..5]  dernier front ms    uint16 (16 bits bas)
+[6]     flags
+[7]     réservé
+```
+
+`STATUS_ACTUATORS` (0x22) — c'est l'accusé de réception d'un `SET`
+
+```
+[0]     ssr                 0 | 1
+[1]     dimmer              0..100
+[2..3]  bail restant ms     uint16
+[4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
+[6]     flags               verrou actif, dimmer prêt, I2C ok
+[7]     réservé
+```
+
+Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux dimmer.
+
+`LOG` (0x30)
+
+```
+[0]     code
+[1]     sévérité
+[2..3]  arg16
+[4..7]  arg32
+```
+
+Pas de texte sur le bus. **La table de codes est générée depuis une source unique** dans `common/`, consommée à la fois par le C++ et par le décodeur Python. Sinon la table du Mac dérive de celle du firmware, et le premier message qu'on ne comprendra plus sera celui d'un crash.
+
+Codes de départ : boot, prêt, reboot demandé ; bail expiré, présence perdue, **verrou 60 s déclenché** (arg32 = ms d'activation), commande refusée car verrouillée ; erreur I2C (arg16 = adresse), dimmer en calibration, erreur dimmer (arg16 = registre `0x02`), timeout XDB401, débitmètre muet ; début / progression / fin / échec de flash ; OTA en attente de validation, validée, rollback.
+
+### Flash — le seul cas de réassemblage
+
+Une image de 1 Mo ne tient pas dans une trame, et c'est le seul message dans ce cas. Pas de numéro de séquence par trame : sur CAN, un émetteur unique délivre dans l'ordre sans duplication, et le seul mode de panne réel est la perte par débordement de la file RX.
+
+1. `FLASH_CTRL BEGIN` porte la taille. Le récepteur **efface toute la partition avant d'acquitter** : plus aucun effacement pendant le flux, donc plus la cause principale de débordement.
+2. `FLASH_DATA` : **8 octets de données pures**, aucun en-tête.
+3. Tous les **2 ko** (256 trames), `FLASH_CTRL BLOCK_ACK` avec le numéro de bloc et le CRC16 calculé. L'émetteur attend. **L'acquittement est le contrôle de flux.**
+4. Bloc faux → on rejoue 2 ko, pas 1 Mo.
+5. `FLASH_CTRL END` porte le CRC32 global. Vérification, bascule d'`otadata`, reboot.
+6. `FLASH_CTRL ABORT`, ou une perte de présence, annule l'écriture sans toucher à `otadata`.
+
+Surcoût ~0,4 %. Une image de 1 Mo, c'est ~34 s de fil à 500 kbit/s, disons une minute avec les allers-retours. Le streaming est arrêté pendant un flash. Les actionneurs sont coupés.
+
+500 kbit/s sur une paire courte et terminée est conservateur ; 1 Mbit/s est plausible plus tard. On commence à 500.
+
+---
+
+## Mise à jour
+
+**Image factory jamais réécrite, deux emplacements OTA, rollback applicatif, et le CAN comme simple tuyau.**
+
+```
+nvs        data  nvs
+otadata    data  ota
+phy_init   data  phy
+factory    app   factory   image de secours, jamais mise à jour
+ota_0      app   ota_0     courante
+ota_1      app   ota_1     suivante
+```
+
+Tailles ajustées par puce : XIAO 8 Mo, Waveshare 16 Mo (plus une partition de données pour les ressources LVGL).
+
+### L'image factory de l'écran est un pont USB-série ↔ CAN
+
+Le Waveshare reste atteignable en USB-C une fois monté : `screen_wedge` fait déboucher les canaux USB-C et UART sur la face extérieure, et à défaut la façade se démonte pour amener l'écran au Mac. C'est ce qui permet à son image factory d'être **minuscule** : TWAI, CDC, `FLASH`, ping/pong. **Ni Wi-Fi, ni HTTP, ni LVGL.**
+
+Trois conséquences :
+
+- l'outil Mac parle **le même protocole** en USB et en WebSocket — un seul décodeur ;
+- le sniffer CAN existe dès le premier jour, avant la moindre ligne de Wi-Fi ;
+- le provisioning Wi-Fi, le httpd, le WebSocket et le proxy OTA descendent dans `ota_0`, là où ils sont corrigibles.
+
+Précaution d'usage : brancher l'USB pendant que la machine est sous tension relie la masse du laptop à celle de l'alim RECOM. **Laptop sur batterie, débranché du secteur.** C'est un chemin de dépannage et de bring-up, pas un usage courant.
+
+L'image factory du **module capteurs** est le vrai filet : TWAI, `FLASH`, ping/pong, le verrou 60 s, GPIO 10 tenu bas. Aucune logique d'infusion. C'est la carte qu'on ne veut pas aller rechercher au fond de la machine.
+
+### Flash local (l'écran)
+
+`POST /firmware?target=screen`, en-tête `Authorization`, corps `.bin`. Écriture de l'emplacement OTA inactif, marquage bootable, reset. Après redémarrage, la nouvelle image ne se valide **qu'une fois le ping/pong CAN reconfirmé**.
+
+Attention à ce qu'IDF fait et ne fait pas : en `PENDING_VERIFY`, si l'application ne se valide pas, le bootloader revient en arrière **au prochain redémarrage** — mais rien ne redémarre tout seul. Il faut un temporisateur propre qui appelle l'invalidation-et-reboot, ou laisser le task watchdog frapper. Sans ça, une image qui démarre et ne se valide jamais reste en place indéfiniment.
+
+### Flash distant (les capteurs, à travers l'écran)
+
+Même route, `target=sensors`. L'écran ne lit pas l'image : `BEGIN`, blocs acquittés, `END`. Le module capteurs écrit l'emplacement inactif, vérifie le CRC32, bascule, remonte sa progression en `LOG` (que le WebSocket affiche), redémarre. Il doit ensuite répondre au ping avec sa nouvelle version ; l'écran attend ce pong. S'il ne vient pas, le rollback du module joue seul.
+
+### Pourquoi factory + deux OTA, et pas seulement deux OTA
+
+Deux emplacements avec rollback couvrent « la nouvelle application plante ». Ils ne couvrent pas « la nouvelle application démarre, se valide, et a un bug CAN qui empêche de reflasher ». L'image factory ne se valide jamais elle-même ; elle ne parle que le protocole minimal. Elle reste petite.
+
+---
+
+## Ce que l'écran fera, après le bootstrap
+
+Ce ne sont pas les premiers firmwares. C'est pourquoi l'interface capteurs a cette forme.
+
+- **Purge / flush** — SSR ouvert, dimmer 100 %, tant que le bouton est tenu. C'est le seul cas où l'OPV s'ouvre normalement (backflush).
+- **Infusion au poids** — jusqu'à la cible Acaia, moins un décalage d'anticipation pour les dernières gouttes du groupe.
+- **Infusion au temps** — repli quand la balance manque.
+- **Pré-infusion** — basse pression dans le ciel du groupe, pause sur la galette, puis rampe vers une cible qui peut être inférieure à 100 %. Le déclencheur sera vraisemblablement un **timer ou une détection de montée en pression** : à 0,5 ml/s le débitmètre est à ~1,2 impulsion par seconde, on verra à la calibration s'il apporte quelque chose.
+- **Flow control** — si la pression s'effondre (canalisation), on lève le pied. Piloté par la pression et le poids, pas par le débitmètre.
+
+Calibrations, toutes en NVS côté écran : facteur K du débitmètre et correction bas débit, pleine échelle du XDB401, carte dimmer → pression, seuil de calage de la pompe, grammes d'anticipation. Un remplacement de XIAO ne fait rien perdre.
+
+---
+
+## Calibration, dans la machine
+
+Elle se fait sur la machine, pas au banc : c'est la plomberie réelle qu'on calibre, OPV comprise. Référence de mesure : la balance Acaia. Deux porte-filtres de simulation, percés d'un trou central, imposent une résistance connue.
+
+Une réserve à respecter : **le point pompe libre ne calibre rien.** ~10 ml/s, c'est 0,6 L/min, au-dessus du plafond du Digmesa 1,00 mm (0,40 L/min). La turbine sature, on lira un chiffre faux sans que rien ne le signale. Les points utiles sont ceux des porte-filtres de simulation, à 1–3 ml/s (0,06–0,18 L/min), en plein linéaire.
+
+Séquence :
+
+1. **Facteur K.** Porte-filtre de simulation donnant une pression **sous** l'ouverture OPV. Impulsions comptées contre grammes lus à la balance : le rapport doit coller. C'est le K réel du montage.
+2. **Seuil réel d'ouverture de l'OPV.** Même montage, on monte la pression jusqu'à ce que le compte d'impulsions décroche de la balance : à partir de là le capteur compte l'eau recirculée en plus (l'OPV renvoie à l'entrée de la pompe, donc en amont du débitmètre). Ce décrochage **est** la mesure du seuil d'ouverture, et il confirme au passage que le réglage 11 bar est bien celui qu'on croit. Au-dessus, la lecture de débit n'est plus exploitable — c'est attendu, pas une panne.
+3. **Point de décrochage.** Descente à 0,5 puis 0,3 ml/s. Dit si la pré-infusion est mesurable ou si c'est un timer.
+4. **Carte dimmer → pression** et **seuil de calage** de la pompe, avec le XDB401 comme lecture.
+
+Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit par s'ouvrir, et le verrou du module capteurs coupe de toute façon.
+
+---
+
+## Décisions déjà prises
+
+| Sujet | Décision |
+| --- | --- |
+| Langage | C++ / ESP-IDF 5.x, les deux cartes, `common/` partagé |
+| Encodage CAN | binaire, type dans l'ID, une trame par message |
+| Réassemblage | uniquement pour `FLASH`, par blocs de 2 ko acquittés |
+| Télémétrie | valeurs brutes, calibration côté écran |
+| Surpression | traitée par l'OPV (11 bar), pas par le firmware |
+| Sécurité firmware | bail 500 ms + présence 1–2 s + verrou 60 s jusqu'à coupure secteur |
+| Factory écran | pont USB-série ↔ CAN, sans radio |
+| Mise à jour | factory + `ota_0` / `ota_1`, rollback, CAN en tuyau |
+| Calibration | sur la machine, balance Acaia, porte-filtres de simulation |
+
+## Ce qui reste à trancher
+
+- **Pleine échelle réelle du XDB401** monté (le banc suppose 10 bar).
+- **Seuil réel d'ouverture de l'OPV** — étape 2 de la calibration. Le principe est connu (retour à l'entrée de la pompe), c'est la valeur qui manque.
+- **Tailles exactes des partitions**, une fois qu'on connaît le poids de l'application écran avec LVGL et BLE.
+- **Utilité du débitmètre en pré-infusion** — dépend du point de décrochage.
+- Passage éventuel à **1 Mbit/s** sur le bus, après mise en boîte.
+
+Séquence d'implémentation : `firmware-implementation.md`.

@@ -217,6 +217,8 @@ Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intér
 
 Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 
+Conception, protocole CAN et sécurité : `docs/firmware.md`. Ordre de réalisation : `docs/firmware-implementation.md`.
+
 Le firmware n'est pas encore dans le dépôt. `sound_test/` (sketch Arduino Atom S3) est un reliquat.
 
 ## Disposition mécanique

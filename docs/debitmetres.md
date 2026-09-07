@@ -131,12 +131,19 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
   8 bar pour le OOTDTY, contre 9 bar d'infusion et davantage avant l'OPV.
 - **Un filtre en entrée est obligatoire.** Avec une buse de 1,2 mm, une particule bloque
   la turbine — et une turbine bloquée se lit comme un débit nul, pas comme une panne.
-- **Où débouche l'OPV ?** À vérifier sur la machine. Si elle renvoie au réservoir, un
-  débitmètre en amont de la pompe mesure le débit de la **pompe**, pas celui de
-  l'infusion : l'excédent part en dérivation sans passer par le café. En profilage sous
-  la pression d'ouverture de l'OPV les deux coïncident, mais pas sur une extraction à
-  pleine puissance. Ça peut décider de l'emplacement plus sûrement que la plage de
-  mesure.
+- **Où débouche l'OPV — réglé.** Elle **ne renvoie pas au réservoir**. Le bac a une
+  soupape de fond qui presse contre un adaptateur à deux raccords : l'un part à la pompe
+  en passant par le filtre, l'autre vient de l'OPV. Le retour se fait donc **à l'entrée
+  de la pompe**, en amont du débitmètre.
+
+  Le capteur mesure par conséquent le **débit de la pompe**, pas le débit net tiré du bac.
+  OPV fermée, les deux sont identiques et la lecture est celle de l'infusion. OPV ouverte,
+  le capteur compte en plus l'eau recirculée et sur-lit. Avec l'OPV à 11 bar pour un
+  fonctionnement à 9 bar, elle ne s'ouvre pas pendant une extraction : le seul régime
+  concerné est la purge de backflush. L'emplacement retenu tient.
+
+  Le corollaire utile : le débit décroche de la balance exactement quand l'OPV s'ouvre,
+  ce qui en fait une **mesure du seuil d'ouverture** (`firmware.md`, calibration).
 - **La balance reste le meilleur débitmètre** dès que l'eau tombe dans la tasse : une
   balance de précision sort du 10–20 Hz au centigramme. L'intérêt propre de la turbine est de voir l'eau qui
   entre dans le groupe, y compris celle qu'absorbe la galette — soit précisément la

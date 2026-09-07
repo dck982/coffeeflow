@@ -72,6 +72,13 @@ def screen_base(
     cable_tie_low_z=15.0,
     cable_tie_right_high_z=30.0,
     cable_tie_left_z=37.0,
+    vent_width=2.5,
+    vent_height=8.0,
+    vent_z=8.0,
+    vent_y_fraction_1=0.8,
+    vent_y_fraction_2=0.90,
+    vent_chamfer=0.5,
+    vent_z_2=45.0,
     draft=False,
 ):
     """Hollow wedge cradle. The wedge lies on the slope and is the lid.
@@ -148,6 +155,17 @@ def screen_base(
         right-hand magnet well's X
     cable_tie_left_z: height up the back face of the lone ring at the
         left-hand magnet well's X
+    vent_width: width (Y) of each ventilation opening cut through the west rail
+    vent_height: height (Z) of each ventilation opening
+    vent_z: height up from the floor of each ventilation opening's centre
+    vent_y_fraction_1: position of the first opening, as a fraction of the
+        base's own Y length (0 = front, 1 = back)
+    vent_y_fraction_2: position of the second opening, same fraction of Y length
+    vent_chamfer: size of the chamfer on each opening's four corners, rounding
+        the rectangle toward an oval
+    vent_z_2: height up from the floor of a third opening, directly above the
+        second (at vent_y_fraction_2) for convection — cool air in low, warm
+        air out high
     """
     t = radians(tilt)
     s, c = sin(t), cos(t)
@@ -311,6 +329,48 @@ def screen_base(
         *back_tail,
     ]
     rail_profile = Plane.YZ * Polygon(*rail_pts, align=None)
+
+    # --- ventilation openings: validated against the rail's own raised-slope
+    #     segment (rail_notch to rail_ridge), the only part of the west rail's
+    #     outer face that's flat and deep enough to cut through. ---
+    if vent_chamfer >= min(vent_width, vent_height) / 2:
+        reject(
+            f"vent_chamfer {vent_chamfer:.1f}mm is at least half the smaller of "
+            f"vent_width/vent_height ({min(vent_width, vent_height):.1f}mm): the "
+            "opening would close up",
+            param="vent_chamfer",
+        )
+    vent_slope = (rail_ridge.Z - rail_notch.Z) / (rail_ridge.Y - rail_notch.Y)
+    vent_positions = []
+    for label, fraction, z_label, z in (
+        ("vent_y_fraction_1", vent_y_fraction_1, "vent_z", vent_z),
+        ("vent_y_fraction_2", vent_y_fraction_2, "vent_z", vent_z),
+        # third opening, same Y as the second — the pair works by convection,
+        # cool air in low, warm air out the higher one
+        ("vent_y_fraction_2", vent_y_fraction_2, "vent_z_2", vent_z_2),
+    ):
+        vy = fraction * depth
+        if not (rail_notch.Y < vy < rail_ridge.Y):
+            reject(
+                f"{label} {fraction:.2f} puts the opening at Y={vy:.1f}mm, outside "
+                f"the rail's raised slope ({rail_notch.Y:.1f} to {rail_ridge.Y:.1f}mm)",
+                param=label,
+            )
+        surface_z = rail_notch.Z + (vy - rail_notch.Y) * vent_slope
+        if z - vent_height / 2 < 0:
+            reject(
+                f"{z_label}: a {vent_height:.1f}mm-tall opening centred at "
+                f"{z_label}={z:.1f}mm runs below the floor",
+                param=z_label,
+            )
+        if z + vent_height / 2 > surface_z - wall:
+            reject(
+                f"{z_label}: a {vent_height:.1f}mm-tall opening centred at "
+                f"{z_label}={z:.1f}mm doesn't clear {wall:.1f}mm of material below "
+                f"the rail's own outer surface ({surface_z:.1f}mm) at Y={vy:.1f}mm",
+                param=z_label,
+            )
+        vent_positions.append((vy, z))
 
     # --- floor, front wall, back face ---
     body = Pos(0, depth / 2, floor / 2) * Box(width, depth, floor)
@@ -521,6 +581,62 @@ def screen_base(
             rail_profile, amount=rail_width / 2, both=True
         )
 
+    # --- ventilation: three openings through each rail's own outer face,
+    #     west and east, mirrored — same vent_positions both sides. The rail
+    #     (2mm) and the shelf behind it (4mm) are both solid, so the cut has
+    #     to clear both — rail_width + shelf_width, 6mm here — plus overcut
+    #     on each end, to actually reach the open interior rather than
+    #     stopping blind partway through the shelf. The cutter itself is a
+    #     plain box: chamfering its own edges before subtracting ran that
+    #     chamfer the cutter's full depth, straight through the internal step
+    #     where the rail's own profile (rail_profile) meets the shelf's
+    #     (seat_profile, offset by rail_height) — a concave junction, and
+    #     `nurb check` flagged the result as a cosmetic chamfer on a concave
+    #     edge, the one polish mistake the doctrine calls out by name. Instead
+    #     only the mouth rim — the 4 new edges where the cutter meets the
+    #     real, always-convex outer face at X=±outer_half — gets chamfered,
+    #     below, after the cut. Every other edge the cut creates, mouth
+    #     corners aside, stays sharp. ---
+    vent_overcut = 2.0
+    vent_cut_depth = rail_width + shelf_width + 2 * vent_overcut
+
+    vent_bounds = []
+    for sx in (-1, 1):
+        vent_cutter = Box(
+            vent_cut_depth, vent_width, vent_height,
+            align=(Align.MIN if sx < 0 else Align.MAX, Align.CENTER, Align.CENTER),
+        )
+        vent_cut_x0 = sx * (outer_half + vent_overcut)
+        for vy, vz in vent_positions:
+            cutter = Pos(vent_cut_x0, vy, vz) * vent_cutter
+            vent_bounds.append(cutter.bounding_box())
+            body -= cutter
+
+    def on_vent_bound(edge, margin=0.1):
+        b = edge.bounding_box()
+        return any(
+            vb.min.Y - margin <= b.min.Y
+            and b.max.Y <= vb.max.Y + margin
+            and vb.min.Z - margin <= b.min.Z
+            and b.max.Z <= vb.max.Z + margin
+            for vb in vent_bounds
+        )
+
+    vent_mouth_edges = body.edges().filter_by(
+        lambda e: (
+            (
+                abs(e.bounding_box().min.X + outer_half) < 0.05
+                and abs(e.bounding_box().max.X + outer_half) < 0.05
+            )
+            or (
+                abs(e.bounding_box().min.X - outer_half) < 0.05
+                and abs(e.bounding_box().max.X - outer_half) < 0.05
+            )
+        )
+        and on_vent_bound(e)
+    )
+    body = chamfer(vent_mouth_edges, vent_chamfer)
+
     # --- side panels: close the outer sides over the wedge's full thickness,
     #     not just the rail's rail_height stub, so the USB-C openings
     #     screen_wedge cuts into its own border are hidden rather than
@@ -629,6 +745,13 @@ def screen_base(
                 return True
         return False
 
+    def on_vent(edge):
+        # the mouth rim is already chamfered explicitly, right after the cut
+        # — see above. Every other edge the vent creates (side walls, the
+        # internal rail/shelf step) is concave or otherwise not meant to be
+        # touched, so none of it goes through polish's own 1mm pass either.
+        return on_vent_bound(edge)
+
     def on_back_opening(edge):
         # a plate is plaqued against the back face over both openings once
         # the box is mounted, hiding whatever chamfer would sit on their
@@ -656,5 +779,6 @@ def screen_base(
         and not on_magnet_well(e)
         and not on_magnet_slot(e)
         and not on_back_opening(e)
+        and not on_vent(e)
     )
     return polish(body, keep, 1.0)

@@ -35,6 +35,8 @@ def boitier_dc(
     puit_diametre=8.2,
     puit_peau=0.6,
     marge_puit=MARGE_PUIT,
+    xiao_west_depuis_wago=2.5,
+    xiao_west_depuis_plot=2.0,
     draft=False,
 ):
     """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
@@ -44,6 +46,10 @@ def boitier_dc(
     puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
     puit_peau: plastique sous l'aimant
     marge_puit: plastique autour du puits (doctrine 1,6 mm)
+    xiao_west_depuis_wago: écart entre la face est du mur du compartiment wago
+        sud-ouest et le mur xiao_west, à l'ouest du plot XIAO
+    xiao_west_depuis_plot: écart entre le mur xiao_west et le centre du plot
+        XIAO, côté ouest
     """
     wall = epaisseur_paroi
     aimant_d = measured("aimant_diametre")
@@ -443,6 +449,37 @@ def boitier_dc(
         align=cyl_amin,
     )
     body = body - puit_bas_cutter
+
+    # xiao_west: cable-guide wall between the two Wago bays, running along
+    # the SW pin's west side so a cable can be routed south along it,
+    # clear of the XIAO module. Same Y span and height as the SW Wago bay's
+    # east muret (muret2), parallel to it.
+    xiao_west_x0 = muret2_x0 + wall + xiao_west_depuis_wago
+    xiao_west_x1 = pin_sw_cx - xiao_west_depuis_plot
+    if xiao_west_depuis_wago < 0.0:
+        reject(
+            f"xiao_west_depuis_wago {xiao_west_depuis_wago} is negative: raise it",
+            param="xiao_west_depuis_wago",
+        )
+    if xiao_west_depuis_plot < 0.0:
+        reject(
+            f"xiao_west_depuis_plot {xiao_west_depuis_plot} is negative: raise it",
+            param="xiao_west_depuis_plot",
+        )
+    if xiao_west_x1 <= xiao_west_x0:
+        reject(
+            f"xiao_west_depuis_wago {xiao_west_depuis_wago} and "
+            f"xiao_west_depuis_plot {xiao_west_depuis_plot} leave no room for "
+            "xiao_west between the Wago wall and the pin: lower one",
+            param="xiao_west_depuis_wago",
+        )
+    xiao_west_box = Pos(xiao_west_x0, muret2_y0, 0) * Box(
+        xiao_west_x1 - xiao_west_x0,
+        wago2_span + wall,
+        z_top_w2,
+        align=_amin,
+    )
+    body = body + xiao_west_box.intersect(outer)
 
     # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost
     # corner to the midpoint. Floor stays.

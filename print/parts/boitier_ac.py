@@ -130,9 +130,9 @@ def boitier_ac(
     fente_nord_ouest_z=13.6,
     rebord=4.0,
     tour_y=3.0,
-    crochet_hauteur=1.0,
-    crochet_saillie=1.0,
-    crochet_chanfrein=0.3,
+    crochet_hauteur=1.1,
+    crochet_saillie=0.6,
+    crochet_chanfrein=0.5,
     butee_depuis_ouest=8.0,
     butee_y=10.0,
     butee_z_offset=2.0,
@@ -673,7 +673,7 @@ def boitier_ac(
     # own past the traverse): 3 mm tall from the floor (z=1,6 to z=4,6),
     # 1,6 mm thick to the east, 10 mm in Y, south side flush with the
     # traverse's south side.
-    butee_arret_x0 = trav_x1 + 11.0
+    butee_arret_x0 = trav_x1 + 10.0
     body = body + _bb(
         butee_arret_x0,
         trav_y_sud,

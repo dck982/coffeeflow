@@ -17,7 +17,7 @@ Bac DC de 50 × 95 × 25mm, partie ouest du boîtier intérieur. Il porte deux c
 - Les deux couronnes d'aimant sont fusionnées aux seuils. Les alésages Ø8,2 sont repercés après fusion et conservent une peau de 0,6mm. Le puits SW est centré en (8,7 ; 25,3).
 - Montage cartes : deux inserts M2.5 (`system.INSERT_M25`) au NE pour le module CAN, trois inserts M2 (`system.INSERT_M2`) pour le module XIAO ESP32, et un plot plein Ø3×5mm à son point SW.
 - Les ouvertures dimmer et SSR de la face est proviennent de `system.ouvertures_modules`.
-- Mur `xiao_west` (x=22,5…24,1 par défaut, mêmes y0/y1 et hauteur que le muret est du compartiment Wago SW) : guide de câble entre les deux compartiments Wago, longeant le côté ouest du plot XIAO (centre x=26,1) sans le toucher (user).
+- Mur `xiao_west` (épaisseur = `epaisseur_paroi`, même hauteur que le muret est du compartiment Wago SW) : guide de câble entre les deux compartiments Wago, longeant le côté ouest du plot XIAO (centre x=26,1) sans le toucher (user). Positionné par `xiao_west_depuis_wago` (1,8mm par défaut) seul — pas de paramètre côté plot, l'épaisseur du mur suffit à fixer l'autre face, et un `reject` vérifie qu'elle ne mord pas sur le plot Ø3.
 
 ```toml
 [part]
@@ -39,6 +39,13 @@ min_wall = 0.6
 
 ## Changelog
 
+- 2026-09-07 — `xiao_west_depuis_plot` supprimé : ce paramètre dupliquait
+  `xiao_west_depuis_wago` (l'épaisseur du mur, fixée à `wall`, suffisait déjà
+  à situer sa face est). Le `reject` associé est remplacé par une vérification
+  géométrique directe contre le plot SW Ø3 (`pin_sw_cx`, rayon 1,5mm). `wall`
+  était déjà 1,6mm par défaut donc la géométrie ne bouge pas
+  (`nurb build` : "geometry unchanged"). `xiao_west_depuis_wago` remonté à
+  1,8mm ensuite (user) : à 2,5mm le mur mordait sur le passage du module XIAO.
 - 2026-09-06 — Mur `xiao_west` ajouté (`xiao_west_depuis_wago`=2,5mm, `xiao_west_depuis_plot`=2,0mm par défaut, x=22,5…24,1) : parallèle au muret est du compartiment Wago SW, mêmes y0/y1 et hauteur, pour guider un câble entre les deux compartiments Wago le long du bord ouest du plot XIAO sans contact avec le module (user).
 - 2026-09-05 — Les deux inserts corbeaux (montage NW et bord du chanfrein SW) passent de `INSERT_M2` à `INSERT_M25` (user : stock atelier n'a que du M2.5×4 et du M3, pas de M2). `edge_clear` du corbeau SW 1,0 → 2,0mm : avec le plus grand diamètre le bord proche restait à distance constante de la découpe ouverte du chanfrein, mais le fuse OCCT laissait un fragment flottant à z=16,5 (tranche fine à la jonction) ; l'écarter de 1mm de plus l'a refusionné proprement.
 - 2026-09-05 — Les cinq inserts n'utilisent plus `measured("insert_m25_exterieur")` (record only, insert plus monté depuis 2026-08-26) : les deux du NE (module CAN) passent à `system.INSERT_M25` (Ø perçage 3,9mm, encombrement 6,9mm), les trois du module sud (XIAO ESP32) à `system.INSERT_M2` (Ø perçage 3,2mm, encombrement 5,6mm). Centres X-Y et murets de soutien inchangés ; seul le diamètre des logements a changé.

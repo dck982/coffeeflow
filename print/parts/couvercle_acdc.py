@@ -69,6 +69,12 @@ def _ring(pts_out, pts_in, z0, h):
     b = Pos(0, 0, z0 - 0.5) * extrude(Polygon(*pts_in, align=None), h + 1.0)
     return a - b
 
+def _opening(x,y,dx,dy,wall,margin,prof,body,rib):
+    # cut the body and the rib
+    return (
+        body - Pos(x, y, 0) * Box(dx, dy, wall, align=_AMIN),
+        rib - Pos(x-margin, y-margin, wall) * Box(dx+margin*2, dy+margin*2, prof, align=_AMIN)
+    )
 
 @part
 def couvercle_acdc(
@@ -189,6 +195,10 @@ def couvercle_acdc(
     s2 = math.sqrt(2.0)
     tan_x, tan_y = 1.0 / s2, -1.0 / s2
     nrm_x, nrm_y = 1.0 / s2, 1.0 / s2
+
+    # Openings for sensors
+    body, rib_dc = _opening(40,30,10,10,wall,margin*2,prof,body,rib_dc)
+    body, rib_dc = _opening(40,70,10,10,wall,margin*2,prof,body,rib_dc)
 
     # Three heat-insert corbels, all flush with the rim: clear the rim only
     # over each pad's footprint, same recipe (and same defaults) as the

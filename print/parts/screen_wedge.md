@@ -11,15 +11,11 @@ material = "PLA"
 min_wall = 0.6
 ```
 
-**PLA, and it is the only PLA part in the project.** Everything else is PETG: the
-chassis runs 40–50 °C and the top plate a little more, which is where PLA starts to
-creep under sustained load. This part is the exception on purpose — it is the visible
-one, and **ironing the top face** is a finish PETG cannot produce. The machine runs
-10–15 min twice a day and is at room temperature the rest of the time, so the wedge
-never reaches thermal equilibrium; it also sits highest in the stack, above
-`screen_base` and its 5 mm standoff grid. The thing to watch is that the 5 V supply
-lives in `screen_base` directly underneath and heat rises: if the frame ever warps,
-the answer is PETG and no ironing.
+**PLA HT, annealed** like every part in this project (140 °C after annealing). This is
+the visible one, so **the top face is ironed** — the finish is the reason the print
+settings differ here. It sits on the machine's front panel, outside the hot bay, and
+carries no mains hardware. Annealing shrinks the part: check the fit-critical
+dimensions (M2.5 seats, pocket, foot sockets) **after** annealing, not off the bed.
 
 ## What it is
 

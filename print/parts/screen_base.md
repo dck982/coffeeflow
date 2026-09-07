@@ -7,12 +7,12 @@ Checks: clean
 
 ```toml
 [part]
-material = "PETG"
+material = "PLA"
 min_wall = 0.6
 
 [stress]
 kg = 0.5
-material = "PETG"
+material = "PLA"
 load = [0, 36.4, 63.7]
 hold = [[0, 40, 0]]
 ```

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coffeeflow — schéma de puissance (230 V et 5 V)</title>
+<style>
+  :root{
+    --brun:#6d4c41; --bleu:#1565c0; --jaune:#c98a00; --violet:#7b1fa2;
+    --rouge:#c62828; --noir:#263238; --encre:#1b1f23; --trait:#8b98a5;
+  }
+  html,body{margin:0;padding:0;background:#f6f7f9;color:var(--encre);}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       font-size:15px;line-height:1.5;padding:28px 24px 40px;}
+  main{max-width:1400px;margin:0 auto;}
+  h1{font-size:23px;margin:0 0 4px;font-weight:600;letter-spacing:-.01em;}
+  h2{font-size:17px;margin:34px 0 10px;font-weight:600;}
+  p.sous{margin:0 0 18px;color:#4a5560;font-size:14px;max-width:90ch;}
+  figure{margin:0 0 8px;background:#fff;border:1px solid #dde2e8;border-radius:8px;padding:10px 8px;}
+  svg{display:block;width:100%;height:auto;}
+  .legende{display:flex;flex-wrap:wrap;gap:10px 26px;margin:12px 0 4px;padding:12px 14px;
+           background:#fff;border:1px solid #dde2e8;border-radius:8px;font-size:13px;}
+  .legende div{display:flex;align-items:center;gap:8px;}
+  .legende i{display:inline-block;width:26px;height:0;border-top:4px solid;border-radius:2px;}
+  .note{font-size:13px;color:#4a5560;margin:10px 0 0;max-width:100ch;}
+  footer{margin-top:32px;padding-top:12px;border-top:1px solid #dde2e8;
+         font-size:12.5px;color:#6b7680;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+</style>
+</head>
+<body>
+<main>
+<h1>coffeeflow — schéma de puissance</h1>
+<p class="sous">Chaîne 230 V et distribution 5 V de la Profitec Go modifiée. Quatre boîtiers imprimés :
+<b>boitier_ps</b> (alim et Wago), <b>boitier_ac</b> (dimmer et SSR), <b>boitier_dc</b> (XIAO et Wago 5 V) et
+<b>UI</b> (écran Waveshare en façade). Les bus de signaux (I2C, GPIO, CAN) ne figurent pas ici.</p>
+
+<div class="legende">
+  <div><i style="border-color:var(--brun)"></i>brun — phase 230 V</div>
+  <div><i style="border-color:var(--bleu)"></i>bleu — neutre 230 V</div>
+  <div><i style="border-color:var(--jaune)"></i>jaune — phase commutée par le SSR</div>
+  <div><i style="border-color:var(--violet)"></i>violet — phase gradée par le dimmer</div>
+  <div><i style="border-color:var(--rouge)"></i>rouge — +5 V</div>
+  <div><i style="border-color:var(--noir)"></i>noir — GND</div>
+  <div><i style="border-color:#b0bec5;border-top-width:12px"></i>gaine thermo (paire L/N)</div>
+  <div><b>•</b>&nbsp;point = connexion ; croisement sans point = pas de connexion</div>
+</div>
+
+<h2>230 V — Helutherm 145 0,75 mm², paires L/N sous gaine thermo</h2>
+<figure>
+<svg viewBox="0 0 1400 780" role="img" aria-label="Schéma 230 V : interrupteur principal, boitier_ps, boitier_ac, vanne et pompe">
+  <style>
+    .bx{fill:#fff;stroke:#546170;stroke-width:1.6}
+    .bo{fill:#f2f5f8;stroke:#7c8b9a;stroke-width:1.6;stroke-dasharray:7 5}
+    .t{font:13px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#1b1f23}
+    .tb{font:600 13.5px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#1b1f23}
+    .ti{font:600 13px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#4a5560;
+        letter-spacing:.04em;text-transform:uppercase}
+    .ts{font:11.5px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#4a5560}
+    .w{fill:none;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+    .brun{stroke:#6d4c41}.bleu{stroke:#1565c0}.jaune{stroke:#c98a00}.violet{stroke:#7b1fa2}
+    .g{fill:#b0bec5;opacity:.5}
+    .d{fill:#263238}
+  </style>
+
+  <!-- ===== boîtiers ===== -->
+  <rect class="bo" x="250" y="110" width="440" height="490" rx="10"/>
+  <text class="ti" x="266" y="134">boitier_ps</text>
+  <text class="ts" x="266" y="152">intérieur, face ouest, le long du réservoir</text>
+
+  <rect class="bo" x="870" y="170" width="300" height="360" rx="10"/>
+  <text class="ti" x="886" y="194">boitier_ac</text>
+  <text class="ts" x="886" y="212">accolé à boitier_dc</text>
+
+  <!-- ===== organes ===== -->
+  <rect class="bx" x="30" y="560" width="180" height="80" rx="6"/>
+  <text class="tb" x="46" y="592">Interrupteur</text>
+  <text class="tb" x="46" y="610">principal 230 V</text>
+  <text class="ts" x="46" y="628">cosses FASTON 6,3 × 0,8</text>
+
+  <rect class="bx" x="30" y="300" width="190" height="70" rx="6"/>
+  <text class="tb" x="46" y="330">LED de façade</text>
+  <text class="ts" x="46" y="350">cosses FASTON réutilisées</text>
+
+  <rect class="bx" x="380" y="170" width="240" height="70" rx="6"/>
+  <text class="tb" x="396" y="198">Alim RECOM</text>
+  <text class="ts" x="396" y="218">RAC05-05SK/277/W — 5 V / 1 A</text>
+
+  <rect class="bx" x="400" y="290" width="160" height="44" rx="5"/>
+  <text class="tb" x="414" y="318">Wago neutre (haut)</text>
+  <rect class="bx" x="400" y="376" width="160" height="44" rx="5"/>
+  <text class="tb" x="414" y="404">Wago phase (bas)</text>
+
+  <rect class="bx" x="900" y="215" width="180" height="70" rx="6"/>
+  <text class="tb" x="916" y="245">M5Stack Unit SSR</text>
+  <text class="ts" x="916" y="265">2 A, zero-crossing</text>
+
+  <rect class="bx" x="960" y="400" width="180" height="70" rx="6"/>
+  <text class="tb" x="976" y="430">Dimmer 4 A</text>
+  <text class="ts" x="976" y="450">DimmerLink</text>
+
+  <rect class="bx" x="800" y="630" width="190" height="70" rx="6"/>
+  <text class="tb" x="816" y="660">Vanne solénoïde</text>
+  <text class="ts" x="816" y="680">OLAB 08252L50 — 15 VA</text>
+
+  <rect class="bx" x="1010" y="630" width="190" height="70" rx="6"/>
+  <text class="tb" x="1026" y="660">Pompe vibratoire</text>
+  <text class="ts" x="1026" y="680">OLAB Silent Green 35 W</text>
+
+  <!-- ===== fils ===== -->
+  <!-- 1. interrupteur principal -> boitier_ps (entrée sud-ouest) -->
+  <polyline class="w bleu" points="210,580 240,580 240,548 262,548 262,312 400,312"/>
+  <polyline class="w brun" points="210,596 256,596 256,562 470,562 470,420"/>
+  <rect class="g" x="214" y="572" width="22" height="32" rx="4"/>
+
+  <!-- 2. boitier_ps -> LED de façade (sortie sud-ouest) -->
+  <polyline class="w bleu" points="400,320 300,320 300,505 190,505 190,370"/>
+  <polyline class="w brun" points="430,420 430,520 170,520 170,370"/>
+  <rect class="g" x="212" y="497" width="22" height="31" rx="4"/>
+
+  <!-- 3. Wago -> alim RECOM (arc vers le nord, interne à boitier_ps) -->
+  <polyline class="w bleu" points="450,290 450,240"/>
+  <polyline class="w brun" points="560,382 640,382 640,205 620,205"/>
+
+  <!-- 4. boitier_ps -> boitier_ac, paire dimmer (violet / bleu) -->
+  <polyline class="w bleu" points="560,296 700,296 700,120 1322,120 1322,437 1140,437"/>
+  <polyline class="w violet" points="560,390 660,390 660,308 712,308 712,130 1310,130 1310,425 1140,425"/>
+  <rect class="g" x="900" y="113" width="24" height="24" rx="4"/>
+  <rect class="g" x="1304" y="300" width="24" height="24" rx="4"/>
+  <rect class="g" x="1180" y="418" width="24" height="26" rx="4"/>
+
+  <!-- 5. boitier_ps -> boitier_ac, paire SSR (jaune / bleu) -->
+  <polyline class="w bleu" points="560,320 724,320 724,145 1296,145 1296,257 1080,257"/>
+  <polyline class="w jaune" points="560,404 676,404 676,332 736,332 736,155 1284,155 1284,245 1080,245"/>
+  <rect class="g" x="980" y="138" width="24" height="24" rx="4"/>
+  <rect class="g" x="1278" y="190" width="24" height="24" rx="4"/>
+  <rect class="g" x="1120" y="238" width="24" height="26" rx="4"/>
+
+  <!-- 6. SSR -> vanne solénoïde -->
+  <polyline class="w jaune" points="920,285 920,630"/>
+  <polyline class="w bleu" points="940,285 940,630"/>
+  <rect class="g" x="912" y="556" width="36" height="22" rx="4"/>
+
+  <!-- 7. dimmer -> pompe -->
+  <polyline class="w violet" points="1040,470 1040,630"/>
+  <polyline class="w bleu" points="1060,470 1060,630"/>
+  <rect class="g" x="1032" y="556" width="36" height="22" rx="4"/>
+
+  <!-- connexions -->
+  <g class="d">
+    <circle cx="400" cy="312" r="3.5"/><circle cx="400" cy="320" r="3.5"/>
+    <circle cx="430" cy="420" r="3.5"/><circle cx="470" cy="420" r="3.5"/>
+    <circle cx="450" cy="290" r="3.5"/><circle cx="450" cy="240" r="3.5"/>
+    <circle cx="560" cy="296" r="3.5"/><circle cx="560" cy="320" r="3.5"/>
+    <circle cx="560" cy="382" r="3.5"/><circle cx="560" cy="390" r="3.5"/>
+    <circle cx="560" cy="404" r="3.5"/><circle cx="620" cy="205" r="3.5"/>
+  </g>
+
+  <!-- ===== étiquettes de fils ===== -->
+  <text class="ts" x="268" y="586">entrée sud-ouest — L brun / N bleu</text>
+  <text class="ts" x="190" y="492">sortie sud-ouest</text>
+  <text class="ts" x="58" y="392">L brun / N bleu</text>
+  <text class="ts" x="466" y="268">→ RECOM (L brun / N bleu)</text>
+  <text class="tb" x="706" y="440">→ boitier_ac, face est</text>
+  <text class="ts" x="706" y="460">paire SSR : L jaune / N bleu</text>
+  <text class="ts" x="706" y="478">paire dimmer : L violet / N bleu</text>
+  <text class="ts" x="706" y="496">0,75 mm², gaine thermo</text>
+  <text class="ts" x="1176" y="232">L jaune / N bleu</text>
+  <text class="ts" x="1176" y="300">face est</text>
+  <text class="ts" x="1176" y="412">L violet / N bleu</text>
+  <text class="ts" x="816" y="580">L jaune</text>
+  <text class="ts" x="930" y="580">N bleu</text>
+  <text class="ts" x="952" y="612">L violet</text>
+  <text class="ts" x="1075" y="612">N bleu</text>
+</svg>
+</figure>
+<p class="note">Croisements sans point : pas de connexion. Les cinq départs de chaque Wago 221-415
+(entrée, LED, RECOM, SSR, dimmer) sont figurés par un point sur le bord du bornier.</p>
+
+<h2>5 V — Helutherm 145 0,25 mm², rouge (+5 V) et noir (GND)</h2>
+<figure>
+<svg viewBox="0 0 1400 650" role="img" aria-label="Schéma 5 V : RECOM, Wago nord de boitier_ps, écran Waveshare, boitier_dc, SSR et Digmesa">
+  <style>
+    .bx2{fill:#fff;stroke:#546170;stroke-width:1.6}
+    .bo2{fill:#f2f5f8;stroke:#7c8b9a;stroke-width:1.6;stroke-dasharray:7 5}
+    .bc2{fill:#e9eef3;stroke:#9aa7b4;stroke-width:1.3;stroke-dasharray:4 4}
+    .t2{font:13px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#1b1f23}
+    .tb2{font:600 13.5px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#1b1f23}
+    .ti2{font:600 13px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#4a5560;
+         letter-spacing:.04em;text-transform:uppercase}
+    .ts2{font:11.5px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#4a5560}
+    .w2{fill:none;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
+    .rouge{stroke:#c62828}.noir{stroke:#263238}
+    .d2{fill:#263238}
+  </style>
+
+  <!-- ===== boîtiers ===== -->
+  <rect class="bo2" x="40" y="80" width="330" height="300" rx="10"/>
+  <text class="ti2" x="56" y="104">boitier_ps</text>
+  <text class="ts2" x="56" y="122">partie nord</text>
+
+  <rect class="bo2" x="470" y="250" width="510" height="320" rx="10"/>
+  <text class="ti2" x="486" y="274">boitier_dc</text>
+
+  <rect class="bo2" x="1000" y="300" width="250" height="120" rx="10"/>
+  <text class="ti2" x="1014" y="324">boitier_ac</text>
+
+  <rect class="bo2" x="1080" y="60" width="290" height="180" rx="10"/>
+  <text class="ti2" x="1096" y="84">UI — façade</text>
+
+  <!-- compartiments de boitier_dc -->
+  <rect class="bc2" x="490" y="280" width="200" height="110" rx="8"/>
+  <text class="ts2" x="502" y="300">compartiment nord-ouest</text>
+  <rect class="bc2" x="490" y="418" width="280" height="122" rx="8"/>
+  <text class="ts2" x="502" y="438">compartiment sud-ouest</text>
+
+  <!-- ===== organes ===== -->
+  <rect class="bx2" x="70" y="120" width="250" height="60" rx="6"/>
+  <text class="tb2" x="86" y="146">Alim RECOM</text>
+  <text class="ts2" x="86" y="166">RAC05-05SK/277/W — 5 V / 1 A</text>
+
+  <rect class="bx2" x="70" y="220" width="160" height="44" rx="5"/>
+  <text class="tb2" x="82" y="248">Wago 3 p. — 5 V</text>
+  <rect class="bx2" x="150" y="290" width="180" height="44" rx="5"/>
+  <text class="tb2" x="162" y="318">Wago 3 p. — GND</text>
+  <text class="ts2" x="70" y="358">les deux Wago 3 poles au nord de boitier_ps</text>
+
+  <rect class="bx2" x="505" y="320" width="170" height="44" rx="5"/>
+  <text class="tb2" x="517" y="348">Wago 3 p. — 5 V</text>
+
+  <rect class="bx2" x="505" y="455" width="120" height="44" rx="5"/>
+  <text class="t2" x="515" y="482">3 p. — 5 V</text>
+  <rect class="bx2" x="645" y="455" width="110" height="44" rx="5"/>
+  <text class="t2" x="655" y="482">2 p. — GND</text>
+
+  <rect class="bx2" x="790" y="448" width="40" height="44" rx="4"/>
+  <rect class="bx2" x="830" y="380" width="120" height="150" rx="6"/>
+  <text class="tb2" x="844" y="410">XIAO</text>
+  <text class="tb2" x="844" y="428">ESP32-S3</text>
+  <text class="ts2" x="844" y="448">+ Grove</text>
+  <text class="ts2" x="844" y="464">Shield</text>
+
+  <rect class="bx2" x="1020" y="340" width="210" height="60" rx="6"/>
+  <text class="tb2" x="1034" y="366">M5Stack Unit SSR</text>
+  <text class="ts2" x="1034" y="386">alimenté en 5 V par la Wago</text>
+
+  <rect class="bx2" x="1000" y="470" width="250" height="70" rx="6"/>
+  <text class="tb2" x="1014" y="498">Débitmètre Digmesa</text>
+  <text class="ts2" x="1014" y="518">FHKSC 932-9525-B — JST SM 3 p.</text>
+
+  <rect class="bx2" x="1100" y="95" width="140" height="44" rx="5"/>
+  <text class="t2" x="1110" y="122">bornier USB-C</text>
+  <rect class="bx2" x="1100" y="160" width="250" height="60" rx="6"/>
+  <text class="tb2" x="1114" y="186">Écran Waveshare 4,3"</text>
+  <text class="ts2" x="1114" y="206">ESP32-S3 — alim USB-C 5 V</text>
+
+  <!-- ===== fils ===== -->
+  <!-- RECOM -> Wago nord -->
+  <polyline class="w2 rouge" points="120,180 120,220"/>
+  <polyline class="w2 noir" points="70,160 55,160 55,312 150,312"/>
+
+  <!-- départ 1 : écran, via bornier adaptateur USB-C -->
+  <polyline class="w2 rouge" points="230,232 400,232 400,110 1100,110"/>
+  <polyline class="w2 noir" points="330,302 420,302 420,124 1100,124"/>
+  <polyline class="w2 rouge" points="1150,139 1150,160"/>
+  <polyline class="w2 noir" points="1190,139 1190,160"/>
+
+  <!-- départ 2 : boitier_dc, compartiment sud-ouest -->
+  <polyline class="w2 rouge" points="230,244 460,244 460,471 505,471"/>
+  <polyline class="w2 noir" points="330,318 440,318 440,520 700,520 700,499"/>
+
+  <!-- sud-ouest -> XIAO (bornier soudé sur les pastilles du Shield) -->
+  <polyline class="w2 rouge" points="560,455 560,435 770,435 770,460 790,460"/>
+  <polyline class="w2 noir" points="755,482 790,482"/>
+
+  <!-- sud-ouest -> Wago 3 poles nord-ouest -->
+  <polyline class="w2 rouge" points="540,455 540,364"/>
+
+  <!-- nord-ouest -> SSR et Digmesa -->
+  <polyline class="w2 rouge" points="675,335 1010,335 1010,360 1020,360"/>
+  <polyline class="w2 rouge" points="675,350 800,350 800,585 1100,585 1100,540"/>
+
+  <!-- connexions -->
+  <g class="d2">
+    <circle cx="120" cy="220" r="3.2"/><circle cx="150" cy="312" r="3.2"/>
+    <circle cx="230" cy="232" r="3.2"/><circle cx="230" cy="244" r="3.2"/>
+    <circle cx="330" cy="302" r="3.2"/><circle cx="330" cy="318" r="3.2"/>
+    <circle cx="505" cy="471" r="3.2"/><circle cx="700" cy="499" r="3.2"/>
+    <circle cx="560" cy="455" r="3.2"/><circle cx="540" cy="455" r="3.2"/>
+    <circle cx="755" cy="482" r="3.2"/><circle cx="540" cy="364" r="3.2"/>
+    <circle cx="675" cy="335" r="3.2"/><circle cx="675" cy="350" r="3.2"/>
+  </g>
+
+  <!-- ===== étiquettes de fils ===== -->
+  <text class="ts2" x="600" y="102">rouge — 5 V</text>
+  <text class="ts2" x="600" y="142">noir — GND</text>
+  <text class="tb2" x="600" y="80">départ 1 → écran Waveshare</text>
+  <text class="tb2" x="120" y="400">départ 2 → boitier_dc, compartiment sud-ouest</text>
+  <text class="ts2" x="466" y="228">rouge — 5 V</text>
+  <text class="ts2" x="336" y="336">noir — GND</text>
+  <text class="ts2" x="556" y="562">bornier 2 p. → pastilles 5 V / GND</text>
+  <text class="ts2" x="700" y="322">5 V SSR — fil VCC du Grove coupé à ras</text>
+  <text class="ts2" x="830" y="604">5 V Digmesa — fil rouge du JST SM</text>
+  <text class="ts2" x="556" y="410">5 V vers la Wago nord-ouest</text>
+</svg>
+</figure>
+<p class="note">Le noir (GND) du Digmesa et son fil jaune (signal) partent dans le connecteur Grove du port
+R2 : ils relèvent des signaux, pas de la distribution de puissance, et ne figurent pas ici. Seul le fil
+rouge du JST SM vient chercher le 5 V dans la Wago nord-ouest.</p>
+
+<footer>coffeeflow · docs/schema_puissance.html · source: README.md et docs/cablage.md</footer>
+</main>
+</body>
+</html>

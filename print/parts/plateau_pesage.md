@@ -260,7 +260,7 @@ min_wall = 1
 
 [stress]
 kg = 1.38
-material = "PETG"
+material = "PLA"
 load = [0.0, -22.0, 0.0]
 hold = [[-22.75, 0.0, 2.3], [-32.75, 0.0, 2.3]]
 ```

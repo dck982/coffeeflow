@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coffeeflow — schéma des signaux basse tension</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0;
+    padding: 24px 20px 40px;
+    background: #f2f2ef;
+    color: #1c1c1a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  header { max-width: 1360px; margin: 0 auto 18px; }
+  h1 { font-size: 22px; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+  header p { margin: 0; font-size: 13px; color: #55554f; max-width: 900px; line-height: 1.5; }
+  .sheet { max-width: 1360px; margin: 0 auto; }
+  svg { width: 100%; height: auto; display: block; background: #ffffff; border: 1px solid #d5d5cf; border-radius: 6px; }
+  footer { max-width: 1360px; margin: 18px auto 0; font-size: 12px; color: #6a6a63; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>coffeeflow — signaux basse tension</h1>
+  <p>Ports Grove du XIAO ESP32-S3, filtre RC du débitmètre, bus I2C partagé et bus CAN de bout en bout.
+     Le 230 V n'apparaît pas ici. Chaque liaison porte son étiquette (GPIO, signal, couleur de fil) :
+     la couleur du tracé n'est jamais la seule information.</p>
+</header>
+
+<div class="sheet">
+<svg viewBox="0 0 1360 2050" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Schéma des signaux basse tension : ports Grove du XIAO, filtre RC du débitmètre, bus I2C et bus CAN">
+
+  <defs>
+    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3a3a36"/>
+    </marker>
+  </defs>
+
+  <style>
+    .panel   { fill:#ffffff; stroke:#d5d5cf; stroke-width:1; }
+    .ptitre  { font-size:15px; font-weight:650; fill:#1c1c1a; }
+    .board   { fill:#f4f6f3; stroke:#9aa79a; stroke-width:1.5; }
+    .port    { fill:#ffffff; stroke:#8d8d85; stroke-width:1.2; }
+    .portOn  { fill:#eef3fa; stroke:#3d5f8a; stroke-width:1.6; }
+    .box     { fill:#fbfbf9; stroke:#8d8d85; stroke-width:1.2; }
+    .boxOn   { fill:#ffffff; stroke:#3d5f8a; stroke-width:1.4; }
+    .t       { font-size:11px; fill:#33332f; }
+    .t12     { font-size:12px; fill:#33332f; }
+    .tb      { font-size:13px; font-weight:650; fill:#1c1c1a; }
+    .tp      { font-size:13px; font-weight:650; fill:#22364f; }
+    .tmut    { font-size:11px; fill:#7a7a72; }
+    .w       { stroke:#3a3a36; stroke-width:2; fill:none; }
+    .wthin   { stroke:#3a3a36; stroke-width:1.4; fill:none; }
+    .lead    { stroke:#9a9a92; stroke-width:1; fill:none; stroke-dasharray:3 3; }
+    .comp    { fill:#ffffff; stroke:#3a3a36; stroke-width:1.6; }
+    .warnbox { fill:#fdf6e6; stroke:#b58a2b; stroke-width:1.2; }
+    .warnt   { font-size:11px; fill:#5c4712; }
+  </style>
+
+  <!-- ==================================================================== -->
+  <!-- PANNEAU 1 — Grove Shield vu de face                                  -->
+  <!-- ==================================================================== -->
+  <rect class="panel" x="20" y="20" width="1320" height="750" rx="4"/>
+  <text class="ptitre" x="44" y="52">1 · Grove Shield for XIAO, vu de face — XIAO en bas</text>
+
+  <!-- carte -->
+  <rect class="board" x="430" y="120" width="300" height="610" rx="8"/>
+  <text class="tmut" x="580" y="112" text-anchor="middle">Grove Shield for XIAO — 8 ports</text>
+
+  <!-- colonne L -->
+  <rect class="portOn" x="455" y="152" width="95" height="46" rx="3"/>
+  <text class="tp" x="502" y="172" text-anchor="middle">L4</text>
+  <text class="t"  x="502" y="189" text-anchor="middle">dimmer</text>
+
+  <rect class="port" x="455" y="272" width="95" height="46" rx="3"/>
+  <text class="tb"   x="502" y="292" text-anchor="middle">L3</text>
+  <text class="tmut" x="502" y="309" text-anchor="middle">libre</text>
+
+  <rect class="port" x="455" y="392" width="95" height="46" rx="3"/>
+  <text class="tb"   x="502" y="412" text-anchor="middle">L2</text>
+  <text class="tmut" x="502" y="429" text-anchor="middle">libre</text>
+
+  <rect class="port" x="455" y="512" width="95" height="46" rx="3"/>
+  <text class="tb"   x="502" y="532" text-anchor="middle">L1</text>
+  <text class="tmut" x="502" y="549" text-anchor="middle">libre</text>
+
+  <!-- colonne R -->
+  <rect class="portOn" x="610" y="152" width="95" height="46" rx="3"/>
+  <text class="tp" x="657" y="172" text-anchor="middle">R4</text>
+  <text class="t"  x="657" y="189" text-anchor="middle">Unit SSR</text>
+
+  <rect class="portOn" x="610" y="272" width="95" height="46" rx="3"/>
+  <text class="tp" x="657" y="292" text-anchor="middle">R3</text>
+  <text class="t"  x="657" y="309" text-anchor="middle">CAN Pal</text>
+
+  <rect class="portOn" x="610" y="392" width="95" height="46" rx="3"/>
+  <text class="tp" x="657" y="412" text-anchor="middle">R2</text>
+  <text class="t"  x="657" y="429" text-anchor="middle">Digmesa</text>
+
+  <rect class="portOn" x="610" y="512" width="95" height="46" rx="3"/>
+  <text class="tp" x="657" y="532" text-anchor="middle">R1</text>
+  <text class="t"  x="657" y="549" text-anchor="middle">XDB401</text>
+
+  <!-- XIAO -->
+  <rect class="box" x="505" y="600" width="150" height="95" rx="4"/>
+  <text class="tb" x="580" y="640" text-anchor="middle">XIAO</text>
+  <text class="t"  x="580" y="659" text-anchor="middle">ESP32-S3</text>
+  <text class="tmut" x="580" y="677" text-anchor="middle">pas de radio</text>
+
+  <!-- pastilles -->
+  <circle class="comp" cx="467" cy="605" r="5"/>
+  <circle class="comp" cx="467" cy="619" r="5"/>
+  <circle class="comp" cx="467" cy="633" r="5"/>
+  <circle class="comp" cx="467" cy="647" r="5"/>
+  <circle class="comp" cx="467" cy="661" r="5"/>
+  <circle class="comp" cx="467" cy="675" r="5"/>
+  <circle class="comp" cx="467" cy="689" r="5"/>
+  <text class="t" x="452" y="609" text-anchor="end">7</text>
+  <text class="t" x="452" y="693" text-anchor="end">1</text>
+  <path class="lead" d="M 462 660 L 400 660"/>
+  <text class="t" x="394" y="656" text-anchor="end">rangée de pastilles, 1 en bas → 7 en haut</text>
+  <text class="t" x="394" y="672" text-anchor="end">(détail au panneau 2)</text>
+
+  <!-- lecture du shield -->
+  <text class="t12" x="60" y="300">Shield tenu XIAO en bas :</text>
+  <text class="t12" x="60" y="320">colonne de gauche = <tspan font-weight="650">L</tspan>, colonne de droite = <tspan font-weight="650">R</tspan>.</text>
+  <text class="t12" x="60" y="340">Le port <tspan font-weight="650">1</tspan> est au plus près du XIAO,</text>
+  <text class="t12" x="60" y="360">le <tspan font-weight="650">4</tspan> au plus loin.</text>
+  <text class="tmut" x="60" y="392">Les ports L1, L2 et L3 restent libres.</text>
+
+  <!-- L4 : dimmer -->
+  <rect class="boxOn" x="60" y="122" width="280" height="106" rx="4"/>
+  <text class="tb" x="74" y="144">Dimmer AC 4 A — pompe</text>
+  <text class="t"  x="74" y="164">mode DimmerLink (I2C), logique 3,3 V</text>
+  <text class="t"  x="74" y="182">câble Grove simple</text>
+  <text class="t"  x="74" y="200">L4 est câblé en copie de R1</text>
+  <text class="t"  x="74" y="218">pas de pull-up sur le module</text>
+  <path class="w" d="M 455 175 L 340 175"/>
+  <text class="t" x="397" y="168" text-anchor="middle">I2C · GPIO 4 / 5</text>
+  <text class="t" x="397" y="192" text-anchor="middle">alim 3,3 V</text>
+
+  <!-- R4 : SSR -->
+  <rect class="boxOn" x="880" y="122" width="420" height="106" rx="4"/>
+  <text class="tb" x="894" y="144">M5Stack Unit SSR — vanne solénoïde</text>
+  <text class="t"  x="894" y="164">câble Grove 10 cm, VCC coupé à ras côté XIAO</text>
+  <text class="t"  x="894" y="182">le VCC coupé est dénudé et repris dans la Wago nord-ouest</text>
+  <text class="t"  x="894" y="200">alimentation 5 V par la Wago, pas par le port Grove</text>
+  <text class="t"  x="894" y="218">commande : fil jaune → GPIO 10</text>
+  <path class="w" d="M 705 175 L 880 175"/>
+  <text class="t" x="792" y="154" text-anchor="middle">commande</text>
+  <text class="t" x="792" y="169" text-anchor="middle">GPIO 10 · fil jaune</text>
+  <text class="t" x="792" y="192" text-anchor="middle">alim 5 V hors câble</text>
+
+  <!-- R3 : CAN Pal -->
+  <rect class="boxOn" x="880" y="242" width="420" height="106" rx="4"/>
+  <text class="tb" x="894" y="264">Adafruit CAN Pal — TJA1051T/3</text>
+  <text class="t"  x="894" y="284">monté au nord de boitier_dc</text>
+  <text class="t"  x="894" y="302">Grove → fils dénudés dans le bornier à vis 2,54 mm</text>
+  <text class="t"  x="894" y="320">TX = fil blanc → GPIO 8 · RX = fil jaune → GPIO 9</text>
+  <text class="t"  x="894" y="338">sortie CANH / CANL : voir le panneau 4</text>
+  <path class="w" d="M 705 295 L 880 295"/>
+  <text class="t" x="792" y="274" text-anchor="middle">TX GPIO 8 · blanc</text>
+  <text class="t" x="792" y="289" text-anchor="middle">RX GPIO 9 · jaune</text>
+  <text class="t" x="792" y="312" text-anchor="middle">alim 3,3 V</text>
+
+  <!-- R2 : Digmesa -->
+  <rect class="boxOn" x="880" y="362" width="420" height="106" rx="4"/>
+  <text class="tb" x="894" y="384">Digmesa FHKSC 932-9525-B — débit</text>
+  <text class="t"  x="894" y="404">JST SM 3 poles : rouge, noir, jaune</text>
+  <text class="t"  x="894" y="422">noir (GND) + jaune (signal) sertis dans le connecteur Grove</text>
+  <text class="t"  x="894" y="440">rouge (5 V) seul → Wago du compartiment nord-ouest</text>
+  <text class="t"  x="894" y="458">côté capteur : VH3.96 — rouge VCC, noir GND, jaune signal</text>
+  <path class="w" d="M 705 415 L 880 415"/>
+  <text class="t" x="792" y="394" text-anchor="middle">impulsions</text>
+  <text class="t" x="792" y="409" text-anchor="middle">GPIO 7 · fil jaune</text>
+  <text class="t" x="792" y="432" text-anchor="middle">alim 5 V hors câble</text>
+
+  <!-- R1 : XDB401 -->
+  <rect class="boxOn" x="880" y="482" width="420" height="106" rx="4"/>
+  <text class="tb" x="894" y="504">Yufavor XDB401 — pression</text>
+  <text class="t"  x="894" y="524">Grove à clip (quelques cm) → JST SM 4 poles</text>
+  <text class="t"  x="894" y="542">débrochable hors du boîtier : la sonde se retire sans ouvrir</text>
+  <text class="t"  x="894" y="560">fils capteur : rouge VCC · noir GND · vert SDA · blanc SCL</text>
+  <text class="t"  x="894" y="578">alimenté en 3,3 V · porte les pull-ups 4,7 kΩ (panneau 3)</text>
+  <path class="w" d="M 705 535 L 880 535"/>
+  <text class="t" x="792" y="514" text-anchor="middle">I2C</text>
+  <text class="t" x="792" y="529" text-anchor="middle">SDA GPIO 4 · SCL GPIO 5</text>
+  <text class="t" x="792" y="552" text-anchor="middle">alim 3,3 V</text>
+
+  <!-- ==================================================================== -->
+  <!-- PANNEAU 2 — pastilles et filtre RC                                   -->
+  <!-- ==================================================================== -->
+  <rect class="panel" x="20" y="790" width="1320" height="460" rx="4"/>
+  <text class="ptitre" x="44" y="822">2 · Pastilles à gauche du XIAO — filtre RC du débitmètre</text>
+
+  <!-- pastilles -->
+  <circle class="comp" cx="170" cy="880" r="6"/>
+  <circle class="comp" cx="170" cy="915" r="6"/>
+  <circle class="comp" cx="170" cy="950" r="6"/>
+  <circle class="comp" cx="170" cy="985" r="6"/>
+  <circle class="comp" cx="170" cy="1020" r="6"/>
+  <circle class="comp" cx="170" cy="1055" r="6"/>
+  <circle class="comp" cx="170" cy="1090" r="6"/>
+  <text class="t12" x="152" y="884" text-anchor="end">7 · GPIO 7</text>
+  <text class="tmut" x="152" y="919" text-anchor="end">6</text>
+  <text class="tmut" x="152" y="954" text-anchor="end">5</text>
+  <text class="tmut" x="152" y="989" text-anchor="end">4</text>
+  <text class="t12" x="152" y="1024" text-anchor="end">3 · 3V3</text>
+  <text class="t12" x="152" y="1059" text-anchor="end">2 · GND</text>
+  <text class="t12" x="152" y="1094" text-anchor="end">1 · 5 V</text>
+  <text class="tmut" x="170" y="1145" text-anchor="middle">pastilles du Shield</text>
+  <text class="tmut" x="170" y="1163" text-anchor="middle">1 en bas, 7 en haut</text>
+
+  <!-- ligne du nœud GPIO 7 — pastille 7, en haut -->
+  <path class="w" d="M 176 880 L 960 880"/>
+  <path class="w" d="M 960 880 L 898 880" marker-end="url(#fleche)"/>
+  <text class="t12" x="860" y="866" text-anchor="middle">signal Digmesa · fil jaune (port R2)</text>
+  <text class="t12" x="300" y="866">nœud GPIO 7 — pastille 7</text>
+  <circle cx="620" cy="880" r="3.5" fill="#3a3a36"/>
+  <circle cx="760" cy="880" r="3.5" fill="#3a3a36"/>
+
+  <!-- résistance 1 kΩ entre pastille 3 (3V3) et pastille 7 (GPIO 7) -->
+  <path class="w" d="M 620 880 L 620 920"/>
+  <rect class="comp" x="608" y="920" width="24" height="50" rx="2"/>
+  <path class="w" d="M 620 970 L 620 1020 L 176 1020"/>
+  <text class="t12" x="646" y="950">1 kΩ</text>
+  <text class="t12" x="300" y="1012">3,3 V — pastille 3</text>
+
+  <!-- condensateur 10 nF entre pastille 7 (GPIO 7) et pastille 2 (GND) -->
+  <path class="w" d="M 760 880 L 760 990"/>
+  <path class="w" d="M 736 990 L 784 990"/>
+  <path class="w" d="M 736 1007 L 784 1007"/>
+  <path class="w" d="M 760 1007 L 760 1055 L 176 1055"/>
+  <text class="t12" x="794" y="1004">10 nF</text>
+  <text class="t12" x="300" y="1047">GND — pastille 2</text>
+  <path class="w" d="M 760 1055 L 760 1090"/>
+  <path class="w" d="M 736 1090 L 784 1090 M 744 1100 L 776 1100 M 752 1110 L 768 1110"/>
+
+  <!-- notes -->
+  <text class="t12" x="950" y="940">Le Digmesa est un <tspan font-weight="650">collecteur ouvert NPN</tspan> : il tire la ligne</text>
+  <text class="t12" x="950" y="960">à la masse, il ne la monte jamais. C'est le tirage de 1 kΩ</text>
+  <text class="t12" x="950" y="980">vers 3,3 V qui fixe le niveau haut — le capteur est alimenté</text>
+  <text class="t12" x="950" y="1000">en 5 V sans jamais présenter plus de 3,3 V au GPIO.</text>
+  <text class="t12" x="950" y="1028">Le 10 nF filtre les transitoires.</text>
+  <text class="t12" x="950" y="1056"><tspan font-weight="650">GPIO 7 en INPUT, pull-up interne éteinte.</tspan></text>
+  <text class="t12" x="950" y="1092">Pastilles 1 (5 V) et 2 (GND) : bornier à vis 2 poles soudé,</text>
+  <text class="t12" x="950" y="1112">alimentation du XIAO depuis boitier_ps. Une patte du 10 nF</text>
+  <text class="t12" x="950" y="1132">partage cette borne GND.</text>
+
+  <!-- ==================================================================== -->
+  <!-- PANNEAU 3 — bus I2C partagé                                          -->
+  <!-- ==================================================================== -->
+  <rect class="panel" x="20" y="1270" width="1320" height="340" rx="4"/>
+  <text class="ptitre" x="44" y="1302">3 · Bus I2C 3,3 V partagé — XDB401 (R1) et dimmer (L4)</text>
+
+  <!-- maître -->
+  <rect class="boxOn" x="60" y="1340" width="180" height="90" rx="4"/>
+  <text class="tb" x="150" y="1368" text-anchor="middle">XIAO ESP32-S3</text>
+  <text class="t"  x="150" y="1388" text-anchor="middle">maître I2C</text>
+  <text class="t"  x="150" y="1408" text-anchor="middle">SDA GPIO 4 · SCL GPIO 5</text>
+
+  <!-- lignes de bus, avec sauts aux croisements -->
+  <path class="w" d="M 240 1370 L 674 1370 a 6 6 0 0 1 12 0 L 1060 1370"/>
+  <path class="w" d="M 240 1400 L 514 1400 a 6 6 0 0 1 12 0 L 844 1400
+                     a 6 6 0 0 1 12 0 L 1060 1400"/>
+  <text class="t12" x="252" y="1362">SDA · GPIO 4</text>
+  <text class="t12" x="252" y="1392">SCL · GPIO 5</text>
+
+  <!-- rail 3,3 V et pull-ups -->
+  <path class="w" d="M 600 1320 L 690 1320"/>
+  <text class="t12" x="592" y="1324" text-anchor="end">3,3 V</text>
+  <path class="w" d="M 620 1320 L 620 1332"/>
+  <rect class="comp" x="609" y="1332" width="22" height="26" rx="2"/>
+  <path class="w" d="M 620 1358 L 620 1370"/>
+  <circle cx="620" cy="1370" r="3.5" fill="#3a3a36"/>
+  <path class="w" d="M 680 1320 L 680 1332"/>
+  <rect class="comp" x="669" y="1332" width="22" height="26" rx="2"/>
+  <path class="w" d="M 680 1358 L 680 1400"/>
+  <circle cx="680" cy="1400" r="3.5" fill="#3a3a36"/>
+  <text class="t12" x="700" y="1330">2 × 4,7 kΩ — internes au XDB401,</text>
+  <text class="t12" x="700" y="1348">non débrayables</text>
+
+  <!-- taps XDB401 -->
+  <path class="w" d="M 520 1370 L 520 1460"/>
+  <circle cx="520" cy="1370" r="3.5" fill="#3a3a36"/>
+  <path class="w" d="M 560 1400 L 560 1460"/>
+  <circle cx="560" cy="1400" r="3.5" fill="#3a3a36"/>
+  <rect class="boxOn" x="440" y="1460" width="260" height="80" rx="4"/>
+  <text class="tb" x="570" y="1486" text-anchor="middle">XDB401 — pression (R1)</text>
+  <text class="t"  x="570" y="1506" text-anchor="middle">vert SDA · blanc SCL · rouge VCC · noir GND</text>
+  <text class="t"  x="570" y="1526" text-anchor="middle">alimenté en 3,3 V · porte les pull-ups</text>
+
+  <!-- taps dimmer -->
+  <path class="w" d="M 850 1370 L 850 1460"/>
+  <circle cx="850" cy="1370" r="3.5" fill="#3a3a36"/>
+  <path class="w" d="M 890 1400 L 890 1460"/>
+  <circle cx="890" cy="1400" r="3.5" fill="#3a3a36"/>
+  <rect class="boxOn" x="770" y="1460" width="260" height="80" rx="4"/>
+  <text class="tb" x="900" y="1486" text-anchor="middle">Dimmer DimmerLink (L4)</text>
+  <text class="t"  x="900" y="1506" text-anchor="middle">même bus, câblé en copie de R1</text>
+  <text class="t"  x="900" y="1526" text-anchor="middle">aucune pull-up sur le module</text>
+
+  <!-- avertissement -->
+  <rect class="warnbox" x="1080" y="1320" width="240" height="190" rx="4"/>
+  <text class="tb" x="1094" y="1344">Attention</text>
+  <text class="warnt" x="1094" y="1366">Seul le XDB401 porte les pull-ups.</text>
+  <text class="warnt" x="1094" y="1384">Ses 4,7 kΩ tiennent SDA et SCL pour</text>
+  <text class="warnt" x="1094" y="1402">tout le bus.</text>
+  <text class="warnt" x="1094" y="1426">Retirer le capteur de pression laisse</text>
+  <text class="warnt" x="1094" y="1444">les lignes sans tirage : le dimmer ne</text>
+  <text class="warnt" x="1094" y="1462">répond plus (sauf câble très court,</text>
+  <text class="warnt" x="1094" y="1480">sur les pull-ups internes de l'ESP32).</text>
+  <text class="warnt" x="1094" y="1502">Ne pas empiler un second 4,7 kΩ côté MCU.</text>
+
+  <!-- ==================================================================== -->
+  <!-- PANNEAU 4 — bus CAN de bout en bout                                  -->
+  <!-- ==================================================================== -->
+  <rect class="panel" x="20" y="1630" width="1320" height="390" rx="4"/>
+  <text class="ptitre" x="44" y="1662">4 · Bus CAN — un seul segment, deux nœuds</text>
+
+  <!-- nœud XIAO / CAN Pal -->
+  <rect class="boxOn" x="40" y="1690" width="310" height="145" rx="4"/>
+  <text class="tb" x="54" y="1712">Adafruit CAN Pal (TJA1051T/3)</text>
+  <text class="t"  x="54" y="1732">au nord de boitier_dc, alim 3,3 V</text>
+  <text class="t"  x="54" y="1750">4 pastilles de gauche, dans l'ordre :</text>
+  <text class="t"  x="54" y="1768">VCC · GND · RX · TX → bornier à vis 2,54 mm</text>
+  <text class="t"  x="54" y="1786">→ port Grove R3 du XIAO</text>
+  <text class="t"  x="54" y="1804">TX GPIO 8 fil blanc · RX GPIO 9 fil jaune</text>
+  <text class="t"  x="54" y="1824">2 pastilles de droite : CANH · CANL → JST XH</text>
+
+  <!-- nœud écran -->
+  <rect class="boxOn" x="1010" y="1690" width="310" height="145" rx="4"/>
+  <text class="tb" x="1024" y="1712">Écran Waveshare 4,3" (ESP32-S3)</text>
+  <text class="t"  x="1024" y="1732">en façade, dans screen_base</text>
+  <text class="t"  x="1024" y="1750">transceiver TJA1051T/3 intégré</text>
+  <text class="t"  x="1024" y="1768">CAN sur GPIO 15 (TX) / GPIO 16 (RX)</text>
+  <text class="t"  x="1024" y="1786">CAN_SEL = EXIO5 à l'état haut</text>
+  <text class="t"  x="1024" y="1804">entrée par JST PH 2.0 2 poles</text>
+
+  <!-- paire -->
+  <text class="t12" x="800" y="1730" text-anchor="middle">paire torsadée Helutherm 145 0,25 mm²</text>
+  <path d="M 350 1760 L 1010 1760" stroke="#7d7d78" stroke-width="3" fill="none"/>
+  <path d="M 350 1790 L 1010 1790" stroke="#d97706" stroke-width="3" fill="none"/>
+  <text class="t12" x="470" y="1750">CANH · fil gris</text>
+  <text class="t12" x="470" y="1812">CANL · fil orange</text>
+
+  <!-- connecteur JST XH -->
+  <rect class="comp" x="370" y="1752" width="10" height="46" rx="2"/>
+  <path class="lead" d="M 375 1800 L 375 1876"/>
+  <text class="t12" x="360" y="1888" text-anchor="middle">JST XH 2,54 mm (CANH · CANL)</text>
+
+  <!-- terminaison gauche -->
+  <path class="w" d="M 420 1760 L 420 1766"/>
+  <rect class="comp" x="409" y="1766" width="22" height="18" rx="2"/>
+  <path class="w" d="M 420 1784 L 420 1790"/>
+  <circle cx="420" cy="1760" r="3.5" fill="#3a3a36"/>
+  <circle cx="420" cy="1790" r="3.5" fill="#3a3a36"/>
+  <path class="lead" d="M 420 1800 L 420 1903"/>
+  <text class="t12" x="420" y="1915" text-anchor="middle">terminaison 120 Ω · activée par jumper</text>
+
+  <!-- passe-câble / châssis -->
+  <rect x="632" y="1690" width="16" height="69" fill="#e6e6e0" stroke="#9a9a92" stroke-width="1"/>
+  <rect x="632" y="1791" width="16" height="61" fill="#e6e6e0" stroke="#9a9a92" stroke-width="1"/>
+  <circle cx="640" cy="1775" r="16" fill="none" stroke="#9a9a92" stroke-width="1.4"/>
+  <text class="tmut" x="640" y="1682" text-anchor="middle">façade de la machine</text>
+  <path class="lead" d="M 640 1856 L 640 1876"/>
+  <text class="t12" x="630" y="1888" text-anchor="middle">passe-câble imprimé · trou Ø 16 mm de l'ex-bouton brew</text>
+
+  <!-- JST SM -->
+  <rect class="comp" x="795" y="1752" width="10" height="46" rx="2"/>
+  <path class="lead" d="M 800 1800 L 800 1903"/>
+  <text class="t12" x="800" y="1915" text-anchor="middle">JST SM 2 poles</text>
+
+  <!-- JST PH -->
+  <rect class="comp" x="910" y="1752" width="10" height="46" rx="2"/>
+  <path class="lead" d="M 915 1800 L 915 1876"/>
+  <text class="t12" x="915" y="1888" text-anchor="middle">JST PH 2.0 2 poles</text>
+
+  <!-- terminaison droite -->
+  <path class="w" d="M 985 1760 L 985 1766"/>
+  <rect class="comp" x="974" y="1766" width="22" height="18" rx="2"/>
+  <path class="w" d="M 985 1784 L 985 1790"/>
+  <circle cx="985" cy="1760" r="3.5" fill="#3a3a36"/>
+  <circle cx="985" cy="1790" r="3.5" fill="#3a3a36"/>
+  <path class="lead" d="M 985 1800 L 985 1903"/>
+  <text class="t12" x="985" y="1915" text-anchor="middle">terminaison 120 Ω · activée par jumper</text>
+
+  <text class="tmut" x="680" y="1990" text-anchor="middle">Les 120 Ω sont activées aux deux extrémités du segment, et nulle part ailleurs.</text>
+
+</svg>
+</div>
+
+<footer>coffeeflow · docs/schema_signaux.html · source: README.md et docs/cablage.md</footer>
+
+</body>
+</html>

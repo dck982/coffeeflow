@@ -1,15 +1,18 @@
 # Débitmètres — fiches et comparaison
 
-Le câblage électrique en vigueur est celui du Digmesa (collecteur ouvert NPN) :
-voir `atom_sensor.html` pour le RC, `README.md` pour le MCU actuel.
-Fiche famille FHKSC 932-952x-B : `docs/datasheets/flowmeter-digmesa.pdf`
-(courbe 1,00 mm 0° = #932-9525-B). Ce fichier compare les buses et le OOTDTY.
+Le capteur retenu est le **Digmesa 932-9525-B (buse 1,00 mm)**, en collecteur ouvert NPN.
+Son câblage en vigueur (filtre RC, port Grove R2, GPIO 7 du XIAO) est dans `cablage.md`.
+Fiche famille FHKSC 932-952x-B : `datasheets/flowmeter-digmesa.pdf`
+(courbe 1,00 mm 0° = #932-9525-B).
+
+Ce fichier garde la comparaison des buses et du OOTDTY : le choix est fait, mais le
+paysage sert encore à décider où placer le capteur et à interpréter ce qu'il mesure.
 
 ## Les capteurs
 
 | | Digmesa FHKSC 932-9521-A | Digmesa FHKSC 932-9525-B | OOTDTY POM 1,2 mm |
 | --- | --- | --- | --- |
-| État | **en service**, reçu | **commandé** | reçu (banc ; POM non tracé food-grade) |
+| État | déposé (ancien) | **retenu, en service** | reçu (banc ; POM non tracé food-grade) |
 | Buse / diamètre interne | 1,20 mm | **1,00 mm** | 1,20 mm |
 | Plage linéaire (fiche) | 0,075 – 0,569 L/min | **0,033 – 0,40 L/min** | 0,05 – 1 L/min ±3 % |
 | Loi d'impulsions | 1925 imp/L | **2382 imp/L** (montage 0°) | `Hz = 86 × Q` ±2 %, Q en L/min |
@@ -48,7 +51,7 @@ Le Digmesa est en collecteur ouvert — il tire à la masse et ne monte jamais l
 donc c'est le tirage qui fixe le niveau haut, et il est à 3,3 V. Le OOTDTY **pilote
 activement les deux états**. Deux conséquences :
 
-- **Aucun tirage nécessaire.** Ni résistance externe, ni `INPUT_PULLUP` : `G38` passe en
+- **Aucun tirage nécessaire.** Ni résistance externe, ni `INPUT_PULLUP` : le GPIO passe en
   `INPUT` simple. Toute la discussion sur la pull-up du débitmètre tombe.
 - **Alimenté en 5 V, il envoie >4,5 V sur le GPIO.** L'ESP32-S3 ne tolère pas le 5 V.
   Branché comme le Digmesa, il abîme la broche.
@@ -65,7 +68,7 @@ Deux sorties possibles, à trancher **avant de le brancher** :
    | Nœud | Conducteurs | Borne |
    | --- | --- | --- |
    | SIGNAL brut | fil du capteur + patte R1 | 221-2411 |
-   | SIGNAL divisé | patte R1 + patte R2 + fil vers `G38` | 221-413 |
+   | SIGNAL divisé | patte R1 + patte R2 + fil vers le GPIO | 221-413 |
    | Masse | les trois existants + patte R2 | 221-**414** |
 
 ## En dessous de la plage : que se passe-t-il vraiment ?
@@ -107,7 +110,7 @@ Côté résolution : une pré-infusion de 8 g fait ~19 impulsions sur le Digmesa
 Dix minutes, et ça donne les deux chiffres manquants :
 
 1. Capteur monté **horizontalement**, sortie dans une tasse sur une balance de référence, compteur
-   d'impulsions sur l'Atom.
+   d'impulsions sur le XIAO.
 2. Faire couler à débit décroissant : ~0,15 puis 0,10, 0,077, 0,05, 0,04, 0,03,
    0,02 L/min. Chaque palier assez long pour accumuler au moins 100 impulsions.
 3. À chaque palier, noter **impulsions comptées** et **grammes réels lus par la balance**.

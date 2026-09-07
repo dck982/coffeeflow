@@ -39,7 +39,7 @@
 <body>
 <div id="hud">
   <h1>Profitec Go — maquette</h1>
-  <p>Encombrements internes. Le boîtier AC se dessine dans la baie 70 mm, face ouest.</p>
+  <p>Encombrements internes et placement des quatre boîtiers imprimés. Détail dans <code>README.md</code> et <code>docs/cablage.md</code>.</p>
   <div class="dims">
     <div>Machine <b>207 × 305 × 368</b></div>
     <div>1 · surplomb boiler/groupe <b>125</b></div>
@@ -52,7 +52,11 @@
     <div>SSR <b>Y 125–165 · X 40–80 depuis l’est · Z 130–160</b></div>
     <div>Cadran <b>Y 125–160 · X 10–78 depuis l’ouest · Z 70–130</b></div>
     <div>Pompe <b>Y 170–225 · Z 0–80 · X de +40 (est) à +80 (ouest)</b></div>
-    <div>Boîtier AC max <b>130 haut × 60 baie × 30 depuis l’ouest</b></div>
+    <div>boitier_ps <b>53,2 × 90,8 × 40 · ouest, contre la cloison</b></div>
+    <div>boitier_dc <b>50 × 95 × 27 · paroi avant de la baie</b></div>
+    <div>boitier_ac <b>73,5 × 39 × 27 · accolé au DC, côté ouest</b></div>
+    <div>Écran <b>140,5 × 77,2 × 83,9 · façade, en haut</b></div>
+    <div>Passe-câble <b>Ø16, ex-bouton brew</b></div>
   </div>
   <div id="views">
     <button type="button" data-view="arriere">Arrière</button>
@@ -61,6 +65,7 @@
     <button type="button" data-view="cote">Côté</button>
     <button type="button" data-view="ouest">Ouest</button>
     <button type="button" data-view="est">Est</button>
+    <button type="button" data-view="boitiers">Boîtiers</button>
     <button type="button" id="btn-vol" class="on">Volumes</button>
     <button type="button" id="btn-axes">Axes</button>
   </div>
@@ -79,7 +84,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 /*
-  Contraintes pour le boîtier AC. 1 unité = 1 mm.
+  Encombrements de la machine et placement des boîtiers. 1 unité = 1 mm.
 
   Repère : origine centre X, face arrière Y = 0, sol Z = 0.
   Face à la machine : gauche = ouest (cadran), droite = est (PID).
@@ -90,13 +95,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   depuis la façade) et la cloison réservoir (195 mm). Pas de cloison physique
   entre boiler et baie : c'est le passage des câbles.
 
-  Boîtier AC visé : aimants sur la FACE OUEST de cette baie, fond vertical.
-  Enveloppe max provisoire : 130 × 60 × 30 (X × Y × Z
-  fond au sol). Une fois dressée : 130 mm en Z machine, 60 mm dans la baie
-  (Y), 30 mm depuis la paroi ouest vers l'intérieur. print/parts/ac_box
-  est deprecated (reliquat Atom Control). Contenu : RobotDyn DimmerLink
-  4 A, M5Stack Unit SSR, RECOM RAC05-05SK-277-W — détail BOM dans
-  README.md § Boîtier AC.
+  Les quatre boîtiers : boitier_ps (alim RECOM RAC05-05SK/277/W + Wago 230 V)
+  contre la paroi ouest, le long de la cloison réservoir ; boitier_dc (XIAO +
+  Grove Shield + CAN Pal) et boitier_ac (dimmer 4 A DimmerLink + Unit SSR)
+  accolés dans la zone froide, entre le PID et le cadran, sous un couvercle
+  commun ; l'écran (screen_base + screen_wedge) en façade, en haut. Le CAN
+  passe par le trou Ø16 de l'ancien bouton brew.
+  Détail dans README.md et docs/cablage.md.
 */
 
 // millimètres. Origine : centre X, face arrière Y = 0, sol Z = 0.
@@ -343,18 +348,94 @@ const pump = keepout(
 );
 machine.add(pump);
 
-const AC_BOX = { alongZ: 130, alongBay: 60, thick: 30 };
-const acX = span(fromWest(T), fromWest(T + AC_BOX.thick));
+/*
+  Boîtiers imprimés, version finale. Cotes prises sur les cartes
+  print/parts/*.md (enveloppes hors tout, couvercle non compris).
+
+  Placement issu d'un croquis de l'utilisateur sur cette maquette
+  (2026-09-07), pas d'un relevé au pied à coulisse : les six constantes
+  ci-dessous sont là pour être corrigées.
+
+    boitier_ps  53,2 × 90,8 × 40   contre la paroi OUEST, le long de la
+                                   cloison réservoir, haut dans la baie
+    boitier_dc  50 × 95 × 27       aimanté sur la paroi avant de la baie,
+                                   à l'OUEST du PID
+    boitier_ac  73,5 × 39 × 27     accolé au DC côté ouest, aligné en haut
+                                   (couvercle commun aux deux)
+    passe-câble Ø16                trou de l'ancien bouton brew, en façade
+*/
+const PS_BOX = {
+  thick: 40,        // depuis la paroi ouest vers l'intérieur (X)
+  alongBay: 53.2,   // dans la baie, depuis la cloison (Y)
+  alongZ: 90.8,     // hauteur
+  fromPlate: 2,     // jeu à la cloison réservoir
+  z0: 225,
+};
+const DC_BOX = { alongX: 50, depth: 27, alongZ: 95 };
+const AC_BOX = { alongX: 73.5, depth: 27, alongZ: 39 };
+const INT_BOX = {
+  dcFromEast: 79,   // arête est du DC, depuis la paroi est
+  z0: 78,           // pied de l'ensemble
+  nest: 5,          // recouvrement AC/DC en X (ensemble_boitiers)
+};
+const PASSE = { dia: 16, x: 50, z: 300 };
+
+const psX = span(fromWest(T), fromWest(T + PS_BOX.thick));
+const psY = span(TANK_D + PS_BOX.fromPlate, TANK_D + PS_BOX.fromPlate + PS_BOX.alongBay);
+const psBox = keepout(
+  psX.size, psY.size, PS_BOX.alongZ,
+  psX.mid, psY.mid, PS_BOX.z0 + PS_BOX.alongZ / 2,
+  0x8e6fb8
+);
+machine.add(psBox);
+
+// DC et AC : dos contre la paroi avant de la baie (y = rearH), débordant
+// de leur épaisseur vers l'arrière, dans la baie.
+const boxY = span(rearH - DC_BOX.depth, rearH);
+
+// Distances depuis la paroi EST, vers l'ouest. dcE = arête est du DC.
+const dcE = INT_BOX.dcFromEast;
+const dcW = dcE + DC_BOX.alongX;
+const acE = dcW - INT_BOX.nest;
+const acW = acE + AC_BOX.alongX;
+
+const dcX = span(fromEast(dcE), fromEast(dcW));
+const dcZ1 = INT_BOX.z0 + DC_BOX.alongZ;
+const dcBox = keepout(
+  dcX.size, boxY.size, DC_BOX.alongZ,
+  dcX.mid, boxY.mid, INT_BOX.z0 + DC_BOX.alongZ / 2,
+  0x2f7fd0
+);
+machine.add(dcBox);
+
+const acX = span(fromEast(acE), fromEast(acW));
 const acBox = keepout(
-  acX.size,
-  AC_BOX.alongBay,
-  AC_BOX.alongZ,
-  acX.mid,
-  TANK_D + BAY_D / 2,
-  AC_BOX.alongZ / 2,
+  acX.size, boxY.size, AC_BOX.alongZ,
+  acX.mid, boxY.mid, dcZ1 - AC_BOX.alongZ / 2,
   0xd96b4c
 );
 machine.add(acBox);
+
+// Écran : screen_base + screen_wedge, dos plaqué contre la façade, sommet
+// aligné sur le haut de la machine, débordant vers l'avant.
+const SCREEN = { alongX: 140.5, depth: 77.17, alongZ: 83.87 };
+const screen = keepout(
+  SCREEN.alongX, SCREEN.depth, SCREEN.alongZ,
+  0, D + SCREEN.depth / 2, H - SCREEN.alongZ / 2,
+  0xc0399f
+);
+machine.add(screen);
+
+// Passe-câble du CAN : trou Ø16 de l'ancien bouton brew, dans la façade.
+const passe = new THREE.Mesh(
+  new THREE.CylinderGeometry(PASSE.dia / 2, PASSE.dia / 2, 4, 24),
+  new THREE.MeshStandardMaterial({
+    color: 0xc0399f, transparent: true, opacity: 0.75, side: THREE.DoubleSide,
+  })
+);
+passe.rotation.x = Math.PI / 2;
+passe.position.set(PASSE.x, D, PASSE.z);
+machine.add(passe);
 
 const volumes = new THREE.Group();
 scene.add(volumes);
@@ -382,7 +463,11 @@ labels.add(tag('PID', pidX.mid, (pidY0 + pidY1) / 2, PID.z1 + 12, 50));
 labels.add(tag('SSR', ssrX.mid, (ssrY0 + ssrY1) / 2, SSR.z1 + 12, 50));
 labels.add(tag('cadran', cadranX.mid, (cadranY0 + cadranY1) / 2, CADRAN.z1 + 12, 60));
 labels.add(tag('pompe', pumpX.mid, (pumpY0 + pumpY1) / 2, PUMP.z1 + 12, 60));
-labels.add(tag('AC max', acX.mid, TANK_D + BAY_D / 2, AC_BOX.alongZ + 14, 70));
+labels.add(tag('boitier_ps', psX.mid, psY.mid, PS_BOX.z0 + PS_BOX.alongZ + 14, 70));
+labels.add(tag('boitier_dc', dcX.mid, boxY.mid, dcZ1 + 12, 70));
+labels.add(tag('boitier_ac', acX.mid, boxY.mid, dcZ1 + 34, 70));
+labels.add(tag('écran', 0, D + SCREEN.depth + 16, H - SCREEN.alongZ / 2, 55));
+labels.add(tag('passe-câble Ø16', PASSE.x, D + 20, PASSE.z, 90));
 labels.add(tag('207', 0, rearH / 2, -14, 50));
 labels.add(tag('305', W / 2 + 28, D / 2, 12, 50));
 labels.add(tag('368', W / 2 + 22, 12, H / 2, 50));
@@ -395,6 +480,7 @@ const views = {
   ouest:   { pos: [420, 160, 200],  target: [W / 4, TANK_D + BAY_D / 2, 140] },
   est:     { pos: [-420, 160, 200], target: [-W / 4, TANK_D + BAY_D / 2, 140] },
   avant:   { pos: [80, 620, 240],   target: [0, rearH, H * 0.45] },
+  boitiers:{ pos: [-120, -300, 330], target: [0, TANK_D + BAY_D / 2, 150] },
 };
 
 function go(name) {

@@ -1,12 +1,15 @@
 # print/
 
-Pièces FDM de coffeeflow. Vue d'ensemble et schéma électrique : `../README.md`. Firmware à la racine du dépôt.
+Pièces FDM de coffeeflow. Vue d'ensemble, câblage et brochage : `../README.md` et `../docs/cablage.md`.
 
-Trois boîtiers à imprimer autour de la machine :
+Quatre boîtiers autour de la machine :
 
-- **Boîtier AC** — 230 V (dimmer, SSR, alim RECOM), compartiment technique, face ouest
-- **Boîtier DC** — XIAO ESP32-S3 + capteurs + CAN, intérieur, zone froide
-- **Boîtier UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3"
+- **`boitier_ps`** — alimentation RECOM et Wago 230 V, intérieur, face ouest le long du réservoir
+- **`boitier_dc`** — XIAO ESP32-S3 + Grove Shield, Adafruit CAN Pal, Wago 5 V ; intérieur, zone froide entre le module PID et le cadran manomètre
+- **`boitier_ac`** — dimmer 4 A DimmerLink et M5Stack Unit SSR ; accolé au DC
+- **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3"
+
+`boitier_dc` et `boitier_ac` sont **côte à côte et reliés par un couvercle commun** (`couvercle_acdc`) ; l'assemblage des deux bacs est `ensemble_boitiers`.
 
 nurb sert **ce** dossier (un projet nurb est un répertoire qui contient `parts/`) :
 
@@ -22,66 +25,51 @@ nurb export canal
 
 ## Les objets
 
-| Pièce | Où | Matière | Statut |
-| --- | --- | --- | --- |
-| `canal` | intérieur | PETG | actuel |
-| `boitier_ac` | intérieur, partie haute de l'enveloppe | PETG | premier jet — fendu de `boitier_int` |
-| `boitier_dc` | intérieur, partie basse de l'enveloppe | PETG | premier jet — fendu de `boitier_int` |
-| `screen_wedge` (cadre Waveshare, vis M2.5 à l'arrière) | façade | **PLA** | en validation |
-| `screen_base` (accueille le wedge) | façade | PETG | existe en berceau de bureau ; **fixation façade à reprendre** |
-
-Traversée intérieur → façade : câble DC (5 V ± CAN) par le trou **Ø 16 mm** de l'ancien bouton brew. Le 230 V reste dans le compartiment technique.
-
-`parts/ac_box` et `docs/ac_box.html` sont **deprecated** (reliquat Atom Control, autre placement). Encombrements machine : `docs/profitec_go.html`. `boitier_int` a été fendu en `boitier_dc` (bas, nord +11 mm) et `boitier_ac` (haut, décrochage sud-ouest). Encoches de liaison plus tard.
-
-La grille d'entretoise 5 mm sous le plateau chauffant et le logement 230 V dans `screen_base` n'ont plus lieu : l'UI n'est plus posée sur la machine, et plus aucun module secteur n'y vit.
-
-## Matière par pièce
-
-Châssis 40–50 °C dans le compartiment technique. Cycle : 10–15 min de marche, 2× par jour, ambiante le reste du temps. La façade (UI) est hors de cette enceinte.
-
-**PETG par défaut** (`printer.toml`). Le PLA flue lentement sous charge dès ~45 °C. Boîtiers AC / DC et dérivations 230 V : air enfermé, et le AC tient des bornes secteur.
-
-**`screen_wedge` en PLA**, seule exception, pour l'*ironing* de la face supérieure — le PETG ne s'ironise pas. L'écran est en façade et l'alim 5 V est dans le boîtier AC, plus sous le cadre. Si le cadre gondole, retour au PETG.
-
-Détail et chiffres : section « Matières d'impression » de `../README.md`.
-
-## Wago 230 V
-
-Trois paires, tout dans le compartiment technique :
-
-1. L+N machine allumée (relais boiler du PID) → boîtier AC
-2. L+N boîtier AC → pompe
-3. L+N boîtier AC → vanne solénoïde
-
-Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de piggyback.
-
-## Contenu actuel
-
 | Fichier | Rôle |
 | --- | --- |
-| `parts/canal.py` | Canal de guidage des fils |
-| `parts/boitier_dc.py` | Bac intérieur, partie basse (ex-`boitier_int`) |
-| `parts/boitier_ac.py` | Bac intérieur, partie haute (remplace le bac rectangle) |
+| `parts/boitier_ps.py` | Bac de l'alimentation (RECOM, Wago 230 V, Wago 5 V) |
+| `parts/couvercle_ps.py` | Couvercle du bac alimentation |
+| `parts/boitier_dc.py` | Bac intérieur ouest : XIAO + Shield, CAN Pal, Wago 5 V |
+| `parts/boitier_ac.py` | Bac intérieur est : dimmer et SSR |
+| `parts/couvercle_acdc.py` | Couvercle unique des deux bacs |
 | `parts/ensemble_boitiers.py` | Assemblage DC + AC |
-| `parts/passe_cable.py` | Passe-câble fileté, deux câbles Ø4.8 |
+| `parts/passe_cable.py` | Passe-câble fileté pour le trou Ø16 de l'ex-bouton brew (câble CAN) |
 | `parts/ecrou_passe_cable.py` | Écrou SW22 du passe-câble |
 | `parts/ensemble_passe_cable.py` | Assemblage passe-câble + écrou + tôle Ø16 |
-| `parts/screen_wedge.py` | Cadre de l'écran Waveshare (PLA) |
-| `parts/screen_base.py` | Berceau du wedge (fixation, plus l'électronique 230 V) |
+| `parts/screen_wedge.py` | Cadre de l'écran Waveshare (vis M2.5 à l'arrière) |
+| `parts/screen_base.py` | Berceau du wedge |
 | `parts/screen_assembly.py` | Assemblage wedge + base |
-| `parts/base_pesage.py` / `plateau_pesage.py` | Pesée drip tray (HX711, pas encore décidé) |
-| `measurements.toml` | Cotes (Wago, aimants, Helutherm, M3) |
-| `printer.toml` | A1 Mini, PETG HF 33102 |
-| `system.py` | Filet imprimable, puits d'aimant couchés |
+| `parts/canal.py` | Goulotte de guidage des fils |
+| `parts/base_pesage.py`, `plateau_pesage.py`, `ensemble_pesage.py`, `butee_goupille.py`, `goujon_indexage.py` | Pesée drip tray — **en pause** (le poids vient d'une Acaia Lunar en BLE). Cotes : `../docs/driptray.md` |
+| `measurements.toml` | Cotes (Wago, aimants, Helutherm, M3, modules) |
+| `printer.toml` | A1 Mini |
+| `system.py` | Filet imprimable, puits d'aimant couchés, ouvertures des modules |
 
-Contraintes d'une pièce : sa carte `parts/<nom>.md` (`## Don't`), pas un `docs/` à part.
+Traversée intérieur → façade : **câble CAN** (paire torsadée orange/gris) par le trou **Ø 16 mm** de l'ancien bouton brew, avec `passe_cable`. Le 5 V de l'écran vient de `boitier_ps` par un bornier adaptateur USB-C. Le 230 V ne quitte pas le compartiment technique.
+
+Encombrements machine : `../docs/profitec_go.html`.
+
+## Matière
+
+**PLA HT recuit** pour les boîtiers : après recuit, la tenue en température monte à **140 °C**, très au-dessus des 40–50 °C du compartiment technique, et sans le fluage du PLA standard dès ~45 °C. La machine tourne 10–15 min, deux fois par jour, et reste à l'ambiante le reste du temps.
+
+Le recuit **retire les pièces** : vérifier les cotes fit-critiques (puits d'aimant, logements Wago, inserts, filet du passe-câble) **après** recuit, pas sur la pièce sortie du plateau.
+
+`screen_wedge` est la pièce visible : l'*ironing* de sa face supérieure est la raison de son réglage à part.
+
+`printer.toml` déclare `material = "pla"` ; toutes les cartes de pièces sont alignées dessus. Il n'y a plus de PETG dans le projet.
+
+## Wago et visserie
+
+Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago 221 (412 / 415 / 423). Pas de piggyback.
+
+- Vis **M3×10** classique (trou pilote 2,6 mm) ; **M2.5×8** pour l'écran dans le wedge
+- Inserts laiton **M2.5×4** et **M3** (stock atelier) pour le montage des cartes
+- Aimants **8 × 3 mm**, fond de puits 0,6 mm
+- Helutherm 145 : **0,75 mm²** en 230 V (paires L/N sous gaine thermo), **0,25 mm²** en 5 V / signaux / CAN
 
 ## Atelier
 
-- Bambu Lab A1 Mini, PETG HF Black 33102 — plus du PLA pour `screen_wedge` uniquement
-- Vis **M3×10** classique (trou pilote 2,6 mm) ; **M2.5×8** pour l'écran dans le wedge
-- Silicone 0,75 mm² en paires L/N pour le 230 V ; 0,25 mm² pour le 5 V / CAN
-- Aimants 8 × 3 mm, châssis ~40–50 °C, Wago 221 sur rails 2 mm
+Bambu Lab A1 Mini. Sécher le filament avant une pièce visible (le stringing se voit).
 
-Sur PETG visible : sécher le filament (le PETG boit l'humidité, ça se voit en stringing) et ne pas compter sur l'ironing.
+Contraintes d'une pièce : sa carte `parts/<nom>.md` (`## Don't`), pas un `docs/` à part.

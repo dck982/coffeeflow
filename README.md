@@ -10,170 +10,194 @@ Modification d'une **Profitec Go** pour du *flow profiling* et du *brew by weigh
 - Plomberie en **1/8"**
 - Connexions électriques internes : cosses à languette **FASTON 6,3 × 0,8 mm** (pas de piggyback : la dérivation se fait dans un boîtier imprimé)
 - Deux compartiments : **technique** (hydraulique, boiler, groupe, électricité) et **réservoir d'eau**
-- Bouton **brew** en façade (Ø 16 mm) : démarrait vanne + pompe. **Supprimé** — le trou sert de passe-câble DC vers l'écran
+- Bouton **brew** en façade (Ø 16 mm) : démarrait vanne + pompe. **Supprimé** — le trou sert de passe-câble CAN vers l'écran
+- LED de façade : ses cosses FASTON ont été réutilisées, la LED est réalimentée depuis le boîtier PS
 
 ## Ce que la modification ajoute
 
 Le 230 V de la pompe et de la vanne est repris dans un boîtier dédié, sans remplacer le câblage d'origine :
 
-1. **Pompe** — un dimmer AC RobotDyn 4 A (option DimmerLink I2C) fait varier la pression.
+1. **Pompe** — un dimmer AC 4 A en mode **DimmerLink** (I2C) fait varier la pression.
 2. **Vanne solénoïde** — un SSR ouvre et ferme le circuit d'infusion.
 
-Plus de bouton brew parallèle, plus de relais NC de « mode manuel » : la commande passe par l'écran. Alimentation du système de mod : uniquement quand la machine est allumée (phase prise sur le relais boiler du PID).
+Plus de bouton brew, plus de relais NC de « mode manuel » : la commande passe par l'écran. Le système est alimenté dès que l'**interrupteur principal** de la machine est enfoncé.
 
-Trois retours capteurs, centralisés dans le boîtier DC :
+Deux retours capteurs, sur le module interne :
 
 - **Pression** sur la plomberie, en amont de la vanne (I2C 3,3 V)
 - **Débit** en amont de la pompe, côté basse pression (le capteur ne tient que 3 bar)
-- **Poids** — soit une cellule via HX711 (pas encore décidé), soit une balance Acaia Lunar en BLE depuis l'écran
 
-L'ESP32 du boîtier DC coupe l'infusion au poids cible. L'écran affiche et envoie les commandes.
+Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. La pesée du drip tray par cellule de charge est **abandonnée pour l'instant** (peser quelques grammes sur un plateau d'un kilo) — pièces et cotes conservées dans `print/parts/*_pesage*` et `docs/driptray.md`.
 
 ## Architecture électronique
 
-Trois boîtiers, deux nœuds ESP32. Le 230 V ne sort plus de la machine.
+**Quatre boîtiers imprimés, deux nœuds ESP32-S3.** Le 230 V ne sort pas de la machine.
 
 ```
-230 V L/N (machine allumée)
-        │
-   [Boîtier AC]                          intérieur, face ouest, près pompe / vanne
-    dimmer · SSR · alim 5 V
-        │              │              │
-   L/N pompe      L/N vanne       5 V + GND
-                                      │
-                                 [Boîtier DC]    intérieur, zone froide
-                                  XIAO ESP32-S3 · capteurs · CAN
-                                      │              │
-                              I2C dimmer      GPIO SSR
-                              (vers AC)       (vers AC)
-                                      │
-                              5 V + CAN  ── un câble depuis DC,
-                                      │     ou alim depuis AC + CAN depuis DC
-                                 [Boîtier UI]    façade, trou Ø16 mm (ex-brew)
-                                  wedge + base · Waveshare 4,3"
+             interrupteur principal (230 V L/N)
+                          │
+                    [boitier_ps]      intérieur, face ouest, le long du réservoir
+                  alim RECOM 5 W · Wago            │
+                          │                        └── L/N → LED de façade
+              ┌───────────┴───────────┐
+          5 V / GND                 L/N ×2
+              │                       │
+   ┌──────────┴──────────┐      [boitier_ac]   accolé à boitier_dc
+   │                     │       dimmer · SSR
+[boitier_dc]        [screen_*]        │    │
+ XIAO ESP32-S3       Waveshare 4,3"   │    └── L/N → vanne solénoïde
+ + Grove Shield      ESP32-S3         └────── L/N → pompe vibratoire
+ + CAN Pal           UI · Wi-Fi · BLE
+      │                   │
+      └──── bus CAN ──────┘   paire torsadée, par le trou Ø16 de l'ex-bouton brew
+      │
+      ├── I2C 3,3 V ─→ dimmer (DimmerLink)
+      ├── GPIO ──────→ SSR
+      ├── I2C 3,3 V ←─ capteur de pression XDB401
+      └── GPIO ──────← débitmètre Digmesa
 ```
 
-- **Boîtier AC** — tout ce qui touche au 230 V. Pas de MCU.
-- **Boîtier DC** — commande le dimmer et le SSR, lit les capteurs, parle CAN à l'écran.
-- **Boîtier UI** — affichage et commandes. **Seul module à utiliser la radio** (Wi‑Fi / BLE).
+| Nœud | Alias | Où | Rôle |
+| --- | --- | --- | --- |
+| **Waveshare 4,3" LCD Touch** (ESP32-S3-WROOM) | *screen*, *écran*, *waveshare* | façade, dans `screen_base` + `screen_wedge` | Interface utilisateur, algorithme d'infusion (flow control, stop on weight), **Wi-Fi et BLE** (Acaia Lunar) |
+| **Seeed XIAO ESP32-S3** sur Grove Shield | *xiao*, *module interne*, *module capteurs*, *contrôleur* | intérieur, `boitier_dc`, zone froide entre le module PID et le cadran manomètre | Capteurs (XDB401, Digmesa) et actionneurs (dimmer, SSR) |
 
-Maquettes Three.js (ouvrir dans le navigateur) : machine `docs/profitec_go.html`. `docs/ac_box.html` est **deprecated** (reliquat Atom Control).
+Les deux nœuds parlent **CAN**. L'écran est le seul à utiliser la radio.
 
-Les schémas `docs/atom_sensor.html` et `docs/atom_control.html` décrivent l'ancienne chaîne de trois Atom en UART. Ils sont **OUTDATED**.
+Maquette Three.js de la machine (ouvrir dans le navigateur) : `docs/profitec_go.html`.
 
-### Pourquoi plus d'Atom
+### Pourquoi un XIAO à l'intérieur
 
-L'Atom Echo S3R est spécifié à **40 °C**. Le XIAO ESP32-S3 tient **85 °C**. À l'intérieur de la machine (45–50 °C dans le compartiment technique), la marge de l'Atom est nulle ; celle du XIAO est utilisable. L'écran Waveshare reste en façade, hors de cette enceinte.
+L'Atom Echo S3R de l'ancienne architecture est spécifié à **40 °C**. Le XIAO ESP32-S3 tient **85 °C**. Le compartiment technique monte à 45–50 °C : la marge de l'Atom est nulle, celle du XIAO est utilisable. L'écran Waveshare reste en façade, hors de cette enceinte.
 
 ---
 
-### Boîtier AC
+## Boîtiers
 
-Tout le 230 V. Fixé par aimants contre la face **ouest** du compartiment technique, au plus proche de la pompe et de la vanne.
+| Boîtier | Pièces `print/parts/` | Où | Contenu |
+| --- | --- | --- | --- |
+| **PS** | `boitier_ps`, `couvercle_ps` | intérieur, contre la face **gauche** vue de face, le long de la séparation avec le réservoir | Alim RECOM, Wago 230 V (entrée + LED façade), Wago 5 V / GND |
+| **DC** | `boitier_dc` | intérieur, **zone froide** entre le module PID et le cadran manomètre | XIAO + Grove Shield, Adafruit CAN Pal, Wago 5 V |
+| **AC** | `boitier_ac` | accolé au DC | Dimmer 4 A DimmerLink, M5Stack Unit SSR |
+| **UI** | `screen_base`, `screen_wedge` | façade de la machine | Écran Waveshare 4,3" |
 
-**Entrées / sorties**
-
-| Domaine | Sens | Contenu |
-| --- | --- | --- |
-| AC | entrée | Phase + neutre (machine allumée) |
-| AC | sortie | Paire L/N vers la pompe |
-| AC | sortie | Paire L/N vers la vanne solénoïde trois voies |
-| DC | entrée | Commande dimmer (I2C 3,3 V) et commande SSR (high/low) |
-| DC | sortie | 5 V + GND pour les composants DC |
-
-**Composants**
-
-| Rôle | Matériel retenu | Notes |
-| --- | --- | --- |
-| Dimmer pompe | **RobotDyn AC Dimmer 4 A**, option **DimmerLink I2C** (rbdimmer.com) | Banc 2026-08-30 : **déjà en I2C** (plus d'UART). Logique **3,3 V**. **Pas de pull-up.** Header, module face à soi, gauche → droite : **VCC, GND, SDA, SCL**. Le Cortex du DimmerLink gère ZC / triac ; l'ESP32 ne voit que l'I2C. Sans **mains** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes. Sur quelques centimètres, les pull-ups internes de l'ESP32 suffisent ; pas sur le câble DC↔AC. |
-| SSR vanne | **M5Stack Unit SSR** (2 A) | Alim **5 V**, commande un signal low/high. |
-| Alimentation DC | **RECOM RAC05-05SK-277-W** | 5 W, 5 V / 1 A, version **fils**. Encapsulée, 85–305 VAC. |
-
-**Alternatives dimmer** (pas considérées pour l'instant) : RobotDyn AC Dimmer **8 A « raw »**, pins zero-cross + dim, comme dans l'ancienne architecture Atom.
-
-**Alternatives SSR** (pas retenues) :
-
-- SSR à borniers basé sur **Omron G3MB-202P** — certifié 240 VAC, mais le fabricant écrit *« for safety reasons, operate only with a maximum of 48 VAC »*
-- Puck-style **Tru-Components TC-VSR8-10DA48Z** — 10 A, encombrement imposant
+Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qui est commun aux deux (`couvercle_acdc`, assemblage `ensemble_boitiers`).
 
 ---
 
-### Boîtier DC
+## Composants
 
-Centralise les capteurs et commande les deux modules AC. Intérieur, **zone froide** : entre le module PID et le cadran de pression à aiguille, contre la face qui donne sur la cavité de purge de la vanne solénoïde, plus bas que le boiler en Z.
-
-**Entrées / sorties**
-
-| Sens | Contenu |
-| --- | --- |
-| Entrée | 5 V + GND depuis l'alim du boîtier AC |
-| Sortie | I2C 3,3 V vers le DimmerLink |
-| Sortie | High/low vers le SSR |
-| Sortie | CAN vers l'écran (et éventuellement 5 V dans le même câble) |
-
-**Composants**
-
-| Rôle | Matériel | Liaison |
+| Rôle | Matériel retenu | Fiche |
 | --- | --- | --- |
-| MCU | **Seeed Studio XIAO ESP32-S3** | Enfiché sur son **extension Grove** (4 ports Grove). Alim **5 V** sur les broches 5 V. Logique 3,3 V. |
-| Dimmer | vers DimmerLink du boîtier AC | I2C 3,3 V — pas de pull-up sur le dimmer (voir banc ci-dessus) |
-| Vanne | vers Unit SSR du boîtier AC | GPIO high/low ; le SSR s'alimente en 5 V |
-| Débit | Digmesa FHKSC effet Hall, impulsions | Collecteur ouvert NPN, pull-up 1 kΩ vers 3,3 V + 100 nF (voir ci-dessous) |
-| Pression | **Yufavor** I2C, filetage **G1/8** (compat. protocole Xidibei XDB401) | Même bus I2C que le dimmer. VCC **3,3 V** (l'emballage dit 5 V ; émulation XDB401 complète en 3,3 V, vérifié au banc). |
-| Pesée | **HX711** | Pas encore décidé. Alternative : Acaia Lunar en BLE depuis l'écran — dans ce cas le HX711 disparaît |
-| Climat (optionnel) | Température / humidité **dans le boîtier** | OneWire |
-| CAN | **M5Stack Unit CAN** d'abord (encombrant, RX/TX → TWAI), puis **Adafruit CAN Pal** | 120 Ω incluse dans les deux cas |
+| UI / algo / radio | **Waveshare ESP32-S3-Touch-LCD-4.3** — 800 × 480, TJA1051T/3 CAN intégré, alim USB-C 5 V | `docs/datasheets/waveshare-4-3-lcd-touch.md` |
+| MCU interne | **Seeed Studio XIAO ESP32-S3** sur **Grove Shield for XIAO** (8 ports Grove) | `docs/datasheets/xiao.pdf`, `docs/datasheets/grove-expansion-board.md` |
+| Transceiver CAN côté XIAO | **Adafruit CAN Pal** (TJA1051T/3), [produit 5708](https://www.adafruit.com/product/5708) | — |
+| Dimmer pompe | **RBDimmer AC Dimmer 4 A 1 canal**, logique 3,3 V, mode **[DimmerLink](https://www.rbdimmer.com/docs/dimmerlink-overview)** ([boutique](https://www.rbdimmer.com/shop/ac-dimmers-1/ac-dimmer-module-4a-1-channel-33v5v-logic-ac-400v-4a-6?attribute_values=48)) | — |
+| SSR vanne | **M5Stack Unit SSR** (2 A), commande 3,3–5 V, zero-crossing MOC3043M | `docs/datasheets/m5stack-unit-ssr.md` |
+| Pression | **Yufavor XDB401**, I2C, filetage **G1/8** | `docs/datasheets/xidibei_xdb401.pdf` |
+| Débit | **Digmesa FHKSC 932-9525-B**, buse **1,00 mm** | `docs/datasheets/flowmeter-digmesa.pdf`, `docs/debitmetres.md` |
+| Alimentation | **RECOM RAC05-05SK/277/W** — 5 W, 5 V / 1 A, encapsulée, 85–305 VAC, version fils | `docs/datasheets/RAC05-K_277.pdf` |
+| Poids | **Acaia Lunar**, BLE, lue par l'écran | — |
+| Câble | **Helutherm 145** — 0,75 mm² en 230 V, 0,25 mm² en 5 V / signaux / CAN | `docs/datasheets/helutherm145.pdf` |
 
-Un seul bus I2C 3,3 V pour le dimmer et la pression. Le HX711, s'il vient, a ses propres lignes (DT/SCK). Le débitmètre est une GPIO d'impulsions, pas de l'I2C.
+Actionneurs d'origine pilotés : vanne solénoïde **OLAB 08252L50-A14-1A-G** (bobine 08000BH-J5IV, 15 VA, 220/230 V 50/60 Hz, orifice Ø 1,4 mm, joint FKM, laiton CW510L, NSF) et pompe vibratoire **OLAB Silent Green 35 W**.
 
-Les **4,7 kΩ du Yufavor** tiennent SDA et SCL pour tout le bus (dimmer compris). Le DimmerLink n'en a pas. Conséquence : retirer le capteur de pression laisse les lignes sans tirage — le dimmer seul ne parlera plus, sauf câble très court (pull-ups internes ESP32). Ne pas empiler un second 4,7 kΩ côté MCU tant que le Yufavor est sur le bus.
+---
 
-#### Pression Yufavor (compat. XDB401)
+## Le module interne (XIAO)
 
-Quatre fils : **rouge VCC**, **noir GND**, **vert SDA**, **blanc SCL**. Gaine type silicone, **fine feuille de blindage** : **pas de continuité feuille ↔ GND** — relier la feuille à la masse **uniquement côté ESP32** (côté sonde : coupée et isolée, pas de boucle). Pull-up **4,7 kΩ** sur SDA et sur SCL, non débrayable. Filetage **G1/8**, d'où le choix (plomberie machine en 1/8").
+### Ports Grove du Shield
 
-#### Débitmètre Digmesa FHKSC
+Le Shield expose **deux colonnes de quatre connecteurs**. XIAO en bas : colonne de **gauche = L**, colonne de **droite = R** ; le port le plus proche du XIAO est **1**, le plus éloigné **4**.
 
-En service : **932-9521-A**, buse **1,20 mm**. Commandé : **932-9525-B**, buse **1,00 mm** (même famille, même collecteur ouvert NPN, PVDF/NSF). Fiche : `docs/datasheets/flowmeter-digmesa.pdf`.
+| Port | Périphérique | Bus / GPIO | Alim | Câble |
+| --- | --- | --- | --- | --- |
+| **R1** | Capteur de pression XDB401 | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V | Grove à clip (quelques cm) → JST SM 4 poles, débrochable **hors du boîtier** |
+| **R2** | Débitmètre Digmesa | impulsions — **GPIO 7** | 5 V (voir ci-dessous) | Grove 2 fils (noir + jaune) → JST SM 3 poles → VH3.96 côté Digmesa |
+| **R3** | Adafruit CAN Pal | TWAI — TX **GPIO 8** (fil blanc), RX **GPIO 9** (fil jaune) | 3,3 V | Grove → fils dénudés dans le bornier à vis du CAN Pal |
+| **R4** | M5Stack Unit SSR | commande — **GPIO 10** (fil jaune) | 5 V, repris hors du câble | Grove 10 cm, VCC coupé à ras côté XIAO |
+| **L4** | Dimmer DimmerLink | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V | Grove |
 
-| | 932-9521-A | 932-9525-B |
+**L4 est câblé en copie de R1** pour exposer une deuxième prise I2C. Le dimmer et le capteur de pression sont donc **sur le même bus** : le dimmer n'a pas de pull-up, il profite des **4,7 kΩ du XDB401**. Conséquence : retirer le capteur de pression laisse SDA / SCL sans tirage et le dimmer ne répond plus (sauf câble très court, sur les pull-ups internes de l'ESP32). Ne pas empiler un second 4,7 kΩ côté MCU tant que le XDB401 est sur le bus.
+
+### Pastilles du Shield
+
+Le Shield porte une rangée de pastilles à **gauche du XIAO** (board tenu XIAO en bas, ports vers le haut). Les trois premières sont **5 V**, **GND**, **3V3** ; la septième est **GPIO 7**.
+
+- Un **bornier 2 poles** est soudé sur les pastilles 5 V et GND : il alimente le XIAO depuis le boîtier PS et sert de point de reprise.
+- **Filtre RC du débitmètre** : résistance **1 kΩ** entre la pastille 3 (3V3) et la pastille 7 (GPIO 7), condensateur **10 nF** à cheval entre la pastille 2 (GND) et la pastille 7. Le Digmesa est un collecteur ouvert NPN : il tire la ligne à la masse mais ne la monte jamais, c'est le tirage vers 3,3 V qui fixe le niveau haut, alors même que le capteur est alimenté en 5 V. GPIO en `INPUT`, pull-up interne éteinte.
+
+### Bus CAN
+
+Le CAN Pal est monté au **nord de `boitier_dc`**.
+
+- Un **bornier à vis 2,54 mm** est soudé sur ses **quatre pastilles de gauche** (VCC, GND, RX, TX de gauche à droite) et rejoint le port **R3** par un câble dénudé d'un côté, Grove de l'autre.
+- Les **deux pastilles de droite** (CANH, CANL) portent un **connecteur PCB femelle JST XH 2,54 mm**.
+- La ligne est une **paire torsadée Helutherm 145 0,25 mm²** : **CANL = orange, CANH = gris**. Elle chemine dans la machine et sort par le trou de l'ancien bouton brew, équipé du passe-câble imprimé (`passe_cable` + `ecrou_passe_cable`).
+- À l'autre bout, un **JST SM 2 poles** la relie à un câble **JST PH 2.0 2 poles** qui se branche sur le PCB du Waveshare (transceiver TJA1051T/3 intégré, CAN sur **GPIO15 TX / GPIO16 RX**, `CAN_SEL` = EXIO5 à l'état haut).
+- Les **résistances de terminaison 120 Ω sont activées par jumper des deux côtés**.
+
+---
+
+## Alimentation
+
+L'alim **RECOM RAC05-05SK/277/W** vit dans `boitier_ps` et alimente **tout** : les deux modules, les capteurs et les actionneurs basse tension.
+
+### 230 V
+
+- **Phase et neutre** viennent de deux **cosses FASTON isolées** prises sur l'**interrupteur principal** de la machine : tant qu'il n'est pas enfoncé (clic mécanique), rien n'est sous tension.
+- Les deux fils (**Helutherm 145 0,75 mm²**) entrent dans `boitier_ps` par le **sud-ouest** et vont dans les deux Wago (**phase en bas, neutre en haut**).
+- De ces mêmes Wago, phase et neutre **ressortent par le sud-ouest** pour alimenter la **LED de façade** — nécessaire, ses cosses FASTON ayant été réutilisées. **Phase brun, neutre bleu.**
+- Phase et neutre ressortent aussi en **arc vers le nord** pour alimenter la RECOM, juste au nord dans le même boîtier. **Phase brun, neutre bleu.**
+- Deux paires 0,75 mm² sortent vers `boitier_ac`, entrant par sa **face est**, chaque paire phase-neutre maintenue par de la gaine thermo (surface de boucle nulle) : **SSR (jaune/bleu)** et **dimmer (violet/bleu)**.
+- Du **SSR** repartent phase et neutre vers la **vanne solénoïde** — **phase jaune, neutre bleu**.
+- Du **dimmer** repartent phase et neutre vers la **pompe** — **phase violet, neutre bleu**.
+
+### 5 V
+
+- **VCC 5 V et GND** sortent de la RECOM vers les **Wago 3 poles au nord de `boitier_ps`**.
+- De là, deux fils **0,25 mm² rouge / noir** vont à l'**écran**, via un **bornier adaptateur USB-C**.
+- Deux autres fils rouge / noir vont à `boitier_dc`, dans les deux Wago du **compartiment sud-ouest** : **3 poles à gauche = 5 V**, **2 poles à droite = GND**.
+- De ces bornes partent (a) le 5 V / GND du **XIAO**, par le bornier soudé aux pastilles du Shield, et (b) le 5 V vers la **Wago 3 poles du compartiment nord-ouest**.
+- La Wago nord-ouest distribue le 5 V au **SSR** (fil du câble Grove dont le VCC a été coupé à ras côté XIAO, dénudé et repris ici) et au **Digmesa** (fil rouge du câble JST SM).
+
+### Le câble du Digmesa
+
+Côté JST SM : **3 poles, 3 fils — rouge, noir, jaune**.
+
+- **noir + jaune** sont sertis dans un connecteur **Grove** → port **R2**
+- **rouge** part seul dans la **Wago du compartiment nord-ouest** → 5 V
+
+Côté capteur, le câble est en **VH3.96** : rouge = VCC, noir = GND, jaune = signal.
+
+---
+
+## Capteurs
+
+### Pression — Yufavor XDB401
+
+Quatre fils : **rouge VCC**, **noir GND**, **vert SDA**, **blanc SCL**. Alimenté en **3,3 V** (l'emballage annonce 5 V ; l'émulation XDB401 est complète en 3,3 V, vérifié au banc). Pull-up **4,7 kΩ** sur SDA et SCL, non débrayables — ce sont elles qui tiennent tout le bus. Filetage **G1/8**, d'où le choix (plomberie machine en 1/8").
+
+Gaine silicone avec une **fine feuille de blindage** : **pas de continuité feuille ↔ GND**. La relier à la masse **uniquement côté ESP32** ; côté sonde, coupée et isolée, pas de boucle.
+
+Le connecteur **JST SM** est à l'extérieur du boîtier, à proximité immédiate : la sonde se débranche sans ouvrir.
+
+### Débit — Digmesa FHKSC 932-9525-B (buse 1,00 mm)
+
+| | 932-9525-B (retenu) | 932-9521-A (ancien) |
 | --- | --- | --- |
-| Buse | 1,20 mm | 1,00 mm |
+| Buse | **1,00 mm** | 1,20 mm |
 | Sens de montage | 0° | 0° |
-| Impulsions | 1925 imp/L (0,519 g) | **2382 imp/L (0,42 g)** |
-| Plage linéaire | 0,075 – 0,569 L/min | **0,033 – 0,40 L/min** |
-| Pré-infusion 0,5 g/s | sous le linéaire | **bas de plage** |
-| Perte de charge | ~0,42 bar à 0,6 L/min | ~0,48 bar vers 0,40 L/min |
-| **Pression max** | **3 bar à 20 °C** | **3 bar à 20 °C** |
+| Impulsions | **2382 imp/L (0,42 g)** | 1925 imp/L (0,519 g) |
+| Plage linéaire | **0,033 – 0,40 L/min** | 0,075 – 0,569 L/min |
+| Pré-infusion 0,5 g/s | bas de plage | sous le linéaire |
+| Perte de charge | ~0,48 bar vers 0,40 L/min | ~0,42 bar à 0,6 L/min |
+| **Pression max** | **3 bar à 20 °C** | 3 bar à 20 °C |
 
 Deux conséquences qui ne relèvent pas du câblage :
 
 - **Le capteur va en amont de la pompe**, entre le réservoir et son entrée. La machine infuse à 9 bar et la pompe monte plus haut avant l'OPV : 3 bar de tenue interdisent le circuit haute pression.
-- **Le 1,20 mm pose l'extraction au plancher** (36 g / 28 s = 0,077 L/min contre 0,075). Le **1,00 mm** met 0,077 L/min à 2,3 × le minimum, et 0,5 g/s (0,03 L/min) au début du linéaire. Plafond 0,40 L/min : une chasse pompe ouverte peut saturer. Comparaison OOTDTY : `docs/debitmetres.md`.
-
-Sortie collecteur ouvert : il tire la ligne à la masse mais ne la monte jamais. R = **1 kΩ** vers le 3,3 V et C = **100 nF** vers la masse (passe-bas ≈ 1,6 kHz). GPIO en `INPUT`, pull-up interne éteinte. Le capteur est alimenté en 5 V ; c'est le tirage qui fixe le niveau haut à 3,3 V. Comparaison avec un second capteur : `docs/debitmetres.md`. Le schéma Atom (`docs/atom_sensor.html`, `docs/capteur_debit_digmesa_atom.md`) reste juste pour le RC — plus pour le MCU.
-
----
-
-### Boîtier UI
-
-Écran **Waveshare 4,3" LCD tactile**, module **ESP32-S3-WROOM**. En façade, à la place des boutons de commande.
-
-Deux pièces imprimées, pour la fixation (l'écran est vissé à l'**arrière** du cadre) :
-
-- **`screen_wedge`** — cadre de l'écran
-- **`screen_base`** — accueille le wedge
-
-**Entrées**
-
-| Signal | Origine | Câble |
-| --- | --- | --- |
-| 5 V + GND | alim RECOM (via AC, éventuellement via DC) | Un seul câble depuis le boîtier DC, **ou** deux paires : alim depuis AC, CAN depuis DC |
-| CAN | transceiver du boîtier DC | idem |
-
-Traversée intérieur → façade : le trou **Ø 16 mm** de l'ancien bouton brew.
-
-**Radio.** Le Waveshare est le seul nœud Wi‑Fi / BLE. BLE si le HX711 est abandonné au profit de l'Acaia Lunar. Wi‑Fi (remontée backend) : hors scope pour l'instant.
+- Le **1,00 mm** met une extraction de 36 g / 28 s (0,077 L/min) à 2,3 × son minimum, et 0,5 g/s au début du linéaire. Plafond 0,40 L/min : une chasse pompe ouverte peut saturer. Comparatif complet : `docs/debitmetres.md`.
 
 ---
 
@@ -181,82 +205,64 @@ Traversée intérieur → façade : le trou **Ø 16 mm** de l'ancien bouton brew
 
 | Domaine | Fil | Connectique |
 | --- | --- | --- |
-| 230 V | Silicone **0,75 mm²**, paires L/N sous gaine (surface de boucle nulle) | Wago 221 à leviers ; FASTON 6,3 × 0,8 mm côté machine |
-| 5 V / signaux / CAN | **0,25 mm²** | Grove, header, LiYCY si blindage |
+| 230 V | **Helutherm 145 0,75 mm²**, paires L/N sous gaine thermo | Wago 221 à leviers ; FASTON 6,3 × 0,8 mm côté machine |
+| 5 V / signaux / CAN | **Helutherm 145 0,25 mm²** | Grove, JST SM (débrochable), JST XH / PH 2.0, borniers à vis 2,54 mm, Wago 221 |
 
-Trois paires 230 V, tout dans le compartiment technique :
-
-1. **L+N** machine allumée → boîtier AC
-2. **L+N** boîtier AC → pompe
-3. **L+N** boîtier AC → vanne
-
-Le 230 V ne traverse plus vers la façade. Côté DC, I2C et GPIO de commande relient AC et DC ; 5 V et CAN relient DC (et éventuellement AC) à l'écran.
-
-Notes de câblage 230 V plus anciennes (options 6 vs 8 conducteurs, dont le bouton brew encore en 230 V) : `docs/cablage.md`. L'option 8 conducteurs tombe avec la suppression du bouton.
+Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intérieur → façade : le trou **Ø 16 mm** de l'ancien bouton brew, avec le passe-câble imprimé.
 
 ## Firmware
 
-Deux nœuds, plus trois :
+- **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO SSR, comptage d'impulsions du débitmètre, TWAI/CAN. Pas de radio. Il exécute ce que l'écran lui demande et remonte la télémétrie.
+- **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar.
 
-- **Boîtier DC** (XIAO ESP32-S3) : Rust `no_std` — I2C (DimmerLink, pression), GPIO SSR, impulsions débitmètre, TWAI/CAN, logique de shot. Pas de radio.
-- **Boîtier UI** (Waveshare ESP32-S3-WROOM) : affichage, commandes CAN, **seul** à monter Wi‑Fi / BLE.
+Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 
-Le dimmer I2C retire le besoin d'ISR zero-cross / PSM sur l'ESP32 (c'était le cœur de `docs/firmware_control.md`, encore écrit pour un Atom et un dimmer « raw »).
-
-Le dépôt contient un test Arduino (`sound_test/`) sur Atom S3 Voice — reliquat. Le firmware Rust n'y est pas encore.
+Le firmware n'est pas encore dans le dépôt. `sound_test/` (sketch Arduino Atom S3) est un reliquat.
 
 ## Disposition mécanique
 
-**Boîtier AC** — intérieur, compartiment technique, face ouest, aimants, au plus proche de la pompe et de la vanne.
+- **`boitier_ps`** — intérieur, contre la face gauche vue de face, le long de la séparation avec le réservoir.
+- **`boitier_dc` + `boitier_ac`** — intérieur, zone froide entre le module PID et le cadran manomètre ; côte à côte, couvercle commun.
+- **UI** — façade, à l'emplacement des boutons. Le wedge cadre l'écran (vissé par l'arrière), la base accueille le wedge (`screen_assembly`).
 
-**Boîtier DC** — intérieur, zone froide, entre PID et cadran de pression, contre la face qui donne sur la cavité de purge de la vanne, plus bas que le boiler en Z.
-
-**Boîtier UI** — façade, emplacement des boutons. Le wedge cadre l'écran (vissé par l'arrière) ; la base accueille le wedge. Ensemble : `screen_assembly`.
-
-Pas de perçage du châssis : aimants à l'intérieur, trou brew existant vers l'extérieur.
+Pas de perçage du châssis : aimants Ø8 × 3 mm à l'intérieur, trou brew existant vers l'extérieur.
 
 ### Pièces imprimées (`print/`)
 
-Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. Export préféré : **3MF** dans `print/build/` (Studio peut avertir sur la spec 1.41 ; l’objet s’importe). Sur cette machine, pour tout script Python (y compris hors `print/`) : **`uv run`**, pas le `python` système — détail dans `print/README.md`.
+Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. Export préféré : **3MF** dans `print/build/`. Sur cette machine, pour tout script Python (y compris hors `print/`) : **`uv run`**, pas le `python` système — détail dans `print/README.md`.
 
-| Pièce | Où | Matière | Rôle | Statut |
-| --- | --- | --- | --- | --- |
-| `canal` | intérieur | PETG | Guidage des fils. | existe |
-| **Boîtier AC** | intérieur, baie 70 mm, face ouest | PETG | Dimmer, SSR, alim RECOM. | à faire (`print/parts/ac_box` **deprecated**) |
-| **Boîtier DC** | intérieur, zone froide | PETG | XIAO + Grove, capteurs, CAN. | à faire |
-| `screen_wedge` | façade | **PLA** | Cadre de l'écran Waveshare, vis M2.5 à l'arrière. | en validation |
-| `screen_base` | façade | PETG | Accueille le wedge. Plus de modules 230 V dedans. | existe (berceau de bureau) ; **fixation façade à reprendre** |
-
-La grille d'entretoise 5 mm sous le plateau chauffant n'a plus lieu : l'UI n'est plus posée sur la machine.
-
-### Wago 230 V
-
-Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago. Pas de piggyback. Vis M3. Aimants 8 × 3 mm. Wago sans contact avec le fond ni les parois.
-
-## Matières d'impression
-
-Le châssis mesure **40–50 °C** en fonctionnement. La machine tourne 10–15 min, deux fois par jour ; le reste du temps tout est à température ambiante et hors tension. La façade (UI) est hors de l'enceinte chaude.
-
-| | PLA | PETG |
+| Pièce | Où | Rôle |
 | --- | --- | --- |
-| Transition vitreuse | 55–60 °C | 78–85 °C |
-| Limite pratique sans charge | ~45 °C | ~65 °C |
-| Limite pratique sous charge continue (fluage) | ~40 °C | ~60 °C |
+| `boitier_ps` / `couvercle_ps` | intérieur, face ouest | Alim RECOM, Wago 230 V et 5 V |
+| `boitier_dc` | intérieur, zone froide | XIAO + Grove Shield, CAN Pal, Wago 5 V |
+| `boitier_ac` | accolé au DC | Dimmer, SSR |
+| `couvercle_acdc` | — | Couvercle unique des deux boîtiers |
+| `ensemble_boitiers` | — | Assemblage DC + AC |
+| `screen_wedge` / `screen_base` | façade | Cadre de l'écran Waveshare (vis M2.5 à l'arrière) et son berceau |
+| `passe_cable` / `ecrou_passe_cable` | façade | Traversée du trou Ø 16 mm ex-bouton brew |
+| `canal` | intérieur | Guidage des fils |
+| `base_pesage` / `plateau_pesage` | drip tray | Pesée par cellule — **en pause** |
 
-**PETG partout, sauf `screen_wedge`.** Le risque du PLA n'est pas la fonte mais le fluage sous charge permanente à partir de ~45 °C. Les boîtiers AC / DC et les dérivations 230 V sont dans l'air chaud enfermé ; le boîtier AC tient en plus des bornes secteur.
+### Wago
 
-**`screen_wedge` est en PLA**, pour le rendu : l'*ironing* de la face supérieure donne un fini que le PETG ne sait pas produire. L'écran est en façade, et l'alimentation 5 V vit dans le boîtier AC — plus dans la base sous le cadre. Si le cadre gondole malgré tout, la réponse est PETG et l'abandon de l'ironing.
+Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago 221 (412, 415, 423 selon le compartiment). Pas de piggyback. Vis M3, inserts laiton M2.5 pour les cartes. Aimants 8 × 3 mm. Wago sans contact avec le fond ni les parois.
 
-*Atelier : Bambu Lab A1 Mini. PETG HF Black 33102 pour le PETG.*
+## Matière d'impression
+
+**Les boîtiers sont imprimés en PLA HT recuit** — après recuit, la tenue en température monte à **140 °C**, très au-dessus des 40–50 °C du compartiment technique et sans le fluage du PLA standard à partir de ~45 °C. La machine tourne 10–15 min, deux fois par jour ; le reste du temps tout est à température ambiante et hors tension.
+
+Le recuit fait retirer les pièces : les cotes fit-critiques (puits d'aimant, logements Wago, inserts) se vérifient **après** recuit, pas sur la pièce sortie du plateau.
+
+*Atelier : Bambu Lab A1 Mini.*
 
 ## Dépôt
 
 ```
 coffeeflow/
   README.md          ← cette vue d'ensemble
-  docs/              ← schémas et notes (atom_*.html = OUTDATED) ; datasheets/
-  tests/             ← scripts MicroPython de banc (Atom Echo S3R)
+  docs/              ← câblage, débitmètres, drip tray, maquettes Three.js ; datasheets/
   print/             ← impressions 3D (nurb)
+  tests/             ← scripts MicroPython de banc
   sound_test/        ← sketch Arduino de test Atom S3 (reliquat)
   tts/               ← génération WAV (Gemini TTS) pour le sketch
 ```

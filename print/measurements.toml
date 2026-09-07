@@ -1,12 +1,15 @@
 # coffeeflow / print — hardware the printed parts have to fit.
 #
-# Project: electronics on a Profitec Go espresso machine (ESP32-S3 / M5Stack
-# Atom S3 Voice). This tree is only the FDM parts. Firmware stays at the
-# coffeeflow repo root (sound_test/, tts/). In progress: Waveshare 4.3 screen
-# shell (frame / wedge / base); Wago 221 (cotes bornes); passe-câble Ø16.
+# Project: electronics on a Profitec Go espresso machine. Two ESP32-S3 nodes:
+# a Waveshare 4.3 touch screen on the front panel (UI, Wi-Fi, BLE) and a XIAO
+# ESP32-S3 inside the machine (sensors and actuators). This tree is only the FDM
+# parts. Firmware stays at the coffeeflow repo root.
 #
 # Printer: Bambu Lab A1 Mini, 0.4 mm nozzle.
-# Filament: Bambu Lab PETG HF Black, SKU 33102.
+# Filament: PLA HT, annealed (140 °C after annealing). Several fit values below
+# were recorded on PETG coupons ("coupon PETG" in their `how`): those readings
+# stand as history, but annealing shrinks the part — re-check a fit-critical
+# value on an annealed PLA coupon before trusting it.
 # Fasteners: M3 on the Wago supports. Do not switch to M4. The Waveshare 4.3 module
 # uses M2.5 at its four corners (see screw_clearance below).
 # Wires: Helukabel Helutherm 145, 0.75 mm², outer diameter 2.2 mm.

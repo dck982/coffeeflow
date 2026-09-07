@@ -11,7 +11,7 @@ Goulotte / pont de test pour fils Helutherm, réduite à un seul logement d'aima
 
 ## Contexte projet
 
-- Même atelier que le boîtier : A1 Mini, PETG HF 33102, aimants 8×3 mm, fond de puit 0,6 mm.
+- Même atelier que le boîtier : A1 Mini, PLA HT recuit, aimants 8×3 mm, fond de puit 0,6 mm.
 - Puits du canal légèrement plus larges que ceux du boîtier (8,2 vs 8,15) : le disque doit glisser jusqu'au fond d'un puit profond. 8,4 était trop lâche (l'aimant ressortait en retournant la pièce) ; 8,2 testé et confirmé via `canal_test`.
 - Cible : goulottes 230 V / Grove de la roadmap `../README.md`.
 

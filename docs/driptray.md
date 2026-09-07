@@ -1,8 +1,14 @@
 # Pesée du drip tray — géométrie et cotes
 
+> **En pause.** La version finale du mod prend le poids sur une **balance Acaia Lunar en
+> BLE**, lue par l'écran. Peser quelques grammes de café sous un plateau d'environ un kilo
+> s'est révélé trop difficile à mettre en œuvre. Ce fichier et les pièces
+> `base_pesage` / `plateau_pesage` sont conservés en l'état pour une reprise éventuelle ;
+> rien de ce qui suit n'est monté sur la machine.
+
 Référence pour la cellule de pesage sous le drip tray de la Profitec Go. Ce fichier
 tient les cotes du bac, du tray et de la barre de charge, plus les contraintes qui
-cadrent le dessin, pour ne pas les reprendre à chaque discussion. Les pièces PETG
+cadrent le dessin, pour ne pas les reprendre à chaque discussion. Les pièces
 vivent dans `print/parts/` ; les cotes qui deviennent fit-critiques sont recopiées dans
 `print/measurements.toml` au moment de modéliser.
 
@@ -185,7 +191,7 @@ gramme, le fond du tray étant étanche.
 ## Architecture retenue
 
 Décision utilisateur, 2026-08-25. **Cellule unique, centrée sous le tray.** Deux pièces
-PETG, `base_pesage` et `plateau_pesage`.
+imprimées, `base_pesage` et `plateau_pesage` (PLA HT recuit, comme le reste du projet).
 
 Le plateau n'a **pas** à couvrir toute la largeur du tray : ~110 mm en X suffisent, ce qui
 laisse 2,1× de marge au basculement (9 N × 55 contre une tasse de 3 N à 80 mm) et passe

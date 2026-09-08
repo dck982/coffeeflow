@@ -11,11 +11,14 @@
 #include "driver/gpio.h"
 #include "driver/twai.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "common/crc.hpp"
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/protocol.hpp"
@@ -51,6 +54,14 @@ constexpr int64_t kRuntimeRearmGapUs = 2000 * 1000;
 constexpr int64_t kTwaiCountersLogPeriodUs = 5000 * 1000;
 constexpr int64_t kTickPeriodUs = 100 * 1000;
 
+// OTA — voir docs/firmware-implementation.md, phase 4. IDF ne redémarre
+// jamais tout seul une image en PENDING_VERIFY : ce délai est le
+// temporisateur d'invalidation explicite qui s'en charge. Réutilise le même
+// signal que la présence (mark_presence(), donc un PING/PONG venu de
+// l'écran/pont) comme preuve que l'image tourne assez pour parler au bus.
+constexpr int64_t kOtaValidationTimeoutUs = 30 * 1000 * 1000;
+constexpr size_t kFlashBlockSize = 2048;
+
 // Verrou 60 s — tenu en mémoire RTC, ne survit qu'à un démarrage à froid.
 // Voir docs/firmware.md §3 : une commande RESET venue du bus ne le lève pas.
 constexpr uint32_t kRtcMagic = 0xC0FFEE02;
@@ -71,6 +82,24 @@ int64_t g_off_since_us = 0;   // 0 = pas actuellement à l'arrêt
 int64_t g_last_presence_rx_us = 0;
 int64_t g_last_own_ping_us = 0;
 bool g_presence_lost = true;  // état de repos correct, carte seule sur la table
+
+// Validation OTA — voir docs/firmware-implementation.md, phase 4.
+bool g_ota_pending_verify = false;
+int64_t g_ota_pending_since_us = 0;
+
+// Flash — un seul transfert à la fois, pas de file d'attente. `partition`
+// non nul == transfert en cours (BEGIN reçu, END/ABORT pas encore traité).
+struct FlashState {
+  const esp_partition_t* partition = nullptr;
+  esp_ota_handle_t ota_handle = 0;
+  uint32_t image_size = 0;
+  uint32_t bytes_written = 0;
+  uint16_t block_number = 0;  // nombre de blocs déjà acquittés
+  uint8_t block_buf[kFlashBlockSize];
+  size_t block_buf_len = 0;
+  common::Crc32Incremental image_crc;
+};
+FlashState g_flash;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
@@ -189,6 +218,183 @@ void on_reqstatus_received(const uint8_t* data, size_t len) {
   common::ReqStatusPayload::unpack(data, len, &payload);
 }
 
+void send_flash_ack(common::FlashSubCmd subcmd, uint16_t block_number, uint16_t block_crc16) {
+  common::FlashCtrlPayload payload;
+  payload.subcmd = subcmd;
+  payload.block_number = block_number;
+  payload.block_crc16 = block_crc16;
+  common::Frame f = payload.pack();
+  send_message(common::MessageType::kFlashCtrl, common::Dest::kScreen, f.data(), 8);
+}
+
+// Remet l'état de flash à zéro sans toucher au handle OTA (à faire avant, si
+// un handle est ouvert).
+void reset_flash_state() {
+  g_flash.partition = nullptr;
+  g_flash.ota_handle = 0;
+  g_flash.image_size = 0;
+  g_flash.bytes_written = 0;
+  g_flash.block_number = 0;
+  g_flash.block_buf_len = 0;
+  g_flash.image_crc = common::Crc32Incremental{};
+}
+
+// Abandonne un transfert en cours (BEGIN suivi d'un autre BEGIN, ABORT
+// explicite, ou échec de vérification en END).
+void flash_abort(const char* reason) {
+  if (g_flash.partition != nullptr) {
+    esp_ota_abort(g_flash.ota_handle);
+    ESP_LOGW(kTag, "flash abandonné : %s", reason);
+  }
+  reset_flash_state();
+}
+
+void on_flash_begin(uint32_t image_size) {
+  if (g_flash.partition != nullptr) {
+    flash_abort("nouveau BEGIN reçu avant la fin du précédent transfert");
+  }
+
+  const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
+  if (partition == nullptr || image_size == 0 || image_size > partition->size) {
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError, 0, image_size);
+    return;
+  }
+
+  // esp_ota_begin() efface les secteurs nécessaires à `image_size` avant de
+  // renvoyer — c'est l'effacement exigé avant d'acquitter le BEGIN (voir
+  // docs/firmware-implementation.md, phase 4, point 1).
+  esp_ota_handle_t handle;
+  esp_err_t err = esp_ota_begin(partition, image_size, &handle);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "esp_ota_begin échec: %s", esp_err_to_name(err));
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError, 0, image_size);
+    return;
+  }
+
+  reset_flash_state();
+  g_flash.partition = partition;
+  g_flash.ota_handle = handle;
+  g_flash.image_size = image_size;
+
+  send_log(common::LogCode::kFlashBegin, common::LogSeverity::kInfo, 0, image_size);
+  send_flash_ack(common::FlashSubCmd::kBlockAck, 0, 0);
+}
+
+void on_flash_end(uint32_t expected_crc32) {
+  if (g_flash.partition == nullptr) {
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError);
+    return;
+  }
+  // Bloc final incomplet : END n'aurait pas dû arriver avant le dernier
+  // BLOCK_ACK. Traité comme un échec, pas rattrapable ici.
+  if (g_flash.block_buf_len != 0 || g_flash.bytes_written != g_flash.image_size ||
+      g_flash.image_crc.finish() != expected_crc32) {
+    flash_abort("CRC32 global ou taille reçue incohérente au END");
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError, 0, g_flash.bytes_written);
+    return;
+  }
+
+  esp_err_t err = esp_ota_end(g_flash.ota_handle);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "esp_ota_end échec: %s", esp_err_to_name(err));
+    reset_flash_state();
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError);
+    return;
+  }
+  err = esp_ota_set_boot_partition(g_flash.partition);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "esp_ota_set_boot_partition échec: %s", esp_err_to_name(err));
+    reset_flash_state();
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError);
+    return;
+  }
+
+  reset_flash_state();
+  send_log(common::LogCode::kFlashDone, common::LogSeverity::kInfo);
+  // flash_client.py n'attend qu'un FLASH_CTRL de sous-commande END en retour
+  // (le contenu importe peu) pour considérer le transfert confirmé.
+  send_flash_ack(common::FlashSubCmd::kEnd, 0, 0);
+
+  vTaskDelay(pdMS_TO_TICKS(50));  // laisser partir le LOG/ACK avant le reboot
+  esp_restart();
+}
+
+void on_flash_ctrl_received(const uint8_t* data, size_t len) {
+  common::FlashCtrlPayload payload;
+  if (!common::FlashCtrlPayload::unpack(data, len, &payload)) {
+    return;
+  }
+  switch (payload.subcmd) {
+    case common::FlashSubCmd::kBegin:
+      on_flash_begin(payload.image_size);
+      break;
+    case common::FlashSubCmd::kEnd:
+      on_flash_end(payload.image_crc32);
+      break;
+    case common::FlashSubCmd::kAbort:
+      if (g_flash.partition != nullptr) {
+        flash_abort("ABORT reçu");
+        send_log(common::LogCode::kFlashFailed, common::LogSeverity::kWarn);
+      }
+      break;
+    case common::FlashSubCmd::kBlockAck:
+      // BLOCK_ACK n'est émis que par le récepteur (nous) ; rien à faire si
+      // on le reçoit (écran mal aligné sur son propre rôle).
+      break;
+  }
+}
+
+// FLASH_DATA (0x39) : la trame CAN entière (jusqu'à 8 octets) est la
+// donnée, aucun en-tête. Écrit au fil de l'eau, jamais l'image entière en
+// RAM — voir docs/firmware-implementation.md, phase 4, point 2.
+//
+// Limite connue : si un bloc est rejoué par flash_client.py après un
+// BLOCK_ACK dont le CRC ne correspondait pas à ce qu'il a envoyé, ce
+// firmware n'a aucun moyen de distinguer ce rejeu d'un bloc suivant — les
+// octets rejoués sont alors traités comme la suite de l'image, ce qui la
+// corrompt. Le CRC16 par bloc protège contre une corruption silencieuse
+// (le transfert échouera au CRC32 global du END plutôt que de flasher une
+// image fausse), mais ne permet pas un vrai rattrapage bloc par bloc tant
+// que le protocole n'a pas de signal explicite de rejeu. Non exercé sur le
+// vrai bus avant cette session : le CAN a son propre CRC/ACK matériel, donc
+// le cas ne devrait se déclencher qu'en cas de bug logiciel, pas de bruit
+// électrique — mais c'est un point ouvert, pas une garantie.
+void on_flash_data_received(const uint8_t* data, size_t len) {
+  if (g_flash.partition == nullptr || len == 0) {
+    return;
+  }
+
+  size_t remaining_in_image = g_flash.image_size - g_flash.bytes_written - g_flash.block_buf_len;
+  size_t to_copy = len < remaining_in_image ? len : remaining_in_image;
+  if (to_copy == 0) {
+    return;
+  }
+  std::memcpy(&g_flash.block_buf[g_flash.block_buf_len], data, to_copy);
+  g_flash.block_buf_len += to_copy;
+
+  size_t bytes_left_total = g_flash.image_size - g_flash.bytes_written;
+  size_t expected_block_size = bytes_left_total < kFlashBlockSize ? bytes_left_total : kFlashBlockSize;
+  if (g_flash.block_buf_len < expected_block_size) {
+    return;
+  }
+
+  esp_err_t err = esp_ota_write(g_flash.ota_handle, g_flash.block_buf, g_flash.block_buf_len);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "esp_ota_write échec: %s", esp_err_to_name(err));
+    flash_abort("esp_ota_write échec");
+    send_log(common::LogCode::kFlashFailed, common::LogSeverity::kError, 0, g_flash.bytes_written);
+    return;
+  }
+  g_flash.image_crc.update(g_flash.block_buf, g_flash.block_buf_len);
+  uint16_t block_crc16 = common::crc16_ccitt(g_flash.block_buf, g_flash.block_buf_len);
+  g_flash.bytes_written += g_flash.block_buf_len;
+  g_flash.block_buf_len = 0;
+  g_flash.block_number += 1;
+
+  send_log(common::LogCode::kFlashProgress, common::LogSeverity::kDebug, 0, g_flash.bytes_written);
+  send_flash_ack(common::FlashSubCmd::kBlockAck, g_flash.block_number, block_crc16);
+}
+
 void dispatch_frame(const twai_message_t& msg) {
   common::CanId id = common::decode_can_id(static_cast<uint16_t>(msg.identifier));
   if (!common::is_known_message_type(static_cast<uint8_t>(id.type))) {
@@ -223,8 +429,14 @@ void dispatch_frame(const twai_message_t& msg) {
     case common::MessageType::kReqStatus:
       on_reqstatus_received(msg.data, msg.data_length_code);
       break;
+    case common::MessageType::kFlashCtrl:
+      on_flash_ctrl_received(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kFlashData:
+      on_flash_data_received(msg.data, msg.data_length_code);
+      break;
     default:
-      // FLASH_*, STATUS_* venant du bus : rien à faire ici avant la phase 4/5.
+      // STATUS_* venant du bus : rien à faire ici avant la phase 5.
       break;
   }
 }
@@ -314,12 +526,41 @@ void tick_twai_counters() {
   send_log(common::LogCode::kTwaiErrorCounters, common::LogSeverity::kDebug, arg16, status.bus_error_count);
 }
 
+// Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
+// phase 4, point 3 : une image en PENDING_VERIFY qui ne reçoit jamais de
+// PING/PONG doit rollback elle-même, IDF ne le fait pas tout seul.
+// `mark_presence()` (donc `!g_presence_lost`) sert de preuve : n'importe
+// quel PING/PONG reçu de l'écran/pont confirme que l'image tourne assez
+// pour parler sur le bus.
+void tick_ota_validation() {
+  if (!g_ota_pending_verify) return;
+
+  if (!g_presence_lost) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    g_ota_pending_verify = false;
+    send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
+    return;
+  }
+
+  if (now_us() - g_ota_pending_since_us > kOtaValidationTimeoutUs) {
+    send_log(common::LogCode::kOtaRollback, common::LogSeverity::kError);
+    vTaskDelay(pdMS_TO_TICKS(50));  // laisser partir le LOG avant le reboot
+    esp_ota_mark_app_invalid_rollback_and_reboot();
+    // N'atteint ce point que si l'appel ci-dessus a échoué (pas d'image
+    // précédente valide, p.ex.) : pas de seconde tentative, la carte reste
+    // en PENDING_VERIFY jusqu'au prochain reset.
+    ESP_LOGE(kTag, "esp_ota_mark_app_invalid_rollback_and_reboot a échoué");
+    g_ota_pending_verify = false;
+  }
+}
+
 void safety_task(void*) {
   for (;;) {
     tick_lease();
     tick_presence();
     tick_runtime_lockout();
     tick_twai_counters();
+    tick_ota_validation();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }
 }
@@ -353,6 +594,18 @@ extern "C" void app_main() {
 
   init_lockout_state();
 
+  // PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4, point 3.
+  // Ne jamais valider l'image tout de suite ici — tick_ota_validation() ne
+  // le fait qu'après un PING/PONG confirmé sur le bus, ou rollback au bout
+  // de kOtaValidationTimeoutUs.
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  esp_ota_img_states_t ota_state;
+  if (running != nullptr && esp_ota_get_state_partition(running, &ota_state) == ESP_OK &&
+      ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+    g_ota_pending_verify = true;
+    g_ota_pending_since_us = now_us();
+  }
+
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(kGpioCanTx, kGpioCanRx, TWAI_MODE_NORMAL);
   twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
@@ -364,6 +617,9 @@ extern "C" void app_main() {
   g_last_own_ping_us = 0;
 
   send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);
+  if (g_ota_pending_verify) {
+    send_log(common::LogCode::kOtaPendingVerify, common::LogSeverity::kInfo);
+  }
   ESP_LOGI(kTag, "boot, version %d.%d.%d, verrou=%s", common::kFirmwareVersionMajor,
            common::kFirmwareVersionMinor, common::kFirmwareVersionPatch,
            s_lockout_active ? "actif" : "libre");

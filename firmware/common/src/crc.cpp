@@ -26,4 +26,16 @@ uint32_t crc32_ieee(const uint8_t* data, size_t len) {
   return crc ^ 0xFFFFFFFFu;
 }
 
+void Crc32Incremental::update(const uint8_t* data, size_t len) {
+  uint32_t crc = crc_;
+  for (size_t i = 0; i < len; ++i) {
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; ++bit) {
+      const uint32_t mask = -(crc & 1u);
+      crc = (crc >> 1) ^ (0xEDB88320u & mask);
+    }
+  }
+  crc_ = crc;
+}
+
 }  // namespace common

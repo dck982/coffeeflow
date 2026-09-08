@@ -14,6 +14,7 @@ Séquence (docs/firmware.md, "Flash — le seul cas de réassemblage") :
 
 from __future__ import annotations
 
+import time as _time
 from dataclasses import dataclass
 
 from .crc import crc16_ccitt, crc32_ieee
@@ -48,17 +49,26 @@ def _flash_data_id(src: Node, dest: Dest) -> int:
 
 
 def _wait_flash_ctrl(transport: Transport, timeout: float) -> FlashCtrlPayload | None:
-    result = transport.recv(timeout=timeout)
-    if result is None:
-        return None
-    _, frame = result
-    can_id = frame.can_id
-    if (can_id >> 5) & 0x3F != int(MessageType.FLASH_CTRL):
-        return None
-    try:
-        return FlashCtrlPayload.unpack(frame.data)
-    except ValueError:
-        return None
+    """Attend un FLASH_CTRL, en ignorant les autres trames (LOG, PING, ...)
+    qui peuvent transiter entre-temps sur le bus — le firmware émet par
+    exemple un LOG FLASH_BEGIN juste avant le BLOCK_ACK. Le délai total
+    d'attente reste `timeout`, pas `timeout` par trame ignorée."""
+    deadline = _time.monotonic() + timeout
+    while True:
+        remaining = deadline - _time.monotonic()
+        if remaining <= 0:
+            return None
+        result = transport.recv(timeout=remaining)
+        if result is None:
+            return None
+        _, frame = result
+        can_id = frame.can_id
+        if (can_id >> 5) & 0x3F != int(MessageType.FLASH_CTRL):
+            continue
+        try:
+            return FlashCtrlPayload.unpack(frame.data)
+        except ValueError:
+            continue
 
 
 def flash(
@@ -91,6 +101,12 @@ def flash(
         for attempt in range(1, MAX_RETRIES_PER_BLOCK + 1):
             for offset in range(0, len(block), 8):
                 transport.send(RawFrame(data_id, block[offset : offset + 8]))
+                # Sans cette pause, can-monitor (pont série->CAN) ne suit
+                # pas un envoi de 256 trames d'affilée : sa file TWAI
+                # déborde, des trames FLASH_DATA sont perdues, et le bloc
+                # reconstruit côté sensors échoue au CRC16 (constaté sur le
+                # vrai bus — voir docs/firmware-implementation.md, phase 4).
+                _time.sleep(0.002)
 
             ack = _wait_flash_ctrl(transport, ACK_TIMEOUT_S)
             if (

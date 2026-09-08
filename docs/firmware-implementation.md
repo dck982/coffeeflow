@@ -2,6 +2,54 @@
 
 ## Où on en est
 
+**Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
+`FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de
+l'eau via `esp_ota_write`, CRC16 par bloc, CRC32 global au `END`,
+`PENDING_VERIFY` + timer d'invalidation 30 s réutilisant le mécanisme de
+présence existant). Les trois essais applicables (sans écran) validés pour de
+vrai contre `can-monitor` :
+
+- **Image saine** : `v0.1.1` flashée par CAN, redémarre, `PONG v0.1.1`, `LOG
+  OTA_VALIDATED` après confirmation `PING`/`PONG`.
+- **Image cassée** (`v0.1.2`, `abort()` avant tout `PING`) : rollback
+  automatique du bootloader (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`), `PONG`
+  revient à `v0.1.1` sans intervention.
+- **Coupure CAN en plein transfert** (câble débranché au bloc 3/107) : le
+  client abandonne après 3 échecs, aucun `END` n'est jamais reçu côté
+  capteurs donc `esp_ota_set_boot_partition` n'est jamais appelé — `otadata`
+  ne bouge pas, la carte ne reboote même pas, elle continue sur `v0.1.1` sans
+  interruption. `LOG TWAI_ERROR_COUNTERS` confirme le pic d'erreurs pendant
+  la coupure.
+
+Deux bugs trouvés et corrigés côté client (`firmware/tools/coffeetool/flash_client.py`),
+pas dans le firmware — le layout `FlashCtrlPayload`/`FlashSubCmd` de
+`messages.hpp` n'a pas eu besoin de changer :
+
+- `_wait_flash_ctrl` ne lisait qu'une seule trame par tentative et
+  abandonnait si ce n'était pas un `FLASH_CTRL` — alors qu'un `LOG` précède
+  systématiquement chaque acquittement sur le bus réel (`LOG FLASH_BEGIN`
+  avant le `BLOCK_ACK` de `BEGIN`, `LOG FLASH_PROGRESS` avant chaque
+  `BLOCK_ACK` de bloc). Corrigé : boucle jusqu'à trouver un `FLASH_CTRL` ou
+  expiration du délai total.
+- Les 256 trames `FLASH_DATA` d'un bloc partaient sans aucune pause entre
+  elles, ce qui sature le pont `can-monitor` (sa file TWAI déborde, des
+  trames sont perdues) — le premier bloc échouait systématiquement au CRC16.
+  Corrigé par un espacement de 2 ms entre trames.
+
+**Reste ouvert, documenté en commentaire dans `main.cpp`** (pas corrigé, hors
+scope de cette session) : si un bloc échoue au CRC16 côté capteurs et que
+`flash_client.py` le rejoue, le récepteur ne peut pas distinguer ce rejeu
+d'un bloc suivant — le curseur d'écriture a déjà avancé, donc un vrai rejeu
+casserait l'image (rattrapé par le CRC32 global du `END`, donc pas de risque
+de flasher une image fausse, mais sans le vrai rattrapage bloc par bloc
+annoncé par le protocole). Non observé sur le vrai bus : le CAN a son propre
+CRC/ACK matériel, ce cas ne devrait se déclencher que sur un bug logiciel.
+
+Prochaine étape : phase 3, l'écran factory Waveshare comme pont USB↔CAN —
+`firmware/can-monitor` pourra alors être mis de côté, et le même essai de
+flash (les trois ci-dessus, plus l'essai symétrique côté écran) sera à
+rejouer à travers le vrai pont avant de considérer la barrière C atteinte.
+
 **Phase 0 (socle) et phase 1 (outil Mac) faites.**
 
 Phase 1 :
@@ -119,9 +167,11 @@ restera à valider séparément en phase 3 — ce test-ci ne le remplace pas, il
 le risque le plus important (flash/rollback des capteurs) sans dépendre du bring-up
 de l'écran.
 
-### Prochaine étape concrète : phase 4, partie capteurs, contre `can-monitor`
+### Phase 4, partie capteurs, contre `can-monitor` — terminée, détail ci-dessous pour mémoire
 
-**Rien n'est encore écrit pour ça.** À faire dans `firmware/sensors/main/main.cpp` :
+**Fait et vérifié sur le vrai matériel — voir le résumé en tête de fichier.**
+Détail conservé tel qu'écrit avant l'implémentation, comme trace de ce qui
+était prévu :
 
 1. Layout des messages déjà figé dans `firmware/common/include/common/messages.hpp`
    (`FlashCtrlPayload`, `FlashSubCmd::{kBegin,kBlockAck,kEnd,kAbort}`) — c'est une

@@ -166,9 +166,21 @@ INSERT_M2 = HeatInsert(
     encombrement=5.6,
 )
 
-_CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
-_AMIN = (Align.MIN, Align.MIN, Align.MIN)
+CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
+AMIN = (Align.MIN, Align.MIN, Align.MIN)
 
+def add_heat_insert(body, outer, cx, cy, z0, height, insert_def, ring_factor=1.0):
+    outer_pad = Pos(cx, cy, z0) * Cylinder(
+        insert_def.encombrement*ring_factor/2, height, align=CMIN
+    )
+    inner_void = Pos(cx, cy, z0) * Cylinder(
+        insert_def.diametre_percage/2, height, align=CMIN
+    )
+    ring = outer_pad - inner_void
+    clipped = ring.intersect(outer)
+    if clipped is not None:
+        body = body + clipped
+    return body - inner_void
 
 def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
     """Pad + cutter of a standing Ø8×3 well. Pad is `fond + aimant_h` tall.
@@ -179,8 +191,8 @@ def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
     """
     r = diametre / 2.0
     pad_h = fond + aimant_h
-    pad = Pos(cx, cy, 0) * Cylinder(r + marge, pad_h, align=_CMIN)
-    cutter = Pos(cx, cy, fond) * Cylinder(r, aimant_h + 0.1, align=_CMIN)
+    pad = Pos(cx, cy, 0) * Cylinder(r + marge, pad_h, align=CMIN)
+    cutter = Pos(cx, cy, fond) * Cylinder(r, aimant_h + 0.1, align=CMIN)
     return pad, cutter
 
 
@@ -211,7 +223,7 @@ def petit_puit(cx, cy, z0, profondeur=PETIT_AIMANT_HAUTEUR, diametre=PETIT_PUIT_
     reopened a tangent sliver there (see that card's Don't).
     """
     return Pos(cx, cy, z0 + puit_peau) * Cylinder(
-        diametre / 2.0, profondeur + debord, align=_CMIN
+        diametre / 2.0, profondeur + debord, align=CMIN
     )
 
 
@@ -266,9 +278,9 @@ def entretoise_m2(
         )
     if hauteur_pion < 0.8:
         reject(f"hauteur_pion {hauteur_pion} is under 0.8 mm: raise it")
-    base = Cylinder(diametre_base / 2.0, hauteur, align=_CMIN)
+    base = Cylinder(diametre_base / 2.0, hauteur, align=CMIN)
     pion = Pos(0, 0, hauteur) * Cylinder(
-        diametre_pion / 2.0, hauteur_pion, align=_CMIN
+        diametre_pion / 2.0, hauteur_pion, align=CMIN
     )
     return _fuse_one(base + pion)
 
@@ -347,21 +359,21 @@ def anti_tirage_ns(
         y_inner_gap = y_inner - jeu
     body = body - (
         Pos(x0 + at_leg, y_cut, at_bot - margin)
-        * Box(largeur, y_sz, at_out + margin, align=_AMIN)
+        * Box(largeur, y_sz, at_out + margin, align=AMIN)
     )
     if toward_plus_y:
         body = body - (
             Pos(x0 + at_leg, y_inner, at_u0)
-            * Box(largeur, y_jeu, hauteur_u, align=_AMIN)
+            * Box(largeur, y_jeu, hauteur_u, align=AMIN)
         )
     else:
         body = body - (
             Pos(x0 + at_leg, y_inner_gap, at_u0)
-            * Box(largeur, y_jeu, hauteur_u, align=_AMIN)
+            * Box(largeur, y_jeu, hauteur_u, align=AMIN)
         )
     body = body - (
         Pos(x0 + at_leg, y_cut, at_u1)
-        * Box(largeur, y_sz, at_out + margin, align=_AMIN)
+        * Box(largeur, y_sz, at_out + margin, align=AMIN)
     )
     return _fuse_one(body)
 
@@ -427,15 +439,15 @@ def anti_tirage_ew(
         x_gap = x_inner - jeu
     body = body - (
         Pos(x_cut, y0 + at_leg, at_bot - margin)
-        * Box(x_sz, largeur, at_out + margin, align=_AMIN)
+        * Box(x_sz, largeur, at_out + margin, align=AMIN)
     )
     body = body - (
         Pos(x_gap, y0 + at_leg, at_u0)
-        * Box(jeu, largeur, hauteur_u, align=_AMIN)
+        * Box(jeu, largeur, hauteur_u, align=AMIN)
     )
     body = body - (
         Pos(x_cut, y0 + at_leg, at_u1)
-        * Box(x_sz, largeur, at_out + margin, align=_AMIN)
+        * Box(x_sz, largeur, at_out + margin, align=AMIN)
     )
     return _fuse_one(body)
 
@@ -500,23 +512,23 @@ def barreau_filete(
     helix_h = height - start
     path = Helix(pitch=pitch, height=helix_h, radius=r_min, center=(0, 0, start))
     crest = sweep(face, path=path, is_frenet=True)
-    core = Cylinder(r_min, height + 0.2, align=_CMIN)
+    core = Cylinder(r_min, height + 0.2, align=CMIN)
     # Fuse the helix onto the core FIRST. `collar.fuse(core).fuse(crest)`
     # silently returns the crest alone (measured: 94mm3 instead of 1179) —
     # OCCT loses the operands when a coaxial cylinder pair meets a swept
     # helix. Core + crest, then the collar, is stable.
     body = _fuse_one(core + crest)
     if collar_h > 0.0:
-        body = _fuse_one(body + Cylinder(r_maj, collar_h, align=_CMIN))
-    trim = Pos(0, 0, height) * Box(50, 50, pitch + 4.0, align=_CMIN)
+        body = _fuse_one(body + Cylinder(r_maj, collar_h, align=CMIN))
+    trim = Pos(0, 0, height) * Box(50, 50, pitch + 4.0, align=CMIN)
     body = _fuse_one(body - trim)
     if chanfrein_tete > 0.0:
         # Bolt-tip chamfer. Without it the trim plane knifes the last turn
         # mid-tooth and leaves a 0.37 mm section (min_wall) at the tip.
         z0 = height - chanfrein_tete
-        band = Pos(0, 0, z0) * Cylinder(r_maj + 1.0, chanfrein_tete, align=_CMIN)
+        band = Pos(0, 0, z0) * Cylinder(r_maj + 1.0, chanfrein_tete, align=CMIN)
         cone = Pos(0, 0, z0) * Cone(
-            r_min + chanfrein_tete, r_min, chanfrein_tete, align=_CMIN
+            r_min + chanfrein_tete, r_min, chanfrein_tete, align=CMIN
         )
         body = _fuse_one(body - (band - cone))
     return body
@@ -588,9 +600,9 @@ def passe_cable_body(
     h_col = epaisseur_a_traverser
     h_filet = ep_ecrou + amorce
 
-    body = Cylinder(diametre_bride / 2.0, epaisseur_bride, align=_CMIN)
+    body = Cylinder(diametre_bride / 2.0, epaisseur_bride, align=CMIN)
     body = body + Pos(0, 0, epaisseur_bride) * Cylinder(
-        diametre_fut / 2.0, h_col, align=_CMIN
+        diametre_fut / 2.0, h_col, align=CMIN
     )
     filet = barreau_filete(
         diametre_fut,
@@ -625,7 +637,7 @@ def passe_cable_body(
         body = body - Pos(sign * entraxe_passages / 2.0, 0, -0.5) * Cylinder(
             diametre_passage / 2.0,
             epaisseur_bride + h_col + h_filet + 1.0,
-            align=_CMIN,
+            align=CMIN,
         )
 
     return body

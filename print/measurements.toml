@@ -25,6 +25,16 @@ value = 18.8
 unit = "mm"
 how = "user 2026-08-31: Wago 221-423 across the three levers, 18.8 mm. Matches WAGO datasheet width."
 
+[wago_412_largeur]
+value = 13.2
+unit = "mm"
+how = "user: WAGO 221-412 across the two levers"
+
+[wago_415_largeur]
+value = 30.0
+unit = "mm"
+how = "user: WAGO 221-415 across the five levers"
+
 [wago_profondeur]
 value = 18.6
 unit = "mm"
@@ -44,11 +54,6 @@ how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. Body without 
 value = 8.0
 unit = "mm"
 how = "user 2026-08-31: Wago 221 body at the wire-end, without the lever bulge."
-
-[wago_415_largeur]
-value = 30.0
-unit = "mm"
-how = "WAGO 221-415 datasheet width, 5-conductor."
 
 [jeu_wago]
 value = 0.3
@@ -559,6 +564,51 @@ how = "Puits imprimé pour l'insert Ø4,6 : hors tout moins 0,6 mm, la règle de
 # AC = partie est, face ouest à x = 50, sud à y = 60 jusqu'à x = 120.
 # Encoche du PDF (90/100/85) : plus sur la pièce, cotes conservées en record.
 
+[xiao_board_len]
+value = 60.0
+unit = "mm"
+how = "user: Seeed Studio XIAO Grove Expansion board length"
+
+[xiao_board_width]
+value = 25.0
+unit = "mm"
+how = "user: Seeed Studio XIAO Grove Expansion board width"
+
+[xiao_board_height]
+value = 17.0
+unit = "mm"
+how = "user: Seeed Studio XIAO Grove Expansion board height"
+
+[xiao_board_hole_dx]
+value = 2.5
+unit = "mm"
+how = "user: distance from side to screw hole in board width"
+
+[xiao_board_hole_dy]
+value = 2.0
+unit = "mm"
+how = "user: distance from side to screw hole in board length"
+
+[xiao_board_pillars_dy]
+value = 35.0
+unit = "mm"
+how = "user: how far in length are the other two support holes"
+
+[unit_can_height]
+value = 8.0
+unit = "mm"
+how = "user: M5Stack Unit CAN Bus height"
+
+[unit_can_width]
+value = 24.0
+unit = "mm"
+how = "user: M5Stack Unit CAN Bus width"
+
+[unit_can_length]
+value = 56.0
+unit = "mm"
+how = "user: M5Stack Unit CAN Bus length, without the terminal block and grove connector"
+
 [boitier_int_x]
 value = 120.0
 unit = "mm"
@@ -585,7 +635,7 @@ unit = "mm"
 how = "user drawing docs/boitier.pdf: coupe 45° du coin (0,0), de (0,20) à (20,0)."
 
 [boitier_int_marche_x]
-value = 12.0
+value = 10.5
 unit = "mm"
 how = "user drawing docs/boitier.pdf: paroi verticale de la marche haute-gauche."
 

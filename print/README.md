@@ -5,7 +5,7 @@ Pièces FDM de coffeeflow. Vue d'ensemble, câblage et brochage : `../README.md`
 Quatre boîtiers autour de la machine :
 
 - **`boitier_ps`** — alimentation RECOM et Wago 230 V, intérieur, face ouest le long du réservoir
-- **`boitier_dc`** — XIAO ESP32-S3 + Grove Shield, Adafruit CAN Pal, Wago 5 V ; intérieur, zone froide entre le module PID et le cadran manomètre
+- **`boitier_dc`** — XIAO ESP32-S3 + Grove Shield, M5Stack Unit CAN Bus, Wago 5 V ; intérieur, zone froide entre le module PID et le cadran manomètre
 - **`boitier_ac`** — dimmer 4 A DimmerLink et M5Stack Unit SSR ; accolé au DC
 - **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3"
 
@@ -29,7 +29,7 @@ nurb export canal
 | --- | --- |
 | `parts/boitier_ps.py` | Bac de l'alimentation (RECOM, Wago 230 V, Wago 5 V) |
 | `parts/couvercle_ps.py` | Couvercle du bac alimentation |
-| `parts/boitier_dc.py` | Bac intérieur ouest : XIAO + Shield, CAN Pal, Wago 5 V |
+| `parts/boitier_dc.py` | Bac intérieur ouest : XIAO + Shield, Unit CAN Bus, Wago 5 V |
 | `parts/boitier_ac.py` | Bac intérieur est : dimmer et SSR |
 | `parts/couvercle_acdc.py` | Couvercle unique des deux bacs |
 | `parts/ensemble_boitiers.py` | Assemblage DC + AC |

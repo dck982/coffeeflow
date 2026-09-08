@@ -45,10 +45,92 @@ de flasher une image fausse, mais sans le vrai rattrapage bloc par bloc
 annoncé par le protocole). Non observé sur le vrai bus : le CAN a son propre
 CRC/ACK matériel, ce cas ne devrait se déclencher que sur un bug logiciel.
 
-Prochaine étape : phase 3, l'écran factory Waveshare comme pont USB↔CAN —
-`firmware/can-monitor` pourra alors être mis de côté, et le même essai de
-flash (les trois ci-dessus, plus l'essai symétrique côté écran) sera à
-rejouer à travers le vrai pont avant de considérer la barrière C atteinte.
+**Phase 3 : barrière A atteinte (2026-09-09).** Écran (Waveshare) et
+capteurs (XIAO) branchés en USB, reliés par un vrai câble CAN,
+`can-monitor` débranché.
+
+- **Le câble USB de l'écran est branché sur le port "UART"** de la carte
+  (bridge WCH CH343P externe, confirmé par le schéma officiel Waveshare —
+  nets `ESP_TXD`/`ESP_RXD` vers GPIO43/44), **pas le port USB natif** de
+  l'ESP32-S3 — d'où l'usage d'`UART_NUM_2` réaffecté sur GPIO43/44 via la
+  matrice GPIO, plutôt que `usb_serial_jtag` (comme `can-monitor`) ou
+  `UART_NUM_0` directement.
+- **GPIO CAN corrigés : TX=GPIO20, RX=GPIO19**, pas 15/16 comme une première
+  lecture de la fiche produit Waveshare l'avait suggéré — confirmé contre le
+  code source officiel (`waveshareteam/ESP32-S3-Touch-LCD-4.3`, cloné dans
+  `tmp/ESP32-S3-Touch-LCD-4.3/`, voir `examples/ESP-IDF/06_TWAItransmit` et
+  `07_TWAIreceive`, `sdkconfig.defaults`). GPIO19/20 sont les broches USB
+  natives D+/D- de l'ESP32-S3, basculées vers CAN_TX/CAN_RX par le mux
+  analogique FSUSB42UMX quand `CAN_SEL` (EXIO5 du CH422G) passe haut — d'où
+  le partage de bit avec `EXIO_USB_SEL` déjà repéré dans
+  `tests/screen/hello_waveshare/`.
+- **`PING`/`PONG` confirmés dans les deux sens à travers le vrai pont
+  écran**, y compris l'injection de commandes depuis le Mac (pas seulement
+  la lecture) : un `PING` envoyé par `coffeetool` obtient un `PONG` direct
+  de `sensors`, testé 3/3 après reset propre.
+
+**Deux bugs de bring-up UART trouvés et corrigés**, tous deux silencieux
+(aucune erreur, juste une réception qui ne marche jamais) :
+
+1. **Régression IDF v5.x → v6.1** dans `uart_set_pin()` : sa branche RX
+   (`gpio_hal_matrix_in()`) ne force plus le pad en `PIN_FUNC_GPIO` comme le
+   faisait v5.1 (la branche TX, elle, le fait toujours) — sans forcer
+   nous-mêmes le pad, GPIO44 restait sur sa fonction IOMUX de reset
+   (`U0RXD`), jamais lue par `UART_NUM_2`. Corrigé par
+   `gpio_func_sel(rx, PIN_FUNC_GPIO)` + `gpio_input_enable()` +
+   `gpio_pullup_en()` juste après `uart_set_pin()`.
+2. **`uart_read_bytes(..., portMAX_DELAY)` ne se réveille jamais** sur cet
+   `UART_NUM_2` réaffecté, même une fois le bug 1 corrigé et la FIFO
+   effectivement pleine (confirmé par `uart_get_buffered_data_len()`) — un
+   timeout court (20 ms) en boucle, comme le fait l'exemple officiel
+   Waveshare (`05_UART_Test`), fonctionne à chaque essai.
+
+Méthode de diagnostic, pour mémoire (utile si un bug similaire réapparaît
+sur `screen/` ou un autre projet ESP-IDF v6.1) :
+
+- Le binaire précompilé officiel Waveshare (`UART_Test.bin`, compilé en IDF
+  **v5.3.1** d'après son en-tête `esptool image-info`) fonctionne de façon
+  fiable — confirmé sans ambiguïté par un script Python `pyserial` qui lit
+  le port directement (pas seulement `picocom`, qui peut faire de l'écho
+  local trompeur). Ça a permis d'écarter le câble/port physique/brochage
+  comme cause, et d'isoler la régression à la version d'IDF.
+- Bissection décisive : `gpio_get_level()` en direct sur GPIO44 pendant que
+  le Mac spamme `0x55` en continu → des centaines de milliers de
+  transitions comptées, donc le signal physique arrive bel et bien au pad.
+  Puis `uart_get_buffered_data_len()` en boucle → la FIFO UART2 se remplit
+  bien (jusqu'à pleine, 2040/2048 octets). Ces deux mesures ont isolé le
+  bug à l'appel bloquant `uart_read_bytes(..., portMAX_DELAY)` lui-même,
+  pas au routage matrice GPIO ni à la réception matérielle.
+- Beaucoup de fausses pistes explorées et écartées avant ça (ordre
+  d'installation des drivers I2C/TWAI/UART, délais après l'écriture
+  CH422G, `gpio_reset_pin()`, taille des buffers TX/RX, RTS/CTS matériel,
+  `CONFIG_ESP_CONSOLE_NONE`) — aucune n'était la cause.
+
+**`firmware/screen/main/main.cpp` est maintenant le vrai firmware du pont**
+(pont série↔CAN + nœud `kScreen`, comme prévu depuis le début de la phase
+3), avec les deux correctifs ci-dessus intégrés. `CMakeLists.txt` de
+`screen/main` a gagné `esp_driver_gpio` (pour `gpio_func_sel` et
+consorts).
+
+Pas fait / à savoir avant de continuer :
+
+- **Pas de test d'endurance dédié** : la doc demande que les compteurs
+  d'erreur TWAI restent à zéro sur plusieurs minutes pour clore
+  complètement la barrière A — vérifié ponctuellement (`LOG
+  TWAI_ERROR_COUNTERS` bas, pas de dérive observée sur les quelques minutes
+  de tests), mais pas un vrai essai de plusieurs minutes en continu.
+- **Les essais de flash de la phase 4 n'ont pas encore été rejoués à
+  travers ce pont-ci** — seulement contre `can-monitor` jusqu'ici. C'est la
+  prochaine étape (voir plus bas) : c'est elle qui ferme réellement la
+  barrière C.
+
+Prochaine étape : **rejouer les essais OTA de la phase 4 (`coffeetool
+flash`) sur `sensors`, cette fois à travers le pont écran réel** (USB Mac →
+écran → CAN → capteurs) plutôt que `can-monitor`. Les trois essais
+matériels de la phase 4 (image saine, image cassée avec rollback, coupure
+CAN en plein transfert) sont à revalider dans ce nouveau chemin avant de
+considérer la barrière C atteinte et de mettre `can-monitor` définitivement
+de côté.
 
 **Phase 0 (socle) et phase 1 (outil Mac) faites.**
 
@@ -371,6 +453,25 @@ Les quatre essais qui valident la phase, tous à faire pour de vrai :
 ## Phase 5 — Application capteurs, livrée par OTA
 
 À partir d'ici, on ne flashe plus le XIAO en USB. Chaque itération passe par le bus : c'est la répétition générale de la vie en boîte, tant qu'on peut encore ouvrir.
+
+**Ce qui nécessite le 230 V et ce qui n'en a pas besoin** (question posée le
+2026-09-09, à trancher avant d'attaquer la phase) :
+
+- **Sans 230 V** : XDB401 (capteur de pression, I2C pur) et débitmètre (ISR
+  GPIO pur) — les deux premiers points ci-dessous. Testables sur batterie,
+  Mac au secteur, sans précaution particulière.
+- **Avec 230 V** : dimmer (bloqué en `Calibrating...` sans secteur, voir le
+  piège documenté) et donc tout ce qui suit dans l'ordre ci-dessous, y
+  compris la vérification de sécurité (bail/présence/verrou/réarmement),
+  qui porte sur les actionneurs.
+- **Option envisagée, pas encore décidée** : avancer le WebSocket (phase 6,
+  point 3 — miroir du trafic CAN, même format qu'en USB) *avant* de brancher
+  le 230 V, pour pouvoir continuer à tester sans dépendre du câble USB une
+  fois la carte en boîte. Ça découplerait "SSR/dimmer nécessitent le
+  secteur" de "l'outil Mac nécessite l'USB" — mais suppose d'avoir déjà le
+  Wi-Fi (phase 6, point 1) et un minimum de HTTP/WebSocket côté écran, donc
+  une partie de la phase 6 avant la fin de la phase 5. À reconsidérer une
+  fois les deux premiers points (XDB401, débitmètre) faits.
 
 Dans l'ordre, un périphérique à la fois, en vérifiant à chaque fois sur l'outil Mac :
 

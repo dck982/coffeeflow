@@ -16,3 +16,12 @@ CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
 CONFIG_ESP_TASK_WDT_EN=y
+
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+
+# Console désactivée (primaire ET secondaire) : UART0 est piloté directement
+# par le pont série<->CAN via son driver bas niveau (pas le port USB natif,
+# voir le commentaire en tête de main.cpp — câblage réel de ce banc) ; sans
+# ça, la console ESP-IDF se dispute UART0 avec notre driver.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

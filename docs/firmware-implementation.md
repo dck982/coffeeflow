@@ -109,9 +109,72 @@ vérifiés sur le vrai matériel. Le **rearmement** (deux activations de 30 s s�
 plus de 2 s ne déclenchent rien) n'a pas été exercé spécifiquement, mais c'est un
 test de la phase 5 (pas de la checklist phase 2), à faire là où il est prévu.
 
-Prochaine étape : **phase 3**, l'écran factory (Waveshare) comme pont USB↔CAN — à ce
-stade, `firmware/can-monitor` peut être mis de côté (son rôle de pont ad hoc est
-repris par le vrai pont de l'écran, voir la note dans sa description ci-dessous).
+**Décision (2026-09-08) : réordonnancement délibéré, phase 4 (partie capteurs) avant
+phase 3.** Le blocage pour tester le flash des capteurs par CAN n'est pas matériel
+(le pont série↔CAN existe déjà, `firmware/can-monitor`) mais logiciel : `sensors`
+n'a aucune logique de réception `FLASH_CTRL`/`FLASH_DATA`. Plutôt que d'attendre
+l'écran (phase 3) pour un pont dont on a déjà l'équivalent fonctionnel, on avance la
+partie capteurs de la phase 4 maintenant, contre `can-monitor`. Le pont de l'écran
+restera à valider séparément en phase 3 — ce test-ci ne le remplace pas, il avance
+le risque le plus important (flash/rollback des capteurs) sans dépendre du bring-up
+de l'écran.
+
+### Prochaine étape concrète : phase 4, partie capteurs, contre `can-monitor`
+
+**Rien n'est encore écrit pour ça.** À faire dans `firmware/sensors/main/main.cpp` :
+
+1. Layout des messages déjà figé dans `firmware/common/include/common/messages.hpp`
+   (`FlashCtrlPayload`, `FlashSubCmd::{kBegin,kBlockAck,kEnd,kAbort}`) — c'est une
+   première proposition jamais confrontée au matériel, donc c'est aussi le moment de
+   la challenger si elle ne tient pas.
+2. Séquence exacte déjà implémentée côté Mac dans
+   `firmware/tools/coffeetool/flash_client.py` (`flash()`) — c'est la référence pour
+   ce qu'attend le récepteur :
+   - `FLASH_CTRL BEGIN` (taille de l'image) → le récepteur doit **effacer la
+     partition OTA inactive avant d'acquitter**, puis répondre
+     `FLASH_CTRL BLOCK_ACK block_number=0`.
+   - Blocs de 2 ko = 256 trames `FLASH_DATA` de 8 octets bruts (pas d'en-tête, la
+     trame CAN entière est la donnée) → écrire au fil de l'eau avec `esp_ota_write`
+     (ne pas bufferiser l'image entière en RAM). Après 256 trames, répondre
+     `FLASH_CTRL BLOCK_ACK` avec `block_number+1` et le CRC16 du bloc reçu — c'est
+     le contrôle de flux, `flash_client.py` rejoue le bloc si le CRC ne correspond
+     pas (3 essais max).
+   - `FLASH_CTRL END` (CRC32 global) → vérifier contre les octets reçus, puis
+     `esp_ota_set_boot_partition` + reboot. `LOG FLASH_DONE`/`FLASH_FAILED` déjà
+     dans `log_codes.yaml`, à utiliser.
+3. Après le reboot sur la nouvelle image : rester en `PENDING_VERIFY`
+   (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` déjà activé dans
+   `sdkconfig.defaults`, table de partitions `factory`/`ota_0`/`ota_1`/`otadata`
+   déjà posée dans `partitions.csv`) jusqu'à reconfirmation d'un `PING`/`PONG` sur
+   le bus, puis appeler `esp_ota_mark_app_valid_cancel_rollback()`. **Écrire aussi
+   le temporisateur d'invalidation** (`firmware.md` insiste : IDF ne redémarre pas
+   tout seul une image jamais validée, ce timer doit exister explicitement) — sinon
+   une image qui ne pingue jamais reste bloquée en attente pour toujours au lieu de
+   rollback.
+4. Les quatre essais de validation de la phase 4 (voir plus bas, section "Phase 4"),
+   **à faire contre `can-monitor` plutôt que l'écran** :
+   - Flasher une image saine (incrémenter `kFirmwareVersion*` pour le voir dans le
+     `PONG` après coup) via `coffeetool flash` — commande CLI déjà branchée sur
+     `flash_client.py` (`cli.py::cmd_flash`), jamais exercée contre du matériel.
+   - Flasher une image sciemment cassée (crash au boot avant le premier ping/pong) →
+     le rollback doit ramener l'image précédente sans intervention.
+   - Débrancher le câble CAN en plein transfert → l'écriture doit s'annuler
+     proprement, `otadata` ne doit pas bouger, redémarrage sur l'image précédente.
+   - (Le 3ᵉ essai de la checklist officielle, "idem sur l'écran, avec son propre OTA
+     local", reste hors scope ici — c'est `firmware/screen`, pas encore construit.)
+5. Outillage pour identifier les ports au prochain démarrage de session : voir
+   section "Environnement de build/flash (Mac)" juste en dessous. `can-monitor` est
+   déjà flashé sur l'Atom S3 en pont série↔CAN fonctionnel (voir plus haut) ; `sensors`
+   est déjà flashé sur le XIAO avec le brochage GPIO7=RX/GPIO8=TX correct. Le câblage
+   physique (Unit CAN des deux côtés, terminaison 120 Ω aux deux bouts, câble CAN
+   entre les deux cartes) est déjà en place et vérifié — pas besoin de repartir de
+   zéro sur le bring-up matériel, seulement d'écrire et tester la logique de flash.
+
+Une fois ce chantier bouclé : **phase 3** (l'écran factory Waveshare comme pont
+USB↔CAN) reste la suite logique — à ce stade, `firmware/can-monitor` pourra être mis
+de côté (son rôle de pont ad hoc est repris par le vrai pont de l'écran, voir la note
+dans sa description ci-dessous), et il faudra rejouer les mêmes essais de flash à
+travers ce pont-là pour de vrai avant de considérer la barrière C atteinte.
 
 ### Environnement de build/flash (Mac)
 

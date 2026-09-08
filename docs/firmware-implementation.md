@@ -40,6 +40,66 @@ Pas fait / à savoir avant de continuer :
 
 Prochaine étape : phase 2, les capteurs factory sur la table — première fois qu'une carte tourne du code.
 
+**Phase 2, en cours (2026-09-08).**
+
+Fait, vérifié sur le vrai matériel :
+
+- Module CAN Pal AliExpress abandonné côté capteurs (sous-tension à 3,3 V, voir
+  `docs/canpal-findings.md`) — remplacé par un **M5Stack Unit CAN** (CA-IS3050G isolé,
+  même module que celui déjà utilisé côté `can-monitor`). Brochage GPIO7=RX/GPIO8=TX
+  sur le XIAO, **inversé** par rapport à l'ancien CAN Pal (voir suite de
+  `canpal-findings.md` : `CAN_TX`/`CAN_RX` du module sont nommés du point de vue du
+  transceiver, pas une convention câble croisé). Validé par self-test TWAI en boucle
+  isolée (`firmware/can-selftest`) puis sur le vrai bus.
+- `firmware/sensors` tourne pour de vrai sur le XIAO : TWAI 500 kbit/s, `PING`/`PONG`
+  avec version, `LOG` périodique des compteurs d'erreur TWAI. Terminaison 120 Ω
+  confirmée aux deux bouts.
+- `firmware/can-monitor` (Atom S3) étendu au-delà du "pur moniteur" prévu : envoie
+  désormais un `PING` périodique (src=`kScreen`) pour permettre de voir un `PONG` réel
+  sans attendre l'écran de la phase 3 — **à retirer ou désactiver une fois la phase 3
+  en place**, un vrai écran sur le bus entrerait en conflit d'identité avec ce `PING`.
+- Round-trip `PING`/`PONG` confirmé : `PONG` reçu avec `node=kSensors`,
+  `version=0.1.0`, `uptime_s` croissant. Compteurs d'erreur TWAI observés à zéro en
+  régime établi (une remontée transitoire liée aux flashs/resets répétés de la session
+  de bring-up s'est résorbée).
+
+Pas encore fait :
+
+- **`LOG` au boot jamais observé sur le bus** (on s'est branché après coup à chaque
+  test) — à vérifier avec un reset à froid du XIAO, `can-monitor` déjà à l'écoute.
+- **`RESET` jamais testé** pour de vrai.
+- **Machine de sécurité (bail, présence, verrou 60 s) jamais exercée** — le code existe
+  dans `firmware/sensors/main.cpp` mais rien n'a encore envoyé de `SET`/`STOP` sur le
+  bus pour la déclencher.
+- **Le piège documenté** (verrou 60 s qui doit survivre à un `RESET` logiciel et ne se
+  lever qu'à froid) — dépend du point précédent, pas testable sans lui.
+- Ces quatre points sont bloqués sur la même chose : aucun moyen d'émettre `SET`/
+  `STOP`/`RESET` depuis le Mac aujourd'hui. `coffeetool` (phase 1) sait déjà construire
+  ces trames mais parle un cadrage COBS+PDU série que seul le futur pont USB↔CAN de
+  l'écran (phase 3) implémente. Décision prise : **étendre `firmware/can-monitor`**
+  en petit pont série↔CAN (même cadrage que la phase 3) plutôt que d'attendre l'écran
+  — ne pas dépendre d'éventuelles complications de la phase 3 pour finir la phase 2.
+  Travail en cours.
+
+### Environnement de build/flash (Mac)
+
+- **Activer l'environnement ESP-IDF** : ne pas utiliser `$IDF_PATH/export.sh` — installé via `eim` (voir `firmware/IDF_VERSION.md`), il cherche un venv Python à un chemin (`~/.espressif/python_env/...`) qu'`eim` ne peuple pas. Le bon script est celui qu'`eim` dépose lui-même :
+  ```sh
+  source ~/.espressif/tools/activate_idf_v6.1.sh
+  ```
+  Doit être **sourcé** (pas exécuté) dans le shell courant ; ne persiste pas d'un appel `Bash` à l'autre dans cet outil — à re-sourcer avant chaque `idf.py build/flash/monitor` si chaque commande part dans un nouveau process.
+- **Build** : `idf.py build` depuis `firmware/sensors/`, `firmware/can-monitor/`, `firmware/can-selftest/`, chacun indépendamment (pas de build à la racine `firmware/`).
+- **Identifier quel port série correspond à quelle carte** (macOS expose les deux comme `/dev/cu.usbmodemNNNN`, sans nom lisible) :
+  ```sh
+  python -m esptool --port /dev/cu.usbmodemXXXX chip-id
+  ```
+  Le `Chip type` renvoyé distingue les deux cartes de ce banc :
+  - **XIAO ESP32-S3** (`sensors`) : `ESP32-S3 (QFN56)` — PSRAM embarquée, **flash externe** (pas de ligne "Embedded Flash").
+  - **Atom S3** (`can-monitor`) : `ESP32-S3-PICO-1 (LGA56)` — flash **et** PSRAM embarquées (SiP).
+  Les numéros `/dev/cu.usbmodemNNNN` eux-mêmes ne sont pas stables : à revérifier par ce moyen à chaque nouvelle session/rebranchement, ne pas supposer qu'un port garde son rôle.
+- **Flasher** : `idf.py -p /dev/cu.usbmodemXXXX flash` depuis le dossier du projet concerné.
+- **Lire la sortie série sans terminal interactif** (utile pour capturer une trace courte sans bloquer sur `idf.py monitor`) : script Python avec `pyserial` (déjà présent dans le venv IDF, dépendance d'`esptool`), `serial.Serial(port, 115200, timeout=...)` + `readline()` en boucle avec une échéance. Piège : les logs `ESP_LOGx` sortent bien sur ce port, mais les messages `LOG` du protocole (boot, ready, compteurs TWAI) partent sur le **bus CAN**, pas sur l'UART — invisibles ici tant qu'on n'a pas de pont vers `coffeetool`.
+
 ---
 
 Conception, protocole et décisions : `firmware.md`. Ce fichier ne dit pas *comment* coder, il dit **dans quel ordre**, et ce qu'il ne faut pas oublier avant de passer à la suite.

@@ -220,3 +220,45 @@ nécessaires avant de rebrancher les GPIO du XIAO (3,3 V) :
 diviseur sur RX + l'open-drain sur TX (option la moins chère en composants), rebrancher
 en 5 V, refaire l'auto-test TWAI NO_ACK + flag SELF (celui qui a déjà validé le
 transceiver de l'Atom) comme oracle de validation.
+
+---
+
+## Suite — abandon du CAN Pal clone, passage au M5Stack Unit CAN (2026-09-08)
+
+Plutôt que de bricoler les adaptations de niveau logique ci-dessus, remplacement du
+clone AliExpress par un **M5Stack Unit CAN** (référence U085, transceiver
+**CA-IS3050G isolé galvaniquement**, voir <https://docs.m5stack.com/en/unit/can>) côté
+XIAO — le même module que celui déjà utilisé côté Atom pour `can-monitor`.
+Alimentation confirmée au multimètre au connecteur Grove : **5 V** au repos, donc pas
+de rejeu du problème de sous-tension ci-dessus (module différent, pas de VIO tiré en
+interne comme sur le clone).
+
+**Nouveau symptôme, même signature qu'avant** : premier essai avec le brochage porté
+par analogie depuis le CAN Pal (TX=GPIO7/D8, RX=GPIO8/D9) — échec identique au run
+initial du CAN Pal, `BUS_OFF` quasi immédiat, `tx_err=128`, `bus_err=16`, y compris en
+self-test isolé (câble débranché). Mais cette fois la cause n'est **pas** une
+sous-tension : c'est un **TX/RX inversé**, propre à ce module.
+
+**Cause** : la doc officielle M5Stack de l'Unit CAN (HY2.0-4P) donne **jaune = CAN_TX,
+blanc = CAN_RX** — ce sont les noms des broches du *transceiver lui-même*
+(`CAN_TX`/TXD = entrée du transceiver, à driver depuis le contrôleur ; `CAN_RX`/RXD =
+sortie du transceiver, à lire par le contrôleur), pas une convention "câble croisé"
+comme supposé par erreur au départ. Le fil blanc (`CAN_RX`, une **sortie** du module)
+était câblé sur D8/GPIO7, configuré comme **sortie** TX du contrôleur — deux sorties
+en collision sur le même fil, ce qui donne exactement le symptôme observé.
+
+**Correction** : inverser TX/RX par rapport à l'ancien brochage CAN Pal — **GPIO7 =
+RX contrôleur, GPIO8 = TX contrôleur** (`firmware/sensors/main.cpp`,
+`firmware/can-selftest/main.cpp`). Validé par le même auto-test TWAI NO_ACK + flag
+SELF que celui qui avait servi d'oracle sur l'Atom : 18/18 PASS, `state=RUNNING`,
+compteurs d'erreur à zéro. Puis validé sur le vrai bus entre XIAO et Atom
+(`can-monitor`) : trafic réel reçu (`PING` périodique du XIAO, `LOG`
+`TWAI_ERROR_COUNTERS` avec `rx_error=0, tx_error=0, bus_error_count=0`), aucun warning
+de transmission côté XIAO.
+
+**À retenir pour la suite** : même si l'Atom et le XIAO utilisent le même module M5Stack
+(même chip, même convention de brochage), rien ne garantit qu'un brochage validé par
+tâtonnement sur une carte (numéros de GPIO trouvés empiriquement, voir plus haut pour
+l'Atom) se transpose tel quel sur une autre carte sans revalider — la vraie référence
+qui a tranché ici, c'est la doc officielle du module (noms de broches `CAN_TX`/`CAN_RX`
+au sens du transceiver), pas une analogie de câblage entre deux bring-up différents.

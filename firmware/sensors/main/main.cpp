@@ -29,9 +29,18 @@ constexpr const char* kTag = "sensors";
 // Brochage — voir docs/firmware.md, "Module capteurs". GPIO natif de
 // l'ESP32-S3, pas le D-number imprimé sur le silkscreen du Grove Shield
 // XIAO (D8/D9/D10 ≠ GPIO8/9/10 : voir la note dans docs/cablage.md).
+//
+// Module M5Stack Unit CAN (CA-IS3050G isolé, docs.m5stack.com/en/unit/can) :
+// Grove HY2.0-4P, jaune = CAN_TX (entrée du transceiver, à driver depuis le
+// contrôleur), blanc = CAN_RX (sortie du transceiver, à lire par le
+// contrôleur). Fil blanc → D8/GPIO7, donc GPIO7 = RX contrôleur, GPIO8 = TX
+// contrôleur. Confirmé par self-test TWAI en boucle isolée (firmware/
+// can-selftest) le 2026-09-08 : BUS_OFF immédiat avec TX/RX dans l'autre
+// sens (deux sorties en collision sur le même fil), 18/18 PASS une fois
+// inversé.
 constexpr gpio_num_t kGpioSsr = GPIO_NUM_9;    // D10
-constexpr gpio_num_t kGpioCanTx = GPIO_NUM_7;  // D8
-constexpr gpio_num_t kGpioCanRx = GPIO_NUM_8;  // D9
+constexpr gpio_num_t kGpioCanTx = GPIO_NUM_8;  // D9
+constexpr gpio_num_t kGpioCanRx = GPIO_NUM_7;  // D8
 
 // Sécurité — voir docs/firmware.md, section "Sécurité".
 constexpr int64_t kLeaseDefaultUs = 500 * 1000;

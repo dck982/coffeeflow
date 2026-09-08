@@ -26,21 +26,29 @@
 // contrôleur TWAI ni notion de bit timing CAN, pour savoir si le TJA1051
 // est simplement vivant (RXD suit TXD au niveau DC) avant de se soucier de
 // savoir s'il tient 500 kbit/s.
-#define TEST_MODE_TWAI 0
+#define TEST_MODE_TWAI 1
 
 // Une seule carte à la fois : mettre 1 pour la carte testée, 0 pour
 // l'autre, puis reconstruire (idf.py build) avant de flasher.
-#define BOARD_XIAO_SENSORS 1  // CAN Pal (TJA1051T/3) — TX 8, RX 9
+#define BOARD_XIAO_SENSORS 1  // M5Stack Unit CAN (TJA1051) — TX 7, RX 8
 #define BOARD_ATOM_CANMON 0    // Unit CAN (TJA1051), Port.A — TX 2, RX 1 (confirmé)
 
 #if BOARD_XIAO_SENSORS
-// Continuité confirmée directement pastille-à-pastille sur le XIAO : D8 du
-// XIAO → pad TX du CAN Pal, D9 du XIAO → pad RX. D8/D9 (silkscreen Seeed)
-// = GPIO natif 7/8 (voir docs/cablage.md). Pas de swap : TX firmware sur le
-// GPIO qui va vers le pad TX du CAN Pal, RX sur celui qui va vers RX.
-constexpr gpio_num_t kCanTx = GPIO_NUM_7;
-constexpr gpio_num_t kCanRx = GPIO_NUM_8;
-constexpr const char* kBoardName = "XIAO sensors (CAN Pal)";
+// Module CAN Pal AliExpress remplacé par un M5Stack Unit CAN — modèle exact
+// U085, transceiver CA-IS3050G isolé (voir docs.m5stack.com/en/unit/can),
+// PAS le TJA1051 de l'Atom ci-dessous : produit différent, convention de
+// nommage différente. Doc officielle du connecteur Grove HY2.0-4P : jaune =
+// CAN_TX, blanc = CAN_RX — ce sont les noms des broches du transceiver
+// lui-même (TXD = entrée du transceiver, RXD = sortie), pas une convention
+// "câble croisé" comme sur le module Mini CAN de l'Atom. Fil blanc (CAN_RX,
+// une SORTIE du module) → D8 du XIAO : D8/GPIO7 doit donc être le RX du
+// contrôleur, GPIO8 (fil jaune, CAN_TX, entrée du module) le TX. Inversé
+// par rapport à la première tentative, qui donnait un BUS_OFF immédiat
+// (tx_err=128, bus_err=16) — cohérent avec deux sorties en collision sur le
+// même fil. D8/D9 (silkscreen Seeed) = GPIO natif 7/8 (voir docs/cablage.md).
+constexpr gpio_num_t kCanTx = GPIO_NUM_8;
+constexpr gpio_num_t kCanRx = GPIO_NUM_7;
+constexpr const char* kBoardName = "XIAO sensors (Unit CAN, TX/RX swap)";
 #elif BOARD_ATOM_CANMON
 // Port.A réel de cet Atom S3 : fil jaune (broche extérieure, étiquette G1)
 // = TX du Unit CAN, fil blanc (G2) = RX. Donc TX du XIAO... pardon, TX de

@@ -69,12 +69,25 @@ def _ring(pts_out, pts_in, z0, h):
     b = Pos(0, 0, z0 - 0.5) * extrude(Polygon(*pts_in, align=None), h + 1.0)
     return a - b
 
-def _opening(x,y,dx,dy,wall,margin,prof,body,rib):
-    # cut the body and the rib
+
+def _dc_east_opening(body, rib, y, wall, margin, prof):
+    """Create a 10x10 opening for cables in the cover, along the east side of the DC boitier"""
+    opening_sz = 10
+    x = measured("boitier_int_aile_x")-opening_sz
     return (
-        body - Pos(x, y, 0) * Box(dx, dy, wall, align=_AMIN),
-        rib - Pos(x-margin, y-margin, wall) * Box(dx+margin*2, dy+margin*2, prof, align=_AMIN)
+        body - Pos(x, y, 0) * Box(opening_sz, opening_sz, wall, align=_AMIN),
+        rib - Pos(x-margin, y-margin, wall) * Box(opening_sz+margin*2, opening_sz+margin*2, prof, align=_AMIN)
     )
+
+def _pcb_press(body, rib_west, rib_east, y0, y1, appui_pcb_z, wall):
+    """PCB press on the the middle 1/3 of a horizontal rib"""
+    rib_len_third = (rib_east - rib_west) / 3.0
+    appui_x0 = rib_west + rib_len_third
+    appui_x1 = appui_x0 + rib_len_third
+    return body + Pos(appui_x0, y0, wall) * Box(
+        appui_x1 - appui_x0, y1 - y0, appui_pcb_z, align=_AMIN
+    )
+
 
 @part
 def couvercle_acdc(
@@ -86,6 +99,7 @@ def couvercle_acdc(
     ac_east_shift=1.5,
     ac_south_shift=4.0,
     ac_appui_pcb_hauteur=6.0,
+    dc_appui_xiao_hauteur=6.0,
     vis_m25_diametre=2.9,
     vis_m3_diametre=None,
     draft=False,
@@ -124,6 +138,8 @@ def couvercle_acdc(
         (east_x−aile_x)*2/3) : presse le PCB du module sud par le dessus.
         Valeur empirique, indépendante des cotes internes de boitier_ac
         (muret_depuis_ouest, tour_y, rebord...).
+    dc_appui_pcb_hauteur: profondeur du rebord sud de boitier_dc pour tenir
+        le module XIAO
     vis_m25_diametre: passage des deux vis M2.5 (boitier_dc)
     vis_m3_diametre: passage de la vis M3 (boitier_ac) ; par défaut la cote
         mesurée `vis_passage`
@@ -197,8 +213,8 @@ def couvercle_acdc(
     nrm_x, nrm_y = 1.0 / s2, 1.0 / s2
 
     # Openings for sensors
-    body, rib_dc = _opening(40,30,10,10,wall,margin*2,prof,body,rib_dc)
-    body, rib_dc = _opening(40,70,10,10,wall,margin*2,prof,body,rib_dc)
+    body, rib_dc = _dc_east_opening(body, rib_dc, 30, wall, margin*2, prof)
+    body, rib_dc = _dc_east_opening(body, rib_dc, 70, wall, margin*2, prof)
 
     # Three heat-insert corbels, all flush with the rim: clear the rim only
     # over each pad's footprint, same recipe (and same defaults) as the
@@ -261,29 +277,26 @@ def couvercle_acdc(
     ) * Box(along_3, plat_3 + margin, prof + 1.0, align=_AMIN)
     vis3 = (corbel3_x, south_y + wall + r_3)
 
-    # PCB press: the north rim segment (boitier_ac) runs deeper than
+    # PCB press AC: the north rim segment (boitier_ac) runs deeper than
     # `gouttiere_profondeur` over the box's middle third in X, to press down
-    # on the south module's PCB from above. Tied only to the rim's own
-    # geometry (its north strip, thickness `gouttiere_epaisseur`, offset in
-    # by `epaisseur_paroi + gouttiere_jeu`), not to boitier_ac's internal
-    # tower/leg coordinates: `ac_appui_pcb_hauteur` is an empirical value,
-    # set by test fit, independent of what is actually inside the box
-    # (user 2026-09-06).
-    aile_x_ac = ac_pts[0][0]
-    east_x_ac = ac_pts[2][0]
-    y_max = ac_pts[2][1]
-    appui_x0 = aile_x_ac + (east_x_ac - aile_x_ac) / 3.0
-    appui_x1 = aile_x_ac + (east_x_ac - aile_x_ac) * 2.0 / 3.0
-    appui_y1 = y_max - (wall + jeu)
-    appui_y0 = y_max - (wall + jeu + ep)
+    # on the south module's PCB from above. 
     if ac_appui_pcb_hauteur <= 0.0:
         reject(
             f"ac_appui_pcb_hauteur {ac_appui_pcb_hauteur} is not positive: raise it",
             param="ac_appui_pcb_hauteur",
         )
-    body = body + Pos(appui_x0, appui_y0, wall) * Box(
-        appui_x1 - appui_x0, appui_y1 - appui_y0, ac_appui_pcb_hauteur, align=_AMIN
-    )
+    y_max = ac_pts[2][1]
+    appui_y1 = y_max - (wall + jeu)
+    body = _pcb_press(body, ac_pts[0][0], ac_pts[2][0], appui_y1 - ep, appui_y1, ac_appui_pcb_hauteur, wall)
+
+    # PCB press DC on south rib to hold the XIAO module
+    if dc_appui_xiao_hauteur <= 0.0:
+        reject(
+            f"dc_appui_xiao_hauteur {dc_appui_xiao_hauteur} is not positive: raise it",
+            param="dc_appui_xiao_hauteur",
+        )
+    appui_y0 = wall + jeu
+    body = _pcb_press(body, dc_pts[1][0], dc_pts[2][0], appui_y0, appui_y0 + ep, dc_appui_xiao_hauteur, wall)
 
     body = body + rib_dc + rib_ac
 

@@ -19,3 +19,9 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # Watchdog de tâche : filet si le temporisateur d'invalidation d'OTA
 # (phase 4) devait lui-même se bloquer.
 CONFIG_ESP_TASK_WDT_EN=y
+
+# Pilote TWAI "legacy" (driver/twai.h) : encore présent en v6.1 mais marqué
+# déprécié au profit de esp_twai.h. On le garde tel quel pour la phase 2 —
+# migrer vers la nouvelle API est un chantier à part, pas un prérequis pour
+# faire tourner du code sur la carte.
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y

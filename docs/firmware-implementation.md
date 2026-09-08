@@ -97,7 +97,7 @@ Le XIAO seul, alimenté en USB, hors de la machine, sans aucun périphérique br
 - `LOG` au boot.
 - `RESET`.
 - **Exposer les compteurs d'erreur TWAI** dans un `LOG` périodique. C'est comme ça qu'on valide le câblage et la terminaison sans oscilloscope, et ça servira à chaque phase suivante.
-- GPIO 10 tenu bas dès le démarrage, avant l'initialisation du CAN.
+- GPIO 9 tenu bas dès le démarrage, avant l'initialisation du CAN.
 - Machine à états de sécurité **complète**, même sans actionneur branché : bail, présence, verrou 60 s en mémoire RTC. On la teste ici, à vide, où elle ne peut rien casser.
 - Rien d'autre : ni I2C, ni débitmètre, ni logique d'infusion.
 
@@ -110,7 +110,7 @@ Le XIAO seul, alimenté en USB, hors de la machine, sans aucun périphérique br
 Un troisième firmware, indépendant de `sensors/` et `screen/`, pour avoir un moyen de regarder le bus sans dépendre de l'écran (utile avant la phase 3, et comme filet ensuite) :
 
 - Cible : M5Stack Atom S3 + M5Stack Unit CAN (TJA1051/3, même transceiver que le CAN Pal), relié par le Port.A.
-- GPIO déclarés **en haut du fichier**, modifiables sans fouiller le reste du code — valeurs par défaut `TX = GPIO 26`, `RX = GPIO 36` (Port.A de l'Atom S3).
+- GPIO déclarés **en haut du fichier**, modifiables sans fouiller le reste du code — valeurs par défaut `TX = GPIO 2`, `RX = GPIO 1` (Port.A de l'Atom S3 monté sur ce banc). `GPIO 26`/`GPIO 36` documentés initialement étaient faux pour cet exemplaire : confirmé au multimètre puis par un auto-test de bouclage transceiver (`firmware/can-selftest`) le 2026-09-08. Le Port.A peut varier d'un lot à l'autre — revalider avant de réutiliser ces valeurs sur un autre Atom S3.
 - TWAI à 500 kbit/s, accept-all, aucune émission : un pur moniteur.
 - Chaque trame reçue est imprimée sur l'UART USB-C (id, dlc, octets) — pas de décodage du protocole ici, juste du texte brut lisible au moniteur série. Le décodage fin reste le travail de l'outil Mac (`firmware/tools`).
 - Rien d'autre : pas de PING/PONG, pas d'identité, pas de sécurité. Ce n'est pas un nœud du protocole, juste une sonde.

@@ -45,6 +45,9 @@
 - name: FLOWMETER_SILENT
   severity: warn
   comment: Aucune impulsion débitmètre alors qu'un débit est attendu.
+- name: TWAI_ERROR_COUNTERS
+  severity: debug
+  comment: Compteurs d'erreur TWAI périodiques. arg16 = rx_error_counter (8 bits haut) | tx_error_counter (8 bits bas), arg32 = bus_error_count.
 - name: FLASH_BEGIN
   severity: info
   comment: Début d'un flash, arg32 = taille annoncée.

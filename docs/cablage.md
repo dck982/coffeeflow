@@ -125,7 +125,8 @@ Monté au **nord de `boitier_dc`**.
 
 - **Quatre pastilles de gauche** (VCC, GND, RX, TX de gauche à droite) : **bornier à vis
   2,54 mm** soudé, relié au port Grove **R3** par un câble dénudé d'un côté, Grove de
-  l'autre. **TX → fil blanc → GPIO 8**, **RX → fil jaune → GPIO 9**.
+  l'autre. **TX → fil blanc → GPIO 7**, **RX → fil jaune → GPIO 8** (port Grove **D8/D9**
+  du silkscreen Seeed — le D-number, pas le GPIO natif : voir la note ci-dessous).
 - **Deux pastilles de droite** (CANH, CANL de gauche à droite) : **connecteur PCB femelle
   JST XH 2,54 mm**.
 
@@ -154,13 +155,21 @@ branche sur le PCB du Waveshare. Le transceiver TJA1051T/3 y est intégré : CAN
 Shield tenu XIAO en bas : colonne **gauche = L**, colonne **droite = R**, port **1** au plus
 près du XIAO, **4** au plus loin.
 
-| Port | Périphérique | Signaux | Alim |
-| --- | --- | --- | --- |
-| **R1** | XDB401 (pression) | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V |
-| **R2** | Digmesa (débit) | impulsions — **GPIO 7** | 5 V, hors du câble Grove |
-| **R3** | CAN Pal | TX **GPIO 8**, RX **GPIO 9** | 3,3 V |
-| **R4** | Unit SSR | commande — **GPIO 10** (fil jaune) | 5 V, hors du câble Grove |
-| **L4** | Dimmer DimmerLink | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V |
+**Le silkscreen du Grove Shield XIAO numérote en `Dn` (D-number Seeed), pas en GPIO natif
+de l'ESP32-S3.** Au-delà de D5 les deux numérotations divergent : D6/D7 partent sur
+GPIO43/44 (réservés à l'UART0), ce qui décale tout ce qui suit — D8→GPIO7, D9→GPIO8,
+D10→GPIO9. Le tableau ci-dessous donne les deux, `Dn` étant ce qui est effectivement
+imprimé sur le PCB du shield. Erreur découverte et corrigée le 2026-09-08, au multimètre
+puis par un auto-test de bouclage transceiver (`firmware/can-selftest`), après un bring-up
+phase 2 resté silencieux sur le bus faute de cette traduction.
+
+| Port | Périphérique | Signaux (D-number) | GPIO natif | Alim |
+| --- | --- | --- | --- | --- |
+| **R1** | XDB401 (pression) | I2C — SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V |
+| **R2** | Digmesa (débit) | impulsions — D7 | **GPIO 44** | 5 V, hors du câble Grove |
+| **R3** | CAN Pal | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** | 3,3 V |
+| **R4** | Unit SSR | commande — D10 (fil jaune) | **GPIO 9** | 5 V, hors du câble Grove |
+| **L4** | Dimmer DimmerLink | I2C — SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V |
 
 **L4 est une copie de R1** : le dimmer et le capteur de pression partagent le même bus I2C.
 Le dimmer n'a **pas de pull-up** ; ce sont les **4,7 kΩ du XDB401** qui tiennent SDA et SCL
@@ -184,21 +193,21 @@ Trois fils côté **JST SM 3 poles**, qui se séparent :
 | Fil | Va vers |
 | --- | --- |
 | **noir** (GND) | serti dans le connecteur **Grove** → port R2 |
-| **jaune** (signal) | serti dans le même connecteur Grove → **GPIO 7** |
+| **jaune** (signal) | serti dans le même connecteur Grove → **GPIO 44** (D7 sur le silkscreen) |
 | **rouge** (5 V) | seul, dans la **Wago du compartiment nord-ouest** |
 
 Côté capteur, le câble est en **VH3.96** : rouge VCC, noir GND, jaune signal.
 
 **Filtre RC**, soudé sur les pastilles à gauche du XIAO (1 = 5 V, 2 = GND, 3 = 3V3,
-7 = GPIO 7) :
+D7 = GPIO 44) :
 
 ```
         3V3 (pastille 3)
              │
             1 kΩ
              │
-GPIO 7 ──────┼────── signal Digmesa (fil jaune, collecteur ouvert NPN)
-        (pastille 7)
+GPIO 44 ─────┼────── signal Digmesa (fil jaune, collecteur ouvert NPN)
+        (pastille D7)
              │
            10 nF
              │
@@ -213,12 +222,14 @@ transitoires. GPIO en `INPUT`, **pull-up interne éteinte**.
 ### Câble du SSR (R4)
 
 Câble **Grove 10 cm** dont le **VCC est coupé à ras côté XIAO**, dénudé et repris dans la
-**Wago nord-ouest** (5 V). Le **fil jaune** porte la commande vers le SSR, sur **GPIO 10**.
-Le SSR est donc alimenté en 5 V par la Wago, pas par le port Grove.
+**Wago nord-ouest** (5 V). Le **fil jaune** porte la commande vers le SSR, sur **GPIO 9**
+(D10 sur le silkscreen du Grove Shield). Le SSR est donc alimenté en 5 V par la Wago, pas
+par le port Grove.
 
 ### Câble du dimmer (L4)
 
-Câble **Grove** simple, alimentation **3,3 V**, I2C sur GPIO 4 / 5. En mode DimmerLink,
+Câble **Grove** simple, alimentation **3,3 V**, I2C sur GPIO 5 / 6 (SDA/SCL, D4/D5 sur le
+silkscreen). En mode DimmerLink,
 le Cortex du module gère la détection de passage par zéro et le triac ; le XIAO ne fait que
 de l'I2C. **Sans secteur sur le dimmer, le module reste en `Calibrating...`** et n'accepte
 aucune commande.

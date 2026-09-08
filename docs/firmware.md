@@ -28,15 +28,20 @@ Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 �
 
 ## Module capteurs (XIAO ESP32-S3)
 
-Brochage Grove Shield, tel que câblé :
+Brochage Grove Shield, tel que câblé. **GPIO natif de l'ESP32-S3**, pas le
+D-number du silkscreen Seeed : le Grove Shield XIAO numérote ses ports en
+`Dn`, et `Dn` ne vaut **pas** `GPIOn` au-delà de D5 (D6/D7 partent sur
+GPIO43/44 pour l'UART0, ce qui décale tout ce qui suit — D8→GPIO7,
+D9→GPIO8, D10→GPIO9). Confirmé au multimètre le 2026-09-08 après un
+bring-up phase 2 en échec faute de cette traduction :
 
-| Port | Périphérique | Bus | GPIO |
-| --- | --- | --- | --- |
-| R1 | XDB401 pression / température | I2C | SDA 4, SCL 5 |
-| L4 | Dimmer RBDimmer DimmerLink | I2C (même bus) | SDA 4, SCL 5 |
-| R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | 7 |
-| R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX 8, RX 9 |
-| R4 | M5Stack Unit SSR | sortie GPIO | 10 |
+| Port | Périphérique | Bus | D-number (silkscreen) | GPIO natif |
+| --- | --- | --- | --- | --- |
+| R1 | XDB401 pression / température | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
+| L4 | Dimmer RBDimmer DimmerLink | I2C (même bus) | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
+| R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
+| R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
+| R4 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
 
 **I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
 
@@ -44,7 +49,7 @@ Brochage Grove Shield, tel que câblé :
 
 ### SSR — vanne solénoïde
 
-GPIO 10, HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
+GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
 
 ### Dimmer — pompe
 
@@ -59,7 +64,7 @@ Code de banc existant : `../tests/test_rbi2c.py`.
 
 ### Débitmètre
 
-Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 7 ; pull-up interne éteinte. Une ISR incrémente un compteur 32 bits et mémorise l'horodatage du dernier front.
+Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 44 (D7 sur le silkscreen du Grove Shield) ; pull-up interne éteinte. Une ISR incrémente un compteur 32 bits et mémorise l'horodatage du dernier front.
 
 **Le module capteurs ne calcule ni volume ni débit.** Il publie le compteur cumulé et la date de la dernière impulsion ; l'écran en dérive tout, avec le facteur K et la courbe de correction qu'il détient. Trois raisons :
 
@@ -316,7 +321,7 @@ Trois conséquences :
 
 Précaution d'usage : brancher l'USB pendant que la machine est sous tension relie la masse du laptop à celle de l'alim RECOM. **Laptop sur batterie, débranché du secteur.** C'est un chemin de dépannage et de bring-up, pas un usage courant.
 
-L'image factory du **module capteurs** est le vrai filet : TWAI, `FLASH`, ping/pong, le verrou 60 s, GPIO 10 tenu bas. Aucune logique d'infusion. C'est la carte qu'on ne veut pas aller rechercher au fond de la machine.
+L'image factory du **module capteurs** est le vrai filet : TWAI, `FLASH`, ping/pong, le verrou 60 s, GPIO 9 tenu bas. Aucune logique d'infusion. C'est la carte qu'on ne veut pas aller rechercher au fond de la machine.
 
 ### Flash local (l'écran)
 

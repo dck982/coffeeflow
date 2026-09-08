@@ -54,32 +54,64 @@ Fait, vérifié sur le vrai matériel :
 - `firmware/sensors` tourne pour de vrai sur le XIAO : TWAI 500 kbit/s, `PING`/`PONG`
   avec version, `LOG` périodique des compteurs d'erreur TWAI. Terminaison 120 Ω
   confirmée aux deux bouts.
-- `firmware/can-monitor` (Atom S3) étendu au-delà du "pur moniteur" prévu : envoie
-  désormais un `PING` périodique (src=`kScreen`) pour permettre de voir un `PONG` réel
-  sans attendre l'écran de la phase 3 — **à retirer ou désactiver une fois la phase 3
-  en place**, un vrai écran sur le bus entrerait en conflit d'identité avec ce `PING`.
 - Round-trip `PING`/`PONG` confirmé : `PONG` reçu avec `node=kSensors`,
   `version=0.1.0`, `uptime_s` croissant. Compteurs d'erreur TWAI observés à zéro en
   régime établi (une remontée transitoire liée aux flashs/resets répétés de la session
   de bring-up s'est résorbée).
+- **`firmware/can-monitor` (Atom S3) devenu un vrai pont bidirectionnel série↔CAN**,
+  même cadrage COBS+PDU+CRC16 que celui prévu pour l'écran en phase 3 (voir
+  `firmware/common/include/common/framing.hpp`). `coffeetool` (phase 1) lui parle
+  directement sur son port USB-C pour émettre `PING`/`SET`/`STOP`/`RESET`/`REQSTATUS`
+  vers `sensors` sur le vrai bus — plus besoin d'attendre l'écran pour tester le
+  protocole. Le `PING` périodique auto-émis par `can-monitor` (ajouté plus tôt dans le
+  bring-up) a été retiré : redondant maintenant que `coffeetool` peut l'envoyer
+  lui-même avec la bonne identité.
+  - **Piège de mise en œuvre** : le port USB-C de l'Atom S3 est le périphérique
+    USB_SERIAL_JTAG natif du chip, le même que celui qu'ESP-IDF utilise par défaut
+    pour la console (`printf`/`ESP_LOGx`). Il a fallu désactiver la console
+    (`CONFIG_ESP_CONSOLE_NONE` + `CONFIG_ESP_CONSOLE_SECONDARY_NONE` dans
+    `sdkconfig.defaults`) et piloter le driver `usb_serial_jtag` directement
+    (`usb_serial_jtag_read_bytes`/`write_bytes`, pas le VFS console qui traduit les
+    fins de ligne — une donnée CAN quelconque peut contenir 0x0A/0x0D). Conséquence :
+    `can-monitor` n'a plus aucune sortie texte de debug, tout passe par les trames
+    `LOG` du protocole, décodées côté `coffeetool`.
+  - **À retirer ou désactiver une fois la phase 3 en place** : un vrai écran sur le
+    bus serait un second nœud `kScreen`, en conflit d'identité avec ce qui transite
+    par le pont.
+- **`LOG` au boot confirmé sur le bus** : reset à froid du XIAO (via `esptool`),
+  `BOOT` puis `READY` vus par `can-monitor`/`coffeetool` dans la foulée.
+- **`RESET` testé pour de vrai** via `coffeetool send reset` : `LOG REBOOT_REQUESTED`,
+  puis `BOOT`/`READY`, puis nouveau `PONG` avec `uptime_s` reparti de zéro.
+- **Bail (lease) vérifié** : `SET ssr=1 ttl_ms=2000` → `STATUS_ACTUATORS` immédiat
+  (`ssr=on`, `bail_restant≈2000ms`) → ~2 s plus tard `LOG LEASE_EXPIRED` +
+  `STATUS_ACTUATORS` (`ssr=off`), au bon délai.
+- **Verrou 60 s déclenché pour de vrai** : `SET ssr=1 ttl_ms=65000` maintenu, `LOG
+  RUNTIME_LOCKOUT_TRIGGERED` (`arg32=60100` ms) après ~60 s, `STATUS_ACTUATORS`
+  `flags` avec le bit verrou posé.
+- **Piège documenté confirmé** : verrou actif → `RESET` logiciel (`coffeetool send
+  reset`) → nouveau boot avec `uptime_s` reparti de zéro → `SET` suivant refusé
+  (`LOG COMMAND_REFUSED_LOCKED`, `STATUS_ACTUATORS` avec le bit verrou toujours posé).
+  Le verrou survit bien à un reset logiciel.
 
-Pas encore fait :
+- **Levée du verrou à la coupure secteur réelle, confirmée** (2026-09-08) : XIAO
+  débranché/rebranché en USB (coupure d'alimentation réelle, pas juste un `RESET`
+  logiciel), puis `SET ssr=1 ttl_ms=2000` accepté (`flags=0b010`, bit verrou à 0) et
+  bail expiré au bon délai. Le verrou ne se lève bien qu'au démarrage à froid, comme
+  documenté.
+- **Présence, confirmée** (2026-09-08) : `SET ssr=1 ttl_ms=30000`, câble CAN débranché
+  ~6 s (> `kPresenceTimeoutUs` = 3 s) puis rebranché, `STOP` envoyé pour lire l'état :
+  `ssr=off`, `bail_restant=0ms` malgré le bail de 30 s encore valide — confirme que
+  `force_actuators_off()` a bien coupé pendant la coupure du bus, indépendamment du
+  bail restant.
 
-- **`LOG` au boot jamais observé sur le bus** (on s'est branché après coup à chaque
-  test) — à vérifier avec un reset à froid du XIAO, `can-monitor` déjà à l'écoute.
-- **`RESET` jamais testé** pour de vrai.
-- **Machine de sécurité (bail, présence, verrou 60 s) jamais exercée** — le code existe
-  dans `firmware/sensors/main.cpp` mais rien n'a encore envoyé de `SET`/`STOP` sur le
-  bus pour la déclencher.
-- **Le piège documenté** (verrou 60 s qui doit survivre à un `RESET` logiciel et ne se
-  lever qu'à froid) — dépend du point précédent, pas testable sans lui.
-- Ces quatre points sont bloqués sur la même chose : aucun moyen d'émettre `SET`/
-  `STOP`/`RESET` depuis le Mac aujourd'hui. `coffeetool` (phase 1) sait déjà construire
-  ces trames mais parle un cadrage COBS+PDU série que seul le futur pont USB↔CAN de
-  l'écran (phase 3) implémente. Décision prise : **étendre `firmware/can-monitor`**
-  en petit pont série↔CAN (même cadrage que la phase 3) plutôt que d'attendre l'écran
-  — ne pas dépendre d'éventuelles complications de la phase 3 pour finir la phase 2.
-  Travail en cours.
+**Phase 2 terminée.** Tous les points de la checklist et le piège documenté sont
+vérifiés sur le vrai matériel. Le **rearmement** (deux activations de 30 s séparées de
+plus de 2 s ne déclenchent rien) n'a pas été exercé spécifiquement, mais c'est un
+test de la phase 5 (pas de la checklist phase 2), à faire là où il est prévu.
+
+Prochaine étape : **phase 3**, l'écran factory (Waveshare) comme pont USB↔CAN — à ce
+stade, `firmware/can-monitor` peut être mis de côté (son rôle de pont ad hoc est
+repris par le vrai pont de l'écran, voir la note dans sa description ci-dessous).
 
 ### Environnement de build/flash (Mac)
 
@@ -167,15 +199,19 @@ Le XIAO seul, alimenté en USB, hors de la machine, sans aucun périphérique br
 
 ### `firmware/can-monitor` — l'adaptateur CAN de secours
 
-Un troisième firmware, indépendant de `sensors/` et `screen/`, pour avoir un moyen de regarder le bus sans dépendre de l'écran (utile avant la phase 3, et comme filet ensuite) :
+Un troisième firmware, indépendant de `sensors/` et `screen/`, pour avoir un moyen de parler au bus sans dépendre de l'écran (utile avant la phase 3, et comme filet ensuite).
 
-- Cible : M5Stack Atom S3 + M5Stack Unit CAN (TJA1051/3, même transceiver que le CAN Pal), relié par le Port.A.
+**Devenu, en cours de phase 2, un vrai pont bidirectionnel série↔CAN** — pas juste un moniteur passif comme prévu initialement (voir "Phase 2, en cours" plus haut pour le pourquoi : tester `SET`/`STOP`/`RESET` sans attendre l'écran) :
+
+- Cible : M5Stack Atom S3 + M5Stack Unit CAN (**CA-IS3050G isolé**, pas le TJA1051/3 — voir la suite de `docs/canpal-findings.md`), relié par le Port.A.
 - GPIO déclarés **en haut du fichier**, modifiables sans fouiller le reste du code — valeurs par défaut `TX = GPIO 2`, `RX = GPIO 1` (Port.A de l'Atom S3 monté sur ce banc). `GPIO 26`/`GPIO 36` documentés initialement étaient faux pour cet exemplaire : confirmé au multimètre puis par un auto-test de bouclage transceiver (`firmware/can-selftest`) le 2026-09-08. Le Port.A peut varier d'un lot à l'autre — revalider avant de réutiliser ces valeurs sur un autre Atom S3.
-- TWAI à 500 kbit/s, accept-all, aucune émission : un pur moniteur.
-- Chaque trame reçue est imprimée sur l'UART USB-C (id, dlc, octets) — pas de décodage du protocole ici, juste du texte brut lisible au moniteur série. Le décodage fin reste le travail de l'outil Mac (`firmware/tools`).
-- Rien d'autre : pas de PING/PONG, pas d'identité, pas de sécurité. Ce n'est pas un nœud du protocole, juste une sonde.
+- TWAI à 500 kbit/s, accept-all. Chaque trame reçue est encadrée (COBS+PDU+CRC16, `firmware/common/include/common/framing.hpp`) et écrite brute sur le port USB-C ; chaque trame encadrée reçue sur ce port est décodée et transmise sur le bus. Même cadrage que celui prévu pour l'écran en phase 3 : `coffeetool` s'en sert exactement pareil.
+- Console désactivée (`CONFIG_ESP_CONSOLE_NONE`/`CONFIG_ESP_CONSOLE_SECONDARY_NONE`) : le port USB-C est le périphérique `usb_serial_jtag` natif du chip, piloté directement en octets bruts (pas le VFS console, qui traduirait des fins de ligne dans des données CAN binaires). Plus aucun `printf`/`ESP_LOGx` — les erreurs qui comptent passent par les trames `LOG` du protocole, décodées côté `coffeetool`.
+- Pas d'identité propre, pas de participation au protocole : c'est un pont transparent, pas un nœud. `coffeetool` choisit lui-même la source (`--src screen`) de ce qu'il envoie.
 
-**Usage :** flasher une fois, laisser branché sur le bus au besoin, lire le texte qui défile sur le port USB-C de l'Atom (`idf.py monitor` ou n'importe quel moniteur série).
+**Usage :** flasher une fois, laisser branché sur le bus, utiliser `firmware/tools/coffeetool` contre son port USB-C (`--port /dev/cu.usbmodemXXXX`) exactement comme on le ferait contre l'écran en phase 3.
+
+**À retirer ou désactiver une fois la phase 3 en place** : un vrai écran sur le bus est un second pont vers le même rôle logique `kScreen` — les deux en même temps sèmeraient la confusion, pas un conflit protocolaire à proprement parler (le pont n'a pas d'identité propre) mais deux sources concurrentes du point de vue de `sensors`.
 
 ---
 

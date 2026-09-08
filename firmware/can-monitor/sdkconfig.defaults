@@ -1,7 +1,16 @@
 # Défauts de projet — adaptateur CAN de secours (M5Stack Atom S3 + Unit CAN).
-# Rien de commun avec sensors/screen : ce n'est pas un nœud du protocole,
-# juste une sonde flashée une fois. Voir docs/firmware-implementation.md.
+# Devenu un pont série binaire (COBS+PDU) vers coffeetool, voir
+# docs/firmware-implementation.md.
 
 CONFIG_IDF_TARGET="esp32s3"
 
 CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+
+# Console désactivée (primaire ET secondaire) : le seul port USB-C de cette
+# carte est le périphérique USB_SERIAL_JTAG natif, et le pont binaire en a
+# besoin en usage exclusif via son driver bas niveau (usb_serial_jtag_*_bytes,
+# pas de traduction de fin de ligne, contrairement au VFS console). Si la
+# console reste active dessus, esp_log()/printf() s'y intercalent et cassent
+# le cadrage COBS côté coffeetool — voir le commentaire en tête de main.cpp.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

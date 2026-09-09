@@ -1,0 +1,22 @@
+# Défauts de projet — bring-up LCD jetable (Waveshare ESP32-S3-Touch-LCD-4.3,
+# flash 16 Mo, 8 Mo PSRAM). Complète, ne remplace pas, la config par défaut
+# d'ESP-IDF v6.1.
+
+CONFIG_IDF_TARGET="esp32s3"
+
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# PSRAM 8 Mo, nécessaire pour le framebuffer RGB 800x480 (LVGL).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# LVGL : police montserrat par défaut, juste pour le "Hello world".
+CONFIG_LV_FONT_MONTSERRAT_20=y
+
+CONFIG_ESP_TASK_WDT_EN=y
+
+# Console série normale (pas de contrainte CONFIG_ESP_CONSOLE_NONE ici : ce
+# projet n'a ni pont série, ni UART2 réaffecté — voir firmware/screen pour ce
+# cas, absent de ce projet jetable).
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y

@@ -411,6 +411,18 @@ lot ; débrancher le câble CAN fait apparaître la ligne d'événement
 correspondante à l'écran en moins de 3 s ; un appui affiche des coordonnées
 cohérentes avec le point touché.
 
+**Arrêté en cours sur le critère "reste stable" (2026-09-09), pas fermé.**
+Tout le reste du lot est écrit et fonctionne (timings, bring-up CH422G,
+CAN qui continue dalle allumée, tactile). Glitch visuel résiduel sur le texte
+qui change, pas résolu après investigation poussée (timings HSYNC/VSYNC
+corrigés, `avoid_tearing` essayé et abandonné — limite documentée du driver
+ESP-IDF v6.1, pas une erreur de config). Éclaireur en isolation
+(`firmware/screen-lcd-test/`) montre que le contenu qui change seul ne
+suffit pas à reproduire le glitch : il faut aussi le trafic CAN/pont série
+concurrent sur le même cœur — hypothèse à confirmer avant de chercher un
+correctif. Détail complet de l'investigation :
+`docs/firmware-implementation.md`, section "Où on en est".
+
 ---
 
 ## Lot 3 — Cœur, face sorties : couche capteurs et télémétrie

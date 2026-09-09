@@ -27,6 +27,7 @@
 #include "can_link.h"
 #include "ota_local.h"
 #include "serial_bridge.h"
+#include "service_screen.h"
 
 extern "C" void app_main() {
   // Pont série d'abord : UART2 installé et son bug de bring-up (bug 1,
@@ -59,4 +60,9 @@ extern "C" void app_main() {
   ota_local::start_validation_task();
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
+
+  // Écran de service (docs/plan-phase6.md, lot 2) : après le pont et le CAN,
+  // pour que le conflit CH422G (dalle vs CAN_SEL) se révèle contre un bus
+  // déjà vivant plutôt qu'un bus qui n'a jamais tourné.
+  service_screen::init();
 }

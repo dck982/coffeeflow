@@ -12,6 +12,7 @@
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/version.hpp"
+#include "core/events.h"
 #include "serial_bridge.h"
 
 namespace can_link {
@@ -20,6 +21,10 @@ namespace {
 
 constexpr const char* kTag = "screen";
 
+// Même valeur que sensors/main.cpp (kPresenceTimeoutUs) : un PING ou PONG du
+// pair suffit à réarmer, l'absence pendant ce délai est le repli sécurité.
+constexpr int64_t kPresenceTimeoutUs = 3 * 1000 * 1000;
+
 int64_t g_last_presence_rx_us = 0;
 bool g_presence_lost = true;
 
@@ -27,7 +32,11 @@ int64_t now_us() { return esp_timer_get_time(); }
 
 void mark_presence() {
   g_last_presence_rx_us = now_us();
-  g_presence_lost = false;
+  if (g_presence_lost) {
+    g_presence_lost = false;
+    send_log(common::LogCode::kPresenceRestored, common::LogSeverity::kInfo);
+    core::events::push(core::EventKind::kCanPresenceRestored);
+  }
 }
 
 void on_ping_received() {
@@ -104,6 +113,14 @@ void send_pong() {
 }
 
 bool presence_lost() { return g_presence_lost; }
+
+void tick_presence() {
+  if (!g_presence_lost && (now_us() - g_last_presence_rx_us) > kPresenceTimeoutUs) {
+    g_presence_lost = true;
+    send_log(common::LogCode::kPresenceLost, common::LogSeverity::kWarn);
+    core::events::push(core::EventKind::kCanPresenceLost);
+  }
+}
 
 void dispatch_own_protocol(const twai_message_t& msg) {
   common::CanId id = common::decode_can_id(static_cast<uint16_t>(msg.identifier));

@@ -1,0 +1,12 @@
+# Mêmes composants et mêmes versions que firmware/screen/main/idf_component.yml
+# (déjà prouvés fonctionner en IDF v6.1) : seuls les timings HSYNC/VSYNC du
+# panneau RGB changent dans ce projet, pas les composants.
+dependencies:
+  idf:
+    version: ">=5.3"
+  lvgl/lvgl:
+    version: "^9.2"
+  espressif/esp_lvgl_port:
+    version: "^2.6"
+  espressif/esp_lcd_touch_gt911:
+    version: "^1.2"

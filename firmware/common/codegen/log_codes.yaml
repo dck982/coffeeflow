@@ -24,6 +24,9 @@
 - name: PRESENCE_LOST
   severity: warn
   comment: Plus de PING/PONG du pair depuis ~3 s, repli sécurité.
+- name: PRESENCE_RESTORED
+  severity: info
+  comment: PING/PONG du pair de nouveau reçu après une perte de présence.
 - name: RUNTIME_LOCKOUT_TRIGGERED
   severity: error
   comment: Plafond 60 s dépassé, verrou posé jusqu'à coupure secteur. arg32 = ms d'activation.
@@ -75,3 +78,6 @@
 - name: OTA_ROLLBACK
   severity: error
   comment: Validation échouée, retour à l'image précédente.
+- name: LCD_INIT_STEP
+  severity: debug
+  comment: Bisection du bring-up esp_lcd/GT911/lvgl_port (lot 2). arg16 = étape.

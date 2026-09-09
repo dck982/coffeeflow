@@ -11,6 +11,11 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 # PSRAM 8 Mo, nécessaire pour le framebuffer RGB 800x480 (phase 6, LVGL).
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# LVGL (lot 2, docs/plan-phase6.md) : police montserrat pour le titre de
+# l'écran de service, le reste des labels utilise la police par défaut.
+CONFIG_LV_FONT_MONTSERRAT_20=y
 
 # Rollback applicatif : voir sensors/sdkconfig.defaults, même mécanisme.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
@@ -25,3 +30,8 @@ CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
 # ça, la console ESP-IDF se dispute UART0 avec notre driver.
 CONFIG_ESP_CONSOLE_NONE=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# CONFIG_LCD_RGB_RESTART_IN_VSYNC essayé puis abandonné (2026-09-09,
+# diagnostic glitch résiduel lot 2) : résultat nettement pire (sauts
+# verticaux du contenu en plus du glitch existant). Ne pas réessayer sans
+# comprendre pourquoi ce panneau/driver y réagit mal.

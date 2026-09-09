@@ -25,13 +25,119 @@ chacun avec node/version/uptime cohérents), flash OTA de `sensors` par le CAN
 (v0.2.7→0.2.8, confirmé dans le `PONG` après reboot), flash OTA de `screen`
 par lui-même (v0.2.8→0.2.9, confirmé dans le `PONG` après reboot). Lot 1 clos.
 
-Prochaine étape : lot 2 (écran de service, `esp_lcd` RGB + GT911 +
-`esp_lvgl_port`) — nécessite les cartes branchées pour être testé (l'affichage
-et le tactile ne se vérifient pas en simulation), donc à démarrer une fois le
-banc de nouveau disponible. En attendant, possibilité d'avancer sur des lots
-qui se testent sans matériel réel (ex. logique pure de `core/` prévue aux
-lots 3/9, une fois leur tour venu) — à décider selon ce qui reste faisable
-hors matériel.
+**Lot 2 (écran de service), bloqué en cours sur un glitch visuel résiduel du
+panneau RGB (2026-09-09) — pas fermé.** L'essentiel du lot est écrit et
+fonctionne (`service_screen.cpp` : `esp_lcd` RGB 800×480 + GT911 +
+`esp_lvgl_port`, bring-up CH422G via l'état RAM du lot 1, écran de service
+avec version/CAN/événements/coordonnées tactiles). Bloqué sur le critère de
+sortie "texte stable" : reste tenu pour l'instant à un état ~90 % stable
+(voir détail de l'investigation ci-dessous), pas encore jugé suffisant pour
+clore le lot.
+
+Investigation menée, dans l'ordre :
+
+1. **Glitch horizontal fort et permanent au départ** : timings HSYNC/VSYNC
+   génériques copiés de l'exemple officiel ESP-IDF Waveshare (hsync
+   pulse/back/front = 4/8/8, vsync = 4/8/8) ne convenaient pas à ce panneau
+   (contrôleur ST7262). **Corrigé** en reprenant les timings du sketch de
+   référence `tests/screen/hello_waveshare/hello_waveshare.ino` (Arduino_GFX,
+   confirmé sans glitch sur ce même banc) : hsync pulse/back/front = 48/88/40,
+   vsync = 3/32/13, même pclk 16 MHz. Validé sur un firmware jetable dédié,
+   `firmware/screen-lcd-test/` (banc réutilisable, sur le modèle de
+   `dimmer-test`), avant d'être reporté dans `service_screen.cpp`.
+2. **Glitch résiduel, ~10 % de l'intensité d'origine**, périodique (texte
+   stable ~1 s, rafale de 2-3 glitches, répété), et un décalage horizontal
+   fixe de l'image entière (corrélé, disparaît/réapparaît selon les essais).
+   **Bisect fait sur `service_screen.cpp`** : labels figés (contenu qui ne
+   change jamais) + `tick_presence()`/CAN actifs → écran parfaitement stable.
+   **Conclusion : c'est le redessin LVGL déclenché par un contenu qui change
+   qui cause la rafale, pas le trafic CAN/série en tant que tel** — un texte
+   statique ne glitche jamais, y compris avec CAN/pont série actifs.
+3. **Deux candidats testés et invalidés** : buffer de dessin LVGL déplacé en
+   RAM interne au lieu de PSRAM (`buff_spiram=false`, piste "contention bus
+   PSRAM") → aucun effet, glitch identique. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` +
+   `CONFIG_LCD_RGB_ISR_IRAM_SAFE` (Kconfig ESP-IDF, resynchronisation GDMA à
+   chaque VBlank) → **résultat pire** : sauts verticaux du contenu en plus du
+   glitch existant. Les deux abandonnés, retour à la config d'avant.
+4. **`avoid_tearing` (double framebuffer matériel réel, `num_fbs=2` +
+   `direct_mode` côté LVGL) testé deux fois, dans l'appli complète et en
+   isolation totale dans `firmware/screen-lcd-test/`** (sans CAN/pont série,
+   juste LVGL + un texte qui change toutes les 200 ms) — **même résultat cassé
+   dans les deux cas** : d'abord écran clignotant blanc/bruit/texte (sans
+   `direct_mode`), puis, une fois `direct_mode` ajouté (requis par LVGL pour
+   ce mode, confirmé dans la doc officielle LVGL), un défilement horizontal
+   permanent de l'image. **Cause identifiée dans le code source ESP-IDF
+   v6.1** (`esp_lcd_panel_rgb.c`, `rgb_panel_draw_bitmap`) : le driver admet
+   lui-même que le moment du vrai basculement de framebuffer n'est pas
+   garanti à cause du prefetch DMA (commentaire du driver : *"it's hard to
+   know the time when the new frame buffer starts"*) — limite du driver sur
+   cette version d'IDF, pas une erreur de configuration. **`avoid_tearing`
+   abandonné**, retour définitif à `bb_mode`/bounce buffer.
+5. **Avis d'expert demandé (Opus) à deux reprises** : confirme que rester sur
+   ESP-IDF + LVGL est le bon choix (Arduino n'échapperait pas au même
+   `esp_lcd_panel_rgb` sous-jacent ; Rust/Embassy manque de driver RGB mûr
+   avec bounce buffer et de pile BLE mûre pour ce projet) — le glitch est une
+   contrainte physique de la dalle RGB parallèle (pas de mémoire d'image
+   interne, ~45 Mo/s à soutenir en continu depuis la PSRAM), pas un signe de
+   mauvaise architecture logicielle. Pistes proposées, pas encore essayées :
+   PCLK plus bas (actuellement 16 MHz), `CONFIG_SPIRAM_FETCH_INSTRUCTIONS`/
+   `CONFIG_SPIRAM_RODATA`. Le bounce buffer plus grand (piste également
+   suggérée) est en réalité déjà testé et invalidé (point 3 plus haut,
+   confondu à tort avec la contention PSRAM).
+
+**Éclaireur fait (2026-09-09) — résultat déterminant, retourne la piste
+principale.** `firmware/screen-lcd-test/` remis en config `bb_mode` normale
+(sans `avoid_tearing`), avec le label qui change toutes les 200 ms conservé
+(ajouté pour le test `avoid_tearing` du point 4) : **aucun glitch, écran
+parfaitement stable jusqu'à 100+ incréments du compteur.** Ce résultat
+élimine "contenu qui change + LVGL + RGB" comme cause suffisante à elle
+seule — le point 2 ci-dessus (bisect sur `service_screen.cpp`, labels figés
+= stable) avait seulement montré que c'était nécessaire, pas suffisant.
+**La vraie différence entre les deux firmwares, la seule restante, est le
+trafic CAN + le pont série (tâches TWAI/UART) tournant sur le même cœur que
+LVGL** dans `service_screen.cpp` — absents de `screen-lcd-test`. Recentre
+l'hypothèse sur les pistes 4/5 d'Opus (priorité d'interruption TWAI/UART vs
+GDMA du LCD, sections critiques), pas sur une limite générale d'IDF 6.1 ou
+de bande passante PSRAM. **La piste IDF 5.x perd sa justification immédiate**
+sur cette base (rien ne dit qu'un downgrade réglerait un problème de
+contention CAN/série, qui n'est pas spécifique à une version d'IDF) — reste
+possible plus tard si une autre piste l'indique, pas la prochaine étape.
+
+**Contre-test fait dans la foulée : le glitch reste présent même avec l'UART
+désactivé** (constaté par David directement sur le banc, pas via un firmware
+dédié préparé dans cette session — à re-confirmer avec un vrai firmware de
+contrôle avant d'en tirer une conclusion ferme). Si ça se confirme, ça
+affaiblit à son tour l'hypothèse "pont série/UART" spécifiquement, et laisse
+le CAN (TWAI) seul, ou une combinaison des deux, comme piste restante.
+
+**CHECKPOINT (2026-09-09, fin de session)** — état du dépôt à la reprise :
+
+- `firmware/screen/main/service_screen.cpp` : propre, sans code de debug
+  (compteur de diagnostic ajouté puis retiré dans cette session), flashé sur
+  la carte `screen` (v0.2.19) — c'est l'état `bb_mode`/bounce buffer/timings
+  corrigés, ~90 % stable, tel que described au point 2 plus haut, **pas** un
+  état de test.
+- `firmware/screen-lcd-test/` : laissé en config `bb_mode` normale avec le
+  label qui change toutes les 200 ms (résultat de l'éclaireur ci-dessus,
+  stable) — pas de CAN/pont série dedans, c'est structurel à ce projet, pas
+  un oubli.
+- `firmware/common/include/common/version.hpp` : patch à 19.
+- **Pas commité** au moment d'écrire ceci si la session s'arrête ici — voir
+  `git status`/`git diff` avant de continuer, pour ne pas perdre ou dupliquer
+  ce travail à la prochaine reprise.
+
+Prochaine étape : construire un vrai test de contrôle (pas juste débrancher
+le câble USB, qui n'arrête pas les tâches `can2ser`/`ser2can` côté firmware —
+seulement le flux d'octets) pour trancher si TWAI, le pont série, les deux,
+ou ni l'un ni l'autre sont en cause. Deux protocoles possibles, à choisir
+selon ce qui reste le plus rapide à mettre en place à la reprise :
+1. Dans `service_screen.cpp`, désactiver réellement `serial_bridge::start_tasks()`
+   (pas juste débrancher le câble) en gardant un redessin périodique garanti
+   (compteur indépendant de `can_link`, comme celui retiré dans cette
+   session) pour voir si le glitch persiste sans les tâches UART actives.
+2. Ajouter du trafic CAN/pont série factice à `firmware/screen-lcd-test/`
+   (actuellement stable) pour voir si on arrive à le faire glitcher en
+   ajoutant cet ingrédient sur un cas de base connu sain.
 
 **Phase 5, débitmètre (Digmesa, GPIO 44/D7), fait et validé sur le vrai
 capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : `init_flow()`

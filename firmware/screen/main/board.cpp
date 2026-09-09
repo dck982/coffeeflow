@@ -2,6 +2,8 @@
 
 #include "driver/i2c_master.h"
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace board {
 
@@ -61,5 +63,22 @@ void ch422g_set_bit(uint8_t bit, bool value) {
 }
 
 void select_can() { ch422g_set_bit(kCh422gCanSel, true); }
+
+i2c_master_bus_handle_t i2c_bus() { return g_bus; }
+
+void panel_power_on() {
+  // LCD_RST et LCD_BL hauts : pas de toggle nécessaire pour ce panneau RGB
+  // (waveshare_rgb_lcd_port.c les positionne haut dès la première écriture).
+  // Chaque appel passe par ch422g_set_bit() : CAN_SEL n'est jamais touché.
+  ch422g_set_bit(kCh422gLcdRst, true);
+  ch422g_set_bit(kCh422gLcdBl, true);
+
+  // Reset impulsionnel du GT911 : bas 100 ms, haut puis 200 ms de
+  // stabilisation avant toute transaction I2C vers le contrôleur tactile.
+  ch422g_set_bit(kCh422gTpRst, false);
+  vTaskDelay(pdMS_TO_TICKS(100));
+  ch422g_set_bit(kCh422gTpRst, true);
+  vTaskDelay(pdMS_TO_TICKS(200));
+}
 
 }  // namespace board

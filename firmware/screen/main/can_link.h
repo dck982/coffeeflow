@@ -30,6 +30,13 @@ void send_pong();
 // preuve de vie pour la validation OTA de l'écran lui-même (ota_local.cpp).
 bool presence_lost();
 
+// À appeler périodiquement (service_screen, ~200 ms) : détecte le timeout de
+// présence (3 s, même valeur que sensors/main.cpp) et publie un événement du
+// cœur (core::EventKind::kCanPresenceLost) à la transition. La transition
+// inverse (retrouvée) est publiée directement par mark_presence() dès qu'un
+// PING/PONG du pair revient — voir can_link.cpp.
+void tick_presence();
+
 // Notre propre rôle de nœud kScreen : ne réagit qu'à ce qui vient des
 // capteurs et nous est adressé ou en broadcast. Tout le reste (y compris ce
 // qui vient des capteurs mais ne nous concerne pas) est déjà passé sur

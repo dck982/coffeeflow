@@ -16,8 +16,12 @@
 // que net_http et ui/ incluent du côté machine. Un fichier d'UI ou de HTTP
 // qui inclut can_link.h franchit la frontière.
 //
-// Aucune logique n'est implémentée ici — voir les lots 3, 4 et 9.
+// Aucune logique n'est implémentée ici pour les faces sorties/configuration/
+// actions — voir les lots 3, 4 et 9. La face événements (transverse) est en
+// revanche déjà réelle depuis le lot 2 : voir core/events.h.
 #pragma once
+
+#include "core/events.h"
 
 namespace core {
 

@@ -1,0 +1,12 @@
+# Dépendances gérées par le component manager, lot 2 (docs/plan-phase6.md) :
+# esp_lcd RGB (déjà dans ESP-IDF) + GT911 + esp_lvgl_port. Résolues et
+# vérouillées dans dependencies.lock au premier `idf.py build`.
+dependencies:
+  idf:
+    version: ">=5.3"
+  lvgl/lvgl:
+    version: "^9.2"
+  espressif/esp_lvgl_port:
+    version: "^2.6"
+  espressif/esp_lcd_touch_gt911:
+    version: "^1.2"

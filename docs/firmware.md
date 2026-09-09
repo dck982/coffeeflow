@@ -233,13 +233,19 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 
 Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Plancher utile côté XDB401 : 50 ms de conversion, donc pas en dessous de ~100 ms.
 
+**Convention `flags` — bit0 « capteur valide ».** Chaque `STATUS_*` qui porte une lecture de capteur réserve un bit à la même question : est-ce que cette valeur vient d'être obtenue avec succès ? Le sens est générique, mais la capacité de détecter une absence ne l'est pas :
+
+- **XDB401 (I2C)** : détection réelle. Une transaction I2C qui échoue (adresse muette, bus figé) ou un timeout de conversion mettent ce bit à 0 — la valeur brute qui l'accompagne reste la dernière connue, pas un zéro forcé (voir `docs/firmware-implementation.md`).
+- **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
+- **Dimmer (I2C, pas encore câblé)** : même détection réelle que le XDB401, prévue mais pas encore implémentée — voir `STATUS_ACTUATORS` ci-dessous.
+
 `STATUS_PRESSURE` (0x20) — recopie du registre `0x06`
 
 ```
 [0..2]  pression brute      24 bits
 [3..4]  température brute   16 bits
 [5..6]  horodatage ms       uint16 (16 bits bas)
-[7]     flags               I2C ok, timeout de conversion
+[7]     flags               bit0 capteur valide (détection I2C réelle), bit1 timeout conversion
 ```
 
 `STATUS_FLOW` (0x21)
@@ -247,7 +253,7 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 ```
 [0..3]  impulsions          uint32 cumulé depuis reset
 [4..5]  dernier front ms    uint16 (16 bits bas)
-[6]     flags
+[6]     flags               bit0 capteur valide — toujours 1, absence non détectable en GPIO seul
 [7]     réservé
 ```
 
@@ -258,7 +264,7 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 [1]     dimmer              0..100
 [2..3]  bail restant ms     uint16
 [4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
-[6]     flags               verrou actif, dimmer prêt, I2C ok
+[6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C)
 [7]     réservé
 ```
 

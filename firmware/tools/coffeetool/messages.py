@@ -97,7 +97,7 @@ class StatusPressurePayload:
     pressure_raw: int = 0      # 24 bits utiles
     temperature_raw: int = 0   # 16 bits
     timestamp_ms: int = 0      # 16 bits bas
-    flags: int = 0
+    flags: int = 0             # bit0 capteur valide (I2C), bit1 timeout conversion
 
     def pack(self) -> bytes:
         p = self.pressure_raw & 0xFFFFFF
@@ -117,7 +117,7 @@ class StatusPressurePayload:
 class StatusFlowPayload:
     pulse_count: int = 0
     last_edge_ms: int = 0
-    flags: int = 0
+    flags: int = 0             # bit0 capteur valide — toujours 1, absence non détectable en GPIO seul
 
     def pack(self) -> bytes:
         return struct.pack("<IH", self.pulse_count, self.last_edge_ms) + bytes([self.flags, 0])

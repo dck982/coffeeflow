@@ -2,6 +2,59 @@
 
 ## Où on en est
 
+**Phase 5, débitmètre (Digmesa, GPIO 44/D7), en cours — bloqué à 0 impulsion,
+pas encore résolu (2026-09-09).** `firmware/sensors/main/main.cpp` :
+`init_flow()` configure GPIO44 en entrée, interruption front descendant,
+pull-up interne éteinte (le filtre RC du shield en tient lieu). ISR
+(`flow_isr_handler`) incrémente `g_flow_pulse_count` (32 bits) et mémorise
+`g_flow_last_edge_us`. `on_reqstatus_received` gère `kStatusFlow` (pas de
+plancher de période, contrairement au XDB401 — rien ne l'impose côté GPIO) ;
+`tick_flow()` (dans `safety_task`, pas de tâche dédiée : lecture non
+bloquante) publie `STATUS_FLOW` à la période demandée.
+
+**Bug trouvé et corrigé en cours de route, mais qui ne suffit pas** : GPIO44
+est le RX par défaut de la console UART0 (`CONFIG_ESP_CONSOLE_UART_DEFAULT`,
+`sensors/sdkconfig`) — sans forcer le pad en `PIN_FUNC_GPIO`, il reste sur sa
+fonction IOMUX de reset (`U0RXD`) et ne remonte jamais rien à l'ISR. **Exactement
+le même piège que le bug 1 de la phase 3** (voir plus bas, `screen`), sur le
+même GPIO, corrigé de la même façon (`gpio_func_sel(kGpioFlow,
+PIN_FUNC_GPIO)` + `gpio_input_enable()`, `esp_private/gpio.h`). Après ce
+correctif, un `ESP_LOGI` de debug direct (`gpio_get_level(kGpioFlow)`, lu en
+USB natif sur `sensors`, pas via CAN) confirme que le pad est bien lisible en
+GPIO simple (`level=1` au repos, cohérent avec un NPN open collector au
+repos tiré haut) — **mais aucune impulsion n'est comptée malgré plusieurs
+souffles francs dans le capteur, turbine visiblement en rotation.**
+`g_flow_pulse_count` reste à 0, `level` reste figé à `1` tout du long
+(aucune transition observée, même passagère).
+
+Piste non encore vérifiée, à creuser en priorité à la reprise : tension
+mesurée au multimètre sur le connecteur du débitmètre, **GND↔VCC = 5,14 V,
+GND↔SIGNAL = 2,64 V au repos**. Le repos attendu d'après `docs/firmware.md`
+("filtre RC du shield, 1 kΩ vers 3,3 V, 10 nF vers GND") serait proche de
+3,3 V, pas 2,64 V — l'écart (~0,66 V) est trop grand pour n'être qu'un effet
+de charge du multimètre. Deux hypothèses à trancher avant de reprendre le
+firmware : (a) le port réellement câblé n'est pas R2/D7 tel que documenté
+(mauvais port, mauvais GPIO), (b) le filtre RC du shield ne se comporte pas
+comme documenté sur cet exemplaire (résistance/tension de pull-up
+différentes, ou pull-up vers 5 V divisée plutôt que vers 3,3 V) — dans les
+deux cas, ça pourrait expliquer une absence totale de transition si le
+niveau ne bouge jamais assez bas/haut, ou si le vrai signal n'arrive
+simplement pas sur GPIO44.
+
+Debug temporaire laissé en place dans `tick_flow()` (`main.cpp`, commentaire
+"DEBUG temporaire — bring-up débitmètre, à retirer une fois validé") : log
+`ESP_LOGI` toutes les 500 ms avec `level`/`pulses`, à lire en USB direct sur
+le port `sensors` (pas via CAN — voir la remarque déjà documentée plus bas,
+"les messages `LOG` du protocole partent sur le bus CAN, pas sur l'UART").
+**À retirer une fois le débitmètre validé**, ne pas oublier.
+
+Bit `flags` "capteur valide" généralisé la même session (voir
+`docs/firmware.md`, nouveau paragraphe "Convention `flags`") : bit0 réel sur
+`STATUS_PRESSURE` (détection I2C), fixé à 1 sur `STATUS_FLOW` (non
+détectable en GPIO seul). **Validé sur le vrai matériel** : XDB401 branché →
+`flags=0b01` sur toutes les trames `STATUS_PRESSURE` ; débranché →
+`flags=0b00` + `LOG I2C_ERROR arg16=127` en boucle, comme attendu.
+
 **Phase 5, XDB401 (pression/température), fait et validé sur le vrai
 capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : bus I2C
 (`esp_driver_i2c`, GPIO5 SDA / GPIO6 SCL, port R1), déclenchement de

@@ -2,8 +2,8 @@
 // par OTA. Voir docs/firmware-implementation.md et docs/firmware.md.
 //
 // Socle phase 2 (bus, PING/PONG, LOG, RESET, machine à états de sécurité)
-// plus, depuis la phase 5, le XDB401 (I2C, port R1). Pas encore de
-// débitmètre ni de logique d'infusion.
+// plus, depuis la phase 5, le XDB401 (I2C, port R1) et le débitmètre Digmesa
+// (GPIO, port R2). Pas encore de logique d'infusion.
 
 #include <cstring>
 
@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
+#include "esp_private/gpio.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -45,6 +46,11 @@ constexpr const char* kTag = "sensors";
 constexpr gpio_num_t kGpioSsr = GPIO_NUM_9;    // D10
 constexpr gpio_num_t kGpioCanTx = GPIO_NUM_8;  // D9
 constexpr gpio_num_t kGpioCanRx = GPIO_NUM_7;  // D8
+
+// Débitmètre Digmesa 932-9525-B, port R2 — voir docs/firmware.md,
+// "Débitmètre". Front descendant déjà mis en forme 3,3 V par le filtre RC du
+// shield (1 kΩ vers 3,3 V, 10 nF vers GND) : pull-up interne éteinte.
+constexpr gpio_num_t kGpioFlow = GPIO_NUM_44;  // D7
 
 // XDB401 (pression/température), port R1 — voir docs/firmware.md, "XDB401 —
 // pression et température" et docs/cablage.md. Bus I2C partagé avec le
@@ -113,6 +119,21 @@ SemaphoreHandle_t g_i2c_mutex = nullptr;
 uint16_t g_pressure_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_pressure_last_sent_us = 0;
 common::StatusPressurePayload g_last_pressure;  // dernière valeur connue (flags à jour)
+
+// Débitmètre — compteur incrémenté depuis l'ISR, lu depuis les tâches. Pas
+// de mutex : lecture d'un uint32_t/int64_t alignés sur un cœur unique, la
+// pire chose qui puisse arriver est un STATUS_FLOW envoyé avec l'horodatage
+// de l'impulsion juste précédente ou juste suivante, jamais une valeur
+// déchirée en pratique sur cette architecture.
+volatile uint32_t g_flow_pulse_count = 0;
+volatile int64_t g_flow_last_edge_us = 0;
+uint16_t g_flow_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
+int64_t g_flow_last_sent_us = 0;
+
+void IRAM_ATTR flow_isr_handler(void*) {
+  g_flow_pulse_count = g_flow_pulse_count + 1;
+  g_flow_last_edge_us = esp_timer_get_time();
+}
 
 // Flash — un seul transfert à la fois, pas de file d'attente. `partition`
 // non nul == transfert en cours (BEGIN reçu, END/ABORT pas encore traité).
@@ -189,6 +210,27 @@ void force_actuators_off() {
   apply_ssr();
 }
 
+void init_flow() {
+  gpio_config_t flow_cfg{};
+  flow_cfg.pin_bit_mask = 1ULL << kGpioFlow;
+  flow_cfg.mode = GPIO_MODE_INPUT;
+  flow_cfg.pull_up_en = GPIO_PULLUP_DISABLE;  // filtre RC du shield, pas la pull-up interne
+  flow_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  flow_cfg.intr_type = GPIO_INTR_NEGEDGE;
+  ESP_ERROR_CHECK(gpio_config(&flow_cfg));
+
+  // GPIO44 est le RX par défaut de la console UART0 (CONFIG_ESP_CONSOLE_UART_
+  // DEFAULT) : sans forcer nous-mêmes le pad en PIN_FUNC_GPIO, il reste sur
+  // sa fonction IOMUX de reset (U0RXD) et l'ISR ne voit jamais rien — même
+  // piège déjà rencontré et corrigé sur ce même GPIO côté screen/main.cpp
+  // (bug 1, régression IDF v5.x→v6.1 dans le forçage de pad).
+  gpio_func_sel(kGpioFlow, PIN_FUNC_GPIO);
+  gpio_input_enable(kGpioFlow);
+
+  ESP_ERROR_CHECK(gpio_install_isr_service(0));
+  ESP_ERROR_CHECK(gpio_isr_handler_add(kGpioFlow, flow_isr_handler, nullptr));
+}
+
 void init_i2c() {
   i2c_master_bus_config_t bus_cfg{};
   bus_cfg.i2c_port = -1;
@@ -220,7 +262,7 @@ void read_pressure() {
 
   if (err != ESP_OK) {
     send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kXdb401Addr);
-    g_last_pressure.flags &= ~0x01;  // I2C ok = 0
+    g_last_pressure.flags &= ~0x01;  // capteur invalide (I2C injoignable)
     return;
   }
 
@@ -277,7 +319,7 @@ void read_pressure() {
   if (err != ESP_OK) {
     send_log(common::LogCode::kXdb401Timeout, common::LogSeverity::kError);
     g_last_pressure.flags = static_cast<uint8_t>(g_last_pressure.flags | 0x02);  // timeout
-    g_last_pressure.flags &= ~0x01;
+    g_last_pressure.flags &= ~0x01;  // capteur invalide (conversion jamais terminée)
     return;
   }
 
@@ -290,13 +332,24 @@ void read_pressure() {
                                   (static_cast<uint32_t>(pressure_bytes[1]) << 8) |
                                   (static_cast<uint32_t>(pressure_bytes[2]) << 16);
   g_last_pressure.temperature_raw = static_cast<uint16_t>(temp_bytes[0]) | (static_cast<uint16_t>(temp_bytes[1]) << 8);
-  g_last_pressure.flags = 0x01;  // I2C ok, pas de timeout
+  g_last_pressure.flags = 0x01;  // capteur valide, pas de timeout
 }
 
 void send_status_pressure() {
   g_last_pressure.timestamp_ms = static_cast<uint16_t>((now_us() / 1000) & 0xFFFF);
   common::Frame f = g_last_pressure.pack();
   send_message(common::MessageType::kStatusPressure, common::Dest::kScreen, f.data(), 8);
+}
+
+void send_status_flow() {
+  common::StatusFlowPayload payload;
+  payload.pulse_count = g_flow_pulse_count;
+  payload.last_edge_ms = static_cast<uint16_t>((g_flow_last_edge_us / 1000) & 0xFFFF);
+  // bit0 toujours 1 : une entrée GPIO ne permet pas de détecter l'absence
+  // du débitmètre, voir le commentaire de StatusFlowPayload::flags.
+  payload.flags = 0x01;
+  common::Frame f = payload.pack();
+  send_message(common::MessageType::kStatusFlow, common::Dest::kScreen, f.data(), 7);
 }
 
 void mark_presence() {
@@ -363,9 +416,13 @@ void on_reqstatus_received(const uint8_t* data, size_t len) {
       }
       g_pressure_last_sent_us = 0;  // publie dès le prochain tick, pas d'attente d'une période complète
       break;
+    case common::MessageType::kStatusFlow:
+      g_flow_period_ms = payload.period_ms;
+      g_flow_last_sent_us = 0;  // publie dès le prochain tick, pas d'attente d'une période complète
+      break;
     default:
-      // Débitmètre pas encore câblé (prochaine étape) ; STATUS_ACTUATORS
-      // part déjà à chaque SET/STOP traité, pas de streaming périodique dédié.
+      // STATUS_ACTUATORS part déjà à chaque SET/STOP traité, pas de
+      // streaming périodique dédié.
       break;
   }
 }
@@ -706,6 +763,26 @@ void tick_ota_validation() {
   }
 }
 
+// Débitmètre : lecture d'un compteur incrémenté par ISR, non bloquante —
+// contrairement à la pression (I2C + délai de conversion), pas besoin d'une
+// tâche dédiée, un tick de plus dans safety_task suffit.
+void tick_flow() {
+  // DEBUG temporaire — bring-up débitmètre, à retirer une fois validé.
+  static int64_t s_last_debug_us = 0;
+  int64_t now = now_us();
+  if (now - s_last_debug_us > 500 * 1000) {
+    s_last_debug_us = now;
+    ESP_LOGI(kTag, "debug flow: level=%d pulses=%lu", gpio_get_level(kGpioFlow),
+             static_cast<unsigned long>(g_flow_pulse_count));
+  }
+
+  if (g_flow_period_ms == 0) return;
+  int64_t t = now_us();
+  if (t - g_flow_last_sent_us < static_cast<int64_t>(g_flow_period_ms) * 1000) return;
+  send_status_flow();
+  g_flow_last_sent_us = t;
+}
+
 void safety_task(void*) {
   for (;;) {
     tick_lease();
@@ -713,6 +790,7 @@ void safety_task(void*) {
     tick_runtime_lockout();
     tick_twai_counters();
     tick_ota_validation();
+    tick_flow();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }
 }
@@ -797,6 +875,7 @@ extern "C" void app_main() {
            s_lockout_active ? "actif" : "libre");
 
   init_i2c();
+  init_flow();
 
   xTaskCreate(twai_rx_task, "twai_rx", 4096, nullptr, 10, nullptr);
   xTaskCreate(safety_task, "safety", 4096, nullptr, 5, nullptr);

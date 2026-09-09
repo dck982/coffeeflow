@@ -116,7 +116,11 @@ struct StatusPressurePayload {
   uint32_t pressure_raw = 0;      // 24 bits utiles
   uint16_t temperature_raw = 0;   // 16 bits
   uint16_t timestamp_ms = 0;      // 16 bits bas
-  uint8_t flags = 0;              // bit0 I2C ok, bit1 timeout conversion
+  // bit0 capteur valide (détection réelle : le XDB401 répond sur I2C),
+  // bit1 timeout conversion. Voir la convention générale du bit0 dans
+  // docs/firmware.md, "Charges utiles" — même bit, même sens, sur tous les
+  // STATUS_* qui en ont un.
+  uint8_t flags = 0;
 
   Frame pack() const {
     Frame f{};
@@ -144,6 +148,11 @@ struct StatusPressurePayload {
 struct StatusFlowPayload {
   uint32_t pulse_count = 0;      // cumulé depuis reset
   uint16_t last_edge_ms = 0;     // 16 bits bas
+  // bit0 capteur valide — toujours 1 ici : une simple entrée GPIO ne permet
+  // pas de détecter l'absence du débitmètre (contrairement au XDB401 en
+  // I2C), seule l'absence d'impulsions attendues le laisse deviner
+  // (LOG FLOWMETER_SILENT). Même bit que StatusPressurePayload::flags, sens
+  // identique, juste jamais mis à 0 sur ce message.
   uint8_t flags = 0;
 
   Frame pack() const {
@@ -168,7 +177,10 @@ struct StatusActuatorsPayload {
   uint8_t dimmer = 0;
   uint16_t lease_remaining_ms = 0;
   uint16_t continuous_on_ms = 0;
-  uint8_t flags = 0;  // bit0 verrou actif, bit1 dimmer prêt, bit2 I2C ok
+  // bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C,
+  // même sens que le bit0 des autres STATUS_* — pas le bit0 ici, la place
+  // est prise par le verrou).
+  uint8_t flags = 0;
 
   Frame pack() const {
     Frame f{};

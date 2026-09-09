@@ -118,9 +118,26 @@ au pic → retour), confirmant la chaîne complète (I2C → CAN → pont écran
 
 **Débitmètre, SSR, dimmer et vérification de sécurité (bail/présence/
 verrou/réarmement) faits et validés depuis** (voir plus bas dans ce fichier,
-section phase 5) — **barrière B atteinte (2026-09-09)**. Prochaine étape :
-brancher pompe et vanne pour de vrai, ou avancer sur un autre chantier
-(purge/flush, phase 6) selon décision.
+section phase 5) — **barrière B atteinte (2026-09-09)**.
+
+**Prochaine tâche : OTA de `screen` lui-même** (point 3 de la checklist
+officielle de la phase 4, resté hors scope jusqu'ici — voir plus bas,
+« Phase 4, partie capteurs »). `firmware/screen/main/main.cpp` n'a
+aujourd'hui que le rôle de pont passif USB↔CAN ; il faut y ajouter la même
+logique de réception `FLASH_CTRL`/`FLASH_DATA` que celle déjà écrite et
+validée côté `sensors` (effacement de la partition OTA inactive, écriture
+par blocs avec CRC16, `PENDING_VERIFY` + timer d'invalidation, validation
+post-boot conditionnée au ping/pong CAN, rollback bootloader). C'est
+`coffeetool flash_client.py` qui reste la seule source du firmware dans les
+deux cas (`dest=Dest.SCREEN` au lieu de `Dest.SENSORS`, même client) — le
+flash de `screen` se fait Mac → USB → `screen`, sans passer par le CAN,
+`screen` étant à la fois pont et destinataire. Une fois ça fait et testé
+(image saine, image cassée avec rollback, coupure en plein transfert,
+symétriques aux essais déjà faits côté `sensors`), la barrière C sera
+complètement fermée.
+
+Une fois l'OTA de `screen` bouclé : brancher pompe et vanne pour de vrai,
+ou avancer sur un autre chantier (purge/flush, phase 6) selon décision.
 
 **Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
 `FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de
@@ -809,7 +826,11 @@ Le plus gros morceau, mais le moins risqué : l'écran reste atteignable en USB.
 2. **HTTP** — `GET` télémétrie, `POST` commandes, `POST` firmware avec cible. C'est le moment où le flash passe du câble série au réseau.
 3. **WebSocket** — miroir du trafic CAN, **même format qu'en USB**. L'outil Mac ne change pas, il change de transport.
 4. **Couche capteurs** — l'interface unique `{ horodatage, valeur brute, validité }` et les calibrations en NVS par-dessus. Les sources CAN d'abord.
-5. **BLE** — client GATT vers l'Acaia Lunar, comme une source de plus.
+5. **BLE** — client GATT vers l'Acaia Lunar, comme une source de plus. Code
+   de référence pour le protocole (cadrage des trames, décodage
+   poids/temps/boutons, heartbeat sans lequel la balance arrête d'émettre) :
+   `reference/acaia-ble/` — Arduino-ESP32, à porter vers l'API GATT native
+   ESP-IDF, pas à compiler tel quel (voir le `README.md` du dossier).
 6. **LVGL** — écran, tactile, et l'UI minimale : purge, départ d'infusion, arrêt.
 
 **Sortie :** l'écran se flashe et flashe les capteurs par le réseau, et l'outil Mac voit tout par WebSocket.

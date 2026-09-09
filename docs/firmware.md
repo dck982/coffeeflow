@@ -104,6 +104,12 @@ Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 | CAN → capteurs | pendant une infusion (commandes + télémétrie) |
 | Wi-Fi / HTTP | configuration, flash, envoi du shot en fin de cycle |
 
+Code de référence pour le protocole Acaia (cadrage des trames, décodage
+poids/temps/boutons, heartbeat obligatoire) : `reference/acaia-ble/`.
+C'est du code Arduino-ESP32 d'un projet antérieur, à ne pas compiler tel
+quel dans `firmware/screen` (qui est en ESP-IDF pur) — voir le `README.md`
+du dossier pour ce qui est réutilisable et ce qui ne l'est pas.
+
 Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LVGL et la boucle d'infusion sur un cœur ; Wi-Fi et pile BLE sur l'autre, là où Espressif les met déjà. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
 
 ### Les capteurs vus depuis l'écran
@@ -399,5 +405,15 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
 - **Tailles exactes des partitions**, une fois qu'on connaît le poids de l'application écran avec LVGL et BLE.
 - **Utilité du débitmètre en pré-infusion** — dépend du point de décrochage.
 - Passage éventuel à **1 Mbit/s** sur le bus, après mise en boîte.
+- ~~Stratégie de provisioning Wi-Fi~~ **Décidé (2026-09-09) : point d'accès
+  temporaire + page d'accueil**, pas de saisie tactile LVGL. Raisons :
+  testable dès le point 1 de la phase 6 (avant HTTP/WebSocket/BLE/LVGL), et
+  sert aussi de filet de secours (un SSID erroné en NVS rend l'écran
+  injoignable en Wi-Fi — voir « Ce qu'on oublie habituellement » dans
+  `firmware-implementation.md` — un AP de secours déclenché par bouton ou
+  échec de connexion répété rattrape ça, contrairement au tactile qui suppose
+  déjà LVGL en place). Stockage en NVS, déjà acquis.
+- **Charte graphique / design de l'UI écran** (phase 6, LVGL) — à définir,
+  session dédiée envisagée avec Opus.
 
 Séquence d'implémentation : `firmware-implementation.md`.

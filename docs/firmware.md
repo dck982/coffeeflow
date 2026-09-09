@@ -139,11 +139,68 @@ Première mouture de l'API :
 - `GET` / `POST` **`/config`** — toute la configuration en un seul objet JSON, voir ci-dessous
 - WebSocket — miroir de tout le trafic CAN, brut. C'est le sniffer une fois les cartes en boîte.
 
+#### L'heure vient du réseau, et ne sert jamais à mesurer
+
+L'ESP32-S3 n'a **pas de pile de sauvegarde** : son RTC ne compte que sous
+tension. Comme la machine est coupée à l'interrupteur entre deux sessions,
+l'heure murale n'est pas décalée au démarrage suivant, elle est **absente**.
+Elle est obtenue par **SNTP une seule fois, à l'association Wi-Fi**, avec le
+fuseau suisse et ses règles d'heure d'été figés dans le firmware. Pas de
+resynchronisation périodique : sur une session d'une trentaine de minutes, la
+dérive de l'oscillateur RC du domaine RTC ne gêne rien.
+
+**Tout ce qui mesure une durée utilise l'horloge monotone, jamais l'heure
+murale** : chronomètre d'infusion, phases, bail, péremption des valeurs,
+temporisateur d'invalidation OTA, seuils de veille. L'heure murale ne sert qu'à
+*étiqueter* — un shot, un événement. La raison est concrète : l'association
+Wi-Fi peut aboutir à n'importe quel moment, y compris en plein shot, et le pas
+SNTP qui suit décalerait ou ferait reculer tout chronomètre qui s'y appuierait.
+
+Tant qu'aucune synchronisation n'a abouti, un indicateur « heure connue » reste
+faux et **rien n'affiche ni n'horodate avec une heure fausse**.
+
+#### Envoi des shots vers `coffeetracker`
+
+**Hors phase 6**, mais les décisions ci-dessous se prennent avant, parce
+qu'elles coûtent cher à rattraper. **`coffeetracker`** — dépôt séparé, hors de
+ce projet, dont il faut demander l'accès plutôt que le chercher — est un
+magasin de shots déjà en service : FastAPI, un fichier JSON par shot,
+`Authorization: Bearer` sur les écritures — le **même schéma que l'API de
+l'écran**, avec les rôles inversés. C'est la première fois que l'écran est
+*client* HTTP et pas seulement serveur.
+
+- **La machine envoie `brewed_at`, en epoch Unix (ms, UTC).** Le backend
+  horodate aujourd'hui à la réception (`received_at`) parce que le M5Core2 qui
+  l'alimente n'a pas d'horloge. Il garde ce champ tel quel ; `brewed_at`
+  s'ajoute et fait autorité quand il est présent. Les shots déjà stockés et le
+  M5Core2 continuent de fonctionner sans rien changer.
+- **L'horodatage est pris au *départ* du shot**, converti depuis l'horloge
+  monotone à cet instant, et transporté avec lui. Pas au moment de l'envoi :
+  c'est exactement ce qui casse si un shot attend dans le tampon.
+- **Un shot non envoyé est mis de côté et réessayé**, d'où le besoin d'une
+  partition de données. Sans tampon, l'horloge embarquée n'apporte rien de plus
+  que l'horodatage serveur actuel : le tampon *est* la raison d'être de tout ce
+  paragraphe.
+- **L'URL et la clé du serveur vivent dans la configuration**, la clé en
+  écriture seule — jamais renvoyée par `GET /config`, comme le mot de passe
+  Wi-Fi.
+- **Ne jamais réécrire les champs déclarés du profil avec des mesures.**
+  `brew_temp_c` et `pressure_bar` du profil `coffeetracker` sont des valeurs
+  *saisies par l'opérateur*, pas des mesures. L'écran, lui, aura la pression et
+  la température **mesurées**. Les faire arriver sous les mêmes noms
+  changerait le sens de ces colonnes au milieu du jeu de données, et rendrait
+  incomparables les shots d'avant et d'après. Les mesures s'ajoutent sous
+  leurs propres noms.
+
+La politique radio joue déjà correctement ici : le Wi-Fi est coupé pendant le
+shot, l'envoi a donc lieu après le cycle — ce que dit déjà le tableau des
+travaux concurrents.
+
 #### `/config` — toute la configuration en un objet JSON
 
 **`GET /config` renvoie l'intégralité de ce qui est réglable, `POST /config` le
 remplace.** Rien de configurable ne doit exister uniquement dans l'écran
-tactile : réglages d'infusion, profils, calibrations, luminosité, veille. Deux
+tactile : réglages d'infusion, profils, calibrations, seuils de veille. Deux
 raisons, et la première suffirait :
 
 - **Sauvegarde et restauration depuis un hôte distant.** Toutes ces valeurs
@@ -183,7 +240,7 @@ Règles qui rendent ça utilisable plutôt que dangereux :
   "preinfusion": { "mode": "time", "time_s": 6, "pressure_bar": 4.0, "pump_pct": 30 },
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
   "purge": { "pump_pct": 100, "max_s": 20 },
-  "ui": { "brightness_pct": 80, "dim_after_s": 300 },
+  "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
   "calibration": {
     "flow_k_pulses_per_l": 2382, "flow_low_correction": [],
     "pressure_full_scale_bar": 10.0,

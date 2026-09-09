@@ -199,7 +199,7 @@ Un bouton fait **88 px de haut**, jamais moins. Largeur selon le texte, minimum
 
 ---
 
-## Structure : quatre niveaux de statut
+## Structure : cinq niveaux de statut
 
 Le statut n'est pas un écran, c'est **un niveau d'intensité** qui change selon
 ce que la machine fait. C'est ce qui permet d'avoir le poids central pendant un
@@ -211,6 +211,7 @@ brew by weight et discret le reste du temps, sans dupliquer les écrans.
 | **L1 — héros** | infusion, purge | une valeur à 104 px au centre + son filet de progression + deux valeurs secondaires à 40 px ; le bandeau L0 reste, atténué |
 | **L2 — plein écran** | boot, OTA, faute, verrou | tout le reste disparaît ; un titre, une phrase, éventuellement un filet de progression |
 | **L3 — feuille** | profils, pavé numérique | recouvre le bas de l'écran sur `bg_raised`, le bandeau L0 reste visible |
+| **L4 — veille** | 30 min sans touche ni infusion | recouvre tout ; un petit bloc qui se déplace lentement. Voir « Veille » |
 
 **Quelle valeur est héros en L1** : c'est la cible qui décide, pas un réglage.
 
@@ -332,8 +333,9 @@ d'autre dans l'UI n'a à changer le jour où ils arrivent.
 Même grammaire que le repos : une liste de lignes de 88 px, valeur à droite,
 `−`/`+` au tap sur la ligne. Contenu : cible temps, cible poids, stratégie de
 pré-infusion (temps fixe / attente de pression, avec le seuil), stratégie de
-ramp-down (temps avant fin / poids / chute de pression), luminosité, Wi-Fi,
-calibrations, version du firmware.
+ramp-down (temps avant fin / poids / chute de pression), Wi-Fi (dont
+*réinitialiser le réseau*, avec confirmation), calibrations, version du
+firmware. **Pas de luminosité** : voir « Veille ».
 
 Les stratégies sont des **choix parmi 2-3**, présentés en segments côte à côte
 (contour, celui qui est actif en ambre), pas en menu déroulant — un déroulant
@@ -420,12 +422,71 @@ fonctionne serait pire que d'afficher la panne.
   long (sauf éventuellement un accès de service caché dans *réglages*), pas de
   double appui. Un capacitif derrière une vitre, avec un doigt humide, ne
   reconnaît un geste qu'une fois sur deux.
-- **Veille** : au bout de 5 min sans touche ni infusion, rétroéclairage à 20 %
-  (PWM). Au bout de 30 min, à 0 % — l'écran reste allumé logiquement, la
-  première touche le rallume. Ne jamais éteindre la dalle : le
-  ré-initialiser prend du temps et fait un flash blanc.
+- **Veille** : voir la section dédiée ci-dessous. Le rétroéclairage n'est
+  **jamais** éteint et n'est jamais modulé — il est sur EXIO2 du CH422G, une
+  sortie tout ou rien sans PWM ; l'atténuation est un calque LVGL. La dalle
+  n'est jamais ré-initialisée : ça prend du temps et fait un flash blanc.
 
 ---
+
+## Veille
+
+**La machine est allumée par session d'une trentaine de minutes** — chauffe,
+un ou deux shots, puis on coupe à l'interrupteur. C'est cette durée qui décide
+de toute la veille, et elle explique pourquoi **il n'y a pas de réglage de
+luminosité** : sur une session aussi courte, personne n'ira chercher un
+curseur, et la seule luminosité utile est le maximum. Ce qu'il faut à la place
+est une courbe automatique, à trois temps.
+
+| Temps sans touche ni infusion | État | Ce qui se passe |
+| --- | --- | --- |
+| 0 | pleine intensité | l'écran normal, tel que décrit plus haut |
+| **4 min** | atténué | un calque noir à ~50 % d'opacité au-dessus de l'arbre. Rien ne bouge, rien ne disparaît : l'écran reste lisible de près, il cesse juste d'éclairer la cuisine |
+| **30 min** | veille (L4) | tout est recouvert par un bloc unique qui se déplace |
+
+Trois choses que cette veille **ne fait pas** :
+
+- **Elle ne module pas le rétroéclairage.** Il est sur EXIO2 du CH422G, une
+  sortie tout ou rien, sans PWM. L'atténuation est un calque LVGL noir dont on
+  change l'opacité — un seul palier, donc un seul objet, et un repeint par
+  transition (pas une animation, la contrainte de bande passante ne s'y
+  applique pas).
+- **Elle n'éteint jamais la dalle.** Un écran noir dans une façade noire se lit
+  comme une machine éteinte, alors qu'elle est chaude et sous tension. C'est
+  précisément l'information qu'on ne veut pas effacer.
+- **Elle ne se déclenche jamais pendant une infusion ou une purge**, ni
+  pendant une mise à jour. Le compteur repart de zéro à chaque touche et à
+  chaque changement d'état.
+
+### Le bloc de veille
+
+Un seul bloc, centré sur lui-même, qui **change de position toutes les 60 s**
+en tirant au sort un emplacement dans une zone en retrait de 80 px des bords.
+Il contient, en `text_dim` sur `bg` :
+
+- la **température du groupe**, en gros — c'est la seule chose qu'on veut
+  savoir de loin sur une machine qui chauffe depuis vingt minutes, et elle est
+  déjà là (`STATUS_PRESSURE` porte la température) ;
+- **l'heure**, en dessous, **uniquement si elle est connue** — c'est-à-dire si
+  le Wi-Fi s'est associé et que le SNTP a abouti (`firmware.md`, « L'heure
+  vient du réseau »). Sans réseau, la ligne est simplement absente : pas de
+  `--:--`, pas d'heure fausse. C'est la seule horloge de toute l'interface, et
+  elle n'existe qu'ici, là où l'écran n'a rien de mieux à montrer ;
+- le nom du profil courant, en étiquette.
+
+Le déplacement n'est pas de la prévention de marquage : cette dalle est un LCD,
+une image fixe ne lui fait rien. C'est une preuve de vie — un écran qui bouge
+lentement dit « allumée, au repos » sans avoir à l'écrire.
+
+**Réveil** : n'importe quelle touche ramène l'écran normal à pleine intensité,
+et **ne déclenche aucune action** (règle déjà posée dans les cas limites).
+Une infusion, une purge, une mise à jour ou une faute réveillent aussi l'écran,
+et les plein écran L2 préemptent la veille comme ils préemptent tout le reste.
+
+Les deux seuils (4 min, 30 min) sont en NVS mais **ne sont pas dans l'écran de
+réglages** : ce sont des valeurs qu'on ajuste une fois, depuis `/config`, si
+jamais on les ajuste. Une ligne de plus dans les réglages tactiles coûte plus
+cher qu'elle ne rapporte.
 
 ---
 
@@ -614,7 +675,7 @@ ici pour ne pas l'être à ce moment-là.
 | **Appui sur `+` au-delà du maximum** | la valeur bute, le bouton passe en `text_faint`. Pas de bip, pas de secousse, pas de bouclage à la valeur minimale. |
 | **Trame `STATUS_*` reçue pendant un L2** | le modèle est mis à jour, l'affichage ne change pas. Le retour du L2 montre des valeurs fraîches, jamais gelées. |
 | **Appui pendant une infusion, ailleurs que sur *arrêter*** | ignoré, aucun retour visuel. Le reste de l'écran n'est pas une cible. |
-| **Réveil du rétroéclairage** | la touche qui rallume **ne déclenche aucune action**. Réveiller et agir sont deux gestes. |
+| **Réveil depuis l'atténuation ou la veille** | la touche qui réveille **ne déclenche aucune action**. Réveiller et agir sont deux gestes. |
 | **Wi-Fi coupé au départ d'une infusion** | l'icône s'atténue, rien d'autre. Pas de message, pas de `fault` : c'est la politique radio (`firmware.md`), pas une panne. Elle se rallume seule au retour au repos. |
 | **Wi-Fi jamais configuré** | icône atténuée en permanence. Aucun rappel, aucune invitation à configurer : la machine fait café sans réseau. |
 | **Diagnostic ouvert quand le bus tombe** | la feuille se ferme et laisse la place au L2 « module injoignable » — la priorité des plein écran s'applique aussi aux feuilles. |
@@ -691,8 +752,13 @@ remplacement de XIAO ne fait rien perdre). Espace de noms `ui`.
 | Niveau pompe infusion | `br_pct` | 100 % | 20 % | 100 % | 5 % |
 | Niveau pompe purge | `pg_pct` | 100 % | 20 % | 100 % | 5 % |
 | Purge, durée maximale | `pg_max` | **20 s** | 5 s | 60 s | 5 s |
-| Luminosité | `bright` | 80 % | 10 % | 100 % | 10 % |
-| Veille (atténuation) | `dim_s` | 300 s | 60 s | 1800 s | 60 s |
+| Atténuation après | `dim_s` | **240 s** | 60 s | 1800 s | 60 s |
+| Veille après | `sby_s` | **1800 s** | 300 s | 3600 s | 300 s |
+
+Les deux dernières lignes n'apparaissent **pas** dans l'écran de réglages
+tactile (voir « Veille ») : elles ne vivent qu'en NVS et dans `/config`. Il n'y
+a **pas de réglage de luminosité** — la session dure une trentaine de minutes,
+la seule intensité utile est le maximum, et l'atténuation est automatique.
 
 Ces défauts sont des points de départ raisonnables, pas des vérités : ils
 seront ajustés à la calibration (`firmware.md`, section dédiée). Ce qui compte

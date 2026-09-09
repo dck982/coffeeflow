@@ -866,6 +866,17 @@ cette phase et se met à jour par le bus.
 
 Le plus gros morceau, mais le moins risqué : l'écran reste atteignable en USB.
 
+**Plan d'implémentation détaillé, lot par lot, avec critères de sortie :
+`docs/plan-phase6.md`** (écrit le 2026-09-09, avant le code). Il pose d'abord
+une frontière — **le cœur machine**, une interface unique portant les sorties,
+les actions et la configuration, dont LVGL et HTTP sont deux clients sans
+privilège — puis réordonne les six points ci-dessous en conséquence : un écran
+de service dès le début (pour que la dalle serve, et pour révéler tôt le
+conflit CH422G entre le transceiver CAN et le LCD), la couche capteurs
+(point 4) avant le réseau, le BLE (point 5) avant LVGL, et l'infusion écrite et
+validée sans écran. S'y ajoute le gel des images factory, seul oubli
+irréversible de la phase. Les raisons de chaque inversion y sont argumentées.
+
 1. **Réseau** — provisioning Wi-Fi (point d'accès + page d'accueil suffit ; la saisie tactile peut attendre LVGL), identifiants en NVS, secret HTTP dans un en-tête non commité. Prévoir **un moyen d'effacer la NVS depuis l'image factory** : un SSID erroné enregistré rend l'écran injoignable en Wi-Fi, et c'est l'USB qui doit pouvoir rattraper ça.
 2. **HTTP** — `GET` télémétrie, `POST` commandes, `POST` firmware avec cible. C'est le moment où le flash passe du câble série au réseau.
 3. **WebSocket** — miroir du trafic CAN, **même format qu'en USB**. L'outil Mac ne change pas, il change de transport.

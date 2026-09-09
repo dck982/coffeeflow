@@ -767,15 +767,6 @@ void tick_ota_validation() {
 // contrairement à la pression (I2C + délai de conversion), pas besoin d'une
 // tâche dédiée, un tick de plus dans safety_task suffit.
 void tick_flow() {
-  // DEBUG temporaire — bring-up débitmètre, à retirer une fois validé.
-  static int64_t s_last_debug_us = 0;
-  int64_t now = now_us();
-  if (now - s_last_debug_us > 500 * 1000) {
-    s_last_debug_us = now;
-    ESP_LOGI(kTag, "debug flow: level=%d pulses=%lu", gpio_get_level(kGpioFlow),
-             static_cast<unsigned long>(g_flow_pulse_count));
-  }
-
   if (g_flow_period_ms == 0) return;
   int64_t t = now_us();
   if (t - g_flow_last_sent_us < static_cast<int64_t>(g_flow_period_ms) * 1000) return;

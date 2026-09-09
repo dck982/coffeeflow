@@ -2,51 +2,59 @@
 
 ## Où on en est
 
-**Phase 5, débitmètre (Digmesa, GPIO 44/D7), en cours — bloqué à 0 impulsion,
-pas encore résolu (2026-09-09).** `firmware/sensors/main/main.cpp` :
-`init_flow()` configure GPIO44 en entrée, interruption front descendant,
-pull-up interne éteinte (le filtre RC du shield en tient lieu). ISR
-(`flow_isr_handler`) incrémente `g_flow_pulse_count` (32 bits) et mémorise
-`g_flow_last_edge_us`. `on_reqstatus_received` gère `kStatusFlow` (pas de
-plancher de période, contrairement au XDB401 — rien ne l'impose côté GPIO) ;
-`tick_flow()` (dans `safety_task`, pas de tâche dédiée : lecture non
-bloquante) publie `STATUS_FLOW` à la période demandée.
+**Phase 5, débitmètre (Digmesa, GPIO 44/D7), fait et validé sur le vrai
+capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : `init_flow()`
+configure GPIO44 en entrée, interruption front descendant, pull-up interne
+éteinte (le filtre RC du shield en tient lieu). ISR (`flow_isr_handler`)
+incrémente `g_flow_pulse_count` (32 bits) et mémorise `g_flow_last_edge_us`.
+`on_reqstatus_received` gère `kStatusFlow` (pas de plancher de période,
+contrairement au XDB401 — rien ne l'impose côté GPIO) ; `tick_flow()` (dans
+`safety_task`, pas de tâche dédiée : lecture non bloquante) publie
+`STATUS_FLOW` à la période demandée. **Validé en soufflant dans le
+capteur** : `pulses` reste stable à 0 au repos, grimpe pendant le souffle
+(0→19 sur un souffle), se stabilise à l'arrêt de la turbine — comportement
+propre, pas de rafale parasite.
 
-**Bug trouvé et corrigé en cours de route, mais qui ne suffit pas** : GPIO44
-est le RX par défaut de la console UART0 (`CONFIG_ESP_CONSOLE_UART_DEFAULT`,
+**Bug logiciel trouvé et corrigé en cours de route** : GPIO44 est le RX par
+défaut de la console UART0 (`CONFIG_ESP_CONSOLE_UART_DEFAULT`,
 `sensors/sdkconfig`) — sans forcer le pad en `PIN_FUNC_GPIO`, il reste sur sa
-fonction IOMUX de reset (`U0RXD`) et ne remonte jamais rien à l'ISR. **Exactement
-le même piège que le bug 1 de la phase 3** (voir plus bas, `screen`), sur le
-même GPIO, corrigé de la même façon (`gpio_func_sel(kGpioFlow,
-PIN_FUNC_GPIO)` + `gpio_input_enable()`, `esp_private/gpio.h`). Après ce
-correctif, un `ESP_LOGI` de debug direct (`gpio_get_level(kGpioFlow)`, lu en
-USB natif sur `sensors`, pas via CAN) confirme que le pad est bien lisible en
-GPIO simple (`level=1` au repos, cohérent avec un NPN open collector au
-repos tiré haut) — **mais aucune impulsion n'est comptée malgré plusieurs
-souffles francs dans le capteur, turbine visiblement en rotation.**
-`g_flow_pulse_count` reste à 0, `level` reste figé à `1` tout du long
-(aucune transition observée, même passagère).
+fonction IOMUX de reset (`U0RXD`) et ne remonte jamais rien à l'ISR.
+**Exactement le même piège que le bug 1 de la phase 3** (voir plus bas,
+`screen`), sur le même GPIO, corrigé de la même façon
+(`gpio_func_sel(kGpioFlow, PIN_FUNC_GPIO)` + `gpio_input_enable()`,
+`esp_private/gpio.h`) — resté en place dans le code final, nécessaire.
 
-Piste non encore vérifiée, à creuser en priorité à la reprise : tension
-mesurée au multimètre sur le connecteur du débitmètre, **GND↔VCC = 5,14 V,
-GND↔SIGNAL = 2,64 V au repos**. Le repos attendu d'après `docs/firmware.md`
-("filtre RC du shield, 1 kΩ vers 3,3 V, 10 nF vers GND") serait proche de
-3,3 V, pas 2,64 V — l'écart (~0,66 V) est trop grand pour n'être qu'un effet
-de charge du multimètre. Deux hypothèses à trancher avant de reprendre le
-firmware : (a) le port réellement câblé n'est pas R2/D7 tel que documenté
-(mauvais port, mauvais GPIO), (b) le filtre RC du shield ne se comporte pas
-comme documenté sur cet exemplaire (résistance/tension de pull-up
-différentes, ou pull-up vers 5 V divisée plutôt que vers 3,3 V) — dans les
-deux cas, ça pourrait expliquer une absence totale de transition si le
-niveau ne bouge jamais assez bas/haut, ou si le vrai signal n'arrive
-simplement pas sur GPIO44.
+**Mais ce correctif logiciel ne suffisait pas** : après l'avoir appliqué,
+toujours 0 impulsion malgré des souffles francs. Séance de diagnostic
+électrique complète avant de trouver la vraie cause :
 
-Debug temporaire laissé en place dans `tick_flow()` (`main.cpp`, commentaire
-"DEBUG temporaire — bring-up débitmètre, à retirer une fois validé") : log
-`ESP_LOGI` toutes les 500 ms avec `level`/`pulses`, à lire en USB direct sur
-le port `sensors` (pas via CAN — voir la remarque déjà documentée plus bas,
-"les messages `LOG` du protocole partent sur le bus CAN, pas sur l'UART").
-**À retirer une fois le débitmètre validé**, ne pas oublier.
+- Tension de repos anormale mesurée sur GPIO44 (`GND↔SIGNAL = 2,64 V` au
+  lieu des ~3,3 V attendus du filtre RC).
+- Comparaison avec `tests/test_flowmeter.py` (banc Atom S3R, pull-up
+  interne, pas de filtre RC) : reproduit sur GPIO2/D1/L2 avec pull-up interne
+  — comptage en rafale incontrôlée (~50 000/s en continu, souffle ou pas),
+  signature d'une ligne qui oscille plutôt que d'un vrai signal.
+- Mesure ADC directe sur ce même GPIO2 (`adc_oneshot`, min/max sur fenêtre de
+  20 ms) : ~0 V systématique, alors que le multimètre lisait 1,6 V au même
+  point — écart explicable par un signal qui bascule trop vite pour la
+  moyenne lente d'un multimètre, cohérent avec l'hypothèse d'oscillation.
+
+**Cause racine réelle, trouvée après coup : SIGNAL et VCC étaient inversés au
+câblage**, pas un défaut du filtre RC ni un bug firmware. Le connecteur du
+Digmesa est un **PANCOM** (introuvable dans le commerce), sur lequel un câble
+VH3.96 classique s'enfiche à l'envers — d'où des couleurs qui ne portent pas
+les signaux qu'on attendrait (`rouge=SIGNAL`, `noir=GND`, `jaune=VCC` côté
+capteur, pas `rouge=VCC` comme documenté initialement). Corrigé en
+intervertissant rouge et jaune au niveau du JST SM femelle fait maison, en
+aval de cette inversion. Détail complet du câblage réel dans
+`docs/cablage.md`, section "Câble du Digmesa (R2)".
+
+Debug temporaire retiré une fois la cause confirmée : `tick_flow()` n'a plus
+le log `ESP_LOGI` `level`/`pulses` qui avait servi au diagnostic (utile
+seulement en USB direct sur `sensors`, pas via CAN — voir la remarque déjà
+documentée plus bas, "les messages `LOG` du protocole partent sur le bus
+CAN, pas sur l'UART"). GPIO44/R2 est la configuration finale, aucune
+expérimentation (GPIO2, ADC, pull-up interne) n'est restée dans le code.
 
 Bit `flags` "capteur valide" généralisé la même session (voir
 `docs/firmware.md`, nouveau paragraphe "Convention `flags`") : bit0 réel sur

@@ -188,15 +188,46 @@ l'emballage annonce 5 V, mais l'émulation XDB401 est complète en 3,3 V (vérif
 
 ### Câble du Digmesa (R2)
 
-Trois fils côté **JST SM 3 poles**, qui se séparent :
+**Piège rencontré et corrigé (2026-09-09), après une session entière de diagnostic
+électrique qui a d'abord fait suspecter le firmware/le filtre RC** : le connecteur du
+capteur est un **PANCOM** (introuvable dans le commerce pour ce remplacement), sur lequel
+un câble **VH3.96 3 pôles classique s'enfiche à l'envers** — les pastilles du connecteur
+sensé être complémentaire ne sont pas dans le même ordre. Conséquence, côté capteur,
+**les couleurs ne portent pas les signaux qu'on attendrait d'un VH3.96 standard** :
 
-| Fil | Va vers |
+| Fil (côté capteur, VH3.96) | Signal réel |
+| --- | --- |
+| **rouge** | SIGNAL |
+| **noir** | GND |
+| **jaune** | VCC |
+
+Ce câble VH3.96 se termine sur un **connecteur JST SM 3 pôles mâle fait maison** (serti à
+la main, pas un pigtail acheté). Il s'enfiche dans un **JST SM 3 pôles femelle**, lui aussi
+fait maison, au bout d'un tronçon de câble Grove : c'est **à cette jonction femelle qu'a
+été appliqué le correctif** — rouge et jaune y ont été **intervertis** pour compenser
+l'inversion en amont, afin que le reste de la chaîne (Grove → shield, fil vers la Wago)
+retrouve la bonne identité de signal malgré le VH3.96 câblé à l'envers côté capteur.
+
+En aval de ce correctif, la chaîne redonne exactement ce qu'attend le firmware :
+
+| Fil (après le JST SM femelle) | Va vers |
 | --- | --- |
 | **noir** (GND) | serti dans le connecteur **Grove** → port R2 |
 | **jaune** (signal) | serti dans le même connecteur Grove → **GPIO 44** (D7 sur le silkscreen) |
 | **rouge** (5 V) | seul, dans la **Wago du compartiment nord-ouest** |
 
-Côté capteur, le câble est en **VH3.96** : rouge VCC, noir GND, jaune signal.
+Le câble Grove utilisé pour ce tronçon a 4 fils de base (noir/rouge/blanc/jaune) ; seuls
+**noir et jaune sont sertis dans le connecteur Grove**, **blanc et rouge sont coupés à ras**
+à cet endroit (le VCC de ce câble-ci ne sert pas, le 5 V arrive par le fil rouge séparé
+jusqu'à la Wago, pas par le connecteur Grove).
+
+**Symptôme observé avant correction** : tension de repos anormale sur GPIO 44 (~2,64 V au
+lieu des ~3,3 V attendus du filtre RC), et surtout **aucune impulsion jamais comptée**
+malgré une turbine visiblement en rotation — le signal réel (rouge) était en fait câblé sur
+la broche VCC en aval, et le VCC réel (jaune) sur la broche signal, avant l'inversion
+corrective au JST SM femelle. Voir `docs/firmware-implementation.md` pour le détail de la
+session de diagnostic (comparaison avec `tests/test_flowmeter.py`, tentative sur GPIO2/pull-up
+interne, mesures ADC) qui a fini par isoler ce câblage plutôt qu'un bug logiciel.
 
 **Filtre RC**, soudé sur les pastilles à gauche du XIAO (1 = 5 V, 2 = GND, 3 = 3V3,
 D7 = GPIO 44) :

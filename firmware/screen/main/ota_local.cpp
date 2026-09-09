@@ -203,7 +203,7 @@ void init_pending_verify() {
 bool pending_verify() { return g_ota_pending_verify; }
 
 void start_validation_task() {
-  xTaskCreatePinnedToCore(ota_validation_task, "ota_valid", 4096, nullptr, 5, nullptr, 1);
+  xTaskCreatePinnedToCore(ota_validation_task, "ota_valid", 4096, nullptr, 5, nullptr, 0);
 }
 
 void on_flash_ctrl_received(const uint8_t* data, size_t len) {

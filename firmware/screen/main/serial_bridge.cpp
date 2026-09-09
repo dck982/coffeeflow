@@ -140,8 +140,8 @@ void write_raw(const uint8_t* data, size_t len) {
 }
 
 void start_tasks() {
-  xTaskCreatePinnedToCore(can_to_serial_task, "can2ser", 4096, nullptr, 10, nullptr, 1);
-  xTaskCreatePinnedToCore(serial_to_can_task, "ser2can", 4096, nullptr, 10, nullptr, 1);
+  xTaskCreatePinnedToCore(can_to_serial_task, "can2ser", 4096, nullptr, 10, nullptr, 0);
+  xTaskCreatePinnedToCore(serial_to_can_task, "ser2can", 4096, nullptr, 10, nullptr, 0);
 }
 
 }  // namespace serial_bridge

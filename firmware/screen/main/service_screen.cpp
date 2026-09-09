@@ -10,6 +10,7 @@
 #include "esp_lvgl_port.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "board.h"
@@ -168,8 +169,8 @@ esp_lcd_touch_handle_t init_touch() {
 
 void init_lvgl_port(esp_lcd_panel_handle_t panel_handle, esp_lcd_touch_handle_t touch_handle) {
   lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-  // LVGL sur le cœur 1, avec le reste des tâches CAN/pont/infusion
-  // (docs/plan-phase6.md, "Répartition sur les cœurs").
+  // LVGL et ISR LCD sur le cœur 1 (docs/screen-issue.md) : l'ISR préempte
+  // les écritures framebuffer au lieu de les concurrencer depuis le cœur 0.
   lvgl_cfg.task_affinity = 1;
   lvgl_cfg.task_stack = 12 * 1024;
   ESP_ERROR_CHECK(lvgl_port_init(&lvgl_cfg));
@@ -309,9 +310,11 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
   }
 }
 
-}  // namespace
-
-void init() {
+// L'ISR LCD est attachée au cœur qui appelle esp_lcd_new_rgb_panel.
+// docs/screen-issue.md : l'installer depuis le cœur 1, avec LVGL, pour
+// qu'elle préempte les écritures framebuffer au lieu de les concurrencer
+// depuis app_main (cœur 0).
+void init_on_core1() {
   // Dalle et tactile alimentés uniquement via l'état CH422G maintenu en RAM
   // (board::panel_power_on(), voir board.cpp) — jamais un accès direct au
   // registre de sortie partagé avec CAN_SEL.
@@ -328,16 +331,43 @@ void init() {
   init_lvgl_port(panel_handle, touch_handle);
 
   can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug, 5);
-  if (lvgl_port_lock(0)) {
+  // Timeout non nul : cette tâche est volontairement sous la priorité LVGL
+  // (4), donc le mutex peut être relâché. Un timeout 0 sauterait l'UI si
+  // la tâche LVGL tenait déjà le verrou au premier tick.
+  if (lvgl_port_lock(1000)) {
     build_ui();
+    lv_timer_create(refresh_timer_cb, kRefreshPeriodMs, nullptr);
     lvgl_port_unlock();
   }
 
   can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug, 6);
   core::events::push(core::EventKind::kBoot);
-
-  lv_timer_create(refresh_timer_cb, kRefreshPeriodMs, nullptr);
   can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug, 7);
+}
+
+void lcd_init_task(void* arg) {
+  init_on_core1();
+  xSemaphoreGive(static_cast<SemaphoreHandle_t>(arg));
+  vTaskDelete(nullptr);
+}
+
+}  // namespace
+
+void init() {
+  if (xPortGetCoreID() == 1) {
+    init_on_core1();
+    return;
+  }
+
+  SemaphoreHandle_t done = xSemaphoreCreateBinary();
+  ESP_ERROR_CHECK(done != nullptr ? ESP_OK : ESP_ERR_NO_MEM);
+  // Priorité 3 < LVGL (4) : évite un deadlock sur le mutex LVGL si l'ISR
+  // ou la tâche LVGL le tiennent déjà sur ce même cœur.
+  BaseType_t created =
+      xTaskCreatePinnedToCore(lcd_init_task, "lcd_init", 12 * 1024, done, 3, nullptr, 1);
+  ESP_ERROR_CHECK(created == pdPASS ? ESP_OK : ESP_FAIL);
+  xSemaphoreTake(done, portMAX_DELAY);
+  vSemaphoreDelete(done);
 }
 
 }  // namespace service_screen

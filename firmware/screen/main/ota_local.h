@@ -16,7 +16,7 @@ void init_pending_verify();
 bool pending_verify();
 
 // Crée la tâche de validation (PING/PONG confirmé ou rollback au bout de
-// 30 s), épinglée sur le cœur 1.
+// 30 s), épinglée sur le cœur 0 avec le pont TWAI/UART.
 void start_validation_task();
 
 void on_flash_ctrl_received(const uint8_t* data, size_t len);

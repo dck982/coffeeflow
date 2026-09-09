@@ -13,10 +13,12 @@ présence), `serial_bridge.h/.cpp` (pont série↔CAN, code déplacé tel quel),
 `ota_proxy.h/.cpp` (stub vide, rien à déplacer — cette logique n'existe pas
 encore côté écran, elle arrive au lot 7), `core/core.h` (façade à trois faces,
 stub, à remplir aux lots 3/4/9). `main.cpp` ne fait plus qu'`app_main` (62
-lignes). Les trois tâches (`can2ser`, `ser2can`, `ota_valid`) sont désormais
+lignes). Les trois tâches (`can2ser`, `ser2can`, `ota_valid`) étaient alors
 épinglées explicitement au cœur 1 (`xTaskCreatePinnedToCore`), seul
-changement de comportement runtime, voulu par le plan. Aucune autre logique
-modifiée — uniquement déplacée.
+changement de comportement runtime du lot, voulu par le plan d'alors. Aucune
+autre logique modifiée — uniquement déplacée. **Cette répartition a été
+révisée au lot 2** (pont et OTA sur le cœur 0, LCD/LVGL seuls sur le
+cœur 1 — voir plus bas).
 
 `idf.py build` réussi depuis `firmware/screen/`, aucune erreur ni warning.
 **Les trois essais de la barrière C rejoués sans régression après le
@@ -25,14 +27,15 @@ chacun avec node/version/uptime cohérents), flash OTA de `sensors` par le CAN
 (v0.2.7→0.2.8, confirmé dans le `PONG` après reboot), flash OTA de `screen`
 par lui-même (v0.2.8→0.2.9, confirmé dans le `PONG` après reboot). Lot 1 clos.
 
-**Lot 2 (écran de service), bloqué en cours sur un glitch visuel résiduel du
-panneau RGB (2026-09-09) — pas fermé.** L'essentiel du lot est écrit et
-fonctionne (`service_screen.cpp` : `esp_lcd` RGB 800×480 + GT911 +
+**Lot 2 (écran de service), fait et vérifié sur le vrai matériel
+(2026-09-09).** `service_screen.cpp` : `esp_lcd` RGB 800×480 + GT911 +
 `esp_lvgl_port`, bring-up CH422G via l'état RAM du lot 1, écran de service
-avec version/CAN/événements/coordonnées tactiles). Bloqué sur le critère de
-sortie "texte stable" : reste tenu pour l'instant à un état ~90 % stable
-(voir détail de l'investigation ci-dessous), pas encore jugé suffisant pour
-clore le lot.
+avec version/CAN/événements/coordonnées tactiles. Le glitch visuel résiduel
+(sauts / décalage horizontal sur contenu qui change) est **corrigé** sur
+l'image `v0.2.20` — écran parfaitement stable, observé par David sur le banc.
+Détail du correctif et de l'investigation ci-dessous ; consigné aussi dans
+`docs/screen-issue.md`. Lot 2 clos. Prochaine étape : lot 3 (cœur, face
+sorties).
 
 Investigation menée, dans l'ordre :
 
@@ -103,41 +106,19 @@ sur cette base (rien ne dit qu'un downgrade réglerait un problème de
 contention CAN/série, qui n'est pas spécifique à une version d'IDF) — reste
 possible plus tard si une autre piste l'indique, pas la prochaine étape.
 
-**Contre-test fait dans la foulée : le glitch reste présent même avec l'UART
-désactivé** (constaté par David directement sur le banc, pas via un firmware
-dédié préparé dans cette session — à re-confirmer avec un vrai firmware de
-contrôle avant d'en tirer une conclusion ferme). Si ça se confirme, ça
-affaiblit à son tour l'hypothèse "pont série/UART" spécifiquement, et laisse
-le CAN (TWAI) seul, ou une combinaison des deux, comme piste restante.
+**Contre-test fait dans la foulée : le glitch restait présent même avec
+l'UART désactivé** (constaté par David directement sur le banc). Ça
+affaiblissait l'hypothèse "pont série/UART" spécifiquement.
 
-**CHECKPOINT (2026-09-09, fin de session)** — état du dépôt à la reprise :
-
-- `firmware/screen/main/service_screen.cpp` : propre, sans code de debug
-  (compteur de diagnostic ajouté puis retiré dans cette session), flashé sur
-  la carte `screen` (v0.2.19) — c'est l'état `bb_mode`/bounce buffer/timings
-  corrigés, ~90 % stable, tel que described au point 2 plus haut, **pas** un
-  état de test.
-- `firmware/screen-lcd-test/` : laissé en config `bb_mode` normale avec le
-  label qui change toutes les 200 ms (résultat de l'éclaireur ci-dessus,
-  stable) — pas de CAN/pont série dedans, c'est structurel à ce projet, pas
-  un oubli.
-- `firmware/common/include/common/version.hpp` : patch à 19.
-- **Pas commité** au moment d'écrire ceci si la session s'arrête ici — voir
-  `git status`/`git diff` avant de continuer, pour ne pas perdre ou dupliquer
-  ce travail à la prochaine reprise.
-
-Prochaine étape : construire un vrai test de contrôle (pas juste débrancher
-le câble USB, qui n'arrête pas les tâches `can2ser`/`ser2can` côté firmware —
-seulement le flux d'octets) pour trancher si TWAI, le pont série, les deux,
-ou ni l'un ni l'autre sont en cause. Deux protocoles possibles, à choisir
-selon ce qui reste le plus rapide à mettre en place à la reprise :
-1. Dans `service_screen.cpp`, désactiver réellement `serial_bridge::start_tasks()`
-   (pas juste débrancher le câble) en gardant un redessin périodique garanti
-   (compteur indépendant de `can_link`, comme celui retiré dans cette
-   session) pour voir si le glitch persiste sans les tâches UART actives.
-2. Ajouter du trafic CAN/pont série factice à `firmware/screen-lcd-test/`
-   (actuellement stable) pour voir si on arrive à le faire glitcher en
-   ajoutant cet ingrédient sur un cas de base connu sain.
+6. **Correctif (2026-09-09, `v0.2.20`)** — piste 1 de
+   `docs/screen-issue.md`, PCLK 16 MHz, CPU 160 MHz : LCD initialisé depuis
+   une tâche temporaire épinglée au **cœur 1** (l'ISR DMA LCD est donc
+   attachée au même cœur que LVGL, au lieu de lire la PSRAM depuis le
+   cœur 0 pendant que LVGL y écrit depuis le 1) ; `can2ser` / `ser2can` /
+   `ota_valid` déplacés sur le **cœur 0**. **Écran parfaitement stable,
+   observé par David.** Les images 2 (CPU 240 MHz) et 3 (PCLK 14 puis
+   12 MHz) n'ont pas été nécessaires. `CONFIG_LCD_RGB_RESTART_IN_VSYNC`
+   reste désactivé. Le downgrade IDF 5.x n'a plus de justification.
 
 **Phase 5, débitmètre (Digmesa, GPIO 44/D7), fait et validé sur le vrai
 capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : `init_flow()`

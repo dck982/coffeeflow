@@ -18,7 +18,8 @@ void init();
 void write_raw(const uint8_t* data, size_t len);
 
 // Crée les deux tâches du pont (CAN -> série, série -> CAN), épinglées sur
-// le cœur 1 comme le reste des tâches CAN/pont (docs/plan-phase6.md).
+// le cœur 0 (TWAI/UART/pont ; le cœur 1 est réservé au LCD/LVGL, voir
+// docs/screen-issue.md).
 void start_tasks();
 
 }  // namespace serial_bridge

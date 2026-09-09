@@ -29,8 +29,8 @@ struct Event {
 namespace events {
 
 // Publie un événement. Sûr à appeler depuis n'importe quelle tâche (can_link
-// tourne sur le cœur 1, service_screen aussi) : protégé par une section
-// critique courte.
+// depuis le pont sur le cœur 0, service_screen sur le cœur 1) : protégé par
+// une section critique courte.
 void push(EventKind kind);
 
 // Copie au plus `max_count` événements dans `out`, le plus récent en

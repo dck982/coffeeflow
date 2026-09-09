@@ -53,9 +53,9 @@ extern "C" void app_main() {
     can_link::send_log(common::LogCode::kOtaPendingVerify, common::LogSeverity::kInfo);
   }
 
-  // LVGL, boucle d'infusion, tâches CAN et pont série sur le cœur 1
-  // (docs/plan-phase6.md, "Répartition sur les cœurs") : toutes les tâches
-  // créées ici sont épinglées explicitement.
+  // Pont TWAI/UART et validation OTA sur le cœur 0 ; LCD/LVGL sur le
+  // cœur 1 (docs/screen-issue.md). start_tasks() et start_validation_task()
+  // épinglent explicitement.
   serial_bridge::start_tasks();
   ota_local::start_validation_task();
 

@@ -116,7 +116,7 @@ C'est du code Arduino-ESP32 d'un projet antérieur, à ne pas compiler tel
 quel dans `firmware/screen` (qui est en ESP-IDF pur) — voir le `README.md`
 du dossier pour ce qui est réutilisable et ce qui ne l'est pas.
 
-Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LVGL et la boucle d'infusion sur un cœur ; Wi-Fi et pile BLE sur l'autre, là où Espressif les met déjà. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
+Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LCD, LVGL et la boucle d'infusion sur le **cœur 1** (l'ISR DMA du panneau RGB doit y vivre, sinon sauts d'image — `docs/screen-issue.md`) ; TWAI, UART, pont, Wi-Fi et pile BLE sur le **cœur 0**, là où Espressif met déjà les radios. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
 
 ### Les capteurs vus depuis l'écran
 

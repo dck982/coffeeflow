@@ -182,9 +182,13 @@ révisable, mais par une décision explicite, pas par dérive.
   association dans les 60 s après le boot). C'est ce mécanisme, et non un
   effacement manuel, qui est le vrai filet ; le bouton n'est que le chemin
   volontaire.
-- **Répartition sur les cœurs**, conforme à `firmware.md` : LVGL, boucle
-  d'infusion, tâches CAN et pont série sur le **cœur 1** ; Wi-Fi, httpd et pile
-  BLE sur le **cœur 0**, là où Espressif les épingle déjà.
+- **Répartition sur les cœurs**, révisée au lot 2 (`docs/screen-issue.md`,
+  validée `v0.2.20`) : LCD, LVGL et boucle d'infusion sur le **cœur 1**
+  (l'ISR DMA du panneau RGB doit vivre sur le même cœur que les écritures
+  framebuffer, sinon sous-alimentation DMA et sauts d'image) ; TWAI, UART,
+  pont, plus tard Wi-Fi, httpd et pile BLE sur le **cœur 0**, là où
+  Espressif épingle déjà les radios. Le lot 1 avait tout mis sur le cœur 1 ;
+  ne pas y revenir.
 - **Secret HTTP et mot de passe du point d'accès** vivent dans un même en-tête
   non commité, avec un fichier d'exemple versionné et une entrée `.gitignore`.
   La compilation échoue avec un message explicite si l'en-tête manque, plutôt
@@ -364,7 +368,8 @@ que les lots suivants ajoutent au lieu d'entasser.
 Contenu : déplacer le code existant dans les fichiers de l'arborescence cible
 (`board`, `can_link`, `serial_bridge`, `ota_local`), `main.cpp` ne gardant
 qu'`app_main`. Introduire l'état CH422G maintenu en RAM dans `board`. Épingler
-explicitement les tâches sur le cœur 1. Poser `core/core.h` avec ses trois
+explicitement les tâches (alors sur le cœur 1 ; révisé au lot 2, cœur 0 pour
+le pont). Poser `core/core.h` avec ses trois
 faces, même si elles sont encore vides — c'est le contrat que les lots suivants
 remplissent.
 
@@ -411,17 +416,15 @@ lot ; débrancher le câble CAN fait apparaître la ligne d'événement
 correspondante à l'écran en moins de 3 s ; un appui affiche des coordonnées
 cohérentes avec le point touché.
 
-**Arrêté en cours sur le critère "reste stable" (2026-09-09), pas fermé.**
-Tout le reste du lot est écrit et fonctionne (timings, bring-up CH422G,
-CAN qui continue dalle allumée, tactile). Glitch visuel résiduel sur le texte
-qui change, pas résolu après investigation poussée (timings HSYNC/VSYNC
-corrigés, `avoid_tearing` essayé et abandonné — limite documentée du driver
-ESP-IDF v6.1, pas une erreur de config). Éclaireur en isolation
-(`firmware/screen-lcd-test/`) montre que le contenu qui change seul ne
-suffit pas à reproduire le glitch : il faut aussi le trafic CAN/pont série
-concurrent sur le même cœur — hypothèse à confirmer avant de chercher un
-correctif. Détail complet de l'investigation :
-`docs/firmware-implementation.md`, section "Où on en est".
+**Lot 2 clos (2026-09-09, `v0.2.20`).** Critère "reste stable" observé sur
+le vrai matériel. Le glitch (sauts / décalage horizontal sur contenu qui
+change) venait d'une contention PSRAM : ISR LCD sur le cœur 0, LVGL écrivant
+depuis le cœur 1. Correctif : LCD initialisé depuis le cœur 1, pont
+TWAI/UART sur le cœur 0. PCLK 16 MHz et CPU 160 MHz suffisent ; 240 MHz et
+PCLK plus bas non nécessaires. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` reste
+désactivé. Détail : `docs/screen-issue.md` et
+`docs/firmware-implementation.md`, section "Où on en est". Le reste du
+critère (CAN dalle allumée, tactile) était déjà observé avant ce correctif.
 
 ---
 
@@ -758,7 +761,7 @@ connue sur les emplacements OTA.
 | Registre CH422G partagé : le bus CAN tombe en allumant la dalle | lot 2 | état maintenu en RAM dès le lot 1, et l'écran de service placé tôt exprès |
 | Écarts d'API `esp_lcd` entre IDF v5.x et v6.1 | lot 2 | repli sur un projet jetable si ça s'enlise, sans laisser `screen/` cassé |
 | Cohabitation Wi-Fi / BLE dégradant la pesée | lot 8 | la politique radio de `firmware.md`, appliquée telle quelle |
-| Bande passante du panneau RGB : déchirement | lots 2 et 10 | bounce buffer, animations locales, rafraîchissement plafonné à 10 Hz |
+| Bande passante du panneau RGB : déchirement | lots 2 et 10 | bounce buffer, ISR LCD et LVGL sur le même cœur (1), pont sur le 0, animations locales, rafraîchissement plafonné à 10 Hz — lot 2 validé `v0.2.20` |
 | UUID et bit de signe Acaia non vérifiés | lot 8 | les confirmer sur la vraie balance avant d'écrire l'algorithme au poids |
 | Frontière du cœur qui fuit (règles recopiées dans l'UI ou le httpd) | lots 5 et 10 | `core.h` seule inclusion autorisée ; toute règle d'éligibilité est un motif de refus |
 | Emplacements OTA trop justes | lot 11 | mesurer avant de fermer les boîtiers, pas après |

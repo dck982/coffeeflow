@@ -120,24 +120,68 @@ au pic → retour), confirmant la chaîne complète (I2C → CAN → pont écran
 verrou/réarmement) faits et validés depuis** (voir plus bas dans ce fichier,
 section phase 5) — **barrière B atteinte (2026-09-09)**.
 
-**Prochaine tâche : OTA de `screen` lui-même** (point 3 de la checklist
-officielle de la phase 4, resté hors scope jusqu'ici — voir plus bas,
-« Phase 4, partie capteurs »). `firmware/screen/main/main.cpp` n'a
-aujourd'hui que le rôle de pont passif USB↔CAN ; il faut y ajouter la même
-logique de réception `FLASH_CTRL`/`FLASH_DATA` que celle déjà écrite et
-validée côté `sensors` (effacement de la partition OTA inactive, écriture
-par blocs avec CRC16, `PENDING_VERIFY` + timer d'invalidation, validation
-post-boot conditionnée au ping/pong CAN, rollback bootloader). C'est
-`coffeetool flash_client.py` qui reste la seule source du firmware dans les
-deux cas (`dest=Dest.SCREEN` au lieu de `Dest.SENSORS`, même client) — le
-flash de `screen` se fait Mac → USB → `screen`, sans passer par le CAN,
-`screen` étant à la fois pont et destinataire. Une fois ça fait et testé
-(image saine, image cassée avec rollback, coupure en plein transfert,
-symétriques aux essais déjà faits côté `sensors`), la barrière C sera
-complètement fermée.
+**OTA de `screen` lui-même, fait et validé sur le vrai matériel
+(2026-09-09) — barrière C complètement fermée.** Point 3 de la checklist
+officielle de la phase 4 (`firmware/screen/main/main.cpp`), resté hors
+scope jusqu'ici. `screen` reçoit désormais `FLASH_CTRL`/`FLASH_DATA` pour
+son propre compte, avec la même mécanique que `sensors` (effacement de la
+partition OTA inactive au `BEGIN`, écriture par blocs de 2 ko avec CRC16,
+`PENDING_VERIFY` + temporisateur d'invalidation 30 s, validation
+post-boot conditionnée à un `PING`/`PONG` réel avec `sensors` sur le CAN,
+rollback bootloader) — code dupliqué plutôt que partagé avec `sensors`,
+`common/` ne portant que le protocole, pas la logique applicative.
 
-Une fois l'OTA de `screen` bouclé : brancher pompe et vanne pour de vrai,
-ou avancer sur un autre chantier (purge/flush, phase 6) selon décision.
+Différence structurelle avec le flash de `sensors` : ici le transfert ne
+passe **jamais par le CAN**. `screen` est à la fois pont et destinataire,
+donc `coffeetool flash --dest screen` parle directement à `screen` sur son
+unique lien USB (le même UART2/GPIO43-44 que le pont série↔CAN habituel).
+`on_frame_from_serial()` intercepte les trames `FLASH_CTRL`/`FLASH_DATA`
+dont `dest == kScreen` et les traite localement au lieu de les relayer
+aveuglément sur le bus (sans quoi 256 trames `FLASH_DATA` par bloc
+partiraient inutilement vers `sensors`, qui n'a rien à en faire) ; les
+acquittements (`send_flash_ack_serial`) repartent uniquement sur l'UART,
+jamais sur le CAN. La preuve de vie pour la validation post-boot reste,
+elle, un vrai `PING`/`PONG` échangé avec `sensors` sur le bus — d'où la
+nécessité d'avoir les deux cartes branchées (USB Mac→écran pour le
+transfert, CAN écran↔capteurs pour la validation), pas seulement l'écran
+seul.
+
+Trois essais faits, les deux cartes branchées (USB Mac→écran, CAN
+écran↔capteurs), symétriques à ceux déjà faits côté `sensors` :
+
+- **Image saine** (`v0.2.4` → `v0.2.5`) : 123 blocs transférés et acquittés
+  sans échec via `coffeetool flash --dest screen`, reboot, `PONG v0.2.5`
+  confirmé, resté en service sans rollback bien après le délai de
+  validation de 30 s (`PING`/`PONG` périodiques avec `sensors` observés,
+  qui suffisent à `tick_ota_validation()` pour valider).
+- **Image cassée** (`v0.2.6`, `abort()` en toute première ligne
+  d'`app_main`, avant tout GPIO/UART/CAN) : rollback automatique du
+  bootloader, confirmé par un `PING` manuel après coup — `PONG` répond de
+  nouveau `v0.2.5`, jamais `v0.2.6`.
+- **Coupure en plein transfert** (`v0.2.7`, cette fois-ci sans `abort()`) :
+  processus `flash` tué de force (`kill -9`) au milieu du bloc 1/123,
+  simulant un câble USB débranché — `sensors` interrogé par `PING` après
+  coup : `PONG` répond toujours `v0.2.5` avec un `uptime_s` continu, jamais
+  retombé à zéro, confirmant qu'aucun reboot n'a eu lieu et qu'`otadata` n'a
+  pas bougé.
+
+**Piège rencontré en testant** : lancer `coffeetool monitor` en tâche de
+fond et `coffeetool flash` en même temps sur le **même port série** fait
+échouer le flash (`device reports readiness to read but returned no data`)
+— les deux processus se disputent le port USB. Écho du point 3 de la
+checklist de mise en route plus bas ("vérifier qu'aucun autre process n'a
+déjà le port ouvert"), qui s'applique aussi entre deux invocations de
+`coffeetool` elles-mêmes, pas seulement entre `coffeetool` et un `idf.py
+monitor` oublié.
+
+`firmware/screen/main/CMakeLists.txt` a gagné `app_update esp_partition`
+(mêmes composants que `sensors/main/CMakeLists.txt` pour les mêmes
+raisons). Après les essais, l'écran a été reflashé en direct (USB, image
+`v0.2.7` propre, sans `abort()`) pour repartir sur un état cohérent avec le
+dépôt.
+
+Prochaine étape : brancher pompe et vanne pour de vrai, ou avancer sur un
+autre chantier (purge/flush, phase 6) selon décision.
 
 **Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
 `FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de

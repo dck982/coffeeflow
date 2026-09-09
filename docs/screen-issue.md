@@ -8,8 +8,9 @@ stable, plus aucun saut ni décalage horizontal.
 Suffisant, flashé et observé : LCD initialisé depuis le cœur 1 (ISR DMA
 avec LVGL), pont TWAI/UART et validation OTA sur le cœur 0.
 
-Ne pas appeler `lv_label_set_text()` si le texte est inchangé reste une
-bonne pratique (invalidation LVGL inutile), pas encore posée dans le code.
+Ne pas appeler `lv_label_set_text()` si le texte est inchangé : bonne
+pratique posée dans `service_screen.cpp` (`set_label_if_changed()`),
+documentée dans `firmware/screen/AGENTS.md`.
 
 PCLK resté à 16 MHz, CPU resté à 160 MHz. Les images 2 (240 MHz) et 3
 (PCLK 14 puis 12 MHz) n’ont pas été nécessaires. `CONFIG_LCD_RGB_RESTART_IN_VSYNC`
@@ -59,11 +60,12 @@ et `ota_valid` sont épinglés sur le cœur 0. Répartition en vigueur :
 - Core 0 : TWAI, UART, pont, plus tard Wi-Fi/BLE ;
 - Core 1 : LCD, LVGL, contrôle machine.
 
-### 2. Ne redessiner que lorsqu’une valeur change — à poser
+### 2. Ne redessiner que lorsqu’une valeur change — fait
 
-`lv_label_set_text()` invalide toujours le widget, même si la chaîne est
-identique. Comparer avant d’écrire reste une bonne pratique, indépendante
-du correctif d’affinité des cœurs.
+`set_label_if_changed()` compare à `lv_label_get_text()` et n’appelle
+`lv_label_set_text()` que si la chaîne diffère. `tick_presence()` continue
+de tourner toutes les 200 ms, indépendamment du dessin. La construction
+initiale des labels (`build_ui`) écrit directement : le widget est neuf.
 
 ### 3. CPU à 240 MHz — non nécessaire
 

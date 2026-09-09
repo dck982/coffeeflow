@@ -1,6 +1,7 @@
 #include "service_screen.h"
 
 #include <cstdio>
+#include <cstring>
 
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
@@ -66,6 +67,17 @@ uint32_t g_last_touch_ms = 0;
 bool g_touch_label_visible = false;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
+
+// lv_label_set_text() invalide toujours le widget, même si la chaîne est
+// identique. Sur ce panneau RGB, chaque invalidation inutile dispute le bus
+// PSRAM à l'ISR DMA (firmware/screen/AGENTS.md).
+void set_label_if_changed(lv_obj_t* label, const char* text) {
+  const char* current = lv_label_get_text(label);
+  if (current != nullptr && std::strcmp(current, text) == 0) {
+    return;
+  }
+  lv_label_set_text(label, text);
+}
 
 // esp_lcd RGB + GT911, sans passer par aucune couche BSP Waveshare : celle-ci
 // écrit le registre de sortie CH422G en une seule fois (voir
@@ -220,7 +232,7 @@ void on_screen_pressed(lv_event_t* e) {
   lv_indev_get_point(indev, &point);
   char buf[32];
   std::snprintf(buf, sizeof(buf), "TOUCH x=%d y=%d", static_cast<int>(point.x), static_cast<int>(point.y));
-  lv_label_set_text(g_touch_label, buf);
+  set_label_if_changed(g_touch_label, buf);
   g_last_touch_ms = now_ms();
   g_touch_label_visible = true;
   (void)e;
@@ -289,7 +301,7 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
   // suffisent très largement pour le seuil de 3 s du critère de sortie.
   can_link::tick_presence();
 
-  lv_label_set_text(g_can_label, can_link::presence_lost() ? "CAN: PERDU" : "CAN: OK");
+  set_label_if_changed(g_can_label, can_link::presence_lost() ? "CAN: PERDU" : "CAN: OK");
 
   core::Event events[kVisibleEvents];
   size_t n = core::events::recent(events, kVisibleEvents);
@@ -298,14 +310,14 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
       char buf[40];
       std::snprintf(buf, sizeof(buf), "%lu.%03lus %s", static_cast<unsigned long>(events[i].uptime_ms / 1000),
                     static_cast<unsigned long>(events[i].uptime_ms % 1000), core::events::to_text(events[i].kind));
-      lv_label_set_text(g_event_labels[i], buf);
+      set_label_if_changed(g_event_labels[i], buf);
     } else {
-      lv_label_set_text(g_event_labels[i], "-");
+      set_label_if_changed(g_event_labels[i], "-");
     }
   }
 
   if (g_touch_label_visible && (now_ms() - g_last_touch_ms) > kTouchLabelHoldMs) {
-    lv_label_set_text(g_touch_label, "");
+    set_label_if_changed(g_touch_label, "");
     g_touch_label_visible = false;
   }
 }

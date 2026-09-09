@@ -2,6 +2,64 @@
 
 ## Où on en est
 
+**Phase 5, XDB401 (pression/température), fait et validé sur le vrai
+capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : bus I2C
+(`esp_driver_i2c`, GPIO5 SDA / GPIO6 SCL, port R1), déclenchement de
+conversion (écriture `0x0A` au registre `0x30`), attente de fin de
+conversion par scrutation du bit Sco (bit 3 du registre 0x30, avec repli sur
+un délai fixe de 50 ms si le bit ne retombe jamais), puis lecture en deux
+transactions I2C séparées (3 octets à partir de `0x06` pour la pression, 2
+octets à partir de `0x09` pour la température — pas une rafale unique des 5
+octets, voir plus bas). `on_reqstatus_received` gère désormais
+`kStatusPressure` (période avec plancher 100 ms, 0 = arrêt) ; une tâche
+dédiée `pressure_task` (pas un tick de plus dans `safety_task`, pour ne pas
+imposer ~50 ms de blocage à la boucle bail/présence/verrou) déclenche la
+lecture et publie `STATUS_PRESSURE`.
+
+Deux écueils rencontrés, tous les deux sur le vrai capteur, à travers le
+pont écran (écran rebranché pour l'occasion — pas nécessaire pour flasher
+`sensors`, qui reste accessible en USB direct, mais indispensable pour
+échanger des messages protocolaires sur le bus) :
+
+- **La lecture en une seule rafale de 5 octets (`0x06`→`0x0A`, repeated
+  start) donnait une pression aberrante d'une lecture à l'autre alors que
+  la température restait cohérente.** L'exemple du fabricant (datasheet
+  XDB401) fait deux appels séparés (`I2C_ReadNByte(0x06, Pressure, 3)` puis
+  `I2C_ReadNByte(0x09, Temp, 2)`), chacun avec son propre STOP — pas une
+  transaction combinée. Reproduit tel quel, corrige le problème.
+- **Faux positif de debug, à ne pas reproduire** : en lisant les valeurs
+  décimales imprimées par `coffeetool monitor` à l'œil pendant le
+  diagnostic, la pression semblait varier de façon aberrante (jusqu'à
+  ±9 bar d'une lecture à l'autre, capteur au repos). En réalité `sensors`
+  et `coffeetool` sont cohérents entre eux (même convention little-endian
+  de bout en bout pour `pressure_raw`/`temperature_raw`, voir
+  `StatusPressurePayload` dans `common/messages.hpp` et son miroir Python
+  dans `coffeetool/messages.py`) — mais cette convention **diffère de
+  l'ordre big-endian utilisé par la formule de la datasheet**
+  (`m = x·65536 + y·256 + z`). Le nombre décimal affiché par `coffeetool`
+  n'est donc pas directement comparable à la formule du fabricant sans
+  reconvertir les octets. Une fois reconverti correctement, les lectures
+  étaient stables (~0,013 bar au repos) depuis le début — la « panne »
+  n'existait que dans la lecture manuelle des chiffres, pas dans le
+  matériel ni le firmware. Documenté ici pour ne pas se refaire peur la
+  prochaine fois : le brut part bien « tel quel » sur le CAN comme prévu
+  (voir `docs/firmware.md`, "XDB401"), mais quiconque doit un jour
+  interpréter ces octets en bar/°C doit appliquer la formule de la
+  datasheet à l'ordre **big-endian d'origine des registres**, pas à
+  l'entier `pressure_raw`/`temperature_raw` tel qu'assemblé par le
+  firmware/`coffeetool`.
+
+**Validé en soufflant physiquement dans le capteur** : capture de
+`STATUS_PRESSURE` à 200 ms de période sur 10 s pendant deux souffles —
+deux pics nets et cohérents dans le temps (~0,013 bar de repos → ~0,08 bar
+au pic → retour), confirmant la chaîne complète (I2C → CAN → pont écran →
+`coffeetool`) plutôt qu'une simple valeur statique plausible.
+
+Pas fait / prochaine étape : le **débitmètre** (Digmesa, ISR front
+descendant GPIO 44, voir `docs/firmware.md` section dédiée), puis dimmer et
+SSR (ces deux derniers demandent le secteur, voir la note "Ce qui nécessite
+le 230 V" plus bas dans ce fichier).
+
 **Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
 `FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de
 l'eau via `esp_ota_write`, CRC16 par bloc, CRC32 global au `END`,

@@ -1,17 +1,19 @@
 # CAN Pal (clone AliExpress) — pourquoi ça ne marchait pas
 
 Journal de bring-up phase 2 (voir `firmware-implementation.md`). Le module capteurs
-(XIAO ESP32-S3) ne parvenait pas à parler CAN à travers son transceiver TJA1051T/3 —
-ni au bus réel, ni même en auto-test isolé. Deux exemplaires du même module donnaient
-le même symptôme, ce qui a fini par pointer vers une cause systémique (sous-tension)
-plutôt que deux puces mortes par hasard.
+(XIAO ESP32-S3) ne parvient pas à parler CAN à travers son transceiver TJA1051T/3 —
+ni au bus réel, ni même en auto-test isolé. Deux exemplaires du même module donnent
+le même symptôme : **`SLNT` tenu à ~2,7 V** (Silent mode), pas deux puces mortes
+au hasard.
 
-**Conclusion courte, si tu reprends juste ça :** le module doit être alimenté en
-**5 V**, pas 3,3 V (voir « Conclusion », en bas). À 3,3 V, la puce est en sous-tension
-et se coupe du bus (comportement documenté, pas un défaut). À 5 V, la puce fonctionne
-mais RXD grimpe à 5 V (dangereux direct sur un GPIO 3,3 V) et TXD attend un seuil haut
-que 3,3 V n'atteint pas forcément — il faut adapter les niveaux logiques sur les deux
-lignes avant de rebrancher au XIAO.
+**Conclusion courte, si tu reprends juste ça :** le clone **a** la pompe de charge
+Adafruit (AP3602, marquage `AG7T` / `G7T`). Alimenté en **3,3 V** sur la pastille
+`Vcc`, on mesure **~5 V sur la broche VCC du TJA1051** et **~3,3 V sur RXD** (VIO
+suit le VCC utilisateur). C'est le régime prévu, pas une sous-tension. Le diagnostic
+« il faut alimenter en 5 V / VIO collé à VCC » était une **erreur de mesure** (on
+lisait le bornier, pas la puce ; puis on a alimenté le bornier en 5 V, donc VIO à
+5 V). Le symptôme venait de **`SLNT` à 2,7 V** : l'émetteur est coupé (Silent).
+À coller au GND (rework prévu, voir conclusion).
 
 ---
 
@@ -20,15 +22,19 @@ lignes avant de rebrancher au XIAO.
 - **Carte** : XIAO ESP32-S3, sur son Grove Shield, port **R3**.
 - **Module** : transceiver CAN "CAN Pal" acheté sur AliExpress, décrit par le vendeur
   comme identique à l'Adafruit CAN Pal (produit Adafruit 5708, discontinué chez
-  Adafruit) — puce **TJA1051T/3** annoncée (avec broche VIO séparée). Deux
-  exemplaires achetés, soudés indépendamment.
+  Adafruit). Visuellement c'est le layout Adafruit (PCB noir, bornier 3 points
+  L/GND/H, header 7 broches Vcc/GND/RX/TX/SLNT/CANH/CANL, switch Termination,
+  TJA1051T/3 `A1051/3` au centre, SOT-23-6 `AG7T` à gauche = pompe AP3602).
+  Les connecteurs Grove (bornier 4 vis + JST) sont soudés par-dessus ces pastilles.
+  Deux exemplaires, même symptôme.
 - **Câblage tel que posé** :
   - Bornier à vis 4 points (VCC, GND, TX, RX) côté gauche → câble Grove → port R3.
   - Connecteur JST-XH 2 points (CANH, CANL) côté droit.
   - Jumper de terminaison 120 Ω activé sur le module.
-  - Broche `SLNT`/`S` (mode control, broche 8 du TJA1051) **non câblée** — physiquement
-    obstruée par le bornier et le JST déjà soudés, impossible d'y souder un fil sans
-    tout dessouder.
+  - Broche `SLNT`/`S` (mode control, broche 8 du TJA1051) **non câblée au GND** —
+    obstruée par le bornier 4 vis et le JST-XH. Mesurée à **2,7 V** (Silent).
+    Rework : dessouder le XH, fil `SLNT` → vis GND du bornier CAN (plot central),
+    remplacer le XH par deux fils sertis en JST SM.
   - Alimentation : **VCC = 3,3 V**, tiré du rail 3,3 V du XIAO (comme documenté à
     l'origine pour ce port).
 
@@ -49,8 +55,9 @@ l'origine les GPIO en lisant directement les chiffres du silkscreen (ex. "R3 : T
 8, RX GPIO 9") — **déjà corrigé** dans ces fichiers (TX = GPIO 7, RX = GPIO 8 pour le
 CAN Pal ; SSR = GPIO 9 ; débitmètre = GPIO 44 ; I2C = GPIO 5/6). Confirmé par
 continuité directe pastille-à-pastille sur le module XIAO (D8 → pad TX du CAN Pal, D9 →
-pad RX). Ce bug est indépendant du problème de sous-tension ci-dessous, mais l'a
-longtemps brouillé pendant le diagnostic.
+pad RX). Confirmé au bit-bang lent : **fil blanc = D8/GPIO7** bascule 0/3,3 V ;
+**fil jaune** (D9/GPIO8) reste à 3,4 V (RXD récessif). Le GPIO TX arrive bien au
+pad. La boucle analogique échoue **après** TXD.
 
 Le même type d'erreur existait sur l'autre carte du projet (M5Stack Atom S3 + Unit
 CAN, GPIO 26/36 documentés à tort — les vrais pins de cet exemplaire sont TX=GPIO2,
@@ -78,8 +85,12 @@ RX=GPIO1, trouvés par tâtonnement puis validés par auto-test).
     haut"** que celui observé — ce test-là n'a rien prouvé. Un bit-bang valide doit
     utiliser une impulsion TXD basse **< 300 µs**, lire RXD pendant l'impulsion, puis
     relâcher TXD.
-  - Sélection de la carte testée par `#define BOARD_XIAO_SENSORS` /
-    `#define BOARD_ATOM_CANMON` en tête de fichier.
+  - Sélection de la carte par `#define BOARD_XIAO_SENSORS` /
+    `#define BOARD_ATOM_CANMON`. Sur le XIAO, `#define PINOUT_CANPAL` choisit
+    TX=GPIO7/RX=GPIO8 (câblage Pal documenté) ou l'inverse (Unit CAN actuel).
+  - Bit-bang **lent** (~1 Hz, 400 ms bas / 400 ms haut) ajouté pour lecture au
+    multimètre (invalide pour le transceiver : time-out dominant). Sert uniquement
+    à voir si le GPIO atteint le pad.
 - `firmware/can-monitor/` — moniteur CAN passif sur l'Atom S3 (voir
   `firmware-implementation.md`, phase 2), utilisé comme sonde côté bus pour les essais
   de bout en bout.
@@ -118,29 +129,50 @@ RX=GPIO1, trouvés par tâtonnement puis validés par auto-test).
    vers une cause systémique plutôt que deux unités défectueuses par coïncidence.
 
 7. **Vérifications d'écartement** (toutes passées, aucune n'explique le symptôme) :
-   - Tension VCC/GND au bornier : 3,4 V, cohérent avec le rail 3,3 V du XIAO.
+   - Tension VCC/GND **au bornier** : 3,4 V, cohérent avec le rail 3,3 V du XIAO.
+     C'est l'**entrée** de la pompe, pas l'alim de la puce (voir point 9).
    - Continuité GND module ↔ GND XIAO (alimentation coupée) : bonne.
    - Continuité TX/RX jusqu'aux bons GPIO natifs du XIAO : bonne (voir pinout ci-dessus).
    - Résistance CANH↔CANL (alimentation coupée, rien d'autre branché) : 120 Ω, cohérent
      avec le jumper de terminaison activé, pas de court-circuit.
    - Court-circuit via la vis de fixation dans `boitier_dc` : écarté (vis enlevée,
      symptôme identique).
-   - `SLNT` flottant comme cause de Silent mode : **écarté**. Le TJA1051 a un
-     **pull-up interne au silicium sur S vers GND** (datasheet §6.2.2 : "pin S has an
-     internal pull-down to GND [...] ensures a safe, defined state in case [...] left
-     floating"), donc flottant = Normal mode par construction, pas Silent. Un contact
-     bref (sonde, pas soudé) entre SLNT et GND pendant un test n'avait de toute façon
-     rien changé — cohérent avec cette explication. **Inutile de dessouder le bornier
-     pour câbler SLNT.**
+   - `SLNT` flottant : le TJA1051 a un **pull-down interne vers GND** (datasheet
+     §6.2.2), donc flottant **devrait** être Normal. Un contact bref SLNT–GND n'avait
+     rien changé — probablement parce que `SLNT` n'était pas à 0 V (voir point 12).
 
-8. **Mesures à VCC = 5 V** (alimentation depuis le pad VBUS/5V du XIAO, masse commune,
-   avant tout rebranchement au GPIO) :
+8. **Mesures à VCC bornier = 5 V** (pad VBUS/5V du XIAO, masse commune, GPIO
+   débranchés) — **mal interprétées à l'époque** :
    - VCC↔GND : 5,16 V.
-   - RX (RXD, sortie de la puce) ↔ GND, au repos : **5,16 V** — quasi = VCC.
-   - TX (TXD, entrée de la puce) ↔ GND, au repos (GPIO du XIAO non branché dessus à ce
-     moment) : **4,55 V** — cohérent avec le pull-up interne de TXD "vers VIO"
-     (datasheet §6.2.2), et confirme que **VIO n'est pas séparément câblé en 3,3 V**
-     sur ce clone : il est tiré en interne vers un niveau proche de VCC.
+   - RX (RXD) ↔ GND, au repos : **5,16 V**.
+   - TX (TXD) ↔ GND, au repos : **4,55 V** (pull-up interne de TXD vers VIO).
+   On en avait conclu que VIO était collé à VCC et qu'il fallait des level shifters.
+   En réalité c'est le schéma Adafruit : **VIO suit le VCC utilisateur**. Alimenter
+   le bornier en 5 V met VIO (donc RXD) à 5 V. Ça ne dit rien sur le régime 3,3 V.
+
+9. **Mesures à VCC bornier = 3,3 V, sur les pattes du TJA1051** (2026-09-08, un
+   exemplaire, orientation bornier CAN en haut) — **régime Adafruit confirmé** :
+   - Pastille `Vcc` : 3,3 V.
+   - Patte bas-gauche du `A1051` (RXD, broche 4) : **3,3 V**.
+   - Patte au-dessus (VCC puce, broche 3) : **5 V**.
+   - Une patte de la pompe `AG7T` : **5 V**.
+   La pompe booste. VIO = 3,3 V. Pas de sous-tension, pas besoin de level shifter
+   tant qu'on reste en 3,3 V sur le bornier.
+
+10. **Bit-bang lent TX=GPIO7 / RX=GPIO8** (2026-09-08, 3,3 V, terminaison ON, pas de
+    câble CAN) : le **blanc (D8/GPIO7)** oscille 0 ↔ 3,3 V au pad — le XIAO drive
+    TXD. Le **jaune** reste à **3,4 V** (un flou du multimètre en bougeant la pointe
+    n'était pas du signal). GPIO8 lu par le firmware : RXD = 1 en permanence.
+
+11. **CANH et CANL** (même run) : **0 V** vs GND. Pas de polarisation récessive
+    (~2,5 V) ni de dominant. Bus débrayé, cohérent avec émetteur coupé.
+
+12. **`SLNT` vs GND** (même run) : **2,7 V**. VIH du pin S ≈ 0,7×VIO ≈ 2,3 V —
+    c'est un **HIGH**. Silent mode, transmetteur désactivé (datasheet : "pin S
+    pulled high → Silent"). Le pull-down interne est **perdu** face à un tirage
+    vers 3,3 V (pull-up clone, ou fuite/pont depuis `Vcc`/`TX` : `SLNT` est la
+    pastille suivante du header, coincée sous le bornier 4 vis + le XH). 2,7 V
+    plutôt que 3,3 V = pont faible / diviseur pull-up vs pull-down puce.
 
 ---
 
@@ -155,11 +187,9 @@ Adafruit) pour trancher entre "deux modules morts" et "défaut systémique". Ré
   > and VIO have recovered.
 
   Seuils : **Vuvd(VCC) : 3,5 V (min) – 4,5 V (max)**. VCC opérationnel nominal :
-  **4,5–5,5 V**. Nos 3,4 V mesurés au bornier sont **sous le minimum** de cette
-  fenêtre — l'arrêt n'est donc pas probable, il est **garanti par la spec**.
-  Conséquence documentée : transmetteur désactivé, récepteur désactivé, RXD relâché →
-  exactement le symptôme observé, et reproductible à l'identique sur n'importe quel
-  exemplaire sain.
+  **4,5–5,5 V**. Cette spec s'applique à la **broche 3 de la puce**, pas à la
+  pastille `Vcc` du module. On a d'abord lu 3,4 V au bornier et conclu à une UVLO
+  garantie — faux dès que la pompe sort 5 V sur la broche 3 (mesuré, point 9).
 
 - **Schéma EagleCAD officiel de l'Adafruit CAN Pal**
   (`github.com/adafruit/Adafruit-CAN-Pal-PCB`) : la carte Adafruit embarque une
@@ -169,12 +199,15 @@ Adafruit) pour trancher entre "deux modules morts" et "défaut systémique". Ré
   la configuration prescrite par NXP (VCC=5V + VIO=3,3V pour interfacer un MCU 3,3V).
   L'Adafruit ne "tolère" pas 3,3 V en entrée : elle le **convertit** en interne.
 
-- Le clone AliExpress a un design différent de l'Adafruit officiel (bornier 4 points +
-  JST + jumper, contre bornier 3 points + header 7 broches + interrupteur à glissière
-  chez Adafruit) — rien n'indique qu'il embarque la même pompe de charge. Aucun
-  teardown public trouvé pour confirmer dans un sens ou l'autre ; le mode de panne
-  « module TJA1051 générique alimenté en 3,3V, communication morte ou unidirectionnelle »
-  revient comme un classique sur ce genre de clone.
+- Le PCB du clone **est** le layout Adafruit (voir photo / configuration de base),
+  pas un TJA1051 nu 4 vis + JST. IC3 est bien là (SOT-23-6 `AG7T` = AP3602AKTR-G1,
+  marquage datasheet `G7T`), avec les condo d'entrée/sortie/volant. Les 4 vis + JST
+  sont des connecteurs rapportés sur les pastilles Adafruit.
+
+- Guide Adafruit / `canio` : 3,3 V sur `Vcc`, MCU TX→pad TX, MCU RX→pad RX.
+  Sur un Pal en breakout ils laissent SLNT flottant (pull-down = Normal). Leur
+  exemple force `CAN_STANDBY` à **0** dès que le MCU a ce pin — exactement ce
+  qu'il faut faire ici, parce que sur ce clone SLNT n'est **pas** à 0 V.
 
 - **Piège méthodologique confirmé** : datasheet §6.2.1, timer "TXD dominant time-out"
   (0,3–12 ms, typ. 1 ms). Le premier test bit-bang (TXD bas pendant 1 s) coupait le
@@ -184,60 +217,46 @@ Adafruit) pour trancher entre "deux modules morts" et "défaut systémique". Ré
 
 ---
 
-## Conclusion
+## Conclusion (corrigée 2026-09-08, soir)
 
-**Le module doit être alimenté en 5 V, pas 3,3 V.** À 3,3 V, la puce est en
-sous-tension garantie (spec NXP), se déconnecte du bus, et produit exactement le
-symptôme observé — sur n'importe quel exemplaire, ce qui explique pourquoi les deux
-modules testés se comportaient identiquement sans être forcément défectueux.
+**Alimenter en 3,3 V.** La pompe sort 5 V sur VCC puce, VIO/RXD à 3,3 V. Pas
+d'UVLO, pas de level shifter.
 
-À 5 V, la puce devrait fonctionner, mais deux adaptations de niveau logique sont
-nécessaires avant de rebrancher les GPIO du XIAO (3,3 V) :
+**Cause :** `SLNT` à **2,7 V** → Silent → émetteur coupé. D'où RXD coincé haut,
+CANH/CANL à 0 V, `BUS_OFF` isolé, **les deux** exemplaires (même layout, même
+pastille `SLNT` non ramenée au GND, obstruée par les connecteurs).
 
-- **RX (RXD sortie puce → GPIO8 XIAO)** : grimpe à ~5 V, dangereux direct sur un GPIO
-  3,3 V. Un **diviseur résistif simple** (ex. 1 kΩ / 2 kΩ) suffit — c'est une entrée
-  numérique passive côté XIAO, pas besoin de composant actif.
-- **TX (GPIO7 XIAO → TXD entrée puce)** : le seuil de reconnaissance HIGH est calé sur
-  VIO (~5 V ici), donc ~3,5 V — un 3,3 V venant du XIAO en sortie push-pull classique
-  risque de ne jamais être reconnu comme récessif. **Un diviseur ou une LDO ne
-  résolvent pas ce sens** (on ne peut pas faire monter une tension avec un composant
-  passif). Deux options :
-  - Reconfigurer GPIO7 en **sortie open-drain** (`GPIO_MODE_OUTPUT_OD`) + une petite
-    résistance série (220–470 Ω, valeur non calculée précisément faute de connaître la
-    résistance exacte du pull-up interne du TJA1051, mais large marge à cette gamme) :
-    GPIO7 tire activement à la masse pour le dominant, et c'est le **pull-up interne
-    de la puce** qui remonte tout seul vers VIO pour le récessif — plus besoin de
-    sortir plus que 3,3 V, la puce fait le reste.
-  - Ou un **level shifter bidirectionnel actif** (module générique à base de BSS138,
-    très courant et pas cher) sur TX et RX — solution plus universelle, gère les deux
-    sens sans dépendre du pull-up interne exact.
-- **AMS1117 / N7803-1CW (Mean Well)** : ce sont des régulateurs/convertisseurs
-  d'alimentation, pas des level shifters — leur boucle de rétroaction est bien trop
-  lente pour laisser passer un signal numérique qui bascule. Utiles pour générer un
-  rail DC propre, pas pour translater des niveaux logiques sur TX/RX.
+Le GPIO n'y est pour rien : blanc/GPIO7 bascule, jaune/RXD ne suit pas parce que
+rien n'est posé sur le bus.
 
-**Prochaine étape suggérée** (non faite à la date de cette note) : implémenter le
-diviseur sur RX + l'open-drain sur TX (option la moins chère en composants), rebrancher
-en 5 V, refaire l'auto-test TWAI NO_ACK + flag SELF (celui qui a déjà validé le
-transceiver de l'Atom) comme oracle de validation.
+**Rework (prévu, pas encore fait) :**
+
+1. Dessouder le JST-XH (CANH/CANL) pour accéder à la pastille `SLNT`.
+2. Souder un fil `SLNT` → vis **GND du bornier CAN** (plot central L/GND/H).
+3. À la place du XH : deux fils CANH/CANL, sertis dans un **JST SM**.
+4. Revérifier `SLNT` ≈ 0 V, puis `can-selftest` (bit-bang 80 µs puis TWAI
+   `NO_ACK`, `PINOUT_CANPAL 1` : TX=GPIO7, RX=GPIO8).
+
+Adafruit : `standby.switch_to_output(False)`. Ici un strap au GND suffit, pas
+besoin d'un GPIO.
+
+Les level shifters / open-drain du diagnostic 5 V **ne s'appliquent pas**.
+`AMS1117` / `N7803-1CW` hors sujet.
 
 ---
 
-## Suite — abandon du CAN Pal clone, passage au M5Stack Unit CAN (2026-09-08)
+## Suite — contournement : M5Stack Unit CAN (2026-09-08)
 
-Plutôt que de bricoler les adaptations de niveau logique ci-dessus, remplacement du
-clone AliExpress par un **M5Stack Unit CAN** (référence U085, transceiver
-**CA-IS3050G isolé galvaniquement**, voir <https://docs.m5stack.com/en/unit/can>) côté
-XIAO — le même module que celui déjà utilisé côté Atom pour `can-monitor`.
-Alimentation confirmée au multimètre au connecteur Grove : **5 V** au repos, donc pas
-de rejeu du problème de sous-tension ci-dessus (module différent, pas de VIO tiré en
-interne comme sur le clone).
+Le firmware capteurs tourne sur un **M5Stack Unit CAN** (U085, **CA-IS3050G isolé**,
+<https://docs.m5stack.com/en/unit/can>) — même module que l'Atom / `can-monitor`.
+Grove au repos : **5 V**. Le Pal n'est plus « mort » : c'est Silent ; le Unit CAN
+reste le chemin qui marche tant que le rework `SLNT` n'est pas fait.
 
 **Nouveau symptôme, même signature qu'avant** : premier essai avec le brochage porté
 par analogie depuis le CAN Pal (TX=GPIO7/D8, RX=GPIO8/D9) — échec identique au run
 initial du CAN Pal, `BUS_OFF` quasi immédiat, `tx_err=128`, `bus_err=16`, y compris en
-self-test isolé (câble débranché). Mais cette fois la cause n'est **pas** une
-sous-tension : c'est un **TX/RX inversé**, propre à ce module.
+self-test isolé (câble débranché). Cette fois la cause est un **TX/RX inversé**,
+propre à ce module — même signature `BUS_OFF` que le Pal, autre origine.
 
 **Cause** : la doc officielle M5Stack de l'Unit CAN (HY2.0-4P) donne **jaune = CAN_TX,
 blanc = CAN_RX** — ce sont les noms des broches du *transceiver lui-même*

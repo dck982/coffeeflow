@@ -112,13 +112,31 @@ sur `screen/` ou un autre projet ESP-IDF v6.1) :
 `screen/main` a gagné `esp_driver_gpio` (pour `gpio_func_sel` et
 consorts).
 
+**Test d'endurance TWAI fait (2026-09-09, 3 min, 07:34:20→07:37:23) :**
+`tx_error_counter`/`rx_error_counter` restés à 0 tout du long,
+`bus_error_count` figé sans jamais grimper sur les 3 minutes — zéro nouvelle
+erreur bus pendant le test. Barrière A fermée sur ce critère.
+
+Note en passant (pas un défaut, juste un comportement à connaître) : un
+`LOG PRESENCE_LOST` revient toutes les ~3 s pendant ce test (60 fois sur les
+3 minutes, toujours suivi d'un seul aller-retour `PING`/`PONG`). Normal à ce
+stade : `sensors` ne pingue que quand il détecte une perte de présence
+(`firmware/sensors/main/main.cpp`, `tick_presence()`), `screen` ne pingue
+jamais de lui-même, et aucun trafic `STATUS`/`REQSTATUS` périodique n'existe
+encore (phases 5/6). Le cycle silence 3 s → perte → probe → reprise est donc
+attendu, pas un signe de câblage instable — à revérifier une fois du trafic
+périodique en place.
+
+Piège rencontré en faisant ce test, pour mémoire (détaillé dans la
+checklist de mise en route ci-dessous) : un pont qui semblait totalement
+muet ce matin (aucun `PING`/`PONG`, aucun `LOG`) s'est avéré fonctionner
+parfaitement — la cause était un `coffeetool monitor` redirigé vers un
+fichier puis tué avant que son buffer stdout ne soit vidé, pas une panne
+matérielle. Un vrai power-cycle physique de l'écran (pas un reset logiciel)
+a aussi été nécessaire à un moment, écho d'un piège déjà rencontré la veille.
+
 Pas fait / à savoir avant de continuer :
 
-- **Pas de test d'endurance dédié** : la doc demande que les compteurs
-  d'erreur TWAI restent à zéro sur plusieurs minutes pour clore
-  complètement la barrière A — vérifié ponctuellement (`LOG
-  TWAI_ERROR_COUNTERS` bas, pas de dérive observée sur les quelques minutes
-  de tests), mais pas un vrai essai de plusieurs minutes en continu.
 - **Les essais de flash de la phase 4 n'ont pas encore été rejoués à
   travers ce pont-ci** — seulement contre `can-monitor` jusqu'ici. C'est la
   prochaine étape (voir plus bas) : c'est elle qui ferme réellement la
@@ -326,6 +344,67 @@ travers ce pont-là pour de vrai avant de considérer la barrière C atteinte.
   Les numéros `/dev/cu.usbmodemNNNN` eux-mêmes ne sont pas stables : à revérifier par ce moyen à chaque nouvelle session/rebranchement, ne pas supposer qu'un port garde son rôle.
 - **Flasher** : `idf.py -p /dev/cu.usbmodemXXXX flash` depuis le dossier du projet concerné.
 - **Lire la sortie série sans terminal interactif** (utile pour capturer une trace courte sans bloquer sur `idf.py monitor`) : script Python avec `pyserial` (déjà présent dans le venv IDF, dépendance d'`esptool`), `serial.Serial(port, 115200, timeout=...)` + `readline()` en boucle avec une échéance. Piège : les logs `ESP_LOGx` sortent bien sur ce port, mais les messages `LOG` du protocole (boot, ready, compteurs TWAI) partent sur le **bus CAN**, pas sur l'UART — invisibles ici tant qu'on n'a pas de pont vers `coffeetool`.
+
+### Checklist de mise en route (nouvelle session)
+
+Écrite après une session (2026-09-09 matin) où la moitié du temps est partie en
+tâtonnement avant de découvrir que le pont marchait très bien depuis le
+début — les points ci-dessous sont les pièges rencontrés, dans l'ordre où les
+vérifier.
+
+1. **Sourcer l'environnement IDF avant toute commande `idf.py`/`esptool`/`coffeetool`**,
+   et le refaire à chaque nouvel appel `Bash` si l'outil ne garde pas l'état du
+   shell entre deux appels :
+   ```sh
+   source ~/.espressif/tools/activate_idf_v6.1.sh
+   ```
+2. **Identifier quel port est quelle carte, ne jamais supposer** (les
+   `/dev/cu.usbmodemNNNN` changent d'un rebranchement à l'autre) :
+   - `python -m esptool --port /dev/cu.usbmodemXXXX chip-id` donne le type de
+     puce, mais **XIAO et Waveshare sont tous les deux des `ESP32-S3
+     (QFN56)`** — ça ne les distingue pas entre eux (seul l'Atom S3 du
+     `can-monitor` ressort différent, `ESP32-S3-PICO-1`).
+   - Utiliser plutôt `python -m esptool --port /dev/cu.usbmodemXXXX flash-id`
+     et regarder `Detected flash size` : **8 Mo = XIAO (`sensors`), 16 Mo =
+     Waveshare (`screen`)**. Fiable, contrairement au chip-id seul.
+3. **Avant de conclure à une carte muette, vérifier qu'aucun autre process
+   n'a déjà le port ouvert** (`ps aux | grep coffeetool`) — un `monitor` lancé
+   en arrière-plan et pas proprement tué (voir point 5) reste accroché au
+   port et fait sembler le nouveau essai silencieux, ou pire, fait lire du
+   flux entrelacé entre deux processus sur le même port.
+4. **`coffeetool monitor` redirigé vers un fichier (`> out.log &`) puis tué
+   avant la fin peut paraître muet alors que le trafic existe bien** : la
+   sortie de Python est bufferisée par bloc (pas ligne par ligne) dès qu'elle
+   n'est plus un terminal, donc un `kill` avant que le buffer se vide perd
+   tout ce qui n'a pas encore été flush. Lancer avec `PYTHONUNBUFFERED=1` en
+   tête de commande dès qu'il faut rediriger + tuer plus tard. Ça a fait
+   perdre du temps à tort conclure "aucune réponse du pont" alors que
+   `PING`/`PONG` circulaient très bien.
+5. **Toujours tuer proprement le process de capture** (`kill $PID; wait
+   $PID`) avant d'en relancer un autre sur le même port — un `run_in_background`
+   dont le script interne fait déjà son propre `&`/`sleep`/`kill` peut se
+   terminer (et donc être vu comme "complété") avant que le sous-process
+   detaché soit réellement mort, laissant un doublon actif (voir point 3).
+6. **Un pont qui répondait hier soir et ne répond plus ce matin n'est pas
+   forcément cassé** : un reset logiciel répété (RTS via `idf.py
+   monitor`/`flash`) peut laisser l'écran dans un état incohérent qu'un
+   `RESET` protocolaire ne rattrape pas. Avant de creuser côté firmware,
+   **couper l'alimentation physiquement (débrancher l'USB) sur chaque carte
+   à tour de rôle**, pas juste demander un reset logiciel.
+7. **`firmware/can-selftest` (auto-test transceiver, `TWAI_MODE_NO_ACK` +
+   boucle vers soi-même) exige le câble CAN débranché sur les deux cartes** —
+   sinon on ne sait plus si un échec vient du transceiver local ou du câble/de
+   l'autre carte. Vérifier aussi `PINOUT_CANPAL` et `TEST_MODE_TWAI` en tête de
+   fichier avant de flasher : ce sont des `#define` de bring-up, pas figés,
+   et le brochage actuel du XIAO est le **Unit CAN** (`PINOUT_CANPAL 0`,
+   TX=8/RX=7), pas l'ancien CAN Pal.
+8. **Un `LOG PRESENCE_LOST` répété toutes les ~3 s juste après un
+   rebranchement n'est pas forcément une régression** : les compteurs
+   d'erreur TWAI (`LOG TWAI_ERROR_COUNTERS`, `arg16` = rx/tx error counter,
+   `arg32` = bus_error_count cumulé) mettent quelques dizaines de secondes à
+   redescendre après une coupure/reprise du bus. Regarder si `arg16` décroît
+   vers 0 et si `arg32` cesse de grimper avant de traiter ça comme un vrai
+   problème de câblage/terminaison.
 
 ---
 

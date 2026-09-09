@@ -19,6 +19,7 @@
 #include "driver/gpio.h"
 #include "driver/twai.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -30,25 +31,24 @@
 
 // Une seule carte à la fois : mettre 1 pour la carte testée, 0 pour
 // l'autre, puis reconstruire (idf.py build) avant de flasher.
-#define BOARD_XIAO_SENSORS 1  // M5Stack Unit CAN (TJA1051) — TX 7, RX 8
-#define BOARD_ATOM_CANMON 0    // Unit CAN (TJA1051), Port.A — TX 2, RX 1 (confirmé)
+#define BOARD_XIAO_SENSORS 1
+#define BOARD_ATOM_CANMON 0    // Unit CAN, Port.A — TX 2, RX 1 (confirmé)
+
+// Brochage XIAO port R3 (D8=GPIO7, D9=GPIO8). Deux conventions en jeu :
+//   1 = CAN Pal (docs/cablage.md) : TX → blanc → GPIO7, RX → jaune → GPIO8
+//   0 = Unit CAN actuel : GPIO7 = RX, GPIO8 = TX
+#define PINOUT_CANPAL 0
 
 #if BOARD_XIAO_SENSORS
-// Module CAN Pal AliExpress remplacé par un M5Stack Unit CAN — modèle exact
-// U085, transceiver CA-IS3050G isolé (voir docs.m5stack.com/en/unit/can),
-// PAS le TJA1051 de l'Atom ci-dessous : produit différent, convention de
-// nommage différente. Doc officielle du connecteur Grove HY2.0-4P : jaune =
-// CAN_TX, blanc = CAN_RX — ce sont les noms des broches du transceiver
-// lui-même (TXD = entrée du transceiver, RXD = sortie), pas une convention
-// "câble croisé" comme sur le module Mini CAN de l'Atom. Fil blanc (CAN_RX,
-// une SORTIE du module) → D8 du XIAO : D8/GPIO7 doit donc être le RX du
-// contrôleur, GPIO8 (fil jaune, CAN_TX, entrée du module) le TX. Inversé
-// par rapport à la première tentative, qui donnait un BUS_OFF immédiat
-// (tx_err=128, bus_err=16) — cohérent avec deux sorties en collision sur le
-// même fil. D8/D9 (silkscreen Seeed) = GPIO natif 7/8 (voir docs/cablage.md).
+#if PINOUT_CANPAL
+constexpr gpio_num_t kCanTx = GPIO_NUM_7;
+constexpr gpio_num_t kCanRx = GPIO_NUM_8;
+constexpr const char* kBoardName = "XIAO sensors (CAN Pal, TX=7 RX=8)";
+#else
 constexpr gpio_num_t kCanTx = GPIO_NUM_8;
 constexpr gpio_num_t kCanRx = GPIO_NUM_7;
-constexpr const char* kBoardName = "XIAO sensors (Unit CAN, TX/RX swap)";
+constexpr const char* kBoardName = "XIAO sensors (Unit CAN, TX=8 RX=7)";
+#endif
 #elif BOARD_ATOM_CANMON
 // Port.A réel de cet Atom S3 : fil jaune (broche extérieure, étiquette G1)
 // = TX du Unit CAN, fil blanc (G2) = RX. Donc TX du XIAO... pardon, TX de
@@ -92,17 +92,19 @@ extern "C" void app_main() {
   rx_cfg.intr_type = GPIO_INTR_DISABLE;
   gpio_config(&rx_cfg);
 
-  bool level = true;  // recessif au repos
-  gpio_set_level(kCanTx, level ? 1 : 0);
+  gpio_set_level(kCanTx, 1);  // recessif au repos
+  printf("bit-bang LENT (lisible au multimètre): TXD=GPIO%d doit basculer 0/3.3V ~1 Hz\n", (int)kCanTx);
+  printf("impulsion trop longue pour le TJA1051: RXD qui ne suit pas ne prouve rien ici\n");
 
   for (;;) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    level = !level;
-    gpio_set_level(kCanTx, level ? 1 : 0);
-    vTaskDelay(pdMS_TO_TICKS(20));  // laisser le temps à la puce de réagir
-    int rxd = gpio_get_level(kCanRx);
-    const char* verdict = (rxd == (level ? 1 : 0)) ? "suit" : "NE SUIT PAS";
-    printf("TXD=%d -> RXD=%d  (%s)\n", level ? 1 : 0, rxd, verdict);
+    gpio_set_level(kCanTx, 0);
+    int rx_low = gpio_get_level(kCanRx);
+    printf("TXD=0  RXD=%d  (pad TX doit lire ~0 V)\n", rx_low);
+    vTaskDelay(pdMS_TO_TICKS(400));
+    gpio_set_level(kCanTx, 1);
+    int rx_high = gpio_get_level(kCanRx);
+    printf("TXD=1  RXD=%d  (pad TX doit lire ~3.3 V)\n", rx_high);
+    vTaskDelay(pdMS_TO_TICKS(400));
   }
 }
 

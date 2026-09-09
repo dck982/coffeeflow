@@ -130,7 +130,82 @@ Première mouture de l'API :
 - `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)
 - `POST` — niveau dimmer et SSR
 - `POST` image firmware, avec destination **screen** ou **sensors**
+- `GET` / `POST` **`/config`** — toute la configuration en un seul objet JSON, voir ci-dessous
 - WebSocket — miroir de tout le trafic CAN, brut. C'est le sniffer une fois les cartes en boîte.
+
+#### `/config` — toute la configuration en un objet JSON
+
+**`GET /config` renvoie l'intégralité de ce qui est réglable, `POST /config` le
+remplace.** Rien de configurable ne doit exister uniquement dans l'écran
+tactile : réglages d'infusion, profils, calibrations, luminosité, veille. Deux
+raisons, et la première suffirait :
+
+- **Sauvegarde et restauration depuis un hôte distant.** Toutes ces valeurs
+  vivent en NVS sur une carte qu'on aura fermée dans la façade. Une calibration
+  perdue (flash raté, NVS effacée pour rattraper un SSID erroné, carte
+  remplacée) se remesure sur la machine, à la main, pendant une heure. Un
+  `curl > config.json` la rend gratuite.
+- **Régler autre part qu'au doigt.** Ajuster une carte dimmer → pression ou
+  une courbe de correction bas débit à coups de `−`/`+` sur un 4,3" est une
+  punition ; dans un éditeur de texte, c'est trivial.
+
+Règles qui rendent ça utilisable plutôt que dangereux :
+
+- **`POST` partiel accepté** : les clés absentes gardent leur valeur. Une
+  restauration complète est simplement un `POST` de tout l'objet.
+- **Validation avant écriture, tout ou rien.** Chaque valeur est bornée
+  (mêmes bornes que l'UI, voir `ui.md`) ; une seule clé hors bornes rejette
+  l'objet entier avec `400` et le nom de la clé fautive. On n'écrit jamais une
+  configuration à moitié appliquée en NVS.
+- **`version` obligatoire en tête de l'objet**, incrémentée à chaque
+  changement de schéma. Un `POST` d'une version inconnue est refusé plutôt
+  qu'interprété de travers — un fichier de sauvegarde vieux d'un an ne doit
+  pas pouvoir écrire une calibration dans le mauvais champ.
+- **Les identifiants Wi-Fi n'y sont pas.** Ni en lecture, ni en écriture : ils
+  restent au provisioning. Une sauvegarde de configuration ne doit pas
+  contenir un mot de passe en clair, et un objet restauré ne doit pas pouvoir
+  couper l'écran du réseau.
+- **Refusé pendant une infusion ou une purge** (`409`) : on ne change pas les
+  bornes sous les pieds de l'algorithme qui tourne.
+- L'UI relit la configuration après un `POST` accepté — l'écran affiche
+  toujours ce qui est réellement en NVS, jamais une copie divergente.
+
+```json
+{
+  "version": 1,
+  "brew": { "target_weight_g": 36.0, "target_time_s": 28, "pump_pct": 100 },
+  "preinfusion": { "mode": "time", "time_s": 6, "pressure_bar": 4.0, "pump_pct": 30 },
+  "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
+  "purge": { "pump_pct": 100, "max_s": 20 },
+  "ui": { "brightness_pct": 80, "dim_after_s": 300 },
+  "calibration": {
+    "flow_k_pulses_per_l": 2382, "flow_low_correction": [],
+    "pressure_full_scale_bar": 10.0,
+    "dimmer_to_pressure": [], "pump_stall_pct": 20, "weight_anticipation_g": 1.5
+  },
+  "profiles": []
+}
+```
+
+`profiles` reste un tableau vide tant que la notion de profil n'existe pas :
+le schéma est prévu pour, et l'ajouter ne changera pas le reste de l'objet.
+
+### Politique radio
+
+**Wi-Fi et BLE ne sont pas actifs en même temps quand ça compte.** Ils
+partagent la même radio 2,4 GHz : les faire cohabiter pendant un shot, c'est
+accepter des trous dans la pesée au moment précis où elle décide de l'arrêt.
+
+| Moment | Wi-Fi | BLE |
+| --- | --- | --- |
+| Repos | actif | actif, mais **basse cadence** — on détecte la balance et on lit le poids à ~1 Hz, il n'y a rien à suivre |
+| Infusion, purge | **coupé** | actif, pleine cadence |
+| Fin d'infusion | réactivé | actif, basse cadence |
+
+La coupure du Wi-Fi pendant une infusion est **délibérée et normale**, pas une
+panne : l'UI l'affiche comme telle (`ui.md`, bandeau de statut). Le shot est
+envoyé au réseau *après* le cycle, quand la radio est rendue — c'est déjà ce
+que dit le tableau des travaux concurrents plus haut.
 
 Le **même flux de trames** sort en USB série sur l'image factory (voir plus bas) : un seul décodeur côté Mac pour les deux transports.
 

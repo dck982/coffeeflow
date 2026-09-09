@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>coffeeflow — maquette UI 800×480</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141110;
+    --raised:#1E1A18;
+    --hairline:#332C28;
+    --text:#F2EBE3;
+    --dim:#A2968C;
+    --faint:#6B615A;
+    --accent:#D98324;
+    --wash:rgba(217,131,36,.14);
+    --fault:#B9412F;
+    --font:"Inter",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#3a3a3c;color:#ddd;font-family:var(--font);
+    padding:48px 32px 96px;
+  }
+  h1{font-weight:400;font-size:22px;color:#fff;margin-bottom:8px}
+  .intro{font-size:14px;color:#aaa;max-width:820px;line-height:1.6;margin-bottom:40px}
+  .intro code{color:#e0b070}
+  .caption{font-size:13px;color:#bbb;margin:36px 0 10px;max-width:820px;line-height:1.5}
+  .caption b{color:#fff;font-weight:500}
+  /* cadre du boîtier : ~1 cm de façade noire autour de la dalle */
+  .bezel{
+    width:856px;padding:28px;background:#0a0a0a;border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  .screen{
+    width:800px;height:480px;background:var(--bg);color:var(--text);
+    position:relative;overflow:hidden;
+    font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+    font-weight:300;
+  }
+  .pad{position:absolute;inset:0;padding:24px 32px}
+
+  /* ---- bandeau L0 ---- */
+  .ribbon{display:flex;align-items:baseline;justify-content:space-between;
+    font-size:28px;color:var(--text);height:44px}
+  .ribbon .left{color:var(--text)}
+  .ribbon .chev{color:var(--faint);font-size:20px;margin-left:8px}
+  .ribbon .right{display:flex;align-items:baseline;gap:18px;color:var(--dim)}
+  .sep{color:var(--faint);font-size:20px}
+  .icon{font-size:24px;line-height:1}
+  .off{color:var(--faint)}
+  /* rampe d'engagement : pompe et débit, une seule teinte, quatre luminosités */
+  .r0{color:var(--faint)}
+  .r1{color:#8C5A22}
+  .r2{color:var(--accent)}
+  .r3{color:#F2B25C}
+  .rule{height:1px;background:var(--hairline);margin-top:14px}
+  .ribbon.dimmed,.ribbon.dimmed .right,.ribbon.dimmed .left{color:var(--faint)}
+
+  /* ---- héros ---- */
+  .hero-wrap{position:absolute;left:0;right:0;text-align:center}
+  .hero{font-size:104px;line-height:1;font-weight:300;letter-spacing:-2px}
+  .hero.small{font-size:76px}
+  .unit{font-size:32px;color:var(--dim);margin-left:10px;font-weight:300}
+  .label{font-size:18px;letter-spacing:.08em;color:var(--faint);text-transform:lowercase}
+  .label.accent{color:var(--accent)}
+  .secondary{font-size:40px;color:var(--dim);font-weight:300}
+  .secondary .u{font-size:22px;color:var(--faint);margin-left:6px}
+
+  /* filet de progression : la séparation EST la progression */
+  .prog{height:2px;background:var(--hairline);margin:22px auto 0;position:relative}
+  .prog>i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);display:block}
+
+  /* ---- boutons ---- */
+  .btn{
+    height:88px;min-width:200px;border:1.5px solid var(--hairline);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;color:var(--text);font-weight:300;padding:0 28px;background:none;
+  }
+  .btn.primary{border-color:var(--accent);color:var(--accent)}
+  .btn.pressed{background:var(--wash);border-color:var(--accent);color:var(--accent)}
+  .btn.disabled{border-color:#241F1C;color:#3E3733}
+  .btn.round{min-width:88px;width:88px;padding:0;font-size:38px;color:var(--dim)}
+  .btnrow{position:absolute;left:32px;right:32px;bottom:24px;display:flex;gap:24px}
+  .btnrow.center{justify-content:center}
+
+  /* ---- feuille L3 ---- */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--raised);
+    border-top:1px solid var(--hairline);padding:24px 32px}
+  .row{height:88px;display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--hairline);font-size:28px;position:relative}
+  .row:last-child{border-bottom:none}
+  .row .meta{font-size:22px;color:var(--faint)}
+  .row.active{color:var(--accent)}
+  .row.active:before{content:"";position:absolute;left:-32px;top:18px;bottom:18px;
+    width:2px;background:var(--accent)}
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:420px}
+  .key{height:76px;border:1.5px solid var(--hairline);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text)}
+
+  /* ---- L2 plein écran ---- */
+  .full{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:0 64px}
+  .full h2{font-size:48px;font-weight:300;letter-spacing:-.5px}
+  .full h2.fault{color:var(--fault)}
+  .full p{font-size:24px;color:var(--dim);margin-top:18px;line-height:1.5;font-weight:300}
+  .segs{display:flex;gap:12px}
+  .seg{height:64px;padding:0 24px;border:1.5px solid var(--hairline);border-radius:8px;
+    display:flex;align-items:center;font-size:22px;color:var(--dim)}
+  .seg.on{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<h1>coffeeflow — maquette UI</h1>
+<p class="intro">
+  Chaque cadre fait <b>800 × 480 px réels</b> (regarde-le à 100 %, pas zoomé) dans une façade
+  noire. Sur la dalle 4,3" ces 800 px font 95 mm de large : le chiffre héros mesure ~12 mm de haut.
+  Spécification écrite : <code>docs/ui.md</code>.<br><br>
+  <b>Rampe d'engagement</b> (pompe et débit, une teinte, quatre luminosités) :
+  <span style="color:#6B615A">■ 0 éteint</span> ·
+  <span style="color:#8C5A22">■ 1 sous le régime visé</span> ·
+  <span style="color:#D98324">■ 2 au régime visé</span> ·
+  <span style="color:#F2B25C">■ 3 plein régime</span>
+</p>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<p class="caption"><b>1 · Repos, balance connectée.</b> Le bouton dit ce qui va se passer :
+« infuser · 36 g ». Les <code>−</code> / <code>+</code> sont toujours là (pas de mode édition) ;
+taper le chiffre ouvre le pavé numérique (cadre 4).</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">espresso <span class="chev">⌄</span></div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span>0,0 g</span><span class="sep">·</span>
+      <span class="icon">⚖</span><span class="icon">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="hero-wrap" style="top:150px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:56px">
+      <div class="btn round">−</div>
+      <div><span class="hero small">36,0</span><span class="unit">g</span></div>
+      <div class="btn round">+</div>
+    </div>
+    <div class="label" style="margin-top:26px">cible · pré-infusion 6 s · rampe sur chute de pression</div>
+  </div>
+
+  <div class="btnrow">
+    <div class="btn primary" style="flex:1.4">infuser · 36 g</div>
+    <div class="btn" style="flex:1">purge</div>
+    <div class="btn" style="flex:1">réglages</div>
+  </div>
+</div></div></div>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<p class="caption"><b>2 · Repos, pas de balance.</b> Rien à régler : la cible devient le temps,
+le bouton suit, l'icône balance s'éteint (en gris, pas en rouge — une balance éteinte n'est pas une panne).
+C'est le même écran, une seule règle de bascule.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">espresso <span class="chev">⌄</span></div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span class="icon off">⚖</span><span class="icon">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="hero-wrap" style="top:150px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:56px">
+      <div class="btn round">−</div>
+      <div><span class="hero small">28</span><span class="unit">s</span></div>
+      <div class="btn round">+</div>
+    </div>
+    <div class="label" style="margin-top:26px">cible · pré-infusion 6 s · rampe 3 s avant la fin</div>
+  </div>
+
+  <div class="btnrow">
+    <div class="btn primary" style="flex:1.4">infuser · 28 s</div>
+    <div class="btn" style="flex:1">purge</div>
+    <div class="btn" style="flex:1">réglages</div>
+  </div>
+</div></div></div>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<p class="caption"><b>3 · Retour au toucher.</b> Le bouton « purge » est enfoncé : fond lavé d'ambre,
+contour et libellé en ambre, 90 ms. Pas d'ondulation, pas de déplacement — trois propriétés d'un coup,
+visible du coin de l'œil.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">espresso <span class="chev">⌄</span></div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span>0,0 g</span><span class="sep">·</span>
+      <span class="icon">⚖</span><span class="icon">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <div class="hero-wrap" style="top:150px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:56px">
+      <div class="btn round">−</div>
+      <div><span class="hero small">36,0</span><span class="unit">g</span></div>
+      <div class="btn round">+</div>
+    </div>
+    <div class="label" style="margin-top:26px">cible · pré-infusion 6 s · rampe sur chute de pression</div>
+  </div>
+  <div class="btnrow">
+    <div class="btn primary" style="flex:1.4">infuser · 36 g</div>
+    <div class="btn pressed" style="flex:1">purge</div>
+    <div class="btn" style="flex:1">réglages</div>
+  </div>
+</div></div></div>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<p class="caption"><b>4 · Pavé numérique (feuille L3).</b> Ouvert en tapant le chiffre. Le bandeau
+de statut reste visible : on ne perd jamais la machine de vue en réglant une valeur.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">espresso</div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span>0,0 g</span><span class="sep">·</span>
+      <span class="icon">⚖</span><span class="icon">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+</div>
+  <div class="sheet" style="height:390px">
+    <div style="display:flex;gap:48px;align-items:center;height:100%">
+      <div style="flex:1;text-align:center">
+        <div class="label" style="margin-bottom:16px">cible poids</div>
+        <div><span class="hero small" style="font-size:88px">36,0</span><span class="unit">g</span></div>
+        <div class="prog" style="width:240px"><i style="width:0"></i></div>
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:34px">
+          <div class="btn" style="min-width:120px;height:76px;font-size:22px">annuler</div>
+          <div class="btn primary" style="min-width:120px;height:76px;font-size:22px">valider</div>
+        </div>
+      </div>
+      <div class="keys">
+        <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+        <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+        <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+        <div class="key">,</div><div class="key">0</div><div class="key">⌫</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 5 ------------------------------------------------------------------ -->
+<p class="caption"><b>5 · Infusion en cours (brew by weight).</b> Le débit et la pompe portent la
+<b>rampe d'engagement</b> : ici pompe à 100 % (ambre clair) et débit dans les ±10 % de la cible
+(ambre plein). L'icône Wi-Fi est atténuée — la radio est rendue au BLE pendant le shot, c'est voulu,
+pas une panne. Statut en héros, le bandeau
+continue de vivre mais s'efface. Le filet sous le chiffre <b>est</b> la progression vers la cible :
+même vocabulaire graphique que les séparations, aucun widget « barre » en plus.
+L'arrêt fait 320 × 88 — impossible à rater, assez petit pour laisser les données lisibles ;
+le cas normal reste l'arrêt automatique.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon dimmed">
+    <div class="left">espresso</div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span>9,1 bar</span><span class="sep">·</span>
+      <span class="r2">2,1 ml/s</span><span class="sep">·</span>
+      <span class="icon r3">◍</span>
+      <span class="icon" style="color:var(--dim)">⚖</span><span class="icon off">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="hero-wrap" style="top:120px">
+    <div class="label accent">infusion</div>
+    <div style="margin-top:14px"><span class="hero">28,4</span><span class="unit">g</span></div>
+    <div class="prog" style="width:420px"><i style="width:79%"></i></div>
+    <div style="display:flex;justify-content:center;gap:52px;margin-top:20px">
+      <div class="secondary">21,6<span class="u">s</span></div>
+      <div class="secondary" style="color:var(--faint)">36,0<span class="u">g cible</span></div>
+    </div>
+  </div>
+
+  <div class="btnrow center"><div class="btn primary" style="width:320px">arrêter</div></div>
+</div></div></div>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<p class="caption"><b>6 · Pré-infusion.</b> Pompe et débit en niveau 1 de la rampe (ambre sombre) :
+actifs, en dessous du régime visé. Même écran, la phase change (étiquette ambre) et le
+filet de progression suit l'attente de pression au lieu du poids. C'est la seule information non
+mesurée de l'écran, et celle qui explique ce que fait la pression.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon dimmed">
+    <div class="left">espresso</div>
+    <div class="right">
+      <span>92,4°</span><span class="sep">·</span>
+      <span>3,4 bar</span><span class="sep">·</span>
+      <span class="r1">0,6 ml/s</span><span class="sep">·</span>
+      <span class="icon r1">◍</span>
+      <span class="icon" style="color:var(--dim)">⚖</span><span class="icon off">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <div class="hero-wrap" style="top:120px">
+    <div class="label accent">pré-infusion · attente 4 bar</div>
+    <div style="margin-top:14px"><span class="hero">0,0</span><span class="unit">g</span></div>
+    <div class="prog" style="width:420px"><i style="width:22%"></i></div>
+    <div style="display:flex;justify-content:center;gap:52px;margin-top:20px">
+      <div class="secondary">4,2<span class="u">s</span></div>
+      <div class="secondary" style="color:var(--faint)">36,0<span class="u">g cible</span></div>
+    </div>
+  </div>
+  <div class="btnrow center"><div class="btn primary" style="width:320px">arrêter</div></div>
+</div></div></div>
+
+<!-- 7 ------------------------------------------------------------------ -->
+<p class="caption"><b>7 · Purge (homme-mort).</b> Elle coule tant que le doigt reste posé,
+plafond 20 s — de quoi faire les purges de 10-15 s du nettoyage à la poudre. Le bandeau
+change de composition : <b>la pression apparaît</b> (c'est le seul moment où elle est utile)
+et le débit disparaît (la pompe recircule, il ne veut rien dire ici).</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon dimmed">
+    <div class="left">purge</div>
+    <div class="right">
+      <span>10,4 bar</span><span class="sep">·</span>
+      <span class="icon r3">◍</span><span class="icon" style="color:var(--accent)">◊</span>
+      <span class="icon off">≋</span>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <div class="hero-wrap" style="top:120px">
+    <div class="label accent">purge · relâcher pour arrêter</div>
+    <div style="margin-top:14px"><span class="hero">12,3</span><span class="unit">s</span></div>
+    <div class="prog" style="width:420px"><i style="width:61%"></i></div>
+    <div style="display:flex;justify-content:center;gap:52px;margin-top:20px">
+      <div class="secondary" style="color:var(--faint)">20<span class="u">s max</span></div>
+    </div>
+  </div>
+  <div class="btnrow center"><div class="btn pressed" style="width:320px">purge</div></div>
+</div></div></div>
+
+<!-- 8 ------------------------------------------------------------------ -->
+<p class="caption"><b>8 · Fin d'infusion.</b> Le résultat, 15 s, puis retour au repos tout seul.
+Aucun jugement affiché : la machine mesure, elle ne note pas.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon dimmed">
+    <div class="left">espresso</div>
+    <div class="right"><span>92,1°</span><span class="sep">·</span><span class="icon">⚖</span></div>
+  </div>
+  <div class="rule"></div>
+  <div class="hero-wrap" style="top:140px">
+    <div class="label">terminé</div>
+    <div style="margin-top:14px"><span class="hero">36,4</span><span class="unit">g</span></div>
+    <div class="prog" style="width:420px"><i style="width:100%"></i></div>
+    <div style="display:flex;justify-content:center;gap:52px;margin-top:20px">
+      <div class="secondary">28,9<span class="u">s</span></div>
+      <div class="secondary">1,26<span class="u">g/s</span></div>
+    </div>
+  </div>
+  <div class="btnrow center"><div class="btn" style="width:240px">fermer</div></div>
+</div></div></div>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<p class="caption"><b>9 · Profils (feuille L3).</b> On choisit le profil courant, il n'y a pas un
+bouton par profil. Le profil actif est marqué par un filet ambre à gauche, pas par une case cochée.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">profils</div>
+    <div class="right"><span>92,4°</span><span class="sep">·</span><span class="icon">⚖</span><span class="icon">≋</span></div>
+  </div>
+  <div class="rule"></div>
+</div>
+  <div class="sheet" style="height:390px;padding-top:8px">
+    <div class="row active"><span>espresso</span><span class="meta">36 g · pré-inf. 6 s</span></div>
+    <div class="row"><span>ristretto</span><span class="meta">22 g · pré-inf. 8 s</span></div>
+    <div class="row"><span>long</span><span class="meta">55 g · pré-inf. 4 s</span></div>
+    <div class="row"><span>filtre clair</span><span class="meta">42 g · rampe longue</span></div>
+  </div>
+</div></div>
+
+<!-- 10 ----------------------------------------------------------------- -->
+<p class="caption"><b>10 · Diagnostic.</b> Ouvert en appuyant sur le groupe d'icônes du bandeau —
+le seul raccourci caché de l'interface, et le geste qu'on fait naturellement quand on se demande
+« est-ce qu'il voit vraiment mes capteurs ? ». Lecture seule, valeurs brutes à droite : c'est
+<code>coffeetool monitor</code> depuis la façade, sans sortir le Mac.</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">diagnostic</div>
+    <div class="right"><span>92,4°</span><span class="sep">·</span><span class="icon">⚖</span><span class="icon">≋</span></div>
+  </div>
+  <div class="rule"></div>
+  <div style="margin-top:2px;font-size:26px">
+    <div class="row" style="height:64px"><span>pression</span><span>9,1 bar</span><span class="meta">brut 8412 · valide</span></div>
+    <div class="row" style="height:64px"><span>température</span><span>92,4°</span><span class="meta">brut 24118</span></div>
+    <div class="row" style="height:64px"><span>débit</span><span>2,1 ml/s</span><span class="meta">14822 imp · 40 ms</span></div>
+    <div class="row" style="height:64px"><span>pompe</span><span class="r0">0 %</span><span class="meta">prêt</span></div>
+    <div class="row" style="height:64px"><span>vanne</span><span>fermée</span><span class="meta">bail 0 ms · continu 0 ms</span></div>
+    <div class="row" style="height:64px"><span>balance</span><span>0,0 g</span><span class="meta">connectée · 120 ms</span></div>
+  </div>
+</div></div></div>
+
+<!-- 11 ------------------------------------------------------------------ -->
+<p class="caption"><b>11 · Réglages.</b> Même grammaire : des lignes, des filets, aucune boîte.
+Les stratégies sont des segments côte à côte (un déroulant demanderait deux touches précises).</p>
+<div class="bezel"><div class="screen"><div class="pad">
+  <div class="ribbon">
+    <div class="left">réglages</div>
+    <div class="right"><span class="label">v0,2.3</span></div>
+  </div>
+  <div class="rule"></div>
+  <div style="margin-top:6px">
+    <div class="row"><span>cible poids</span>
+      <span style="display:flex;align-items:center;gap:20px">
+        <span class="btn round" style="height:64px;width:64px;min-width:64px;font-size:30px">−</span>
+        <span style="font-size:34px;width:110px;text-align:center">36,0 g</span>
+        <span class="btn round" style="height:64px;width:64px;min-width:64px;font-size:30px">+</span>
+      </span></div>
+    <div class="row"><span>pré-infusion</span>
+      <span class="segs"><span class="seg on">temps 6 s</span><span class="seg">pression 4 bar</span></span></div>
+    <div class="row"><span>ramp-down</span>
+      <span class="segs"><span class="seg">temps</span><span class="seg">poids</span><span class="seg on">chute de pression</span></span></div>
+    <div class="row"><span>calibration</span><span class="meta">facteur K · pleine échelle · dimmer ⌄</span></div>
+  </div>
+</div></div></div>
+
+<!-- 12 ----------------------------------------------------------------- -->
+<p class="caption"><b>12 · Verrou 60 s (plein écran L2).</b> Aucun bouton ne fonctionne tant que le
+verrou tient : autant prendre tout l'écran et écrire la seule sortie réelle — l'interrupteur principal.</p>
+<div class="bezel"><div class="screen">
+  <div class="full">
+    <h2 class="fault">verrou de sécurité</h2>
+    <p>La pompe est restée en marche plus de 60 s.<br>
+       Couper la machine à l'interrupteur principal, puis la rallumer.</p>
+  </div>
+</div></div>
+
+<!-- 13 ----------------------------------------------------------------- -->
+<p class="caption"><b>13 · Mise à jour (plein écran L2).</b> Le même filet de progression que
+pendant un shot. Aucun bouton : on ne coupe pas un OTA par mégarde.</p>
+<div class="bezel"><div class="screen">
+  <div class="full">
+    <h2>mise à jour</h2>
+    <div class="prog" style="width:440px;margin-top:34px"><i style="width:46%"></i></div>
+    <p>module capteurs · bloc 49 / 107<br>ne pas couper la machine</p>
+  </div>
+</div></div>
+
+<!-- 14 ----------------------------------------------------------------- -->
+<p class="caption"><b>14 · Module interne injoignable (plein écran L2).</b> Le bus CAN est perdu :
+plus aucune commande n'aboutit, l'écran le dit franchement au lieu d'afficher un badge dans un coin.</p>
+<div class="bezel"><div class="screen">
+  <div class="full">
+    <h2 class="fault">module interne injoignable</h2>
+    <p>Le bus CAN ne répond plus depuis 3 s.<br>
+       Les commandes de pompe et de vanne sont coupées.</p>
+  </div>
+</div></div>
+
+</body>
+</html>

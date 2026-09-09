@@ -832,6 +832,10 @@ Le plus gros morceau, mais le moins risqué : l'écran reste atteignable en USB.
    `reference/acaia-ble/` — Arduino-ESP32, à porter vers l'API GATT native
    ESP-IDF, pas à compiler tel quel (voir le `README.md` du dossier).
 6. **LVGL** — écran, tactile, et l'UI minimale : purge, départ d'infusion, arrêt.
+   **Style, structure, cotes, textes, cas limites et découpage en cinq lots :
+   `docs/ui.md`** (décidé le 2026-09-09, avant écriture du code, maquette à
+   l'échelle dans `docs/ui-mockup.html`). LVGL **v9.x** via
+   `espressif/esp_lvgl_port`, bounce buffer obligatoire sur ce panneau RGB.
 
 **Sortie :** l'écran se flashe et flashe les capteurs par le réseau, et l'outil Mac voit tout par WebSocket.
 

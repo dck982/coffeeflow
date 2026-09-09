@@ -2,6 +2,37 @@
 
 ## Où on en est
 
+**Phase 6, lot 1 (restructuration de `firmware/screen/`), fait et vérifié sur
+le vrai matériel (2026-09-09).**
+`firmware/screen/main/main.cpp` (615 lignes) découpé en `board.h/.cpp`
+(CH422G/GPIO/brochage, registre de sortie CH422G désormais maintenu en RAM via
+`ch422g_set_bit()` plutôt qu'écrit directement — piège documenté dans
+`docs/plan-phase6.md`, lot 1), `can_link.h/.cpp` (TWAI, dispatch protocolaire,
+présence), `serial_bridge.h/.cpp` (pont série↔CAN, code déplacé tel quel),
+`ota_local.h/.cpp` (FLASH_CTRL/FLASH_DATA pour soi, déplacé tel quel),
+`ota_proxy.h/.cpp` (stub vide, rien à déplacer — cette logique n'existe pas
+encore côté écran, elle arrive au lot 7), `core/core.h` (façade à trois faces,
+stub, à remplir aux lots 3/4/9). `main.cpp` ne fait plus qu'`app_main` (62
+lignes). Les trois tâches (`can2ser`, `ser2can`, `ota_valid`) sont désormais
+épinglées explicitement au cœur 1 (`xTaskCreatePinnedToCore`), seul
+changement de comportement runtime, voulu par le plan. Aucune autre logique
+modifiée — uniquement déplacée.
+
+`idf.py build` réussi depuis `firmware/screen/`, aucune erreur ni warning.
+**Les trois essais de la barrière C rejoués sans régression après le
+refactor** : `PING`/`PONG` à travers le pont (écran et capteurs répondent
+chacun avec node/version/uptime cohérents), flash OTA de `sensors` par le CAN
+(v0.2.7→0.2.8, confirmé dans le `PONG` après reboot), flash OTA de `screen`
+par lui-même (v0.2.8→0.2.9, confirmé dans le `PONG` après reboot). Lot 1 clos.
+
+Prochaine étape : lot 2 (écran de service, `esp_lcd` RGB + GT911 +
+`esp_lvgl_port`) — nécessite les cartes branchées pour être testé (l'affichage
+et le tactile ne se vérifient pas en simulation), donc à démarrer une fois le
+banc de nouveau disponible. En attendant, possibilité d'avancer sur des lots
+qui se testent sans matériel réel (ex. logique pure de `core/` prévue aux
+lots 3/9, une fois leur tour venu) — à décider selon ce qui reste faisable
+hors matériel.
+
 **Phase 5, débitmètre (Digmesa, GPIO 44/D7), fait et validé sur le vrai
 capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : `init_flow()`
 configure GPIO44 en entrée, interruption front descendant, pull-up interne

@@ -553,6 +553,17 @@ vérifier.
    redescendre après une coupure/reprise du bus. Regarder si `arg16` décroît
    vers 0 et si `arg32` cesse de grimper avant de traiter ça comme un vrai
    problème de câblage/terminaison.
+9. **Invoquer `coffeetool` depuis `firmware/tools/`, pas depuis
+   `firmware/tools/coffeetool/`**, et avec `python -m coffeetool.cli`, pas
+   `python -m coffeetool` (pas de `__main__.py` au niveau du package) :
+   ```sh
+   cd firmware/tools
+   python -m coffeetool.cli monitor --port /dev/cu.usbmodemXXXX
+   python -m coffeetool.cli send --port /dev/cu.usbmodemXXXX set --ssr 1 --ttl-ms 8000
+   ```
+   `python -m coffeetool --help` échoue silencieusement avec `No module
+   named coffeetool` — pas une erreur de port ou d'environnement IDF, juste
+   le mauvais point d'entrée.
 
 ---
 
@@ -709,7 +720,11 @@ Dans l'ordre, un périphérique à la fois, en vérifiant à chaque fois sur l'o
 
 3. **SSR** — sortie GPIO, `SET` complet avec bail et `STATUS_ACTUATORS` en retour. Charge de test : ampoule simple, pas la vanne.
 
-**En cours, pas résolu (2026-09-09 après-midi)** : chaîne matérielle GPIO9→SSR→lampe validée directement (tâche de debug temporaire qui forçait la GPIO 5 s après boot, retirée depuis, aucune trace dans le firmware ni le binaire flashé — vérifié par `nm`). Reste à confirmer : le `SET ssr=1` envoyé via `coffeetool` à travers le pont écran. Deux essais faits, tous les deux avec la lampe qui s'allume ~2 s puis s'éteint (cohérent avec un bail `ttl_ms=2000` qui expire, ou avec la perte de présence à 3 s qui coupe via `force_actuators_off()` — les deux donnent une extinction dans la même fenêtre de temps, donc pas de quoi trancher entre "le SET a marché et s'est juste éteint tout seul comme prévu" et "autre chose a allumé le SSR"). Point resté flou en fin de session : la lampe s'est allumée une seconde fois alors qu'aucune commande n'avait été envoyée côté outil Mac à ce moment-là (ni par un `send set` explicite, ni par un process `coffeetool` résiduel — vérifié par `ps aux`) ; le firmware flashé au même moment était confirmé propre (sans le code de debug). Cause non identifiée avant l'arrêt de la session. **Prochaine étape** : relancer un test `SET ssr=1` avec un bail long (plusieurs secondes) et `coffeetool monitor` démarré *avant* l'envoi, pour capturer `STATUS_ACTUATORS` en retour et lever l'ambiguïté de timing — et si la lampe s'allume à nouveau sans commande visible, vérifier côté écran (un `SET` orphelin propagé par le pont depuis une source inattendue ?) plutôt que côté capteurs.
+**Résolu et validé sur le vrai matériel (2026-09-09, fin d'après-midi).** L'ambiguïté de la session précédente (lampe qui s'éteint après ~1-2 s, sans savoir si c'est le bail ou autre chose) avait une cause précise, pas un bug SSR : `screen` n'est encore qu'un pont transparent (voir phase 3), il n'émet aucun trafic périodique de lui-même. Côté `sensors`, `tick_presence()` (`firmware/sensors/main/main.cpp:677`) ne se réarme que sur trafic **reçu**, jamais sur ce que `sensors` émet lui-même (un `REQSTATUS` envoyé à `sensors` ne fait qu'émettre du `STATUS_ACTUATORS` en sortie, ça ne rafraîchit rien). Résultat : en l'absence de tout trafic entrant, la présence est perdue et retrouvée toutes les ~3 s en continu (cycle `PRESENCE_LOST`→`PING`→`PONG`), et **chaque perte appelle `force_actuators_off()`** — donc n'importe quel actionneur activé est coupé au prochain cycle de 3 s, quelle que soit la durée du bail demandé. Confirmé en lisant le log : cycle `PRESENCE_LOST` toutes les 3,1 s pile, y compris pendant un `SET ssr=1 ttl_ms=8000` dont le `STATUS_ACTUATORS` montrait bien `ssr=on bail_restant=7999ms` — la commande était donc toujours correctement reçue et exécutée, seulement coupée prématurément par cette resécurité.
+
+Pas un bug à corriger maintenant : c'est la conséquence attendue de l'ordonnancement des phases (le trafic périodique côté écran est explicitement prévu en phase 6, pas avant — voir plus haut la note "Option envisagée, pas encore décidée"). **Validé en simulant ce trafic manuellement depuis le Mac** (boucle de `PING` envoyés toutes les secondes pendant le test, uniquement pour cette validation, aucun changement firmware) : avec ce trafic de secours, plus aucun `PRESENCE_LOST` pendant tout le bail, `LEASE_EXPIRED` tombe exactement à l'échéance (`marche_continue=8000ms` pour un `ttl_ms=8000`), lampe restée allumée les 8 s pile puis éteinte proprement. **Chaîne SET → bail → SSR → `STATUS_ACTUATORS` confirmée bout en bout, sans ambiguïté.**
+
+À garder en tête pour la suite de la phase 5 (dimmer, vérification de sécurité) : tant que `screen` reste un pont passif, **tout essai voulant qu'un actionneur tienne plus de ~3 s doit maintenir la présence à la main** (boucle de `PING` depuis `coffeetool`, comme ci-dessus) — sinon la resécurité de présence coupe avant l'échéance voulue, ce qui n'est pas un défaut à corriger mais une limite connue de ce stade d'avancement.
 4. **Dimmer** — écriture du registre de niveau, lecture du statut et de l'erreur, remontés dans les flags. **Le dimmer exige le secteur pour sortir de `Calibrating...`** : c'est la première fois que 230 V et USB coexistent sur le plan de travail. Module RBDimmer/DimmerLink **isolé par optocoupleur** entre l'étage secteur (triac, zero-cross) et l'étage logique (I2C) — confirmé par la fiche produit et les composants visibles sur le board (2026-09-09). Pas de précaution *spécifique* liée au partage de masse Mac/RECOM/dimmer : la masse 5V (RECOM en montage définitif, ou directement le Mac en USB pour un test sur table sans `boitier_ps`) ne rejoint jamais l'étage secteur du dimmer. **Les précautions générales du 230V nu sur table restent de mise à partir de ce point** : bornes WAGO correctement serties sans brin dénudé accessible, interrupteur général coupé pendant tout câblage/modification, une seule main dans le montage si un test doit se faire sous tension, plan de travail sec, couper au moindre doute plutôt que d'insister. Charge de test : ampoule dimmable, pas la pompe.
 
 Puis la vérification de sécurité, **avant** de relier la pompe et la vanne :

@@ -135,12 +135,41 @@ fichier puis tué avant que son buffer stdout ne soit vidé, pas une panne
 matérielle. Un vrai power-cycle physique de l'écran (pas un reset logiciel)
 a aussi été nécessaire à un moment, écho d'un piège déjà rencontré la veille.
 
+**Essais OTA de la phase 4 rejoués à travers le vrai pont écran, tous les
+trois réussis (2026-09-09)** — chemin complet USB Mac → écran → CAN →
+capteurs, `can-monitor` totalement débranché pendant ces essais :
+
+- **Image saine** (`v0.1.4` puis `v0.1.5`) : transfert des 107 blocs sans
+  échec, reboot, séquence `BOOT` → `OTA_PENDING_VERIFY` → `READY` → premier
+  `PING`/`PONG` échangé avec l'écran → `LOG OTA_VALIDATED`. Capturée en
+  entier cette fois (contrairement à l'essai précédent contre
+  `can-monitor`, où le tout premier tick post-boot avait échappé à la
+  capture).
+- **Image cassée** (`v0.1.6`, `abort()` en toute première ligne
+  d'`app_main`, avant tout GPIO/CAN) : rollback automatique du bootloader
+  déjà effectif avant même le début de la capture (aussi rapide qu'observé
+  précédemment contre `can-monitor`) — confirmé a posteriori par un `PING`
+  manuel : `PONG` répond `v0.1.5`, la dernière image validée, pas `v0.1.6`.
+- **Coupure CAN en plein transfert** (câble débranché ~3-4 s au bloc
+  2/107) : `flash_client.py` abandonne après 3 échecs (`bloc 2 refusé après
+  3 essais`), câble rebranché ensuite, `sensors` interrogé par `PING` :
+  `PONG` répond toujours `v0.1.7` (l'image précédente, déjà validée) avec
+  un `uptime_s` continu, jamais retombé à zéro — confirme qu'aucun reboot
+  n'a eu lieu, `otadata` n'a pas bougé, exactement le comportement déjà vu
+  contre `can-monitor`.
+
+**Barrière C atteinte pour la partie capteurs.** Le point 3 de la checklist
+officielle de la phase 4 (« idem sur l'écran, avec son propre OTA local »)
+reste hors scope : c'est un flash de `screen` par lui-même, pas encore fait.
+`can-monitor` peut être mis de côté pour la suite du travail sur `sensors`
+et `screen` — son rôle de pont ad hoc est repris pour de bon par l'écran.
+
 Pas fait / à savoir avant de continuer :
 
-- **Les essais de flash de la phase 4 n'ont pas encore été rejoués à
-  travers ce pont-ci** — seulement contre `can-monitor` jusqu'ici. C'est la
-  prochaine étape (voir plus bas) : c'est elle qui ferme réellement la
-  barrière C.
+- **OTA de l'écran lui-même** jamais exercé (`screen` n'a pas encore de
+  logique `FLASH_CTRL`/`FLASH_DATA` réceptrice — jusqu'ici c'est toujours
+  `sensors` qui reçoit un flash, `screen` n'étant que le pont). Reste à
+  écrire si on veut fermer complètement le point 3 de la phase 4.
 
 Prochaine étape : **rejouer les essais OTA de la phase 4 (`coffeetool
 flash`) sur `sensors`, cette fois à travers le pont écran réel** (USB Mac →

@@ -13,7 +13,8 @@ suit le VCC utilisateur). C'est le régime prévu, pas une sous-tension. Le diag
 « il faut alimenter en 5 V / VIO collé à VCC » était une **erreur de mesure** (on
 lisait le bornier, pas la puce ; puis on a alimenté le bornier en 5 V, donc VIO à
 5 V). Le symptôme venait de **`SLNT` à 2,7 V** : l'émetteur est coupé (Silent).
-À coller au GND (rework prévu, voir conclusion).
+Collé au GND et validé de bout en bout le 2026-09-09 (voir tout en bas) — le
+CAN Pal remplace maintenant le Unit CAN de contournement.
 
 ---
 
@@ -281,3 +282,28 @@ tâtonnement sur une carte (numéros de GPIO trouvés empiriquement, voir plus h
 l'Atom) se transpose tel quel sur une autre carte sans revalider — la vraie référence
 qui a tranché ici, c'est la doc officielle du module (noms de broches `CAN_TX`/`CAN_RX`
 au sens du transceiver), pas une analogie de câblage entre deux bring-up différents.
+
+---
+
+## Rework `SLNT` fait et validé — retour au CAN Pal (2026-09-09)
+
+Fil `SLNT` soudé au GND. Revalidé en trois temps, du plus isolé au plus réel, pour ne
+pas casser le montage Unit CAN qui marchait déjà pendant qu'on testait :
+
+1. **Auto-test isolé** (`firmware/can-selftest`, `PINOUT_CANPAL 1`, TX=GPIO7/RX=GPIO8,
+   câble CAN toujours branché mais sans conséquence en NO_ACK) : **17/17 PASS**,
+   `state=RUNNING`, `tx_err=0 rx_err=0 bus_err=0 arb_lost=0`. Même signature propre que
+   le témoin positif de l'Atom (point 2 plus haut) — le Silent mode est bien levé.
+2. **Retour du brochage CAN Pal dans le firmware réel** (`firmware/sensors/main/main.cpp`) :
+   TX=**GPIO7**, RX=**GPIO8** (inverse du brochage Unit CAN qui était TX=GPIO8/RX=GPIO7).
+   Le Unit CAN de contournement est retiré du module capteurs.
+3. **Validation de bout en bout sur le vrai bus**, capteurs et écran branchés ensemble :
+   le firmware capteurs logue `présence retrouvée` en continu sur l'UART — ce message ne
+   sort que si le bail avec l'écran (voir `docs/firmware.md`) est effectivement renouvelé
+   par du trafic CAN reçu, donc l'aller-retour capteurs → CAN Pal → bus → écran fonctionne.
+
+**Le CAN Pal (clone AliExpress) remplace donc officiellement le M5Stack Unit CAN.**
+Le diagnostic de ce fichier (SLNT tiré haut par un pont faible sous le bornier/JST-XH,
+voir point 12) est confirmé : une fois SLNT ramené franchement au GND, le module se
+comporte comme prévu par le schéma Adafruit (pompe 5 V interne, VIO/RXD à 3,3 V, pas de
+level shifter nécessaire).

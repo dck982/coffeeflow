@@ -43,6 +43,12 @@ bring-up phase 2 en échec faute de cette traduction :
 | R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
 | R4 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
 
+**CAN Pal validé de bout en bout le 2026-09-09**, après rework de la broche `SLNT`
+(tirée au GND — le clone la laissait flottante sous les connecteurs rapportés,
+d'où un mode Silent permanent). Détail du diagnostic et de la validation :
+`docs/canpal-findings.md`. Un M5Stack Unit CAN avait servi de contournement pendant
+l'investigation ; il n'est plus utilisé côté capteurs.
+
 **I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
 
 **Le mutex I2C ne couvre pas l'attente de conversion du XDB401.** Déclencher, relâcher le mutex, attendre ~50 ms, reprendre, lire. Sinon une rampe dimmer à 10 Hz se prend 50 ms de latence pour rien.

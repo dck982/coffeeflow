@@ -37,7 +37,7 @@
 // Brochage XIAO port R3 (D8=GPIO7, D9=GPIO8). Deux conventions en jeu :
 //   1 = CAN Pal (docs/cablage.md) : TX → blanc → GPIO7, RX → jaune → GPIO8
 //   0 = Unit CAN actuel : GPIO7 = RX, GPIO8 = TX
-#define PINOUT_CANPAL 0
+#define PINOUT_CANPAL 1
 
 #if BOARD_XIAO_SENSORS
 #if PINOUT_CANPAL

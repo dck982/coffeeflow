@@ -64,6 +64,36 @@ constexpr uint8_t kXdb401TriggerValue = 0x0A;
 constexpr uint8_t kXdb401RegPressure = 0x06;  // 3 octets, 0x06..0x08
 constexpr uint8_t kXdb401RegTemperature = 0x09;  // 2 octets, 0x09..0x0A
 constexpr uint32_t kXdb401ConversionDelayMs = 50;
+
+// Dimmer RBDimmer/DimmerLink, même bus I2C (port L4) — voir docs/firmware.md,
+// "Dimmer — pompe", et tmp/DimmerLink/04_I2C_COMMUNICATION.md (doc officielle
+// du fabricant, trouvée et confirmée en bring-up le 2026-09-09 — le
+// tests/test_rbi2c.py initial, sur un autre banc, avait la bonne carte de
+// registres mais une table d'erreurs incomplète). 0x10 est la seule écriture
+// du cycle d'infusion. 0x00 (STATUS, bit0=READY bit1=ERROR) est la source de
+// vérité documentée pour l'état — pas le registre erreur seul, qui peut
+// contenir des codes non documentés (0x01 observé en pratique, absent de la
+// table officielle). Jamais écrire 0x01=SWITCH_UART au registre COMMAND
+// (bascule UART, EEPROM) depuis ce firmware.
+constexpr uint16_t kDimmerAddr = 0x50;
+constexpr uint8_t kDimmerRegStatus = 0x00;
+constexpr uint8_t kDimmerRegCommand = 0x01;
+constexpr uint8_t kDimmerRegError = 0x02;
+constexpr uint8_t kDimmerRegLevel = 0x10;
+constexpr uint8_t kDimmerRegFreq = 0x20;  // informatif seulement, voir read_dimmer_health()
+constexpr uint8_t kDimmerCmdRecalibrate = 0x02;
+// Lu en dehors des écritures (voir tick_dimmer_health()), pour que les flags
+// STATUS_ACTUATORS restent à jour même sans SET récent — contrairement au
+// SSR, un écran qui ne rampe jamais le dimmer ne déclenche autrement aucune
+// lecture I2C.
+constexpr int64_t kDimmerHealthPeriodUs = 2000 * 1000;
+// Marge avant un premier (et unique) essai de repli COMMAND=RECALIBRATE si
+// le module reste "pas prêt" — voir dimmer_recalibrate() : le module calibre
+// tout seul à la mise sous tension secteur, sans notre intervention
+// (confirmé par un vrai power-cycle en bring-up le 2026-09-09, convergence
+// naturelle observée sans jamais appeler RECALIBRATE). Volontairement large
+// pour ne pas courir après une calibration déjà en cours.
+constexpr int64_t kDimmerAutoRecalibrateDelayUs = 20 * 1000 * 1000;
 // Plancher défensif : en dessous, deux lectures se chevaucheraient avec la
 // conversion (~50 ms) du cycle précédent. Voir docs/firmware.md §"période".
 constexpr uint16_t kPressurePeriodFloorMs = 100;
@@ -95,6 +125,11 @@ RTC_NOINIT_ATTR bool s_lockout_active;
 // logiciel ou non (seul le verrou ci-dessus doit survivre).
 bool g_ssr = false;
 uint8_t g_dimmer = 0;
+// Santé dimmer, mise à jour à chaque écriture (voir apply_dimmer()) : reflète
+// la dernière transaction I2C réelle, pas un état supposé.
+bool g_dimmer_present = false;      // dernière transaction I2C a abouti (adresse ack)
+bool g_dimmer_ready = false;        // STATUS bit0 (READY) à la dernière lecture
+bool g_dimmer_error_active = false; // STATUS bit1 (ERROR) à la dernière lecture
 int64_t g_lease_deadline_us = 0;  // 0 = pas de bail actif
 
 // Plafond de marche continue — voir docs/firmware.md §3, "Rearmement".
@@ -115,6 +150,7 @@ int64_t g_ota_pending_since_us = 0;
 // couvre pas l'attente de conversion (kXdb401ConversionDelayMs).
 i2c_master_bus_handle_t g_i2c_bus = nullptr;
 i2c_master_dev_handle_t g_xdb401_dev = nullptr;
+i2c_master_dev_handle_t g_dimmer_dev = nullptr;
 SemaphoreHandle_t g_i2c_mutex = nullptr;
 uint16_t g_pressure_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_pressure_last_sent_us = 0;
@@ -152,6 +188,124 @@ FlashState g_flash;
 int64_t now_us() { return esp_timer_get_time(); }
 
 void apply_ssr() { gpio_set_level(kGpioSsr, g_ssr ? 1 : 0); }
+
+// Déclaration en avance : apply_dimmer() a besoin de send_log(), défini plus
+// bas dans ce fichier avec les autres émetteurs.
+void send_log(common::LogCode code, common::LogSeverity severity, uint16_t arg16, uint32_t arg32);
+
+// Relit STATUS (0x00, bit0=READY bit1=ERROR — voir tmp/DimmerLink/
+// 04_I2C_COMMUNICATION.md, doc officielle) et, informativement seulement,
+// la fréquence secteur (0x20). Utilisée aussi bien après une écriture
+// (apply_dimmer()) que périodiquement à vide (tick_dimmer_health()), pour
+// que g_dimmer_present/ready/error_active restent à jour même sans SET
+// récent. Transaction combinée (write pointeur + read en repeated-start,
+// pas deux transactions séparées) — c'est ce que fait la doc officielle et
+// tests/test_rbi2c.py (i2c.readfrom_mem()).
+void read_dimmer_health() {
+  const uint8_t reg_status = kDimmerRegStatus;
+  uint8_t status_value = 0;
+
+  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+  esp_err_t err = i2c_master_transmit_receive(g_dimmer_dev, &reg_status, 1, &status_value, 1, pdMS_TO_TICKS(100));
+  xSemaphoreGive(g_i2c_mutex);
+
+  if (err != ESP_OK) {
+    g_dimmer_present = false;
+    g_dimmer_ready = false;
+    g_dimmer_error_active = false;
+    send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kDimmerAddr, 0);
+    return;
+  }
+  g_dimmer_present = true;
+  g_dimmer_ready = (status_value & 0x01) != 0;
+  g_dimmer_error_active = (status_value & 0x02) != 0;
+
+  if (!g_dimmer_ready) {
+    send_log(common::LogCode::kDimmerCalibrating, common::LogSeverity::kWarn, 0, 0);
+  }
+  if (g_dimmer_error_active) {
+    const uint8_t reg_error = kDimmerRegError;
+    uint8_t error_value = 0xFF;
+    xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+    esp_err_t eerr = i2c_master_transmit_receive(g_dimmer_dev, &reg_error, 1, &error_value, 1, pdMS_TO_TICKS(100));
+    xSemaphoreGive(g_i2c_mutex);
+    send_log(common::LogCode::kDimmerError, common::LogSeverity::kError, eerr == ESP_OK ? error_value : 0xFFFF, 0);
+  }
+
+  // Fréquence secteur : purement informatif. Observée à 0 en continu sur ce
+  // module même une fois READY=1 et sans ERROR (bring-up 2026-09-09), donc
+  // pas fiable comme critère de "secteur détecté" malgré ce que documente
+  // tmp/DimmerLink — journalisée pour diagnostic futur, jamais utilisée pour
+  // piloter un flag.
+  const uint8_t reg_freq = kDimmerRegFreq;
+  uint8_t freq_value = 0;
+  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+  esp_err_t ferr = i2c_master_transmit_receive(g_dimmer_dev, &reg_freq, 1, &freq_value, 1, pdMS_TO_TICKS(100));
+  xSemaphoreGive(g_i2c_mutex);
+  send_log(common::LogCode::kDimmerMainsFreq, common::LogSeverity::kDebug, ferr == ESP_OK ? freq_value : 0xFFFF, 0);
+}
+
+// COMMAND=RECALIBRATE (0x02) : sans ça après une mise sous tension secteur
+// tardive ou une correction de câblage, le module peut rester avec
+// STATUS.READY=0 même une fois le secteur stable — confirmé en bring-up
+// 2026-09-09 (STATUS passe de 0x32 à "ready=1,err=0" juste après ce
+// recalibrate). Non fatal si le module n'est pas encore présent au boot.
+void dimmer_recalibrate() {
+  const uint8_t cmd[2] = {kDimmerRegCommand, kDimmerCmdRecalibrate};
+  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+  esp_err_t err = i2c_master_transmit(g_dimmer_dev, cmd, sizeof(cmd), pdMS_TO_TICKS(100));
+  xSemaphoreGive(g_i2c_mutex);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "dimmer recalibrate échec: %s", esp_err_to_name(err));
+  }
+}
+
+// Écrit le niveau courant sur le DimmerLink puis relit sa santé (STATUS,
+// erreur si besoin, fréquence en informatif) — voir docs/firmware.md,
+// "Dimmer — pompe".
+void apply_dimmer() {
+  const uint8_t write_level[2] = {kDimmerRegLevel, g_dimmer};
+
+  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+  esp_err_t err = i2c_master_transmit(g_dimmer_dev, write_level, sizeof(write_level), pdMS_TO_TICKS(100));
+  xSemaphoreGive(g_i2c_mutex);
+  if (err != ESP_OK) {
+    if (g_dimmer_present) {
+      send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kDimmerAddr, 0);
+    }
+    g_dimmer_present = false;
+    g_dimmer_ready = false;
+    g_dimmer_error_active = false;
+    return;
+  }
+
+  read_dimmer_health();
+}
+
+// Lecture périodique à vide (sans écrire de niveau) — voir le commentaire de
+// kDimmerHealthPeriodUs : sans elle, un dimmer jamais commandé (aucun SET
+// reçu depuis le boot) resterait avec des flags STATUS_ACTUATORS figés à
+// leur valeur initiale.
+void tick_dimmer_health() {
+  static int64_t s_last_us = 0;
+  static bool s_recalibrate_sent = false;
+  int64_t t = now_us();
+  if (t - s_last_us < kDimmerHealthPeriodUs) return;
+  s_last_us = t;
+  read_dimmer_health();
+
+  // Repli, une seule fois par épisode "pas prêt" : voir le commentaire de
+  // dimmer_recalibrate() sur la race avec la calibration propre au module.
+  // g_dimmer_present exigé : pas de repli tant qu'on n'a jamais eu de vraie
+  // réponse I2C (câblage/alimentation, pas un problème de calibration).
+  if (g_dimmer_present && !g_dimmer_ready && !s_recalibrate_sent && t > kDimmerAutoRecalibrateDelayUs) {
+    s_recalibrate_sent = true;
+    dimmer_recalibrate();
+  }
+  if (g_dimmer_ready) {
+    s_recalibrate_sent = false;  // réarme pour une future coupure/reprise secteur
+  }
+}
 
 void send_message(common::MessageType type, common::Dest dest, const uint8_t* data, uint8_t dlc) {
   common::CanId id{type, dest, common::Node::kSensors};
@@ -197,7 +351,8 @@ void send_status_actuators() {
   payload.lease_remaining_ms = static_cast<uint16_t>(lease_remaining > 0xFFFF ? 0xFFFF : lease_remaining);
   int64_t continuous_ms = g_run_start_us != 0 ? (t - g_run_start_us) / 1000 : 0;
   payload.continuous_on_ms = static_cast<uint16_t>(continuous_ms > 0xFFFF ? 0xFFFF : continuous_ms);
-  payload.flags = static_cast<uint8_t>((s_lockout_active ? 0x01 : 0) | 0x02 /* dimmer prêt : pas de dimmer réel avant la phase 5 */);
+  payload.flags = static_cast<uint8_t>((s_lockout_active ? 0x01 : 0) | (g_dimmer_ready ? 0x02 : 0) |
+                                        (g_dimmer_present ? 0x04 : 0) | (g_dimmer_error_active ? 0x08 : 0));
   common::Frame f = payload.pack();
   send_message(common::MessageType::kStatusActuators, common::Dest::kScreen, f.data(), 7);
 }
@@ -208,6 +363,7 @@ void force_actuators_off() {
   g_dimmer = 0;
   g_lease_deadline_us = 0;
   apply_ssr();
+  apply_dimmer();
 }
 
 void init_flow() {
@@ -246,6 +402,12 @@ void init_i2c() {
   dev_cfg.device_address = kXdb401Addr;
   dev_cfg.scl_speed_hz = 100000;
   ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &dev_cfg, &g_xdb401_dev));
+
+  i2c_device_config_t dimmer_cfg{};
+  dimmer_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  dimmer_cfg.device_address = kDimmerAddr;
+  dimmer_cfg.scl_speed_hz = 100000;
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &dimmer_cfg, &g_dimmer_dev));
 
   g_i2c_mutex = xSemaphoreCreateMutex();
 }
@@ -391,6 +553,7 @@ void on_set_received(const uint8_t* data, size_t len) {
     g_dimmer = payload.dimmer;
   }
   apply_ssr();
+  apply_dimmer();
   int64_t ttl_us = (payload.ttl_ms == 0 ? kLeaseDefaultUs : static_cast<int64_t>(payload.ttl_ms) * 1000);
   g_lease_deadline_us = now_us() + ttl_us;
   send_status_actuators();
@@ -782,6 +945,7 @@ void safety_task(void*) {
     tick_twai_counters();
     tick_ota_validation();
     tick_flow();
+    tick_dimmer_health();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }
 }

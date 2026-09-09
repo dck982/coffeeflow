@@ -116,10 +116,11 @@ deux pics nets et cohérents dans le temps (~0,013 bar de repos → ~0,08 bar
 au pic → retour), confirmant la chaîne complète (I2C → CAN → pont écran →
 `coffeetool`) plutôt qu'une simple valeur statique plausible.
 
-Pas fait / prochaine étape : le **débitmètre** (Digmesa, ISR front
-descendant GPIO 44, voir `docs/firmware.md` section dédiée), puis dimmer et
-SSR (ces deux derniers demandent le secteur, voir la note "Ce qui nécessite
-le 230 V" plus bas dans ce fichier).
+**Débitmètre, SSR, dimmer et vérification de sécurité (bail/présence/
+verrou/réarmement) faits et validés depuis** (voir plus bas dans ce fichier,
+section phase 5) — **barrière B atteinte (2026-09-09)**. Prochaine étape :
+brancher pompe et vanne pour de vrai, ou avancer sur un autre chantier
+(purge/flush, phase 6) selon décision.
 
 **Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
 `FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de
@@ -727,14 +728,76 @@ Pas un bug à corriger maintenant : c'est la conséquence attendue de l'ordonnan
 À garder en tête pour la suite de la phase 5 (dimmer, vérification de sécurité) : tant que `screen` reste un pont passif, **tout essai voulant qu'un actionneur tienne plus de ~3 s doit maintenir la présence à la main** (boucle de `PING` depuis `coffeetool`, comme ci-dessus) — sinon la resécurité de présence coupe avant l'échéance voulue, ce qui n'est pas un défaut à corriger mais une limite connue de ce stade d'avancement.
 4. **Dimmer** — écriture du registre de niveau, lecture du statut et de l'erreur, remontés dans les flags. **Le dimmer exige le secteur pour sortir de `Calibrating...`** : c'est la première fois que 230 V et USB coexistent sur le plan de travail. Module RBDimmer/DimmerLink **isolé par optocoupleur** entre l'étage secteur (triac, zero-cross) et l'étage logique (I2C) — confirmé par la fiche produit et les composants visibles sur le board (2026-09-09). Pas de précaution *spécifique* liée au partage de masse Mac/RECOM/dimmer : la masse 5V (RECOM en montage définitif, ou directement le Mac en USB pour un test sur table sans `boitier_ps`) ne rejoint jamais l'étage secteur du dimmer. **Les précautions générales du 230V nu sur table restent de mise à partir de ce point** : bornes WAGO correctement serties sans brin dénudé accessible, interrupteur général coupé pendant tout câblage/modification, une seule main dans le montage si un test doit se faire sous tension, plan de travail sec, couper au moindre doute plutôt que d'insister. Charge de test : ampoule dimmable, pas la pompe.
 
-Puis la vérification de sécurité, **avant** de relier la pompe et la vanne :
+**Résolu et validé sur le vrai matériel (2026-09-09).** Écriture `DIM0_LEVEL`
+(`0x10`) confirmée fiable sur toute la plage 0-100 % — palier bas (15 %) resté
+visuellement éteint au premier essai, pas un bug : simplement en dessous du
+seuil de conduction de la lampe de test, confirmé en testant 30 %. Deux
+diagnostics avant d'y arriver, tous les deux documentés en détail dans
+`docs/dimmerlink-i2c.md` :
 
-- Bail : couper l'émission de `SET`, les actionneurs retombent en ~500 ms.
-- Présence : débrancher la paire CAN, tout retombe, le streaming s'arrête.
-- Verrou : commander 60 s d'affilée, vérifier la coupure, le code `LOG`, le refus des commandes suivantes, et que seul un cycle d'alimentation le lève.
-- Rearmement : deux activations de 30 s séparées de plus de 2 s ne déclenchent rien.
+- **Câblage phase/neutre inversés au bornier d'entrée du dimmer** (pas le
+  même piège que le débitmètre, mais même classe d'erreur — un connecteur
+  qui n'impose pas le bon sens). `AC_FREQ` (`0x20`) à 0 Hz en continu en était
+  le signe, diagnostiqué par comparaison avec `tmp/DimmerLink/`, la doc I2C
+  officielle du fabricant (trouvée en cours de session, remplace
+  avantageusement `tests/test_rbi2c.py` dont la table d'erreurs était
+  incomplète). Corrigé au bornier ; dimming confirmé fonctionnel juste après.
+- **`STATUS` (`0x00`, bits READY/ERROR documentés), pas `ERROR` seul, comme
+  source de vérité pour les flags `STATUS_ACTUATORS`.** Le registre `ERROR`
+  (`0x02`) a été observé à `0x01` en pratique, une valeur absente de la table
+  du fabricant. `AC_FREQ`/`CALIBRATION` (`0x23`) restent peu fiables sur ce
+  module même une fois `READY=1` (`AC_FREQ` reste à 0 en continu, malgré un
+  dimming confirmé visuellement) — traités comme purement informatifs
+  (`LOG DIMMER_MAINS_FREQ`, sévérité debug), jamais utilisés pour piloter un
+  flag. `COMMAND=RECALIBRATE` existe mais **n'est pas appelé au boot** :
+  risque de course avec la propre calibration du module à la mise sous
+  secteur (identifiée avant qu'un vrai power-cycle confirme que la
+  convergence naturelle suffit) — n'intervient qu'en repli, une fois, après
+  une marge de 20 s si le module reste `READY=0`.
 
-**Sortie — barrière B.** Les actionneurs 230 V peuvent être reliés. Le module capteurs est complet et se met à jour par le bus.
+Diagnostiqué avec un firmware jetable dédié, `firmware/dimmer-test/`
+(pas de CAN ni de machine de sécurité, juste une boucle I2C rapide sur le
+même brochage que `sensors`) — flashé temporairement sur le XIAO à la place
+de `sensors` le temps du bring-up, conservé dans le dépôt comme banc
+réutilisable. Détail complet des registres, y compris `DIM0_CURVE`
+(`0x11`, pas encore câblé dans le protocole CAN) et la recommandation
+`LINEAR` pour la pompe vibratoire (ni lampe LED ni moteur rotatif, donc hors
+des recommandations directes du fabricant) : `docs/dimmerlink-i2c.md`.
+
+**Comportement à la perte du secteur, confirmé sur le vrai matériel** :
+coupure 230 V pendant un dimming actif → `LOG DIMMER_CALIBRATING` +
+`DIMMER_ERROR` en boucle (chaque lecture périodique, `flags` avec bit
+« prêt » à 0 et bit erreur à 1), le module reste néanmoins **joignable en
+I2C** tout du long (pas de perte de bus, juste une perte de détection
+zero-cross). À la reprise du secteur, la lampe **reprend au même niveau
+qu'avant la coupure sans renvoyer de `SET`** — le registre `DIM0_LEVEL` reste
+programmé côté module pendant la coupure, pas besoin de resynchroniser côté
+`sensors` après un flicker secteur.
+
+Puis la vérification de sécurité, **avant** de relier la pompe et la vanne —
+**les quatre points faits et validés sur le vrai matériel (2026-09-09)** :
+
+- **Bail** : `SET` sans renouvellement, actionneurs retombés au délai demandé
+  (`LOG LEASE_EXPIRED`, `marche_continue` figée à la valeur du `ttl_ms`).
+- **Présence** : déjà validée en phase 2 (coupure CAN) et reconfirmée en creux
+  tout du long de la phase 5 (`tick_presence()` coupe bien tant qu'aucun
+  trafic n'est reçu — voir plus haut, section SSR).
+- **Verrou 60 s** : `SET dimmer` maintenu par `SET` renouvelés (bail à
+  chaque fois, pas de trafic continu comme le ferait l'écran réel en phase
+  6), `LOG RUNTIME_LOCKOUT_TRIGGERED` (`arg32≈60100 ms`) au bon délai,
+  `dimmer` forcé à 0, `flags` avec le bit verrou posé. `SET` suivant refusé
+  (`LOG COMMAND_REFUSED_LOCKED`), verrou confirmé encore actif après un
+  second essai à distance. Levé uniquement par une coupure d'alimentation
+  réelle du XIAO (pas un reset logiciel), comme documenté.
+- **Rearmement** : deux activations de 30 s séparées d'une pause > 2 s —
+  `marche_continue` reparti à 0 au second cycle plutôt que de cumuler,
+  aucun `RUNTIME_LOCKOUT_TRIGGERED` sur l'ensemble, confirmant que le
+  compteur de marche continue se réarme bien sur une coupure suffisamment
+  longue.
+
+**Sortie — barrière B atteinte (2026-09-09).** Les actionneurs 230 V peuvent
+être reliés à la pompe et la vanne. Le module capteurs est complet pour
+cette phase et se met à jour par le bus.
 
 ---
 

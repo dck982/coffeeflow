@@ -264,7 +264,8 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 [1]     dimmer              0..100
 [2..3]  bail restant ms     uint16
 [4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
-[6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C)
+[6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C),
+                            bit3 secteur détecté côté dimmer (registre 0x20 plausible, 45-65 Hz)
 [7]     réservé
 ```
 

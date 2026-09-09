@@ -20,3 +20,6 @@ firmware/common/generated/
 # Config locale déposée par `eim` (ESP-IDF Installation Manager).
 eim_config.toml
 
+# Cache clangd local (index par projet ESP-IDF).
+firmware/*/.cache/
+

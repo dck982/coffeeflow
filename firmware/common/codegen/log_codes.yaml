@@ -39,6 +39,12 @@
 - name: DIMMER_ERROR
   severity: error
   comment: Registre erreur 0x02 du dimmer non nul. arg16 = valeur du registre.
+- name: DIMMER_MAINS_LOST
+  severity: warn
+  comment: Registre 0x20 (fréquence secteur) non plausible (hors 45-65 Hz), dimmer probablement sans 230V. arg16 = valeur lue.
+- name: DIMMER_MAINS_FREQ
+  severity: debug
+  comment: Lecture périodique du registre 0x20 (fréquence secteur), quelle que soit sa plausibilité. arg16 = valeur brute lue.
 - name: XDB401_TIMEOUT
   severity: error
   comment: Pas de réponse du XDB401 après le délai de conversion.

@@ -1,1080 +1,201 @@
 # Firmware — séquence d'implémentation
 
+Conception, protocole et décisions de fond : `docs/firmware.md`. Plan détaillé
+de la phase 6 : `docs/plan-phase6.md`. Ce fichier conserve l'état de mise en
+oeuvre, les résultats de banc et les contraintes utiles pour reprendre le
+travail.
+
 ## Où on en est
 
-**Phase 6, lot 1 (restructuration de `firmware/screen/`), fait et vérifié sur
-le vrai matériel (2026-09-09).**
-`firmware/screen/main/main.cpp` (615 lignes) découpé en `board.h/.cpp`
-(CH422G/GPIO/brochage, registre de sortie CH422G désormais maintenu en RAM via
-`ch422g_set_bit()` plutôt qu'écrit directement — piège documenté dans
-`docs/plan-phase6.md`, lot 1), `can_link.h/.cpp` (TWAI, dispatch protocolaire,
-présence), `serial_bridge.h/.cpp` (pont série↔CAN, code déplacé tel quel),
-`ota_local.h/.cpp` (FLASH_CTRL/FLASH_DATA pour soi, déplacé tel quel),
-`ota_proxy.h/.cpp` (stub vide, rien à déplacer — cette logique n'existe pas
-encore côté écran, elle arrive au lot 7), `core/core.h` (façade à trois faces,
-stub, à remplir aux lots 3/4/9). `main.cpp` ne fait plus qu'`app_main` (62
-lignes). Les trois tâches (`can2ser`, `ser2can`, `ota_valid`) étaient alors
-épinglées explicitement au cœur 1 (`xTaskCreatePinnedToCore`), seul
-changement de comportement runtime du lot, voulu par le plan d'alors. Aucune
-autre logique modifiée — uniquement déplacée. **Cette répartition a été
-révisée au lot 2** (pont et OTA sur le cœur 0, LCD/LVGL seuls sur le
-cœur 1 — voir plus bas).
-
-`idf.py build` réussi depuis `firmware/screen/`, aucune erreur ni warning.
-**Les trois essais de la barrière C rejoués sans régression après le
-refactor** : `PING`/`PONG` à travers le pont (écran et capteurs répondent
-chacun avec node/version/uptime cohérents), flash OTA de `sensors` par le CAN
-(v0.2.7→0.2.8, confirmé dans le `PONG` après reboot), flash OTA de `screen`
-par lui-même (v0.2.8→0.2.9, confirmé dans le `PONG` après reboot). Lot 1 clos.
-
-**Lot 2 (écran de service), fait et vérifié sur le vrai matériel
-(2026-09-09).** `service_screen.cpp` : `esp_lcd` RGB 800×480 + GT911 +
-`esp_lvgl_port`, bring-up CH422G via l'état RAM du lot 1, écran de service
-avec version/CAN/événements/coordonnées tactiles. Le glitch visuel résiduel
-(sauts / décalage horizontal sur contenu qui change) est **corrigé** sur
-l'image `v0.2.20` — écran parfaitement stable, observé par David sur le banc.
-Détail du correctif et de l'investigation ci-dessous ; consigné aussi dans
-`docs/screen-issue.md`. Lot 2 clos.
-
-**Lot 3 (cœur, face sorties), implémenté et partiellement vérifié sur le vrai
-matériel (2026-09-10).** `core/core.h/.cpp` fournit désormais un instantané
-cohérent (bruts calibrés, validités, âges et péremption, versions, santé
-dimmer et compteurs TWAI), alimenté par les trois `STATUS_*`, `PONG` et
-`LOG`. Une tâche `telemetry` sur le cœur 0 réémet les trois `REQSTATUS` chaque
-seconde aux périodes repos prévues (pression 500 ms, débit/actionneurs 1000
-ms); le XIAO sait désormais diffuser `STATUS_ACTUATORS` périodiquement.
-L'écran de service lit exclusivement cet instantané et affiche pression,
-température, débit et compteur d'impulsions. Le débit utilise une fenêtre
-configurable de 10 impulsions (`kFlowWindowPulses`) et retombe à zéro après
-3 s sans front. La présence est une machine à états commune aux deux nœuds :
-toute trame valide du pair la maintient; après 1,5 s de silence, trois `PING`
-partent à 500 ms avant `PRESENCE_LOST`. La validation OTA conserve un vrai
-aller-retour `PING`/`PONG`, distinct de la présence générale. `STATUS_ACTUATORS`
-bit3 est figé comme `dimmer_error_active`.
-
-Validé : builds ESP-IDF des deux projets, 27 tests hôte `coffeetool`, flash
-USB hash-vérifié des deux cartes, `CAN OK` à l'écran, et télémétrie réelle
-repos : **0,02 bar, 25,3 °C, 0,00 ml/s**. Le dimmer sans secteur apparaît
-présent mais non prêt, comme attendu. **Les deux tests de séparation sont
-validés sur le banc** : XDB401 débranché → pression/température absentes,
-rebranché → valeurs restaurées; alimentation XIAO coupée → `CAN PERDU` après
-3 s, remise sous tension → `CAN OK` dès la première trame. Ces essais
-testent respectivement la validité du capteur et la présence du nœud, qui sont
-deux états indépendants. Le test de maintien SSR 30 s est volontairement
-**reporté** au test général pré-installation, afin de ne pas laisser du 230 V
-sur le banc pendant le développement logiciel. Il ne bloque pas la suite de
-la phase 6, mais reste requis avant la mise en machine.
-
-Investigation menée, dans l'ordre :
-
-1. **Glitch horizontal fort et permanent au départ** : timings HSYNC/VSYNC
-   génériques copiés de l'exemple officiel ESP-IDF Waveshare (hsync
-   pulse/back/front = 4/8/8, vsync = 4/8/8) ne convenaient pas à ce panneau
-   (contrôleur ST7262). **Corrigé** en reprenant les timings du sketch de
-   référence `tests/screen/hello_waveshare/hello_waveshare.ino` (Arduino_GFX,
-   confirmé sans glitch sur ce même banc) : hsync pulse/back/front = 48/88/40,
-   vsync = 3/32/13, même pclk 16 MHz. Validé sur un firmware jetable dédié,
-   `firmware/screen-lcd-test/` (banc réutilisable, sur le modèle de
-   `dimmer-test`), avant d'être reporté dans `service_screen.cpp`.
-2. **Glitch résiduel, ~10 % de l'intensité d'origine**, périodique (texte
-   stable ~1 s, rafale de 2-3 glitches, répété), et un décalage horizontal
-   fixe de l'image entière (corrélé, disparaît/réapparaît selon les essais).
-   **Bisect fait sur `service_screen.cpp`** : labels figés (contenu qui ne
-   change jamais) + `tick_presence()`/CAN actifs → écran parfaitement stable.
-   **Conclusion : c'est le redessin LVGL déclenché par un contenu qui change
-   qui cause la rafale, pas le trafic CAN/série en tant que tel** — un texte
-   statique ne glitche jamais, y compris avec CAN/pont série actifs.
-3. **Deux candidats testés et invalidés** : buffer de dessin LVGL déplacé en
-   RAM interne au lieu de PSRAM (`buff_spiram=false`, piste "contention bus
-   PSRAM") → aucun effet, glitch identique. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` +
-   `CONFIG_LCD_RGB_ISR_IRAM_SAFE` (Kconfig ESP-IDF, resynchronisation GDMA à
-   chaque VBlank) → **résultat pire** : sauts verticaux du contenu en plus du
-   glitch existant. Les deux abandonnés, retour à la config d'avant.
-4. **`avoid_tearing` (double framebuffer matériel réel, `num_fbs=2` +
-   `direct_mode` côté LVGL) testé deux fois, dans l'appli complète et en
-   isolation totale dans `firmware/screen-lcd-test/`** (sans CAN/pont série,
-   juste LVGL + un texte qui change toutes les 200 ms) — **même résultat cassé
-   dans les deux cas** : d'abord écran clignotant blanc/bruit/texte (sans
-   `direct_mode`), puis, une fois `direct_mode` ajouté (requis par LVGL pour
-   ce mode, confirmé dans la doc officielle LVGL), un défilement horizontal
-   permanent de l'image. **Cause identifiée dans le code source ESP-IDF
-   v6.1** (`esp_lcd_panel_rgb.c`, `rgb_panel_draw_bitmap`) : le driver admet
-   lui-même que le moment du vrai basculement de framebuffer n'est pas
-   garanti à cause du prefetch DMA (commentaire du driver : *"it's hard to
-   know the time when the new frame buffer starts"*) — limite du driver sur
-   cette version d'IDF, pas une erreur de configuration. **`avoid_tearing`
-   abandonné**, retour définitif à `bb_mode`/bounce buffer.
-5. **Avis d'expert demandé (Opus) à deux reprises** : confirme que rester sur
-   ESP-IDF + LVGL est le bon choix (Arduino n'échapperait pas au même
-   `esp_lcd_panel_rgb` sous-jacent ; Rust/Embassy manque de driver RGB mûr
-   avec bounce buffer et de pile BLE mûre pour ce projet) — le glitch est une
-   contrainte physique de la dalle RGB parallèle (pas de mémoire d'image
-   interne, ~45 Mo/s à soutenir en continu depuis la PSRAM), pas un signe de
-   mauvaise architecture logicielle. Pistes proposées, pas encore essayées :
-   PCLK plus bas (actuellement 16 MHz), `CONFIG_SPIRAM_FETCH_INSTRUCTIONS`/
-   `CONFIG_SPIRAM_RODATA`. Le bounce buffer plus grand (piste également
-   suggérée) est en réalité déjà testé et invalidé (point 3 plus haut,
-   confondu à tort avec la contention PSRAM).
-
-**Éclaireur fait (2026-09-09) — résultat déterminant, retourne la piste
-principale.** `firmware/screen-lcd-test/` remis en config `bb_mode` normale
-(sans `avoid_tearing`), avec le label qui change toutes les 200 ms conservé
-(ajouté pour le test `avoid_tearing` du point 4) : **aucun glitch, écran
-parfaitement stable jusqu'à 100+ incréments du compteur.** Ce résultat
-élimine "contenu qui change + LVGL + RGB" comme cause suffisante à elle
-seule — le point 2 ci-dessus (bisect sur `service_screen.cpp`, labels figés
-= stable) avait seulement montré que c'était nécessaire, pas suffisant.
-**La vraie différence entre les deux firmwares, la seule restante, est le
-trafic CAN + le pont série (tâches TWAI/UART) tournant sur le même cœur que
-LVGL** dans `service_screen.cpp` — absents de `screen-lcd-test`. Recentre
-l'hypothèse sur les pistes 4/5 d'Opus (priorité d'interruption TWAI/UART vs
-GDMA du LCD, sections critiques), pas sur une limite générale d'IDF 6.1 ou
-de bande passante PSRAM. **La piste IDF 5.x perd sa justification immédiate**
-sur cette base (rien ne dit qu'un downgrade réglerait un problème de
-contention CAN/série, qui n'est pas spécifique à une version d'IDF) — reste
-possible plus tard si une autre piste l'indique, pas la prochaine étape.
-
-**Contre-test fait dans la foulée : le glitch restait présent même avec
-l'UART désactivé** (constaté par David directement sur le banc). Ça
-affaiblissait l'hypothèse "pont série/UART" spécifiquement.
-
-6. **Correctif (2026-09-09, `v0.2.20`)** — piste 1 de
-   `docs/screen-issue.md`, PCLK 16 MHz, CPU 160 MHz : LCD initialisé depuis
-   une tâche temporaire épinglée au **cœur 1** (l'ISR DMA LCD est donc
-   attachée au même cœur que LVGL, au lieu de lire la PSRAM depuis le
-   cœur 0 pendant que LVGL y écrit depuis le 1) ; `can2ser` / `ser2can` /
-   `ota_valid` déplacés sur le **cœur 0**. **Écran parfaitement stable,
-   observé par David.** Les images 2 (CPU 240 MHz) et 3 (PCLK 14 puis
-   12 MHz) n'ont pas été nécessaires. `CONFIG_LCD_RGB_RESTART_IN_VSYNC`
-   reste désactivé. Le downgrade IDF 5.x n'a plus de justification.
-
-**Phase 5, débitmètre (Digmesa, GPIO 44/D7), fait et validé sur le vrai
-capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : `init_flow()`
-configure GPIO44 en entrée, interruption front descendant, pull-up interne
-éteinte (le filtre RC du shield en tient lieu). ISR (`flow_isr_handler`)
-incrémente `g_flow_pulse_count` (32 bits) et mémorise `g_flow_last_edge_us`.
-`on_reqstatus_received` gère `kStatusFlow` (pas de plancher de période,
-contrairement au XDB401 — rien ne l'impose côté GPIO) ; `tick_flow()` (dans
-`safety_task`, pas de tâche dédiée : lecture non bloquante) publie
-`STATUS_FLOW` à la période demandée. **Validé en soufflant dans le
-capteur** : `pulses` reste stable à 0 au repos, grimpe pendant le souffle
-(0→19 sur un souffle), se stabilise à l'arrêt de la turbine — comportement
-propre, pas de rafale parasite.
-
-**Bug logiciel trouvé et corrigé en cours de route** : GPIO44 est le RX par
-défaut de la console UART0 (`CONFIG_ESP_CONSOLE_UART_DEFAULT`,
-`sensors/sdkconfig`) — sans forcer le pad en `PIN_FUNC_GPIO`, il reste sur sa
-fonction IOMUX de reset (`U0RXD`) et ne remonte jamais rien à l'ISR.
-**Exactement le même piège que le bug 1 de la phase 3** (voir plus bas,
-`screen`), sur le même GPIO, corrigé de la même façon
-(`gpio_func_sel(kGpioFlow, PIN_FUNC_GPIO)` + `gpio_input_enable()`,
-`esp_private/gpio.h`) — resté en place dans le code final, nécessaire.
-
-**Mais ce correctif logiciel ne suffisait pas** : après l'avoir appliqué,
-toujours 0 impulsion malgré des souffles francs. Séance de diagnostic
-électrique complète avant de trouver la vraie cause :
-
-- Tension de repos anormale mesurée sur GPIO44 (`GND↔SIGNAL = 2,64 V` au
-  lieu des ~3,3 V attendus du filtre RC).
-- Comparaison avec `tests/test_flowmeter.py` (banc Atom S3R, pull-up
-  interne, pas de filtre RC) : reproduit sur GPIO2/D1/L2 avec pull-up interne
-  — comptage en rafale incontrôlée (~50 000/s en continu, souffle ou pas),
-  signature d'une ligne qui oscille plutôt que d'un vrai signal.
-- Mesure ADC directe sur ce même GPIO2 (`adc_oneshot`, min/max sur fenêtre de
-  20 ms) : ~0 V systématique, alors que le multimètre lisait 1,6 V au même
-  point — écart explicable par un signal qui bascule trop vite pour la
-  moyenne lente d'un multimètre, cohérent avec l'hypothèse d'oscillation.
-
-**Cause racine réelle, trouvée après coup : SIGNAL et VCC étaient inversés au
-câblage**, pas un défaut du filtre RC ni un bug firmware. Le connecteur du
-Digmesa est un **PANCOM** (introuvable dans le commerce), sur lequel un câble
-VH3.96 classique s'enfiche à l'envers — d'où des couleurs qui ne portent pas
-les signaux qu'on attendrait (`rouge=SIGNAL`, `noir=GND`, `jaune=VCC` côté
-capteur, pas `rouge=VCC` comme documenté initialement). Corrigé en
-intervertissant rouge et jaune au niveau du JST SM femelle fait maison, en
-aval de cette inversion. Détail complet du câblage réel dans
-`docs/cablage.md`, section "Câble du Digmesa (R2)".
-
-Debug temporaire retiré une fois la cause confirmée : `tick_flow()` n'a plus
-le log `ESP_LOGI` `level`/`pulses` qui avait servi au diagnostic (utile
-seulement en USB direct sur `sensors`, pas via CAN — voir la remarque déjà
-documentée plus bas, "les messages `LOG` du protocole partent sur le bus
-CAN, pas sur l'UART"). GPIO44/R2 est la configuration finale, aucune
-expérimentation (GPIO2, ADC, pull-up interne) n'est restée dans le code.
-
-Bit `flags` "capteur valide" généralisé la même session (voir
-`docs/firmware.md`, nouveau paragraphe "Convention `flags`") : bit0 réel sur
-`STATUS_PRESSURE` (détection I2C), fixé à 1 sur `STATUS_FLOW` (non
-détectable en GPIO seul). **Validé sur le vrai matériel** : XDB401 branché →
-`flags=0b01` sur toutes les trames `STATUS_PRESSURE` ; débranché →
-`flags=0b00` + `LOG I2C_ERROR arg16=127` en boucle, comme attendu.
-
-**Phase 5, XDB401 (pression/température), fait et validé sur le vrai
-capteur (2026-09-09).** `firmware/sensors/main/main.cpp` : bus I2C
-(`esp_driver_i2c`, GPIO5 SDA / GPIO6 SCL, port R1), déclenchement de
-conversion (écriture `0x0A` au registre `0x30`), attente de fin de
-conversion par scrutation du bit Sco (bit 3 du registre 0x30, avec repli sur
-un délai fixe de 50 ms si le bit ne retombe jamais), puis lecture en deux
-transactions I2C séparées (3 octets à partir de `0x06` pour la pression, 2
-octets à partir de `0x09` pour la température — pas une rafale unique des 5
-octets, voir plus bas). `on_reqstatus_received` gère désormais
-`kStatusPressure` (période avec plancher 100 ms, 0 = arrêt) ; une tâche
-dédiée `pressure_task` (pas un tick de plus dans `safety_task`, pour ne pas
-imposer ~50 ms de blocage à la boucle bail/présence/verrou) déclenche la
-lecture et publie `STATUS_PRESSURE`.
-
-Deux écueils rencontrés, tous les deux sur le vrai capteur, à travers le
-pont écran (écran rebranché pour l'occasion — pas nécessaire pour flasher
-`sensors`, qui reste accessible en USB direct, mais indispensable pour
-échanger des messages protocolaires sur le bus) :
-
-- **La lecture en une seule rafale de 5 octets (`0x06`→`0x0A`, repeated
-  start) donnait une pression aberrante d'une lecture à l'autre alors que
-  la température restait cohérente.** L'exemple du fabricant (datasheet
-  XDB401) fait deux appels séparés (`I2C_ReadNByte(0x06, Pressure, 3)` puis
-  `I2C_ReadNByte(0x09, Temp, 2)`), chacun avec son propre STOP — pas une
-  transaction combinée. Reproduit tel quel, corrige le problème.
-- **Faux positif de debug, à ne pas reproduire** : en lisant les valeurs
-  décimales imprimées par `coffeetool monitor` à l'œil pendant le
-  diagnostic, la pression semblait varier de façon aberrante (jusqu'à
-  ±9 bar d'une lecture à l'autre, capteur au repos). En réalité `sensors`
-  et `coffeetool` sont cohérents entre eux (même convention little-endian
-  de bout en bout pour `pressure_raw`/`temperature_raw`, voir
-  `StatusPressurePayload` dans `common/messages.hpp` et son miroir Python
-  dans `coffeetool/messages.py`) — mais cette convention **diffère de
-  l'ordre big-endian utilisé par la formule de la datasheet**
-  (`m = x·65536 + y·256 + z`). Le nombre décimal affiché par `coffeetool`
-  n'est donc pas directement comparable à la formule du fabricant sans
-  reconvertir les octets. Une fois reconverti correctement, les lectures
-  étaient stables (~0,013 bar au repos) depuis le début — la « panne »
-  n'existait que dans la lecture manuelle des chiffres, pas dans le
-  matériel ni le firmware. Documenté ici pour ne pas se refaire peur la
-  prochaine fois : le brut part bien « tel quel » sur le CAN comme prévu
-  (voir `docs/firmware.md`, "XDB401"), mais quiconque doit un jour
-  interpréter ces octets en bar/°C doit appliquer la formule de la
-  datasheet à l'ordre **big-endian d'origine des registres**, pas à
-  l'entier `pressure_raw`/`temperature_raw` tel qu'assemblé par le
-  firmware/`coffeetool`.
-
-**Validé en soufflant physiquement dans le capteur** : capture de
-`STATUS_PRESSURE` à 200 ms de période sur 10 s pendant deux souffles —
-deux pics nets et cohérents dans le temps (~0,013 bar de repos → ~0,08 bar
-au pic → retour), confirmant la chaîne complète (I2C → CAN → pont écran →
-`coffeetool`) plutôt qu'une simple valeur statique plausible.
-
-**Débitmètre, SSR, dimmer et vérification de sécurité (bail/présence/
-verrou/réarmement) faits et validés depuis** (voir plus bas dans ce fichier,
-section phase 5) — **barrière B atteinte (2026-09-09)**.
-
-**OTA de `screen` lui-même, fait et validé sur le vrai matériel
-(2026-09-09) — barrière C complètement fermée.** Point 3 de la checklist
-officielle de la phase 4 (`firmware/screen/main/main.cpp`), resté hors
-scope jusqu'ici. `screen` reçoit désormais `FLASH_CTRL`/`FLASH_DATA` pour
-son propre compte, avec la même mécanique que `sensors` (effacement de la
-partition OTA inactive au `BEGIN`, écriture par blocs de 2 ko avec CRC16,
-`PENDING_VERIFY` + temporisateur d'invalidation 30 s, validation
-post-boot conditionnée à un `PING`/`PONG` réel avec `sensors` sur le CAN,
-rollback bootloader) — code dupliqué plutôt que partagé avec `sensors`,
-`common/` ne portant que le protocole, pas la logique applicative.
-
-Différence structurelle avec le flash de `sensors` : ici le transfert ne
-passe **jamais par le CAN**. `screen` est à la fois pont et destinataire,
-donc `coffeetool flash --dest screen` parle directement à `screen` sur son
-unique lien USB (le même UART2/GPIO43-44 que le pont série↔CAN habituel).
-`on_frame_from_serial()` intercepte les trames `FLASH_CTRL`/`FLASH_DATA`
-dont `dest == kScreen` et les traite localement au lieu de les relayer
-aveuglément sur le bus (sans quoi 256 trames `FLASH_DATA` par bloc
-partiraient inutilement vers `sensors`, qui n'a rien à en faire) ; les
-acquittements (`send_flash_ack_serial`) repartent uniquement sur l'UART,
-jamais sur le CAN. La preuve de vie pour la validation post-boot reste,
-elle, un vrai `PING`/`PONG` échangé avec `sensors` sur le bus — d'où la
-nécessité d'avoir les deux cartes branchées (USB Mac→écran pour le
-transfert, CAN écran↔capteurs pour la validation), pas seulement l'écran
-seul.
-
-Trois essais faits, les deux cartes branchées (USB Mac→écran, CAN
-écran↔capteurs), symétriques à ceux déjà faits côté `sensors` :
-
-- **Image saine** (`v0.2.4` → `v0.2.5`) : 123 blocs transférés et acquittés
-  sans échec via `coffeetool flash --dest screen`, reboot, `PONG v0.2.5`
-  confirmé, resté en service sans rollback bien après le délai de
-  validation de 30 s (`PING`/`PONG` périodiques avec `sensors` observés,
-  qui suffisent à `tick_ota_validation()` pour valider).
-- **Image cassée** (`v0.2.6`, `abort()` en toute première ligne
-  d'`app_main`, avant tout GPIO/UART/CAN) : rollback automatique du
-  bootloader, confirmé par un `PING` manuel après coup — `PONG` répond de
-  nouveau `v0.2.5`, jamais `v0.2.6`.
-- **Coupure en plein transfert** (`v0.2.7`, cette fois-ci sans `abort()`) :
-  processus `flash` tué de force (`kill -9`) au milieu du bloc 1/123,
-  simulant un câble USB débranché — `sensors` interrogé par `PING` après
-  coup : `PONG` répond toujours `v0.2.5` avec un `uptime_s` continu, jamais
-  retombé à zéro, confirmant qu'aucun reboot n'a eu lieu et qu'`otadata` n'a
-  pas bougé.
-
-**Piège rencontré en testant** : lancer `coffeetool monitor` en tâche de
-fond et `coffeetool flash` en même temps sur le **même port série** fait
-échouer le flash (`device reports readiness to read but returned no data`)
-— les deux processus se disputent le port USB. Écho du point 3 de la
-checklist de mise en route plus bas ("vérifier qu'aucun autre process n'a
-déjà le port ouvert"), qui s'applique aussi entre deux invocations de
-`coffeetool` elles-mêmes, pas seulement entre `coffeetool` et un `idf.py
-monitor` oublié.
-
-`firmware/screen/main/CMakeLists.txt` a gagné `app_update esp_partition`
-(mêmes composants que `sensors/main/CMakeLists.txt` pour les mêmes
-raisons). Après les essais, l'écran a été reflashé en direct (USB, image
-`v0.2.7` propre, sans `abort()`) pour repartir sur un état cohérent avec le
-dépôt.
-
-Prochaine étape : brancher pompe et vanne pour de vrai, ou avancer sur un
-autre chantier (purge/flush, phase 6) selon décision.
-
-**Phase 4, partie capteurs, terminée (2026-09-08).** Réception `FLASH_CTRL`/
-`FLASH_DATA` écrite dans `firmware/sensors/main/main.cpp` (écriture au fil de
-l'eau via `esp_ota_write`, CRC16 par bloc, CRC32 global au `END`,
-`PENDING_VERIFY` + timer d'invalidation 30 s réutilisant le mécanisme de
-présence existant). Les trois essais applicables (sans écran) validés pour de
-vrai contre `can-monitor` :
-
-- **Image saine** : `v0.1.1` flashée par CAN, redémarre, `PONG v0.1.1`, `LOG
-  OTA_VALIDATED` après confirmation `PING`/`PONG`.
-- **Image cassée** (`v0.1.2`, `abort()` avant tout `PING`) : rollback
-  automatique du bootloader (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`), `PONG`
-  revient à `v0.1.1` sans intervention.
-- **Coupure CAN en plein transfert** (câble débranché au bloc 3/107) : le
-  client abandonne après 3 échecs, aucun `END` n'est jamais reçu côté
-  capteurs donc `esp_ota_set_boot_partition` n'est jamais appelé — `otadata`
-  ne bouge pas, la carte ne reboote même pas, elle continue sur `v0.1.1` sans
-  interruption. `LOG TWAI_ERROR_COUNTERS` confirme le pic d'erreurs pendant
-  la coupure.
-
-Deux bugs trouvés et corrigés côté client (`firmware/tools/coffeetool/flash_client.py`),
-pas dans le firmware — le layout `FlashCtrlPayload`/`FlashSubCmd` de
-`messages.hpp` n'a pas eu besoin de changer :
-
-- `_wait_flash_ctrl` ne lisait qu'une seule trame par tentative et
-  abandonnait si ce n'était pas un `FLASH_CTRL` — alors qu'un `LOG` précède
-  systématiquement chaque acquittement sur le bus réel (`LOG FLASH_BEGIN`
-  avant le `BLOCK_ACK` de `BEGIN`, `LOG FLASH_PROGRESS` avant chaque
-  `BLOCK_ACK` de bloc). Corrigé : boucle jusqu'à trouver un `FLASH_CTRL` ou
-  expiration du délai total.
-- Les 256 trames `FLASH_DATA` d'un bloc partaient sans aucune pause entre
-  elles, ce qui sature le pont `can-monitor` (sa file TWAI déborde, des
-  trames sont perdues) — le premier bloc échouait systématiquement au CRC16.
-  Corrigé par un espacement de 2 ms entre trames.
-
-**Reste ouvert, documenté en commentaire dans `main.cpp`** (pas corrigé, hors
-scope de cette session) : si un bloc échoue au CRC16 côté capteurs et que
-`flash_client.py` le rejoue, le récepteur ne peut pas distinguer ce rejeu
-d'un bloc suivant — le curseur d'écriture a déjà avancé, donc un vrai rejeu
-casserait l'image (rattrapé par le CRC32 global du `END`, donc pas de risque
-de flasher une image fausse, mais sans le vrai rattrapage bloc par bloc
-annoncé par le protocole). Non observé sur le vrai bus : le CAN a son propre
-CRC/ACK matériel, ce cas ne devrait se déclencher que sur un bug logiciel.
-
-**Phase 3 : barrière A atteinte (2026-09-09).** Écran (Waveshare) et
-capteurs (XIAO) branchés en USB, reliés par un vrai câble CAN,
-`can-monitor` débranché.
-
-- **Le câble USB de l'écran est branché sur le port "UART"** de la carte
-  (bridge WCH CH343P externe, confirmé par le schéma officiel Waveshare —
-  nets `ESP_TXD`/`ESP_RXD` vers GPIO43/44), **pas le port USB natif** de
-  l'ESP32-S3 — d'où l'usage d'`UART_NUM_2` réaffecté sur GPIO43/44 via la
-  matrice GPIO, plutôt que `usb_serial_jtag` (comme `can-monitor`) ou
-  `UART_NUM_0` directement.
-- **GPIO CAN corrigés : TX=GPIO20, RX=GPIO19**, pas 15/16 comme une première
-  lecture de la fiche produit Waveshare l'avait suggéré — confirmé contre le
-  code source officiel (`waveshareteam/ESP32-S3-Touch-LCD-4.3`, cloné dans
-  `tmp/ESP32-S3-Touch-LCD-4.3/`, voir `examples/ESP-IDF/06_TWAItransmit` et
-  `07_TWAIreceive`, `sdkconfig.defaults`). GPIO19/20 sont les broches USB
-  natives D+/D- de l'ESP32-S3, basculées vers CAN_TX/CAN_RX par le mux
-  analogique FSUSB42UMX quand `CAN_SEL` (EXIO5 du CH422G) passe haut — d'où
-  le partage de bit avec `EXIO_USB_SEL` déjà repéré dans
-  `tests/screen/hello_waveshare/`.
-- **`PING`/`PONG` confirmés dans les deux sens à travers le vrai pont
-  écran**, y compris l'injection de commandes depuis le Mac (pas seulement
-  la lecture) : un `PING` envoyé par `coffeetool` obtient un `PONG` direct
-  de `sensors`, testé 3/3 après reset propre.
-
-**Deux bugs de bring-up UART trouvés et corrigés**, tous deux silencieux
-(aucune erreur, juste une réception qui ne marche jamais) :
-
-1. **Régression IDF v5.x → v6.1** dans `uart_set_pin()` : sa branche RX
-   (`gpio_hal_matrix_in()`) ne force plus le pad en `PIN_FUNC_GPIO` comme le
-   faisait v5.1 (la branche TX, elle, le fait toujours) — sans forcer
-   nous-mêmes le pad, GPIO44 restait sur sa fonction IOMUX de reset
-   (`U0RXD`), jamais lue par `UART_NUM_2`. Corrigé par
-   `gpio_func_sel(rx, PIN_FUNC_GPIO)` + `gpio_input_enable()` +
-   `gpio_pullup_en()` juste après `uart_set_pin()`.
-2. **`uart_read_bytes(..., portMAX_DELAY)` ne se réveille jamais** sur cet
-   `UART_NUM_2` réaffecté, même une fois le bug 1 corrigé et la FIFO
-   effectivement pleine (confirmé par `uart_get_buffered_data_len()`) — un
-   timeout court (20 ms) en boucle, comme le fait l'exemple officiel
-   Waveshare (`05_UART_Test`), fonctionne à chaque essai.
-
-Méthode de diagnostic, pour mémoire (utile si un bug similaire réapparaît
-sur `screen/` ou un autre projet ESP-IDF v6.1) :
-
-- Le binaire précompilé officiel Waveshare (`UART_Test.bin`, compilé en IDF
-  **v5.3.1** d'après son en-tête `esptool image-info`) fonctionne de façon
-  fiable — confirmé sans ambiguïté par un script Python `pyserial` qui lit
-  le port directement (pas seulement `picocom`, qui peut faire de l'écho
-  local trompeur). Ça a permis d'écarter le câble/port physique/brochage
-  comme cause, et d'isoler la régression à la version d'IDF.
-- Bissection décisive : `gpio_get_level()` en direct sur GPIO44 pendant que
-  le Mac spamme `0x55` en continu → des centaines de milliers de
-  transitions comptées, donc le signal physique arrive bel et bien au pad.
-  Puis `uart_get_buffered_data_len()` en boucle → la FIFO UART2 se remplit
-  bien (jusqu'à pleine, 2040/2048 octets). Ces deux mesures ont isolé le
-  bug à l'appel bloquant `uart_read_bytes(..., portMAX_DELAY)` lui-même,
-  pas au routage matrice GPIO ni à la réception matérielle.
-- Beaucoup de fausses pistes explorées et écartées avant ça (ordre
-  d'installation des drivers I2C/TWAI/UART, délais après l'écriture
-  CH422G, `gpio_reset_pin()`, taille des buffers TX/RX, RTS/CTS matériel,
-  `CONFIG_ESP_CONSOLE_NONE`) — aucune n'était la cause.
-
-**`firmware/screen/main/main.cpp` est maintenant le vrai firmware du pont**
-(pont série↔CAN + nœud `kScreen`, comme prévu depuis le début de la phase
-3), avec les deux correctifs ci-dessus intégrés. `CMakeLists.txt` de
-`screen/main` a gagné `esp_driver_gpio` (pour `gpio_func_sel` et
-consorts).
-
-**Test d'endurance TWAI fait (2026-09-09, 3 min, 07:34:20→07:37:23) :**
-`tx_error_counter`/`rx_error_counter` restés à 0 tout du long,
-`bus_error_count` figé sans jamais grimper sur les 3 minutes — zéro nouvelle
-erreur bus pendant le test. Barrière A fermée sur ce critère.
-
-Note en passant (pas un défaut, juste un comportement à connaître) : un
-`LOG PRESENCE_LOST` revient toutes les ~3 s pendant ce test (60 fois sur les
-3 minutes, toujours suivi d'un seul aller-retour `PING`/`PONG`). Normal à ce
-stade : `sensors` ne pingue que quand il détecte une perte de présence
-(`firmware/sensors/main/main.cpp`, `tick_presence()`), `screen` ne pingue
-jamais de lui-même, et aucun trafic `STATUS`/`REQSTATUS` périodique n'existe
-encore (phases 5/6). Le cycle silence 3 s → perte → probe → reprise est donc
-attendu, pas un signe de câblage instable — à revérifier une fois du trafic
-périodique en place.
-
-Piège rencontré en faisant ce test, pour mémoire (détaillé dans la
-checklist de mise en route ci-dessous) : un pont qui semblait totalement
-muet ce matin (aucun `PING`/`PONG`, aucun `LOG`) s'est avéré fonctionner
-parfaitement — la cause était un `coffeetool monitor` redirigé vers un
-fichier puis tué avant que son buffer stdout ne soit vidé, pas une panne
-matérielle. Un vrai power-cycle physique de l'écran (pas un reset logiciel)
-a aussi été nécessaire à un moment, écho d'un piège déjà rencontré la veille.
-
-**Essais OTA de la phase 4 rejoués à travers le vrai pont écran, tous les
-trois réussis (2026-09-09)** — chemin complet USB Mac → écran → CAN →
-capteurs, `can-monitor` totalement débranché pendant ces essais :
-
-- **Image saine** (`v0.1.4` puis `v0.1.5`) : transfert des 107 blocs sans
-  échec, reboot, séquence `BOOT` → `OTA_PENDING_VERIFY` → `READY` → premier
-  `PING`/`PONG` échangé avec l'écran → `LOG OTA_VALIDATED`. Capturée en
-  entier cette fois (contrairement à l'essai précédent contre
-  `can-monitor`, où le tout premier tick post-boot avait échappé à la
-  capture).
-- **Image cassée** (`v0.1.6`, `abort()` en toute première ligne
-  d'`app_main`, avant tout GPIO/CAN) : rollback automatique du bootloader
-  déjà effectif avant même le début de la capture (aussi rapide qu'observé
-  précédemment contre `can-monitor`) — confirmé a posteriori par un `PING`
-  manuel : `PONG` répond `v0.1.5`, la dernière image validée, pas `v0.1.6`.
-- **Coupure CAN en plein transfert** (câble débranché ~3-4 s au bloc
-  2/107) : `flash_client.py` abandonne après 3 échecs (`bloc 2 refusé après
-  3 essais`), câble rebranché ensuite, `sensors` interrogé par `PING` :
-  `PONG` répond toujours `v0.1.7` (l'image précédente, déjà validée) avec
-  un `uptime_s` continu, jamais retombé à zéro — confirme qu'aucun reboot
-  n'a eu lieu, `otadata` n'a pas bougé, exactement le comportement déjà vu
-  contre `can-monitor`.
-
-**Barrière C atteinte pour la partie capteurs.** Le point 3 de la checklist
-officielle de la phase 4 (« idem sur l'écran, avec son propre OTA local »)
-reste hors scope : c'est un flash de `screen` par lui-même, pas encore fait.
-`can-monitor` peut être mis de côté pour la suite du travail sur `sensors`
-et `screen` — son rôle de pont ad hoc est repris pour de bon par l'écran.
-
-Pas fait / à savoir avant de continuer :
-
-- **OTA de l'écran lui-même** jamais exercé (`screen` n'a pas encore de
-  logique `FLASH_CTRL`/`FLASH_DATA` réceptrice — jusqu'ici c'est toujours
-  `sensors` qui reçoit un flash, `screen` n'étant que le pont). Reste à
-  écrire si on veut fermer complètement le point 3 de la phase 4.
-
-Prochaine étape : **rejouer les essais OTA de la phase 4 (`coffeetool
-flash`) sur `sensors`, cette fois à travers le pont écran réel** (USB Mac →
-écran → CAN → capteurs) plutôt que `can-monitor`. Les trois essais
-matériels de la phase 4 (image saine, image cassée avec rollback, coupure
-CAN en plein transfert) sont à revalider dans ce nouveau chemin avant de
-considérer la barrière C atteinte et de mettre `can-monitor` définitivement
-de côté.
-
-**Phase 0 (socle) et phase 1 (outil Mac) faites.**
-
-Phase 1 :
-
-- Cadrage série défini et figé dans `firmware/common/` (source commune, comme le reste) : PDU `id/dlc/data/crc16` + COBS sur le fil USB, WebSocket transportant le PDU nu. Voir `firmware/common/include/common/framing.hpp` pour le détail et le pourquoi (zéros d'une image OTA, resynchronisation après un octet perdu). Tests hôte C++ inclus dans `common/test/`, au vert.
-- `firmware/tools/coffeetool/` : portage Python à la main de `common/` (protocole, messages, CRC, cadrage) — même pattern que `log_codes` mais sans génération commune, donc des tests croisés dédiés (`test_framing.py::test_golden_vectors_from_cpp` compare des trames encodées côté C++ octet à octet).
-- Décodeur de trames en texte lisible et horodaté (`decoder.py`), utilisant la table `LOG` générée en phase 0.
-- Deux transports derrière la même interface (`transport.py`) : `SerialTransport` (COBS, USB) et `WebSocketTransport` (PDU nu) — seul l'USB a un consommateur réel avant la phase 3, le reste est écrit par avance comme demandé.
-- Émission à la main (`send`) : `PING`, `PONG`, `STOP`, `RESET`, `SET`, `REQSTATUS`.
-- Enregistrement / relecture (`recorder.py`) en JSON Lines, format qui deviendra la fixture des tests d'algorithme en phase 6.
-- Client de flash (`flash_client.py`) : `BEGIN` / blocs de 2 ko acquittés / `END`, contre le layout `FLASH_CTRL` provisoire de `messages.hpp` — à revalider pour de vrai en phase 4, contre du matériel.
-- `firmware/tools/test/` : 27 tests hôte, aucune dépendance matérielle, `run_tests.sh` régénère d'abord `log_codes.py` comme en phase 0.
-
-Pas fait / à savoir avant de continuer :
-
-- Le client de flash n'a jamais parlé à une vraie carte : la sémantique exacte d'un nouvel essai après un bloc refusé (qui, côté récepteur, doit rejouer quoi) n'est pas fixée — `messages.hpp` le dit déjà, mais ça vaut aussi pour la logique de réception à écrire en phase 4.
-- `WebSocketTransport` n'a jamais été exercé contre un vrai serveur (aucun serveur avant la phase 6) : seul l'encodage/décodage du PDU est testé.
-
-**Phase 0 (socle), pour mémoire.**
-
-Fait :
-
-- Version ESP-IDF figée : v6.1 (stable courante, la LTS v5.1 visée initialement était déjà en fin de vie), notée dans `firmware/IDF_VERSION.md`. Installée via `eim`, sélectionnée.
-- **`idf.py build` vérifié pour de vrai sur les deux projets** (`sensors/` et `screen/`, cible `esp32s3`) : bootloader + image applicative générés sans erreur. Un bug de `common/CMakeLists.txt` a été corrigé au passage (l'`add_custom_command` de génération des codes LOG doit venir *après* `idf_component_register`, sinon ESP-IDF le rejette lors de sa phase de lecture en mode script).
-- Squelettes des deux projets ESP-IDF (`firmware/sensors/`, `firmware/screen/`), chacun avec sa table de partitions (factory + ota_0/ota_1 + rollback) et son `sdkconfig.defaults`.
-- `firmware/common/` : identifiant CAN (encode/decode 11 bits), charges utiles de tous les messages du protocole (`SET`, `PONG`, `REQSTATUS`, `STATUS_*`, `LOG`, `FLASH_CTRL`), CRC16/CRC32.
-- Table de codes `LOG` générée depuis une source unique (`firmware/common/codegen/log_codes.yaml` → `.hpp` pour le C++, `.py` pour l'outil Mac à venir).
-- Numéro de version (`common::kFirmwareVersion{Major,Minor,Patch}`), à incrémenter à chaque image.
-- Tests hôte (`firmware/common/test/run_tests.sh`) : aller-retour pack/unpack de chaque message, ordre de priorité des ID CAN, vecteurs de test CRC16/CRC32. Tournent sur le Mac, sans matériel — **vérifiés, au vert**.
-
-Pas fait / à savoir avant de continuer :
-
-- Layout de `FLASH_CTRL` (sous-commandes `BEGIN`/`BLOCK_ACK`/`END`/`ABORT`) est une première proposition dans `common/messages.hpp` — `firmware.md` ne fige pas les octets exacts, à revalider en phase 4.
-- Tailles des partitions posées large mais provisoires, comme prévu par le plan.
-- Rien dans `main.cpp` des deux projets au-delà d'un `ESP_LOGI` de démarrage — normal pour la phase 0.
-
-Prochaine étape : phase 2, les capteurs factory sur la table — première fois qu'une carte tourne du code.
-
-**Phase 2, en cours (2026-09-08).**
-
-Fait, vérifié sur le vrai matériel :
-
-- Module CAN Pal AliExpress abandonné côté capteurs (sous-tension à 3,3 V, voir
-  `docs/canpal-findings.md`) — remplacé par un **M5Stack Unit CAN** (CA-IS3050G isolé,
-  même module que celui déjà utilisé côté `can-monitor`). Brochage GPIO7=RX/GPIO8=TX
-  sur le XIAO, **inversé** par rapport à l'ancien CAN Pal (voir suite de
-  `canpal-findings.md` : `CAN_TX`/`CAN_RX` du module sont nommés du point de vue du
-  transceiver, pas une convention câble croisé). Validé par self-test TWAI en boucle
-  isolée (`firmware/can-selftest`) puis sur le vrai bus.
-- `firmware/sensors` tourne pour de vrai sur le XIAO : TWAI 500 kbit/s, `PING`/`PONG`
-  avec version, `LOG` périodique des compteurs d'erreur TWAI. Terminaison 120 Ω
-  confirmée aux deux bouts.
-- Round-trip `PING`/`PONG` confirmé : `PONG` reçu avec `node=kSensors`,
-  `version=0.1.0`, `uptime_s` croissant. Compteurs d'erreur TWAI observés à zéro en
-  régime établi (une remontée transitoire liée aux flashs/resets répétés de la session
-  de bring-up s'est résorbée).
-- **`firmware/can-monitor` (Atom S3) devenu un vrai pont bidirectionnel série↔CAN**,
-  même cadrage COBS+PDU+CRC16 que celui prévu pour l'écran en phase 3 (voir
-  `firmware/common/include/common/framing.hpp`). `coffeetool` (phase 1) lui parle
-  directement sur son port USB-C pour émettre `PING`/`SET`/`STOP`/`RESET`/`REQSTATUS`
-  vers `sensors` sur le vrai bus — plus besoin d'attendre l'écran pour tester le
-  protocole. Le `PING` périodique auto-émis par `can-monitor` (ajouté plus tôt dans le
-  bring-up) a été retiré : redondant maintenant que `coffeetool` peut l'envoyer
-  lui-même avec la bonne identité.
-  - **Piège de mise en œuvre** : le port USB-C de l'Atom S3 est le périphérique
-    USB_SERIAL_JTAG natif du chip, le même que celui qu'ESP-IDF utilise par défaut
-    pour la console (`printf`/`ESP_LOGx`). Il a fallu désactiver la console
-    (`CONFIG_ESP_CONSOLE_NONE` + `CONFIG_ESP_CONSOLE_SECONDARY_NONE` dans
-    `sdkconfig.defaults`) et piloter le driver `usb_serial_jtag` directement
-    (`usb_serial_jtag_read_bytes`/`write_bytes`, pas le VFS console qui traduit les
-    fins de ligne — une donnée CAN quelconque peut contenir 0x0A/0x0D). Conséquence :
-    `can-monitor` n'a plus aucune sortie texte de debug, tout passe par les trames
-    `LOG` du protocole, décodées côté `coffeetool`.
-  - **À retirer ou désactiver une fois la phase 3 en place** : un vrai écran sur le
-    bus serait un second nœud `kScreen`, en conflit d'identité avec ce qui transite
-    par le pont.
-- **`LOG` au boot confirmé sur le bus** : reset à froid du XIAO (via `esptool`),
-  `BOOT` puis `READY` vus par `can-monitor`/`coffeetool` dans la foulée.
-- **`RESET` testé pour de vrai** via `coffeetool send reset` : `LOG REBOOT_REQUESTED`,
-  puis `BOOT`/`READY`, puis nouveau `PONG` avec `uptime_s` reparti de zéro.
-- **Bail (lease) vérifié** : `SET ssr=1 ttl_ms=2000` → `STATUS_ACTUATORS` immédiat
-  (`ssr=on`, `bail_restant≈2000ms`) → ~2 s plus tard `LOG LEASE_EXPIRED` +
-  `STATUS_ACTUATORS` (`ssr=off`), au bon délai.
-- **Verrou 60 s déclenché pour de vrai** : `SET ssr=1 ttl_ms=65000` maintenu, `LOG
-  RUNTIME_LOCKOUT_TRIGGERED` (`arg32=60100` ms) après ~60 s, `STATUS_ACTUATORS`
-  `flags` avec le bit verrou posé.
-- **Piège documenté confirmé** : verrou actif → `RESET` logiciel (`coffeetool send
-  reset`) → nouveau boot avec `uptime_s` reparti de zéro → `SET` suivant refusé
-  (`LOG COMMAND_REFUSED_LOCKED`, `STATUS_ACTUATORS` avec le bit verrou toujours posé).
-  Le verrou survit bien à un reset logiciel.
-
-- **Levée du verrou à la coupure secteur réelle, confirmée** (2026-09-08) : XIAO
-  débranché/rebranché en USB (coupure d'alimentation réelle, pas juste un `RESET`
-  logiciel), puis `SET ssr=1 ttl_ms=2000` accepté (`flags=0b010`, bit verrou à 0) et
-  bail expiré au bon délai. Le verrou ne se lève bien qu'au démarrage à froid, comme
-  documenté.
-- **Présence, confirmée** (2026-09-08) : `SET ssr=1 ttl_ms=30000`, câble CAN débranché
-  ~6 s (> `kPresenceTimeoutUs` = 3 s) puis rebranché, `STOP` envoyé pour lire l'état :
-  `ssr=off`, `bail_restant=0ms` malgré le bail de 30 s encore valide — confirme que
-  `force_actuators_off()` a bien coupé pendant la coupure du bus, indépendamment du
-  bail restant.
-
-**Phase 2 terminée.** Tous les points de la checklist et le piège documenté sont
-vérifiés sur le vrai matériel. Le **rearmement** (deux activations de 30 s séparées de
-plus de 2 s ne déclenchent rien) n'a pas été exercé spécifiquement, mais c'est un
-test de la phase 5 (pas de la checklist phase 2), à faire là où il est prévu.
-
-**Décision (2026-09-08) : réordonnancement délibéré, phase 4 (partie capteurs) avant
-phase 3.** Le blocage pour tester le flash des capteurs par CAN n'est pas matériel
-(le pont série↔CAN existe déjà, `firmware/can-monitor`) mais logiciel : `sensors`
-n'a aucune logique de réception `FLASH_CTRL`/`FLASH_DATA`. Plutôt que d'attendre
-l'écran (phase 3) pour un pont dont on a déjà l'équivalent fonctionnel, on avance la
-partie capteurs de la phase 4 maintenant, contre `can-monitor`. Le pont de l'écran
-restera à valider séparément en phase 3 — ce test-ci ne le remplace pas, il avance
-le risque le plus important (flash/rollback des capteurs) sans dépendre du bring-up
-de l'écran.
-
-### Phase 4, partie capteurs, contre `can-monitor` — terminée, détail ci-dessous pour mémoire
-
-**Fait et vérifié sur le vrai matériel — voir le résumé en tête de fichier.**
-Détail conservé tel qu'écrit avant l'implémentation, comme trace de ce qui
-était prévu :
-
-1. Layout des messages déjà figé dans `firmware/common/include/common/messages.hpp`
-   (`FlashCtrlPayload`, `FlashSubCmd::{kBegin,kBlockAck,kEnd,kAbort}`) — c'est une
-   première proposition jamais confrontée au matériel, donc c'est aussi le moment de
-   la challenger si elle ne tient pas.
-2. Séquence exacte déjà implémentée côté Mac dans
-   `firmware/tools/coffeetool/flash_client.py` (`flash()`) — c'est la référence pour
-   ce qu'attend le récepteur :
-   - `FLASH_CTRL BEGIN` (taille de l'image) → le récepteur doit **effacer la
-     partition OTA inactive avant d'acquitter**, puis répondre
-     `FLASH_CTRL BLOCK_ACK block_number=0`.
-   - Blocs de 2 ko = 256 trames `FLASH_DATA` de 8 octets bruts (pas d'en-tête, la
-     trame CAN entière est la donnée) → écrire au fil de l'eau avec `esp_ota_write`
-     (ne pas bufferiser l'image entière en RAM). Après 256 trames, répondre
-     `FLASH_CTRL BLOCK_ACK` avec `block_number+1` et le CRC16 du bloc reçu — c'est
-     le contrôle de flux, `flash_client.py` rejoue le bloc si le CRC ne correspond
-     pas (3 essais max).
-   - `FLASH_CTRL END` (CRC32 global) → vérifier contre les octets reçus, puis
-     `esp_ota_set_boot_partition` + reboot. `LOG FLASH_DONE`/`FLASH_FAILED` déjà
-     dans `log_codes.yaml`, à utiliser.
-3. Après le reboot sur la nouvelle image : rester en `PENDING_VERIFY`
-   (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` déjà activé dans
-   `sdkconfig.defaults`, table de partitions `factory`/`ota_0`/`ota_1`/`otadata`
-   déjà posée dans `partitions.csv`) jusqu'à reconfirmation d'un `PING`/`PONG` sur
-   le bus, puis appeler `esp_ota_mark_app_valid_cancel_rollback()`. **Écrire aussi
-   le temporisateur d'invalidation** (`firmware.md` insiste : IDF ne redémarre pas
-   tout seul une image jamais validée, ce timer doit exister explicitement) — sinon
-   une image qui ne pingue jamais reste bloquée en attente pour toujours au lieu de
-   rollback.
-4. Les quatre essais de validation de la phase 4 (voir plus bas, section "Phase 4"),
-   **à faire contre `can-monitor` plutôt que l'écran** :
-   - Flasher une image saine (incrémenter `kFirmwareVersion*` pour le voir dans le
-     `PONG` après coup) via `coffeetool flash` — commande CLI déjà branchée sur
-     `flash_client.py` (`cli.py::cmd_flash`), jamais exercée contre du matériel.
-   - Flasher une image sciemment cassée (crash au boot avant le premier ping/pong) →
-     le rollback doit ramener l'image précédente sans intervention.
-   - Débrancher le câble CAN en plein transfert → l'écriture doit s'annuler
-     proprement, `otadata` ne doit pas bouger, redémarrage sur l'image précédente.
-   - (Le 3ᵉ essai de la checklist officielle, "idem sur l'écran, avec son propre OTA
-     local", reste hors scope ici — c'est `firmware/screen`, pas encore construit.)
-5. Outillage pour identifier les ports au prochain démarrage de session : voir
-   section "Environnement de build/flash (Mac)" juste en dessous. `can-monitor` est
-   déjà flashé sur l'Atom S3 en pont série↔CAN fonctionnel (voir plus haut) ; `sensors`
-   est déjà flashé sur le XIAO avec le brochage GPIO7=RX/GPIO8=TX correct. Le câblage
-   physique (Unit CAN des deux côtés, terminaison 120 Ω aux deux bouts, câble CAN
-   entre les deux cartes) est déjà en place et vérifié — pas besoin de repartir de
-   zéro sur le bring-up matériel, seulement d'écrire et tester la logique de flash.
-
-Une fois ce chantier bouclé : **phase 3** (l'écran factory Waveshare comme pont
-USB↔CAN) reste la suite logique — à ce stade, `firmware/can-monitor` pourra être mis
-de côté (son rôle de pont ad hoc est repris par le vrai pont de l'écran, voir la note
-dans sa description ci-dessous), et il faudra rejouer les mêmes essais de flash à
-travers ce pont-là pour de vrai avant de considérer la barrière C atteinte.
-
-### Environnement de build/flash (Mac)
-
-- **Activer l'environnement ESP-IDF** : ne pas utiliser `$IDF_PATH/export.sh` — installé via `eim` (voir `firmware/IDF_VERSION.md`), il cherche un venv Python à un chemin (`~/.espressif/python_env/...`) qu'`eim` ne peuple pas. Le bon script est celui qu'`eim` dépose lui-même :
-  ```sh
-  source ~/.espressif/tools/activate_idf_v6.1.sh
-  ```
-  Doit être **sourcé** (pas exécuté) dans le shell courant ; ne persiste pas d'un appel `Bash` à l'autre dans cet outil — à re-sourcer avant chaque `idf.py build/flash/monitor` si chaque commande part dans un nouveau process.
-- **Build** : `idf.py build` depuis `firmware/sensors/`, `firmware/can-monitor/`, `firmware/can-selftest/`, chacun indépendamment (pas de build à la racine `firmware/`).
-- **Identifier quel port série correspond à quelle carte** (macOS expose les deux comme `/dev/cu.usbmodemNNNN`, sans nom lisible) :
-  ```sh
-  python -m esptool --port /dev/cu.usbmodemXXXX chip-id
-  ```
-  Le `Chip type` renvoyé distingue les deux cartes de ce banc :
-  - **XIAO ESP32-S3** (`sensors`) : `ESP32-S3 (QFN56)` — PSRAM embarquée, **flash externe** (pas de ligne "Embedded Flash").
-  - **Atom S3** (`can-monitor`) : `ESP32-S3-PICO-1 (LGA56)` — flash **et** PSRAM embarquées (SiP).
-  Les numéros `/dev/cu.usbmodemNNNN` eux-mêmes ne sont pas stables : à revérifier par ce moyen à chaque nouvelle session/rebranchement, ne pas supposer qu'un port garde son rôle.
-- **Flasher** : `idf.py -p /dev/cu.usbmodemXXXX flash` depuis le dossier du projet concerné.
-- **Lire la sortie série sans terminal interactif** (utile pour capturer une trace courte sans bloquer sur `idf.py monitor`) : script Python avec `pyserial` (déjà présent dans le venv IDF, dépendance d'`esptool`), `serial.Serial(port, 115200, timeout=...)` + `readline()` en boucle avec une échéance. Piège : les logs `ESP_LOGx` sortent bien sur ce port, mais les messages `LOG` du protocole (boot, ready, compteurs TWAI) partent sur le **bus CAN**, pas sur l'UART — invisibles ici tant qu'on n'a pas de pont vers `coffeetool`.
-
-### Checklist de mise en route (nouvelle session)
-
-Écrite après une session (2026-09-09 matin) où la moitié du temps est partie en
-tâtonnement avant de découvrir que le pont marchait très bien depuis le
-début — les points ci-dessous sont les pièges rencontrés, dans l'ordre où les
-vérifier.
-
-1. **Sourcer l'environnement IDF avant toute commande `idf.py`/`esptool`/`coffeetool`**,
-   et le refaire à chaque nouvel appel `Bash` si l'outil ne garde pas l'état du
-   shell entre deux appels :
-   ```sh
-   source ~/.espressif/tools/activate_idf_v6.1.sh
-   ```
-2. **Identifier quel port est quelle carte, ne jamais supposer** (les
-   `/dev/cu.usbmodemNNNN` changent d'un rebranchement à l'autre) :
-   - `python -m esptool --port /dev/cu.usbmodemXXXX chip-id` donne le type de
-     puce, mais **XIAO et Waveshare sont tous les deux des `ESP32-S3
-     (QFN56)`** — ça ne les distingue pas entre eux (seul l'Atom S3 du
-     `can-monitor` ressort différent, `ESP32-S3-PICO-1`).
-   - Utiliser plutôt `python -m esptool --port /dev/cu.usbmodemXXXX flash-id`
-     et regarder `Detected flash size` : **8 Mo = XIAO (`sensors`), 16 Mo =
-     Waveshare (`screen`)**. Fiable, contrairement au chip-id seul.
-3. **Avant de conclure à une carte muette, vérifier qu'aucun autre process
-   n'a déjà le port ouvert** (`ps aux | grep coffeetool`) — un `monitor` lancé
-   en arrière-plan et pas proprement tué (voir point 5) reste accroché au
-   port et fait sembler le nouveau essai silencieux, ou pire, fait lire du
-   flux entrelacé entre deux processus sur le même port.
-4. **`coffeetool monitor` redirigé vers un fichier (`> out.log &`) puis tué
-   avant la fin peut paraître muet alors que le trafic existe bien** : la
-   sortie de Python est bufferisée par bloc (pas ligne par ligne) dès qu'elle
-   n'est plus un terminal, donc un `kill` avant que le buffer se vide perd
-   tout ce qui n'a pas encore été flush. Lancer avec `PYTHONUNBUFFERED=1` en
-   tête de commande dès qu'il faut rediriger + tuer plus tard. Ça a fait
-   perdre du temps à tort conclure "aucune réponse du pont" alors que
-   `PING`/`PONG` circulaient très bien.
-5. **Toujours tuer proprement le process de capture** (`kill $PID; wait
-   $PID`) avant d'en relancer un autre sur le même port — un `run_in_background`
-   dont le script interne fait déjà son propre `&`/`sleep`/`kill` peut se
-   terminer (et donc être vu comme "complété") avant que le sous-process
-   detaché soit réellement mort, laissant un doublon actif (voir point 3).
-6. **Un pont qui répondait hier soir et ne répond plus ce matin n'est pas
-   forcément cassé** : un reset logiciel répété (RTS via `idf.py
-   monitor`/`flash`) peut laisser l'écran dans un état incohérent qu'un
-   `RESET` protocolaire ne rattrape pas. Avant de creuser côté firmware,
-   **couper l'alimentation physiquement (débrancher l'USB) sur chaque carte
-   à tour de rôle**, pas juste demander un reset logiciel.
-7. **`firmware/can-selftest` (auto-test transceiver, `TWAI_MODE_NO_ACK` +
-   boucle vers soi-même) exige le câble CAN débranché sur les deux cartes** —
-   sinon on ne sait plus si un échec vient du transceiver local ou du câble/de
-   l'autre carte. Vérifier aussi `PINOUT_CANPAL` et `TEST_MODE_TWAI` en tête de
-   fichier avant de flasher : ce sont des `#define` de bring-up, pas figés,
-   et le brochage actuel du XIAO est le **Unit CAN** (`PINOUT_CANPAL 0`,
-   TX=8/RX=7), pas l'ancien CAN Pal.
-8. **Un `LOG PRESENCE_LOST` répété toutes les ~3 s juste après un
-   rebranchement n'est pas forcément une régression** : les compteurs
-   d'erreur TWAI (`LOG TWAI_ERROR_COUNTERS`, `arg16` = rx/tx error counter,
-   `arg32` = bus_error_count cumulé) mettent quelques dizaines de secondes à
-   redescendre après une coupure/reprise du bus. Regarder si `arg16` décroît
-   vers 0 et si `arg32` cesse de grimper avant de traiter ça comme un vrai
-   problème de câblage/terminaison.
-9. **Invoquer `coffeetool` depuis `firmware/tools/`, pas depuis
-   `firmware/tools/coffeetool/`**, et avec `python -m coffeetool.cli`, pas
-   `python -m coffeetool` (pas de `__main__.py` au niveau du package) :
-   ```sh
-   cd firmware/tools
-   python -m coffeetool.cli monitor --port /dev/cu.usbmodemXXXX
-   python -m coffeetool.cli send --port /dev/cu.usbmodemXXXX set --ssr 1 --ttl-ms 8000
-   ```
-   `python -m coffeetool --help` échoue silencieusement avec `No module
-   named coffeetool` — pas une erreur de port ou d'environnement IDF, juste
-   le mauvais point d'entrée.
-
----
-
-Conception, protocole et décisions : `firmware.md`. Ce fichier ne dit pas *comment* coder, il dit **dans quel ordre**, et ce qu'il ne faut pas oublier avant de passer à la suite.
-
-L'objectif de bout en bout est un point précis : **débrancher l'USB**. Tout ce qui vient avant existe pour rendre ce moment sans risque ; tout ce qui vient après arrive par OTA.
-
-## Le principe qui ordonne tout
-
-On ne met **rien** en boîte, et on ne branche **rien** sur le 230 V, tant que le chemin qui permet de se rattraper n'est pas prouvé. Les phases sont donc construites à l'envers de l'envie : le protocole et le flash d'abord, les capteurs et l'UI ensuite.
-
-Trois barrières, dans cet ordre :
-
-| Barrière | Ce qu'elle autorise |
-| --- | --- |
-| **A** — les deux cartes se pinguent sur le bus | brancher les périphériques basse tension |
-| **B** — bail, présence et verrou 60 s vérifiés | brancher le 230 V sur la pompe et la vanne |
-| **C** — OTA prouvé dans les deux sens, rollback compris | fermer les boîtiers et débrancher l'USB |
-
----
-
-## Phase 0 — Socle
-
-Rien de visible, mais c'est ce qui évite de tout refaire en phase 4.
-
-- Deux projets ESP-IDF, `sensors/` et `screen/`, et un composant `common/` partagé par les deux.
-- Figer la version d'ESP-IDF et la noter dans le dépôt. Une montée de version en cours de route se paie sur la carte qu'on ne peut plus atteindre.
-- Dans `common/` : définition des types de messages, des charges utiles, du CRC — **et la table de codes `LOG` générée depuis une source unique**, consommée par le C++ et par l'outil Python. C'est le point à ne pas rater : une table dupliquée dérive, et le premier message qu'on ne comprendra plus sera celui d'un crash.
-- Un numéro de version par image, remonté dans le `PONG`. Discipline d'incrémentation dès maintenant : sur une carte en boîte, la seule façon de savoir ce qui tourne, c'est de le lui demander.
-- Tests hôte sur `common/` : encoder / décoder chaque message, aller-retour. Ça tourne sur le Mac, sans matériel.
-
-**Sortie :** `common/` compile pour les deux cibles et passe ses tests sur le Mac.
-
----
-
-## Phase 1 — L'outil Mac
-
-Avant les cartes, parce que tout le reste se débogue à travers lui.
-
-- Décodeur de trames : lit le flux, imprime du texte lisible, horodate.
-- Deux transports, même décodeur : **USB série** (phase 2 et 3) et **WebSocket** (phase 6). Écrire l'abstraction tout de suite, même si seul l'USB existe.
-- Émission aussi, pas seulement lecture : pouvoir envoyer un `SET`, un `PING`, un `REQSTATUS` à la main est ce qui rend les phases 2 à 5 tenables.
-- Enregistrement dans un fichier, et relecture. **Ce format devient la fixture des tests d'algorithme** en phase 6 : on enregistre un vrai shot, on le rejoue sur le Mac.
-- Le client de flash (`BEGIN`, blocs, `END`) vit ici aussi.
-
-**Sortie :** l'outil décode et rejoue un fichier de trames fabriqué à la main, sans matériel.
-
----
-
-## Phase 2 — Capteurs factory, sur la table
-
-Le XIAO seul, alimenté en USB, hors de la machine, sans aucun périphérique branché sauf le CAN Pal.
-
-- TWAI à 500 kbit/s, réception en accept-all, aiguillage sur le type.
-- `PING` / `PONG` avec identité et version.
-- `LOG` au boot.
-- `RESET`.
-- **Exposer les compteurs d'erreur TWAI** dans un `LOG` périodique. C'est comme ça qu'on valide le câblage et la terminaison sans oscilloscope, et ça servira à chaque phase suivante.
-- GPIO 9 tenu bas dès le démarrage, avant l'initialisation du CAN.
-- Machine à états de sécurité **complète**, même sans actionneur branché : bail, présence, verrou 60 s en mémoire RTC. On la teste ici, à vide, où elle ne peut rien casser.
-- Rien d'autre : ni I2C, ni débitmètre, ni logique d'infusion.
-
-**Piège :** le verrou 60 s doit survivre à un `RESET` logiciel et ne se lever que sur un démarrage à froid. À vérifier explicitement, pas à supposer.
-
-**Sortie :** l'outil Mac, branché sur un adaptateur CAN ou sur la seconde carte en phase 3, voit les pongs. Le verrou se déclenche à la commande et ne se lève qu'à la coupure d'alimentation.
-
-### `firmware/can-monitor` — l'adaptateur CAN de secours
-
-Un troisième firmware, indépendant de `sensors/` et `screen/`, pour avoir un moyen de parler au bus sans dépendre de l'écran (utile avant la phase 3, et comme filet ensuite).
-
-**Devenu, en cours de phase 2, un vrai pont bidirectionnel série↔CAN** — pas juste un moniteur passif comme prévu initialement (voir "Phase 2, en cours" plus haut pour le pourquoi : tester `SET`/`STOP`/`RESET` sans attendre l'écran) :
-
-- Cible : M5Stack Atom S3 + M5Stack Unit CAN (**CA-IS3050G isolé**, pas le TJA1051/3 — voir la suite de `docs/canpal-findings.md`), relié par le Port.A.
-- GPIO déclarés **en haut du fichier**, modifiables sans fouiller le reste du code — valeurs par défaut `TX = GPIO 2`, `RX = GPIO 1` (Port.A de l'Atom S3 monté sur ce banc). `GPIO 26`/`GPIO 36` documentés initialement étaient faux pour cet exemplaire : confirmé au multimètre puis par un auto-test de bouclage transceiver (`firmware/can-selftest`) le 2026-09-08. Le Port.A peut varier d'un lot à l'autre — revalider avant de réutiliser ces valeurs sur un autre Atom S3.
-- TWAI à 500 kbit/s, accept-all. Chaque trame reçue est encadrée (COBS+PDU+CRC16, `firmware/common/include/common/framing.hpp`) et écrite brute sur le port USB-C ; chaque trame encadrée reçue sur ce port est décodée et transmise sur le bus. Même cadrage que celui prévu pour l'écran en phase 3 : `coffeetool` s'en sert exactement pareil.
-- Console désactivée (`CONFIG_ESP_CONSOLE_NONE`/`CONFIG_ESP_CONSOLE_SECONDARY_NONE`) : le port USB-C est le périphérique `usb_serial_jtag` natif du chip, piloté directement en octets bruts (pas le VFS console, qui traduirait des fins de ligne dans des données CAN binaires). Plus aucun `printf`/`ESP_LOGx` — les erreurs qui comptent passent par les trames `LOG` du protocole, décodées côté `coffeetool`.
-- Pas d'identité propre, pas de participation au protocole : c'est un pont transparent, pas un nœud. `coffeetool` choisit lui-même la source (`--src screen`) de ce qu'il envoie.
-
-**Usage :** flasher une fois, laisser branché sur le bus, utiliser `firmware/tools/coffeetool` contre son port USB-C (`--port /dev/cu.usbmodemXXXX`) exactement comme on le ferait contre l'écran en phase 3.
-
-**À retirer ou désactiver une fois la phase 3 en place** : un vrai écran sur le bus est un second pont vers le même rôle logique `kScreen` — les deux en même temps sèmeraient la confusion, pas un conflit protocolaire à proprement parler (le pont n'a pas d'identité propre) mais deux sources concurrentes du point de vue de `sensors`.
-
----
-
-## Phase 3 — Écran factory, le pont USB ↔ CAN
-
-Le Waveshare seul, en USB, hors de la machine.
-
-- `CAN_SEL` (EXIO5 du CH422G) tenu haut. **C'est la première chose à faire marcher** : sans ça le transceiver n'est pas sélectionné et il ne se passe rien, sans message d'erreur. Le bring-up CH422G de `tests/screen/hello_waveshare/` sert de référence.
-- TWAI, même pile que les capteurs, depuis `common/`.
-- CDC USB : pont bidirectionnel entre le port série et le bus.
-- `PING` / `PONG` / `LOG` / `RESET`.
-- Ni Wi-Fi, ni HTTP, ni LVGL, ni BLE. L'écran peut rester noir.
-- Sauvegarder les deux images factory dans le dépôt ou à côté, avec leur version. Ce sont les seules qu'on reflashera un jour en USB.
-
-**Puis :** relier les deux cartes par la paire CAN, terminaison activée aux deux bouts.
-
-**Sortie — barrière A.** Les deux cartes se pinguent, l'outil Mac voit le trafic à travers le pont, les compteurs d'erreur TWAI restent à zéro sur plusieurs minutes.
-
----
-
-## Phase 4 — Le flash, dans les deux sens
-
-C'est le jalon. Tant qu'il n'est pas franchi, la suite est théorique.
-
-- `FLASH_CTRL` / `FLASH_DATA` dans `common/`, donc identique des deux côtés.
-- Table de partitions posée sur les deux puces : `factory`, `ota_0`, `ota_1`, `nvs`, `otadata`. Tailles provisoires, à réajuster en phase 6 quand on connaîtra le poids réel de l'application écran — mais **réajuster une table de partitions sur une carte en boîte n'est pas possible**, donc prévoir large dès maintenant.
-- Effacement complet de la partition **avant** l'acquittement du `BEGIN`.
-- Blocs de 2 ko acquittés avec CRC16, CRC32 global sur le `END`.
-- Progression en `LOG`.
-- Validation de l'image après démarrage, conditionnée au ping/pong CAN.
-- **Temporisateur d'invalidation propre** : IDF ne redémarre pas tout seul une image en attente de validation. Écrire ce mécanisme, ne pas compter sur un rollback automatique.
-
-Les quatre essais qui valident la phase, tous à faire pour de vrai :
-
-1. Flasher une image saine dans les capteurs depuis le Mac, à travers l'écran. Elle démarre, elle pongue avec sa nouvelle version.
-2. Flasher une image sciemment cassée dans les capteurs. **Le rollback ramène la précédente sans intervention.**
-3. Idem sur l'écran, avec son propre OTA local.
-4. Débrancher la paire CAN en plein transfert. L'écriture s'annule, `otadata` ne bouge pas, la carte redémarre sur l'image précédente.
-
-**Sortie — barrière C (partielle).** Une carte se reflashe et se récupère sans USB. À ce stade seulement, la mise en boîte devient une option raisonnable.
-
----
-
-## Phase 5 — Application capteurs, livrée par OTA
-
-À partir d'ici, on ne flashe plus le XIAO en USB. Chaque itération passe par le bus : c'est la répétition générale de la vie en boîte, tant qu'on peut encore ouvrir.
-
-**Ce qui nécessite le 230 V et ce qui n'en a pas besoin** (question posée le
-2026-09-09, à trancher avant d'attaquer la phase) :
-
-- **Sans 230 V** : XDB401 (capteur de pression, I2C pur) et débitmètre (ISR
-  GPIO pur) — les deux premiers points ci-dessous. Testables sur batterie,
-  Mac au secteur, sans précaution particulière.
-- **Avec 230 V** : dimmer (bloqué en `Calibrating...` sans secteur, voir le
-  piège documenté) et donc tout ce qui suit dans l'ordre ci-dessous, y
-  compris la vérification de sécurité (bail/présence/verrou/réarmement),
-  qui porte sur les actionneurs.
-- **Option envisagée, pas encore décidée** : avancer le WebSocket (phase 6,
-  point 3 — miroir du trafic CAN, même format qu'en USB) *avant* de brancher
-  le 230 V, pour pouvoir continuer à tester sans dépendre du câble USB une
-  fois la carte en boîte. Ça découplerait "SSR/dimmer nécessitent le
-  secteur" de "l'outil Mac nécessite l'USB" — mais suppose d'avoir déjà le
-  Wi-Fi (phase 6, point 1) et un minimum de HTTP/WebSocket côté écran, donc
-  une partie de la phase 6 avant la fin de la phase 5. À reconsidérer une
-  fois les deux premiers points (XDB401, débitmètre) faits.
-
-Dans l'ordre, un périphérique à la fois, en vérifiant à chaque fois sur l'outil Mac :
-
-1. **XDB401** — bus I2C, mutex, conversion déclenchée puis relâchement du mutex pendant les 50 ms d'attente. `STATUS_PRESSURE` avec les 5 octets bruts. `REQSTATUS` avec période.
-2. **Débitmètre** — ISR sur front descendant, compteur 32 bits, horodatage du dernier front, `STATUS_FLOW`. Vérification à la main : souffler dans le capteur ou le faire tourner, compter les impulsions.
-
-**Ordre des points 3/4 inversé par rapport au plan initial (décidé le 2026-09-09) :** SSR avant dimmer — plus simple (GPIO on/off, pas d'I2C/calibration), et les deux testés sur ampoule (simple pour le SSR, dimmable pour le dimmer) plutôt que sur pompe/vanne, pour éviter le circuit hydraulique tant que les boîtiers ne sont pas fermés dans la machine.
-
-3. **SSR** — sortie GPIO, `SET` complet avec bail et `STATUS_ACTUATORS` en retour. Charge de test : ampoule simple, pas la vanne.
-
-**Résolu et validé sur le vrai matériel (2026-09-09, fin d'après-midi).** L'ambiguïté de la session précédente (lampe qui s'éteint après ~1-2 s, sans savoir si c'est le bail ou autre chose) avait une cause précise, pas un bug SSR : `screen` n'est encore qu'un pont transparent (voir phase 3), il n'émet aucun trafic périodique de lui-même. Côté `sensors`, `tick_presence()` (`firmware/sensors/main/main.cpp:677`) ne se réarme que sur trafic **reçu**, jamais sur ce que `sensors` émet lui-même (un `REQSTATUS` envoyé à `sensors` ne fait qu'émettre du `STATUS_ACTUATORS` en sortie, ça ne rafraîchit rien). Résultat : en l'absence de tout trafic entrant, la présence est perdue et retrouvée toutes les ~3 s en continu (cycle `PRESENCE_LOST`→`PING`→`PONG`), et **chaque perte appelle `force_actuators_off()`** — donc n'importe quel actionneur activé est coupé au prochain cycle de 3 s, quelle que soit la durée du bail demandé. Confirmé en lisant le log : cycle `PRESENCE_LOST` toutes les 3,1 s pile, y compris pendant un `SET ssr=1 ttl_ms=8000` dont le `STATUS_ACTUATORS` montrait bien `ssr=on bail_restant=7999ms` — la commande était donc toujours correctement reçue et exécutée, seulement coupée prématurément par cette resécurité.
-
-Pas un bug à corriger maintenant : c'est la conséquence attendue de l'ordonnancement des phases (le trafic périodique côté écran est explicitement prévu en phase 6, pas avant — voir plus haut la note "Option envisagée, pas encore décidée"). **Validé en simulant ce trafic manuellement depuis le Mac** (boucle de `PING` envoyés toutes les secondes pendant le test, uniquement pour cette validation, aucun changement firmware) : avec ce trafic de secours, plus aucun `PRESENCE_LOST` pendant tout le bail, `LEASE_EXPIRED` tombe exactement à l'échéance (`marche_continue=8000ms` pour un `ttl_ms=8000`), lampe restée allumée les 8 s pile puis éteinte proprement. **Chaîne SET → bail → SSR → `STATUS_ACTUATORS` confirmée bout en bout, sans ambiguïté.**
-
-À garder en tête pour la suite de la phase 5 (dimmer, vérification de sécurité) : tant que `screen` reste un pont passif, **tout essai voulant qu'un actionneur tienne plus de ~3 s doit maintenir la présence à la main** (boucle de `PING` depuis `coffeetool`, comme ci-dessus) — sinon la resécurité de présence coupe avant l'échéance voulue, ce qui n'est pas un défaut à corriger mais une limite connue de ce stade d'avancement.
-4. **Dimmer** — écriture du registre de niveau, lecture du statut et de l'erreur, remontés dans les flags. **Le dimmer exige le secteur pour sortir de `Calibrating...`** : c'est la première fois que 230 V et USB coexistent sur le plan de travail. Module RBDimmer/DimmerLink **isolé par optocoupleur** entre l'étage secteur (triac, zero-cross) et l'étage logique (I2C) — confirmé par la fiche produit et les composants visibles sur le board (2026-09-09). Pas de précaution *spécifique* liée au partage de masse Mac/RECOM/dimmer : la masse 5V (RECOM en montage définitif, ou directement le Mac en USB pour un test sur table sans `boitier_ps`) ne rejoint jamais l'étage secteur du dimmer. **Les précautions générales du 230V nu sur table restent de mise à partir de ce point** : bornes WAGO correctement serties sans brin dénudé accessible, interrupteur général coupé pendant tout câblage/modification, une seule main dans le montage si un test doit se faire sous tension, plan de travail sec, couper au moindre doute plutôt que d'insister. Charge de test : ampoule dimmable, pas la pompe.
-
-**Résolu et validé sur le vrai matériel (2026-09-09).** Écriture `DIM0_LEVEL`
-(`0x10`) confirmée fiable sur toute la plage 0-100 % — palier bas (15 %) resté
-visuellement éteint au premier essai, pas un bug : simplement en dessous du
-seuil de conduction de la lampe de test, confirmé en testant 30 %. Deux
-diagnostics avant d'y arriver, tous les deux documentés en détail dans
-`docs/dimmerlink-i2c.md` :
-
-- **Câblage phase/neutre inversés au bornier d'entrée du dimmer** (pas le
-  même piège que le débitmètre, mais même classe d'erreur — un connecteur
-  qui n'impose pas le bon sens). `AC_FREQ` (`0x20`) à 0 Hz en continu en était
-  le signe, diagnostiqué par comparaison avec `tmp/DimmerLink/`, la doc I2C
-  officielle du fabricant (trouvée en cours de session, remplace
-  avantageusement `tests/test_rbi2c.py` dont la table d'erreurs était
-  incomplète). Corrigé au bornier ; dimming confirmé fonctionnel juste après.
-- **`STATUS` (`0x00`, bits READY/ERROR documentés), pas `ERROR` seul, comme
-  source de vérité pour les flags `STATUS_ACTUATORS`.** Le registre `ERROR`
-  (`0x02`) a été observé à `0x01` en pratique, une valeur absente de la table
-  du fabricant. `AC_FREQ`/`CALIBRATION` (`0x23`) restent peu fiables sur ce
-  module même une fois `READY=1` (`AC_FREQ` reste à 0 en continu, malgré un
-  dimming confirmé visuellement) — traités comme purement informatifs
-  (`LOG DIMMER_MAINS_FREQ`, sévérité debug), jamais utilisés pour piloter un
-  flag. `COMMAND=RECALIBRATE` existe mais **n'est pas appelé au boot** :
-  risque de course avec la propre calibration du module à la mise sous
-  secteur (identifiée avant qu'un vrai power-cycle confirme que la
-  convergence naturelle suffit) — n'intervient qu'en repli, une fois, après
-  une marge de 20 s si le module reste `READY=0`.
-
-Diagnostiqué avec un firmware jetable dédié, `firmware/dimmer-test/`
-(pas de CAN ni de machine de sécurité, juste une boucle I2C rapide sur le
-même brochage que `sensors`) — flashé temporairement sur le XIAO à la place
-de `sensors` le temps du bring-up, conservé dans le dépôt comme banc
-réutilisable. Détail complet des registres, y compris `DIM0_CURVE`
-(`0x11`, pas encore câblé dans le protocole CAN) et la recommandation
-`LINEAR` pour la pompe vibratoire (ni lampe LED ni moteur rotatif, donc hors
-des recommandations directes du fabricant) : `docs/dimmerlink-i2c.md`.
-
-**Comportement à la perte du secteur, confirmé sur le vrai matériel** :
-coupure 230 V pendant un dimming actif → `LOG DIMMER_CALIBRATING` +
-`DIMMER_ERROR` en boucle (chaque lecture périodique, `flags` avec bit
-« prêt » à 0 et bit erreur à 1), le module reste néanmoins **joignable en
-I2C** tout du long (pas de perte de bus, juste une perte de détection
-zero-cross). À la reprise du secteur, la lampe **reprend au même niveau
-qu'avant la coupure sans renvoyer de `SET`** — le registre `DIM0_LEVEL` reste
-programmé côté module pendant la coupure, pas besoin de resynchroniser côté
-`sensors` après un flicker secteur.
-
-Puis la vérification de sécurité, **avant** de relier la pompe et la vanne —
-**les quatre points faits et validés sur le vrai matériel (2026-09-09)** :
-
-- **Bail** : `SET` sans renouvellement, actionneurs retombés au délai demandé
-  (`LOG LEASE_EXPIRED`, `marche_continue` figée à la valeur du `ttl_ms`).
-- **Présence** : déjà validée en phase 2 (coupure CAN) et reconfirmée en creux
-  tout du long de la phase 5 (`tick_presence()` coupe bien tant qu'aucun
-  trafic n'est reçu — voir plus haut, section SSR).
-- **Verrou 60 s** : `SET dimmer` maintenu par `SET` renouvelés (bail à
-  chaque fois, pas de trafic continu comme le ferait l'écran réel en phase
-  6), `LOG RUNTIME_LOCKOUT_TRIGGERED` (`arg32≈60100 ms`) au bon délai,
-  `dimmer` forcé à 0, `flags` avec le bit verrou posé. `SET` suivant refusé
-  (`LOG COMMAND_REFUSED_LOCKED`), verrou confirmé encore actif après un
-  second essai à distance. Levé uniquement par une coupure d'alimentation
-  réelle du XIAO (pas un reset logiciel), comme documenté.
-- **Rearmement** : deux activations de 30 s séparées d'une pause > 2 s —
-  `marche_continue` reparti à 0 au second cycle plutôt que de cumuler,
-  aucun `RUNTIME_LOCKOUT_TRIGGERED` sur l'ensemble, confirmant que le
-  compteur de marche continue se réarme bien sur une coupure suffisamment
-  longue.
-
-**Sortie — barrière B atteinte (2026-09-09).** Les actionneurs 230 V peuvent
-être reliés à la pompe et la vanne. Le module capteurs est complet pour
-cette phase et se met à jour par le bus.
-
----
-
-## Phase 6 — Application écran, livrée par OTA
-
-Le plus gros morceau, mais le moins risqué : l'écran reste atteignable en USB.
-
-**Plan d'implémentation détaillé, lot par lot, avec critères de sortie :
-`docs/plan-phase6.md`** (écrit le 2026-09-09, avant le code). Il pose d'abord
-une frontière — **le cœur machine**, une interface unique portant les sorties,
-les actions et la configuration, dont LVGL et HTTP sont deux clients sans
-privilège — puis réordonne les six points ci-dessous en conséquence : un écran
-de service dès le début (pour que la dalle serve, et pour révéler tôt le
-conflit CH422G entre le transceiver CAN et le LCD), la couche capteurs
-(point 4) avant le réseau, le BLE (point 5) avant LVGL, et l'infusion écrite et
-validée sans écran. S'y ajoute le gel des images factory, seul oubli
-irréversible de la phase. Les raisons de chaque inversion y sont argumentées.
-
-1. **Réseau** — provisioning Wi-Fi (point d'accès + page d'accueil suffit ; la saisie tactile peut attendre LVGL), identifiants en NVS, secret HTTP dans un en-tête non commité. Prévoir **un moyen d'effacer la NVS depuis l'image factory** : un SSID erroné enregistré rend l'écran injoignable en Wi-Fi, et c'est l'USB qui doit pouvoir rattraper ça.
-2. **HTTP** — `GET` télémétrie, `POST` commandes, `POST` firmware avec cible. C'est le moment où le flash passe du câble série au réseau.
-3. **WebSocket** — miroir du trafic CAN, **même format qu'en USB**. L'outil Mac ne change pas, il change de transport.
-4. **Couche capteurs** — l'interface unique `{ horodatage, valeur brute, validité }` et les calibrations en NVS par-dessus. Les sources CAN d'abord.
-5. **BLE** — client GATT vers l'Acaia Lunar, comme une source de plus. Code
-   de référence pour le protocole (cadrage des trames, décodage
-   poids/temps/boutons, heartbeat sans lequel la balance arrête d'émettre) :
-   `reference/acaia-ble/` — Arduino-ESP32, à porter vers l'API GATT native
-   ESP-IDF, pas à compiler tel quel (voir le `README.md` du dossier).
-6. **LVGL** — écran, tactile, et l'UI minimale : purge, départ d'infusion, arrêt.
-   **Style, structure, cotes, textes, cas limites et découpage en cinq lots :
-   `docs/ui.md`** (décidé le 2026-09-09, avant écriture du code, maquette à
-   l'échelle dans `docs/ui-mockup.html`). LVGL **v9.x** via
-   `espressif/esp_lvgl_port`, bounce buffer obligatoire sur ce panneau RGB.
-
-**Sortie :** l'écran se flashe et flashe les capteurs par le réseau, et l'outil Mac voit tout par WebSocket.
-
----
-
-## Phase 7 — Mise en boîte et débranchement
-
-- Vérifier une dernière fois les deux images factory sauvegardées, avec leur version.
-- Refaire les quatre essais de la phase 4, **par le réseau cette fois**, cartes hors boîte mais câblées comme en service.
-- Monter le XIAO dans `boitier_dc`, l'écran dans `screen_wedge` / `screen_base`.
-- Vérifier l'accès USB-C de l'écran une fois la façade montée, panneau latéral retiré. C'est le filet, il doit être praticable.
-- Un flash complet des deux cartes, en boîte, par le réseau.
-- **Débrancher l'USB.**
-
----
-
-## Après
-
-Tout ce qui suit arrive par OTA, dans la machine.
-
-1. **Calibration** (`firmware.md`, section dédiée) — facteur K sous OPV, puis le sort de l'OPV au-dessus de son seuil, puis le point de décrochage, puis la carte dimmer → pression. C'est ce qui débloque les features suivantes, et c'est la première chose à faire une fois l'USB débranché.
-2. **Purge / flush**, la plus simple, et celle qui exerce le chemin complet écran → CAN → actionneurs.
-3. **Infusion au temps**, puis **au poids**.
-4. **Pré-infusion**, une fois qu'on sait si le débitmètre sert à quelque chose en dessous de 1 ml/s.
-5. **Flow control**, en dernier. L'OPV renvoyant à l'entrée de la pompe et restant fermée à 9 bar, le débitmètre lit bien le débit d'infusion ; la contrainte est sa résolution (~4 s de moyennage à 1 ml/s), donc pression et poids restent les signaux rapides.
-
----
-
-## Ce qu'on oublie habituellement
-
-- **La table de codes `LOG` en double.** Générée depuis une source unique, sinon elle dérive.
-- **La table de partitions figée trop tard.** On ne la change plus une fois la carte inaccessible.
-- **Le rollback jamais testé pour de vrai.** Une image sciemment cassée, ou ça ne compte pas.
-- **Le verrou 60 s effacé par un reset logiciel.** Il doit être en mémoire RTC, levé seulement au démarrage à froid.
-- **Les masses jointes.** Laptop sur batterie dès qu'un USB et le 230 V se croisent.
-- **Le dimmer muet sans secteur.** Il reste en `Calibrating...` et refuse tout : ce n'est pas un bug du firmware.
-- **Les pull-ups I2C qui vivent dans le XDB401.** Débrancher la sonde de pression rend le dimmer muet, en phase 5 comme en service.
-- **Le mutex I2C tenu pendant les 50 ms de conversion.** Il ne doit pas l'être.
-- **Les compteurs d'erreur TWAI jamais regardés.** C'est le seul diagnostic de câblage disponible sans oscilloscope.
-- **La version qui ne bouge pas.** Sur une carte en boîte, le `PONG` est la seule façon de savoir ce qui tourne.
-- **Les images factory non archivées.** Ce sont les seules qu'on reflashera en USB, il faut les retrouver.
+### Phase 6, lots 1 et 2 — faits (2026-09-09)
+
+`firmware/screen/main/main.cpp` a été séparé en modules : carte (`board`),
+CAN et présence (`can_link`), pont série (`serial_bridge`), OTA local et proxy,
+écran de service, et coeur machine. Le registre de sortie du CH422G est
+maintenu en RAM et modifié uniquement par `ch422g_set_bit()` : écrire les bits
+directement ferait perdre l'état des autres sorties.
+
+L'écran de service RGB 800x480, tactile GT911 et LVGL est fonctionnel. Le
+panneau exige les timings Waveshare suivants : HSYNC `48/88/40`, VSYNC
+`3/32/13`, PCLK 16 MHz. Les mises à jour LVGL sont stables lorsque
+l'initialisation LCD et LVGL tournent sur le coeur 1, tandis que CAN, UART,
+pont et OTA tournent sur le coeur 0. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` reste
+désactivé. Cette répartition est une contrainte d'architecture, pas une simple
+optimisation.
+
+Les régressions factory ont été rejouées : PING/PONG via le pont, OTA de
+`sensors` par CAN et OTA local de `screen`.
+
+### Phase 6, lot 3 — coeur et télémétrie, fait (2026-09-10)
+
+`core/core.h/.cpp` maintient un instantané cohérent des capteurs, de leur
+validité et âge, des versions, de l'état dimmer et des compteurs TWAI. Il est
+alimenté par `STATUS_PRESSURE`, `STATUS_FLOW`, `STATUS_ACTUATORS`, `PONG` et
+`LOG`. L'écran de service ne lit que cet instantané.
+
+La tâche de télémétrie sur le coeur 0 demande les statuts au repos : pression
+toutes les 500 ms, débit et actionneurs toutes les 1 000 ms. Le XIAO diffuse
+aussi `STATUS_ACTUATORS` périodiquement. Le débit affiché est calculé sur une
+fenêtre configurable `kFlowWindowPulses` (10 impulsions actuellement) et est
+remis à zéro après 3 s sans front.
+
+La présence est une machine à états sur les deux noeuds : toute trame valide
+du pair la maintient. Après 1,5 s de silence, elle envoie trois `PING` à 500 ms
+d'intervalle puis passe à `PRESENCE_LOST`; la première trame reçue la rétablit.
+Le PING/PONG servant à valider une image OTA est distinct de cette présence.
+Le bit 3 de `STATUS_ACTUATORS` signifie définitivement `dimmer_error_active`.
+
+Validé sur le banc : builds ESP-IDF des deux projets, 27 tests hôte
+`coffeetool`, flash USB hash-vérifié, `CAN OK` à l'écran et télémétrie au repos
+(`0,02 bar`, `25,3 C`, `0,00 ml/s`). Débrancher le XDB401 retire les valeurs de
+pression/température et les rétablit au rebranchement. Couper le XIAO donne
+`CAN PERDU` après environ 3 s, puis `CAN OK` dès la reprise des trames. Le
+dimmer sans secteur est attendu présent mais non prêt. Un souffle dans le
+débitmètre a fait monter le compteur affiché à 176, confirmant que le coeur
+reçoit et expose `STATUS_FLOW`. Le test SSR 30 s sous 230 V est reporté au
+test général juste avant l'installation dans la machine.
+
+## Historique compact des phases terminées
+
+### Phases 0 à 2 — protocole, bus et sécurité
+
+- Le protocole commun (PDU, COBS et CRC16), `coffeetool`, le pont USB-C/CAN et
+  le PING/PONG ont été validés sur les deux cartes.
+- Le CAN de l'écran Waveshare utilise le transceiver sélectionné par `CAN_SEL`
+  (EXIO5 du CH422G), avec TX GPIO20 et RX GPIO19. Le port série du pont est
+  UART2 sur GPIO43/44 via le CH343P externe.
+- Des entrées UART restées sur leur fonction IOMUX empêchaient la réception.
+  La correction durable consiste à forcer le pad en GPIO et à activer son
+  entrée après `uart_set_pin()`; les lectures UART emploient des délais courts,
+  jamais `portMAX_DELAY`.
+- Bail, perte de présence, verrou de marche continue à 60 s et réarmement ont
+  été vérifiés sur matériel. Toute perte de présence force les actionneurs à
+  l'arrêt; le verrou ne se lève qu'après une coupure d'alimentation réelle.
+
+### Phase 4 — OTA dans les deux sens
+
+Les deux cartes supportent `FLASH_CTRL` et `FLASH_DATA` avec blocs de 2 ko,
+CRC16 par bloc, CRC32 final, partition inactive, `PENDING_VERIFY` et rollback
+après temporisateur si l'image ne valide pas un PING/PONG CAN réel. Les quatre
+scénarios ont été validés : image saine et image volontairement cassée sur
+`sensors` et `screen`, ainsi qu'interruption de transfert sans modifier
+`otadata`.
+
+Limite connue : après une erreur CRC de bloc côté `sensors`, une retransmission
+n'est pas distinguée explicitement d'un bloc suivant. Le CRC32 final protège
+l'image flashée; corriger l'identification de retransmission avant de rendre
+le transport moins fiable qu'un CAN de banc.
+
+### Phase 5 — capteurs et actionneurs
+
+**XDB401.** La conversion I2C utilise GPIO5/6. La pression et la température
+doivent être lues dans deux transactions séparées, conformément au capteur;
+une lecture groupée donnait des pressions incohérentes. Les octets sont
+transportés tels quels dans le PDU little-endian, mais la formule physique du
+fabricant doit être appliquée à l'ordre big-endian des registres. Testé par
+souffle et par débranchement : `STATUS_PRESSURE.flags.bit0` indique la validité
+réelle du capteur.
+
+**Débitmètre Digmesa.** GPIO44/D7 compte les fronts descendants avec le pull-up
+interne désactivé, le filtre RC du shield assurant la polarisation. Le GPIO44
+était aussi l'entrée UART0 par défaut : le forcer en fonction GPIO et activer
+l'entrée est indispensable. Un comptage nul persistant venait ensuite d'un
+câble inversant VCC et SIGNAL sur le connecteur PANCOM; le câblage final est
+documenté dans `docs/cablage.md`. Testé par souffle. `STATUS_FLOW.flags.bit0`
+est fixé à 1, car ce capteur GPIO seul ne se détecte pas électriquement.
+
+**SSR et dimmer.** La chaîne `SET` -> bail -> `STATUS_ACTUATORS` a été validée
+sur charge de test. Le dimmer demande le secteur pour devenir prêt; sans 230 V,
+son erreur de calibration est donc normale. Une inversion phase/neutre sur le
+bornier du dimmer a été corrigée. L'état `STATUS` (READY/ERROR), et non le seul
+registre `ERROR`, est la source des flags; `AC_FREQ` est informatif seulement.
+Ne pas envoyer `RECALIBRATE` au boot. Une coupure secteur conserve le niveau
+programmé, puis le dimmer le reprend après son recalibrage naturel.
+
+La barrière B (capteurs, actionneurs et sécurité) et la barrière C (OTA) sont
+atteintes. Les détails de registres dimmer sont dans `docs/dimmerlink-i2c.md`.
+
+## Environnement de build et flash
+
+Chaque nouveau terminal doit charger ESP-IDF 6.1 :
+
+```sh
+source ~/.espressif/tools/activate_idf_v6.1.sh
+```
+
+Construire depuis le répertoire du projet concerné :
+
+```sh
+idf.py build
+```
+
+Identifier les ports avec `esptool.py --port <port> flash-id` : le XIAO a 8 Mo
+de flash et l'écran 16 Mo. Flasher en USB :
+
+```sh
+idf.py -p /dev/cu.usbmodemXXXX flash
+```
+
+Les outils hôte sont sous `firmware/tools/coffeetool` et s'exécutent avec
+`python -m coffeetool.cli ...`. Un seul processus peut ouvrir un port série à
+la fois; le moniteur peut afficher les trames avec retard lorsqu'il rattrape un
+buffer important.
+
+## Reprise du banc
+
+1. Vérifier `CAN OK`, pression/température et débit au repos sur l'écran.
+2. Vérifier les compteurs TWAI et un PING/PONG via `coffeetool` avant tout test
+   applicatif.
+3. Garder le test SSR/dimmer sous 230 V pour la répétition générale juste avant
+   l'installation. Utiliser une charge de test adaptée et les précautions de
+   banc décrites dans `docs/firmware.md`.
+4. Ne pas confondre validité du XDB401 et présence du XIAO : le premier enlève
+   seulement les mesures de pression/température; le second produit `CAN
+   PERDU`.
+
+## Suite de la phase 6
+
+Le découpage précis et les critères de sortie des lots restants sont dans
+`docs/plan-phase6.md`. Ordre prévu :
+
+1. Wi-Fi, provisioning et face configuration du coeur (lot 4).
+2. HTTP, puis WebSocket miroir du trafic CAN au même format que le pont USB
+   (lots 5 et 6).
+3. OTA par le réseau pour l'écran et les capteurs, puis client BLE GATT Acaia
+   Lunar (lots 7 et 8).
+4. Face actions du coeur : infusion et purge sans écran, puis UI LVGL complète
+   (lots 9 et 10). LVGL et HTTP restent des clients sans accès direct aux
+   sorties.
+5. Geler la table de partitions et fermer la phase (lot 11).
+
+Le code de référence Acaia est dans `reference/acaia-ble/`; il faut porter le
+protocole vers GATT ESP-IDF, non compiler le code Arduino tel quel. LVGL reste
+en v9 via `espressif/esp_lvgl_port`, avec bounce buffer obligatoire sur le
+panneau RGB. Les choix d'interface sont dans `docs/ui.md` et
+`docs/ui-mockup.html`.
+
+## Phase 7 — mise en boîte
+
+- Archiver et vérifier les deux images factory avec leurs versions.
+- Rejouer les essais OTA et rollback par le réseau, cartes encore accessibles.
+- Monter le XIAO et l'écran, puis vérifier que l'USB-C de l'écran reste
+  praticable avec le panneau de service retiré.
+- Refaire un flash complet par le réseau avant de débrancher l'USB.
+
+## Après la mise en boîte
+
+1. Calibrer facteur K, OPV, point de décrochage et courbe dimmer/pression.
+2. Implémenter purge, puis infusion au temps et au poids.
+3. Ajouter pré-infusion et flow control après caractérisation du débitmètre à
+   bas débit; pression et poids restent les signaux rapides.
+
+## Rappels à ne pas perdre
+
+- Une table de codes `LOG` doit être générée depuis une source unique.
+- La table de partitions doit être dimensionnée avant la fermeture de la
+  machine.
+- Un rollback n'est validé qu'avec une image réellement cassée.
+- Les pull-ups I2C sont dans le XDB401 : le débrancher peut aussi rendre le
+  dimmer I2C muet.
+- Ne pas garder le mutex I2C pendant les 50 ms de conversion XDB401.
+- Le `PONG` est l'identité et la version observables d'une carte en boîte.

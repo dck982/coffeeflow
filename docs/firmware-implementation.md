@@ -287,22 +287,16 @@ buffer important.
 
 ## Suite de la phase 6
 
-Le découpage précis et les critères de sortie des lots restants sont dans
-`docs/plan-phase6.md`. Ordre prévu :
+Le découpage précis et les critères de sortie sont dans
+`docs/plan-phase6.md`. Les lots 0 à 7 sont clos. Ordre restant :
 
-1. Wi-Fi, provisioning et face configuration du coeur (lot 4, clos
-   2026-09-10) : les calibrations sont désormais versionnées dans l'image
-   écran via `core/calibration_machine.h`, plutôt que stockées en NVS. Le
-   protocole de calibration est un outil hôte qui modifie ce fichier puis
-   flashe l'image.
-2. HTTP, puis WebSocket miroir du trafic CAN au même format que le pont USB
-   (lots 5 et 6, prochaine étape).
-3. OTA par le réseau pour l'écran et les capteurs, puis client BLE GATT Acaia
-   Lunar (lots 7 et 8).
-4. Face actions du coeur : infusion et purge sans écran, puis UI LVGL complète
-   (lots 9 et 10). LVGL et HTTP restent des clients sans accès direct aux
+1. Client BLE GATT Acaia Lunar et politique radio (lot 8) : porter le
+   protocole vers GATT ESP-IDF, valider les UUID et le bit de signe sur la
+   balance réelle, puis exposer poids, tare et `scale_present` au coeur.
+2. Face actions du coeur : infusion et purge sans écran (lot 9), puis UI LVGL
+   complète (lot 10). LVGL et HTTP restent des clients sans accès direct aux
    sorties.
-5. Geler la table de partitions et fermer la phase (lot 11).
+3. Geler la table de partitions et fermer la phase (lot 11).
 
 Le code de référence Acaia est dans `reference/acaia-ble/`; il faut porter le
 protocole vers GATT ESP-IDF, non compiler le code Arduino tel quel. LVGL reste

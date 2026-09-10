@@ -552,10 +552,10 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
   temporaire + page d'accueil**, pas de saisie tactile LVGL. Raisons :
   testable dès le point 1 de la phase 6 (avant HTTP/WebSocket/BLE/LVGL), et
   sert aussi de filet de secours (un SSID erroné en NVS rend l'écran
-  injoignable en Wi-Fi — voir « Ce qu'on oublie habituellement » dans
-  `firmware-implementation.md` — un AP de secours déclenché par bouton ou
-  échec de connexion répété rattrape ça, contrairement au tactile qui suppose
-  déjà LVGL en place). Stockage en NVS, déjà acquis.
+  injoignable en Wi-Fi ; le bouton *oublier le réseau* sur l'écran ramène
+  l'AP, contrairement au tactile qui suppose déjà LVGL en place). Stockage
+  en NVS, déjà acquis. Validé lot 4 (2026-09-10) : pas de repli AP
+  automatique.
 - **Charte graphique / design de l'UI écran** (phase 6, LVGL) — à définir,
   session dédiée envisagée avec Opus.
 

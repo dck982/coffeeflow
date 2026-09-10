@@ -83,7 +83,6 @@ deviner s'il avait le droit.
 | fermer le résumé | — | pas dans l'état terminé |
 | commande d'actionneur brute | SSR, niveau dimmer, bail | verrou, bus perdu, infusion ou purge en cours |
 | démarrer un flash | cible (écran ou capteurs), image | infusion ou purge en cours, flash déjà en cours |
-| oublier le réseau Wi-Fi | — | — |
 
 La commande brute est un outil de banc et de calibration, pas un chemin
 d'usage : elle porte un bail comme n'importe quel `SET`, n'est jamais
@@ -170,18 +169,17 @@ révisable, mais par une décision explicite, pas par dérive.
   quand le Wi-Fi est coupé — c'est-à-dire **pendant un shot**, exactement le
   moment où le WebSocket n'est pas disponible du fait de la politique radio. Il
   n'y a donc pas de « mode debug Wi-Fi pendant l'infusion » à prévoir.
-- **Réinitialisation du Wi-Fi : par l'interface, pas par le bus.** Un bouton
-  *réinitialiser le réseau* dans les réglages efface l'espace de noms Wi-Fi de
-  la NVS et remet l'écran en point d'accès, en attente d'une connexion. C'est
-  une action du cœur comme une autre, donc disponible aussi en HTTP dès le
-  lot 5 — soit bien avant que l'écran de réglages existe. **Aucun nouveau
-  message CAN n'est ajouté** : l'image factory reste ce qu'elle est, et le lot 0
-  devient un simple archivage.
-- **Un SSID erroné ne peut pas isoler la carte** : le repli en point d'accès se
-  déclenche seul sur échec d'association répété (trois tentatives, ou aucune
-  association dans les 60 s après le boot). C'est ce mécanisme, et non un
-  effacement manuel, qui est le vrai filet ; le bouton n'est que le chemin
-  volontaire.
+- **Réinitialisation du Wi-Fi : par l'écran, pas par le réseau ni par le bus.**
+  Un bouton *réinitialiser le réseau* dans les réglages (et, en attendant, sur
+  l'écran de service) efface l'espace de noms Wi-Fi de la NVS et remet l'écran
+  en point d'accès. Ce n'est pas une action `POST /action` : l'outil ne doit
+  pas pouvoir se couper l'accès. **Aucun nouveau message CAN n'est ajouté** :
+  l'image factory reste ce qu'elle est, et le lot 0 devient un simple archivage.
+- **Un SSID erroné n'isole pas la carte.** La station reste en STA
+  (`RESEAU: COUPE`, événements `WIFI PERDU`) et retente l'association ; le
+  pont USB et l'écran restent utilisables. Le seul retour en AP est le bouton
+  *oublier le réseau* sur l'écran — pas un repli automatique, pas HTTP, pas
+  CAN. Validé 2026-09-10.
 - **Répartition sur les cœurs**, révisée au lot 2 (`docs/screen-issue.md`,
   validée `v0.2.20`) : LCD, LVGL et boucle d'infusion sur le **cœur 1**
   (l'ISR DMA du panneau RGB doit vivre sur le même cœur que les écritures
@@ -485,11 +483,11 @@ Contenu :
 2. Point d'accès de provisioning lorsque les credentials sont absents, avec une
    page d'accueil HTTP et un formulaire. Leur présence sélectionne STA ; une
    perte du réseau ne remet jamais l'AP, l'écran expose le diagnostic et
-   l'utilisateur choisit explicitement « oublier le réseau ».
-3. **Action « oublier le réseau »** du cœur : effacement de l'espace de noms
-   Wi-Fi, retour immédiat en point d'accès. C'est ce que le bouton
-   *réinitialiser le réseau* des réglages appellera au lot 10, et ce que le
-   HTTP expose dès le lot 5.
+   l'utilisateur choisit explicitement « oublier le réseau » sur l'écran.
+3. **Oubli du réseau, sur l'écran seulement** : un bouton de l'écran de
+   service (puis *réinitialiser le réseau* des réglages au lot 10) efface
+   l'espace de noms Wi-Fi et ramène immédiatement l'AP. Pas d'équivalent
+   `POST /action`.
 4. Magasin de configuration : clés et bornes de la table de `ui.md` (espace de
    noms `ui`), valeurs par défaut à la première ouverture, validation tout ou
    rien. Les calibrations sont versionnées dans l'image écran, hors NVS et
@@ -512,9 +510,12 @@ configuration ne doit jamais contenir un mot de passe en clair (`firmware.md`).
 **Critère de sortie :** carte dont le Wi-Fi n'a jamais été configuré → l'AP
 monte tout seul, le formulaire enregistre le réseau, l'écran s'y associe après
 redémarrage et le reste après une coupure d'alimentation ; un SSID
-volontairement faux ramène l'AP au bout du délai prévu ; l'action « oublier le
-réseau » ramène l'AP immédiatement ; les réglages écrits survivent à une
-coupure.
+volontairement faux laisse l'écran en STA (`RESEAU: COUPE`, événements
+`WIFI PERDU`) sans remonter l'AP ; le bouton « oublier le réseau » de l'écran
+ramène l'AP immédiatement ; les réglages écrits survivent à une coupure.
+
+**Lot 4 clos (2026-09-10, `v0.2.23`).** Critère observé sur le vrai matériel,
+y compris SSID faux et *Oublier le réseau*. Détail : `docs/firmware-implementation.md`.
 
 ---
 
@@ -536,9 +537,8 @@ Le schéma de `/config` est celui de `firmware.md`, `profiles` restant un tablea
 vide. Une version de schéma inconnue est refusée, jamais interprétée.
 
 Au lot 5, la seule action réellement disponible est la commande d'actionneur
-brute (plus « oublier le réseau ») ; les autres apparaissent au lot 9 **sans
-changer la route** — c'est l'intérêt d'exposer la face, pas une liste
-d'endpoints ad hoc.
+brute ; les autres apparaissent au lot 9 **sans changer la route** — c'est
+l'intérêt d'exposer la face, pas une liste d'endpoints ad hoc.
 
 **Critère de sortie :** un aller-retour `curl` complet — sauvegarde de la
 configuration dans un fichier, modification d'une valeur, restauration
@@ -719,9 +719,10 @@ Ce que ce plan ajoute :
   endroit.** Y compris une règle du type « griser le bouton si le dimmer n'est
   pas prêt » : c'est le motif de refus renvoyé par l'action, pas une condition
   réécrite dans l'UI.
-- Ajouter le bouton *réinitialiser le réseau* dans les réglages, qui appelle
-  l'action posée au lot 4. Prévoir une confirmation : c'est la seule action de
-  l'interface qui puisse rendre l'écran injoignable en Wi-Fi.
+- Ajouter le bouton *réinitialiser le réseau* dans les réglages (le même
+  geste que le bouton de l'écran de service au lot 4). Prévoir une
+  confirmation : c'est le seul geste de l'interface qui puisse rendre l'écran
+  injoignable en Wi-Fi, et il n'a pas d'équivalent HTTP.
 - La veille (`ui.md`, section « Veille ») appartient au sous-lot 4 : calque
   d'atténuation, bloc de veille mobile, réveil sans action. Elle ne dépend
   d'aucun réglage tactile.

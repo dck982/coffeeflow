@@ -34,8 +34,36 @@ avec version/CAN/événements/coordonnées tactiles. Le glitch visuel résiduel
 (sauts / décalage horizontal sur contenu qui change) est **corrigé** sur
 l'image `v0.2.20` — écran parfaitement stable, observé par David sur le banc.
 Détail du correctif et de l'investigation ci-dessous ; consigné aussi dans
-`docs/screen-issue.md`. Lot 2 clos. Prochaine étape : lot 3 (cœur, face
-sorties).
+`docs/screen-issue.md`. Lot 2 clos.
+
+**Lot 3 (cœur, face sorties), implémenté et partiellement vérifié sur le vrai
+matériel (2026-09-10).** `core/core.h/.cpp` fournit désormais un instantané
+cohérent (bruts calibrés, validités, âges et péremption, versions, santé
+dimmer et compteurs TWAI), alimenté par les trois `STATUS_*`, `PONG` et
+`LOG`. Une tâche `telemetry` sur le cœur 0 réémet les trois `REQSTATUS` chaque
+seconde aux périodes repos prévues (pression 500 ms, débit/actionneurs 1000
+ms); le XIAO sait désormais diffuser `STATUS_ACTUATORS` périodiquement.
+L'écran de service lit exclusivement cet instantané et affiche pression,
+température, débit et compteur d'impulsions. Le débit utilise une fenêtre
+configurable de 10 impulsions (`kFlowWindowPulses`) et retombe à zéro après
+3 s sans front. La présence est une machine à états commune aux deux nœuds :
+toute trame valide du pair la maintient; après 1,5 s de silence, trois `PING`
+partent à 500 ms avant `PRESENCE_LOST`. La validation OTA conserve un vrai
+aller-retour `PING`/`PONG`, distinct de la présence générale. `STATUS_ACTUATORS`
+bit3 est figé comme `dimmer_error_active`.
+
+Validé : builds ESP-IDF des deux projets, 27 tests hôte `coffeetool`, flash
+USB hash-vérifié des deux cartes, `CAN OK` à l'écran, et télémétrie réelle
+repos : **0,02 bar, 25,3 °C, 0,00 ml/s**. Le dimmer sans secteur apparaît
+présent mais non prêt, comme attendu. **Les deux tests de séparation sont
+validés sur le banc** : XDB401 débranché → pression/température absentes,
+rebranché → valeurs restaurées; alimentation XIAO coupée → `CAN PERDU` après
+3 s, remise sous tension → `CAN OK` dès la première trame. Ces essais
+testent respectivement la validité du capteur et la présence du nœud, qui sont
+deux états indépendants. Le test de maintien SSR 30 s est volontairement
+**reporté** au test général pré-installation, afin de ne pas laisser du 230 V
+sur le banc pendant le développement logiciel. Il ne bloque pas la suite de
+la phase 6, mais reste requis avant la mise en machine.
 
 Investigation menée, dans l'ordre :
 

@@ -28,6 +28,7 @@
 #include "ota_local.h"
 #include "serial_bridge.h"
 #include "service_screen.h"
+#include "core/core.h"
 
 extern "C" void app_main() {
   // Pont série d'abord : UART2 installé et son bug de bring-up (bug 1,
@@ -47,6 +48,7 @@ extern "C" void app_main() {
   ota_local::init_pending_verify();
 
   can_link::init();
+  core::init();
 
   can_link::send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);
   if (ota_local::pending_verify()) {
@@ -58,6 +60,7 @@ extern "C" void app_main() {
   // épinglent explicitement.
   serial_bridge::start_tasks();
   ota_local::start_validation_task();
+  core::start_telemetry_task();
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
 

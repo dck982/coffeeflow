@@ -12,6 +12,7 @@
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/version.hpp"
+#include "core/core.h"
 #include "core/events.h"
 #include "serial_bridge.h"
 
@@ -21,17 +22,23 @@ namespace {
 
 constexpr const char* kTag = "screen";
 
-// Même valeur que sensors/main.cpp (kPresenceTimeoutUs) : un PING ou PONG du
-// pair suffit à réarmer, l'absence pendant ce délai est le repli sécurité.
-constexpr int64_t kPresenceTimeoutUs = 3 * 1000 * 1000;
+constexpr int64_t kPresenceSilenceBeforeCheckUs = 1500 * 1000;
+constexpr int64_t kPresenceProbeIntervalUs = 500 * 1000;
+constexpr int64_t kPresenceCheckBailUs = 1500 * 1000;
 
 int64_t g_last_presence_rx_us = 0;
+int64_t g_presence_check_started_us = 0;
+int64_t g_last_probe_us = 0;
+uint8_t g_presence_probe_count = 0;
 bool g_presence_lost = true;
+bool g_peer_roundtrip_confirmed = false;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
 void mark_presence() {
   g_last_presence_rx_us = now_us();
+  g_presence_check_started_us = 0;
+  g_presence_probe_count = 0;
   if (g_presence_lost) {
     g_presence_lost = false;
     send_log(common::LogCode::kPresenceRestored, common::LogSeverity::kInfo);
@@ -43,8 +50,6 @@ void on_ping_received() {
   mark_presence();
   send_pong();
 }
-
-void on_pong_received() { mark_presence(); }
 
 void on_reset_received() {
   send_log(common::LogCode::kRebootRequested, common::LogSeverity::kInfo);
@@ -62,6 +67,10 @@ void init() {
   ESP_ERROR_CHECK(twai_start());
 
   g_last_presence_rx_us = now_us();
+  // Une sonde d'identité au boot permet à une image OTA de prouver un aller-
+  // retour, alors que le trafic normal suffit ensuite à la présence.
+  send_message(common::MessageType::kPing, common::Dest::kSensors, nullptr, 0);
+  g_last_probe_us = g_last_presence_rx_us;
 }
 
 void send_message(common::MessageType type, common::Dest dest, const uint8_t* data, uint8_t dlc) {
@@ -113,9 +122,23 @@ void send_pong() {
 }
 
 bool presence_lost() { return g_presence_lost; }
+bool peer_roundtrip_confirmed() { return g_peer_roundtrip_confirmed; }
 
 void tick_presence() {
-  if (!g_presence_lost && (now_us() - g_last_presence_rx_us) > kPresenceTimeoutUs) {
+  int64_t now = now_us();
+  if (now - g_last_presence_rx_us < kPresenceSilenceBeforeCheckUs) return;
+  if (g_presence_check_started_us == 0) {
+    g_presence_check_started_us = now;
+    g_last_probe_us = 0;
+    g_presence_probe_count = 0;
+  }
+  if (g_presence_probe_count < 3 &&
+      (g_presence_probe_count == 0 || now - g_last_probe_us >= kPresenceProbeIntervalUs)) {
+    send_message(common::MessageType::kPing, common::Dest::kSensors, nullptr, 0);
+    g_last_probe_us = now;
+    g_presence_probe_count++;
+  }
+  if (!g_presence_lost && now - g_presence_check_started_us >= kPresenceCheckBailUs) {
     g_presence_lost = true;
     send_log(common::LogCode::kPresenceLost, common::LogSeverity::kWarn);
     core::events::push(core::EventKind::kCanPresenceLost);
@@ -124,22 +147,36 @@ void tick_presence() {
 
 void dispatch_own_protocol(const twai_message_t& msg) {
   common::CanId id = common::decode_can_id(static_cast<uint16_t>(msg.identifier));
-  if (!common::is_known_message_type(static_cast<uint8_t>(id.type))) {
-    return;
-  }
   if (id.dest != common::Dest::kBroadcast && id.dest != common::Dest::kScreen) {
     return;
   }
   if (id.src != common::Node::kSensors) {
     return;
   }
+  // Toute trame attribuable aux capteurs maintient la présence, y compris un
+  // type futur non encore compris par cette image.
+  mark_presence();
+  if (!common::is_known_message_type(static_cast<uint8_t>(id.type))) return;
 
   switch (id.type) {
     case common::MessageType::kPing:
       on_ping_received();
       break;
     case common::MessageType::kPong:
-      on_pong_received();
+      g_peer_roundtrip_confirmed = true;
+      core::on_pong(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kStatusPressure:
+      core::on_status_pressure(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kStatusFlow:
+      core::on_status_flow(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kStatusActuators:
+      core::on_status_actuators(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kLog:
+      core::on_log(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kReset:
       on_reset_received();

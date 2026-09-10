@@ -98,8 +98,9 @@ constexpr uint16_t kPressurePeriodFloorMs = 100;
 
 // Sécurité — voir docs/firmware.md, section "Sécurité".
 constexpr int64_t kLeaseDefaultUs = 500 * 1000;
-constexpr int64_t kPresenceTimeoutUs = 3000 * 1000;
-constexpr int64_t kPresencePingIntervalUs = 1500 * 1000;
+constexpr int64_t kPresenceSilenceBeforeCheckUs = 1500 * 1000;
+constexpr int64_t kPresencePingIntervalUs = 500 * 1000;
+constexpr int64_t kPresenceCheckBailUs = 1500 * 1000;
 constexpr int64_t kRuntimeLockoutUs = 60 * 1000 * 1000;
 constexpr int64_t kRuntimeRearmGapUs = 2000 * 1000;
 constexpr int64_t kTwaiCountersLogPeriodUs = 5000 * 1000;
@@ -136,12 +137,15 @@ int64_t g_off_since_us = 0;   // 0 = pas actuellement à l'arrêt
 
 // Présence — voir docs/firmware.md §2.
 int64_t g_last_presence_rx_us = 0;
+int64_t g_presence_check_started_us = 0;
 int64_t g_last_own_ping_us = 0;
+uint8_t g_presence_probe_count = 0;
 bool g_presence_lost = true;  // état de repos correct, carte seule sur la table
 
 // Validation OTA — voir docs/firmware-implementation.md, phase 4.
 bool g_ota_pending_verify = false;
 int64_t g_ota_pending_since_us = 0;
+bool g_ota_roundtrip_confirmed = false;
 
 // XDB401 — voir docs/firmware.md, "I2C partagé" : le mutex sérialise
 // l'accès au bus (utile dès que le dimmer sera câblé dessus), mais ne
@@ -163,6 +167,8 @@ volatile uint32_t g_flow_pulse_count = 0;
 volatile int64_t g_flow_last_edge_us = 0;
 uint16_t g_flow_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_flow_last_sent_us = 0;
+uint16_t g_actuators_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
+int64_t g_actuators_last_sent_us = 0;
 
 void IRAM_ATTR flow_isr_handler(void*) {
   g_flow_pulse_count = g_flow_pulse_count + 1;
@@ -515,6 +521,8 @@ void send_status_flow() {
 void mark_presence() {
   bool was_lost = g_presence_lost;
   g_last_presence_rx_us = now_us();
+  g_presence_check_started_us = 0;
+  g_presence_probe_count = 0;
   g_presence_lost = false;
   if (was_lost) {
     ESP_LOGI(kTag, "présence retrouvée");
@@ -526,7 +534,10 @@ void on_ping_received() {
   send_pong();
 }
 
-void on_pong_received() { mark_presence(); }
+void on_pong_received() {
+  mark_presence();
+  g_ota_roundtrip_confirmed = true;
+}
 
 void on_reset_received() {
   send_log(common::LogCode::kRebootRequested, common::LogSeverity::kInfo);
@@ -581,9 +592,11 @@ void on_reqstatus_received(const uint8_t* data, size_t len) {
       g_flow_period_ms = payload.period_ms;
       g_flow_last_sent_us = 0;  // publie dès le prochain tick, pas d'attente d'une période complète
       break;
+    case common::MessageType::kStatusActuators:
+      g_actuators_period_ms = payload.period_ms;
+      g_actuators_last_sent_us = 0;
+      break;
     default:
-      // STATUS_ACTUATORS part déjà à chaque SET/STOP traité, pas de
-      // streaming périodique dédié.
       break;
   }
 }
@@ -779,6 +792,9 @@ void dispatch_frame(const twai_message_t& msg) {
   if (id.src != common::Node::kScreen) {
     return;
   }
+  // Toute trame attribuable à l'écran remet la présence à zéro. Le PING ne
+  // sert donc qu'à sonder un vrai silence, pas à compléter la télémétrie.
+  mark_presence();
 
   switch (id.type) {
     case common::MessageType::kPing:
@@ -833,20 +849,26 @@ void tick_lease() {
   send_status_actuators();
 }
 
-// Présence : pingue si silence depuis kPresenceTimeoutUs, et coupe les
-// actionneurs (repli sécurité) tant que personne ne répond.
+// Après 1,5 s sans aucune trame écran, trois PING espacés de 500 ms sondent
+// le pair; sans réponse ni autre trafic dans ce bail, repli sécurité.
 void tick_presence() {
   int64_t t = now_us();
-  if (t - g_last_presence_rx_us > kPresenceTimeoutUs) {
-    if (!g_presence_lost) {
-      g_presence_lost = true;
-      force_actuators_off();
-      send_log(common::LogCode::kPresenceLost, common::LogSeverity::kWarn);
-    }
-    if (t - g_last_own_ping_us > kPresencePingIntervalUs) {
-      g_last_own_ping_us = t;
-      send_message(common::MessageType::kPing, common::Dest::kBroadcast, nullptr, 0);
-    }
+  if (t - g_last_presence_rx_us < kPresenceSilenceBeforeCheckUs) return;
+  if (g_presence_check_started_us == 0) {
+    g_presence_check_started_us = t;
+    g_last_own_ping_us = 0;
+    g_presence_probe_count = 0;
+  }
+  if (g_presence_probe_count < 3 &&
+      (g_presence_probe_count == 0 || t - g_last_own_ping_us >= kPresencePingIntervalUs)) {
+    g_last_own_ping_us = t;
+    send_message(common::MessageType::kPing, common::Dest::kBroadcast, nullptr, 0);
+    g_presence_probe_count++;
+  }
+  if (!g_presence_lost && t - g_presence_check_started_us >= kPresenceCheckBailUs) {
+    g_presence_lost = true;
+    force_actuators_off();
+    send_log(common::LogCode::kPresenceLost, common::LogSeverity::kWarn);
   }
 }
 
@@ -899,13 +921,13 @@ void tick_twai_counters() {
 // Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
 // phase 4, point 3 : une image en PENDING_VERIFY qui ne reçoit jamais de
 // PING/PONG doit rollback elle-même, IDF ne le fait pas tout seul.
-// `mark_presence()` (donc `!g_presence_lost`) sert de preuve : n'importe
-// quel PING/PONG reçu de l'écran/pont confirme que l'image tourne assez
-// pour parler sur le bus.
+// La présence ordinaire peut désormais être maintenue par toute trame. La
+// validation OTA reste plus stricte : elle exige un PONG, donc un aller-
+// retour réel avec l'écran.
 void tick_ota_validation() {
   if (!g_ota_pending_verify) return;
 
-  if (!g_presence_lost) {
+  if (g_ota_roundtrip_confirmed) {
     esp_ota_mark_app_valid_cancel_rollback();
     g_ota_pending_verify = false;
     send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
@@ -935,6 +957,14 @@ void tick_flow() {
   g_flow_last_sent_us = t;
 }
 
+void tick_actuators() {
+  if (g_actuators_period_ms == 0) return;
+  int64_t t = now_us();
+  if (t - g_actuators_last_sent_us < static_cast<int64_t>(g_actuators_period_ms) * 1000) return;
+  send_status_actuators();
+  g_actuators_last_sent_us = t;
+}
+
 void safety_task(void*) {
   for (;;) {
     tick_lease();
@@ -943,6 +973,7 @@ void safety_task(void*) {
     tick_twai_counters();
     tick_ota_validation();
     tick_flow();
+    tick_actuators();
     tick_dimmer_health();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }
@@ -1016,7 +1047,7 @@ extern "C" void app_main() {
   ESP_ERROR_CHECK(twai_start());
 
   int64_t t0 = now_us();
-  g_last_presence_rx_us = t0 - kPresenceTimeoutUs;  // en attente, pas encore vu de pair
+  g_last_presence_rx_us = t0 - kPresenceSilenceBeforeCheckUs;  // en attente, pas encore vu de pair
   g_last_own_ping_us = 0;
 
   send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);

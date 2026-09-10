@@ -18,7 +18,7 @@ def test_decode_pong():
 def test_decode_log_uses_generated_code_names():
     frame = RawFrame(
         can_id=encode_can_id(CanId(MessageType.LOG, Dest.SCREEN, Node.SENSORS)),
-        data=LogPayload(code=5, severity=3, arg16=0, arg32=60000).pack(),
+        data=LogPayload(code=6, severity=3, arg16=0, arg32=60000).pack(),
     )
     line = decode_frame(0.0, frame)
     assert "RUNTIME_LOCKOUT_TRIGGERED" in line

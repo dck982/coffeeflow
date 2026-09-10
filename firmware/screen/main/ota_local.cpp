@@ -163,7 +163,7 @@ void on_flash_end(uint32_t expected_crc32) {
 void tick_ota_validation() {
   if (!g_ota_pending_verify) return;
 
-  if (!can_link::presence_lost()) {
+  if (can_link::peer_roundtrip_confirmed()) {
     esp_ota_mark_app_valid_cancel_rollback();
     g_ota_pending_verify = false;
     can_link::send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);

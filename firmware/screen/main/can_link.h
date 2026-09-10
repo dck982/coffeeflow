@@ -24,17 +24,13 @@ void send_log(common::LogCode code, common::LogSeverity severity, uint16_t arg16
 
 void send_pong();
 
-// Présence — voir docs/firmware.md §2 : un PING ou un PONG reçu du pair
-// suffit, c'est le nœud qui répond qui doit remettre son propre compteur à
-// zéro (TWAI ne boucle pas ses propres trames). Réutilisée aussi comme
-// preuve de vie pour la validation OTA de l'écran lui-même (ota_local.cpp).
+// Toute trame valide du pair maintient la présence. Après 1,5 s de silence,
+// trois PING sont envoyés à 500 ms d'intervalle avant de déclarer la perte.
+// La validation OTA reste plus stricte et requiert un PONG.
 bool presence_lost();
+bool peer_roundtrip_confirmed();
 
-// À appeler périodiquement (service_screen, ~200 ms) : détecte le timeout de
-// présence (3 s, même valeur que sensors/main.cpp) et publie un événement du
-// cœur (core::EventKind::kCanPresenceLost) à la transition. La transition
-// inverse (retrouvée) est publiée directement par mark_presence() dès qu'un
-// PING/PONG du pair revient — voir can_link.cpp.
+// Appelé par la tâche télémétrie du cœur 0, jamais par LVGL.
 void tick_presence();
 
 // Notre propre rôle de nœud kScreen : ne réagit qu'à ce qui vient des

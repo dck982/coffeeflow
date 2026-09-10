@@ -58,6 +58,7 @@ constexpr uint32_t kRefreshPeriodMs = 200;
 
 lv_obj_t* g_version_label = nullptr;
 lv_obj_t* g_can_label = nullptr;
+lv_obj_t* g_telemetry_label = nullptr;
 lv_obj_t* g_net_label = nullptr;
 lv_obj_t* g_ip_label = nullptr;
 lv_obj_t* g_event_labels[kVisibleEvents] = {};
@@ -263,6 +264,11 @@ void build_ui() {
   lv_obj_set_pos(g_can_label, 4, y);
   y += 20;
 
+  g_telemetry_label = lv_label_create(scr);
+  lv_obj_set_style_text_color(g_telemetry_label, lv_color_white(), 0);
+  lv_obj_set_pos(g_telemetry_label, 4, y);
+  y += 20;
+
   g_net_label = lv_label_create(scr);
   lv_obj_set_style_text_color(g_net_label, lv_color_white(), 0);
   lv_label_set_text(g_net_label, "RESEAU: absent");  // lot 4 : Wi-Fi
@@ -296,12 +302,18 @@ void build_ui() {
 }
 
 void refresh_timer_cb(lv_timer_t* /*timer*/) {
-  // Détection de perte/reprise de présence CAN : c'est ici, pas dans une
-  // tâche dédiée, que tick_presence() est appelé — 200 ms de période
-  // suffisent très largement pour le seuil de 3 s du critère de sortie.
-  can_link::tick_presence();
-
   set_label_if_changed(g_can_label, can_link::presence_lost() ? "CAN: PERDU" : "CAN: OK");
+  core::Snapshot snapshot = core::get_snapshot();
+  char telemetry[128];
+  if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
+    std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  n=%lu", snapshot.flow_ml_s,
+                  static_cast<unsigned long>(snapshot.flow_pulse_count));
+  } else {
+    std::snprintf(telemetry, sizeof(telemetry), "P: %.2f bar  T: %.1f C  F: %.2f ml/s  n=%lu",
+                  snapshot.pressure_bar, snapshot.temperature_c, snapshot.flow_ml_s,
+                  static_cast<unsigned long>(snapshot.flow_pulse_count));
+  }
+  set_label_if_changed(g_telemetry_label, telemetry);
 
   core::Event events[kVisibleEvents];
   size_t n = core::events::recent(events, kVisibleEvents);

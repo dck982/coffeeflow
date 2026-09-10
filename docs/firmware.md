@@ -62,7 +62,7 @@ GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = ferm
 DimmerLink en I2C, pas UART. Le Cortex du module gère le passage par zéro et le triac ; le XIAO n'écrit que des registres.
 
 - `0x10` niveau, 0–100 % — la seule commande du cycle d'infusion
-- `0x00` statut, `0x02` erreur, `0x11` courbe, `0x20` fréquence secteur — remontés dans les flags de `STATUS_ACTUATORS` pour que l'écran affiche « dimmer pas prêt » au lieu de ne rien faire silencieusement
+- `0x00` statut et `0x02` erreur sont remontés dans `STATUS_ACTUATORS` pour que l'écran affiche « dimmer pas prêt » ou une erreur réelle au lieu de ne rien faire silencieusement. La fréquence secteur (`0x20`) reste informative et n'est pas un flag de santé.
 
 **Sans secteur sur le dimmer, le module reste en `Calibrating...`** et refuse toute écriture. La commande `0x03` bascule le dimmer en UART **et l'écrit dans son EEPROM** : à ne jamais appeler depuis le firmware. Le seuil de calage de la pompe vibratoire est une calibration, mesurée sur la machine, stockée côté écran — pas une constante dans le source.
 
@@ -286,9 +286,9 @@ Chaque `SET` porte un TTL. À l'expiration, le module capteurs remet SSR à 0 et
 
 C'est le mécanisme rapide, et le seul qui compte pendant un shot.
 
-### 2. Présence (ping toutes les 1–2 s)
+### 2. Présence (sonde uniquement en cas de silence)
 
-Chaque nœud tient un `last_presence`. Un `PONG` reçu **ou** un `PING` reçu comptent tous les deux : le pair est vivant. Sans rien pendant ~3 s, on émet un `PING` ; qui l'entend répond immédiatement. Le nœud qui **répond** remet aussi son propre compteur à zéro : TWAI ne boucle pas ses propres trames, c'est la réception du ping qui est le signal.
+Chaque nœud tient un `last_presence`. Toute trame valide attribuable au pair (adressée au nœud ou en broadcast) remet ce compteur à zéro. Après 1,5 s de silence, il entre dans `PRESENCE_CHECK`, envoie un `PING` toutes les 500 ms, puis déclare `PRESENCE_LOST` 1,5 s après le premier ping si aucune trame ne revient. Trois PING sans réponse ni autre trafic suffisent donc à conclure. Le PING est une sonde de silence, pas un trafic périodique redondant.
 
 Perte de présence côté capteurs : arrêt du streaming, SSR bas, dimmer 0. Une carte seule sur la table pingue toutes les 1–2 s et ne voit jamais de pong : c'est le repos correct.
 
@@ -401,7 +401,8 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 [7]     réservé
 ```
 
-`STATUS_ACTUATORS` (0x22) — c'est l'accusé de réception d'un `SET`
+`STATUS_ACTUATORS` (0x22) — accusé de réception d'un `SET`, et statut
+individuel diffusable périodiquement par `REQSTATUS`
 
 ```
 [0]     ssr                 0 | 1
@@ -409,7 +410,7 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 [2..3]  bail restant ms     uint16
 [4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
 [6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C),
-                            bit3 secteur détecté côté dimmer (registre 0x20 plausible, 45-65 Hz)
+                            bit3 erreur dimmer active (bit ERROR du registre 0x00)
 [7]     réservé
 ```
 

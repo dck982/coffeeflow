@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
@@ -61,11 +62,16 @@ lv_obj_t* g_can_label = nullptr;
 lv_obj_t* g_telemetry_label = nullptr;
 lv_obj_t* g_net_label = nullptr;
 lv_obj_t* g_ip_label = nullptr;
+lv_obj_t* g_time_label = nullptr;
+lv_obj_t* g_pump_label = nullptr;
+lv_obj_t* g_action_label = nullptr;
 lv_obj_t* g_event_labels[kVisibleEvents] = {};
 lv_obj_t* g_touch_label = nullptr;
 
 uint32_t g_last_touch_ms = 0;
 bool g_touch_label_visible = false;
+bool g_purge_held = false;
+uint8_t g_diagnostic_pump_pct = 100;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
@@ -239,6 +245,27 @@ void on_screen_pressed(lv_event_t* e) {
   (void)e;
 }
 
+void set_action_text(const char* text) { set_label_if_changed(g_action_label, text); }
+void on_forget_network(lv_event_t*) { core::forget_network(); set_action_text("RESEAU OUBLIE"); }
+void on_reset_settings(lv_event_t*) {
+  core::ConfigResult result = core::reset_config();
+  set_action_text(result.status == core::ConfigStatus::kOk ? "REGLAGES PAR DEFAUT" : "ERREUR NVS");
+}
+void on_purge_pressed(lv_event_t*) { g_purge_held = true; }
+void on_purge_released(lv_event_t*) { g_purge_held = false; core::set_diagnostic_purge(false, g_diagnostic_pump_pct); }
+void on_pump_down(lv_event_t*) { if (g_diagnostic_pump_pct >= 25) g_diagnostic_pump_pct -= 5; }
+void on_pump_up(lv_event_t*) { if (g_diagnostic_pump_pct <= 95) g_diagnostic_pump_pct += 5; }
+
+lv_obj_t* add_button(lv_obj_t* parent, const char* text, int x, int y) {
+  lv_obj_t* button = lv_button_create(parent);
+  lv_obj_set_size(button, LV_SIZE_CONTENT, 30);
+  lv_obj_set_pos(button, x, y);
+  lv_obj_t* label = lv_label_create(button);
+  lv_label_set_text(label, text);
+  lv_obj_center(label);
+  return button;
+}
+
 // Console de debug volontairement laide : pas de style, pas de cote de
 // ui.md, police montserrat intégrée à LVGL (docs/plan-phase6.md, lot 2).
 void build_ui() {
@@ -279,6 +306,12 @@ void build_ui() {
   lv_obj_set_style_text_color(g_ip_label, lv_color_white(), 0);
   lv_label_set_text(g_ip_label, "IP: -");  // lot 4 : Wi-Fi
   lv_obj_set_pos(g_ip_label, 4, y);
+  y += 20;
+
+  g_time_label = lv_label_create(scr);
+  lv_obj_set_style_text_color(g_time_label, lv_color_white(), 0);
+  lv_label_set_text(g_time_label, "HEURE: -");
+  lv_obj_set_pos(g_time_label, 4, y);
   y += 28;
 
   lv_obj_t* events_title = lv_label_create(scr);
@@ -295,6 +328,27 @@ void build_ui() {
     y += 18;
   }
 
+  // Console de banc du lot 4. Ces commandes appellent le cœur — jamais
+  // can_link directement — et seront absorbées par l'UI du lot 10.
+  lv_obj_t* forget = add_button(scr, "OUBLIER RESEAU", 4, y + 4);
+  lv_obj_add_event_cb(forget, on_forget_network, LV_EVENT_LONG_PRESSED, nullptr);
+  lv_obj_t* reset = add_button(scr, "REGLAGES DEFAUT", 190, y + 4);
+  lv_obj_add_event_cb(reset, on_reset_settings, LV_EVENT_LONG_PRESSED, nullptr);
+  lv_obj_t* minus = add_button(scr, "POMPE -", 4, y + 42);
+  lv_obj_t* plus = add_button(scr, "POMPE +", 100, y + 42);
+  lv_obj_add_event_cb(minus, on_pump_down, LV_EVENT_CLICKED, nullptr);
+  lv_obj_add_event_cb(plus, on_pump_up, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* purge = add_button(scr, "MAINTENIR PURGE", 196, y + 42);
+  lv_obj_add_event_cb(purge, on_purge_pressed, LV_EVENT_PRESSED, nullptr);
+  lv_obj_add_event_cb(purge, on_purge_released, LV_EVENT_RELEASED, nullptr);
+  lv_obj_add_event_cb(purge, on_purge_released, LV_EVENT_PRESS_LOST, nullptr);
+  g_pump_label = lv_label_create(scr);
+  lv_obj_set_style_text_color(g_pump_label, lv_color_white(), 0);
+  lv_obj_set_pos(g_pump_label, 4, y + 76);
+  g_action_label = lv_label_create(scr);
+  lv_obj_set_style_text_color(g_action_label, lv_color_white(), 0);
+  lv_obj_set_pos(g_action_label, 160, y + 76);
+
   g_touch_label = lv_label_create(scr);
   lv_obj_set_style_text_color(g_touch_label, lv_color_white(), 0);
   lv_label_set_text(g_touch_label, "");
@@ -302,8 +356,8 @@ void build_ui() {
 }
 
 void refresh_timer_cb(lv_timer_t* /*timer*/) {
-  set_label_if_changed(g_can_label, can_link::presence_lost() ? "CAN: PERDU" : "CAN: OK");
   core::Snapshot snapshot = core::get_snapshot();
+  set_label_if_changed(g_can_label, snapshot.sensors_alive ? "CAN: OK" : "CAN: PERDU");
   char telemetry[128];
   if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
     std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  n=%lu", snapshot.flow_ml_s,
@@ -314,6 +368,35 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
                   static_cast<unsigned long>(snapshot.flow_pulse_count));
   }
   set_label_if_changed(g_telemetry_label, telemetry);
+
+  const char* network = "RESEAU: INCONNU";
+  switch (static_cast<core::NetworkState>(snapshot.network_state)) {
+    case core::NetworkState::kApProvisioning: network = "RESEAU: AP CONFIGURATION"; break;
+    case core::NetworkState::kStaConnecting: network = "RESEAU: CONNEXION"; break;
+    case core::NetworkState::kStaConnected: network = "RESEAU: CONNECTE"; break;
+    case core::NetworkState::kStaDisconnected: network = "RESEAU: COUPE"; break;
+  }
+  set_label_if_changed(g_net_label, network);
+  char ip[32];
+  if (snapshot.ipv4_address == 0) std::snprintf(ip, sizeof(ip), "IP: -");
+  else std::snprintf(ip, sizeof(ip), "IP: %u.%u.%u.%u",
+                     static_cast<unsigned>(snapshot.ipv4_address & 0xFFu),
+                     static_cast<unsigned>((snapshot.ipv4_address >> 8) & 0xFFu),
+                     static_cast<unsigned>((snapshot.ipv4_address >> 16) & 0xFFu),
+                     static_cast<unsigned>((snapshot.ipv4_address >> 24) & 0xFFu));
+  set_label_if_changed(g_ip_label, ip);
+  char time_text[40];
+  if (!snapshot.time_known) std::snprintf(time_text, sizeof(time_text), "HEURE: -");
+  else { std::time_t seconds = static_cast<std::time_t>(snapshot.wall_time_unix_s); std::tm local{}; localtime_r(&seconds, &local);
+         std::strftime(time_text, sizeof(time_text), "HEURE: %d.%m.%Y %H:%M", &local); }
+  set_label_if_changed(g_time_label, time_text);
+  char pump[32]; std::snprintf(pump, sizeof(pump), "POMPE BANC: %u%%", g_diagnostic_pump_pct);
+  set_label_if_changed(g_pump_label, pump);
+  if (g_purge_held) {
+    core::DiagnosticStatus status = core::set_diagnostic_purge(true, g_diagnostic_pump_pct);
+    if (status != core::DiagnosticStatus::kOk) { g_purge_held = false; set_action_text("PURGE REFUSEE"); }
+    else set_action_text("PURGE ACTIVE");
+  }
 
   core::Event events[kVisibleEvents];
   size_t n = core::events::recent(events, kVisibleEvents);

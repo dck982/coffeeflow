@@ -10,6 +10,7 @@ tmp/
 # ESP-IDF build artefacts et config générée localement — voir
 # firmware/IDF_VERSION.md pour la version figée.
 firmware/*/build/
+firmware/*/build-*/
 firmware/*/sdkconfig
 firmware/*/managed_components/
 firmware/*/dependencies.lock
@@ -23,3 +24,6 @@ eim_config.toml
 # Cache clangd local (index par projet ESP-IDF).
 firmware/*/.cache/
 
+# Secrets locaux de l'écran : ne jamais versionner le mot de passe WPA de
+# l'AP de provisioning ni le jeton HTTP.
+firmware/screen/main/secrets.h

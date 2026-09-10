@@ -47,6 +47,16 @@ const char* to_text(EventKind kind) {
       return "CAN PERDU";
     case EventKind::kCanPresenceRestored:
       return "CAN OK";
+    case EventKind::kWifiApStarted:
+      return "AP DEMARRE";
+    case EventKind::kWifiConnected:
+      return "WIFI CONNECTE";
+    case EventKind::kWifiDisconnected:
+      return "WIFI PERDU";
+    case EventKind::kNetworkForgotten:
+      return "RESEAU OUBLIE";
+    case EventKind::kTimeKnown:
+      return "HEURE CONNUE";
   }
   return "?";
 }

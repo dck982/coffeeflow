@@ -1,312 +1,234 @@
-// Bring-up LCD jetable (Waveshare ESP32-S3-Touch-LCD-4.3) — docs/plan-phase6.md,
-// lot 2, section "Piège".
-//
-// But unique : vérifier si les timings HSYNC/VSYNC de
-// tests/screen/hello_waveshare/hello_waveshare.ino (Arduino_GFX direct, sans
-// LVGL, confirmé sans glitch sur ce même banc) corrigent le glitch horizontal
-// observé dans firmware/screen/main/service_screen.cpp, qui utilise lui les
-// timings génériques de l'exemple ESP-IDF officiel Waveshare
-// (tmp/ESP32-S3-Touch-LCD-4.3/examples/ESP-IDF/09_lvgl_v9_demo/).
-//
-// Rien d'autre : pas de CAN, pas de pont série, pas de cœur métier. Le
-// bring-up CH422G et la séquence de reset tactile/LCD reprennent
-// hello_waveshare.ino, portés en C++ ESP-IDF natif (i2c_master de
-// esp_driver_i2c) plutôt qu'Arduino Wire. Les structs et noms de champs
-// esp_lcd/esp_lcd_touch_gt911/esp_lvgl_port sont alignés sur
-// firmware/screen/main/service_screen.cpp et board.cpp (déjà prouvés
-// fonctionner en IDF v6.1), seuls les timings du tableau ci-dessous
-// diffèrent.
+// Diagnostic d'ordre d'allocation LCD/Wi-Fi pour Waveshare ESP32-S3-Touch-LCD-4.3.
+// Projet autonome : CH422G, AP Wi-Fi/httpd, LCD RGB, LVGL et mire uniquement.
+// Il isole l'hypothese v0.2.22 : Wi-Fi/httpd fragmente la RAM interne avant les
+// buffers RGB DMA. CONFIG_LCD_TEST_WIFI_FIRST selectionne l'ordre A/B.
 
 #include <cstdio>
+#include <cstring>
 
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
 #include "esp_err.h"
-#include "esp_lcd_panel_io.h"
+#include "esp_event.h"
+#include "esp_http_server.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_rgb.h"
-#include "esp_lcd_touch.h"
-#include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
 #include "esp_lvgl_port.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "nvs_flash.h"
 
 namespace {
-
 constexpr const char* kTag = "screen-lcd-test";
-
-// --- I2C partagé CH422G / GT911 (SDA=8, SCL=9), voir board.h/board.cpp de
-// firmware/screen et hello_waveshare.ino. ---
 constexpr gpio_num_t kI2cSda = GPIO_NUM_8;
 constexpr gpio_num_t kI2cScl = GPIO_NUM_9;
-
 constexpr uint16_t kCh422gModeAddr = 0x24;
 constexpr uint16_t kCh422gOutAddr = 0x38;
-constexpr uint8_t kCh422gModeOutputs = 0x01;  // EXIO0-7 en push-pull
-
-enum Ch422gBit : uint8_t {
-  kCh422gTpRst = 1 << 1,
-  kCh422gLcdBl = 1 << 2,
-  kCh422gLcdRst = 1 << 3,
-  kCh422gSdCs = 1 << 4,
-  kCh422gUsbSel = 1 << 5,  // CAN_SEL/USB_SEL — laissé bas, pas de CAN sur ce banc de test
-};
-
-i2c_master_bus_handle_t g_i2c_bus = nullptr;
-i2c_master_dev_handle_t g_ch422g_mode_dev = nullptr;
-i2c_master_dev_handle_t g_ch422g_out_dev = nullptr;
-uint8_t g_ch422g_out_mirror = 0;
-
-void ch422g_write_out(uint8_t val) {
-  g_ch422g_out_mirror = val;
-  ESP_ERROR_CHECK(i2c_master_transmit(g_ch422g_out_dev, &g_ch422g_out_mirror, 1, -1));
-}
-
-// Séquence reprise telle quelle de hello_waveshare.ino : maintien reset
-// tactile/LCD bas, SD désélectionné, backlight éteinte jusqu'à l'init du
-// panneau (ch422g_backlight()), puis reset impulsionnel du GT911 (~100 ms).
-void ch422g_bringup() {
-  i2c_master_bus_config_t bus_config{};
-  bus_config.i2c_port = -1;
-  bus_config.sda_io_num = kI2cSda;
-  bus_config.scl_io_num = kI2cScl;
-  bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-  bus_config.glitch_ignore_cnt = 7;
-  bus_config.flags.enable_internal_pullup = true;
-  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &g_i2c_bus));
-
-  i2c_device_config_t mode_dev_cfg{};
-  mode_dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-  mode_dev_cfg.device_address = kCh422gModeAddr;
-  mode_dev_cfg.scl_speed_hz = 400000;
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &mode_dev_cfg, &g_ch422g_mode_dev));
-
-  i2c_device_config_t out_dev_cfg{};
-  out_dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-  out_dev_cfg.device_address = kCh422gOutAddr;
-  out_dev_cfg.scl_speed_hz = 400000;
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &out_dev_cfg, &g_ch422g_out_dev));
-
-  uint8_t mode_val = kCh422gModeOutputs;
-  ESP_ERROR_CHECK(i2c_master_transmit(g_ch422g_mode_dev, &mode_val, 1, -1));
-
-  // Reset tactile+LCD maintenus bas, SD désélectionné, backlight éteinte.
-  ch422g_write_out(kCh422gSdCs | kCh422gUsbSel);
-  vTaskDelay(pdMS_TO_TICKS(20));
-
-  // Sortie des resets, backlight toujours éteinte jusqu'à l'init du panneau.
-  ch422g_write_out(kCh422gTpRst | kCh422gLcdRst | kCh422gSdCs | kCh422gUsbSel);
-  vTaskDelay(pdMS_TO_TICKS(120));  // GT911 : ~100 ms après reset avant de répondre en I2C
-}
-
-void ch422g_backlight(bool on) {
-  uint8_t val = kCh422gTpRst | kCh422gLcdRst | kCh422gSdCs | kCh422gUsbSel;
-  if (on) {
-    val |= kCh422gLcdBl;
-  }
-  ch422g_write_out(val);
-}
-
-// --- Panneau RGB 800x480, timings hello_waveshare.ino (confirmés sans
-// glitch sur ce banc) : hsync pulse=48/back=88/front=40, vsync
-// pulse=3/back=32/front=13, pclk=16 MHz, pclk_active_neg=1. Seuls ces
-// timings diffèrent de firmware/screen/main/service_screen.cpp (qui a
-// pulse=4/8, back=8/8, front=8/8) ; brochage, format couleur, num_fbs et
-// bounce buffer restent alignés sur ce fichier déjà prouvé fonctionner. ---
+constexpr uint8_t kCh422gModeOutputs = 0x01;
+constexpr uint8_t kTpRst = 1 << 1;
+constexpr uint8_t kLcdBl = 1 << 2;
+constexpr uint8_t kLcdRst = 1 << 3;
+constexpr uint8_t kSdCs = 1 << 4;
 constexpr uint32_t kLcdHRes = 800;
 constexpr uint32_t kLcdVRes = 480;
-constexpr uint32_t kLcdPixelClockHz = 16 * 1000 * 1000;
+constexpr uint32_t kPixelClockHz = 16 * 1000 * 1000;
+constexpr uint32_t kBounceBufferSizePx = kLcdHRes * 40;
 
-// Bounce buffer : 20 lignes, raisonnable pour ce test isolé (pas de charge
-// CPU concurrente CAN/pont série comme dans firmware/screen).
-constexpr uint32_t kBounceLines = 20;
-constexpr uint32_t kBounceBufferSizePx = kLcdHRes * kBounceLines;
+i2c_master_dev_handle_t g_ch422g_out = nullptr;
+uint8_t g_ch422g_outputs = 0;
 
-esp_lcd_panel_handle_t init_rgb_panel() {
-  esp_lcd_rgb_panel_config_t panel_config{};
-  panel_config.clk_src = LCD_CLK_SRC_DEFAULT;
-  panel_config.timings.pclk_hz = kLcdPixelClockHz;
-  panel_config.timings.h_res = kLcdHRes;
-  panel_config.timings.v_res = kLcdVRes;
-  panel_config.timings.hsync_pulse_width = 48;
-  panel_config.timings.hsync_back_porch = 88;
-  panel_config.timings.hsync_front_porch = 40;
-  panel_config.timings.vsync_pulse_width = 3;
-  panel_config.timings.vsync_back_porch = 32;
-  panel_config.timings.vsync_front_porch = 13;
-  panel_config.timings.flags.pclk_active_neg = 1;
-  panel_config.data_width = 16;
-  panel_config.in_color_format = LCD_COLOR_FMT_RGB565;
-  panel_config.out_color_format = LCD_COLOR_FMT_RGB565;
-  // avoid_tearing (num_fbs=2, bounce_buffer=0, direct_mode) testé et
-  // abandonné (2026-09-09) : même en isolation totale (sans CAN/pont série),
-  // résultat cassé — d'abord bruit/clignotement, puis (avec direct_mode
-  // ajouté) un défilement horizontal permanent de l'image. Cause identifiée
-  // dans le code source ESP-IDF (esp_lcd_panel_rgb.c, rgb_panel_draw_bitmap) :
-  // le driver documente lui-même que le moment du vrai basculement de
-  // framebuffer n'est pas garanti ("it's hard to know the time when the new
-  // frame buffer starts", à cause du prefetch DMA) — limite du driver sur
-  // cette version d'IDF, pas une erreur de configuration de notre part. Voir
-  // docs/firmware-implementation.md pour le détail complet de l'investigation.
-  // Retour à bb_mode / bounce buffer, seule config connue stable à ce jour.
-  panel_config.num_fbs = 1;
-  panel_config.bounce_buffer_size_px = kBounceBufferSizePx;
-  panel_config.hsync_gpio_num = GPIO_NUM_46;
-  panel_config.vsync_gpio_num = GPIO_NUM_3;
-  panel_config.de_gpio_num = GPIO_NUM_5;
-  panel_config.pclk_gpio_num = GPIO_NUM_7;
-  panel_config.disp_gpio_num = GPIO_NUM_NC;
-  panel_config.data_gpio_nums[0] = GPIO_NUM_14;
-  panel_config.data_gpio_nums[1] = GPIO_NUM_38;
-  panel_config.data_gpio_nums[2] = GPIO_NUM_18;
-  panel_config.data_gpio_nums[3] = GPIO_NUM_17;
-  panel_config.data_gpio_nums[4] = GPIO_NUM_10;
-  panel_config.data_gpio_nums[5] = GPIO_NUM_39;
-  panel_config.data_gpio_nums[6] = GPIO_NUM_0;
-  panel_config.data_gpio_nums[7] = GPIO_NUM_45;
-  panel_config.data_gpio_nums[8] = GPIO_NUM_48;
-  panel_config.data_gpio_nums[9] = GPIO_NUM_47;
-  panel_config.data_gpio_nums[10] = GPIO_NUM_21;
-  panel_config.data_gpio_nums[11] = GPIO_NUM_1;
-  panel_config.data_gpio_nums[12] = GPIO_NUM_2;
-  panel_config.data_gpio_nums[13] = GPIO_NUM_42;
-  panel_config.data_gpio_nums[14] = GPIO_NUM_41;
-  panel_config.data_gpio_nums[15] = GPIO_NUM_40;
-  panel_config.flags.fb_in_psram = 1;
-
-  esp_lcd_panel_handle_t panel_handle = nullptr;
-  ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&panel_config, &panel_handle));
-  ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
-  ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-  return panel_handle;
+void set_ch422g_outputs(uint8_t outputs) {
+  g_ch422g_outputs = outputs;
+  ESP_ERROR_CHECK(i2c_master_transmit(g_ch422g_out, &g_ch422g_outputs, 1, -1));
 }
 
-// GT911 — même logique de repli que service_screen.cpp::init_touch() :
-// tactile non indispensable pour ce test visuel, on continue sans lui en
-// cas d'échec (observé possible au tout premier accès I2C post-reset).
-esp_lcd_touch_handle_t init_touch() {
-  esp_lcd_panel_io_i2c_config_t tp_io_config{};
-  tp_io_config.dev_addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS;
-  tp_io_config.scl_speed_hz = 400000;
-  tp_io_config.control_phase_bytes = 1;
-  tp_io_config.dc_bit_offset = 0;
-  tp_io_config.lcd_cmd_bits = 16;
-  tp_io_config.flags.disable_control_phase = 1;
+void init_ch422g() {
+  i2c_master_bus_config_t bus{};
+  bus.i2c_port = -1;
+  bus.sda_io_num = kI2cSda;
+  bus.scl_io_num = kI2cScl;
+  bus.clk_source = I2C_CLK_SRC_DEFAULT;
+  bus.glitch_ignore_cnt = 7;
+  bus.flags.enable_internal_pullup = true;
+  i2c_master_bus_handle_t bus_handle = nullptr;
+  ESP_ERROR_CHECK(i2c_new_master_bus(&bus, &bus_handle));
 
-  esp_lcd_touch_config_t tp_cfg{};
-  tp_cfg.x_max = kLcdHRes;
-  tp_cfg.y_max = kLcdVRes;
-  tp_cfg.rst_gpio_num = GPIO_NUM_NC;  // TP_RST déjà géré par ch422g_bringup()
-  tp_cfg.int_gpio_num = GPIO_NUM_NC;  // pas câblé sur ce banc, lecture par scrutation
-  tp_cfg.levels.reset = 0;
-  tp_cfg.levels.interrupt = 0;
+  i2c_device_config_t cfg{};
+  cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  cfg.device_address = kCh422gModeAddr;
+  cfg.scl_speed_hz = 400000;
+  i2c_master_dev_handle_t mode = nullptr;
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &cfg, &mode));
+  cfg.device_address = kCh422gOutAddr;
+  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &cfg, &g_ch422g_out));
+  const uint8_t mode_outputs = kCh422gModeOutputs;
+  ESP_ERROR_CHECK(i2c_master_transmit(mode, &mode_outputs, 1, -1));
 
-  constexpr int kAttempts = 3;
-  for (int attempt = 0; attempt < kAttempts; ++attempt) {
-    esp_lcd_panel_io_handle_t tp_io_handle = nullptr;
-    esp_err_t err = esp_lcd_new_panel_io_i2c(g_i2c_bus, &tp_io_config, &tp_io_handle);
-    if (err == ESP_OK) {
-      esp_lcd_touch_handle_t touch_handle = nullptr;
-      err = esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &touch_handle);
-      if (err == ESP_OK) {
-        return touch_handle;
-      }
-    }
-    ESP_LOGW(kTag, "GT911 init failed (attempt %d): %s", attempt + 1, esp_err_to_name(err));
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-  return nullptr;
+  // USB/CAN_SEL reste bas : CAN est hors scope et la console USB reste lisible.
+  set_ch422g_outputs(kSdCs);
+  vTaskDelay(pdMS_TO_TICKS(20));
+  set_ch422g_outputs(kSdCs | kLcdRst | kLcdBl);
+  vTaskDelay(pdMS_TO_TICKS(20));
+  set_ch422g_outputs(kSdCs | kLcdRst | kLcdBl | kTpRst);
+  vTaskDelay(pdMS_TO_TICKS(200));
 }
 
-void init_lvgl_port(esp_lcd_panel_handle_t panel_handle, esp_lcd_touch_handle_t touch_handle) {
-  lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
-  ESP_ERROR_CHECK(lvgl_port_init(&lvgl_cfg));
+esp_err_t status_handler(httpd_req_t* request) {
+  static constexpr char kResponse[] = "screen-lcd-test: Wi-Fi and HTTP running\n";
+  httpd_resp_set_type(request, "text/plain; charset=utf-8");
+  return httpd_resp_send(request, kResponse, HTTPD_RESP_USE_STRLEN);
+}
 
+void init_wifi_http() {
+  ESP_ERROR_CHECK(esp_netif_init());
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+  ESP_ERROR_CHECK(esp_netif_create_default_wifi_ap() != nullptr ? ESP_OK : ESP_FAIL);
+  wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
+  // Aucun credential et aucune ecriture NVS : AP ouvert, reserve au diagnostic.
+  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+  wifi_config_t ap{};
+  std::snprintf(reinterpret_cast<char*>(ap.ap.ssid), sizeof(ap.ap.ssid), "CoffeeFlow-LCD-Diag");
+  ap.ap.ssid_len = std::strlen(reinterpret_cast<const char*>(ap.ap.ssid));
+  ap.ap.channel = 1;
+  ap.ap.max_connection = 1;
+  ap.ap.authmode = WIFI_AUTH_OPEN;
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
+  ESP_ERROR_CHECK(esp_wifi_start());
+
+  httpd_handle_t server = nullptr;
+  httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
+  http_cfg.max_open_sockets = 1;
+  ESP_ERROR_CHECK(httpd_start(&server, &http_cfg));
+  const httpd_uri_t status{.uri = "/", .method = HTTP_GET, .handler = status_handler, .user_ctx = nullptr};
+  ESP_ERROR_CHECK(httpd_register_uri_handler(server, &status));
+}
+
+esp_lcd_panel_handle_t init_lcd() {
+  esp_lcd_rgb_panel_config_t cfg{};
+  cfg.clk_src = LCD_CLK_SRC_DEFAULT;
+  cfg.timings.pclk_hz = kPixelClockHz;
+  cfg.timings.h_res = kLcdHRes;
+  cfg.timings.v_res = kLcdVRes;
+  cfg.timings.hsync_pulse_width = 48;
+  cfg.timings.hsync_back_porch = 88;
+  cfg.timings.hsync_front_porch = 40;
+  cfg.timings.vsync_pulse_width = 3;
+  cfg.timings.vsync_back_porch = 32;
+  cfg.timings.vsync_front_porch = 13;
+  cfg.timings.flags.pclk_active_neg = 1;
+  cfg.data_width = 16;
+  cfg.in_color_format = LCD_COLOR_FMT_RGB565;
+  cfg.out_color_format = LCD_COLOR_FMT_RGB565;
+  cfg.num_fbs = 1;
+  cfg.bounce_buffer_size_px = kBounceBufferSizePx;
+  cfg.hsync_gpio_num = GPIO_NUM_46;
+  cfg.vsync_gpio_num = GPIO_NUM_3;
+  cfg.de_gpio_num = GPIO_NUM_5;
+  cfg.pclk_gpio_num = GPIO_NUM_7;
+  cfg.disp_gpio_num = GPIO_NUM_NC;
+  constexpr gpio_num_t kDataPins[16] = {GPIO_NUM_14, GPIO_NUM_38, GPIO_NUM_18, GPIO_NUM_17,
+                                         GPIO_NUM_10, GPIO_NUM_39, GPIO_NUM_0, GPIO_NUM_45,
+                                         GPIO_NUM_48, GPIO_NUM_47, GPIO_NUM_21, GPIO_NUM_1,
+                                         GPIO_NUM_2, GPIO_NUM_42, GPIO_NUM_41, GPIO_NUM_40};
+  for (size_t i = 0; i < 16; ++i) cfg.data_gpio_nums[i] = kDataPins[i];
+  cfg.flags.fb_in_psram = 1;
+  esp_lcd_panel_handle_t panel = nullptr;
+  ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&cfg, &panel));
+  ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
+  ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
+  return panel;
+}
+
+void add_stripe(lv_obj_t* screen, int y, lv_color_t color) {
+  lv_obj_t* stripe = lv_obj_create(screen);
+  lv_obj_remove_style_all(stripe);
+  lv_obj_set_size(stripe, kLcdHRes, 80);
+  lv_obj_set_pos(stripe, 0, y);
+  lv_obj_set_style_bg_color(stripe, color, 0);
+  lv_obj_set_style_bg_opa(stripe, LV_OPA_COVER, 0);
+}
+
+void init_lvgl_and_pattern(esp_lcd_panel_handle_t panel) {
+  lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+  port_cfg.task_affinity = 1;
+  port_cfg.task_stack = 12 * 1024;
+  ESP_ERROR_CHECK(lvgl_port_init(&port_cfg));
   lvgl_port_display_cfg_t disp_cfg{};
-  disp_cfg.panel_handle = panel_handle;
+  disp_cfg.panel_handle = panel;
   disp_cfg.buffer_size = kLcdHRes * 60;
-  disp_cfg.double_buffer = false;
   disp_cfg.hres = kLcdHRes;
   disp_cfg.vres = kLcdVRes;
   disp_cfg.color_format = LV_COLOR_FORMAT_RGB565;
   disp_cfg.flags.buff_spiram = true;
-
   lvgl_port_display_rgb_cfg_t rgb_cfg{};
-  rgb_cfg.flags.bb_mode = 1;  // bounce buffer côté LVGL, en écho au bounce buffer esp_lcd
+  rgb_cfg.flags.bb_mode = 1;
+  ESP_ERROR_CHECK(lvgl_port_add_disp_rgb(&disp_cfg, &rgb_cfg) != nullptr ? ESP_OK : ESP_FAIL);
 
-  lv_display_t* disp = lvgl_port_add_disp_rgb(&disp_cfg, &rgb_cfg);
-  ESP_ERROR_CHECK(disp != nullptr ? ESP_OK : ESP_FAIL);
-
-  if (touch_handle != nullptr) {
-    lvgl_port_touch_cfg_t touch_cfg{};
-    touch_cfg.disp = disp;
-    touch_cfg.handle = touch_handle;
-    touch_cfg.scale.x = 1.0f;
-    touch_cfg.scale.y = 1.0f;
-    lv_indev_t* indev = lvgl_port_add_touch(&touch_cfg);
-    if (indev == nullptr) {
-      ESP_LOGW(kTag, "lvgl_port_add_touch failed");
-    }
-  }
-}
-
-lv_obj_t* g_counter_label = nullptr;
-
-void counter_timer_cb(lv_timer_t* /*timer*/) {
-  static uint32_t tick = 0;
-  char buf[16];
-  std::snprintf(buf, sizeof(buf), "%lu", static_cast<unsigned long>(tick++));
-  lv_label_set_text(g_counter_label, buf);
-}
-
-// UI minimale : "Hello world" statique + un compteur qui change toutes les
-// 200 ms (seule condition qui reproduit le glitch résiduel observé dans
-// firmware/screen/main/service_screen.cpp — un contenu figé ne suffit pas).
-// Rien d'autre : pas de flux d'événements, pas de cœur, pas de CAN.
-void build_ui() {
-  lv_obj_t* scr = lv_screen_active();
-  lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
-
-  lv_obj_t* label = lv_label_create(scr);
+  ESP_ERROR_CHECK(lvgl_port_lock(0) ? ESP_OK : ESP_ERR_TIMEOUT);
+  lv_obj_t* screen = lv_screen_active();
+  lv_obj_remove_style_all(screen);
+  lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+  add_stripe(screen, 0, lv_palette_main(LV_PALETTE_RED));
+  add_stripe(screen, 80, lv_palette_main(LV_PALETTE_YELLOW));
+  add_stripe(screen, 160, lv_palette_main(LV_PALETTE_GREEN));
+  add_stripe(screen, 240, lv_palette_main(LV_PALETTE_BLUE));
+  add_stripe(screen, 320, lv_palette_main(LV_PALETTE_PURPLE));
+  add_stripe(screen, 400, lv_palette_main(LV_PALETTE_ORANGE));
+  lv_obj_t* label = lv_label_create(screen);
   lv_obj_set_style_text_color(label, lv_color_white(), 0);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-  lv_label_set_text(label, "Hello world");
+#if CONFIG_LCD_TEST_WIFI_FIRST
+  lv_label_set_text(label, "Wi-Fi + HTTP  ->  LCD / LVGL");
+#else
+  lv_label_set_text(label, "LCD / LVGL  ->  Wi-Fi + HTTP");
+#endif
   lv_obj_center(label);
-
-  g_counter_label = lv_label_create(scr);
-  lv_obj_set_style_text_color(g_counter_label, lv_color_white(), 0);
-  lv_obj_set_pos(g_counter_label, 4, 4);
-  lv_label_set_text(g_counter_label, "0");
-
-  lv_timer_create(counter_timer_cb, 200, nullptr);
+  lvgl_port_unlock();
 }
 
+// app_main tourne sur le cœur 0 (CONFIG_ESP_MAIN_TASK_AFFINITY_CPU0) alors
+// que LVGL est épinglé au cœur 1 (task_affinity ci-dessus) : comme dans
+// firmware/screen/main/service_screen.cpp (docs/screen-issue.md), l'ISR DMA
+// du panneau RGB doit être installée depuis le même cœur que LVGL, sinon
+// les deux cœurs se disputent la PSRAM et le texte saute/décale.
+void lcd_and_lvgl_task(void* arg) {
+  init_lvgl_and_pattern(init_lcd());
+  xSemaphoreGive(static_cast<SemaphoreHandle_t>(arg));
+  vTaskDelete(nullptr);
+}
+
+void init_lcd_and_lvgl_on_core1() {
+  SemaphoreHandle_t done = xSemaphoreCreateBinary();
+  ESP_ERROR_CHECK(done != nullptr ? ESP_OK : ESP_ERR_NO_MEM);
+  BaseType_t created =
+      xTaskCreatePinnedToCore(lcd_and_lvgl_task, "lcd_lvgl_init", 12 * 1024, done, 3, nullptr, 1);
+  ESP_ERROR_CHECK(created == pdPASS ? ESP_OK : ESP_FAIL);
+  xSemaphoreTake(done, portMAX_DELAY);
+  vSemaphoreDelete(done);
+}
 }  // namespace
 
 extern "C" void app_main() {
-  ESP_LOGI(kTag, "screen-lcd-test: bring-up CH422G");
-  ch422g_bringup();
-
-  ESP_LOGI(kTag, "screen-lcd-test: init panneau RGB (timings hello_waveshare.ino)");
-  esp_lcd_panel_handle_t panel_handle = init_rgb_panel();
-
-  ESP_LOGI(kTag, "screen-lcd-test: backlight ON");
-  ch422g_backlight(true);
-
-  ESP_LOGI(kTag, "screen-lcd-test: init GT911");
-  esp_lcd_touch_handle_t touch_handle = init_touch();
-  if (touch_handle == nullptr) {
-    ESP_LOGW(kTag, "GT911 absent, on continue sans tactile");
-  }
-
-  ESP_LOGI(kTag, "screen-lcd-test: init LVGL port");
-  init_lvgl_port(panel_handle, touch_handle);
-
-  if (lvgl_port_lock(0)) {
-    build_ui();
-    lvgl_port_unlock();
-  }
-
-  ESP_LOGI(kTag, "screen-lcd-test: pret");
+  // Comme storage::init() dans firmware/screen : NVS doit être prêt avant
+  // esp_wifi_init(), qui l'ouvre en interne pour la calibration radio.
+  ESP_ERROR_CHECK(nvs_flash_init());
+  ESP_LOGI(kTag, "initialisation CH422G");
+  init_ch422g();
+#if CONFIG_LCD_TEST_WIFI_FIRST
+  ESP_LOGI(kTag, "ordre test: Wi-Fi/HTTP avant LCD");
+  init_wifi_http();
+  init_lcd_and_lvgl_on_core1();
+#else
+  ESP_LOGI(kTag, "ordre controle: LCD avant Wi-Fi/HTTP");
+  init_lcd_and_lvgl_on_core1();
+  init_wifi_http();
+#endif
+  ESP_LOGI(kTag, "mire prete; AP CoffeeFlow-LCD-Diag, HTTP /");
 }

@@ -1,0 +1,14 @@
+menu "LCD/Wi-Fi diagnostic"
+
+choice LCD_TEST_INIT_ORDER
+    prompt "Ordre d'initialisation teste"
+    default LCD_TEST_WIFI_FIRST
+
+config LCD_TEST_WIFI_FIRST
+    bool "Wi-Fi + HTTP avant LCD/LVGL (ordre suspect)"
+
+config LCD_TEST_LCD_FIRST
+    bool "LCD/LVGL avant Wi-Fi + HTTP (controle)"
+
+endchoice
+endmenu

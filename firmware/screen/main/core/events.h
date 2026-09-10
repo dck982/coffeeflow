@@ -16,6 +16,11 @@ enum class EventKind : uint8_t {
   kBoot,
   kCanPresenceLost,
   kCanPresenceRestored,
+  kWifiApStarted,
+  kWifiConnected,
+  kWifiDisconnected,
+  kNetworkForgotten,
+  kTimeKnown,
 };
 
 struct Event {

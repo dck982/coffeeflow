@@ -129,7 +129,13 @@ Une source expose un échantillon `{ horodatage, valeur brute, validité }` ; la
 
 ### Réseau
 
-Les identifiants Wi-Fi sont saisis une fois — au tactile ou via un point d'accès temporaire et une page d'accueil — et stockés en **NVS** (pas d'EEPROM sur ESP32). Ils n'apparaissent jamais dans le source. Un secret HTTP partagé vit dans un en-tête non commité, utilisé en `Authorization`. Le serveur est en HTTP, pas HTTPS : le secret évite juste que le LAN soit un jouet.
+Les identifiants Wi-Fi sont saisis via un point d'accès temporaire et une page
+d'accueil, puis stockés en **NVS** (pas d'EEPROM sur ESP32). Leur existence
+définit le mode : absents → AP, présents → STA ; une panne STA ne réactive
+jamais l'AP, seul « oublier le réseau » efface explicitement les identifiants.
+Ils n'apparaissent jamais dans le source. Un secret HTTP partagé vit dans un
+en-tête non commité, utilisé en `Authorization`. Le serveur est en HTTP, pas
+HTTPS : le secret évite juste que le LAN soit un jouet.
 
 Première mouture de l'API :
 
@@ -198,19 +204,19 @@ travaux concurrents.
 
 #### `/config` — toute la configuration en un objet JSON
 
-**`GET /config` renvoie l'intégralité de ce qui est réglable, `POST /config` le
+**`GET /config` renvoie l'intégralité des réglages d'usage, `POST /config` le
 remplace.** Rien de configurable ne doit exister uniquement dans l'écran
-tactile : réglages d'infusion, profils, calibrations, seuils de veille. Deux
-raisons, et la première suffirait :
+tactile : réglages d'infusion, profils, seuils de veille. Les calibrations ne
+sont pas modifiables à l'exécution : le protocole hôte les écrit dans
+`core/calibration_machine.h`, versionné avec l'image écran. Deux raisons, et
+la première suffirait :
 
-- **Sauvegarde et restauration depuis un hôte distant.** Toutes ces valeurs
-  vivent en NVS sur une carte qu'on aura fermée dans la façade. Une calibration
-  perdue (flash raté, NVS effacée pour rattraper un SSID erroné, carte
-  remplacée) se remesure sur la machine, à la main, pendant une heure. Un
-  `curl > config.json` la rend gratuite.
-- **Régler autre part qu'au doigt.** Ajuster une carte dimmer → pression ou
-  une courbe de correction bas débit à coups de `−`/`+` sur un 4,3" est une
-  punition ; dans un éditeur de texte, c'est trivial.
+- **Sauvegarde et restauration depuis un hôte distant.** Ces valeurs vivent en
+  NVS sur une carte qu'on aura fermée dans la façade. Un `curl > config.json`
+  les rend récupérables.
+- **Régler autre part qu'au doigt.** Les calibrations sont faites rarement par
+  un protocole de mesure hôte et nécessitent de toute façon un build/flash ;
+  elles ne justifient pas une UI ou un format NVS de courbes prématuré.
 
 Règles qui rendent ça utilisable plutôt que dangereux :
 
@@ -241,11 +247,6 @@ Règles qui rendent ça utilisable plutôt que dangereux :
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
   "purge": { "pump_pct": 100, "max_s": 20 },
   "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
-  "calibration": {
-    "flow_k_pulses_per_l": 2382, "flow_low_correction": [],
-    "pressure_full_scale_bar": 10.0,
-    "dimmer_to_pressure": [], "pump_stall_pct": 20, "weight_anticipation_g": 1.5
-  },
   "profiles": []
 }
 ```
@@ -501,7 +502,10 @@ Ce ne sont pas les premiers firmwares. C'est pourquoi l'interface capteurs a cet
 - **Pré-infusion** — basse pression dans le ciel du groupe, pause sur la galette, puis rampe vers une cible qui peut être inférieure à 100 %. Le déclencheur sera vraisemblablement un **timer ou une détection de montée en pression** : à 0,5 ml/s le débitmètre est à ~1,2 impulsion par seconde, on verra à la calibration s'il apporte quelque chose.
 - **Flow control** — si la pression s'effondre (canalisation), on lève le pied. Piloté par la pression et le poids, pas par le débitmètre.
 
-Calibrations, toutes en NVS côté écran : facteur K du débitmètre et correction bas débit, pleine échelle du XDB401, carte dimmer → pression, seuil de calage de la pompe, grammes d'anticipation. Un remplacement de XIAO ne fait rien perdre.
+Calibrations côté écran : facteur K du débitmètre et correction bas débit,
+pleine échelle du XDB401, carte dimmer → pression, seuil de calage de la
+pomme, grammes d'anticipation. Elles sont versionnées dans l'image écran après
+le protocole de mesure hôte ; un remplacement de XIAO ne fait rien perdre.
 
 ---
 

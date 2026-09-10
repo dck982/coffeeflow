@@ -1,5 +1,13 @@
 # Firmware écran
 
+## Secrets locaux
+
+`main/secrets.h` est ignoré par Git. Ne jamais le lire, l'afficher, le
+rechercher ou l'inclure dans une sortie de commande : il contient le mot de
+passe WPA2 de provisioning et, à partir du lot 5, le jeton HTTP. Le
+compilateur est le seul consommateur autorisé. Le contrat versionné est
+`main/secrets.example.h`.
+
 ## Labels LVGL
 
 `lv_label_set_text()` invalide toujours le widget, même si la chaîne est

@@ -7,15 +7,14 @@
 #include "freertos/task.h"
 
 #include "can_link.h"
+#include "core/calibration_machine.h"
 #include "common/messages.hpp"
 
 namespace core {
 namespace {
 
-// Calibration provisoire du lot 3. Le lot 4 les déplacera dans NVS, sans
-// modifier les consommateurs de Snapshot.
-constexpr float kPressureFullScaleBar = 10.0f;
-constexpr float kFlowPulsesPerLiter = 2382.0f;
+constexpr float kPressureFullScaleBar = calibration_machine::kPressureFullScaleBar;
+constexpr float kFlowPulsesPerLiter = calibration_machine::kFlowPulsesPerLiter;
 constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmesa
 constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
@@ -48,6 +47,7 @@ struct State {
   int64_t last_request_us = 0;
 };
 State g_state;
+ForgetNetworkCallback g_forget_network_callback = nullptr;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
@@ -132,7 +132,7 @@ void telemetry_task(void*) {
 
 }  // namespace
 
-void init() {}
+void init() { config_init(); }
 
 void start_telemetry_task() {
   xTaskCreatePinnedToCore(telemetry_task, "telemetry", 4096, nullptr, 6, nullptr, 0);
@@ -225,6 +225,39 @@ void on_log(const uint8_t* data, uint8_t len) {
   g_state.snapshot.sensors_twai_tx_errors = static_cast<uint8_t>(payload.arg16 & 0xFF);
   g_state.snapshot.sensors_twai_bus_errors = payload.arg32;
   portEXIT_CRITICAL(&g_state.lock);
+}
+
+void update_network_status(NetworkState state, uint32_t ipv4_address) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.network_state = static_cast<uint8_t>(state);
+  g_state.snapshot.ipv4_address = ipv4_address;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void mark_wall_time_known(int64_t unix_s) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.time_known = unix_s > 0;
+  g_state.snapshot.wall_time_unix_s = unix_s;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget_network_callback = callback; }
+void forget_network() { if (g_forget_network_callback != nullptr) g_forget_network_callback(); }
+
+DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
+  Snapshot snapshot = get_snapshot();
+  if (!snapshot.sensors_alive) return DiagnosticStatus::kBusLost;
+  if (snapshot.lockout) return DiagnosticStatus::kLocked;
+  if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return DiagnosticStatus::kDimmerNotReady;
+  common::SetPayload command;
+  command.set_ssr = true;
+  command.set_dimmer = true;
+  command.ssr = enabled;
+  command.dimmer = enabled ? pump_pct : 0;
+  command.ttl_ms = enabled ? 750 : 0;
+  common::Frame frame = command.pack();
+  can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 5);
+  return DiagnosticStatus::kOk;
 }
 
 Snapshot get_snapshot() {

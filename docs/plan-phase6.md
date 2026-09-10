@@ -482,17 +482,18 @@ Contenu :
 
 1. Station Wi-Fi, identifiants en NVS (espace de noms dédié, exclu de
    `/config`), reconnexion automatique avec temporisation croissante.
-2. Point d'accès de secours au déclencheur décidé plus haut, avec une page
-   d'accueil servie en HTTP proposant les réseaux vus et un formulaire. Après
-   enregistrement : bascule en station, et retour à l'AP si l'association
-   échoue de nouveau.
+2. Point d'accès de provisioning lorsque les credentials sont absents, avec une
+   page d'accueil HTTP et un formulaire. Leur présence sélectionne STA ; une
+   perte du réseau ne remet jamais l'AP, l'écran expose le diagnostic et
+   l'utilisateur choisit explicitement « oublier le réseau ».
 3. **Action « oublier le réseau »** du cœur : effacement de l'espace de noms
    Wi-Fi, retour immédiat en point d'accès. C'est ce que le bouton
    *réinitialiser le réseau* des réglages appellera au lot 10, et ce que le
    HTTP expose dès le lot 5.
 4. Magasin de configuration : clés et bornes de la table de `ui.md` (espace de
-   noms `ui`) et calibrations de `firmware.md` (espace de noms `cal`), valeurs
-   par défaut à la première ouverture, validation tout ou rien.
+   noms `ui`), valeurs par défaut à la première ouverture, validation tout ou
+   rien. Les calibrations sont versionnées dans l'image écran, hors NVS et
+   hors `/config` ; courbes et profils restent réservés mais vides.
 5. En-tête de secrets non commité, fichier d'exemple versionné, entrée
    `.gitignore`, échec de compilation explicite s'il manque.
 6. **SNTP à l'association**, fuseau `CET-1CEST,M3.5.0,M10.5.0/3` (Suisse, avec

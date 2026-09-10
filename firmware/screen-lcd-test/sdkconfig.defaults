@@ -6,6 +6,11 @@ CONFIG_IDF_TARGET="esp32s3"
 
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
+# Même table que l'écran : contrôle la taille contre un slot OTA de 3500 KiB,
+# pas contre la partition factory de 1 MiB du défaut ESP-IDF.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
 # PSRAM 8 Mo, nécessaire pour le framebuffer RGB 800x480 (LVGL).
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
@@ -13,6 +18,10 @@ CONFIG_SPIRAM_SPEED_80M=y
 
 # LVGL : police montserrat par défaut, juste pour le "Hello world".
 CONFIG_LV_FONT_MONTSERRAT_20=y
+
+# Variante A/B : passer a CONFIG_LCD_TEST_LCD_FIRST=y pour le controle.
+CONFIG_LCD_TEST_WIFI_FIRST=y
+# CONFIG_LCD_TEST_LCD_FIRST is not set
 
 CONFIG_ESP_TASK_WDT_EN=y
 

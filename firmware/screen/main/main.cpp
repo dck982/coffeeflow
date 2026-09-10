@@ -28,6 +28,8 @@
 #include "ota_local.h"
 #include "serial_bridge.h"
 #include "service_screen.h"
+#include "storage.h"
+#include "net_wifi.h"
 #include "core/core.h"
 
 extern "C" void app_main() {
@@ -47,6 +49,7 @@ extern "C" void app_main() {
   // PING/PONG confirmé sur le bus, ou rollback au bout du délai prévu.
   ota_local::init_pending_verify();
 
+  storage::init();
   can_link::init();
   core::init();
 
@@ -62,10 +65,16 @@ extern "C" void app_main() {
   ota_local::start_validation_task();
   core::start_telemetry_task();
 
-  can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
-
   // Écran de service (docs/plan-phase6.md, lot 2) : après le pont et le CAN,
   // pour que le conflit CH422G (dalle vs CAN_SEL) se révèle contre un bus
   // déjà vivant plutôt qu'un bus qui n'a jamais tourné.
+  // Il doit aussi précéder Wi-Fi : les buffers RGB DMA ont besoin de RAM
+  // interne contiguë, que la pile radio et httpd peuvent fragmenter.
   service_screen::init();
+
+  // Radio, callbacks et serveur de provisioning sur le cœur 0. L'init LCD
+  // est maintenant terminée sur le cœur 1 avant les allocations Wi-Fi.
+  net_wifi::init();
+
+  can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
 }

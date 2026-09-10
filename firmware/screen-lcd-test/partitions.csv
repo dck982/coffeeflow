@@ -1,0 +1,13 @@
+# Table propre à ce firmware jetable, flashé directement par idf.py flash
+# (pas par OTA) : la partition factory est agrandie pour loger le binaire de
+# diagnostic (~1,13 Mo). Ne pas répliquer cette taille dans
+# firmware/screen/partitions.csv ; la restauration de l'image factory de
+# production réécrit sa propre table, pas celle-ci.
+# Name,     Type, SubType,  Offset,  Size,  Flags
+nvs,        data, nvs,      ,        0x6000,
+phy_init,   data, phy,      ,        0x1000,
+otadata,    data, ota,      ,        0x2000,
+factory,    app,  factory,  ,        1408K,
+ota_0,      app,  ota_0,    ,        3500K,
+ota_1,      app,  ota_1,    ,        3500K,
+assets,     data, spiffs,   ,        4000K,

@@ -81,3 +81,15 @@
 - name: LCD_INIT_STEP
   severity: debug
   comment: Bisection du bring-up esp_lcd/GT911/lvgl_port (lot 2). arg16 = étape.
+- name: WIFI_CONNECTED
+  severity: info
+  comment: Association Wi-Fi et adresse IP obtenues.
+- name: WIFI_DISCONNECTED
+  severity: warn
+  comment: Station Wi-Fi déconnectée ; pas de repli AP automatique si les credentials existent.
+- name: WIFI_AP_STARTED
+  severity: info
+  comment: Point d'accès de provisioning démarré car aucun credential n'est enregistré.
+- name: NETWORK_FORGOTTEN
+  severity: info
+  comment: Credentials Wi-Fi effacés explicitement ; retour AP.

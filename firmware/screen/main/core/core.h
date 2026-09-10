@@ -22,6 +22,7 @@
 
 #include <cstdint>
 
+#include "core/config.h"
 #include "core/events.h"
 
 namespace core {
@@ -65,9 +66,15 @@ struct Snapshot {
   uint16_t sensors_twai_rx_errors = 0;
   uint16_t sensors_twai_tx_errors = 0;
   uint32_t sensors_twai_bus_errors = 0;
+
+  uint8_t network_state = 0;  // NetworkState, évite une dépendance d'ordre dans Snapshot
+  uint32_t ipv4_address = 0;  // ordre réseau, 0 = aucune adresse
+  bool time_known = false;
+  int64_t wall_time_unix_s = 0;
 };
 
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
+enum class NetworkState : uint8_t { kApProvisioning, kStaConnecting, kStaConnected, kStaDisconnected };
 
 void init();
 void start_telemetry_task();
@@ -82,14 +89,16 @@ void on_status_actuators(const uint8_t* data, uint8_t len);
 void on_pong(const uint8_t* data, uint8_t len);
 void on_log(const uint8_t* data, uint8_t len);
 
-// --- Configuration (lot 4) ----------------------------------------------
-// Lecture de l'intégralité du réglable, écriture partielle validée tout ou
-// rien. Schéma et bornes : firmware.md / ui.md.
-struct Config {};
+void update_network_status(NetworkState state, uint32_t ipv4_address);
+void mark_wall_time_known(int64_t unix_s);
 
-// --- Actions (lot 9) -----------------------------------------------------
-// Chaque action répond acceptée ou refusée avec un motif. Table complète :
-// docs/plan-phase6.md, section "Actions".
-struct ActionResult {};
+using ForgetNetworkCallback = void (*)();
+void register_forget_network_callback(ForgetNetworkCallback callback);
+void forget_network();
+
+// Commande de banc strictement bornée : l'écran de service est client, seul
+// le cœur émet SET. La machine d'infusion complète reste le lot 9.
+enum class DiagnosticStatus : uint8_t { kOk, kBusLost, kDimmerNotReady, kLocked };
+DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct);
 
 }  // namespace core

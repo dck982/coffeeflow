@@ -644,6 +644,11 @@ value = 12.00
 unit = "mm"
 how = "user: Adafruit CAN Pal height, including the SLNT wire"
 
+[can_pal_pcb_height]
+value = 1.5
+unit = "mm"
+how = "user: Adafruit CAN Pal PCB height"
+
 [can_pal_hole_to_edge]
 value = 2.54
 unit = "mm"

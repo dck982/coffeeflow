@@ -1,6 +1,5 @@
 from nurb import *
 
-
 @assembly
 def ensemble_boitiers(
     epaisseur_paroi=1.68,

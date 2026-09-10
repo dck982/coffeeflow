@@ -82,32 +82,6 @@ def _xiao_area(body, outer, east_x, south_y, z0):
 
 # CAN Pal in the NE corner
 def _canpal_area(body, outer, east_x, north_y, z0, wall, west_x):
-
-# [can_pal_width]
-# value = 20.32
-# unit = "mm"
-# how = "user: Adafruit CAN Pal width, 0.8 inches"
-
-# [can_pal_length]
-# value = 20.32
-# unit = "mm"
-# how = "user: Adafruit CAN Pal length, 0.8 inches"
-
-# [can_pal_slnt_room]
-# value = 4.00
-# unit = "mm"
-# how = "user: extra room for the SLNT wire at the top terminal GND"
-
-# [can_pal_height]
-# value = 12.00
-# unit = "mm"
-# how = "user: Adafruit CAN Pal height, including the SLNT wire"
-
-# [can_pal_hole_to_edge]
-# value = 2.54
-# unit = "mm"
-# how = "user: Adafruit CAN Pal distance from edge to hole center, 0.1 inches"
-
     module_w = measured("can_pal_width")
     module_l = measured("can_pal_length")
     # place the module 5mm above floor (heat inserts need 4)
@@ -139,11 +113,14 @@ def _canpal_area(body, outer, east_x, north_y, z0, wall, west_x):
             wall, module_l/2, z0, module_z0)
     
     # Add a perpendicular wall to stop the module on the south
-    # and have it lie on that wall (where connectors are pushed down)
+    pcb_h = measured("can_pal_pcb_height")
     body = _add_wall(body, outer,
         west_edge_x, top_y-module_l-wall, 
-        module_w, wall, z0, module_z0 + 1.0)
-
+        module_w, wall, z0, module_z0 + pcb_h)
+    # Then a little overhang to hold the PCB
+    body = _add_wall(body, outer,
+        west_edge_x, top_y-module_l-wall, 
+        module_w, wall+1.0, z0 + module_z0 + pcb_h, 1.0)
 
     return body
 
@@ -168,7 +145,7 @@ def _surplomb_xz(x, y, z, sw, slen, z0, inverse=False):
     )
 
 # Definition of a compartment for wago connectors laying on their side, in a NW corner
-def _wago_nw(body, outer, west_x, north_y, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall):
+def _wago_nw(body, outer, west_x, north_y, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall, count=1):
     area_dy = measured("wago_profondeur")
     area_dz = area_dz+wago_raise
 
@@ -180,10 +157,14 @@ def _wago_nw(body, outer, west_x, north_y, area_dx, area_dz, wago_raise, surplom
         z0, area_dz + surplomb_w)
 
     # Add a parallel wall in the middle to raise the WAGO
-    body = _add_wall(body, outer,
-        west_x + (area_dx - wall) / 2.0, north_y - area_dy,
-        wall, area_dy,
-        z0, wago_raise)
+    wx = west_x
+    for widx in range(count):
+        dwx = (area_dx - wall) / (count+1)
+        wx += dwx
+        body = _add_wall(body, outer,
+            wx, north_y - area_dy,
+            wall, area_dy,
+            z0, wago_raise)
 
     # Add a perpendicular wall to stop the WAGO from sliding out
     catch_height = 1.0
@@ -205,7 +186,9 @@ def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, sur
     area_dx = measured("wago_epaisseur")*2
     dz_412 = measured("wago_412_largeur")
     dz_423 = measured("wago_423_largeur")
-    body = body + _wago_nw(body, outer, west_x, north_y, area_dx, dz_412, wago_raise, surplomb_len, surplomb_w, z0, wall)
+    body = body + _wago_nw(body, outer, 
+        west_x, north_y, area_dx, dz_412, 
+        wago_raise, surplomb_len, surplomb_w, z0, wall, count=2)
     # add a surplomb on the left for the 423
     body = body + _surplomb_xz(west_x, north_y, dz_423, surplomb_w, surplomb_len, z0, inverse=True)
     return body

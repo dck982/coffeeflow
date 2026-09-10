@@ -23,16 +23,24 @@ def _contour(vide_haut, degagement_vis, west_x=None, east_x=None, south_y=None):
         east_x = x_max
     if south_y is None:
         south_y = aile_y
-    return [
-        (west_x, south_y),
-        (east_x, south_y),
-        (east_x, y_max),
-        (encoche_est, y_max),
-        (encoche_est, gout_haut),
-        (gout_x, gout_haut),
-        (gout_x, y_max),
-        (west_x, y_max),
-    ]
+    return ([
+            (west_x, south_y),
+            (east_x, south_y),
+            (east_x, y_max),
+            (encoche_est, y_max),
+            (encoche_est, gout_haut),
+            (gout_x, gout_haut),
+            (gout_x, y_max),
+            (west_x, y_max),
+        ],
+        west_x,
+        south_y,
+        east_x,
+        y_max,
+        gout_x,
+        encoche_est,
+        gout_haut
+    )
 
 
 def _gousset_section(run):
@@ -489,7 +497,17 @@ def boitier_ac(
     ac_east_shift = 1.5
     ac_south_shift = 4.0
     x_east_fente = x_max - 1.0
-    outer_pts_outer = _contour(
+
+    (
+        outer_pts_outer, 
+        west_x, 
+        south_y, 
+        east_x, 
+        north_y, 
+        west_encoche_x, 
+        east_encoche_x, 
+        south_encoche_y 
+    )  = _contour(
         gouttiere_vide_haut,
         degagement_vis,
         west_x=aile_x - ac_west_shift,
@@ -500,6 +518,13 @@ def boitier_ac(
     # wall thickness consistent and avoids degenerate ultra-thin east walls
     # that can crash the polish/border analysis in nurb.
     inner_pts = offset_in(outer_pts_outer, wall)
+    inner_west_x = west_x + wall
+    inner_east_x = east_x - wall
+    inner_north_y = north_y - wall
+    inner_south_y = south_y + wall
+    inner_west_encoche_x = west_encoche_x-wall
+    inner_east_encoche_x = east_encoche_x+wall
+    inner_north_encoche_y = south_encoche_y-wall
 
     outer = extrude(Polygon(*outer_pts_outer, align=None), hauteur)
     cavity = Pos(0, 0, z0) * extrude(
@@ -746,33 +771,15 @@ def boitier_ac(
             on_ouest
             and abs(my - mid) <= y_tol
             and bb.min.Z > ssr_z - 0.5
-        )
-
-    def in_angle_nw_outer(bb):
-        """Outer NW corner (x = x_outer_west, y = y_max): left square so it
-        reads as one continuous face with boitier_dc's outer NE corner
-        across the seam in `ensemble_boitiers`."""
-        mx = 0.5 * (bb.min.X + bb.max.X)
-        my = 0.5 * (bb.min.Y + bb.max.Y)
-        return abs(mx - x_outer_west) < 1.2 and abs(my - y_max) < 1.2
+        )    
 
     def keep(edge):
         c = edge.center()
         if (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) in conc:
             return False
-        # No polish on the opening, platform or support bar: the north-wall
-        # Z edges of the cutout were a 1 mm chamfer the user does not want.
-        if vis_x0 <= c.X <= vis_x1 and c.Y >= vis_y0:
-            return False
-        if muret_x0 <= c.X <= muret_x1 and c.Y >= vis_y0:
-            return False
-        if butee_skip_x0 <= c.X <= butee_skip_x1 and c.Y >= vis_y0:
-            return False
-        if in_fente(edge.bounding_box()) or in_fente_ouest(edge.bounding_box()):
-            return False
-        if in_angle_nw_outer(edge.bounding_box()):
-            return False
-        return True
+        if c.X > inner_east_x:
+            return True
+        return False
 
     def fente_keep(edge):
         bb = edge.bounding_box()

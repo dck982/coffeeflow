@@ -16,8 +16,8 @@
 // que net_http et ui/ incluent du côté machine. Un fichier d'UI ou de HTTP
 // qui inclut can_link.h franchit la frontière.
 //
-// La face sorties est réelle depuis le lot 3. Configuration et actions restent
-// des emplacements réservés pour les lots 4 et 9.
+// Faces réelles : sorties (lot 3), configuration (lot 4), actions de banc
+// (lot 5, commande brute). Infusion et purge restent le lot 9.
 #pragma once
 
 #include <cstdint>
@@ -71,6 +71,14 @@ struct Snapshot {
   uint32_t ipv4_address = 0;  // ordre réseau, 0 = aucune adresse
   bool time_known = false;
   int64_t wall_time_unix_s = 0;
+
+  uint32_t pressure_raw = 0;
+  uint16_t temperature_raw = 0;
+
+  uint8_t screen_version_major = 0;
+  uint8_t screen_version_minor = 0;
+  uint8_t screen_version_patch = 0;
+  uint32_t screen_uptime_s = 0;
 };
 
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
@@ -96,9 +104,49 @@ using ForgetNetworkCallback = void (*)();
 void register_forget_network_callback(ForgetNetworkCallback callback);
 void forget_network();
 
+ConfigResult put_config(const Config& candidate);
+
+void note_http_auth_refused();
+void note_config_rejected(const char* field);
+
 // Commande de banc strictement bornée : l'écran de service est client, seul
 // le cœur émet SET. La machine d'infusion complète reste le lot 9.
 enum class DiagnosticStatus : uint8_t { kOk, kBusLost, kDimmerNotReady, kLocked };
 DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct);
+
+enum class Action : uint8_t {
+  kSetActuators,
+  kStartBrew,
+  kStopBrew,
+  kPurgePress,
+  kPurgeRelease,
+  kTare,
+  kDismissSummary,
+  kStartFlash,
+};
+
+enum class ActionStatus : uint8_t {
+  kOk,
+  kUnavailable,
+  kBusLost,
+  kLocked,
+  kDimmerNotReady,
+  kCycleActive,
+  kInvalidValue,
+};
+
+struct ActionCommand {
+  Action action = Action::kSetActuators;
+  bool ssr = false;
+  uint8_t dimmer = 0;
+  uint16_t ttl_ms = 0;
+};
+
+struct ActionResult {
+  ActionStatus status = ActionStatus::kOk;
+  const char* reason = "ok";
+};
+
+ActionResult perform_action(const ActionCommand& command);
 
 }  // namespace core

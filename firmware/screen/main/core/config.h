@@ -36,7 +36,7 @@ struct Config {
 // existeront ; ne pas leur réserver des tableaux arbitraires aujourd'hui.
 inline constexpr bool kProfilesSupported = false;
 
-enum class ConfigStatus : uint8_t { kOk, kVersionMismatch, kStaleRevision, kInvalidValue, kStorageError };
+enum class ConfigStatus : uint8_t { kOk, kVersionMismatch, kStaleRevision, kInvalidValue, kStorageError, kBusy };
 struct ConfigResult { ConfigStatus status = ConfigStatus::kOk; const char* field = nullptr; };
 
 // Initialise/charge les deux emplacements transactionnels NVS. À appeler

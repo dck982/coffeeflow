@@ -41,22 +41,24 @@ bool valid_step(float value, float min, float max, float step) {
 
 const char* validate(const Config& c) {
   if (c.version != kConfigSchemaVersion) return "version";
-  if (!valid_step(c.target_weight_g, 10, 100, .5f)) return "target_weight_g";
-  if (c.target_time_s < 5 || c.target_time_s > 60) return "target_time_s";
-  if (c.preinfusion_mode != PreinfusionMode::kTime && c.preinfusion_mode != PreinfusionMode::kPressure) return "preinfusion_mode";
-  if (c.preinfusion_time_s > 20) return "preinfusion_time_s";
-  if (!valid_step(c.preinfusion_pressure_bar, 1, 9, .5f)) return "preinfusion_pressure_bar";
-  if (c.preinfusion_pump_pct > 100 || c.preinfusion_pump_pct % 5) return "preinfusion_pump_pct";
-  if (c.rampdown_mode > RampdownMode::kPressureDrop) return "rampdown_mode";
-  if (!valid_step(c.rampdown_lead_time_s, 0, 15, .5f)) return "rampdown_lead_time_s";
-  if (!valid_step(c.rampdown_lead_weight_g, 0, 20, .5f)) return "rampdown_lead_weight_g";
-  if (!valid_step(c.rampdown_pressure_drop_bar, .5f, 4, .5f)) return "rampdown_pressure_drop_bar";
-  if (c.brew_pump_pct < 20 || c.brew_pump_pct > 100 || c.brew_pump_pct % 5) return "brew_pump_pct";
-  if (c.purge_pump_pct < 20 || c.purge_pump_pct > 100 || c.purge_pump_pct % 5) return "purge_pump_pct";
-  if (c.purge_max_s < 5 || c.purge_max_s > 60 || c.purge_max_s % 5) return "purge_max_s";
-  if (c.dim_after_s < 60 || c.dim_after_s > 1800 || c.dim_after_s % 60) return "dim_after_s";
-  if (c.standby_after_s < 300 || c.standby_after_s > 3600 || c.standby_after_s % 300) return "standby_after_s";
-  if (c.standby_after_s < c.dim_after_s) return "standby_after_s";
+  if (!valid_step(c.target_weight_g, 10, 100, .5f)) return "brew.target_weight_g";
+  if (c.target_time_s < 5 || c.target_time_s > 60) return "brew.target_time_s";
+  if (c.preinfusion_mode != PreinfusionMode::kTime && c.preinfusion_mode != PreinfusionMode::kPressure) {
+    return "preinfusion.mode";
+  }
+  if (c.preinfusion_time_s > 20) return "preinfusion.time_s";
+  if (!valid_step(c.preinfusion_pressure_bar, 1, 9, .5f)) return "preinfusion.pressure_bar";
+  if (c.preinfusion_pump_pct > 100 || c.preinfusion_pump_pct % 5) return "preinfusion.pump_pct";
+  if (c.rampdown_mode > RampdownMode::kPressureDrop) return "rampdown.mode";
+  if (!valid_step(c.rampdown_lead_time_s, 0, 15, .5f)) return "rampdown.lead_time_s";
+  if (!valid_step(c.rampdown_lead_weight_g, 0, 20, .5f)) return "rampdown.lead_weight_g";
+  if (!valid_step(c.rampdown_pressure_drop_bar, .5f, 4, .5f)) return "rampdown.pressure_drop_bar";
+  if (c.brew_pump_pct < 20 || c.brew_pump_pct > 100 || c.brew_pump_pct % 5) return "brew.pump_pct";
+  if (c.purge_pump_pct < 20 || c.purge_pump_pct > 100 || c.purge_pump_pct % 5) return "purge.pump_pct";
+  if (c.purge_max_s < 5 || c.purge_max_s > 60 || c.purge_max_s % 5) return "purge.max_s";
+  if (c.dim_after_s < 60 || c.dim_after_s > 1800 || c.dim_after_s % 60) return "ui.dim_after_s";
+  if (c.standby_after_s < 300 || c.standby_after_s > 3600 || c.standby_after_s % 300) return "ui.standby_after_s";
+  if (c.standby_after_s < c.dim_after_s) return "ui.standby_after_s";
   return nullptr;
 }
 

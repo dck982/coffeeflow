@@ -9,6 +9,8 @@
 #include "can_link.h"
 #include "core/calibration_machine.h"
 #include "common/messages.hpp"
+#include "common/version.hpp"
+#include "log_codes.hpp"
 
 namespace core {
 namespace {
@@ -48,6 +50,7 @@ struct State {
 };
 State g_state;
 ForgetNetworkCallback g_forget_network_callback = nullptr;
+bool g_cycle_active = false;  // lot 9 posera infusion/purge
 
 int64_t now_us() { return esp_timer_get_time(); }
 
@@ -103,6 +106,65 @@ void send_request(common::MessageType target, uint16_t period_ms) {
   can_link::send_message(common::MessageType::kReqStatus, common::Dest::kSensors, frame.data(), 3);
 }
 
+void send_set(bool ssr, uint8_t dimmer, uint16_t ttl_ms) {
+  common::SetPayload command;
+  command.set_ssr = true;
+  command.set_dimmer = true;
+  command.ssr = ssr;
+  command.dimmer = dimmer;
+  command.ttl_ms = ttl_ms;
+  common::Frame frame = command.pack();
+  can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 5);
+}
+
+uint16_t config_field_arg(const char* field) {
+  if (field == nullptr) return 0;
+  struct Entry { const char* name; uint16_t id; };
+  static constexpr Entry kFields[] = {
+      {"version", 1},
+      {"brew.target_weight_g", 2},
+      {"brew.target_time_s", 3},
+      {"brew.pump_pct", 4},
+      {"preinfusion.mode", 5},
+      {"preinfusion.time_s", 6},
+      {"preinfusion.pressure_bar", 7},
+      {"preinfusion.pump_pct", 8},
+      {"rampdown.mode", 9},
+      {"rampdown.lead_time_s", 10},
+      {"rampdown.lead_weight_g", 11},
+      {"rampdown.pressure_drop_bar", 12},
+      {"purge.pump_pct", 13},
+      {"purge.max_s", 14},
+      {"ui.dim_after_s", 15},
+      {"ui.standby_after_s", 16},
+      {"profiles", 17},
+      {"brew", 18},
+      {"preinfusion", 19},
+      {"rampdown", 20},
+      {"purge", 21},
+      {"ui", 22},
+  };
+  for (const Entry& entry : kFields) {
+    if (std::strcmp(entry.name, field) == 0) return entry.id;
+  }
+  return 0;
+}
+
+const char* action_reason(ActionStatus status) {
+  switch (status) {
+    case ActionStatus::kOk: return "ok";
+    case ActionStatus::kUnavailable: return "unavailable";
+    case ActionStatus::kBusLost: return "bus_lost";
+    case ActionStatus::kLocked: return "locked";
+    case ActionStatus::kDimmerNotReady: return "dimmer_not_ready";
+    case ActionStatus::kCycleActive: return "cycle_active";
+    case ActionStatus::kInvalidValue: return "invalid_value";
+  }
+  return "unavailable";
+}
+
+ActionResult action_result(ActionStatus status) { return {status, action_reason(status)}; }
+
 void telemetry_task(void*) {
   for (;;) {
     TelemetryProfile profile;
@@ -155,6 +217,8 @@ void on_status_pressure(const uint8_t* data, uint8_t len) {
   g_state.last_sensors_message_us = now;
   g_state.pressure_received_us = now;
   g_state.snapshot.pressure_valid = (payload.flags & 0x01) != 0;
+  g_state.snapshot.pressure_raw = payload.pressure_raw;
+  g_state.snapshot.temperature_raw = payload.temperature_raw;
   if (g_state.snapshot.pressure_valid) {
     g_state.snapshot.pressure_bar = decode_pressure_bar(payload.pressure_raw);
     g_state.snapshot.temperature_c = decode_temperature_c(payload.temperature_raw);
@@ -244,20 +308,41 @@ void mark_wall_time_known(int64_t unix_s) {
 void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget_network_callback = callback; }
 void forget_network() { if (g_forget_network_callback != nullptr) g_forget_network_callback(); }
 
+ConfigResult put_config(const Config& candidate) {
+  if (g_cycle_active) return {ConfigStatus::kBusy, "cycle"};
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    ConfigResult result = apply_config(candidate, get_config().revision);
+    if (result.status != ConfigStatus::kStaleRevision) return result;
+  }
+  return {ConfigStatus::kStaleRevision, "revision"};
+}
+
+void note_http_auth_refused() {
+  can_link::send_log(common::LogCode::kHttpAuthRefused, common::LogSeverity::kWarn);
+}
+
+void note_config_rejected(const char* field) {
+  can_link::send_log(common::LogCode::kConfigRejected, common::LogSeverity::kWarn, config_field_arg(field));
+}
+
 DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
   Snapshot snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return DiagnosticStatus::kBusLost;
   if (snapshot.lockout) return DiagnosticStatus::kLocked;
   if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return DiagnosticStatus::kDimmerNotReady;
-  common::SetPayload command;
-  command.set_ssr = true;
-  command.set_dimmer = true;
-  command.ssr = enabled;
-  command.dimmer = enabled ? pump_pct : 0;
-  command.ttl_ms = enabled ? 750 : 0;
-  common::Frame frame = command.pack();
-  can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 5);
+  send_set(enabled, enabled ? pump_pct : 0, enabled ? 750 : 0);
   return DiagnosticStatus::kOk;
+}
+
+ActionResult perform_action(const ActionCommand& command) {
+  if (command.action != Action::kSetActuators) return action_result(ActionStatus::kUnavailable);
+  if (command.dimmer > 100) return action_result(ActionStatus::kInvalidValue);
+  Snapshot snapshot = get_snapshot();
+  if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+  if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+  if (g_cycle_active) return action_result(ActionStatus::kCycleActive);
+  send_set(command.ssr, command.dimmer, command.ttl_ms);
+  return action_result(ActionStatus::kOk);
 }
 
 Snapshot get_snapshot() {
@@ -289,6 +374,10 @@ Snapshot get_snapshot() {
   result.sensors_alive = sensors_message != 0 && now - sensors_message <= 3 * 1000 * 1000;
   result.flow_last_edge_age_ms = age_ms(last_edge, now);
   if (last_edge == 0 || now - last_edge > static_cast<int64_t>(kFlowSilenceMs) * 1000) result.flow_ml_s = 0.0f;
+  result.screen_version_major = common::kFirmwareVersionMajor;
+  result.screen_version_minor = common::kFirmwareVersionMinor;
+  result.screen_version_patch = common::kFirmwareVersionPatch;
+  result.screen_uptime_s = static_cast<uint32_t>(now / 1000000);
   return result;
 }
 

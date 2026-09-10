@@ -19,6 +19,7 @@
 #include "core/core.h"
 #include "core/events.h"
 #include "can_link.h"
+#include "net_http.h"
 
 #if __has_include("secrets.h")
 #include "secrets.h"
@@ -140,6 +141,7 @@ void start_provisioning() {
 void stop_provisioning() { if (g_provisioning_server != nullptr) { httpd_stop(g_provisioning_server); g_provisioning_server = nullptr; } }
 
 void start_ap() {
+  net_http::stop();
   uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
   wifi_config_t ap{};
   std::snprintf(reinterpret_cast<char*>(ap.ap.ssid), sizeof(ap.ap.ssid), "CoffeeFlow-%02X%02X", mac[4], mac[5]);
@@ -208,6 +210,7 @@ void on_wifi_event(void*, esp_event_base_t, int32_t event_id, void*) {
   if (event_id == WIFI_EVENT_STA_START) { esp_wifi_connect(); return; }
   if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
     // Pas de repli AP : des credentials existent. L'écran expose le diagnostic.
+    net_http::stop();
     core::update_network_status(core::NetworkState::kStaDisconnected, 0);
     core::events::push(core::EventKind::kWifiDisconnected);
     can_link::send_log(common::LogCode::kWifiDisconnected, common::LogSeverity::kWarn);
@@ -220,6 +223,7 @@ void on_ip_event(void*, esp_event_base_t, int32_t, void* event_data) {
   core::events::push(core::EventKind::kWifiConnected);
   can_link::send_log(common::LogCode::kWifiConnected, common::LogSeverity::kInfo);
   start_sntp_once();
+  net_http::start();
 }
 }  // namespace
 

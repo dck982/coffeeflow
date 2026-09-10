@@ -77,6 +77,25 @@ AP immédiat, reprovisioning réussi. SSID volontairement faux : l'écran reste
 en STA (`RESEAU: COUPE`, événements `WIFI PERDU` répétés), sans repli AP ;
 le bouton *Oublier le réseau* ramène l'AP. Lot 4 clos.
 
+### Phase 6, lot 5 — serveur HTTP, fait (2026-09-10)
+
+`net_http` démarre uniquement après l'association STA et s'arrête avec elle.
+Il expose, derrière le bearer token défini dans `secrets.h`, `GET /telemetry`,
+`GET` et `POST /config`, et `POST /action`. C'est un traducteur du coeur :
+la télémétrie provient de son instantané, la configuration passe par sa
+validation transactionnelle et la commande brute par sa face actions. Les
+routes de provisioning AP restent, elles, sans bearer token.
+
+**Image `v0.2.24` livrée par OTA et validée.** Build ESP-IDF réussi, puis PONG
+de l'écran en `v0.2.24`. Les tests LAN sur `192.168.2.196` ont validé une
+télémétrie fraîche et cohérente (pression, température, débit, présence CAN,
+versions et réseau STA), la sauvegarde de `/config`, une modification
+partielle (`brew.target_weight_g`), la restauration complète, et le rejet
+atomique d'une valeur hors bornes avec `400` et
+`brew.target_weight_g`. Une action à dimmer hors bornes est refusée avec `400`
+et `dimmer`; une requête sans `Authorization` reçoit `401`. Aucun secret ne
+figure dans les artefacts de test. Lot 5 clos.
+
 ## Historique compact des phases terminées
 
 ### Images factory — figées et écrites (2026-09-10)

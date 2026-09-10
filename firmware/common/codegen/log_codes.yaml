@@ -93,3 +93,9 @@
 - name: NETWORK_FORGOTTEN
   severity: info
   comment: Credentials Wi-Fi effacés explicitement ; retour AP.
+- name: HTTP_AUTH_REFUSED
+  severity: warn
+  comment: Requête HTTP refusée pour authentification manquante ou invalide.
+- name: CONFIG_REJECTED
+  severity: warn
+  comment: POST /config rejeté. arg16 identifie la clé fautive.

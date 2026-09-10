@@ -72,8 +72,9 @@ extern "C" void app_main() {
   // interne contiguë, que la pile radio et httpd peuvent fragmenter.
   service_screen::init();
 
-  // Radio, callbacks et serveur de provisioning sur le cœur 0. L'init LCD
-  // est maintenant terminée sur le cœur 1 avant les allocations Wi-Fi.
+  // Radio, callbacks, provisioning AP et, une fois STA associée, le serveur
+  // HTTP du lot 5. L'init LCD est maintenant terminée sur le cœur 1 avant
+  // les allocations Wi-Fi.
   net_wifi::init();
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);

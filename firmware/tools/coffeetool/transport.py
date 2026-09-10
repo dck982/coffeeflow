@@ -73,13 +73,14 @@ class WebSocketTransport(Transport):
     """Miroir du trafic CAN par WebSocket (phase 6) — même PDU qu'en série,
     sans COBS : un message WebSocket est déjà une trame complète."""
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, token: str | None = None):
         from websockets.sync.client import connect
 
-        self._ws = connect(url)
+        headers = {"Authorization": f"Bearer {token}"} if token else None
+        self._ws = connect(url, additional_headers=headers)
 
     def send(self, frame: RawFrame) -> None:
-        self._ws.send(encode_pdu(frame))
+        raise RuntimeError("le WebSocket CoffeeFlow est un miroir CAN en lecture seule")
 
     def recv(self, timeout: float | None = None) -> tuple[float, RawFrame] | None:
         try:

@@ -553,10 +553,12 @@ une action refusée renvoyant un motif lisible.
 **Objectif :** le sniffer CAN existe sans câble USB, avec **le même décodeur**
 côté Mac.
 
-Contenu : une route WebSocket diffusant le PDU nu de chaque trame CAN observée,
-dans les deux sens, au format déjà défini (`common/framing.hpp` : PDU nu en
-WebSocket, COBS uniquement sur le fil série). Plusieurs clients simultanés ; un
-client lent est déconnecté plutôt que de bloquer la tâche protocole.
+Contenu : une route WebSocket, protégée par le même `Authorization` bearer que
+l'API HTTP, diffusant le PDU nu de chaque trame CAN observée, dans les deux
+sens, au format déjà défini (`common/framing.hpp` : PDU nu en WebSocket, COBS
+uniquement sur le fil série). Plusieurs clients simultanés ; un client lent est
+déconnecté plutôt que de bloquer la tâche protocole. C'est un miroir en lecture
+seule, jamais un chemin de commande vers CAN.
 
 **Piège :** `WebSocketTransport` de `coffeetool` (phase 1) n'a **jamais parlé à
 un vrai serveur**. Attendre des surprises côté client autant que côté firmware,

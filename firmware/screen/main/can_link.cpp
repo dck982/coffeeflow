@@ -14,6 +14,7 @@
 #include "common/version.hpp"
 #include "core/core.h"
 #include "core/events.h"
+#include "net_ws.h"
 #include "serial_bridge.h"
 
 namespace can_link {
@@ -98,6 +99,9 @@ void send_message(common::MessageType type, common::Dest dest, const uint8_t* da
   if (len > 0) {
     serial_bridge::write_raw(out, len);
   }
+  // TWAI ne nous reboucle pas nos propres transmissions : les publier ici
+  // garde le WS identique au miroir série (PONG, LOG, REQSTATUS…).
+  net_ws::publish(frame);
 }
 
 void send_log(common::LogCode code, common::LogSeverity severity, uint16_t arg16, uint32_t arg32) {

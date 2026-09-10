@@ -6,6 +6,7 @@ phase 1. Un seul décodeur, deux transports (--port pour l'USB série,
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -20,7 +21,10 @@ from .transport import SerialTransport, Transport, WebSocketTransport
 
 def _open_transport(args: argparse.Namespace) -> Transport:
     if args.ws:
-        return WebSocketTransport(args.ws)
+        token = args.token or os.environ.get("COFFEEFLOW_HTTP_TOKEN")
+        if not token:
+            raise SystemExit("--ws exige --token ou COFFEEFLOW_HTTP_TOKEN")
+        return WebSocketTransport(args.ws, token)
     if args.port:
         return SerialTransport(args.port, args.baudrate)
     raise SystemExit("préciser --port (USB série) ou --ws (WebSocket)")
@@ -30,6 +34,7 @@ def _add_transport_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--port", help="port série, ex. /dev/tty.usbmodemXXXX")
     parser.add_argument("--baudrate", type=int, default=115200)
     parser.add_argument("--ws", help="URL WebSocket, ex. ws://coffeeflow.local/ws")
+    parser.add_argument("--token", help="bearer token (sinon COFFEEFLOW_HTTP_TOKEN)")
 
 
 def cmd_monitor(args: argparse.Namespace) -> int:

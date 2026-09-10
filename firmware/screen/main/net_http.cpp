@@ -10,6 +10,7 @@
 #include "esp_log.h"
 
 #include "core/core.h"
+#include "net_ws.h"
 
 #if __has_include("secrets.h")
 #include "secrets.h"
@@ -603,18 +604,28 @@ void start() {
     ESP_LOGE(kTag, "httpd_start failed");
     return;
   }
-  const httpd_uri_t telemetry{.uri = "/telemetry", .method = HTTP_GET, .handler = telemetry_handler, .user_ctx = nullptr};
-  const httpd_uri_t get_config{.uri = "/config", .method = HTTP_GET, .handler = get_config_handler, .user_ctx = nullptr};
-  const httpd_uri_t post_config{.uri = "/config", .method = HTTP_POST, .handler = post_config_handler, .user_ctx = nullptr};
-  const httpd_uri_t post_action{.uri = "/action", .method = HTTP_POST, .handler = post_action_handler, .user_ctx = nullptr};
+  const httpd_uri_t telemetry{.uri = "/telemetry", .method = HTTP_GET, .handler = telemetry_handler, .user_ctx = nullptr,
+                             .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                             .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t get_config{.uri = "/config", .method = HTTP_GET, .handler = get_config_handler, .user_ctx = nullptr,
+                              .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                              .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t post_config{.uri = "/config", .method = HTTP_POST, .handler = post_config_handler, .user_ctx = nullptr,
+                               .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                               .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t post_action{.uri = "/action", .method = HTTP_POST, .handler = post_action_handler, .user_ctx = nullptr,
+                               .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                               .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   httpd_register_uri_handler(g_server, &telemetry);
   httpd_register_uri_handler(g_server, &get_config);
   httpd_register_uri_handler(g_server, &post_config);
   httpd_register_uri_handler(g_server, &post_action);
+  net_ws::start(g_server, require_auth);
 }
 
 void stop() {
   if (g_server == nullptr) return;
+  net_ws::stop();
   httpd_stop(g_server);
   g_server = nullptr;
 }

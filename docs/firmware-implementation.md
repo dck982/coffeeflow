@@ -96,6 +96,24 @@ atomique d'une valeur hors bornes avec `400` et
 et `dimmer`; une requête sans `Authorization` reçoit `401`. Aucun secret ne
 figure dans les artefacts de test. Lot 5 clos.
 
+### Phase 6, lot 6 — WebSocket miroir, fait (2026-09-10)
+
+`GET /ws` est enregistré sur le même `httpd`, donc seulement en STA connecté,
+et vérifie le même bearer token pendant le handshake. Il diffuse le PDU CAN nu
+(sans COBS) dans les deux sens : réceptions TWAI, émissions locales de l'écran
+et trames relayées depuis l'USB. Le miroir est lecture seule ; une trame envoyée
+par un client ferme sa session. Il accepte jusqu'à trois clients, publie depuis
+la tâche CAN par travail différé (sans E/S réseau), puis déconnecte un client
+dont l'envoi échoue. Le WebSocket est fermé avec `net_http` à la perte STA.
+`coffeetool monitor --ws … --token …` (ou `COFFEEFLOW_HTTP_TOKEN`) porte le
+header `Authorization` et utilise toujours le décodeur PDU commun.
+
+**Image `v0.2.24` livrée par OTA et WebSocket validé.** Le test LAN a affiché
+en temps réel les `STATUS_PRESSURE`, `STATUS_FLOW`, `LOG FLOWMETER_SILENT` et
+les `REQSTATUS` écran→capteurs, donc les deux sens du miroir et le décodage PDU
+commun. La version de l'image n'a pas été incrémentée pour ce lot : elle reste
+`v0.2.24`; le prochain artefact devra passer en `v0.2.25`.
+
 ## Historique compact des phases terminées
 
 ### Images factory — figées et écrites (2026-09-10)

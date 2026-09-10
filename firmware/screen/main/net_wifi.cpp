@@ -131,9 +131,15 @@ void start_provisioning() {
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.max_open_sockets = 2;
   if (httpd_start(&g_provisioning_server, &cfg) != ESP_OK) { g_provisioning_server = nullptr; return; }
-  httpd_uri_t root{.uri = "/", .method = HTTP_GET, .handler = root_handler, .user_ctx = nullptr};
-  httpd_uri_t scan{.uri = "/scan", .method = HTTP_GET, .handler = scan_handler, .user_ctx = nullptr};
-  httpd_uri_t post{.uri = "/provision", .method = HTTP_POST, .handler = provision_handler, .user_ctx = nullptr};
+  httpd_uri_t root{.uri = "/", .method = HTTP_GET, .handler = root_handler, .user_ctx = nullptr,
+                   .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                   .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  httpd_uri_t scan{.uri = "/scan", .method = HTTP_GET, .handler = scan_handler, .user_ctx = nullptr,
+                   .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                   .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  httpd_uri_t post{.uri = "/provision", .method = HTTP_POST, .handler = provision_handler, .user_ctx = nullptr,
+                   .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                   .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   httpd_register_uri_handler(g_provisioning_server, &root);
   httpd_register_uri_handler(g_provisioning_server, &scan);
   httpd_register_uri_handler(g_provisioning_server, &post);

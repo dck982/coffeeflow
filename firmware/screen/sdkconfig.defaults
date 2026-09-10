@@ -35,3 +35,6 @@ CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 # diagnostic glitch résiduel lot 2) : résultat nettement pire (sauts
 # verticaux du contenu en plus du glitch existant). Ne pas réessayer sans
 # comprendre pourquoi ce panneau/driver y réagit mal.
+CONFIG_HTTPD_WS_SUPPORT=y
+CONFIG_HTTPD_WS_PRE_HANDSHAKE_CB_SUPPORT=y
+CONFIG_HTTPD_WS_POST_HANDSHAKE_CB_SUPPORT=y

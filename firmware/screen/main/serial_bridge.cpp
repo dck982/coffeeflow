@@ -38,6 +38,7 @@
 #include "common/framing.hpp"
 #include "common/protocol.hpp"
 #include "ota_local.h"
+#include "net_ws.h"
 
 namespace serial_bridge {
 
@@ -70,7 +71,7 @@ void on_frame_from_serial(const common::RawFrame& frame, void* /*ctx*/) {
   msg.identifier = frame.can_id;
   msg.data_length_code = frame.dlc;
   std::memcpy(msg.data, frame.data.data(), frame.dlc);
-  twai_transmit(&msg, pdMS_TO_TICKS(50));
+  if (twai_transmit(&msg, pdMS_TO_TICKS(50)) == ESP_OK) net_ws::publish(frame);
 }
 
 // CAN -> série : chaque trame reçue devient un PDU encadré écrit tel quel
@@ -93,6 +94,7 @@ void can_to_serial_task(void*) {
     if (len > 0) {
       write_raw(out, len);
     }
+    net_ws::publish(frame);
 
     can_link::dispatch_own_protocol(msg);
   }

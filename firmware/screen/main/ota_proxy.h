@@ -6,8 +6,16 @@
 // lot 1, rempli au lot 7.
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 namespace ota_proxy {
 
-// Rien à ce stade. Voir docs/plan-phase6.md, lot 7.
+bool begin_upload(uint32_t image_size);
+bool write_upload(const uint8_t* data, size_t len);
+bool commit_upload();
+void abort_upload();
+bool active();
+void on_flash_ctrl_received(const uint8_t* data, size_t len);
 
 }  // namespace ota_proxy

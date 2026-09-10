@@ -8,9 +8,14 @@
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "core/core.h"
+#include "common/crc.hpp"
 #include "net_ws.h"
+#include "ota_proxy.h"
 
 #if __has_include("secrets.h")
 #include "secrets.h"
@@ -25,6 +30,11 @@ namespace {
 constexpr const char* kTag = "net_http";
 constexpr size_t kMaxBody = 2048;
 httpd_handle_t g_server = nullptr;
+esp_ota_handle_t g_http_ota = 0;
+const esp_partition_t* g_http_ota_partition = nullptr;
+common::Crc32Incremental g_http_ota_crc;
+
+void reboot_after_http_response(void*) { vTaskDelay(pdMS_TO_TICKS(250)); esp_restart(); }
 
 esp_err_t send_status_json(httpd_req_t* request, const char* status, const char* body) {
   httpd_resp_set_status(request, status);
@@ -184,6 +194,11 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddNumberToObject(root, "continuous_on_ms", snapshot.continuous_on_ms);
   cJSON_AddBoolToObject(root, "scale_present", false);
   cJSON_AddStringToObject(root, "cycle", "idle");
+  cJSON* flash = cJSON_AddObjectToObject(root, "flash");
+  cJSON_AddBoolToObject(flash, "active", snapshot.flash_active);
+  cJSON_AddStringToObject(flash, "target", snapshot.flash_target == core::FlashTarget::kScreen ? "screen" : snapshot.flash_target == core::FlashTarget::kSensors ? "sensors" : "none");
+  cJSON_AddNumberToObject(flash, "bytes_done", snapshot.flash_bytes_done);
+  cJSON_AddNumberToObject(flash, "bytes_total", snapshot.flash_bytes_total);
 
   cJSON* network = cJSON_AddObjectToObject(root, "network");
   cJSON_AddStringToObject(network, "state", network_text(static_cast<core::NetworkState>(snapshot.network_state)));
@@ -590,6 +605,51 @@ esp_err_t post_action_handler(httpd_req_t* request) {
   return send_json_object(request, "409 Conflict", response);
 }
 
+bool query_target(httpd_req_t* request, char* target, size_t size) {
+  char query[48]{};
+  if (httpd_req_get_url_query_str(request, query, sizeof(query)) != ESP_OK) return false;
+  return httpd_query_key_value(query, "target", target, size) == ESP_OK;
+}
+
+esp_err_t firmware_handler(httpd_req_t* request) {
+  if (!require_auth(request)) return ESP_OK;
+  char target[12]{};
+  if (!query_target(request, target, sizeof(target)) || request->content_len <= 0) return send_error(request, "400 Bad Request", "invalid_firmware", "target");
+  const uint32_t size = static_cast<uint32_t>(request->content_len);
+  const bool screen = std::strcmp(target, "screen") == 0;
+  const bool sensors = std::strcmp(target, "sensors") == 0;
+  if (!screen && !sensors) return send_error(request, "400 Bad Request", "invalid_firmware", "target");
+  if (!core::begin_flash(screen ? core::FlashTarget::kScreen : core::FlashTarget::kSensors, size)) return send_error(request, "409 Conflict", "busy", nullptr);
+
+  bool started = false;
+  if (screen) {
+    g_http_ota_partition = esp_ota_get_next_update_partition(nullptr);
+    started = g_http_ota_partition != nullptr && size <= g_http_ota_partition->size &&
+              esp_ota_begin(g_http_ota_partition, size, &g_http_ota) == ESP_OK;
+    g_http_ota_crc = common::Crc32Incremental{};
+  } else started = ota_proxy::begin_upload(size);
+  if (!started) { core::finish_flash(); return send_error(request, "400 Bad Request", "invalid_firmware", "size"); }
+
+  uint8_t chunk[1024]; uint32_t done = 0;
+  while (done < size) {
+    int got = httpd_req_recv(request, reinterpret_cast<char*>(chunk), (size - done < sizeof(chunk)) ? size - done : sizeof(chunk));
+    if (got <= 0) { if (screen) esp_ota_abort(g_http_ota); else ota_proxy::abort_upload(); core::finish_flash(); return send_error(request, "400 Bad Request", "incomplete_upload", nullptr); }
+    bool ok = screen ? esp_ota_write(g_http_ota, chunk, got) == ESP_OK : ota_proxy::write_upload(chunk, got);
+    if (!ok) { if (screen) esp_ota_abort(g_http_ota); else ota_proxy::abort_upload(); core::finish_flash(); return send_error(request, "500 Internal Server Error", "write_failed", nullptr); }
+    if (screen) g_http_ota_crc.update(chunk, got);
+    done += got; core::update_flash_progress(done);
+  }
+  if (screen) {
+    bool ok = esp_ota_end(g_http_ota) == ESP_OK && esp_ota_set_boot_partition(g_http_ota_partition) == ESP_OK;
+    if (!ok) { core::finish_flash(); return send_error(request, "400 Bad Request", "invalid_firmware", nullptr); }
+    send_status_json(request, "202 Accepted", "{\"ok\":true,\"rebooting\":true}");
+    xTaskCreatePinnedToCore(reboot_after_http_response, "http_reboot", 2048, nullptr, 4, nullptr, 0);
+    return ESP_OK;
+  }
+  if (!ota_proxy::commit_upload()) { ota_proxy::abort_upload(); return send_error(request, "500 Internal Server Error", "queue_failed", nullptr); }
+  return send_status_json(request, "202 Accepted", "{\"ok\":true,\"queued\":true}");
+}
+
 }  // namespace
 
 void start() {
@@ -615,11 +675,15 @@ void start() {
                                .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   const httpd_uri_t post_action{.uri = "/action", .method = HTTP_POST, .handler = post_action_handler, .user_ctx = nullptr,
                                .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
-                               .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+                             .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t firmware{.uri = "/firmware", .method = HTTP_POST, .handler = firmware_handler, .user_ctx = nullptr,
+                             .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                             .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   httpd_register_uri_handler(g_server, &telemetry);
   httpd_register_uri_handler(g_server, &get_config);
   httpd_register_uri_handler(g_server, &post_config);
   httpd_register_uri_handler(g_server, &post_action);
+  httpd_register_uri_handler(g_server, &firmware);
   net_ws::start(g_server, require_auth);
 }
 

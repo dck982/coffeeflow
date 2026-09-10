@@ -29,6 +29,7 @@ namespace core {
 
 // --- Sorties (lot 3) ---------------------------------------------------
 enum class Freshness : uint8_t { kFresh, kStale, kMissing };
+enum class FlashTarget : uint8_t { kNone, kScreen, kSensors };
 
 // Instantané étendu de ui_model_t (ui.md), pris sous verrou puis complété sur
 // une copie. Aucun consommateur ne lit l'état interne champ par champ.
@@ -79,6 +80,10 @@ struct Snapshot {
   uint8_t screen_version_minor = 0;
   uint8_t screen_version_patch = 0;
   uint32_t screen_uptime_s = 0;
+  bool flash_active = false;
+  FlashTarget flash_target = FlashTarget::kNone;
+  uint32_t flash_bytes_done = 0;
+  uint32_t flash_bytes_total = 0;
 };
 
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
@@ -148,5 +153,9 @@ struct ActionResult {
 };
 
 ActionResult perform_action(const ActionCommand& command);
+
+bool begin_flash(FlashTarget target, uint32_t total);
+void update_flash_progress(uint32_t done);
+void finish_flash();
 
 }  // namespace core

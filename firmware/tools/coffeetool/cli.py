@@ -8,12 +8,14 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from .decoder import decode_frame
 from .flash_client import FlashProgress, flash
 from .framing import RawFrame
-from .messages import PongPayload, ReqStatusPayload, SetPayload
+from .messages import PingPayload, PongPayload, ReqStatusPayload, SetPayload
 from .protocol import CanId, Dest, MessageType, Node, encode_can_id
 from .recorder import record, replay, replay_to_transport
 from .transport import SerialTransport, Transport, WebSocketTransport
@@ -56,7 +58,7 @@ def cmd_send(args: argparse.Namespace) -> int:
 
     if args.message == "ping":
         can_id = encode_can_id(CanId(MessageType.PING, dest, src))
-        payload = b""
+        payload = PingPayload(node=src, version_major=0, version_minor=1, version_patch=0, uptime_s=0).pack()
     elif args.message == "pong":
         can_id = encode_can_id(CanId(MessageType.PONG, dest, src))
         payload = PongPayload(node=src, version_major=0, version_minor=1, version_patch=0, uptime_s=0).pack()
@@ -112,6 +114,22 @@ def cmd_replay(args: argparse.Namespace) -> int:
 
 def cmd_flash(args: argparse.Namespace) -> int:
     image = Path(args.image).read_bytes()
+    if args.http:
+        token = args.token or os.environ.get("COFFEEFLOW_HTTP_TOKEN")
+        if not token:
+            raise SystemExit("--http exige --token ou COFFEEFLOW_HTTP_TOKEN")
+        url = args.http.rstrip("/") + f"/firmware?target={args.dest}"
+        request = urllib.request.Request(url, data=image, method="POST", headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream",
+        })
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                print(response.read().decode("utf-8", errors="replace"))
+        except urllib.error.URLError as exc:
+            print(f"échec: {exc}", file=sys.stderr)
+            return 1
+        print("upload terminé")
+        return 0
     dest = Dest[args.dest.upper()]
     src = Node[args.src.upper()]
 
@@ -163,6 +181,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("flash", help="flashe une image via FLASH_CTRL/FLASH_DATA")
     _add_transport_args(p)
+    p.add_argument("--http", help="base HTTP de l'écran, ex. http://coffeeflow.local")
     p.add_argument("image", help="fichier .bin")
     p.add_argument("--dest", default="sensors", choices=["screen", "sensors"])
     p.add_argument("--src", default="screen", choices=["screen", "sensors"])

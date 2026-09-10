@@ -15,9 +15,12 @@
 #include "core/core.h"
 #include "core/events.h"
 #include "net_ws.h"
+#include "ota_proxy.h"
 #include "serial_bridge.h"
 
 namespace can_link {
+
+void send_ping(common::Dest dest);
 
 namespace {
 
@@ -47,8 +50,10 @@ void mark_presence() {
   }
 }
 
-void on_ping_received() {
+void on_ping_received(const uint8_t* data, uint8_t len) {
   mark_presence();
+  // DLC 0 reste le format des images antérieures à v0.2.30.
+  if (len != 0) core::on_pong(data, len);
   send_pong();
 }
 
@@ -68,9 +73,9 @@ void init() {
   ESP_ERROR_CHECK(twai_start());
 
   g_last_presence_rx_us = now_us();
-  // Une sonde d'identité au boot permet à une image OTA de prouver un aller-
-  // retour, alors que le trafic normal suffit ensuite à la présence.
-  send_message(common::MessageType::kPing, common::Dest::kSensors, nullptr, 0);
+  // Annonce notre identité au boot; le PONG qui suit valide aussi une image
+  // OTA PENDING_VERIFY. La présence ordinaire reste maintenue par tout trafic.
+  send_ping(common::Dest::kSensors);
   g_last_probe_us = g_last_presence_rx_us;
 }
 
@@ -125,6 +130,17 @@ void send_pong() {
   send_message(common::MessageType::kPong, common::Dest::kSensors, f.data(), 8);
 }
 
+void send_ping(common::Dest dest) {
+  common::PingPayload payload;
+  payload.node = common::Node::kScreen;
+  payload.version_major = common::kFirmwareVersionMajor;
+  payload.version_minor = common::kFirmwareVersionMinor;
+  payload.version_patch = common::kFirmwareVersionPatch;
+  payload.uptime_s = static_cast<uint32_t>(now_us() / 1000000);
+  common::Frame f = payload.pack();
+  send_message(common::MessageType::kPing, dest, f.data(), 8);
+}
+
 bool presence_lost() { return g_presence_lost; }
 bool peer_roundtrip_confirmed() { return g_peer_roundtrip_confirmed; }
 
@@ -138,7 +154,7 @@ void tick_presence() {
   }
   if (g_presence_probe_count < 3 &&
       (g_presence_probe_count == 0 || now - g_last_probe_us >= kPresenceProbeIntervalUs)) {
-    send_message(common::MessageType::kPing, common::Dest::kSensors, nullptr, 0);
+    send_ping(common::Dest::kSensors);
     g_last_probe_us = now;
     g_presence_probe_count++;
   }
@@ -164,7 +180,7 @@ void dispatch_own_protocol(const twai_message_t& msg) {
 
   switch (id.type) {
     case common::MessageType::kPing:
-      on_ping_received();
+      on_ping_received(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kPong:
       g_peer_roundtrip_confirmed = true;
@@ -181,6 +197,9 @@ void dispatch_own_protocol(const twai_message_t& msg) {
       break;
     case common::MessageType::kLog:
       core::on_log(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kFlashCtrl:
+      ota_proxy::on_flash_ctrl_received(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kReset:
       on_reset_received();

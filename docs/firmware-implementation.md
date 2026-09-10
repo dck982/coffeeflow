@@ -114,6 +114,29 @@ les `REQSTATUS` écran→capteurs, donc les deux sens du miroir et le décodage 
 commun. La version de l'image n'a pas été incrémentée pour ce lot : elle reste
 `v0.2.24`; le prochain artefact devra passer en `v0.2.25`.
 
+### Phase 6, lot 7 — OTA réseau, fait (2026-09-10)
+
+`POST /firmware?target=screen` reçoit l'image en streaming directement dans
+le slot OTA inactif et répond avant le redémarrage. Pour `target=sensors`,
+l'écran reçoit d'abord l'image dans `ota_staging` (repli transitoire sur
+`assets` pour les cartes dont la table n'a pas encore été réécrite), puis une
+tâche CAN envoie `BEGIN`, blocs de 2 ko acquittés et `END`, à 2 ms entre les
+trames. Le coeur interdit le flash sans capteurs vivants ou avec un écho
+actionneur frais indiquant une sortie active; l'absence d'écho est admise
+quand le dimmer est sans secteur. Il coupe toujours les sorties et suspend
+`REQSTATUS` pendant l'opération. La progression est exposée dans
+`/telemetry` et l'écran de service.
+
+Les deux cibles ont été livrées par HTTP : écran `v0.2.28`, puis capteurs.
+La validation de l'image capteurs et la reprise des statuts ont été observées
+sur CAN. Les deux nœuds ont ensuite été livrés en `v0.2.30` : PING transporte
+désormais l'identité (nœud, version, uptime), comme PONG; chaque nœud en
+envoie un au démarrage, le récepteur exploite immédiatement cette identité et
+répond par PONG. Les PING DLC 0 des images anciennes restent acceptés. Après
+un power cycle des capteurs, le banc a confirmé `PING capteurs v0.2.30`,
+`PONG écran v0.2.30`, `BOOT`, `READY`, puis les trois `STATUS_*` frais, sans
+PING de présence tant que les `REQSTATUS` circulent. Lot 7 clos.
+
 ## Historique compact des phases terminées
 
 ### Images factory — figées et écrites (2026-09-10)

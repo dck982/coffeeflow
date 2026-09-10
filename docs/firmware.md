@@ -338,7 +338,7 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x00` | `STOP` | S → X | vide |
 | `0x01` | `SET` | S → X | actionneurs + bail |
 | `0x02` | `RESET` | S → X | vide |
-| `0x08` | `PING` | ↔ | vide |
+| `0x08` | `PING` | ↔ | identité + uptime |
 | `0x09` | `PONG` | ↔ | identité + uptime |
 | `0x10` | `REQSTATUS` | S → X | quoi, à quelle période |
 | `0x20` | `STATUS_PRESSURE` | X → S | XDB401 brut |
@@ -347,6 +347,13 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x30` | `LOG` | ↔ | code + arguments |
 | `0x38` | `FLASH_CTRL` | ↔ | sous-commande |
 | `0x39` | `FLASH_DATA` | ↔ | 8 octets bruts |
+
+`PING` et `PONG` ont le même format de huit octets : nœud source, version
+majeure/mineure/patch et uptime en secondes. Chaque nœud émet un `PING`
+d'identité au démarrage; le récepteur met son instantané à jour puis répond
+par `PONG`. Les images antérieures, qui émettent un `PING` DLC 0, restent
+acceptées. La sonde de présence ne se déclenche qu'après silence : toute trame
+valide du pair, y compris `REQSTATUS`, la réarme.
 
 ### Charges utiles
 

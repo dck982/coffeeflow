@@ -551,6 +551,10 @@ typedef struct {
   bool    pressure_valid;     // STATUS_PRESSURE flags bit0
   bool    dimmer_ready;       // STATUS_ACTUATORS flags bit1
   bool    lockout;            // STATUS_ACTUATORS flags bit0
+  bool    flash_active;       // opération OTA acceptée par le cœur, préempte en L2
+  uint8_t flash_target;       // écran ou capteurs
+  uint32_t flash_bytes_done;
+  uint32_t flash_bytes_total;
   uint32_t last_status_ms;    // pour la péremption d'affichage
 
   float   target_weight_g, target_time_s;
@@ -631,7 +635,8 @@ Transitions, **qui les déclenche** :
 | `BREW → DONE` | cible atteinte (algorithme), appui *arrêter*, ou **perte de la balance** en brew by weight | `SET ssr=0 dimmer=0`, `REQSTATUS` en période longue |
 | `IDLE → PURGE` | **appui maintenu** sur *purge* | `SET ssr=1 dimmer=<niveau purge>` renouvelé à 10 Hz |
 | `PURGE → IDLE` | doigt relâché, ou 20 s écoulées | arrêt des `SET`, le bail retombe seul |
-| `* → FULLSCREEN` | verrou / bus perdu / OTA / boot | voir la priorité ci-dessous |
+| `IDLE → FULLSCREEN` | OTA accepté par le cœur, seulement si les actionneurs sont confirmés à l'arrêt | voir la priorité ci-dessous |
+| `* → FULLSCREEN` | verrou / bus perdu / boot | voir la priorité ci-dessous |
 
 **La purge est un homme-mort** : elle coule tant que le doigt est posé,
 plafonnée à 20 s. C'est le seul geste maintenu de l'interface, et il est
@@ -655,6 +660,13 @@ précédente est intacte ») — pas un écran d'OTA figé à 46 %.
 Entrer en L2 **coupe les actionneurs** (`SET ssr=0 dimmer=0`) si une infusion
 ou une purge était en cours, avant même de dessiner. L'affichage n'est jamais
 la première chose qu'on fait.
+
+Une mise à jour, elle, n'est jamais le moyen de provoquer cet arrêt : le cœur
+ne l'accepte qu'en `UI_IDLE`, sans infusion ni purge, et si le dernier état
+actionneur frais confirme SSR fermé et pompe à zéro. Sinon elle est refusée et
+l'interface courante reste affichée. Une fois acceptée, `flash_active` et ses
+compteurs figent l'UI en L2 « mise à jour » jusqu'au résultat ; aucun appui ne
+peut interrompre l'opération.
 
 ---
 

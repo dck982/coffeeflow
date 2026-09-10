@@ -578,22 +578,37 @@ C'est la répétition de ce que la phase 7 refera en boîte.
 
 Contenu :
 
-1. `POST /firmware?target=screen` : écriture de l'emplacement OTA inactif,
-   réutilisant la logique de `ota_local` déjà éprouvée (effacement avant
+1. `POST /firmware?target=screen` : le corps `.bin` est écrit en streaming
+   directement dans l'emplacement OTA inactif, sans copie de staging.
+   Réutiliser la logique de `ota_local` déjà éprouvée (effacement avant
    acquittement, `PENDING_VERIFY`, temporisateur d'invalidation 30 s,
-   validation conditionnée à un `PING`/`PONG` réel).
-2. `POST /firmware?target=sensors` : l'écran devient l'émetteur de la séquence
-   `BEGIN` / blocs de 2 ko acquittés / `END` sur le CAN — portage côté firmware
-   de ce que fait `flash_client.py`, avec les deux corrections apprises en
-   phase 4 : **attendre le bon `FLASH_CTRL` en ignorant les `LOG` qui le
-   précèdent**, et **espacer les trames `FLASH_DATA`** au lieu de les envoyer
-   en rafale.
+   validation conditionnée à un `PING`/`PONG` réel). Répondre avant le reboot.
+2. `POST /firmware?target=sensors` : le corps `.bin` est d'abord écrit et
+   CRC-validé dans une partition de staging dédiée, dimensionnée sur la taille
+   maximale plausible de l'image capteurs, pas sur sa taille courante. L'écran
+   répond alors sans attendre le CAN ; une tâche asynchrone devient l'émetteur
+   de la séquence `BEGIN` / blocs de 2 ko acquittés / `END` — portage côté
+   firmware de ce que fait `flash_client.py`, avec les deux corrections
+   apprises en phase 4 : **attendre le bon `FLASH_CTRL` en ignorant les `LOG`
+   qui le précèdent**, et **espacer les trames `FLASH_DATA`** au lieu de les
+   envoyer en rafale. Un en-tête de staging atomique (taille, CRC32, état
+   valide) interdit tout départ sur un upload interrompu.
 3. Progression dans le flux d'événements du cœur, donc visible d'un coup sur le
-   WebSocket **et** sur l'écran de service : c'est le premier lot où l'écran
-   sert vraiment pendant une opération longue.
-4. Le streaming `REQSTATUS` est arrêté et les actionneurs coupés pendant un
-   flash (`firmware.md`).
+   WebSocket **et** sur l'écran de service : le coeur expose dans son
+   instantané `flash_active`, cible, octets écrits et taille totale. L'UI
+   préempte alors tout par son L2 « mise à jour », avec filet de progression et
+   aucun bouton. C'est le premier lot où l'écran sert vraiment pendant une
+   opération longue.
+4. Le flash est accepté **uniquement au repos** : refuser la requête si une
+   infusion, une purge ou un autre flash est en cours, ou si l'écho actionneur
+   frais indique pompe ou SSR actifs. À l'acceptation, couper les actionneurs
+   puis arrêter le streaming `REQSTATUS` pendant le flash (`firmware.md`).
 5. Ajouter la cible réseau à `coffeetool flash`, à côté du transport série.
+
+À 2 ms par trame CAN, l'image capteurs actuelle d'environ 234 KiB représente
+~117 blocs de 2 KiB : environ 60 s de trames seules, ou ~1–1,5 min avec les
+acquittements et marges. Les huit minutes documentées concernent l'image écran
+d'environ 1,2 MiB (632 blocs), pas celle des capteurs.
 
 **Piège connu, non résolu :** un bloc rejoué après échec CRC16 n'est pas
 distinguable du bloc suivant côté récepteur (limite documentée en phase 4 dans

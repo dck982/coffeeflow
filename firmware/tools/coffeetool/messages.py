@@ -75,6 +75,10 @@ class PongPayload:
         return PongPayload(node, major, minor, patch, uptime_s)
 
 
+# PING et PONG transportent la même identité depuis le protocole v0.2.30.
+PingPayload = PongPayload
+
+
 @dataclass
 class ReqStatusPayload:
     target_type: MessageType = MessageType.STATUS_PRESSURE
@@ -223,6 +227,7 @@ class FlashCtrlPayload:
 # charge utile. Rien à empaqueter.
 
 PAYLOAD_BY_TYPE = {
+    MessageType.PING: PingPayload,
     MessageType.SET: SetPayload,
     MessageType.PONG: PongPayload,
     MessageType.REQSTATUS: ReqStatusPayload,

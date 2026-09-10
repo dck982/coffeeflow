@@ -8,7 +8,7 @@
 
 // Charges utiles du protocole — voir docs/firmware.md, section "Charges
 // utiles". Chaque message se sérialise dans une trame CAN de 8 octets au
-// plus ; STOP / RESET / PING sont vides (DLC 0).
+// plus ; STOP et RESET sont vides. PING et PONG portent l'identité du nœud.
 //
 // Convention : `pack()` remplit `out[8]` (les octets non utilisés sont mis
 // à zéro) et renvoie le DLC réel. `unpack()` lit `in[len]` et renvoie false
@@ -64,8 +64,9 @@ struct SetPayload {
   }
 };
 
-// PONG (0x09) — dans les deux sens
-struct PongPayload {
+// Identité transportée par PING (0x08) et PONG (0x09), dans les deux sens.
+// Un PING DLC 0 d'une image ancienne reste accepté par les récepteurs.
+struct NodeIdentityPayload {
   Node node = Node::kSensors;
   uint8_t version_major = 0;
   uint8_t version_minor = 0;
@@ -81,7 +82,7 @@ struct PongPayload {
     put_u32(&f[4], uptime_s);
     return f;
   }
-  static bool unpack(const uint8_t* in, size_t len, PongPayload* out) {
+  static bool unpack(const uint8_t* in, size_t len, NodeIdentityPayload* out) {
     if (len < 8) return false;
     out->node = static_cast<Node>(in[0]);
     out->version_major = in[1];
@@ -91,6 +92,8 @@ struct PongPayload {
     return true;
   }
 };
+using PingPayload = NodeIdentityPayload;
+using PongPayload = NodeIdentityPayload;
 
 // REQSTATUS (0x10) — écran → capteurs
 struct ReqStatusPayload {

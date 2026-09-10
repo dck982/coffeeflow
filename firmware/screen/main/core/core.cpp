@@ -51,6 +51,7 @@ struct State {
 State g_state;
 ForgetNetworkCallback g_forget_network_callback = nullptr;
 bool g_cycle_active = false;  // lot 9 posera infusion/purge
+bool g_flash_active = false;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
@@ -209,6 +210,45 @@ void set_telemetry_profile(TelemetryProfile profile) {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
+bool begin_flash(FlashTarget target, uint32_t total) {
+  if (target == FlashTarget::kNone || total == 0 || g_cycle_active || g_flash_active) return false;
+  Snapshot snapshot = get_snapshot();
+  // Sans secteur le dimmer ne répond pas sur I2C : STATUS_ACTUATORS est alors
+  // légitimement absent. Le CAN vivant reste indispensable, et un écho frais
+  // qui dit SSR/pompe actifs interdit toujours le flash. L'arrêt est envoyé
+  // juste après l'acceptation dans tous les cas.
+  if (!snapshot.sensors_alive ||
+      (snapshot.actuators_freshness == Freshness::kFresh &&
+       (snapshot.valve_open || snapshot.dimmer_pct != 0))) return false;
+  g_flash_active = true;
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.flash_active = true;
+  g_state.snapshot.flash_target = target;
+  g_state.snapshot.flash_bytes_done = 0;
+  g_state.snapshot.flash_bytes_total = total;
+  g_state.profile = TelemetryProfile::kSuspended;
+  g_state.profile_dirty = true;
+  portEXIT_CRITICAL(&g_state.lock);
+  send_set(false, 0, 0);
+  return true;
+}
+
+void update_flash_progress(uint32_t done) {
+  portENTER_CRITICAL(&g_state.lock);
+  if (g_state.snapshot.flash_active) g_state.snapshot.flash_bytes_done = done;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void finish_flash() {
+  g_flash_active = false;
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.flash_active = false;
+  g_state.snapshot.flash_target = FlashTarget::kNone;
+  g_state.profile = TelemetryProfile::kIdle;
+  g_state.profile_dirty = true;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
 void on_status_pressure(const uint8_t* data, uint8_t len) {
   common::StatusPressurePayload payload;
   if (!common::StatusPressurePayload::unpack(data, len, &payload)) return;
@@ -340,7 +380,7 @@ ActionResult perform_action(const ActionCommand& command) {
   Snapshot snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
-  if (g_cycle_active) return action_result(ActionStatus::kCycleActive);
+  if (g_cycle_active || g_flash_active) return action_result(ActionStatus::kCycleActive);
   send_set(command.ssr, command.dimmer, command.ttl_ms);
   return action_result(ActionStatus::kOk);
 }

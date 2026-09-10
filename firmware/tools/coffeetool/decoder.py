@@ -44,7 +44,10 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
         extra_str = " " + " ".join(extra) if extra else ""
         return f"{log_code_name(p.code)} [{log_severity_name(p.severity)}]{extra_str}"
 
-    if message_type is MessageType.PONG:
+    if message_type is MessageType.PING and not data:
+        return "(PING ancien, sans identité)"
+
+    if message_type in (MessageType.PING, MessageType.PONG):
         p = payload
         return f"node={_node_name(p.node)} v{p.version_major}.{p.version_minor}.{p.version_patch} uptime={p.uptime_s}s"
 

@@ -359,7 +359,12 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
   core::Snapshot snapshot = core::get_snapshot();
   set_label_if_changed(g_can_label, snapshot.sensors_alive ? "CAN: OK" : "CAN: PERDU");
   char telemetry[128];
-  if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
+  if (snapshot.flash_active) {
+    std::snprintf(telemetry, sizeof(telemetry), "MISE A JOUR %s: %lu/%lu octets",
+                  snapshot.flash_target == core::FlashTarget::kScreen ? "ECRAN" : "CAPTEURS",
+                  static_cast<unsigned long>(snapshot.flash_bytes_done),
+                  static_cast<unsigned long>(snapshot.flash_bytes_total));
+  } else if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
     std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  n=%lu", snapshot.flow_ml_s,
                   static_cast<unsigned long>(snapshot.flow_pulse_count));
   } else {

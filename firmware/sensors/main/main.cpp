@@ -346,6 +346,17 @@ void send_pong() {
   send_message(common::MessageType::kPong, common::Dest::kScreen, f.data(), 8);
 }
 
+void send_ping(common::Dest dest) {
+  common::PingPayload payload;
+  payload.node = common::Node::kSensors;
+  payload.version_major = common::kFirmwareVersionMajor;
+  payload.version_minor = common::kFirmwareVersionMinor;
+  payload.version_patch = common::kFirmwareVersionPatch;
+  payload.uptime_s = static_cast<uint32_t>(now_us() / 1000000);
+  common::Frame f = payload.pack();
+  send_message(common::MessageType::kPing, dest, f.data(), 8);
+}
+
 void send_status_actuators() {
   common::StatusActuatorsPayload payload;
   payload.ssr = g_ssr;
@@ -862,7 +873,7 @@ void tick_presence() {
   if (g_presence_probe_count < 3 &&
       (g_presence_probe_count == 0 || t - g_last_own_ping_us >= kPresencePingIntervalUs)) {
     g_last_own_ping_us = t;
-    send_message(common::MessageType::kPing, common::Dest::kBroadcast, nullptr, 0);
+    send_ping(common::Dest::kBroadcast);
     g_presence_probe_count++;
   }
   if (!g_presence_lost && t - g_presence_check_started_us >= kPresenceCheckBailUs) {
@@ -1049,6 +1060,10 @@ extern "C" void app_main() {
   int64_t t0 = now_us();
   g_last_presence_rx_us = t0 - kPresenceSilenceBeforeCheckUs;  // en attente, pas encore vu de pair
   g_last_own_ping_us = 0;
+
+  // Identité au démarrage : le PING versionné informe immédiatement l'écran
+  // et le PONG reçu valide une image OTA PENDING_VERIFY.
+  send_ping(common::Dest::kScreen);
 
   send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);
   if (g_ota_pending_verify) {

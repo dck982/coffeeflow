@@ -8,11 +8,10 @@ _AMIN = (Align.MIN, Align.MIN, Align.MIN)
 _CMIN = (Align.CENTER, Align.CENTER, Align.MIN)
 
 
-def _contour_dc():
+def _contour_dc(chanfrein):
     """boitier_dc's own outer contour. Must track `boitier_dc._contour`."""
     y_max = measured("boitier_int_y")
     aile_x = measured("boitier_int_aile_x")
-    chanfrein = measured("boitier_int_chanfrein")
     marche_x = measured("boitier_int_marche_x")
     marche_y = measured("boitier_int_marche_y") + 3.0
     return [
@@ -91,10 +90,11 @@ def _pcb_press(body, rib_west, rib_east, y0, y1, appui_pcb_z, wall):
 
 @part
 def couvercle_acdc(
-    epaisseur_paroi=1.6,
+    epaisseur_paroi=1.68,
     gouttiere_jeu=0.3,
     gouttiere_epaisseur=1.2,
     gouttiere_profondeur=3.0,
+    chanfrein=15.0,
     ac_west_shift=5.0,
     ac_east_shift=1.5,
     ac_south_shift=4.0,
@@ -126,6 +126,7 @@ def couvercle_acdc(
     gouttiere_jeu: jeu entre le rebord et la face intérieure d'un mur
     gouttiere_epaisseur: épaisseur du rebord
     gouttiere_profondeur: profondeur du rebord dans la cavité
+    chanfrein: doit être sync avec boitier_dc
     ac_west_shift: décalage de boitier_ac appliqué par ensemble_boitiers,
         doit rester égal à `boitier_int_aile_x − ac_west_shift` interne à
         boitier_ac
@@ -178,9 +179,8 @@ def couvercle_acdc(
         )
 
     marche_x = measured("boitier_int_marche_x")
-    chanfrein_cb = measured("boitier_int_chanfrein")
 
-    dc_pts = _contour_dc()
+    dc_pts = _contour_dc(chanfrein)
     ac_pts = _contour_ac(ac_west_shift, ac_east_shift, ac_south_shift)
 
     # Plate matches the two boxes' outer footprint exactly: it must not
@@ -237,7 +237,7 @@ def couvercle_acdc(
     # local frame as boitier_dc: x_dir along the inward normal, z_dir along
     # the wall's tangent. `edge_clear = 2.0` must match boitier_dc's value
     # (1.0 leaves a floating sliver there once the pad is M2.5-sized).
-    mid_x, mid_y = chanfrein_cb / 2.0, chanfrein_cb / 2.0
+    mid_x, mid_y = chanfrein / 2.0, chanfrein / 2.0
     cut_margin = 0.5
     edge_clear = 2.0
     offset_from_mid = cut_margin + edge_clear + half_25

@@ -20,7 +20,7 @@
 # Bambu Studio: prefer 3MF from `nurb export` (printer.toml). Spec 1.41 may
 # warn in Studio; the object still imports. STL via `--formats stl` if needed.
 
-[wago_largeur]
+[wago_423_largeur]
 value = 18.8
 unit = "mm"
 how = "user 2026-08-31: Wago 221-423 across the three levers, 18.8 mm. Matches WAGO datasheet width."
@@ -668,11 +668,6 @@ how = "user drawing docs/boitier.pdf: paroi verticale du L, à gauche de l'aile 
 value = 60.0
 unit = "mm"
 how = "user drawing docs/boitier.pdf: bord bas de l'aile droite."
-
-[boitier_int_chanfrein]
-value = 20.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: coupe 45° du coin (0,0), de (0,20) à (20,0)."
 
 [boitier_int_marche_x]
 value = 10.5

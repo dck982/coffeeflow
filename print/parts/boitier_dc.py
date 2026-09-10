@@ -11,10 +11,9 @@ from system import (
     add_heat_insert
 )
 
-def _contour():
+def _contour(chanfrein):
     aile_x = measured("boitier_int_aile_x")
     y_max = measured("boitier_int_y")
-    chanfrein = measured("boitier_int_chanfrein")
     marche_x = measured("boitier_int_marche_x")
     marche_y = measured("boitier_int_marche_y") + 3.0
     return ([
@@ -26,7 +25,7 @@ def _contour():
         (marche_x, marche_y),
         (0.0, marche_y),
     ],
-    0, aile_x, 0, y_max, marche_x, marche_y, chanfrein)
+    0, aile_x, 0, y_max, marche_x, marche_y)
 
 def _add_xiao_pin(body, outer, cx, cy, z0, height):
     # 3mm wide pin to support the M2 hole
@@ -79,24 +78,99 @@ def _xiao_area(body, outer, east_x, south_y, z0):
     # add a magnet well under the XIAO module
     body = add_well(body, outer, east_x - xiao_width/2, south_y + xiao_len - 20.0)
 
-    return body, south_y + xiao_len
+    return body
+
+# CAN Pal in the NE corner
+def _canpal_area(body, outer, east_x, north_y, z0, wall, west_x):
+
+# [can_pal_width]
+# value = 20.32
+# unit = "mm"
+# how = "user: Adafruit CAN Pal width, 0.8 inches"
+
+# [can_pal_length]
+# value = 20.32
+# unit = "mm"
+# how = "user: Adafruit CAN Pal length, 0.8 inches"
+
+# [can_pal_slnt_room]
+# value = 4.00
+# unit = "mm"
+# how = "user: extra room for the SLNT wire at the top terminal GND"
+
+# [can_pal_height]
+# value = 12.00
+# unit = "mm"
+# how = "user: Adafruit CAN Pal height, including the SLNT wire"
+
+# [can_pal_hole_to_edge]
+# value = 2.54
+# unit = "mm"
+# how = "user: Adafruit CAN Pal distance from edge to hole center, 0.1 inches"
+
+    module_w = measured("can_pal_width")
+    module_l = measured("can_pal_length")
+    # place the module 5mm above floor (heat inserts need 4)
+    module_z0 = 5.0 
+    h2e = measured("can_pal_hole_to_edge")
+
+    # leave room for the SLNT wire that hooks through the top terminal block
+    top_y = north_y - measured("can_pal_slnt_room")
+    
+    # center the module
+    center_x = round(east_x - west_x / 2.0)*1.0
+    west_edge_x = center_x - module_w/2.0
+    east_edge_x = center_x + module_w/2.0
+
+    # then place the two M2.5 inserts
+    # First in the NE corner
+    # Left hole is same distance from left edge
+    # Add two walls direction south to support the
+    # module over 50% of its length
+    for cx in (east_edge_x-h2e,west_edge_x+h2e):
+        cy = top_y - h2e
+        body = add_heat_insert(body, outer,
+            cx, cy, z0, module_z0, INSERT_M25
+            )
+        # half insert
+        hi = INSERT_M25.encombrement/2
+        body = _add_wall(body, outer, 
+            cx-wall/2, cy-hi-module_l/2,
+            wall, module_l/2, z0, module_z0)
+    
+    # Add a perpendicular wall to stop the module on the south
+    # and have it lie on that wall (where connectors are pushed down)
+    body = _add_wall(body, outer,
+        west_edge_x, top_y-module_l-wall, 
+        module_w, wall, z0, module_z0 + 1.0)
+
+
+    return body
 
 def _surplomb_hook_pts(xy, z_mid, surplomb_w, inverse=False):
-    overlap = 0.2 
     multiplier = -1.0 if inverse else 1.0
-    return ([
-        (xy + overlap * multiplier, z_mid - surplomb_w),
+    return [
+        (xy, z_mid - surplomb_w),
         (xy - surplomb_w * multiplier, z_mid),
         (xy - surplomb_w * multiplier, z_mid + surplomb_w),
-        (xy + overlap * multiplier, z_mid + surplomb_w),
-    ], overlap)
+        (xy, z_mid + surplomb_w),
+    ]
 
-# A compartment for a 221-412 wago connector
-def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall):
-    # A 221-412 on its side
-    area_dx = measured("wago_epaisseur")
+def _surplomb_xz(x, y, z, sw, slen, z0, inverse=False):
+    hook_pts = _surplomb_hook_pts(x, z, sw, inverse=inverse) 
+    hook_y0 = y - slen
+    return (
+        Pos(0, hook_y0, z0)
+        * extrude(
+            Plane.XZ * Polygon(*hook_pts, align=None),
+            slen * (-1.0 if inverse else 1.0),
+        )
+    )
+
+# Definition of a compartment for wago connectors laying on their side, in a NW corner
+def _wago_nw(body, outer, west_x, north_y, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall):
     area_dy = measured("wago_profondeur")
-    area_dz = measured("wago_412_largeur")+wago_raise
+    area_dz = area_dz+wago_raise
 
     # Add a wall on the east side to press the WAGO
     east_wall_x = west_x + area_dx
@@ -121,22 +195,35 @@ def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, sur
     # Surplomb (catch): 1mm return from the muret toward the WAGO
     # with its vertical face starting at the Wago top and its 45° lead-in
     # starting 1mm below.    
-    hook_pts, overlap = _surplomb_hook_pts(east_wall_x, area_dz, surplomb_w) 
-    hook_y0 = north_y - surplomb_len
-    hook_solid = (
-        Pos(0, hook_y0, z0)
-        * extrude(
-            Plane.XZ * Polygon(*hook_pts, align=None),
-            surplomb_len + overlap,
-        )
-    )
-    body = body + hook_solid.intersect(outer)
+    body = body + _surplomb_xz(east_wall_x, north_y, area_dz, surplomb_w, surplomb_len, z0).intersect(outer)
 
     return body
+
+# A compartment for a 221-412 wago connector in the marche corner
+def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall):
+    # A 221-412 on its side
+    area_dx = measured("wago_epaisseur")*2
+    dz_412 = measured("wago_412_largeur")
+    dz_423 = measured("wago_423_largeur")
+    body = body + _wago_nw(body, outer, west_x, north_y, area_dx, dz_412, wago_raise, surplomb_len, surplomb_w, z0, wall)
+    # add a surplomb on the left for the 423
+    body = body + _surplomb_xz(west_x, north_y, dz_423, surplomb_w, surplomb_len, z0, inverse=True)
+    return body
+
+# A compartment for a 221-423 wago connector in the NW corner
+def _wago_north_west(body, outer, west_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall):
+    # A 221-423 on its side
+    area_dx = measured("wago_epaisseur")
+    area_dz = measured("wago_423_largeur")
+    return (
+        _wago_nw(body, outer, west_x, north_y, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall),
+        west_x + area_dx + wall
+    )
 
 @part
 def boitier_dc(
     hauteur=27.0,
+    chanfrein=15.0,
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
     wago_raise=3.0,
@@ -146,6 +233,7 @@ def boitier_dc(
     """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
+    chanfrein: angle coupé en sud-ouest
     epaisseur_paroi: épaisseur des murs, vers l'intérieur
     epaisseur_fond: épaisseur du fond vers le haut
     wago_raise: de combien monter les logements WAGO
@@ -182,7 +270,7 @@ def boitier_dc(
         )
 
     # outer and inner polygon
-    outer_pts, west_x, east_x, south_y, north_y, west_marche_x, north_marche_y, chanfrein = _contour()    
+    outer_pts, west_x, east_x, south_y, north_y, west_marche_x, north_marche_y = _contour(chanfrein)    
     inner_pts = offset_in(outer_pts, wall)
 
     # compute inner angles coords
@@ -222,14 +310,24 @@ def boitier_dc(
     body = outer - cavity
 
     # Pillars / heat inserts for XIAO ESP32, tuck in the south east corner
-    body, xiao_north = _xiao_area(body, outer, inner_east_x, inner_south_y, floor)
+    body = _xiao_area(body, outer, inner_east_x, inner_south_y, floor)
 
-    # Wago south east: one Wago 221-412 for GND connection
+    # Wago south east: one Wago 221-423 for 5V + one Wago 221-412 for GND connection
     wago_surplomb_w = 1.0
     body = _wago_south_west(body, outer, 
         inner_west_x, inner_north_marche_y, 
         wago_raise, wago_surplomb, wago_surplomb_w, 
         floor, wall)
+
+    # Wago north east: one Wago 221-423 for 5V connection
+    body, wago_x = _wago_north_west(body, outer, 
+        inner_west_marche_x, inner_north_y, 
+        wago_raise, wago_surplomb, wago_surplomb_w, 
+        floor, wall)
+
+    # CAN Pal
+    body = _canpal_area(body, outer, inner_east_x, inner_north_y, floor, wall, wago_x)
+
 
     # Two M2.5 corbel heat inserts: same recipe as boitier_ps's wall corbels,
     # an overhang from the wall's inner face near the rim (not a tower from
@@ -254,14 +352,14 @@ def boitier_dc(
         (ov, hauteur),
     ]
 
-    corbel1_x = east_x/2.0
-    corbel1_y = inner_north_y
+    corbel1_x = inner_west_marche_x
+    corbel1_y = inner_north_marche_y + 10.0
     body = body + (
-        Pos(corbel1_x+corbel_along, corbel1_y, 0)
-        * extrude(Plane.YZ * Polygon(*corbel_pts, align=None), corbel_along)
+        Pos(corbel1_x, corbel1_y+corbel_along, 0)
+        * extrude(Plane.XZ * Polygon(*[(-a,b) for a,b in corbel_pts], align=None), corbel_along)
     )
     body = body - (
-        Pos(corbel1_x + corbel_paroi + corbel_r, corbel1_y - corbel_plat/2, z_corbel)
+        Pos(corbel1_x + corbel_plat/2, corbel1_y + corbel_paroi + corbel_r, z_corbel)
         * Cylinder(corbel_r, corbel_profondeur + 0.1, align=CMIN)
     )
 

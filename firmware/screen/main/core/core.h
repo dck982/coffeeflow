@@ -30,6 +30,7 @@ namespace core {
 // --- Sorties (lot 3) ---------------------------------------------------
 enum class Freshness : uint8_t { kFresh, kStale, kMissing };
 enum class FlashTarget : uint8_t { kNone, kScreen, kSensors };
+enum class RadioMode : uint8_t { kOff, kMachine, kWifi };
 
 // Instantané étendu de ui_model_t (ui.md), pris sous verrou puis complété sur
 // une copie. Aucun consommateur ne lit l'état interne champ par champ.
@@ -40,6 +41,11 @@ struct Snapshot {
   float volume_ml = 0.0f;
   uint32_t flow_pulse_count = 0;
   uint32_t flow_last_edge_age_ms = 0;
+
+  float weight_g = 0.0f;
+  bool scale_connected = false;
+  bool scale_present = false;
+  uint32_t scale_age_ms = 0;
 
   bool sensors_alive = false;
   bool pressure_valid = false;
@@ -70,6 +76,11 @@ struct Snapshot {
 
   uint8_t network_state = 0;  // NetworkState, évite une dépendance d'ordre dans Snapshot
   uint32_t ipv4_address = 0;  // ordre réseau, 0 = aucune adresse
+  RadioMode radio_mode = RadioMode::kOff;
+  bool radio_transition = false;
+  uint32_t internal_heap_free = 0;
+  uint32_t internal_heap_largest = 0;
+  uint32_t internal_heap_minimum = 0;
   bool time_known = false;
   int64_t wall_time_unix_s = 0;
 
@@ -87,7 +98,7 @@ struct Snapshot {
 };
 
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
-enum class NetworkState : uint8_t { kApProvisioning, kStaConnecting, kStaConnected, kStaDisconnected };
+enum class NetworkState : uint8_t { kOff, kApProvisioning, kStaConnecting, kStaConnected, kStaDisconnected };
 
 void init();
 void start_telemetry_task();
@@ -102,8 +113,18 @@ void on_status_actuators(const uint8_t* data, uint8_t len);
 void on_pong(const uint8_t* data, uint8_t len);
 void on_log(const uint8_t* data, uint8_t len);
 
+// BLE Acaia, appelé exclusivement par ble_scale. La définition de présence
+// reste au coeur : connectée et une pesée reçue depuis moins de deux secondes.
+void update_scale_connection(bool connected);
+void update_scale_weight(float weight_g);
+
 void update_network_status(NetworkState state, uint32_t ipv4_address);
 void mark_wall_time_known(int64_t unix_s);
+
+// Transition radio asynchrone, toujours effectuée sur le cœur 0. Au bring-up,
+// le défaut kOff permet de mesurer la SRAM avant de charger une radio.
+bool request_radio_mode(RadioMode mode);
+RadioMode radio_mode();
 
 using ForgetNetworkCallback = void (*)();
 void register_forget_network_callback(ForgetNetworkCallback callback);

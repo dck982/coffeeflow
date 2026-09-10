@@ -161,7 +161,7 @@ rampe d'engagement ci-dessous en vit) et ça mange la partition de ressources.
 | Icône | Ce qu'elle dit | Couleur |
 | --- | --- | --- |
 | balance | la balance est appairée et répond | `text` présente / `text_faint` absente |
-| Wi-Fi | **connecté au réseau** | `text` connecté / `text_faint` coupé ou absent |
+| Wi-Fi | mode Wi-Fi actif et associé au réseau | `text` connecté / `text_faint` mode machine ou non associé |
 | pompe | le régime de la pompe | rampe d'engagement, niveaux 0-3 |
 | goutte | la vanne est ouverte | `accent` ouverte / `text_faint` fermée |
 
@@ -169,10 +169,30 @@ rampe d'engagement ci-dessous en vit) et ça mange la partition de ressources.
 est la seule chose que le BLE sert à faire. Une icône qui ne peut jamais
 contredire sa voisine ne porte pas d'information.
 
-L'icône Wi-Fi est **atténuée pendant une infusion** parce que la radio est
-délibérément rendue au BLE (`firmware.md`, « Politique radio »). Ce n'est pas
-une faute et ça ne s'affiche pas comme telle : pas de rouge, pas de croix, pas
-de message.
+En mode machine, le Wi-Fi est entièrement déchargé et l'icône reste atténuée :
+ce n'est ni une panne ni une connexion en attente. En mode Wi-Fi, elle devient
+claire seulement après l'association. Le mode courant est toujours explicité
+par l'écran modal ci-dessous ; l'icône n'en est qu'un rappel discret.
+
+### Mode Wi-Fi modal
+
+Le Wi-Fi n'est pas un état de fond de l'écran de repos. L'utilisateur entre
+dans **mode Wi-Fi** par une action dédiée depuis les réglages, uniquement quand
+la machine est au repos. L'entrée demande confirmation, puis le cœur vérifie
+que pompe et vanne sont arrêtées, arrête NimBLE et charge Wi-Fi/HTTP.
+
+L'UI passe alors en **L2 `WIFI MODE`** : fond normal, titre `wifi mode` en
+ambre, état réseau (AP de configuration, association ou adresse IP) et un seul
+bouton local `quitter le mode wifi`. Les profils, *infuser*, et les réglages
+d'infusion disparaissent. Cela rend visible qu'on a quitté le mode machine et
+évite toute ambiguïté sur la disponibilité de la balance.
+
+Les clients distants peuvent faire le diagnostic, lancer une purge de banc et
+flasher, ou transmettre la dernière infusion au backend. Ils ne peuvent jamais
+lancer une infusion : cette interdiction est appliquée par le cœur, pas par la
+seule UI. À la sortie, Wi-Fi/HTTP et son netif sont désinitialisés, NimBLE est
+relancé, puis l'écran retourne au repos. La politique et la raison mémoire sont
+dans `firmware.md`, « Politique radio ».
 
 ---
 
@@ -209,7 +229,7 @@ brew by weight et discret le reste du temps, sans dupliquer les écrans.
 | --- | --- | --- |
 | **L0 — bandeau** | repos | une ligne de 28 px en haut, toutes les mesures, séparées par des points médians ; sous un filet pleine largeur |
 | **L1 — héros** | infusion, purge | une valeur à 104 px au centre + son filet de progression + deux valeurs secondaires à 40 px ; le bandeau L0 reste, atténué |
-| **L2 — plein écran** | boot, OTA, faute, verrou | tout le reste disparaît ; un titre, une phrase, éventuellement un filet de progression |
+| **L2 — plein écran** | boot, OTA, faute, verrou, mode Wi-Fi | tout le reste disparaît ; un titre, une phrase, éventuellement un filet de progression |
 | **L3 — feuille** | profils, pavé numérique | recouvre le bas de l'écran sur `bg_raised`, le bandeau L0 reste visible |
 | **L4 — veille** | 30 min sans touche ni infusion | recouvre tout ; un petit bloc qui se déplace lentement. Voir « Veille » |
 
@@ -266,7 +286,8 @@ Trois zones, rien d'autre.
    répétition sur appui long** — c'est un réglage qu'on bouge de quelques
    crans, pas une molette de volume. Pour un grand écart, on tape le chiffre :
    **le pavé numérique** (L3) s'ouvre.
-3. **Trois boutons** en bas : *infuser* (primaire), *purge*, *réglages*.
+3. **Trois boutons** en bas : *infuser* (primaire), *purge*, *réglages*. Le
+   mode Wi-Fi s'ouvre depuis les réglages, jamais depuis cet écran.
 
 Sous la cible, une ligne d'étiquette rappelle les paramètres du profil courant
 (pré-infusion, rampe) sans les rendre touchables — on les modifie dans
@@ -334,8 +355,8 @@ Même grammaire que le repos : une liste de lignes de 88 px, valeur à droite,
 `−`/`+` au tap sur la ligne. Contenu : cible temps, cible poids, stratégie de
 pré-infusion (temps fixe / attente de pression, avec le seuil), stratégie de
 ramp-down (temps avant fin / poids / chute de pression), Wi-Fi (dont
-*réinitialiser le réseau*, avec confirmation), calibrations, version du
-firmware. **Pas de luminosité** : voir « Veille ».
+*entrer en mode Wi-Fi* et *réinitialiser le réseau*, avec confirmation),
+calibrations, version du firmware. **Pas de luminosité** : voir « Veille ».
 
 Les stratégies sont des **choix parmi 2-3**, présentés en segments côte à côte
 (contour, celui qui est actif en ambre), pas en menu déroulant — un déroulant
@@ -363,7 +384,7 @@ bouton, pas de possibilité d'agir sur quoi que ce soit.
 | Vanne | `ouverte` / `fermée` | bail restant, marche continue |
 | Balance | `36,2 g` | `connectée` / `absente`, âge de la dernière pesée |
 | Bus CAN | `ok` / `perdu` | compteurs d'erreur TWAI, dernier code `LOG` |
-| Réseau | adresse IP | `connecté` / `coupé (infusion)` / `absent` |
+| Réseau | mode radio | `machine · BLE` / `wifi · AP` / `wifi · <adresse IP>` / `wifi · absent` |
 | Versions | `écran 0,2,3` | `capteurs 0,1,7`, uptime des deux |
 
 **Les valeurs brutes sont affichées telles quelles**, sans calibration : c'est
@@ -385,6 +406,7 @@ filet de progression optionnel, un bouton optionnel.
 | --- | --- | --- |
 | Boot | `coffeeflow` | version, puis disparaît |
 | Mise à jour | `mise à jour` | cible (écran/capteurs) + filet de progression. **Aucun bouton** : on ne coupe pas un OTA par mégarde |
+| Mode Wi-Fi | `wifi mode` (`accent`) | état AP/association/adresse IP + bouton `quitter le mode wifi`. Ni infusion ni réglages locaux |
 | Verrou 60 s | `verrou de sécurité` (`fault`) | « couper la machine à l'interrupteur principal pour réarmer » — la seule sortie réelle, autant l'écrire |
 | Bus CAN perdu | `module interne injoignable` (`fault`) | « les commandes sont coupées » |
 | Dimmer en calibration | *(pas de L2)* | reste au repos, bouton primaire grisé |
@@ -527,12 +549,14 @@ libellés. C'est ce qui permet de rejouer un shot enregistré
 (`coffeetool recorder`, phase 1) dans l'UI sans matériel.
 
 ```c
-typedef enum { UI_IDLE, UI_BREW, UI_PURGE, UI_DONE, UI_SHEET, UI_FULLSCREEN } ui_state_t;
+typedef enum { UI_IDLE, UI_BREW, UI_PURGE, UI_DONE, UI_SHEET, UI_FULLSCREEN, UI_WIFI } ui_state_t;
 typedef enum { BREW_BY_WEIGHT, BREW_BY_TIME } ui_goal_t;
 typedef enum { PHASE_PREINFUSION, PHASE_EXTRACTION, PHASE_RAMP } ui_phase_t;
+typedef enum { RADIO_MACHINE, RADIO_WIFI } ui_radio_mode_t;
 
 typedef struct {
   ui_state_t state;
+  ui_radio_mode_t radio_mode; // RADIO_WIFI implique state == UI_WIFI
   ui_goal_t  goal;            // dérivé de scale_present, jamais réglé à la main
   ui_phase_t phase;
 
@@ -546,7 +570,7 @@ typedef struct {
   bool    valve_open;         // écho du bit ssr
 
   bool    scale_present;      // BLE connecté ET pesée reçue < 2 s
-  bool    wifi_connected;     // associé ET adresse IP ; faux pendant une infusion
+  bool    wifi_connected;     // RADIO_WIFI, associé ET adresse IP
   bool    sensors_alive;      // trafic CAN reçu < 3 s
   bool    pressure_valid;     // STATUS_PRESSURE flags bit0
   bool    dimmer_ready;       // STATUS_ACTUATORS flags bit1
@@ -688,8 +712,10 @@ ici pour ne pas l'être à ce moment-là.
 | **Trame `STATUS_*` reçue pendant un L2** | le modèle est mis à jour, l'affichage ne change pas. Le retour du L2 montre des valeurs fraîches, jamais gelées. |
 | **Appui pendant une infusion, ailleurs que sur *arrêter*** | ignoré, aucun retour visuel. Le reste de l'écran n'est pas une cible. |
 | **Réveil depuis l'atténuation ou la veille** | la touche qui réveille **ne déclenche aucune action**. Réveiller et agir sont deux gestes. |
-| **Wi-Fi coupé au départ d'une infusion** | l'icône s'atténue, rien d'autre. Pas de message, pas de `fault` : c'est la politique radio (`firmware.md`), pas une panne. Elle se rallume seule au retour au repos. |
-| **Wi-Fi jamais configuré** | icône atténuée en permanence. Aucun rappel, aucune invitation à configurer : la machine fait café sans réseau. |
+| **Entrée en mode Wi-Fi** | acceptée seulement au repos, après arrêt confirmé des actionneurs. NimBLE est arrêté avant le chargement de Wi-Fi/HTTP ; l'écran passe à L2 `wifi mode`. |
+| **Appui local pendant le mode Wi-Fi** | seul `quitter le mode wifi` est une action locale. Les contrôles d'infusion ne sont pas dessinés. |
+| **Demande d'infusion distante pendant le mode Wi-Fi** | refusée par le cœur. Diagnostic, flash, envoi du dernier shot et purge de banc restent les seules opérations distantes prévues. |
+| **Wi-Fi jamais configuré** | en mode machine, icône atténuée sans rappel. Entrer en mode Wi-Fi lance l'AP de configuration ; la machine fait café sans réseau. |
 | **Diagnostic ouvert quand le bus tombe** | la feuille se ferme et laisse la place au L2 « module injoignable » — la priorité des plein écran s'applique aussi aux feuilles. |
 | **Verrou levé (retour de `flags` bit0 à 0)** | retour direct au repos, sans écran intermédiaire. Le verrou ne se lève que sur démarrage à froid, donc en pratique c'est un boot. |
 
@@ -707,6 +733,7 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `btn.brew.time` | `infuser · %d s` |
 | `btn.purge` | `purge` |
 | `btn.settings` | `réglages` |
+| `btn.wifi.enter` / `btn.wifi.exit` | `entrer en mode wifi` / `quitter le mode wifi` |
 | `btn.stop` | `arrêter` |
 | `btn.close` | `fermer` |
 | `btn.cancel` / `btn.ok` | `annuler` / `valider` |
@@ -725,7 +752,9 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `diag.valid` / `diag.absent` | `valide` / `absent` |
 | `diag.valve` | `ouverte` / `fermée` |
 | `diag.scale` | `connectée` / `absente` |
-| `diag.net` | `connecté` / `coupé (infusion)` / `absent` |
+| `diag.net` | `machine · ble` / `wifi · connecté` / `wifi · absent` |
+| `wifi.title` | `wifi mode` |
+| `wifi.ap` / `wifi.offline` | `configuration wifi` / `réseau non associé` |
 | `full.boot.title` | `coffeeflow` |
 | `full.ota.title` | `mise à jour` |
 | `full.ota.body` | `%s · bloc %d / %d` puis `ne pas couper la machine` |

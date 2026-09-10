@@ -41,6 +41,12 @@ esp_netif_t* g_sta_netif = nullptr;
 esp_netif_t* g_ap_netif = nullptr;
 httpd_handle_t g_provisioning_server = nullptr;
 bool g_time_started = false;
+bool g_sntp_initialized = false;
+bool g_network_base_ready = false;
+bool g_wifi_initialized = false;
+esp_event_handler_instance_t g_wifi_event_instance = nullptr;
+esp_event_handler_instance_t g_ip_event_instance = nullptr;
+esp_event_handler_instance_t g_sntp_event_instance = nullptr;
 
 bool credentials_present(Credentials* out) {
   nvs_handle_t handle;
@@ -200,6 +206,7 @@ void start_sntp_once() {
   setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1); tzset();
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
   esp_netif_sntp_init(&config);
+  g_sntp_initialized = true;
 }
 
 void on_sntp_event(void*, esp_event_base_t, int32_t, void* event_data) {
@@ -210,6 +217,7 @@ void on_sntp_event(void*, esp_event_base_t, int32_t, void* event_data) {
   // One-shot : l'heure est valide pour la session, les mesures restent
   // monotones. Arrêter ici interdit toute resynchronisation périodique.
   esp_netif_sntp_deinit();
+  g_sntp_initialized = false;
 }
 
 void on_wifi_event(void*, esp_event_base_t, int32_t event_id, void*) {
@@ -233,19 +241,62 @@ void on_ip_event(void*, esp_event_base_t, int32_t, void* event_data) {
 }
 }  // namespace
 
-void init() {
-  ESP_ERROR_CHECK(esp_netif_init());
-  ESP_ERROR_CHECK(esp_event_loop_create_default());
+void start() {
+  if (g_wifi_initialized) return;
+  if (!g_network_base_ready) {
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    g_network_base_ready = true;
+  }
   g_sta_netif = esp_netif_create_default_wifi_sta();
   g_ap_netif = esp_netif_create_default_wifi_ap();
+  ESP_ERROR_CHECK(g_sta_netif != nullptr && g_ap_netif != nullptr ? ESP_OK : ESP_ERR_NO_MEM);
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  g_wifi_initialized = true;
   ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &on_wifi_event, nullptr, nullptr));
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_ip_event, nullptr, nullptr));
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &on_sntp_event, nullptr, nullptr));
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &on_wifi_event, nullptr, &g_wifi_event_instance));
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_ip_event, nullptr, &g_ip_event_instance));
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &on_sntp_event, nullptr, &g_sntp_event_instance));
   core::register_forget_network_callback(&forget_network_impl);
   Credentials credentials{};
   if (credentials_present(&credentials)) start_sta(); else start_ap();
+}
+
+void stop() {
+  if (!g_wifi_initialized) return;
+  net_http::stop();
+  stop_provisioning();
+  if (g_sntp_initialized) {
+    esp_netif_sntp_deinit();
+    g_sntp_initialized = false;
+  }
+  if (g_wifi_event_instance != nullptr) {
+    esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, g_wifi_event_instance);
+    g_wifi_event_instance = nullptr;
+  }
+  if (g_ip_event_instance != nullptr) {
+    esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, g_ip_event_instance);
+    g_ip_event_instance = nullptr;
+  }
+  if (g_sntp_event_instance != nullptr) {
+    esp_event_handler_instance_unregister(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, g_sntp_event_instance);
+    g_sntp_event_instance = nullptr;
+  }
+  esp_wifi_stop();
+  ESP_ERROR_CHECK(esp_wifi_deinit());
+  ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(g_sta_netif));
+  ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(g_ap_netif));
+  esp_netif_destroy(g_sta_netif);
+  esp_netif_destroy(g_ap_netif);
+  g_sta_netif = nullptr;
+  g_ap_netif = nullptr;
+  g_wifi_initialized = false;
+  core::register_forget_network_callback(nullptr);
+  // Une tentative interrompue avant synchronisation doit être rejouable à la
+  // prochaine entrée dans le mode Wi-Fi.
+  g_time_started = false;
+  core::update_network_status(core::NetworkState::kOff, 0);
+  ESP_LOGI(kTag, "Wi-Fi/httpd/netif completement desinitialises");
 }
 }  // namespace net_wifi

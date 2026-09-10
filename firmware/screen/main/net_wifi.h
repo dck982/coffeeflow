@@ -1,4 +1,7 @@
-// Wi-Fi lot 4 : AP iff credentials absents, STA sinon. Aucun repli AP après
-// une panne d'un réseau déjà configuré : forget_network() est explicite.
+// Wi-Fi modal : inactif en mode machine. start() charge AP/STA et HTTP ;
+// stop() rend le driver et les netifs à la SRAM avant le retour à NimBLE.
 #pragma once
-namespace net_wifi { void init(); }
+namespace net_wifi {
+void start();
+void stop();
+}

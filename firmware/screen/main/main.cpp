@@ -72,10 +72,10 @@ extern "C" void app_main() {
   // interne contiguë, que la pile radio et httpd peuvent fragmenter.
   service_screen::init();
 
-  // Radio, callbacks, provisioning AP et, une fois STA associée, le serveur
-  // HTTP du lot 5. L'init LCD est maintenant terminée sur le cœur 1 avant
-  // les allocations Wi-Fi.
-  net_wifi::init();
+  // Le LCD doit allouer ses deux bounce buffers internes avant toute pile
+  // radio. Une fois l'écran prêt, le mode machine charge BLE par défaut ;
+  // kOff reste disponible comme état de transition et de diagnostic.
+  core::request_radio_mode(core::RadioMode::kMachine);
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
 }

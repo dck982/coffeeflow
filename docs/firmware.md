@@ -256,20 +256,32 @@ le schéma est prévu pour, et l'ajouter ne changera pas le reste de l'objet.
 
 ### Politique radio
 
-**Wi-Fi et BLE ne sont pas actifs en même temps quand ça compte.** Ils
-partagent la même radio 2,4 GHz : les faire cohabiter pendant un shot, c'est
-accepter des trous dans la pesée au moment précis où elle décide de l'arrêt.
+**Wi-Fi et BLE sont des modes exclusifs du coeur.** Ils partagent la radio
+2,4 GHz et, sur cet écran RGB, leurs contrôleurs exigent aussi de la SRAM
+interne. Cette exclusivité libère leurs allocations dynamiques, mais pas le
+code IRAM lié dans l'image : ajouter le contrôleur BLE avait aussi retiré
+environ 18 Kio à la DIRAM disponible avant même son initialisation, assez pour
+faire échouer les bounce buffers LCD. Les optimisations IRAM Wi-Fi sont donc
+désactivées et NimBLE utilise son mode basse vitesse et la PSRAM lorsque
+possible. Le coeur possède un état radio explicite, pas une convention
+implicite de l'UI.
 
-| Moment | Wi-Fi | BLE |
-| --- | --- | --- |
-| Repos | actif | actif, mais **basse cadence** — on détecte la balance et on lit le poids à ~1 Hz, il n'y a rien à suivre |
-| Infusion, purge | **coupé** | actif, pleine cadence |
-| Fin d'infusion | réactivé | actif, basse cadence |
+| Mode | Wi-Fi / HTTP | BLE | Actions permises |
+| --- | --- | --- | --- |
+| **machine** (défaut) | complètement désinitialisés | actif ; poids à basse cadence au repos, pleine cadence pendant un cycle | infusion, purge, tare |
+| **Wi-Fi** (bouton explicite) | actifs ; API, WebSocket et flash réseau ouverts | complètement désinitialisé | diagnostic, flash, purge de banc, envoi du dernier shot au backend ; **pas d'infusion** |
 
-La coupure du Wi-Fi pendant une infusion est **délibérée et normale**, pas une
-panne : l'UI l'affiche comme telle (`ui.md`, bandeau de statut). Le shot est
-envoyé au réseau *après* le cycle, quand la radio est rendue — c'est déjà ce
-que dit le tableau des travaux concurrents plus haut.
+Entrer en mode Wi-Fi arrête et désinitialise BLE/controller avant de démarrer
+Wi-Fi. Le retour au mode machine effectue l'opération inverse : arrêt de
+httpd, Wi-Fi et netif, puis initialisation BLE. Ce n'est pas un simple
+`esp_wifi_stop()` : les buffers doivent être rendus à la SRAM interne. L'UI
+affiche un bandeau `WIFI MODE` pendant toute la durée du mode. Le pont USB
+reste disponible dans les deux cas.
+
+Le mode Wi-Fi est volontairement modal : une infusion ne peut pas démarrer
+tant qu'il est actif et le coeur refuse cette action même si un client HTTP la
+demande. Une purge de banc reste autorisée pour le diagnostic. L'envoi d'un
+shot vers le backend se fait aussi dans ce mode, après la fin du cycle.
 
 Le **même flux de trames** sort en USB série sur l'image factory (voir plus bas) : un seul décodeur côté Mac pour les deux transports.
 

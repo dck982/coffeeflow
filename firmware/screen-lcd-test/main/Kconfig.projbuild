@@ -1,14 +1,23 @@
-menu "LCD/Wi-Fi diagnostic"
+menu "LCD / radio diagnostic"
 
-choice LCD_TEST_INIT_ORDER
-    prompt "Ordre d'initialisation teste"
-    default LCD_TEST_WIFI_FIRST
+choice LCD_TEST_BOOT_SEQUENCE
+    prompt "Sequence de demarrage testee"
+    default LCD_TEST_LCD_WIFI_NIMBLE
 
-config LCD_TEST_WIFI_FIRST
-    bool "Wi-Fi + HTTP avant LCD/LVGL (ordre suspect)"
+config LCD_TEST_LCD_ONLY
+    bool "LCD / LVGL seulement"
 
-config LCD_TEST_LCD_FIRST
-    bool "LCD/LVGL avant Wi-Fi + HTTP (controle)"
+config LCD_TEST_LCD_WIFI
+    bool "LCD / LVGL puis Wi-Fi + HTTP"
+
+config LCD_TEST_LCD_NIMBLE
+    bool "LCD / LVGL puis NimBLE"
+
+config LCD_TEST_LCD_WIFI_NIMBLE
+    bool "LCD / LVGL puis Wi-Fi + HTTP puis NimBLE"
+
+config LCD_TEST_SWITCH_WIFI_NIMBLE
+    bool "LCD / LVGL puis Wi-Fi <-> NimBLE toutes les 5 secondes"
 
 endchoice
 endmenu

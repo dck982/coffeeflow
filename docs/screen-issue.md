@@ -1,9 +1,19 @@
 # Instabilité de synchronisation de l’écran
 
-## Résultat (2026-09-09)
+## Résultat final (2026-09-10, `v0.2.33`)
 
-Corrigé sur le vrai matériel, image `screen` `v0.2.20`. Écran parfaitement
-stable, plus aucun saut ni décalage horizontal.
+Le correctif `v0.2.20` a supprimé les sauts et décalages variables observés
+pendant les rafraîchissements, mais la conclusion « écran parfaitement stable »
+était trop forte. Un décalage fixe persistait : tout le contenu apparaissait
+environ 150 pixels trop à droite et légèrement trop bas. Pour cliquer sur un
+bouton affiché, il fallait toucher environ 150 pixels à sa gauche et un peu
+plus haut.
+
+Le test `v0.2.33` confirme que le GT911 renvoyait les coordonnées LVGL
+correctes et que seule la trame RGB visible était décalée. Une reprise unique
+du panneau avec `esp_lcd_rgb_panel_restart()`, une seconde après le premier
+rendu LVGL, remet l'image en place. La cause est donc le démarrage
+désynchronisé du flux RGB/DMA, pas les coordonnées tactiles ni un offset LVGL.
 
 Suffisant, flashé et observé : LCD initialisé depuis le cœur 1 (ISR DMA
 avec LVGL), pont TWAI/UART et validation OTA sur le cœur 0.
@@ -16,7 +26,7 @@ PCLK resté à 16 MHz, CPU resté à 160 MHz. Les images 2 (240 MHz) et 3
 (PCLK 14 puis 12 MHz) n’ont pas été nécessaires. `CONFIG_LCD_RGB_RESTART_IN_VSYNC`
 reste désactivé.
 
-## Diagnostic (confirmé)
+## Diagnostic des sauts variables (confirmé)
 
 Ce n’était ni un mauvais timing HSYNC/VSYNC, ni un manque global de CPU pour
 traiter le CAN.
@@ -83,6 +93,24 @@ En ESP-IDF 6.1, le driver détecte déjà les EOF manqués et redémarre uniquem
 en cas de sous-alimentation. Cette option force le redémarrage à chaque VSYNC,
 ce qui avait aggravé les sauts. Ne pas la réactiver.
 
-Un downgrade vers ESP-IDF 5.x n’est pas recommandé : le firmware isolé était
+Un downgrade vers ESP-IDF 5.x n'est pas recommandé : le firmware isolé était
 déjà stable sous 6.1, et le correctif est architectural (affinité des cœurs),
-pas une incompatibilité d’IDF.
+pas une incompatibilité d'IDF.
+
+## Décalage fixe — diagnostic confirmé et correctif
+
+Les timings en vigueur sont ceux du sketch Waveshare validé sur ce panneau :
+HSYNC `48/88/40`, VSYNC `3/32/13`, PCLK 16 MHz sur front descendant. Le
+framebuffer 800×480 RGB565 est en PSRAM ; le driver `esp_lcd` utilise deux
+bounce buffers DMA internes de 40 lignes et `esp_lvgl_port` est en `bb_mode`.
+
+Le premier essai ciblé a suffi : un timer LVGL demande une seule reprise du
+panneau une seconde après la construction de l'UI. Le driver exécute la reprise
+au VSYNC suivant et le moniteur reçoit `LCD_INIT_STEP=8`. L'image et les zones
+tactiles coïncident ensuite sur le matériel.
+
+Ce restart unique est différent de `CONFIG_LCD_RGB_RESTART_IN_VSYNC`. Cette
+option reste désactivée : redémarrer à chaque trame avait aggravé les sauts.
+Les timings HSYNC/VSYNC, PCLK, les deux bounce buffers de 40 lignes et la
+configuration du GT911 ne changent pas. La bordure magenta ajoutée pour le
+diagnostic a été retirée sans modifier le correctif.

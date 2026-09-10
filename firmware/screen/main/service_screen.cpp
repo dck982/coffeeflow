@@ -63,6 +63,7 @@ lv_obj_t* g_telemetry_label = nullptr;
 lv_obj_t* g_net_label = nullptr;
 lv_obj_t* g_ip_label = nullptr;
 lv_obj_t* g_time_label = nullptr;
+lv_obj_t* g_memory_label = nullptr;
 lv_obj_t* g_pump_label = nullptr;
 lv_obj_t* g_action_label = nullptr;
 lv_obj_t* g_event_labels[kVisibleEvents] = {};
@@ -74,6 +75,17 @@ bool g_purge_held = false;
 uint8_t g_diagnostic_pump_pct = 100;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
+
+// Le flux DMA peut démarrer avant le premier rendu LVGL complet et conserver
+// un décalage fixe. Une reprise unique après une seconde le resynchronise,
+// sans forcer un restart à chaque VSYNC (option qui provoquait des sauts).
+void rgb_restart_timer_cb(lv_timer_t* timer) {
+  auto panel = static_cast<esp_lcd_panel_handle_t>(lv_timer_get_user_data(timer));
+  esp_err_t err = esp_lcd_rgb_panel_restart(panel);
+  can_link::send_log(common::LogCode::kLcdInitStep,
+                     err == ESP_OK ? common::LogSeverity::kDebug : common::LogSeverity::kError,
+                     err == ESP_OK ? 8 : 0x8008, static_cast<uint32_t>(err));
+}
 
 // lv_label_set_text() invalide toujours le widget, même si la chaîne est
 // identique. Sur ce panneau RGB, chaque invalidation inutile dispute le bus
@@ -247,6 +259,15 @@ void on_screen_pressed(lv_event_t* e) {
 
 void set_action_text(const char* text) { set_label_if_changed(g_action_label, text); }
 void on_forget_network(lv_event_t*) { core::forget_network(); set_action_text("RESEAU OUBLIE"); }
+void on_enable_wifi(lv_event_t*) {
+  set_action_text(core::request_radio_mode(core::RadioMode::kWifi) ? "PASSAGE MODE WIFI" : "WIFI REFUSE");
+}
+void on_enable_ble(lv_event_t*) {
+  set_action_text(core::request_radio_mode(core::RadioMode::kMachine) ? "RETOUR MODE MACHINE" : "RETOUR REFUSE");
+}
+void on_radio_off(lv_event_t*) {
+  set_action_text(core::request_radio_mode(core::RadioMode::kOff) ? "RADIO DESACTIVEE" : "ARRET REFUSE");
+}
 void on_reset_settings(lv_event_t*) {
   core::ConfigResult result = core::reset_config();
   set_action_text(result.status == core::ConfigStatus::kOk ? "REGLAGES PAR DEFAUT" : "ERREUR NVS");
@@ -330,24 +351,36 @@ void build_ui() {
 
   // Console de banc du lot 4. Ces commandes appellent le cœur — jamais
   // can_link directement — et seront absorbées par l'UI du lot 10.
-  lv_obj_t* forget = add_button(scr, "OUBLIER RESEAU", 4, y + 4);
+  // Les radios sont exclusives : le bouton ne touche jamais directement
+  // NimBLE ou Wi-Fi, le cœur effectue la transition sur le cœur 0.
+  lv_obj_t* wifi = add_button(scr, "ACTIVER WIFI", 4, y + 4);
+  lv_obj_add_event_cb(wifi, on_enable_wifi, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* ble = add_button(scr, "ACTIVER BLE", 126, y + 4);
+  lv_obj_add_event_cb(ble, on_enable_ble, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* radio_off = add_button(scr, "COUPER RADIO", 248, y + 4);
+  lv_obj_add_event_cb(radio_off, on_radio_off, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* forget = add_button(scr, "OUBLIER RESEAU", 4, y + 42);
   lv_obj_add_event_cb(forget, on_forget_network, LV_EVENT_LONG_PRESSED, nullptr);
-  lv_obj_t* reset = add_button(scr, "REGLAGES DEFAUT", 190, y + 4);
+  lv_obj_t* reset = add_button(scr, "REGLAGES DEFAUT", 190, y + 42);
   lv_obj_add_event_cb(reset, on_reset_settings, LV_EVENT_LONG_PRESSED, nullptr);
-  lv_obj_t* minus = add_button(scr, "POMPE -", 4, y + 42);
-  lv_obj_t* plus = add_button(scr, "POMPE +", 100, y + 42);
+  lv_obj_t* minus = add_button(scr, "POMPE -", 4, y + 80);
+  lv_obj_t* plus = add_button(scr, "POMPE +", 100, y + 80);
   lv_obj_add_event_cb(minus, on_pump_down, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_event_cb(plus, on_pump_up, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t* purge = add_button(scr, "MAINTENIR PURGE", 196, y + 42);
+  lv_obj_t* purge = add_button(scr, "MAINTENIR PURGE", 196, y + 80);
   lv_obj_add_event_cb(purge, on_purge_pressed, LV_EVENT_PRESSED, nullptr);
   lv_obj_add_event_cb(purge, on_purge_released, LV_EVENT_RELEASED, nullptr);
   lv_obj_add_event_cb(purge, on_purge_released, LV_EVENT_PRESS_LOST, nullptr);
   g_pump_label = lv_label_create(scr);
   lv_obj_set_style_text_color(g_pump_label, lv_color_white(), 0);
-  lv_obj_set_pos(g_pump_label, 4, y + 76);
+  lv_obj_set_pos(g_pump_label, 4, y + 114);
   g_action_label = lv_label_create(scr);
   lv_obj_set_style_text_color(g_action_label, lv_color_white(), 0);
-  lv_obj_set_pos(g_action_label, 160, y + 76);
+  lv_obj_set_pos(g_action_label, 160, y + 114);
+
+  g_memory_label = lv_label_create(scr);
+  lv_obj_set_style_text_color(g_memory_label, lv_color_white(), 0);
+  lv_obj_set_pos(g_memory_label, 4, y + 136);
 
   g_touch_label = lv_label_create(scr);
   lv_obj_set_style_text_color(g_touch_label, lv_color_white(), 0);
@@ -374,14 +407,27 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
   }
   set_label_if_changed(g_telemetry_label, telemetry);
 
-  const char* network = "RESEAU: INCONNU";
-  switch (static_cast<core::NetworkState>(snapshot.network_state)) {
-    case core::NetworkState::kApProvisioning: network = "RESEAU: AP CONFIGURATION"; break;
-    case core::NetworkState::kStaConnecting: network = "RESEAU: CONNEXION"; break;
-    case core::NetworkState::kStaConnected: network = "RESEAU: CONNECTE"; break;
-    case core::NetworkState::kStaDisconnected: network = "RESEAU: COUPE"; break;
+  const char* network = "RADIO: AUCUNE (DIAGNOSTIC SRAM)";
+  if (snapshot.radio_mode == core::RadioMode::kMachine) {
+    network = snapshot.scale_connected ? "RADIO: BLE / BALANCE CONNECTEE"
+                                       : "RADIO: BLE / RECHERCHE BALANCE";
+  } else if (snapshot.radio_mode == core::RadioMode::kWifi) {
+    switch (static_cast<core::NetworkState>(snapshot.network_state)) {
+      case core::NetworkState::kOff: network = "RADIO: WIFI / DEMARRAGE"; break;
+      case core::NetworkState::kApProvisioning: network = "RESEAU: AP CONFIGURATION"; break;
+      case core::NetworkState::kStaConnecting: network = "RESEAU: CONNEXION"; break;
+      case core::NetworkState::kStaConnected: network = "RESEAU: CONNECTE"; break;
+      case core::NetworkState::kStaDisconnected: network = "RESEAU: COUPE"; break;
+    }
   }
+  if (snapshot.radio_transition) network = "CHANGEMENT DE MODE RADIO...";
   set_label_if_changed(g_net_label, network);
+  char memory[96];
+  std::snprintf(memory, sizeof(memory), "SRAM INTERNE: libre %lu  bloc %lu  min %lu",
+                static_cast<unsigned long>(snapshot.internal_heap_free),
+                static_cast<unsigned long>(snapshot.internal_heap_largest),
+                static_cast<unsigned long>(snapshot.internal_heap_minimum));
+  set_label_if_changed(g_memory_label, memory);
   char ip[32];
   if (snapshot.ipv4_address == 0) std::snprintf(ip, sizeof(ip), "IP: -");
   else std::snprintf(ip, sizeof(ip), "IP: %u.%u.%u.%u",
@@ -449,6 +495,8 @@ void init_on_core1() {
   if (lvgl_port_lock(1000)) {
     build_ui();
     lv_timer_create(refresh_timer_cb, kRefreshPeriodMs, nullptr);
+    lv_timer_t* restart_timer = lv_timer_create(rgb_restart_timer_cb, 1000, panel_handle);
+    lv_timer_set_repeat_count(restart_timer, 1);
     lvgl_port_unlock();
   }
 

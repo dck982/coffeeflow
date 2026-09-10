@@ -108,6 +108,7 @@ const char* freshness_text(core::Freshness freshness) {
 
 const char* network_text(core::NetworkState state) {
   switch (state) {
+    case core::NetworkState::kOff: return "off";
     case core::NetworkState::kApProvisioning: return "ap_provisioning";
     case core::NetworkState::kStaConnecting: return "sta_connecting";
     case core::NetworkState::kStaConnected: return "sta_connected";
@@ -192,7 +193,10 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddBoolToObject(root, "lockout", snapshot.lockout);
   cJSON_AddNumberToObject(root, "lease_remaining_ms", snapshot.lease_remaining_ms);
   cJSON_AddNumberToObject(root, "continuous_on_ms", snapshot.continuous_on_ms);
-  cJSON_AddBoolToObject(root, "scale_present", false);
+  cJSON_AddNumberToObject(root, "weight_g", snapshot.weight_g);
+  cJSON_AddBoolToObject(root, "scale_connected", snapshot.scale_connected);
+  cJSON_AddBoolToObject(root, "scale_present", snapshot.scale_present);
+  add_age(root, "scale_age_ms", snapshot.scale_age_ms);
   cJSON_AddStringToObject(root, "cycle", "idle");
   cJSON* flash = cJSON_AddObjectToObject(root, "flash");
   cJSON_AddBoolToObject(flash, "active", snapshot.flash_active);
@@ -201,6 +205,10 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddNumberToObject(flash, "bytes_total", snapshot.flash_bytes_total);
 
   cJSON* network = cJSON_AddObjectToObject(root, "network");
+  cJSON_AddStringToObject(network, "radio_mode",
+                          snapshot.radio_mode == core::RadioMode::kWifi ? "wifi" :
+                          snapshot.radio_mode == core::RadioMode::kMachine ? "machine" : "off");
+  cJSON_AddBoolToObject(network, "transition", snapshot.radio_transition);
   cJSON_AddStringToObject(network, "state", network_text(static_cast<core::NetworkState>(snapshot.network_state)));
   if (snapshot.ipv4_address == 0) {
     cJSON_AddNullToObject(network, "ipv4");

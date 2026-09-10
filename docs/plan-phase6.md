@@ -626,7 +626,8 @@ d'`otadata`.
 
 ## Lot 8 — Client BLE Acaia et politique radio
 
-**Objectif :** le poids arrive, et les deux radios cohabitent selon la règle.
+**Objectif :** le poids arrive, et le coeur bascule explicitement entre les
+deux radios selon la règle.
 
 Contenu :
 
@@ -644,18 +645,38 @@ Contenu :
    2 s. L'action « tarer » du cœur devient disponible.
 4. Cadence adaptative : ~1 Hz au repos, pleine cadence pendant une infusion ou
    une purge.
-5. Politique radio de `firmware.md` : Wi-Fi arrêté au départ d'une infusion,
-   relancé au retour au repos. Le pont USB reste actif pendant ce temps.
+5. Mode radio exclusif de `firmware.md` : au démarrage machine, BLE est chargé
+   et Wi-Fi/httpd/netif ne le sont pas. Un bouton de l'UI demande le mode
+   Wi-Fi ; le coeur arrête et désinitialise BLE/controller, démarre Wi-Fi et
+   HTTP, refuse toute infusion, mais accepte le diagnostic, le flash et la
+   purge de banc. À la sortie du mode Wi-Fi, il libère complètement
+   Wi-Fi/httpd/netif avant de relancer BLE. Le pont USB reste actif pendant
+   toutes ces transitions.
 
-**Piège :** la coupure du Wi-Fi ferme les connexions WebSocket et HTTP en
-cours. C'est délibéré, ce n'est pas une panne, et l'UI l'affichera comme telle
-(icône atténuée, ni rouge ni message — `ui.md`). Un client réseau se reconnecte
-après le shot.
+**Piège :** quitter le mode Wi-Fi ferme les connexions WebSocket et HTTP en
+cours. C'est délibéré, ce n'est pas une panne : l'UI affiche `WIFI MODE` tant
+que ce mode est actif et le client réseau doit se reconnecter à l'entrée
+suivante.
 
-**Critère de sortie :** `GET /telemetry` montre le poids suivant une charge
-posée sur le plateau ; `scale_present` retombe en moins de 2 s quand la balance
-est éteinte et revient au rallumage ; une session de plusieurs minutes sans
-perte de notifications (le battement fait son travail).
+**État du bring-up au 2026-09-10 :** le premier boot de l'image principale
+échouait avant toute activation radio, car le code IRAM du contrôleur BLE
+restait résident et ne laissait que 129 082 octets face aux 128 000 octets des
+deux bounce buffers LCD, sans marge pour le driver. Les optimisations IRAM
+Wi-Fi ont été désactivées et NimBLE placé en mode basse vitesse ; le build
+laisse 147 646 octets et le boot LCD est validé. Les transitions aucune radio,
+Wi-Fi, BLE puis aucune radio fonctionnent. L'UI de banc confond encore BLE
+actif avec `NetworkState::kOff` et affiche alors `RADIO: AUCUNE`. Le tri-state
+reste le modèle interne, mais le boot final doit demander `machine` après
+l'initialisation LCD afin que BLE soit le mode actif par défaut. Cette demande
+est maintenant implémentée ; sa validation sur la Lunar reste à faire.
+
+**Critère de sortie :** le banc RGB démarre sans reboot en alternant, toutes
+les cinq secondes, Wi-Fi/httpd/netif puis NimBLE/controller (chaque pile est
+réellement désinitialisée avant l'autre) ; `GET /telemetry` montre ensuite le
+poids suivant une charge posée sur le plateau en mode machine ;
+`scale_present` retombe en moins de 2 s quand la balance est éteinte et revient
+au rallumage ; une session de plusieurs minutes sans perte de notifications
+(le battement fait son travail).
 
 ---
 
@@ -780,7 +801,7 @@ connue sur les emplacements OTA.
 | Registre CH422G partagé : le bus CAN tombe en allumant la dalle | lot 2 | état maintenu en RAM dès le lot 1, et l'écran de service placé tôt exprès |
 | Écarts d'API `esp_lcd` entre IDF v5.x et v6.1 | lot 2 | repli sur un projet jetable si ça s'enlise, sans laisser `screen/` cassé |
 | Cohabitation Wi-Fi / BLE dégradant la pesée | lot 8 | la politique radio de `firmware.md`, appliquée telle quelle |
-| Bande passante du panneau RGB : déchirement | lots 2 et 10 | bounce buffer, ISR LCD et LVGL sur le même cœur (1), pont sur le 0, animations locales, rafraîchissement plafonné à 10 Hz — lot 2 validé `v0.2.20` |
+| Bande passante/synchronisation du panneau RGB : déchirement ou décalage fixe | lots 2 et 10 | bounce buffer, ISR LCD et LVGL sur le même cœur (1), pont sur le 0, animations locales, rafraîchissement plafonné à 10 Hz ; restart RGB/DMA unique après le premier rendu LVGL, décalage fixe corrigé sur `v0.2.33` |
 | UUID et bit de signe Acaia non vérifiés | lot 8 | les confirmer sur la vraie balance avant d'écrire l'algorithme au poids |
 | Frontière du cœur qui fuit (règles recopiées dans l'UI ou le httpd) | lots 5 et 10 | `core.h` seule inclusion autorisée ; toute règle d'éligibilité est un motif de refus |
 | Emplacements OTA trop justes | lot 11 | mesurer avant de fermer les boîtiers, pas après |

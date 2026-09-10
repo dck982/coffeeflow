@@ -3,10 +3,13 @@
 #include <cstring>
 
 #include "esp_timer.h"
+#include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "can_link.h"
+#include "ble_scale.h"
+#include "net_wifi.h"
 #include "core/calibration_machine.h"
 #include "common/messages.hpp"
 #include "common/version.hpp"
@@ -20,6 +23,7 @@ constexpr float kFlowPulsesPerLiter = calibration_machine::kFlowPulsesPerLiter;
 constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmesa
 constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
+constexpr uint32_t kScalePresentMs = 2000;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
 constexpr Periods periods_for(TelemetryProfile profile) {
@@ -42,6 +46,7 @@ struct State {
   int64_t actuators_received_us = 0;
   int64_t last_sensors_message_us = 0;
   int64_t last_flow_edge_received_us = 0;
+  int64_t scale_received_us = 0;
   FlowSample flow_history[kFlowHistoryCapacity]{};
   size_t flow_count = 0;
   TelemetryProfile profile = TelemetryProfile::kIdle;
@@ -52,6 +57,7 @@ State g_state;
 ForgetNetworkCallback g_forget_network_callback = nullptr;
 bool g_cycle_active = false;  // lot 9 posera infusion/purge
 bool g_flash_active = false;
+bool g_radio_transition = false;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
@@ -193,6 +199,27 @@ void telemetry_task(void*) {
   }
 }
 
+void radio_transition_task(void* arg) {
+  const RadioMode target = static_cast<RadioMode>(reinterpret_cast<uintptr_t>(arg));
+  if (target == RadioMode::kWifi) {
+    ble_scale::stop();
+    net_wifi::start();
+  } else if (target == RadioMode::kMachine) {
+    net_wifi::stop();
+    ble_scale::init();
+  } else {
+    // Mode diagnostic : aucune radio ne retient de SRAM interne.
+    net_wifi::stop();
+    ble_scale::stop();
+  }
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.radio_mode = target;
+  g_state.snapshot.radio_transition = false;
+  g_radio_transition = false;
+  portEXIT_CRITICAL(&g_state.lock);
+  vTaskDelete(nullptr);
+}
+
 }  // namespace
 
 void init() { config_init(); }
@@ -331,6 +358,21 @@ void on_log(const uint8_t* data, uint8_t len) {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
+void update_scale_connection(bool connected) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.scale_connected = connected;
+  if (!connected) g_state.scale_received_us = 0;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void update_scale_weight(float weight_g) {
+  int64_t now = now_us();
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.weight_g = weight_g;
+  g_state.scale_received_us = now;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
 void update_network_status(NetworkState state, uint32_t ipv4_address) {
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.network_state = static_cast<uint8_t>(state);
@@ -343,6 +385,39 @@ void mark_wall_time_known(int64_t unix_s) {
   g_state.snapshot.time_known = unix_s > 0;
   g_state.snapshot.wall_time_unix_s = unix_s;
   portEXIT_CRITICAL(&g_state.lock);
+}
+
+bool request_radio_mode(RadioMode mode) {
+  if (g_cycle_active || g_flash_active) return false;
+  portENTER_CRITICAL(&g_state.lock);
+  if (g_radio_transition) {
+    portEXIT_CRITICAL(&g_state.lock);
+    return false;
+  }
+  if (g_state.snapshot.radio_mode == mode) {
+    portEXIT_CRITICAL(&g_state.lock);
+    return true;
+  }
+  g_radio_transition = true;
+  g_state.snapshot.radio_transition = true;
+  portEXIT_CRITICAL(&g_state.lock);
+
+  const auto arg = reinterpret_cast<void*>(static_cast<uintptr_t>(mode));
+  if (xTaskCreatePinnedToCore(radio_transition_task, "radio_mode", 6144, arg, 5, nullptr, 0) != pdPASS) {
+    portENTER_CRITICAL(&g_state.lock);
+    g_radio_transition = false;
+    g_state.snapshot.radio_transition = false;
+    portEXIT_CRITICAL(&g_state.lock);
+    return false;
+  }
+  return true;
+}
+
+RadioMode radio_mode() {
+  portENTER_CRITICAL(&g_state.lock);
+  RadioMode mode = g_state.snapshot.radio_mode;
+  portEXIT_CRITICAL(&g_state.lock);
+  return mode;
 }
 
 void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget_network_callback = callback; }
@@ -375,6 +450,13 @@ DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
 }
 
 ActionResult perform_action(const ActionCommand& command) {
+  if (command.action == Action::kStartBrew && radio_mode() == RadioMode::kWifi) {
+    return action_result(ActionStatus::kUnavailable);
+  }
+  if (command.action == Action::kTare) {
+    if (!get_snapshot().scale_present) return action_result(ActionStatus::kUnavailable);
+    return action_result(ble_scale::tare() ? ActionStatus::kOk : ActionStatus::kUnavailable);
+  }
   if (command.action != Action::kSetActuators) return action_result(ActionStatus::kUnavailable);
   if (command.dimmer > 100) return action_result(ActionStatus::kInvalidValue);
   Snapshot snapshot = get_snapshot();
@@ -392,6 +474,7 @@ Snapshot get_snapshot() {
   int64_t actuators_received;
   int64_t sensors_message;
   int64_t last_edge;
+  int64_t scale_received;
   TelemetryProfile profile;
   portENTER_CRITICAL(&g_state.lock);
   result = g_state.snapshot;
@@ -400,6 +483,7 @@ Snapshot get_snapshot() {
   actuators_received = g_state.actuators_received_us;
   sensors_message = g_state.last_sensors_message_us;
   last_edge = g_state.last_flow_edge_received_us;
+  scale_received = g_state.scale_received_us;
   profile = g_state.profile;
   portEXIT_CRITICAL(&g_state.lock);
 
@@ -413,11 +497,17 @@ Snapshot get_snapshot() {
   result.actuators_freshness = freshness(actuators_received, periods.actuators, now);
   result.sensors_alive = sensors_message != 0 && now - sensors_message <= 3 * 1000 * 1000;
   result.flow_last_edge_age_ms = age_ms(last_edge, now);
+  result.scale_age_ms = age_ms(scale_received, now);
+  result.scale_present = result.scale_connected && scale_received != 0 &&
+                         now - scale_received <= static_cast<int64_t>(kScalePresentMs) * 1000;
   if (last_edge == 0 || now - last_edge > static_cast<int64_t>(kFlowSilenceMs) * 1000) result.flow_ml_s = 0.0f;
   result.screen_version_major = common::kFirmwareVersionMajor;
   result.screen_version_minor = common::kFirmwareVersionMinor;
   result.screen_version_patch = common::kFirmwareVersionPatch;
   result.screen_uptime_s = static_cast<uint32_t>(now / 1000000);
+  result.internal_heap_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  result.internal_heap_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  result.internal_heap_minimum = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   return result;
 }
 

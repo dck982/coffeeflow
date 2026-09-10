@@ -1,4 +1,4 @@
-# Variante temoin : ne change que l'ordre d'allocation par rapport aux defauts.
-# Utilisation : idf.py -B build-lcd-first -D SDKCONFIG_DEFAULTS='sdkconfig.defaults;sdkconfig.lcd-first.defaults' build
-# CONFIG_LCD_TEST_WIFI_FIRST is not set
-CONFIG_LCD_TEST_LCD_FIRST=y
+# Variante de base : LCD / LVGL seulement.
+# Utilisation : idf.py -B build-lcd-only -D SDKCONFIG_DEFAULTS='sdkconfig.defaults;sdkconfig.lcd-first.defaults' build
+# CONFIG_LCD_TEST_LCD_WIFI_NIMBLE is not set
+CONFIG_LCD_TEST_LCD_ONLY=y

@@ -268,6 +268,20 @@ restaurer d'abord `firmware/screen/build/partition_table/partition-table.bin`
 jamais `idf.py flash`. Cette exception ne s'applique jamais à l'image
 fonctionnelle `screen`.
 
+Après un flash direct du banc, restaurer et sélectionner la factory écran :
+
+```sh
+esptool.py --chip esp32s3 --port /dev/cu.wchusbserial5B790235091 write_flash \
+  0x8000 firmware/screen/build/partition_table/partition-table.bin \
+  0x20000 firmware/factory-images/2026-09-09-451566c/screen-factory.bin
+esptool.py --chip esp32s3 --port /dev/cu.wchusbserial5B790235091 \
+  erase_region 0x10000 0x2000
+```
+
+Le second ordre efface seulement `otadata` : le bootloader choisira donc la
+partition `factory`. Son écran noir est normal, puisque cette image ne porte
+pas LVGL ; le port USB↔CAN reste, lui, disponible.
+
 Les outils hôte sont sous `firmware/tools/coffeetool` et s'exécutent avec
 `python -m coffeetool.cli ...`. Un seul processus peut ouvrir un port série à
 la fois; le moniteur peut afficher les trames avec retard lorsqu'il rattrape un
@@ -290,19 +304,130 @@ buffer important.
 Le découpage précis et les critères de sortie sont dans
 `docs/plan-phase6.md`. Les lots 0 à 7 sont clos. Ordre restant :
 
-1. Client BLE GATT Acaia Lunar et politique radio (lot 8) : porter le
-   protocole vers GATT ESP-IDF, valider les UUID et le bit de signe sur la
-   balance réelle, puis exposer poids, tare et `scale_present` au coeur.
+1. Client BLE GATT Acaia Lunar et politique radio (lot 8, investigation en
+   cours) : porter le protocole vers GATT ESP-IDF, valider les UUID et le bit
+   de signe sur la balance réelle, puis exposer poids, tare et
+   `scale_present` au coeur.
 2. Face actions du coeur : infusion et purge sans écran (lot 9), puis UI LVGL
    complète (lot 10). LVGL et HTTP restent des clients sans accès direct aux
    sorties.
 3. Geler la table de partitions et fermer la phase (lot 11).
 
-Le code de référence Acaia est dans `reference/acaia-ble/`; il faut porter le
+Le code de référence Acaia est dans `docs/reference/acaia-ble/`; il faut porter le
 protocole vers GATT ESP-IDF, non compiler le code Arduino tel quel. LVGL reste
 en v9 via `espressif/esp_lvgl_port`, avec bounce buffer obligatoire sur le
 panneau RGB. Les choix d'interface sont dans `docs/ui.md` et
 `docs/ui-mockup.html`.
+
+### Lot 8 — investigation mémoire/radio (2026-09-10, en cours)
+
+L'image écran `v0.2.31`, qui initialisait LCD/LVGL, Wi-Fi puis NimBLE, a
+redémarré en boucle dès le boot. Le rollback OTA n'a pas sélectionné le slot
+précédent ; l'effacement de `otadata` a permis de redémarrer l'image factory.
+L'écran noir de cette image `v0.2.9` est normal : elle est un pont USB↔CAN de
+récupération, sans LCD/LVGL.
+
+Le banc jetable `firmware/screen-lcd-test` isole désormais les séquences
+`LCD`, `LCD→Wi-Fi`, `LCD→NimBLE`, `LCD→Wi-Fi→NimBLE` et une alternance
+Wi-Fi/NimBLE. Le test complet affiche la mire puis échoue à l'initialisation
+du contrôleur BLE : `BLE_INIT: Malloc failed`, pour une allocation interne de
+4 KiB. À l'inverse, `LCD→NimBLE` démarre et reste vivant. Conclusion
+partielle : le problème est la disponibilité ou la fragmentation de SRAM
+interne après LCD/RGB et Wi-Fi, non le protocole Acaia ni CAN. La PSRAM ne
+résout pas cette allocation : le contrôleur BLE exige lui-même de la SRAM
+interne. L'alternance réelle, toutes les cinq secondes, a été validée le
+2026-09-10 : Wi-Fi/httpd/netif s'arrêtent entièrement, puis NimBLE démarre ;
+NimBLE et son contrôleur s'arrêtent entièrement, puis Wi-Fi repart. Aucun
+reset ni échec d'allocation ne survient. Les avertissements IRK initiaux
+(`rc=8`, fonctionnalité de persistance absente) venaient de la confidentialité
+NimBLE activée par défaut, inutile au client central de banc ; elle est
+désormais désactivée.
+
+Le reboot de l'image principale avec les radios encore inactives a ensuite
+montré une seconde limite, distincte. Les trames du pont ont localisé chaque
+abort entre `LCD_INIT_STEP=2` et `LCD_INIT_STEP=3`, dans
+`esp_lcd_new_rgb_panel()`. Lier le contrôleur BLE ajoute environ 18,2 Kio de
+code en IRAM même sans appeler son initialisation. Il ne restait que 129 082
+octets de DIRAM après le link, alors que le panneau demande deux bounce buffers
+DMA internes de 64 000 octets, avant ses autres allocations. Le deuxième
+buffer échouait et `ESP_ERROR_CHECK` redémarrait la carte ; la console texte
+désactivée masquait le message. `Saved PC` pointait seulement sur
+`esp_cpu_wait_for_intr()` de l'autre coeur, pas sur la cause.
+
+Le correctif conserve les bounce buffers de 40 lignes validés pour la
+stabilité vidéo et déplace les chemins rapides non indispensables vers la
+flash : `CONFIG_ESP_WIFI_IRAM_OPT=n`, `CONFIG_ESP_WIFI_RX_IRAM_OPT=n` et
+`CONFIG_BT_NIMBLE_LOW_SPEED_MODE=y`. Le build laisse alors 147 646 octets de
+DIRAM après le link (+18 564), et l'image démarre sur la carte avec LCD/LVGL.
+La priorité est la marge SRAM, pas le débit maximal : le Wi-Fi transporte
+ordinairement environ 1 Kio et ne sert qu'occasionnellement au flash, tandis
+que la balance publie au plus à 10 Hz.
+
+**Décision d'architecture validée par le banc.** Wi-Fi et BLE ne seront plus
+deux services permanents. Le coeur possède un mode radio exclusif
+`machine` ou `wifi` :
+
+- **Mode machine** (défaut) : BLE est chargé, la balance reste visible et
+  `scale_present` choisit l'objectif poids/temps. Wi-Fi et httpd sont
+  complètement désinitialisés.
+- **Mode Wi-Fi** : demandé explicitement par un bouton de l'UI, il affiche un
+  bandeau `WIFI MODE`, charge Wi-Fi/httpd et rend disponibles diagnostic,
+  flash réseau, purge de banc et envoi différé du dernier shot au backend.
+  L'infusion et toute action qui lancerait un cycle sont refusées par le
+  coeur, pas seulement masquées dans l'UI.
+- Quitter ce mode arrête et désinitialise Wi-Fi/httpd/netif avant de relancer
+  BLE. Le pont USB↔CAN reste toujours disponible.
+
+L'implémentation de la transition est en place dans `firmware/screen` :
+l'écran de service demande `ACTIVER WIFI` ou `ACTIVER BLE` au coeur, qui
+effectue l'arrêt complet de la pile opposée sur le coeur 0. L'image corrigée
+a démarré le 2026-09-10 et les trois transitions de bring-up ont été
+exercées. Mesures affichées (`libre`, plus grand `bloc`, minimum historique),
+en octets :
+
+| État | Libre | Plus grand bloc | Minimum |
+| --- | ---: | ---: | ---: |
+| aucune radio, après boot | 85 163 | 31 744 | 48 736 |
+| Wi-Fi connecté | 23 275 | 14 336 | 18 744 |
+| BLE initialisé | 33 459 | 18 432 | 14 520 |
+| aucune radio, après arrêt | 75 479 | 22 528 | 14 520 |
+
+L'écran affiche à tort `RADIO: AUCUNE` en mode BLE : le libellé est encore
+déduit de `NetworkState::kOff` au lieu de `RadioMode::kMachine`. C'est un
+défaut d'observation de l'UI, pas la preuve que BLE n'a pas démarré. Le
+tri-state `off`/`machine`/`wifi` est conservé, mais `off` ne doit plus être
+l'état stable de boot : après LCD/LVGL, le firmware demande désormais le mode
+`machine` et donc charge BLE par défaut. Les allocations Wi-Fi/LwIP préfèrent
+aussi la PSRAM et le seuil des allocations ordinaires préférant la mémoire
+interne passe de 16 Kio à 4 Kio ; la réserve DMA/interne reste à 32 Kio.
+Restent à valider la connexion et
+les notifications sur la Lunar réelle, l'accès HTTP, puis un aller-retour
+Wi-Fi → BLE prolongé.
+
+Après le reboot persistant de cette image, le bring-up passe temporairement à
+trois états : `sans radio` au démarrage, puis `BLE` ou `Wi-Fi` demandé sur
+l'écran de service. Celui-ci affiche la SRAM interne libre, son plus grand
+bloc contigu et son minimum historique avant l'activation de BLE. Ce banc
+permet de séparer l'initialisation LCD/CAN de celle du contrôleur BLE ; il ne
+remplace pas la politique finale à deux modes `machine`/`Wi-Fi`.
+
+La face actions du lot 9 devra donc tester ce mode avant d'accepter un brew,
+et l'UI du lot 10 le rendra visible ; HTTP et LVGL restent des clients du
+coeur, sans accès direct aux sorties.
+
+### Décalage fixe de l'affichage RGB (2026-09-10, corrigé)
+
+L'image apparaissait environ 150 pixels trop à droite et légèrement trop bas,
+alors que le GT911 renvoyait les coordonnées LVGL logiques correctes. La cause
+était un démarrage désynchronisé du flux RGB/DMA avant que le premier rendu
+LVGL soit complet. Une demande unique `esp_lcd_rgb_panel_restart()` une
+seconde après la construction de l'UI remet l'image en place ; le correctif est
+validé sur le matériel avec `v0.2.33`.
+
+Ne pas compenser le GT911 et ne pas activer
+`CONFIG_LCD_RGB_RESTART_IN_VSYNC` : le tactile n'était pas fautif et un restart
+à chaque VSYNC avait auparavant provoqué des sauts. Le détail historique est
+dans `docs/screen-issue.md`.
 
 ## Phase 7 — mise en boîte
 

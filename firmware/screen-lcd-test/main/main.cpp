@@ -1,7 +1,6 @@
-// Diagnostic d'ordre d'allocation LCD/Wi-Fi pour Waveshare ESP32-S3-Touch-LCD-4.3.
-// Projet autonome : CH422G, AP Wi-Fi/httpd, LCD RGB, LVGL et mire uniquement.
-// Il isole l'hypothese v0.2.22 : Wi-Fi/httpd fragmente la RAM interne avant les
-// buffers RGB DMA. CONFIG_LCD_TEST_WIFI_FIRST selectionne l'ordre A/B.
+// Diagnostic de séquence LCD / Wi-Fi / NimBLE pour Waveshare ESP32-S3-Touch-LCD-4.3.
+// Projet autonome : CH422G, AP Wi-Fi/httpd, LCD RGB, LVGL, NimBLE et mire.
+// Il isole le démarrage de la phase 6 sans CAN, pont ni NVS applicative.
 
 #include <cstdio>
 #include <cstring>
@@ -21,6 +20,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "host/ble_hs.h"
+#include "nimble/nimble_port.h"
+#include "nimble/nimble_port_freertos.h"
 
 namespace {
 constexpr const char* kTag = "screen-lcd-test";
@@ -40,6 +42,10 @@ constexpr uint32_t kBounceBufferSizePx = kLcdHRes * 40;
 
 i2c_master_dev_handle_t g_ch422g_out = nullptr;
 uint8_t g_ch422g_outputs = 0;
+esp_netif_t* g_ap_netif = nullptr;
+httpd_handle_t g_http_server = nullptr;
+bool g_network_base_ready = false;
+bool g_nimble_started = false;
 
 void set_ch422g_outputs(uint8_t outputs) {
   g_ch422g_outputs = outputs;
@@ -84,9 +90,14 @@ esp_err_t status_handler(httpd_req_t* request) {
 }
 
 void init_wifi_http() {
-  ESP_ERROR_CHECK(esp_netif_init());
-  ESP_ERROR_CHECK(esp_event_loop_create_default());
-  ESP_ERROR_CHECK(esp_netif_create_default_wifi_ap() != nullptr ? ESP_OK : ESP_FAIL);
+  if (!g_network_base_ready) {
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    g_network_base_ready = true;
+  }
+  ESP_ERROR_CHECK(g_ap_netif == nullptr ? ESP_OK : ESP_ERR_INVALID_STATE);
+  g_ap_netif = esp_netif_create_default_wifi_ap();
+  ESP_ERROR_CHECK(g_ap_netif != nullptr ? ESP_OK : ESP_FAIL);
   wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
   // Aucun credential et aucune ecriture NVS : AP ouvert, reserve au diagnostic.
@@ -101,12 +112,66 @@ void init_wifi_http() {
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
   ESP_ERROR_CHECK(esp_wifi_start());
 
-  httpd_handle_t server = nullptr;
   httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
   http_cfg.max_open_sockets = 1;
-  ESP_ERROR_CHECK(httpd_start(&server, &http_cfg));
+  ESP_ERROR_CHECK(httpd_start(&g_http_server, &http_cfg));
   const httpd_uri_t status{.uri = "/", .method = HTTP_GET, .handler = status_handler, .user_ctx = nullptr};
-  ESP_ERROR_CHECK(httpd_register_uri_handler(server, &status));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_http_server, &status));
+}
+
+#if CONFIG_LCD_TEST_SWITCH_WIFI_NIMBLE
+void stop_wifi_http() {
+  if (g_http_server != nullptr) {
+    httpd_stop(g_http_server);
+    g_http_server = nullptr;
+  }
+  ESP_ERROR_CHECK(esp_wifi_stop());
+  ESP_ERROR_CHECK(esp_wifi_deinit());
+  ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(g_ap_netif));
+  esp_netif_destroy(g_ap_netif);
+  g_ap_netif = nullptr;
+  ESP_LOGI(kTag, "Wi-Fi/httpd completement desinitialise");
+}
+
+void nimble_host_task(void*) {
+  nimble_port_run();
+  nimble_port_freertos_deinit();
+}
+
+void init_nimble() {
+  // Aucun scan ni connexion dans ce banc : cet étage teste exclusivement
+  // contrôleur + hôte NimBLE, soit la partie qui doit cohabiter avec RGB/Wi-Fi.
+  esp_err_t err = nimble_port_init();
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "NimBLE indisponible: %s", esp_err_to_name(err));
+    return;
+  }
+  nimble_port_freertos_init(nimble_host_task);
+  g_nimble_started = true;
+  ESP_LOGI(kTag, "NimBLE hote demarre");
+}
+
+void stop_nimble() {
+  if (!g_nimble_started) return;
+  ESP_ERROR_CHECK(nimble_port_stop());
+  ESP_ERROR_CHECK(nimble_port_deinit());
+  g_nimble_started = false;
+  ESP_LOGI(kTag, "NimBLE et controleur completement desinitialises");
+}
+#endif
+
+const char* sequence_text() {
+#if CONFIG_LCD_TEST_LCD_ONLY
+  return "LCD / LVGL";
+#elif CONFIG_LCD_TEST_LCD_WIFI
+  return "LCD / LVGL  ->  WIFI";
+#elif CONFIG_LCD_TEST_LCD_NIMBLE
+  return "LCD / LVGL  ->  NIMBLE";
+#elif CONFIG_LCD_TEST_SWITCH_WIFI_NIMBLE
+  return "LCD / LVGL  ->  WIFI <-> NIMBLE / 5 s";
+#else
+  return "LCD / LVGL  ->  WIFI  ->  NIMBLE";
+#endif
 }
 
 esp_lcd_panel_handle_t init_lcd() {
@@ -184,11 +249,7 @@ void init_lvgl_and_pattern(esp_lcd_panel_handle_t panel) {
   lv_obj_t* label = lv_label_create(screen);
   lv_obj_set_style_text_color(label, lv_color_white(), 0);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-#if CONFIG_LCD_TEST_WIFI_FIRST
-  lv_label_set_text(label, "Wi-Fi + HTTP  ->  LCD / LVGL");
-#else
-  lv_label_set_text(label, "LCD / LVGL  ->  Wi-Fi + HTTP");
-#endif
+  lv_label_set_text(label, sequence_text());
   lv_obj_center(label);
   lvgl_port_unlock();
 }
@@ -213,22 +274,45 @@ void init_lcd_and_lvgl_on_core1() {
   xSemaphoreTake(done, portMAX_DELAY);
   vSemaphoreDelete(done);
 }
+
+#if CONFIG_LCD_TEST_SWITCH_WIFI_NIMBLE
+void radio_switch_task(void*) {
+  for (;;) {
+    ESP_LOGI(kTag, "switch: demarrage Wi-Fi/httpd (5 s)");
+    init_wifi_http();
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    ESP_LOGI(kTag, "switch: arret complet Wi-Fi/httpd");
+    stop_wifi_http();
+
+    ESP_LOGI(kTag, "switch: demarrage NimBLE (5 s)");
+    init_nimble();
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    ESP_LOGI(kTag, "switch: arret complet NimBLE");
+    stop_nimble();
+  }
+}
+#endif
 }  // namespace
 
 extern "C" void app_main() {
-  // Comme storage::init() dans firmware/screen : NVS doit être prêt avant
-  // esp_wifi_init(), qui l'ouvre en interne pour la calibration radio.
+  // Comme storage::init() dans firmware/screen : NVS doit être prêt avant les
+  // piles radio, qui l'ouvrent pour leur calibration.
   ESP_ERROR_CHECK(nvs_flash_init());
   ESP_LOGI(kTag, "initialisation CH422G");
   init_ch422g();
-#if CONFIG_LCD_TEST_WIFI_FIRST
-  ESP_LOGI(kTag, "ordre test: Wi-Fi/HTTP avant LCD");
-  init_wifi_http();
   init_lcd_and_lvgl_on_core1();
-#else
-  ESP_LOGI(kTag, "ordre controle: LCD avant Wi-Fi/HTTP");
-  init_lcd_and_lvgl_on_core1();
+
+#if CONFIG_LCD_TEST_LCD_WIFI || CONFIG_LCD_TEST_LCD_WIFI_NIMBLE
+  ESP_LOGI(kTag, "etape Wi-Fi/HTTP");
   init_wifi_http();
 #endif
-  ESP_LOGI(kTag, "mire prete; AP CoffeeFlow-LCD-Diag, HTTP /");
+#if CONFIG_LCD_TEST_LCD_NIMBLE || CONFIG_LCD_TEST_LCD_WIFI_NIMBLE
+  ESP_LOGI(kTag, "etape NimBLE");
+  init_nimble();
+#endif
+#if CONFIG_LCD_TEST_SWITCH_WIFI_NIMBLE
+  BaseType_t created = xTaskCreatePinnedToCore(radio_switch_task, "radio_switch", 6144, nullptr, 4, nullptr, 0);
+  ESP_ERROR_CHECK(created == pdPASS ? ESP_OK : ESP_FAIL);
+#endif
+  ESP_LOGI(kTag, "mire prete: %s", sequence_text());
 }

@@ -3,7 +3,7 @@ from nurb import *
 
 @assembly
 def ensemble_boitiers(
-    epaisseur_paroi=1.6,
+    epaisseur_paroi=1.68,
 ):
     """DC et AC en place, même repère que l'ancien boitier_int.
 

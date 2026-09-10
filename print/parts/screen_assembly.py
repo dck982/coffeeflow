@@ -11,7 +11,6 @@ from system import back_face_layout
 # `slide` walks the wedge back up the slope so the pins and the rebate are
 # visible in the viewer. Everything is seated at 0.
 
-
 @assembly
 def screen_assembly(
     slide=0.0,

@@ -132,12 +132,6 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
     return _fuse_one(cutter + extrude(dehors, debord))
 
 
-# Standing magnet well: 1.6 mm of plastic around the bore (four 0.4 mm
-# perimeters on the A1 Mini). Same as the project walls. No lateral load
-# on these discs — they pull through the 0.6 mm floor — so 2 mm was spare.
-MARGE_PUIT = 1.6
-
-
 # Heat-insert bores. `encombrement` is the outer diameter of the housing
 # (perçage + 2x l'épaisseur de paroi mini), for a circular pad or annulus
 # around the bore; a part using a square/rectangular pad instead can still
@@ -182,50 +176,30 @@ def add_heat_insert(body, outer, cx, cy, z0, height, insert_def, ring_factor=1.0
         body = body + clipped
     return body - inner_void
 
-def puit_debout(cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
-    """Pad + cutter of a standing Ø8×3 well. Pad is `fond + aimant_h` tall.
+def magnet_well_cutter(cx, cy, z0, diameter=0, height=0):
+    dz = height if height>0 else measured("aimant_hauteur")
+    dd = diameter if diameter>0 else measured("aimant_diametre")
+    return Pos(cx, cy, z0 + measured("aimant_puit_fond")) * Cylinder(
+        (dd+measured("aimant_puit_press_fit")) / 2.0,
+        dz, align=CMIN
+    )
 
-    Place the pad first, clip it to the outer solid if the well sits in a
-    wall, then subtract the cutter. The cutter overshoots the pad by 0.1 mm
-    so the pocket has no ceiling.
-    """
-    r = diametre / 2.0
-    pad_h = fond + aimant_h
-    pad = Pos(cx, cy, 0) * Cylinder(r + marge, pad_h, align=CMIN)
-    cutter = Pos(cx, cy, fond) * Cylinder(r, aimant_h + 0.1, align=CMIN)
-    return pad, cutter
+def small_magnet_well_cutter(cx, cy, z0, height=0):
+    dz = height if height>0 else measured("aimant_petit_hauteur")
+    return magnet_well_cutter(cx, cy, z0, height=dz, diameter=measured("aimant_petit_diametre"))
 
-
-def add_well(body, outer, cx, cy, diametre, fond, aimant_h, marge=MARGE_PUIT):
+def add_well(body, outer, cx, cy, z0=0):
     """Fuse a standing magnet pad into `body` and cut the pocket, clipped to `outer`."""
-    pad, cutter = puit_debout(cx, cy, diametre, fond, aimant_h, marge)
+
+    # first a pad
+    d = measured("aimant_diametre") + measured("aimant_puit_press_fit")
+    h = measured("aimant_hauteur")
+    pad = Pos(cx, cy, z0) * Cylinder(d/2 + measured("aimant_puit_mur"), h, align=CMIN)
+    cutter = magnet_well_cutter(cx, cy, z0, diameter=d, height=h)
     clipped = pad.intersect(outer)
     if clipped is not None:
         body = body + clipped
     return body - cutter
-
-
-# Flat Ø5 disc magnet, the small pair screen_base/screen_wedge each carry —
-# separate from the Ø8x3 discs puit_debout/add_well size for boitier_*.
-PETIT_AIMANT_DIAMETRE = 5.0
-PETIT_AIMANT_HAUTEUR = 2.0
-PETIT_PUIT_DIAMETRE = 5.2  # 0.2 mm clearance, friction fit on the 5 mm disc
-
-
-def petit_puit(cx, cy, z0, profondeur=PETIT_AIMANT_HAUTEUR, diametre=PETIT_PUIT_DIAMETRE, puit_peau=0.6, debord=0.0):
-    """Cutter for a flat, straight magnet well, axis +Z from `z0`.
-
-    Starts `puit_peau` above `z0` (plastic left over the magnet on that
-    face) and runs `profondeur` long, plus `debord` to break a far face
-    cleanly. `debord` defaults to 0, unlike `puit_debout`'s fixed 0.1
-    overshoot: a well that already reaches an interior seam has to land
-    flush there, not past it — on screen_wedge, 0.1 mm past the skirt seam
-    reopened a tangent sliver there (see that card's Don't).
-    """
-    return Pos(cx, cy, z0 + puit_peau) * Cylinder(
-        diametre / 2.0, profondeur + debord, align=CMIN
-    )
-
 
 def ouvertures_modules(
     y_max,

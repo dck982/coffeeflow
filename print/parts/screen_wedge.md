@@ -165,9 +165,13 @@ The rear plate is a frame exactly the width of the seat pads (`rear_frame_margin
   The whole point of this part (see the design notes above and `screen_assembly.md`) is
   that it is the same part at every angle; the magnet pairing already accepts being fixed
   to one configuration instead.
+- Don't reintroduce `magnet_diameter` / `magnet_cover` / `petit_puit`: the well
+  is `small_magnet_well_cutter` reading `aimant_*` from `measurements.toml`.
 
 ## Changelog
 
+- 2026-09-10: well cut moved onto `small_magnet_well_cutter` / `measured()`;
+  `magnet_diameter` / `magnet_cover` sliders removed. AUTO unchanged.
 - 2026-09-04: magnet well cut moved onto `system.py`'s new `petit_puit`, and
   `magnet_diameter`'s default raised 5.0 → **5.2mm** (`PETIT_PUIT_DIAMETRE`):
   the magnets would not seat at 5.0, no clearance at all on a 5mm disc.

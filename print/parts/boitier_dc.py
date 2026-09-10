@@ -3,7 +3,6 @@ from nurb import *
 from system import (
     INSERT_M2,
     INSERT_M25,
-    MARGE_PUIT,
     CMIN, AMIN,
     _fuse_one,
     add_well,
@@ -47,7 +46,7 @@ def _add_wall(body, outer, x, y, dx, dy, z0, height):
     return body + xiao_west_box.intersect(outer)
 
 # XIAO elements: two heat inserts, two pins, a thin separation wall
-def _xiao_area(body, outer, east_x, south_y, z0, puit_diametre, puit_peau, marge_puit):
+def _xiao_area(body, outer, east_x, south_y, z0):
     xiao_len = measured("xiao_board_len") 
     xiao_width = measured("xiao_board_width")
     xiao_height = measured("xiao_board_height")
@@ -78,53 +77,9 @@ def _xiao_area(body, outer, east_x, south_y, z0, puit_diametre, puit_peau, marge
         z0, xiao_height)
 
     # add a magnet well under the XIAO module
-    body = add_well(body, outer,
-        east_x - xiao_width/2,
-        south_y + xiao_len - 20.0,
-        puit_diametre,
-        puit_peau,
-        measured("aimant_hauteur"),
-        MARGE_PUIT
-        )
+    body = add_well(body, outer, east_x - xiao_width/2, south_y + xiao_len - 20.0)
 
     return body, south_y + xiao_len
-
-# Unit CAN elements: a separation wall, two locking walls
-def _can_area(body, outer, west_x, north_y, z0, wall, xiao_north, min_can_y):
-    # Unit CAN Bus module lying on its side, height becomes width, width becomes height
-    can_width = measured("unit_can_height")
-    can_length = measured("unit_can_length")
-    can_height = measured("unit_can_width")
-
-    # south wall y is the Y reference
-    # the CAN module cannot be closer than 5mm from the WAGO
-    # due to the terminal block
-    south_wall_y = min_can_y - 5
-
-    # Separation wall east side, avoid conflict with the XIAO to leave space to move cables around
-    # Give some room from XIAO for the cables
-    xiao_north = xiao_north + 3
-    wall_y0 = xiao_north 
-    # separation wall, vertical
-    body = _add_wall(body, outer, 
-        west_x + can_width, wall_y0, 
-        wall, south_wall_y + can_length + wall - wall_y0, 
-        z0, can_height/2)
-
-    # Two horizontal 3mm walls to lock the module in Y
-    # the bottom one is at min_can_y - 5 (5mm terminal block)
-    stop_wall_height = 3.0
-    body = _add_wall(body, outer, 
-        west_x, south_wall_y + can_length,
-        can_width, wall, z0, stop_wall_height)
-    body = _add_wall(body, outer, 
-        west_x, south_wall_y - wall,
-        can_width, wall, z0, stop_wall_height)
-
-    # Return the min y position the WAGO wall can go to
-    # 10mm above the lower stop wall, this is where the terminal ends
-    min_wago_y = min_can_y + 5
-    return body, min_wago_y
 
 def _surplomb_hook_pts(xy, z_mid, surplomb_w, inverse=False):
     overlap = 0.2 
@@ -137,7 +92,7 @@ def _surplomb_hook_pts(xy, z_mid, surplomb_w, inverse=False):
     ], overlap)
 
 # A compartment for a 221-412 wago connector
-def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall, min_wago_y):
+def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall):
     # A 221-412 on its side
     area_dx = measured("wago_epaisseur")
     area_dy = measured("wago_profondeur")
@@ -146,8 +101,8 @@ def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, sur
     # Add a wall on the east side to press the WAGO
     east_wall_x = west_x + area_dx
     body = _add_wall(body, outer,
-        east_wall_x, min_wago_y,
-        wall, north_y - min_wago_y,
+        east_wall_x, north_y-area_dy,
+        wall, area_dy,
         z0, area_dz + surplomb_w)
 
     # Add a parallel wall in the middle to raise the WAGO
@@ -179,42 +134,6 @@ def _wago_south_west(body, outer, west_x, north_y, wago_raise, surplomb_len, sur
 
     return body
 
-# A compartment for a 221-415 wago lying flat
-def _wago_north_east(body, outer, east_x, north_y, wago_raise, surplomb_len, surplomb_w, z0, wall):
-    # A 221-415 lying flat
-    area_dx = measured("wago_profondeur")
-    area_dy = measured("wago_415_largeur")
-    area_dz = measured("wago_epaisseur")+wago_raise
-
-    # Add a wall on the south side to press the WAGO, thinnest possible
-    thin_wall = 1.26
-    south_wall_y = north_y - area_dy
-    body = _add_wall(body, outer,
-        east_x - area_dx, south_wall_y - thin_wall, 
-        area_dx, thin_wall,
-        z0, area_dz + surplomb_w)
-
-    # Add a perpendicular wall to stop the WAGO from sliding out
-    catch_height = 0.6
-    body = _add_wall(body, outer,
-        east_x - area_dx - wall, south_wall_y,
-        wall, area_dy,
-        z0, wago_raise + catch_height)
-
-    # Add the surplomb
-    hook_pts, overlap = _surplomb_hook_pts(north_y, area_dz, surplomb_w) 
-    hook_x0 = east_x
-    hook_solid = (
-        Pos(hook_x0, 0, z0)
-        * extrude(
-            Plane.YZ * Polygon(*hook_pts, align=None),
-            surplomb_len + overlap,
-        )
-    )
-    body = body + hook_solid.intersect(outer)
-
-    return body
-
 @part
 def boitier_dc(
     hauteur=27.0,
@@ -222,9 +141,6 @@ def boitier_dc(
     epaisseur_fond=1.6,
     wago_raise=3.0,
     wago_surplomb=6.0,
-    puit_diametre=8.2,
-    puit_peau=0.6,
-    marge_puit=MARGE_PUIT,
     draft=False,
 ):
     """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
@@ -234,10 +150,6 @@ def boitier_dc(
     epaisseur_fond: épaisseur du fond vers le haut
     wago_raise: de combien monter les logements WAGO
     wago_surplomb: longueur du surplomb WAGO
-    puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
-    puit_peau: plastique sous l'aimant
-    marge_puit: plastique autour du puits (doctrine 1,6 mm)
-
     """
     wall = epaisseur_paroi
     floor = epaisseur_fond
@@ -256,23 +168,8 @@ def boitier_dc(
             param="hauteur",
         )
 
-    if puit_diametre < aimant_d + 0.1:
-        reject(
-            f"puit_diametre {puit_diametre} is too tight for an {aimant_d} mm magnet",
-            param="puit_diametre",
-        )
-    if puit_peau < 0.4:
-        reject(
-            f"puit_peau {puit_peau} would knife-edge the well floor: raise it above 0.4",
-            param="puit_peau",
-        )
-    if marge_puit < 1.2:
-        reject(
-            f"marge_puit {marge_puit} is under 1.2 mm: raise it",
-            param="marge_puit",
-        )
-    well_stack = puit_peau + aimant_h
-    if hauteur < well_stack + 0.4:
+    well_stack = measured("aimant_puit_fond")+measured("aimant_hauteur")
+    if hauteur < well_stack:
         reject(
             f"hauteur {hauteur} is under the magnet well ({well_stack + 0.4:.1f} mm): "
             "raise it",
@@ -325,25 +222,13 @@ def boitier_dc(
     body = outer - cavity
 
     # Pillars / heat inserts for XIAO ESP32, tuck in the south east corner
-    body, xiao_north = _xiao_area(body, outer, inner_east_x, inner_south_y, floor,
-        puit_diametre, puit_peau, marge_puit)
-
-    # Unit CAN tuck in the north west corner
-    # the terminal 5mm above the lower end of the CAN module is blocked by the WAGO
-    min_can_y = inner_north_marche_y - measured("wago_profondeur")
-    body, min_west_wago_y = _can_area(body, outer, inner_west_marche_x, inner_north_y, floor, wall, xiao_north, min_can_y)
+    body, xiao_north = _xiao_area(body, outer, inner_east_x, inner_south_y, floor)
 
     # Wago south east: one Wago 221-412 for GND connection
     wago_surplomb_w = 1.0
     body = _wago_south_west(body, outer, 
         inner_west_x, inner_north_marche_y, 
         wago_raise, wago_surplomb, wago_surplomb_w, 
-        floor, wall, min_west_wago_y)
-
-    # Wago north est: one Wago 221-415 for 5V connection
-    body = _wago_north_east(body, outer, 
-        inner_east_x, inner_north_y, 
-        0, wago_surplomb, wago_surplomb_w, 
         floor, wall)
 
     # Two M2.5 corbel heat inserts: same recipe as boitier_ps's wall corbels,

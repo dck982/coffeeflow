@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import INSERT_M3, MARGE_PUIT, _fuse_one, add_well, offset_in, ouvertures_modules
+from system import INSERT_M3, _fuse_one, add_well, offset_in, ouvertures_modules
 
 _AMIN = (Align.MIN, Align.MIN, Align.MIN)
 
@@ -111,7 +111,8 @@ def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
 @part
 def boitier_ac(
     hauteur=27.0,
-    epaisseur_paroi=1.6,
+    epaisseur_paroi=1.68,
+    epaisseur_fond=1.6,
     gouttiere_vide_haut=10.0,
     degagement_vis=10.0,
     hauteur_vis=16.6,
@@ -119,9 +120,6 @@ def boitier_ac(
     muret_depuis_ouest=23.0,
     puit_depuis_cote=10.0,
     puit_depuis_nord=10.0,
-    puit_diametre=8.2,
-    puit_peau=0.6,
-    marge_puit=MARGE_PUIT,
     fente_nord_est=15.0,
     fente_nord_est_z=10.0,
     fente_sud_est=10.0,
@@ -145,6 +143,7 @@ def boitier_ac(
 
     hauteur: hauteur hors-tout depuis le lit (murs compris, linteau nord inclus)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
+    epaisseur_fond: épaisseur du fond vers le haut
     gouttiere_vide_haut: profondeur en Y du logement vis (mur sud du logement à 10 mm)
     degagement_vis: écart en X entre les murs est et ouest autour de la vis
     hauteur_vis: haut des murs vis / muret / dalle (16,6 = 15 mm de vide + 1,6 mm de dalle)
@@ -152,9 +151,6 @@ def boitier_ac(
     muret_depuis_ouest: distance de la face ouest extérieure à la barre de soutien
     puit_depuis_cote: distance du centre de chaque puits à sa face latérale (ouest / est)
     puit_depuis_nord: distance du centre des deux puits à la face nord extérieure
-    puit_diametre: diamètre intérieur du puits d'aimant Ø8×3
-    puit_peau: plastique sous l'aimant
-    marge_puit: plastique autour du puits (doctrine 1,6 mm)
     fente_nord_est: largeur en Y de la fente nord sur la face est
     fente_nord_est_z: bas de la fente nord-est, ouverte du sommet jusqu'à ce Z
     fente_sud_est: largeur en Y de la fente sud sur la face est
@@ -180,6 +176,7 @@ def boitier_ac(
         cette face ; 0 le centre
     """
     wall = epaisseur_paroi
+    z0 = epaisseur_fond
     aimant_d = measured("aimant_diametre")
     aimant_h = measured("aimant_hauteur")
     x_max = measured("boitier_int_x")
@@ -196,7 +193,7 @@ def boitier_ac(
             f"epaisseur_paroi {wall} is under 1.2 mm: raise it",
             param="epaisseur_paroi",
         )
-    if hauteur < wall + 2.0:
+    if hauteur < z0 + 2.0:
         reject(
             f"hauteur {hauteur} leaves under 2 mm of wall above a {wall} mm floor: "
             f"raise it above {wall + 2.0:.1f}",
@@ -233,7 +230,7 @@ def boitier_ac(
             f"west face at x={aile_x} collides with the screw notch at "
             f"x={gout_x}: the split must stay west of the notch",
         )
-    if hauteur_vis < vis_z + wall:
+    if hauteur_vis < vis_z + z0:
         reject(
             f"hauteur_vis {hauteur_vis} leaves under {vis_z} mm of screw "
             f"pocket (slab is {wall} mm): raise it above {vis_z + wall:.1f}",
@@ -369,63 +366,17 @@ def boitier_ac(
             f"{butee_z1:.1f} mm, above hauteur {hauteur}: lower it",
             param="butee_z_offset",
         )
-    if puit_diametre < aimant_d + 0.1:
-        reject(
-            f"puit_diametre {puit_diametre} is too tight for an {aimant_d} mm magnet",
-            param="puit_diametre",
-        )
-    if puit_peau < 0.4:
-        reject(
-            f"puit_peau {puit_peau} would knife-edge the well floor: raise it above 0.4",
-            param="puit_peau",
-        )
-    if marge_puit < 1.2:
-        reject(
-            f"marge_puit {marge_puit} is under 1.2 mm: raise it",
-            param="marge_puit",
-        )
-    well_stack = puit_peau + aimant_h
-    if hauteur < well_stack + 0.4:
+    well_stack = measured("aimant_puit_fond")+measured("aimant_hauteur")
+    if hauteur < well_stack:
         reject(
             f"hauteur {hauteur} is under the magnet well ({well_stack + 0.4:.1f} mm): "
             "raise it",
             param="hauteur",
         )
-    pad_r = puit_diametre / 2.0 + marge_puit
     puit_cx = aile_x + puit_depuis_cote
     puit_est_cx = x_max - puit_depuis_cote
     puit_cy = y_max - puit_depuis_nord
-    if puit_depuis_cote < wall + pad_r:
-        reject(
-            f"puit_depuis_cote {puit_depuis_cote} puts a well pad into "
-            f"a side wall: raise it above {wall + pad_r:.1f}",
-            param="puit_depuis_cote",
-        )
-    if puit_depuis_nord < wall + pad_r:
-        reject(
-            f"puit_depuis_nord {puit_depuis_nord} puts the well pad into "
-            f"the north wall: raise it above {wall + pad_r:.1f}",
-            param="puit_depuis_nord",
-        )
-    if puit_cx + pad_r > muret_x:
-        reject(
-            f"puit_depuis_cote {puit_depuis_cote} runs the west well into the "
-            "support bar: lower it",
-            param="puit_depuis_cote",
-        )
     plat_x1 = encoche_est + wall
-    if puit_est_cx - pad_r < plat_x1:
-        reject(
-            f"puit_depuis_cote {puit_depuis_cote} runs the east well into the "
-            "screw platform: lower it",
-            param="puit_depuis_cote",
-        )
-    if puit_est_cx - puit_cx < puit_diametre + 2.0 * marge_puit:
-        reject(
-            f"puit_depuis_cote {puit_depuis_cote} makes the two wells overlap: "
-            "lower it",
-            param="puit_depuis_cote",
-        )
     z_hyp_puit = butee_z0 + (y_max - puit_cy)
     if well_stack + 0.4 > z_hyp_puit:
         reject(
@@ -472,10 +423,10 @@ def boitier_ac(
             f"fente_sud_est {fente_sud_est} is under 2 mm: raise it",
             param="fente_sud_est",
         )
-    if fente_nord_est_z < wall:
+    if fente_nord_est_z < z0:
         reject(
             f"fente_nord_est_z {fente_nord_est_z} cuts the floor: raise it "
-            f"above {wall:.1f}",
+            f"above {z0:.1f}",
             param="fente_nord_est_z",
         )
     if fente_nord_est_z >= hauteur:
@@ -484,10 +435,10 @@ def boitier_ac(
             f"{hauteur}: lower it",
             param="fente_nord_est_z",
         )
-    if fente_sud_est_z < wall:
+    if fente_sud_est_z < z0:
         reject(
             f"fente_sud_est_z {fente_sud_est_z} cuts the floor: raise it "
-            f"above {wall:.1f}",
+            f"above {z0:.1f}",
             param="fente_sud_est_z",
         )
     if fente_sud_est_z >= hauteur:
@@ -496,10 +447,10 @@ def boitier_ac(
             f"{hauteur}: lower it",
             param="fente_sud_est_z",
         )
-    if fente_sud_ouest_z < wall:
+    if fente_sud_ouest_z < z0:
         reject(
             f"fente_sud_ouest_z {fente_sud_ouest_z} cuts the floor: raise it above "
-            f"{wall:.1f}",
+            f"{z0:.1f}",
             param="fente_sud_ouest_z",
         )
     if fente_sud_ouest_z >= hauteur:
@@ -508,10 +459,10 @@ def boitier_ac(
             "lower it",
             param="fente_sud_ouest_z",
         )
-    if fente_nord_ouest_z < wall:
+    if fente_nord_ouest_z < z0:
         reject(
             f"fente_nord_ouest_z {fente_nord_ouest_z} cuts the floor: raise it above "
-            f"{wall:.1f}",
+            f"{z0:.1f}",
             param="fente_nord_ouest_z",
         )
     if fente_nord_ouest_z >= hauteur:
@@ -551,24 +502,13 @@ def boitier_ac(
     inner_pts = offset_in(outer_pts_outer, wall)
 
     outer = extrude(Polygon(*outer_pts_outer, align=None), hauteur)
-    cavity = Pos(0, 0, wall) * extrude(
+    cavity = Pos(0, 0, z0) * extrude(
         Polygon(*inner_pts, align=None), hauteur + 0.2
     )
     body = outer - cavity
 
-    body = add_well(
-        body, outer, puit_cx, puit_cy, puit_diametre, puit_peau, aimant_h, marge_puit
-    )
-    body = add_well(
-        body,
-        outer,
-        puit_est_cx,
-        puit_cy,
-        puit_diametre,
-        puit_peau,
-        aimant_h,
-        marge_puit,
-    )
+    body = add_well(body, outer, puit_cx, puit_cy)
+    body = add_well(body, outer, puit_est_cx, puit_cy)
 
     # Drop the notch walls from `hauteur` down to `hauteur_vis`.
     plat_x0 = gout_x - wall
@@ -587,11 +527,11 @@ def boitier_ac(
     # Slab between the E/W walls, top flush with the wall tops.
     # Underside at 15 mm so the screw pocket is 15 mm effective.
     # Solid 45° gussets under it, from the three housing walls up to the underside.
-    slab_z0 = hauteur_vis - wall
+    slab_z0 = hauteur_vis - z0
     body = body + _bb(gout_x, gout_haut, slab_z0, encoche_est, y_max, hauteur_vis)
-    body = body + _gousset_x(gout_x, gout_haut, y_max, slab_z0, wall, True)
-    body = body + _gousset_x(encoche_est, gout_haut, y_max, slab_z0, wall, False)
-    body = body + _gousset_y(gout_haut, gout_x, encoche_est, slab_z0, wall, True)
+    body = body + _gousset_x(gout_x, gout_haut, y_max, slab_z0, z0, True)
+    body = body + _gousset_x(encoche_est, gout_haut, y_max, slab_z0, z0, False)
+    body = body + _gousset_y(gout_haut, gout_x, encoche_est, slab_z0, z0, True)
 
     # Legs: E/W walls continue south to 18 mm total Y. No closing south wall.
     body = body + _bb(plat_x0, plat_y0, 0.0, plat_x0 + wall, gout_haut, hauteur_vis)
@@ -677,10 +617,10 @@ def boitier_ac(
     body = body + _bb(
         butee_arret_x0,
         trav_y_sud,
-        wall,
+        z0,
         butee_arret_x0 + wall,
         trav_y_sud + 10.0,
-        wall + 3.0,
+        z0 + 3.0,
     )
 
     # West stop: east face at 7 mm, 18×18 45° triangle on the north wall.

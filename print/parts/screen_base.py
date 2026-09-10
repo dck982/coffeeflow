@@ -2,8 +2,6 @@ from nurb import *
 from math import radians, tan, sin, cos, hypot, sqrt
 
 from system import (
-    MARGE_PUIT,
-    PETIT_PUIT_DIAMETRE,
     anti_tirage_ns,
     back_face_layout,
     puit_couche,
@@ -28,7 +26,6 @@ from system import (
 WEDGE_THICKNESS = 19.60
 WEDGE_LENGTH = 77.80
 ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's foot
-
 
 @part
 def screen_base(
@@ -57,13 +54,7 @@ def screen_base(
     second_opening_width=6.0,
     second_opening_height=6.0,
     second_opening_offset_x=19.0,
-    magnet_diameter=PETIT_PUIT_DIAMETRE,
-    magnet_cover=0.6,
-    magnet_wall=1.6,
     magnet_slot_gap=2.2,
-    straight_magnet_diameter=8.2,
-    straight_magnet_height=3.0,
-    straight_magnet_cover=0.6,
     straight_magnet_from_right=15.0,
     cable_tie_gap=1.2,
     cable_tie_slot_width=3.0,
@@ -123,24 +114,8 @@ def screen_base(
     second_opening_height: height of that second port
     second_opening_offset_x: distance from the first port's centre to the
         second port's centre, along X
-    magnet_diameter: bore diameter for the two magnets set into the back
-        face, near the top, flush with the seat plane so they sit right
-        under the wedge. Each well runs through to the back face for the
-        magnet to be pushed in from behind. Defaults to system.py's
-        PETIT_PUIT_DIAMETRE, 0.2mm over the 5mm disc — this well is its own
-        angled shape (a ramp cut into a sloped face), not the shared
-        petit_puit, but the diameter matches screen_wedge's
-    magnet_cover: plastic left over the magnet on the seat-facing side, thin
-        enough for the magnet to still act through it
-    magnet_wall: plastic thickness wrapped around each magnet, front and sides
     magnet_slot_gap: width of the coin slot each of these two magnets slides
         in through, across its own 2mm thickness
-    straight_magnet_diameter: bore for a third magnet, Ø8x3, on a
-        horizontal (lying) axis through the back face rather than off the
-        sloped ramp the pair above stand on
-    straight_magnet_height: how deep that magnet's pocket runs
-    straight_magnet_cover: plastic left on the exterior back face over that
-        magnet
     straight_magnet_from_right: distance from the base's right edge to that
         magnet's centre
     cable_tie_gap: clearance between the ring and the wall, enough for a
@@ -446,6 +421,9 @@ def screen_base(
     #     is left before it would break out through the boss's first ramp
     #     (A→B) near its own peak. The slot's own flat side walls get it
     #     there without a round hole to overhang. ---
+    magnet_diameter = measured("aimant_petit_diametre") + measured("aimant_puit_press_fit")
+    magnet_wall = measured("aimant_puit_mur")
+    magnet_cover = measured("aimant_puit_fond")
     well_width = magnet_diameter + 2 * magnet_wall + 0.9
     ramp = well_width / sqrt(2)
     climb = 2 * ramp
@@ -521,8 +499,10 @@ def screen_base(
     #     mouth, where puit_couche's own entry chamfer sits — and travels
     #     toward the exterior, stopping straight_magnet_cover short of it,
     #     the thickness the user asked the back face be reduced to here. ---
+    straight_magnet_diameter = measured("aimant_diametre") + measured("aimant_puit_press_fit")
+    straight_magnet_height = measured("aimant_hauteur")
     straight_magnet_r = straight_magnet_diameter / 2
-    straight_magnet_half = straight_magnet_r + MARGE_PUIT
+    straight_magnet_half = straight_magnet_r + measured("aimant_puit_mur")
     straight_magnet_x = outer_half - wall - straight_magnet_from_right
     straight_magnet_z = back_opening_z
     if abs(straight_magnet_x) + straight_magnet_half > outer_half:
@@ -531,7 +511,7 @@ def screen_base(
             f"the well past the base's {width:.1f}mm width",
             param="straight_magnet_from_right",
         )
-    straight_magnet_mouth_y = north_y - straight_magnet_cover - straight_magnet_height
+    straight_magnet_mouth_y = north_y - magnet_cover - straight_magnet_height
     body += Pos(straight_magnet_x, (straight_magnet_mouth_y + north_y) / 2, straight_magnet_z) * Box(
         2 * straight_magnet_half,
         north_y - straight_magnet_mouth_y,

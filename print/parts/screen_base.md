@@ -269,8 +269,11 @@ weight — this part is nowhere near its strength limit, see below.
   match to the sub-micron, before and after polish. The checker reports one
   instance of a duplicate finding, not all of them.
 
+- **Don't reintroduce `magnet_diameter` / `magnet_cover` / `magnet_wall` /
+  `straight_magnet_diameter` / `straight_magnet_height` / `straight_magnet_cover`.**
+  Those sizes live in `measurements.toml` (`aimant_*` / `aimant_puit_*`).
 - **Don't put `straight_magnet_from_right` at 10mm.** Tried: the well's own
-  margin (`MARGE_PUIT`) comes within 0.3mm of the shelf's inner face
+  margin (`aimant_puit_mur`) comes within 0.3mm of the shelf's inner face
   (`channel_half - shelf_width`, 59.25mm) — under the printer's 0.6mm
   reliable minimum, plus 4 sliver faces at the tangency. 15mm clears it.
 - **Don't chamfer the straight magnet well's own boss frame** (the box's two
@@ -360,6 +363,9 @@ weight — this part is nowhere near its strength limit, see below.
 
 ## Changelog
 
+- 2026-09-10: magnet well sizes (`magnet_diameter`, `magnet_cover`,
+  `magnet_wall`, `straight_magnet_*`) moved to `measurements.toml`; sliders
+  removed. AUTO unchanged.
 - 2026-09-07: openings mirrored onto the east rail too (`Align.MIN`/`Align.MAX`
   flip on the same cutter box), and a third opening added at
   `vent_y_fraction_2`'s Y and a new `vent_z_2` (45mm, user-set), for

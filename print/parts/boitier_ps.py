@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import INSERT_M3, MARGE_PUIT, anti_tirage_ew, anti_tirage_ns, puit_debout
+from system import INSERT_M3, anti_tirage_ew, anti_tirage_ns, add_well
 
 
 @part
@@ -28,7 +28,6 @@ def boitier_ps(
     wago_muret_z=32.5,
     wago_surplomb=1.0,
     wago_surplomb_longueur=8.0,
-    puit_diametre=8.2,
     puit_x=10.0,
     puit_y_sud=30.0,
     puit_y_nord=60.0,
@@ -69,7 +68,6 @@ def boitier_ps(
     wago_muret_z: muret ouest du berceau sud, 32,5 mm (17,5 au-dessus des rails)
     wago_surplomb: retour 1 mm au sommet, 45° en-dessous, les deux logements
     wago_surplomb_longueur: longueur du retour, 8 mm, les deux logements
-    puit_diametre: alésage des trois puits d'aimant Ø8×3 (8,2 mm)
     puit_x: X des deux puits ouest, origine = coin intérieur sud-ouest
     puit_y_sud: Y du puits ouest bas (10, 30)
     puit_y_nord: Y du puits ouest haut (10, 60)
@@ -298,40 +296,6 @@ def boitier_ps(
             param="muret_batterie_z",
         )
 
-    puit_fond = measured("puit_fond")
-    aimant_d = measured("aimant_diametre")
-    aimant_h = measured("aimant_hauteur")
-    puit_r = puit_diametre / 2.0
-    if puit_diametre < aimant_d + 0.1:
-        reject(
-            f"puit_diametre {puit_diametre} is too tight for an {aimant_d} mm "
-            "magnet",
-            param="puit_diametre",
-        )
-    if puit_x < puit_r + 1.0:
-        reject(
-            f"puit_x {puit_x} puts a Ø{puit_diametre} well under 1 mm from "
-            "X = 0: raise it",
-            param="puit_x",
-        )
-    if puit_y_sud < puit_r + 1.0:
-        reject(
-            f"puit_y_sud {puit_y_sud} puts a Ø{puit_diametre} well under 1 mm "
-            "from Y = 0: raise it",
-            param="puit_y_sud",
-        )
-    if puit_y_nord > inner_y - puit_r - 1.0:
-        reject(
-            f"puit_y_nord {puit_y_nord} puts a Ø{puit_diametre} well under "
-            f"1 mm from Y = {inner_y:.1f}: lower it",
-            param="puit_y_nord",
-        )
-    if puit_y_nord - puit_y_sud < puit_diametre + 2.0:
-        reject(
-            f"puit_y_nord {puit_y_nord} is too close to puit_y_sud "
-            f"{puit_y_sud}: the two wells need {puit_diametre + 2.0:.1f} mm",
-            param="puit_y_nord",
-        )
     if nord_wago_z < 8.0:
         reject(
             f"nord_wago_z {nord_wago_z} is under 8 mm: raise it",
@@ -682,13 +646,7 @@ def boitier_ps(
         (puit_x, puit_y_sud),
         (puit_x, puit_y_nord),
     ):
-        pad, cutter = puit_debout(
-            cx, cy, puit_diametre, puit_fond, aimant_h, MARGE_PUIT
-        )
-        clipped = pad.intersect(outer)
-        if clipped is not None:
-            body = body + clipped
-        body = body - cutter
+        body = add_well(body, outer, cx, cy)
 
     if draft:
         return body

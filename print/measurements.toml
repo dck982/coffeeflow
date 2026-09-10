@@ -63,27 +63,42 @@ how = "Minimum clearance between a Wago 221-423 and the box walls or dividers."
 [aimant_diametre]
 value = 8.0
 unit = "mm"
-how = "user: disc magnet diameter, N-series disc, two wells in the end bays."
+how = "user: disc magnet diameter, N-series disc."
+
+[aimant_petit_diametre]
+value = 5.0
+unit = "mm"
+how = "user: small disc magnet diameter, N-series disc."
 
 [aimant_hauteur]
 value = 3.0
 unit = "mm"
 how = "user: disc magnet thickness."
 
-[puit_diametre]
-value = 8.15
+[aimant_petit_hauteur]
+value = 2.0
 unit = "mm"
-how = "user: magnet well inside diameter for a friction fit on an 8 mm disc."
+how = "user: small disc magnet thickness."
 
-[puit_diametre_canal]
-value = 8.2
+[aimant_puit_press_fit]
+value = 0.2
 unit = "mm"
-how = "user: deep side wells on the wire raceway, tightened from 8.4 after canal_test showed 8.4 let the magnet fall out; 8.2 printed and confirmed a good fit, still reaching the 0.6 mm face. Part default matches this."
+how = "user: how much to add to the aimant_diametre to have a press fit effect"
 
-[puit_fond]
+[aimant_canal_press_fit]
+value = 0.2
+unit = "mm"
+how = "user: how much to add for deep magnet wells"
+
+[aimant_puit_fond]
 value = 0.6
 unit = "mm"
 how = "user: floor left under each magnet so it holds through the box onto the espresso chassis (40-50 C). Three 0.2 mm layers on the A1 Mini."
+
+[aimant_puit_mur]
+value = 1.6
+unit = "mm"
+how = "user: wall depth around the well hole"
 
 [fil_diametre]
 value = 2.2
@@ -608,6 +623,31 @@ how = "user: M5Stack Unit CAN Bus width"
 value = 56.0
 unit = "mm"
 how = "user: M5Stack Unit CAN Bus length, without the terminal block and grove connector"
+
+[can_pal_width]
+value = 20.32
+unit = "mm"
+how = "user: Adafruit CAN Pal width, 0.8 inches"
+
+[can_pal_length]
+value = 20.32
+unit = "mm"
+how = "user: Adafruit CAN Pal length, 0.8 inches"
+
+[can_pal_slnt_room]
+value = 4.00
+unit = "mm"
+how = "user: extra room for the SLNT wire at the top terminal GND"
+
+[can_pal_height]
+value = 12.00
+unit = "mm"
+how = "user: Adafruit CAN Pal height, including the SLNT wire"
+
+[can_pal_hole_to_edge]
+value = 2.54
+unit = "mm"
+how = "user: Adafruit CAN Pal distance from edge to hole center, 0.1 inches"
 
 [boitier_int_x]
 value = 120.0

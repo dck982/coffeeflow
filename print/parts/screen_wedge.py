@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import PETIT_PUIT_DIAMETRE, petit_puit
+from system import small_magnet_well_cutter
 
 # Waveshare 4.3 carrier. Print pose: large rear plate on the bed, solid border
 # skirt rising, module pocket cut through it. The skirt top *is* the frame: it
@@ -37,8 +37,6 @@ def screen_wedge(
     foot_hole_width=5.5,
     foot_hole_depth=3.5,
     foot_hole_span=60.0,
-    magnet_diameter=PETIT_PUIT_DIAMETRE,
-    magnet_cover=0.6,
     draft=False,
 ):
     """Open-back Waveshare 4.3 carrier: solid skirt, frame rim level with the glass.
@@ -106,11 +104,6 @@ def screen_wedge(
         has 4.5mm of solid before the pocket
     foot_hole_span: centre-to-centre of the two sockets, matched to
         screen_base's rib_span
-    magnet_diameter: bore diameter for the two magnets set into the rear
-        plate, facing screen_base's own pair once seated. Defaults to
-        system.py's PETIT_PUIT_DIAMETRE, 0.2mm over the 5mm disc
-    magnet_cover: plastic left over each magnet on the bed-facing side, thin
-        enough for the magnet to still act through it
     """
     module_w = measured("module_width")
     module_h = measured("module_height")
@@ -350,13 +343,9 @@ def screen_wedge(
     # notch relief hit on screen_base (see that card's Don't).
     magnet_x = 21.75
     magnet_y = 30.97
+    magnet_cover = measured("aimant_puit_fond")
     for sx in (-1, 1):
-        body -= petit_puit(
-            sx * magnet_x, magnet_y, 0,
-            profondeur=rear_wall - magnet_cover,
-            diametre=magnet_diameter,
-            puit_peau=magnet_cover,
-        )
+        body -= small_magnet_well_cutter(sx * magnet_x, magnet_y, 0, height=rear_wall - magnet_cover)
 
     if draft:
         return body

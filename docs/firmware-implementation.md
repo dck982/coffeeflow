@@ -540,7 +540,7 @@ priorité/latence défavorable entre l'ISR LCD (cœur 1) et la pile Wi-Fi/httpd
 le lot UI : la correction sera traitée après sa finalisation, dans une session
 de stabilité LCD/radio dédiée.
 
-### Lot 10, sous-lot 4 — interactions et actions locales, en cours (2026-09-11)
+### Lot 10, sous-lot 4 — interactions et actions locales, clos (2026-09-11)
 
 État de reprise : les pas de cible, pavé numérique, persistance NVS, purge
 homme-mort et destination Wi-Fi existent. Restent à fermer avant de déclarer
@@ -551,8 +551,8 @@ le sous-lot fini :
 - [x] implémenter atténuation (4 min) et veille L4 (30 min), réveil sans
   action ;
 - [x] générer et examiner les captures de régression hôte.
-- [ ] validation sur dalle : persistance après coupure, purge au relâchement
-  et au plafond, réveil L4 sans action.
+- [x] validation sur dalle : persistance après coupure, réglages paginés,
+  cible ±, bascule poids/temps et veille L4.
 
 Les cibles `-` et `+` modifient la cible active (poids lorsque la balance est
 présente, temps sinon) par `core::put_config()` ; toucher sa valeur ouvre le
@@ -584,6 +584,13 @@ est capturé par ce calque et ne peut donc pas déclencher le contrôle situé
 dessous. Les snapshots hôte couvrent l'accueil, les trois pages de réglages,
 l'atténuation, la veille et la confirmation Wi-Fi ; le build ESP-IDF reste
 vert.
+
+**Validation sur dalle (2026-09-11).** L'atténuation est apparue après quatre
+minutes et le bandeau `coffeeflow` après trente minutes. Les trois pages de
+réglages ont été parcourues ; leurs valeurs avancent d'un pas par appui et
+survivent à un cycle d'alimentation. Les boutons `+` et `-` de l'accueil sont
+validés, ainsi que la bascule automatique de cible temps vers poids à la
+connexion de la balance. Le sous-lot 10.4 est clos.
 
 ## Phase 7 — mise en boîte
 

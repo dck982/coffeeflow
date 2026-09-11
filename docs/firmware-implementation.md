@@ -540,6 +540,51 @@ priorité/latence défavorable entre l'ISR LCD (cœur 1) et la pile Wi-Fi/httpd
 le lot UI : la correction sera traitée après sa finalisation, dans une session
 de stabilité LCD/radio dédiée.
 
+### Lot 10, sous-lot 4 — interactions et actions locales, en cours (2026-09-11)
+
+État de reprise : les pas de cible, pavé numérique, persistance NVS, purge
+homme-mort et destination Wi-Fi existent. Restent à fermer avant de déclarer
+le sous-lot fini :
+
+- [x] rendre accessibles tous les paramètres tactiles de `core::Config` ;
+- [x] confirmer l'entrée Wi-Fi comme la réinitialisation réseau ;
+- [x] implémenter atténuation (4 min) et veille L4 (30 min), réveil sans
+  action ;
+- [x] générer et examiner les captures de régression hôte.
+- [ ] validation sur dalle : persistance après coupure, purge au relâchement
+  et au plafond, réveil L4 sans action.
+
+Les cibles `-` et `+` modifient la cible active (poids lorsque la balance est
+présente, temps sinon) par `core::put_config()` ; toucher sa valeur ouvre le
+pavé numérique LVGL pour les grands écarts. La persistance, les bornes et le
+refus pendant un cycle restent donc du ressort du cœur et de NVS, sans chemin
+UI parallèle. La feuille `réglages` rend les réglages actifs de cible,
+pré-infusion et purge, ainsi que l'entrée Wi-Fi ; l'effacement des credentials
+exige une confirmation modale explicite.
+
+`purge` est relié à `PurgePress` au poser du doigt et à `PurgeRelease` au
+relâchement ou à la perte de contact. Son délai maximal reste appliqué par
+`core::machine`, jamais par un timer LVGL. La destination Wi-Fi devient L2,
+montre l'association ou l'adresse IP et son retour demande réellement le mode
+machine au cœur. Le raccourci diagnostic est désormais le groupe de présence
+du bandeau, conformément à `ui.md`.
+
+La feuille `réglages` est répartie sur trois pages : cibles et pré-infusion,
+rampe et niveaux de pompe, puis plafond de purge et réseau. Chaque appui passe
+par la validation transactionnelle du cœur et avance la valeur dans sa plage.
+Les seuils d'atténuation et de veille restent configurables par `/config`,
+mais sont volontairement absents de cette feuille. Entrer en Wi-Fi et effacer
+le réseau passent par une confirmation modale ambre, qui ne peut ni recouvrir
+les lignes de réglages ni rester affichée au retour du mode machine.
+
+Après `dim_after_s` (240 s par défaut), un calque atténue la façade. Après
+`standby_after_s` (1800 s), le calque devient L4 et le bloc `coffeeflow · au
+repos` se déplace localement, sans animation plein écran. Le premier toucher
+est capturé par ce calque et ne peut donc pas déclencher le contrôle situé
+dessous. Les snapshots hôte couvrent l'accueil, les trois pages de réglages,
+l'atténuation, la veille et la confirmation Wi-Fi ; le build ESP-IDF reste
+vert.
+
 ## Phase 7 — mise en boîte
 
 - Archiver et vérifier les deux images factory avec leurs versions.

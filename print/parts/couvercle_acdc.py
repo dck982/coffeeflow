@@ -62,7 +62,7 @@ def couvercle_acdc(
     plus, et la couper laissait un défaut (esquille, lu comme un
     "chanfrein négatif") plus gênant que la réglette elle-même. Coupé aux
     trois logements de heat insert qui affleurent le sommet, avec un trou
-    de vis dans chacun : deux M2.5 sur boitier_dc, un M3 sur boitier_ac.
+    de vis dans chacun : trois M3 (deux sur boitier_dc, un sur boitier_ac).
 
     epaisseur_paroi: épaisseur de la plaque et des murs des deux boîtes
     epaisseur_fond: épaisseur du fond

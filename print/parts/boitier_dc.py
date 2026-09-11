@@ -34,8 +34,8 @@ def bb_bottom():
     return bbox(0,0,measured("boitier_int_marche_x"),measured("boitier_int_marche_y"))
 
 def corbels(wall):
-    corbel_diameter = INSERT_M25.diametre_percage
-    corbel_wall = INSERT_M25.epaisseur_paroi_min
+    corbel_diameter = INSERT_M3.diametre_percage
+    corbel_wall = INSERT_M3.epaisseur_paroi_min
     corbel_mid = corbel_wall + corbel_diameter/2
     corbel_half = (corbel_diameter + corbel_wall)/2
     chanfrein = measured("boitier_int_chanfrein")
@@ -43,12 +43,12 @@ def corbels(wall):
         (
             bb_top().min.X + wall + corbel_half,
             bb_top().min.Y - wall + corbel_mid,
-            2.5
+            3
         ),
         (
             measured("boitier_int_chanfrein") + corbel_mid,
             bb_overall().min.Y + wall + corbel_half,
-            2.5
+            3
         )
     ]
 
@@ -399,14 +399,14 @@ def boitier_dc(
     # Vertical magnet
     body = _add_vertical_magnet(body, hauteur)
 
-    # Two M2.5 corbel heat inserts: same recipe as boitier_ps's wall corbels,
+    # Two M3 corbel heat inserts: same recipe as boitier_ps's wall corbels,
     # an overhang from the wall's inner face near the rim (not a tower from
     # the floor) to spend minimum material. Thin at z_corbel_45, full
     # `corbel_plat` thick from z_corbel to the rim; the bore drills down
     # `corbel_profondeur` from the rim.
     chanfrein = measured("boitier_int_chanfrein")
-    body = add_corbel(body, inner_west_marche_x, inner_north_marche_y, hauteur, insert=INSERT_M25)
-    body = add_corbel(body, chanfrein, inner_south_y, hauteur, insert=INSERT_M25, plane=Plane.YZ)
+    body = add_corbel(body, inner_west_marche_x, inner_north_marche_y, hauteur, insert=INSERT_M3)
+    body = add_corbel(body, chanfrein, inner_south_y, hauteur, insert=INSERT_M3, plane=Plane.YZ)
 
     # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost
     # corner to the midpoint. Floor stays.

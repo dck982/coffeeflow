@@ -13,7 +13,7 @@ def _contour_dc(chanfrein):
     y_max = measured("boitier_int_y")
     aile_x = measured("boitier_int_aile_x")
     marche_x = measured("boitier_int_marche_x")
-    marche_y = measured("boitier_int_marche_y") + 3.0
+    marche_y = measured("boitier_int_marche_y")
     return [
         (0.0, chanfrein),
         (chanfrein, 0.0),

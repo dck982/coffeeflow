@@ -654,10 +654,75 @@ value = 2.54
 unit = "mm"
 how = "user: Adafruit CAN Pal distance from edge to hole center, 0.1 inches"
 
-[boitier_int_x]
-value = 120.0
+[dimmer_width]
+value = 16.0
 unit = "mm"
-how = "user 2026-08-31: la gouttière va jusqu'à 120 mm ; la pièce fait 12 cm de part en part. (PDF 130, retiré avec l'aile droite.)"
+how = "user: RobotDyn AC Dimmer 4A Dimmerlink width"
+
+[dimmer_length]
+value = 53.0
+unit = "mm"
+how = "user: RobotDyn AC Dimmer 4A Dimmerlink length, PCB only, without connectors"
+
+[dimmer_terminal_length]
+value = 10.0
+unit = "mm"
+how = "user: RobotDyn AC Dimmer 4A Dimmerlink : length of terminal block"
+
+[dimmer_ac_terminal_depth]
+value = 10.0
+unit = "mm"
+how = "user: RobotDyn AC Dimmer 4A Dimmerlink : depth of AC terminal block"
+
+[dimmer_dc_terminal_depth]
+value = 7.0
+unit = "mm"
+how = "user: RobotDyn AC Dimmer 4A Dimmerlink : depth of DC terminal block"
+
+[ssr_width]
+value = 23.0
+unit = "mm"
+how = "user: M5Stack Unit SSR width (Z since it is on its side)"
+
+[ssr_length]
+value = 56.0
+unit = "mm"
+how = "user: M5Stack Unit SSR length (X) without connectors"
+
+[ssr_depth]
+value = 8.0
+unit = "mm"
+how = "user: M5Stack Unit SSR depth (Y) without connectors"
+
+[ssr_terminal_length]
+value = 20.0
+unit = "mm"
+how = "user: M5Stack Unit SSR AC terminal block length (10mm inwards, 10mm outwards)"
+
+[ssr_ac_terminal_distance]
+value = 5.0
+unit = "mm"
+how = "user: M5Stack Unit SSR AC terminal block distance from edge"
+
+[ssr_ac_terminal_shift]
+value = 3.0
+unit = "mm"
+how = "user: M5Stack Unit SSR AC terminal block shift from base of SSR"
+
+[ssr_ac_terminal_depth]
+value = 10.0
+unit = "mm"
+how = "user: M5Stack Unit SSR AC terminal block depth"
+
+[ssr_dc_terminal_distance]
+value = 7.0
+unit = "mm"
+how = "user: M5Stack Unit SSR DC terminal block distance from edge"
+
+[boitier_int_x]
+value = 123.0
+unit = "mm"
+how = "user : la gouttière va jusqu'à 120 mm ; la pièce fait 12 cm de part en part. "
 
 [boitier_int_y]
 value = 95.0
@@ -680,7 +745,7 @@ unit = "mm"
 how = "user drawing docs/boitier.pdf: paroi verticale de la marche haute-gauche."
 
 [boitier_int_marche_y]
-value = 48.0
+value = 51.0
 unit = "mm"
 how = "user drawing docs/boitier.pdf: palier de la marche haute-gauche."
 
@@ -704,35 +769,25 @@ value = 15.0
 unit = "mm"
 how = "user 2026-08-31: le puits d'aimant de l'aile droite est à 15 mm du bord droit (x = boitier_int_x − 15). Record only : l'aile a été remplacée par la gouttière."
 
-[boitier_int_gouttiere_x]
-value = 85.0
+[boitier_int_screw_x]
+value = 90.0
 unit = "mm"
 how = "user 2026-08-31: paroi ouest de l'encoche vis sur le bord nord (x = 85). Was the start of the east gutter."
 
-[boitier_int_gouttiere_largeur]
+[boitier_int_screw_dy]
 value = 10.0
 unit = "mm"
-how = "user 2026-08-31: largeur interne de la gouttière en Y. Record only since 2026-09-02: AC's south face runs at aile_y to x = 120 instead."
+how = "user 2026-08-31: largeur interne de l'encoche en Y."
 
-[boitier_ac_degagement_vis]
+[boitier_int_screw_dx]
 value = 10.0
 unit = "mm"
-how = "user 2026-09-03: gap in X between the east and west screw walls. Was 10, then 7, then 8; 8 mm was too tight, back to 10. Visual head is this plus two 1.6 mm walls."
+how = "user 2026-08-31: largeur interne de l'encoche en X."
 
-[boitier_ac_vis_x]
-value = 5.0
-unit = "mm"
-how = "user 2026-09-03: screw envelope in X. Notch stays wider (degagement_vis) because it may be 5.1 mm."
-
-[boitier_ac_vis_y]
-value = 8.0
-unit = "mm"
-how = "user 2026-09-03: screw envelope in Y, against the north edge."
-
-[boitier_ac_vis_z]
+[boitier_int_screw_dz]
 value = 15.0
 unit = "mm"
-how = "user 2026-09-03: screw envelope in Z, 15 mm effective. Walls and slab top sit 1.6 mm above (hauteur_vis = 16.6)."
+how = "user 2026-08-31: largeur interne de l'encoche en Z."
 
 [boitier_ac_puit_depuis_cote]
 value = 10.0

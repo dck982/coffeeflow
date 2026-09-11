@@ -24,6 +24,10 @@ from nurb import (
     sweep,
 )
 
+def bbox(x0, y0, w, l, z0=0.0, h=1.0):
+    return (
+        Pos(x0, y0, z0) * Box(w,l,h,align=AMIN)
+        ).bounding_box()
 
 def _intersect(a1, a2, b1, b2):
     ax, ay = a1
@@ -176,6 +180,15 @@ def add_heat_insert(body, outer, cx, cy, z0, height, insert_def, ring_factor=1.0
         body = body + clipped
     return body - inner_void
 
+def add_wall(body, outer, x, y, dx, dy, z0, height):
+    wall = Pos(x, y, z0) * Box(
+        dx,
+        dy,
+        height,
+        align=AMIN,
+    )
+    return body + wall.intersect(outer)
+
 def magnet_well_cutter(cx, cy, z0, diameter=0, height=0):
     dz = height if height>0 else measured("aimant_hauteur")
     dd = diameter if diameter>0 else measured("aimant_diametre")
@@ -201,30 +214,44 @@ def add_well(body, outer, cx, cy, z0=0):
         body = body + clipped
     return body - cutter
 
-def ouvertures_modules(
-    y_max,
-    wall,
-    appui_y=18.0,
-    tour_y=3.0,
-    traverse_depuis_crochet_sud=8.0,
-    fente_nord_ouest_z=18.6,
-    fente_sud_ouest_z=7.0,
-):
-    """Dimmer (north) and SSR (south) slots shared by AC west / DC east.
+def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=False):
+    corbel_diametre = insert.diametre_percage
+    corbel_profondeur = insert.profondeur_min
+    corbel_paroi = insert.epaisseur_paroi_min
+    corbel_r = corbel_diametre / 2.0
+    corbel_plat = corbel_diametre + corbel_paroi
+    corbel_along = insert.diametre_percage + 2*corbel_paroi
+    z_corbel = hauteur - corbel_profondeur
+    z_corbel_45 = z_corbel - corbel_plat
+    ov = 0.4
+    multiplier = -1.0 if reverse else 1.0
+    corbel_pts = [
+        (-ov * multiplier, z_corbel_45),
+        (0.0, z_corbel_45),
+        (corbel_plat * multiplier, z_corbel),
+        (corbel_plat * multiplier, hauteur),
+        (-ov * multiplier, hauteur),
+    ]
 
-    North faces aligned. Each tuple is (y_sud, y_nord, z_bas), open to the
-    wall top. Defaults match boitier_ac. Distances from y_max: dimmer
-    18 mm / 1.6 mm, SSR 29 mm / 21 mm.
-    """
-    dimmer_sud = y_max - appui_y
-    dimmer_nord = y_max - wall
-    ssr_nord = dimmer_sud - tour_y
-    ssr_sud = ssr_nord - traverse_depuis_crochet_sud
-    return (
-        (dimmer_sud, dimmer_nord, fente_nord_ouest_z),
-        (ssr_sud, ssr_nord, fente_sud_ouest_z),
+    if plane==Plane.XZ:
+        plat_x = x
+        plat_y = y+corbel_along
+        hole_x = x + corbel_plat/2
+        hole_y = y + corbel_paroi + corbel_r
+    else:
+        plat_x = x
+        plat_y = y
+        hole_x = x + corbel_paroi + corbel_r
+        hole_y = y + corbel_plat/2
+    body = body + (
+        Pos(plat_x, plat_y, 0)
+        * extrude(plane * Polygon(*corbel_pts, align=None), corbel_along)
     )
-
+    body = body - (
+        Pos(hole_x, hole_y, z_corbel)
+        * Cylinder(corbel_r, corbel_profondeur + 0.1, align=CMIN)
+    )
+    return body
 
 def entretoise_m2(
     hauteur=3.0,

@@ -1,47 +1,49 @@
 from nurb import *
 
-from system import INSERT_M3, _fuse_one, add_well, offset_in, ouvertures_modules
-
-_AMIN = (Align.MIN, Align.MIN, Align.MIN)
-
-
-def _bb(x0, y0, z0, x1, y1, z1):
-    return Pos(x0, y0, z0) * Box(x1 - x0, y1 - y0, z1 - z0, align=_AMIN)
-
-
-def _contour(vide_haut, degagement_vis, west_x=None, east_x=None, south_y=None):
-    x_max = measured("boitier_int_x")
-    y_max = measured("boitier_int_y")
-    aile_x = measured("boitier_int_aile_x")
-    aile_y = measured("boitier_int_aile_y")
-    gout_x = measured("boitier_int_gouttiere_x")
-    gout_haut = y_max - vide_haut
-    encoche_est = gout_x + degagement_vis
-    if west_x is None:
-        west_x = aile_x
-    if east_x is None:
-        east_x = x_max
-    if south_y is None:
-        south_y = aile_y
-    return ([
-            (west_x, south_y),
-            (east_x, south_y),
-            (east_x, y_max),
-            (encoche_est, y_max),
-            (encoche_est, gout_haut),
-            (gout_x, gout_haut),
-            (gout_x, y_max),
-            (west_x, y_max),
-        ],
-        west_x,
-        south_y,
-        east_x,
-        y_max,
-        gout_x,
-        encoche_est,
-        gout_haut
+from system import (
+    bbox,
+    INSERT_M3, 
+    _fuse_one, 
+    add_well, 
+    add_wall,
+    add_corbel,
+    offset_in, 
+    AMIN
     )
 
+def bb_overall():
+    return bbox(
+        measured("boitier_int_aile_x"),
+        measured("boitier_int_aile_y"),
+        measured("boitier_int_x")-measured("boitier_int_aile_x"),
+        measured("boitier_int_y")-measured("boitier_int_aile_y")
+    )
+
+def bb_encoche():
+    return bbox(
+        measured("boitier_int_screw_x"),
+        measured("boitier_int_y")-measured("boitier_int_screw_dy"),
+        measured("boitier_int_screw_dx"),
+        measured("boitier_int_screw_dy"),
+        z0=0.0,
+        h=measured("boitier_int_screw_dz")
+    )
+
+
+def _contour():
+    bb = bb_overall()
+    screw = bb_encoche()
+    return ([
+            (bb.min.X, bb.min.Y),
+            (bb.max.X, bb.min.Y),
+            (bb.max.X, bb.max.Y),
+            (screw.max.X, screw.max.Y),
+            (screw.max.X, screw.min.Y),
+            (screw.min.X, screw.min.Y),
+            (screw.min.X, screw.max.Y),
+            (bb.min.X, bb.max.Y),
+        ], bb, screw
+    )
 
 def _gousset_section(run):
     """Right triangle: wall, slab underside, 45° hypotenuse. Origin on the wall, below the slab."""
@@ -53,7 +55,6 @@ def _gousset_section(run):
             Line((run, run), (0.0, 0.0)),
         ]
     )
-
 
 def _gousset_x(x_wall, y0, y1, z_slab_bot, run, toward_plus_x):
     """Solid 45° support from a wall in X, under the slab, spanning y0..y1."""
@@ -74,77 +75,156 @@ def _gousset_y(y_wall, x0, x1, z_slab_bot, run, toward_plus_y):
     plane = Plane(origin=(x0, y_wall, z0), x_dir=(0, sy, 0), z_dir=(1, 0, 0))
     return extrude(plane * _gousset_section(run), span)
 
+def _build_encoche(body, encoche, north_y, hauteur, z0, w):
+    # Drop the notch walls above the encoche in Z
+    inner_west_x = encoche.min.X - w
+    inner_east_x = encoche.max.X + w
+    inner_south_y = encoche.min.Y - w
+    slab_bottom_z = encoche.max.Z
+    slab_top_z = slab_bottom_z + z0
+    body = body - (
+            Pos(inner_west_x, inner_south_y, slab_top_z) * 
+            Box(
+                inner_east_x-inner_west_x,
+                north_y-inner_south_y,
+                hauteur-slab_top_z,
+                align=AMIN)
+    )
+    # Slab between the E/W walls, top flush with the wall tops.
+    body = body + (
+        Pos(inner_west_x, inner_south_y, slab_bottom_z) *
+        Box(inner_east_x-inner_west_x, north_y-inner_south_y+w, z0, align=AMIN)
+    )
+    # Close the top wall
+    body = body + (
+        Pos(inner_west_x, north_y, slab_top_z) *
+        Box(inner_east_x-inner_west_x, w, hauteur-slab_top_z, align=AMIN)
+    )
+    # Use goussets to reduce overhang below slab
+    gousset_run = 2.0
+    body = body + _gousset_x(encoche.min.X, inner_south_y, north_y+w, slab_bottom_z, gousset_run, True)
+    body = body + _gousset_x(encoche.max.X, inner_south_y, north_y+w, slab_bottom_z, gousset_run, False)
+    body = body + _gousset_y(encoche.min.Y, inner_west_x, inner_east_x, slab_bottom_z, gousset_run, True)
 
-def _tour_sud(x0, y_sud, wall, tour_y, z_top):
-    """Tower at the south end of a wall: wall in X, tour_y in Y, bed to z_top."""
-    return _bb(x0, y_sud - tour_y, 0.0, x0 + wall, y_sud, z_top)
+    return body
 
+def dimmer_bb(wall, z0):
+    bb = bb_overall()
+    dimmer_width = measured("dimmer_width")
+    dimmer_z0 = measured("boitier_int_screw_dz") + z0
+    south_y = bb.max.Y-wall-dimmer_width
+    # the dimmer is facing down, terminal block goes east of encoche
+    x1 = bb_encoche().max.X+wall+measured("dimmer_terminal_length")
+    x0 = x1 - measured("dimmer_length")
+    return bbox(x0, south_y, x1-x0, dimmer_width, dimmer_z0)
 
-def _crochet_tour(x0, y_sud, wall, tour_y, z_top, hauteur_crochet, saillie, chanfrein):
-    """Hook at the top of a tower: same footprint as the tower, `saillie` mm
-    past its north face (y_sud), `hauteur_crochet` mm above z_top. The PCB
-    is pressed in from above and slides out the same way, so the tip's
-    north corners are both cut at 45° over `chanfrein` mm each way: the top
-    one cams the hook back on the way in, the bottom one on the way out,
-    leaving a flat vertical strip between them for the actual retention."""
-    y0 = y_sud - tour_y
-    y1 = y_sud + saillie
-    z0 = z_top
-    z1 = z_top + hauteur_crochet
-    pts = [
-        (y0, z0),
-        (y1 - chanfrein, z0),
-        (y1, z0 + chanfrein),
-        (y1, z1 - chanfrein),
-        (y1 - chanfrein, z1),
-        (y0, z1),
-    ]
-    return Pos(x0, 0, 0) * extrude(Plane.YZ * Polygon(*pts, align=None), wall)
+def dimmer_ac_opening(wall, z0, hauteur):
+    obb = bb_overall()
+    bb = dimmer_bb(wall, z0)
+    ac_z0 = bb.min.Z - measured("dimmer_ac_terminal_depth")
+    return (bb.min.Y, ac_z0, bb.max.Y-bb.min.Y, hauteur-ac_z0)
 
+def dimmer_dc_opening(wall, z0, hauteur):
+    obb = bb_overall()
+    bb = dimmer_bb(wall, z0)
+    dc_z0 = bb.min.Z - measured("dimmer_dc_terminal_depth")
+    return (bb.min.Y, dc_z0, bb.max.Y-bb.min.Y, hauteur-dc_z0)
 
-def _butee_triangle(x0, x1, y_sud, y_nord, z_bot, z_top):
-    """Right triangle on the north wall: 45° underside, flat top. Empty below."""
-    return Pos(x0, 0, 0) * extrude(
-        Plane.YZ
-        * Polygon(
-            (y_nord, z_bot),
-            (y_nord, z_top),
-            (y_sud, z_top),
-            align=None,
-        ),
-        x1 - x0,
+def _add_dimmer_tower(body, outer, x, y0, dx, dy, z0, dz, tz):
+    body = add_wall(body, outer, x, y0, dx, dy, z0, dz)
+    # south tower
+    body = add_wall(body, outer, x, y0-dx, dx, dx, z0, dz+tz)
+    return body
+
+def _dimmer_area(body, outer, tour_y, z0, wall):
+    bb = dimmer_bb(wall, z0)
+    # Y legs
+    encoche = bb_encoche()
+    dimmer_z0 = encoche.max.Z
+    ylen = bb.max.Y - bb.min.Y
+    body = _add_dimmer_tower(body, outer, encoche.min.X - wall, bb.min.Y, wall, ylen, z0, dimmer_z0, tour_y)
+    body = _add_dimmer_tower(body, outer, encoche.max.X, bb.min.Y, wall, ylen, z0, dimmer_z0, tour_y)
+
+    # room for XH connector 4mm
+    left_x = bb.min.X-wall + 4.0
+    body = _add_dimmer_tower(body, outer, left_x, bb.min.Y, wall, ylen, z0, dimmer_z0, tour_y)
+
+    return body
+
+def _cut_opening(body, x0, wall, openings):
+    return body - (
+        Pos(x0, openings[0], openings[1]) *
+        Box(wall, openings[2], openings[3], align=AMIN)
     )
 
+def _dimmer_openings(body, z0, wall, hauteur):
+    obb = bb_overall()
+    body = _cut_opening(body, obb.max.X-wall, wall, dimmer_ac_opening(wall, z0, hauteur))
+    body = _cut_opening(body, obb.min.X, wall, dimmer_dc_opening(wall, z0, hauteur))
+
+    return body
+
+def ssr_bb(wall, z0):
+    bb = bb_overall()
+    # press fit the SSR against the dimmer towers
+    ssr_depth = measured("ssr_depth")
+    y0 = dimmer_bb(wall, z0).min.Y-wall-ssr_depth-wall
+
+    # 1mm east of the west side
+    return bbox(bb.min.X + 1.0, y0, measured("ssr_length"), ssr_depth + wall)
+
+def ssr_ac_opening(wall, z0, hauteur):
+    obb = bb_overall()
+    bb = ssr_bb(wall, z0)
+    ac_term_delta_y = measured("ssr_ac_terminal_shift")
+    ac_z0 = measured("ssr_ac_terminal_distance")+z0
+    ac_term_dy = measured("ssr_ac_terminal_depth")
+    return (
+        bb.max.Y - ac_term_delta_y - ac_term_dy, 
+        measured("ssr_ac_terminal_distance")+z0, 
+        ac_term_dy, 
+        hauteur-ac_z0)
+
+def ssr_dc_opening(wall, z0, hauteur):
+    obb = bb_overall()
+    bb = ssr_bb(wall, z0)
+    dc_z0 = measured("ssr_dc_terminal_distance")+z0
+    return (
+        bb.min.Y, 
+        dc_z0, 
+        bb.max.Y-bb.min.Y, 
+        hauteur-dc_z0)
+
+def _ssr_area(body, outer, wall_dz, z0, wall):
+    bb = ssr_bb(wall, z0)
+    term_len = measured("ssr_terminal_length")
+
+    # horizontal support traverse
+    x0 = bb.min.X + 10.0
+    x1 = bb.max.X - term_len/2
+    body = add_wall(body, outer, x0, bb.min.Y, x1-x0, wall, z0, wall_dz)
+
+    # perpendicular stop bar
+    stop_dz = 3.0
+    body = add_wall(body, outer, bb.max.X, bb.min.Y, wall, bb.max.Y-bb.min.Y, z0, stop_dz)
+
+    return body
+
+def _ssr_openings(body, z0, wall, hauteur):
+    obb = bb_overall()
+    bb = ssr_bb(wall, z0)
+    body = _cut_opening(body, obb.max.X-wall, wall, ssr_ac_opening(wall, z0, hauteur))
+    body = _cut_opening(body, obb.min.X, wall, ssr_dc_opening(wall, z0, hauteur))
+
+    return body
 
 @part
 def boitier_ac(
     hauteur=27.0,
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
-    gouttiere_vide_haut=10.0,
-    degagement_vis=10.0,
-    hauteur_vis=16.6,
-    appui_y=18.0,
-    muret_depuis_ouest=23.0,
-    puit_depuis_cote=10.0,
-    puit_depuis_nord=10.0,
-    fente_nord_est=15.0,
-    fente_nord_est_z=10.0,
-    fente_sud_est=10.0,
-    fente_sud_est_z=5.6,
-    fente_sud_ouest_z=7.0,
-    fente_nord_ouest_z=13.6,
-    rebord=4.0,
+    hauteur_muret_ssr=10.0,
     tour_y=3.0,
-    crochet_hauteur=1.1,
-    crochet_saillie=0.6,
-    crochet_chanfrein=0.5,
-    butee_depuis_ouest=8.0,
-    butee_y=10.0,
-    butee_z_offset=2.0,
-    traverse_depuis_crochet_sud=8.0,
-    traverse_decalage_x=3.0,
-    insert_sud_decalage_x=0.0,
     draft=False,
 ):
     """Boîtier AC : partie est, murs 30 mm, plateforme vis et barre d'appui.
@@ -152,49 +232,11 @@ def boitier_ac(
     hauteur: hauteur hors-tout depuis le lit (murs compris, linteau nord inclus)
     epaisseur_paroi: épaisseur du fond et des murs, vers l'intérieur
     epaisseur_fond: épaisseur du fond vers le haut
-    gouttiere_vide_haut: profondeur en Y du logement vis (mur sud du logement à 10 mm)
-    degagement_vis: écart en X entre les murs est et ouest autour de la vis
-    hauteur_vis: haut des murs vis / muret / dalle (16,6 = 15 mm de vide + 1,6 mm de dalle)
-    appui_y: longueur en Y des murs est et ouest (tête + jambes)
-    muret_depuis_ouest: distance de la face ouest extérieure à la barre de soutien
-    puit_depuis_cote: distance du centre de chaque puits à sa face latérale (ouest / est)
-    puit_depuis_nord: distance du centre des deux puits à la face nord extérieure
-    fente_nord_est: largeur en Y de la fente nord sur la face est
-    fente_nord_est_z: bas de la fente nord-est, ouverte du sommet jusqu'à ce Z
-    fente_sud_est: largeur en Y de la fente sud sur la face est
-    fente_sud_est_z: bas de la fente sud-est (4 mm au-dessus du fond)
-    fente_sud_ouest_z: bas de la fente sud-ouest (écart tours–traverse), ouverte du sommet jusqu'à ce Z
-    fente_nord_ouest_z: bas de la fente nord-ouest (dimmer), ouverte du sommet jusqu'à ce Z
-    rebord: dépassement des tours sud au-dessus du muret / plateforme
+    hauteur_muret_ssr: hauteur du muret de soutien pour le module SSR
     tour_y: longueur des tours en Y, collées au sud des murets (X reste l'épaisseur de paroi)
-    crochet_hauteur: hauteur en Z du crochet ajouté au sommet des tours, au-dessus de rebord
-    crochet_saillie: débordement en +Y du crochet, vers la plateforme, par-delà la face
-        nord des tours
-    crochet_chanfrein: chanfrein à 45° sur les deux angles nord du crochet (haut et bas,
-        largeur en Y et en Z), pour que le PCB fasse levier à l'insertion comme au retrait
-        au lieu de buter à angle droit
-    butee_depuis_ouest: face est de la butée-triangle, depuis la face ouest
-    butee_y: hauteur/longueur en Y de la butée à 45°, indépendante de appui_y
-    butee_z_offset: décalage vers le haut du sommet de la butée triangle,
-        indépendant de hauteur_vis (toute la butée, base comprise, monte d'autant)
-    traverse_depuis_crochet_sud: face nord de la traverse, depuis la face sud des tours
-    traverse_decalage_x: décalage de toute la traverse vers l'ouest (X diminue) ; le côté
-        est de la traverse est en plus décalé de 10 mm vers l'est, ce qui l'élargit
-    insert_sud_decalage_x: décalage du heat insert M3 (face sud) depuis le centre de
-        cette face ; 0 le centre
     """
     wall = epaisseur_paroi
-    z0 = epaisseur_fond
-    aimant_d = measured("aimant_diametre")
-    aimant_h = measured("aimant_hauteur")
-    x_max = measured("boitier_int_x")
-    y_max = measured("boitier_int_y")
-    aile_x = measured("boitier_int_aile_x")
-    aile_y = measured("boitier_int_aile_y")
-    gout_x = measured("boitier_int_gouttiere_x")
-    vis_x = measured("boitier_ac_vis_x")
-    vis_y = measured("boitier_ac_vis_y")
-    vis_z = measured("boitier_ac_vis_z")
+    z0 = epaisseur_fond    
 
     if wall < 1.2:
         reject(
@@ -207,324 +249,21 @@ def boitier_ac(
             f"raise it above {wall + 2.0:.1f}",
             param="hauteur",
         )
-    if gouttiere_vide_haut < 0.5:
-        reject(
-            f"gouttiere_vide_haut {gouttiere_vide_haut} collapses the screw "
-            "notch into y_max: raise it",
-            param="gouttiere_vide_haut",
-        )
-    gout_haut = y_max - gouttiere_vide_haut
-    if gout_haut <= aile_y + 2.0 * wall:
-        reject(
-            f"gouttiere_vide_haut {gouttiere_vide_haut} leaves no east bay "
-            f"above y={aile_y}: lower it",
-            param="gouttiere_vide_haut",
-        )
-    if degagement_vis < vis_x + 0.4:
-        reject(
-            f"degagement_vis {degagement_vis} is too tight for a {vis_x} mm "
-            "screw (may be 5.1): raise it above 5.4",
-            param="degagement_vis",
-        )
-    encoche_est = gout_x + degagement_vis
-    if encoche_est >= x_max - wall:
-        reject(
-            f"degagement_vis {degagement_vis} eats the north-east return "
-            f"(east edge at x={encoche_est:.1f}): lower it",
-            param="degagement_vis",
-        )
-    if aile_x >= gout_x - wall:
-        reject(
-            f"west face at x={aile_x} collides with the screw notch at "
-            f"x={gout_x}: the split must stay west of the notch",
-        )
-    if hauteur_vis < vis_z + z0:
-        reject(
-            f"hauteur_vis {hauteur_vis} leaves under {vis_z} mm of screw "
-            f"pocket (slab is {wall} mm): raise it above {vis_z + wall:.1f}",
-            param="hauteur_vis",
-        )
-    lintel_z = hauteur_vis
-    if hauteur < lintel_z:
-        reject(
-            f"hauteur {hauteur} is under the north lintel "
-            f"({lintel_z:.1f} mm): raise it",
-            param="hauteur",
-        )
-    if appui_y <= gouttiere_vide_haut + wall:
-        reject(
-            f"appui_y {appui_y} is not longer than the screw head "
-            f"({gouttiere_vide_haut + wall:.1f} mm): raise it",
-            param="appui_y",
-        )
-    plat_y0 = y_max - appui_y
-    if plat_y0 < aile_y + wall:
-        reject(
-            f"appui_y {appui_y} hits the south wall: lower it",
-            param="appui_y",
-        )
-    if rebord < 0.8:
-        reject(
-            f"rebord {rebord} is under 0.8 mm: raise it",
-            param="rebord",
-        )
-    if hauteur_vis + rebord > hauteur:
-        reject(
-            f"rebord {rebord} plus hauteur_vis {hauteur_vis} exceeds "
-            f"hauteur {hauteur}: lower it",
-            param="rebord",
-        )
-    if tour_y < 0.8:
-        reject(
-            f"tour_y {tour_y} is under 0.8 mm: raise it",
-            param="tour_y",
-        )
-    if plat_y0 - tour_y < aile_y:
-        reject(
-            f"tour_y {tour_y} hits the south wall: lower it or raise appui_y",
-            param="tour_y",
-        )
-    if crochet_hauteur < 0.4:
-        reject(
-            f"crochet_hauteur {crochet_hauteur} is under 0.4 mm: raise it",
-            param="crochet_hauteur",
-        )
-    if crochet_saillie < 0.4:
-        reject(
-            f"crochet_saillie {crochet_saillie} is under 0.4 mm: raise it",
-            param="crochet_saillie",
-        )
-    if hauteur_vis + rebord + crochet_hauteur > hauteur:
-        reject(
-            f"crochet_hauteur {crochet_hauteur} raises the tower hook above "
-            f"hauteur {hauteur}: lower it",
-            param="crochet_hauteur",
-        )
-    if crochet_chanfrein <= 0.0:
-        reject(
-            f"crochet_chanfrein {crochet_chanfrein} must be positive: raise it",
-            param="crochet_chanfrein",
-        )
-    if crochet_chanfrein >= crochet_saillie:
-        reject(
-            f"crochet_chanfrein {crochet_chanfrein} is not under crochet_saillie "
-            f"{crochet_saillie}: it would remove the whole hook tip, lower it",
-            param="crochet_chanfrein",
-        )
-    if 2.0 * crochet_chanfrein >= crochet_hauteur:
-        reject(
-            f"crochet_chanfrein {crochet_chanfrein} taken on both the top and "
-            f"bottom corners is not under crochet_hauteur {crochet_hauteur}: "
-            "it would remove the whole hook tip, lower it",
-            param="crochet_chanfrein",
-        )
-    if muret_depuis_ouest < wall:
-        reject(
-            f"muret_depuis_ouest {muret_depuis_ouest} is under one wall: raise it",
-            param="muret_depuis_ouest",
-        )
-    muret_x = aile_x + muret_depuis_ouest
-    if muret_x + wall >= gout_x - wall:
-        reject(
-            f"muret_depuis_ouest {muret_depuis_ouest} runs into the screw "
-            "platform: lower it",
-            param="muret_depuis_ouest",
-        )
-    if butee_depuis_ouest < wall:
-        reject(
-            f"butee_depuis_ouest {butee_depuis_ouest} is under one wall: raise it",
-            param="butee_depuis_ouest",
-        )
-    butee_x1 = aile_x + butee_depuis_ouest
-    butee_x0 = butee_x1 - wall
-    if butee_x0 < aile_x + wall:
-        reject(
-            f"butee_depuis_ouest {butee_depuis_ouest} sits in the west wall: "
-            "raise it",
-            param="butee_depuis_ouest",
-        )
-    if butee_x1 + 2.0 > muret_x:
-        reject(
-            f"butee_depuis_ouest {butee_depuis_ouest} runs into the support bar: "
-            "lower it",
-            param="butee_depuis_ouest",
-        )
-    if butee_y < 2.0:
-        reject(
-            f"butee_y {butee_y} is under 2 mm: raise it",
-            param="butee_y",
-        )
-    butee_y_sud = y_max - butee_y
-    if butee_y_sud < aile_y:
-        reject(
-            f"butee_y {butee_y} runs the stop south of y={aile_y}: lower it",
-            param="butee_y",
-        )
-    butee_z1 = hauteur_vis + butee_z_offset
-    butee_z0 = butee_z1 - butee_y
-    if butee_z0 < 0.0:
-        reject(
-            f"butee_y {butee_y} is taller than the stop top "
-            f"({butee_z1:.1f} mm): lower it",
-            param="butee_y",
-        )
-    if butee_z1 > hauteur:
-        reject(
-            f"butee_z_offset {butee_z_offset} raises the stop top to "
-            f"{butee_z1:.1f} mm, above hauteur {hauteur}: lower it",
-            param="butee_z_offset",
-        )
-    well_stack = measured("aimant_puit_fond")+measured("aimant_hauteur")
-    if hauteur < well_stack:
-        reject(
-            f"hauteur {hauteur} is under the magnet well ({well_stack + 0.4:.1f} mm): "
-            "raise it",
-            param="hauteur",
-        )
-    puit_cx = aile_x + puit_depuis_cote
-    puit_est_cx = x_max - puit_depuis_cote
-    puit_cy = y_max - puit_depuis_nord
-    plat_x1 = encoche_est + wall
-    z_hyp_puit = butee_z0 + (y_max - puit_cy)
-    if well_stack + 0.4 > z_hyp_puit:
-        reject(
-            f"butee 45° underside at the well is {z_hyp_puit:.1f} mm, "
-            f"under the magnet stack {well_stack:.1f} mm: raise the stop or "
-            "move the well",
-            param="butee_depuis_ouest",
-        )
-    tour_y_sud = plat_y0 - tour_y
-    trav_y_nord = tour_y_sud - traverse_depuis_crochet_sud
-    trav_y_sud = trav_y_nord - wall
-    trav_x0 = muret_x - traverse_decalage_x
-    trav_x1 = plat_x1 - traverse_decalage_x
-    if traverse_depuis_crochet_sud < 0.0:
-        reject(
-            f"traverse_depuis_crochet_sud {traverse_depuis_crochet_sud} is negative: "
-            "raise it",
-            param="traverse_depuis_crochet_sud",
-        )
-    if trav_y_sud < aile_y:
-        reject(
-            f"traverse_depuis_crochet_sud {traverse_depuis_crochet_sud} puts the "
-            f"traverse south of y={aile_y}: lower it",
-            param="traverse_depuis_crochet_sud",
-        )
-    if traverse_decalage_x < 0.0:
-        reject(
-            f"traverse_decalage_x {traverse_decalage_x} is negative: raise it",
-            param="traverse_decalage_x",
-        )
-    if trav_x0 < aile_x + wall:
-        reject(
-            f"traverse_decalage_x {traverse_decalage_x} runs the traverse into "
-            f"the west wall: lower it",
-            param="traverse_decalage_x",
-        )
-    if fente_nord_est < 2.0:
-        reject(
-            f"fente_nord_est {fente_nord_est} is under 2 mm: raise it",
-            param="fente_nord_est",
-        )
-    if fente_sud_est < 2.0:
-        reject(
-            f"fente_sud_est {fente_sud_est} is under 2 mm: raise it",
-            param="fente_sud_est",
-        )
-    if fente_nord_est_z < z0:
-        reject(
-            f"fente_nord_est_z {fente_nord_est_z} cuts the floor: raise it "
-            f"above {z0:.1f}",
-            param="fente_nord_est_z",
-        )
-    if fente_nord_est_z >= hauteur:
-        reject(
-            f"fente_nord_est_z {fente_nord_est_z} is not below hauteur "
-            f"{hauteur}: lower it",
-            param="fente_nord_est_z",
-        )
-    if fente_sud_est_z < z0:
-        reject(
-            f"fente_sud_est_z {fente_sud_est_z} cuts the floor: raise it "
-            f"above {z0:.1f}",
-            param="fente_sud_est_z",
-        )
-    if fente_sud_est_z >= hauteur:
-        reject(
-            f"fente_sud_est_z {fente_sud_est_z} is not below hauteur "
-            f"{hauteur}: lower it",
-            param="fente_sud_est_z",
-        )
-    if fente_sud_ouest_z < z0:
-        reject(
-            f"fente_sud_ouest_z {fente_sud_ouest_z} cuts the floor: raise it above "
-            f"{z0:.1f}",
-            param="fente_sud_ouest_z",
-        )
-    if fente_sud_ouest_z >= hauteur:
-        reject(
-            f"fente_sud_ouest_z {fente_sud_ouest_z} is not below hauteur {hauteur}: "
-            "lower it",
-            param="fente_sud_ouest_z",
-        )
-    if fente_nord_ouest_z < z0:
-        reject(
-            f"fente_nord_ouest_z {fente_nord_ouest_z} cuts the floor: raise it above "
-            f"{z0:.1f}",
-            param="fente_nord_ouest_z",
-        )
-    if fente_nord_ouest_z >= hauteur:
-        reject(
-            f"fente_nord_ouest_z {fente_nord_ouest_z} is not below hauteur {hauteur}: "
-            "lower it",
-            param="fente_nord_ouest_z",
-        )
-    y_se0 = aile_y + wall
-    y_se1 = y_se0 + fente_sud_est
-    y_ne1 = y_max - wall
-    y_ne0 = y_ne1 - fente_nord_est
-    if y_se1 + 2.0 > y_ne0:
-        reject(
-            f"fente_nord_est {fente_nord_est} and fente_sud_est {fente_sud_est} "
-            "make the two east slots overlap: lower one",
-            param="fente_nord_est",
-        )
-
-    # Outer envelope edits (west/east/south) must not move the interior.
-    # We therefore build the cavity from the original contour, while the
-    # outer solid uses shifted outer-wall coordinates.
-    ac_west_shift = 5.0
-    ac_east_shift = 1.5
-    ac_south_shift = 4.0
-    x_east_fente = x_max - 1.0
 
     (
-        outer_pts_outer, 
-        west_x, 
-        south_y, 
-        east_x, 
-        north_y, 
-        west_encoche_x, 
-        east_encoche_x, 
-        south_encoche_y 
-    )  = _contour(
-        gouttiere_vide_haut,
-        degagement_vis,
-        west_x=aile_x - ac_west_shift,
-        east_x=x_max - ac_east_shift,
-        south_y=aile_y - ac_south_shift,
-    )
+        outer_pts_outer, bb, encoche
+    )  = _contour()
     # Build cavity from the shifted outer envelope as well: it keeps the
     # wall thickness consistent and avoids degenerate ultra-thin east walls
     # that can crash the polish/border analysis in nurb.
     inner_pts = offset_in(outer_pts_outer, wall)
-    inner_west_x = west_x + wall
-    inner_east_x = east_x - wall
-    inner_north_y = north_y - wall
-    inner_south_y = south_y + wall
-    inner_west_encoche_x = west_encoche_x-wall
-    inner_east_encoche_x = east_encoche_x+wall
-    inner_north_encoche_y = south_encoche_y-wall
+    inner_west_x = bb.min.X + wall
+    inner_east_x = bb.max.X - wall
+    inner_north_y = bb.max.Y - wall
+    inner_south_y = bb.min.Y + wall
+    inner_west_encoche_x = encoche.min.X - wall
+    inner_east_encoche_x = encoche.max.X + wall
+    inner_south_encoche_y = encoche.min.Y - wall
 
     outer = extrude(Polygon(*outer_pts_outer, align=None), hauteur)
     cavity = Pos(0, 0, z0) * extrude(
@@ -532,213 +271,34 @@ def boitier_ac(
     )
     body = outer - cavity
 
-    body = add_well(body, outer, puit_cx, puit_cy)
-    body = add_well(body, outer, puit_est_cx, puit_cy)
+    body = _build_encoche(body, encoche, inner_north_y, hauteur, z0, wall)
+    
+    # The support legs for the dimmer area
+    body = _dimmer_area(body, outer, tour_y, z0, wall)
+    body = _dimmer_openings(body, z0, wall, hauteur)
 
-    # Drop the notch walls from `hauteur` down to `hauteur_vis`.
-    plat_x0 = gout_x - wall
-    plat_x1 = encoche_est + wall
-    body = body - _bb(
-        plat_x0,
-        gout_haut - wall,
-        hauteur_vis,
-        plat_x1,
-        y_max + 1.0,
-        hauteur + 1.0,
-    )
+    # Two magnet wells
+    body = add_well(
+        body, 
+        outer,
+        inner_west_x+(inner_east_x-inner_west_x)*0.3, 
+        inner_north_y-6.5)
+    body = add_well(
+        body, 
+        outer,
+        inner_east_x-8,
+        inner_north_y-6.5)
 
-    x_outer_west = aile_x - ac_west_shift
+    # The stop walls for the SSR
+    body = _ssr_area(body, outer, hauteur_muret_ssr, z0, wall)
+    body = _ssr_openings(body, z0, wall, hauteur)
 
-    # Slab between the E/W walls, top flush with the wall tops.
-    # Underside at 15 mm so the screw pocket is 15 mm effective.
-    # Solid 45° gussets under it, from the three housing walls up to the underside.
-    slab_z0 = hauteur_vis - z0
-    body = body + _bb(gout_x, gout_haut, slab_z0, encoche_est, y_max, hauteur_vis)
-    body = body + _gousset_x(gout_x, gout_haut, y_max, slab_z0, z0, True)
-    body = body + _gousset_x(encoche_est, gout_haut, y_max, slab_z0, z0, False)
-    body = body + _gousset_y(gout_haut, gout_x, encoche_est, slab_z0, z0, True)
-
-    # Legs: E/W walls continue south to 18 mm total Y. No closing south wall.
-    body = body + _bb(plat_x0, plat_y0, 0.0, plat_x0 + wall, gout_haut, hauteur_vis)
-    body = body + _bb(
-        plat_x1 - wall, plat_y0, 0.0, plat_x1, gout_haut, hauteur_vis
-    )
-
-    # Same bar as the vis legs: 16.6 mm tall, 18 mm in Y, 20 mm from west face.
-    body = body + _bb(
-        muret_x, plat_y0, 0.0, muret_x + wall, y_max, hauteur_vis
-    )
-
-    # Mini-tower at the south of each rest: wall in X, tour_y in Y, bed to 2 mm above.
-    tour_z = hauteur_vis + rebord
-    for tx in (plat_x0, plat_x1 - wall, muret_x):
-        body = body + _tour_sud(tx, plat_y0, wall, tour_y, tour_z)
-        body = body + _crochet_tour(
-            tx,
-            plat_y0,
-            wall,
-            tour_y,
-            tour_z,
-            crochet_hauteur,
-            crochet_saillie,
-            crochet_chanfrein,
-        )
-
-    # M3 corbel heat insert, centred on the south wall: same overhang recipe
-    # as boitier_ps/boitier_dc, full thickness only over the top
-    # insert_profondeur so it costs little material below the rim.
-    east_x_outer = x_max - ac_east_shift
-    ins_diametre = INSERT_M3.diametre_percage
-    ins_profondeur = INSERT_M3.profondeur_min
-    ins_r = ins_diametre / 2.0
-    ins_plat = ins_diametre + wall
-    ins_along = ins_diametre + 2.0 * wall
-    ins_half = ins_along / 2.0
-    z_ins = hauteur - ins_profondeur
-    z_ins_45 = z_ins - ins_plat
-    ov = 0.4
-    south_pts = [
-        (-ov, z_ins_45),
-        (0.0, z_ins_45),
-        (ins_plat, z_ins),
-        (ins_plat, hauteur),
-        (-ov, hauteur),
-    ]
-    y_south_face = aile_y - ac_south_shift + wall
-    insert_sud_x = 0.5 * (x_outer_west + east_x_outer) + insert_sud_decalage_x
-    if insert_sud_x - ins_half < x_outer_west + wall:
-        reject(
-            f"insert_sud_decalage_x {insert_sud_decalage_x} runs the south "
-            "insert into the west wall: raise it",
-            param="insert_sud_decalage_x",
-        )
-    if insert_sud_x + ins_half > east_x_outer - wall:
-        reject(
-            f"insert_sud_decalage_x {insert_sud_decalage_x} runs the south "
-            "insert into the east wall: lower it",
-            param="insert_sud_decalage_x",
-        )
-    body = body + (
-        Pos(insert_sud_x - ins_half, y_south_face, 0)
-        * extrude(Plane.YZ * Polygon(*south_pts, align=None), ins_along)
-    )
-    body = body - (
-        Pos(insert_sud_x, y_south_face + ins_r, z_ins)
-        * Cylinder(ins_r, ins_profondeur + 0.1, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    )
-
-    # Traverse: same length, shifted west by traverse_decalage_x. Same Z as
-    # the murets (hauteur_vis), not the south towers.
-    body = body + _bb(
-        trav_x0, trav_y_sud, 0.0, trav_x1, trav_y_nord, hauteur_vis
-    )
-
-    # Stop wall 10 mm east of the traverse's east edge (module mounted
-    # upside down, connector clears the west stop and needs a stop of its
-    # own past the traverse): 3 mm tall from the floor (z=1,6 to z=4,6),
-    # 1,6 mm thick to the east, 10 mm in Y, south side flush with the
-    # traverse's south side.
-    butee_arret_x0 = trav_x1 + 10.0
-    body = body + _bb(
-        butee_arret_x0,
-        trav_y_sud,
-        z0,
-        butee_arret_x0 + wall,
-        trav_y_sud + 10.0,
-        z0 + 3.0,
-    )
-
-    # West stop: east face at 7 mm, 18×18 45° triangle on the north wall.
-    # No south hook. Underside leaves the magnet well clear.
-    body = body + _butee_triangle(
-        butee_x0, butee_x1, butee_y_sud, y_max, butee_z0, butee_z1
-    )
-
-    # North face is open only at the housing interior. From the slab top
-    # the north wall runs the full X width (lintel sitting on the slab).
-    body = body + _bb(
-        plat_x0, y_max - wall, lintel_z, plat_x1, y_max, hauteur
-    )
-
-    # Cable slots on the east face: north last 10 mm in Z, south down to
-    # 4 mm above the floor. N/S walls stay so those faces run to the corner.
-    margin = 0.5
-
-    # Top opening on the west face: dimmer (north module), same recipe as DC east.
-    # From the triangle top upward; north edge one wall inside y_max.
-    dimmer, ssr = ouvertures_modules(
-        y_max,
-        wall,
-        appui_y,
-        tour_y,
-        traverse_depuis_crochet_sud,
-        fente_nord_ouest_z,
-        fente_sud_ouest_z,
-    )
-    dimmer_y0, dimmer_y1, dimmer_z = dimmer
-    ssr_y0, ssr_y1, ssr_z = ssr
-    body = body - _bb(
-        x_outer_west - margin,
-        dimmer_y0,
-        dimmer_z,
-        aile_x + margin,
-        dimmer_y1,
-        hauteur + margin,
-    )
-
-    # West slot facing the SSR gap (tower south … traverse north).
-    body = body - _bb(
-        x_outer_west - margin,
-        ssr_y0,
-        ssr_z,
-        aile_x + margin,
-        ssr_y1,
-        hauteur + margin,
-    )
-
-    body = body - _bb(
-        x_east_fente - wall - margin,
-        y_se0,
-        fente_sud_est_z,
-        x_east_fente + margin,
-        y_se1,
-        hauteur + margin,
-    )
-    body = body - _bb(
-        x_east_fente - wall - margin,
-        y_ne0,
-        fente_nord_est_z,
-        x_east_fente + margin,
-        y_ne1,
-        hauteur + margin,
-    )
+    # Corbel
+    body = add_corbel(body,(inner_east_x + inner_west_x)/2.0,inner_south_y,hauteur,plane=Plane.YZ)
 
     body = _fuse_one(body)
     if draft:
         return body
-
-    # Some wall-step edits can create ultra-thin or near-degenerate edges.
-    # nurb's concave-edge classifier may recurse in those cases; we still
-    # want the part to build, so fall back to "no concave-edge filter".
-    try:
-        conc = {
-            (
-                round(e.center().X, 2),
-                round(e.center().Y, 2),
-                round(e.center().Z, 2),
-            )
-            for e in concave_edges(body)
-        }
-    except RecursionError:
-        conc = set()
-    vis_x0 = plat_x0 - 1.0
-    vis_x1 = plat_x1 + 1.0
-    vis_y0 = plat_y0 - tour_y
-    muret_x0 = muret_x - 0.5
-    muret_x1 = muret_x + wall + 0.5
-    butee_skip_x0 = butee_x0 - 0.5
-    butee_skip_x1 = butee_x1 + 0.5
-    chanfrein_fente = 0.6
 
     def in_fente(bb):
         # Keep both jamb edges (inner + outer) after east-slot X shifts.
@@ -775,9 +335,9 @@ def boitier_ac(
 
     def keep(edge):
         c = edge.center()
-        if (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) in conc:
-            return False
         if c.X > inner_east_x:
+            return True
+        if (c.X < inner_west_x) and (c.Y > inner_south_y) and (c.Y < inner_north_y):
             return True
         return False
 
@@ -793,5 +353,5 @@ def boitier_ac(
         return in_fente(bb) or in_fente_ouest(bb)
 
     body = polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
-    body = polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)
+    # body = polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)
     return body

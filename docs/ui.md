@@ -174,25 +174,31 @@ ce n'est ni une panne ni une connexion en attente. En mode Wi-Fi, elle devient
 claire seulement après l'association. Le mode courant est toujours explicité
 par l'écran modal ci-dessous ; l'icône n'en est qu'un rappel discret.
 
-### Mode Wi-Fi modal
+### Destination Wi-Fi
 
 Le Wi-Fi n'est pas un état de fond de l'écran de repos. L'utilisateur entre
-dans **mode Wi-Fi** par une action dédiée depuis les réglages, uniquement quand
-la machine est au repos. L'entrée demande confirmation, puis le cœur vérifie
-que pompe et vanne sont arrêtées, arrête NimBLE et charge Wi-Fi/HTTP.
+dans **mode Wi-Fi** par une destination dédiée de l'accueil si la place le
+permet, sinon depuis les réglages, uniquement quand la machine est au repos.
+L'entrée demande confirmation, puis le cœur vérifie que pompe et vanne sont
+arrêtées, arrête NimBLE et charge Wi-Fi/HTTP.
 
-L'UI passe alors en **L2 `WIFI MODE`** : fond normal, titre `wifi mode` en
-ambre, état réseau (AP de configuration, association ou adresse IP) et un seul
-bouton local `quitter le mode wifi`. Les profils, *infuser*, et les réglages
-d'infusion disparaissent. Cela rend visible qu'on a quitté le mode machine et
-évite toute ambiguïté sur la disponibilité de la balance.
+L'UI passe alors en **L2 `WIFI MODE`**, une page de destination : fond normal,
+titre `wifi mode` en ambre, état réseau (AP de configuration, association ou
+adresse IP) et un bouton local `retour`. L'adresse IP est affichée en grand
+pour simplifier l'accès depuis un navigateur. Pendant un flash réseau, cette
+page affiche sa progression (barre et compteur). Elle peut aussi montrer la
+dernière infusion conservée — par exemple `9:16 · 27 s · 35 g` — et offrir
+plus tard le bouton `envoyer l'infusion`; après un envoi accepté, elle indique
+`pas d'infusion à envoyer`. Les profils, *infuser*, et les réglages d'infusion
+disparaissent. Cela rend visible qu'on a quitté le mode machine et évite toute
+ambiguïté sur la disponibilité de la balance.
 
 Les clients distants peuvent faire le diagnostic, lancer une purge de banc et
 flasher, ou transmettre la dernière infusion au backend. Ils ne peuvent jamais
 lancer une infusion : cette interdiction est appliquée par le cœur, pas par la
-seule UI. À la sortie, Wi-Fi/HTTP et son netif sont désinitialisés, NimBLE est
-relancé, puis l'écran retourne au repos. La politique et la raison mémoire sont
-dans `firmware.md`, « Politique radio ».
+seule UI. Le bouton `retour` coupe réellement Wi-Fi/HTTP et son netif, relance
+NimBLE, puis retourne au repos. La politique et la raison mémoire sont dans
+`firmware.md`, « Politique radio ».
 
 ---
 
@@ -354,8 +360,9 @@ d'autre dans l'UI n'a à changer le jour où ils arrivent.
 Même grammaire que le repos : une liste de lignes de 88 px, valeur à droite,
 `−`/`+` au tap sur la ligne. Contenu : cible temps, cible poids, stratégie de
 pré-infusion (temps fixe / attente de pression, avec le seuil), stratégie de
-ramp-down (temps avant fin / poids / chute de pression), Wi-Fi (dont
-*entrer en mode Wi-Fi* et *réinitialiser le réseau*, avec confirmation),
+ramp-down (temps avant fin / poids / chute de pression), Wi-Fi (accès à la
+destination Wi-Fi si elle n'est pas présente à l'accueil, et *réinitialiser le
+réseau*, avec confirmation),
 calibrations, version du firmware. **Pas de luminosité** : voir « Veille ».
 
 Les stratégies sont des **choix parmi 2-3**, présentés en segments côte à côte

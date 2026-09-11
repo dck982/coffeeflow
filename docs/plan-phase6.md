@@ -209,13 +209,12 @@ révisable, mais par une décision explicite, pas par dérive.
   magasin de shots existant (dépôt séparé, hors de ce projet — en demander
   l'accès plutôt que de le chercher). Il
   horodate aujourd'hui **côté serveur**, à la réception, précisément parce que
-  le M5Core2 qui l'alimente n'a pas d'horloge (`main.py`, `create_brew`). Ça
-  marche tant que l'envoi est immédiat ; ça tombe dès que la machine met un
-  shot de côté parce que le serveur ou le Wi-Fi sont indisponibles — le shot
-  serait daté de sa réception, pas de son extraction. **C'est le tampon
-  différé, pas l'envoi direct, qui exige une horloge à bord.** Décisions qui en
-  découlent, à prendre maintenant parce qu'elles sont chères plus tard : voir
-  `firmware.md`, « Envoi des shots vers `coffeetracker` ».
+  le M5Core2 qui l'alimente n'a pas d'horloge (`main.py`, `create_brew`).
+  L'écran conserve la dernière infusion en PSRAM seulement, la montre dans la
+  destination Wi-Fi et l'efface après un envoi accepté. Il n'y a ni file
+  persistante ni réessai : le
+  stockage survit seulement jusqu'à la prochaine infusion, au reboot ou à la
+  coupure. `brewed_at` garde donc sa valeur prise au départ, pas à l'envoi.
 - **Règle qui va avec, et qui est la vraie raison de traiter le sujet
   maintenant : tout ce qui *mesure* une durée utilise l'horloge monotone**
   (`esp_timer`, cadencée par le quartz principal), **et l'heure murale ne sert
@@ -238,16 +237,12 @@ révisable, mais par une décision explicite, pas par dérive.
 
 ## Décisions qui restent à prendre (à trancher avec David)
 
-- **Quelle taille pour la partition de données ?** Les polices générées par
-  `lv_font_conv` sont des tableaux C liés dans l'image applicative, pas des
-  fichiers : `assets` ne sert donc à rien pour LVGL. Mais l'envoi différé des
-  shots vers `coffeetracker` (voir la décision ci-dessous) a besoin d'un
-  tampon persistant, et c'est **le seul candidat**. Ordre de grandeur : un shot
-  de 30 s échantillonné à 10 Hz fait quelques ko de JSON, donc quelques
-  centaines de ko couvrent largement une panne de plusieurs semaines du
-  serveur. La partition reste, probablement bien plus petite que 4000 ko — se
-  tranche au lot 11, une fois le poids réel de l'application connu, et **une
-  table de partitions ne se change plus une fois la carte en boîte**.
+- **Sort de la partition `assets`.** Les polices générées par `lv_font_conv`
+  sont des tableaux C liés dans l'image applicative, et une dernière infusion
+  volatile vit en PSRAM : aucune donnée LVGL ou file de shots ne justifie donc
+  cette partition. Le lot 11 décide si elle disparaît ou reste réservée pour un
+  usage futur, après mesure de l'image complète ; une table de partitions ne se
+  change plus une fois la carte en boîte.
 
 ---
 
@@ -682,8 +677,9 @@ au rallumage ; une session de plusieurs minutes sans perte de notifications
 
 ## Lot 9 — Cœur, face actions : infusion et purge, sans écran
 
-**Objectif :** la machine sait faire un shot et une purge, pilotée par `curl`,
-avant qu'une interface existe. C'est le lot qui rend le lot 10 facile.
+**Objectif :** la machine sait faire un shot et une purge via la face actions,
+avant que l'UI ne les expose. Le lot rend le lot 10 facile ; la validation de
+banc complète attend l'UI, dont les grandes cibles sont adaptées à la purge.
 
 Contenu :
 
@@ -710,10 +706,8 @@ Contenu :
    avant tout affichage** (`ui.md`).
 8. Résumé de fin de shot publié dans le flux d'événements : poids final, durée,
    débit moyen, et **la date du shot si l'heure est connue**, prise au *départ*
-   du shot et non à la publication (`firmware.md`, « Envoi des shots vers
-   `coffeetracker` »). L'envoi lui-même reste hors phase 6 ; l'horodatage coûte
-   un champ maintenant et évite d'avoir une collection de shots inexploitables
-   le jour où on les ramassera.
+   du shot. Une seule copie volatile est conservée en PSRAM pour la future page
+   Wi-Fi; elle est remplacée par le shot suivant et effacée après envoi réussi.
 9. **Toutes les durées de cette machine à états sont monotones**, sans
    exception : un pas SNTP ne doit jamais pouvoir décaler un chronomètre
    d'infusion en cours.
@@ -726,11 +720,10 @@ Contenu :
 produits. C'est là que les cas limites se testent — les provoquer à la main sur
 la machine est lent et parfois impossible (perte de balance en plein shot).
 
-**Critère de sortie :** un shot au temps complet exécuté depuis un `curl`, sur
-charge de test, avec la trace `coffeetool` montrant les phases attendues et
-l'arrêt à l'échéance, et le déroulé visible sur l'écran de service ; une purge
-qui s'arrête au relâchement **et** au plafond ; les cas limites couverts par les
-tests hôte, au vert.
+**Critère de sortie :** les tests hôte sont au vert. La validation de banc
+(shot au temps sur charge de test, trace `coffeetool`, arrêt à l'échéance,
+purge au relâchement et au plafond) est regroupée après le lot 10 : elle se fait
+depuis l'UI finale, non les petits boutons de l'écran de service.
 
 ---
 
@@ -761,6 +754,10 @@ Ce que ce plan ajoute :
   geste que le bouton de l'écran de service au lot 4). Prévoir une
   confirmation : c'est le seul geste de l'interface qui puisse rendre l'écran
   injoignable en Wi-Fi, et il n'a pas d'équivalent HTTP.
+- Ajouter la destination Wi-Fi : accessible depuis l'accueil si les cotes le
+  permettent, sinon depuis les réglages. Elle affiche l'adresse IP, la
+  progression du flash réseau et, plus tard, la dernière infusion volatile à
+  envoyer. Son bouton retour coupe réellement Wi-Fi/HTTP/netif et relance BLE.
 - La veille (`ui.md`, section « Veille ») appartient au sous-lot 4 : calque
   d'atténuation, bloc de veille mobile, réveil sans action. Elle ne dépend
   d'aucun réglage tactile.
@@ -779,7 +776,8 @@ Contenu :
 
 1. Mesurer la taille réelle de l'image applicative complète (LVGL, polices,
    BLE, Wi-Fi, httpd) et la comparer aux 3500 ko d'un emplacement OTA.
-2. Trancher le sort de la partition `assets` (voir plus haut).
+2. Trancher le sort de la partition `assets` (voir plus haut) ; elle n'est pas
+   requise pour une file de shots, qui n'existe pas.
 3. Ajuster la table de partitions **si nécessaire, maintenant** — après, la
    carte est en façade.
 4. Reflasher les deux images factory dans leur partition et revérifier qu'elles

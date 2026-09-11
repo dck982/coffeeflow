@@ -4,6 +4,7 @@
 
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
+#include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -11,6 +12,7 @@
 #include "ble_scale.h"
 #include "net_wifi.h"
 #include "core/calibration_machine.h"
+#include "core/machine.h"
 #include "common/messages.hpp"
 #include "common/version.hpp"
 #include "log_codes.hpp"
@@ -52,10 +54,16 @@ struct State {
   TelemetryProfile profile = TelemetryProfile::kIdle;
   bool profile_dirty = true;
   int64_t last_request_us = 0;
+  machine::Machine machine;
+  int64_t last_cycle_set_us = 0;
+  bool cycle_set_on = false;
+  int64_t shot_start_unix_s = 0;
 };
 State g_state;
+// Le seul résumé retenu ne consomme pas de SRAM interne utile aux radios/LCD.
+struct LastShotStore { bool available; float weight_g; uint32_t duration_ms; float flow_ml_s; int64_t unix_s; };
+EXT_RAM_BSS_ATTR LastShotStore g_last_shot{};
 ForgetNetworkCallback g_forget_network_callback = nullptr;
-bool g_cycle_active = false;  // lot 9 posera infusion/purge
 bool g_flash_active = false;
 bool g_radio_transition = false;
 
@@ -165,12 +173,72 @@ const char* action_reason(ActionStatus status) {
     case ActionStatus::kLocked: return "locked";
     case ActionStatus::kDimmerNotReady: return "dimmer_not_ready";
     case ActionStatus::kCycleActive: return "cycle_active";
+    case ActionStatus::kNoCycle: return "no_cycle";
     case ActionStatus::kInvalidValue: return "invalid_value";
   }
   return "unavailable";
 }
 
 ActionResult action_result(ActionStatus status) { return {status, action_reason(status)}; }
+
+machine::Config machine_config(const Config& c) {
+  return {c.target_weight_g, c.target_time_s,
+          c.preinfusion_mode == PreinfusionMode::kPressure ? machine::PreinfusionMode::kPressure : machine::PreinfusionMode::kTime,
+          c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
+          static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,
+          c.rampdown_lead_weight_g, c.rampdown_pressure_drop_bar, c.brew_pump_pct,
+          c.purge_pump_pct, c.purge_max_s};
+}
+
+machine::Input machine_input(const Snapshot& s) { return {s.weight_g, s.scale_present, s.pressure_bar}; }
+
+CycleState cycle_state(machine::State state) { return static_cast<CycleState>(state); }
+
+void update_cycle_snapshot_locked(int64_t now) {
+  g_state.snapshot.cycle_state = cycle_state(g_state.machine.state());
+  g_state.snapshot.cycle_elapsed_ms = g_state.machine.elapsed_ms(static_cast<uint64_t>(now / 1000));
+  g_state.snapshot.cycle_weight_goal = g_state.machine.weight_goal();
+}
+
+void remember_completed_shot_locked(const Snapshot& before) {
+  if (g_state.machine.state() != machine::State::kFinished ||
+      g_state.machine.stop_reason() == machine::StopReason::kPurgeReleased ||
+      g_state.machine.stop_reason() == machine::StopReason::kPurgeTimeout) return;
+  g_state.snapshot.last_shot_available = true;
+  g_state.snapshot.last_shot_weight_g = before.weight_g - g_state.machine.starting_weight_g();
+  g_state.snapshot.last_shot_duration_ms = g_state.machine.elapsed_ms(static_cast<uint64_t>(now_us() / 1000));
+  g_state.snapshot.last_shot_flow_ml_s = before.flow_ml_s;
+  g_state.snapshot.last_shot_unix_s = g_state.shot_start_unix_s;
+  g_last_shot = {true, g_state.snapshot.last_shot_weight_g, g_state.snapshot.last_shot_duration_ms,
+                 g_state.snapshot.last_shot_flow_ml_s, g_state.snapshot.last_shot_unix_s};
+}
+
+void tick_machine() {
+  const int64_t now = now_us();
+  machine::Output output{};
+  bool send = false;
+  machine::StopReason stop_reason = machine::StopReason::kNone;
+  portENTER_CRITICAL(&g_state.lock);
+  const bool was_active = g_state.machine.active();
+  output = g_state.machine.tick(static_cast<uint64_t>(now / 1000), machine_input(g_state.snapshot));
+  const bool active = g_state.machine.active();
+  if (was_active && !active) { remember_completed_shot_locked(g_state.snapshot); stop_reason = g_state.machine.stop_reason(); }
+  update_cycle_snapshot_locked(now);
+  if ((active && now - g_state.last_cycle_set_us >= 100000) || (!active && g_state.cycle_set_on)) {
+    g_state.last_cycle_set_us = now;
+    g_state.cycle_set_on = active;
+    send = true;
+  }
+  portEXIT_CRITICAL(&g_state.lock);
+  if (was_active && !active) {
+    const auto reason = static_cast<uint16_t>(stop_reason);
+    can_link::send_log(stop_reason == machine::StopReason::kPurgeReleased || stop_reason == machine::StopReason::kPurgeTimeout
+                           ? common::LogCode::kPurgeStopped : common::LogCode::kBrewStopped,
+                       common::LogSeverity::kInfo, reason);
+  }
+  if (send) send_set(output.ssr, output.dimmer, output.ttl_ms);
+  set_telemetry_profile(active ? TelemetryProfile::kActive : TelemetryProfile::kIdle);
+}
 
 void telemetry_task(void*) {
   for (;;) {
@@ -195,6 +263,7 @@ void telemetry_task(void*) {
       portEXIT_CRITICAL(&g_state.lock);
     }
     can_link::tick_presence();
+    tick_machine();
     vTaskDelay(pdMS_TO_TICKS(kTelemetryTickMs));
   }
 }
@@ -242,7 +311,9 @@ void set_telemetry_profile(TelemetryProfile profile) {
 }
 
 bool begin_flash(FlashTarget target, uint32_t total) {
-  if (target == FlashTarget::kNone || total == 0 || g_cycle_active || g_flash_active) return false;
+  if (target == FlashTarget::kNone || total == 0 || g_flash_active || get_snapshot().cycle_state == CycleState::kPreinfusion ||
+      get_snapshot().cycle_state == CycleState::kBrew || get_snapshot().cycle_state == CycleState::kRampdown ||
+      get_snapshot().cycle_state == CycleState::kPurge) return false;
   Snapshot snapshot = get_snapshot();
   // Sans secteur le dimmer ne répond pas sur I2C : STATUS_ACTUATORS est alors
   // légitimement absent. Le CAN vivant reste indispensable, et un écho frais
@@ -392,7 +463,9 @@ void mark_wall_time_known(int64_t unix_s) {
 }
 
 bool request_radio_mode(RadioMode mode) {
-  if (g_cycle_active || g_flash_active) return false;
+  const CycleState cycle = get_snapshot().cycle_state;
+  if (cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||
+      cycle == CycleState::kRampdown || cycle == CycleState::kPurge || g_flash_active) return false;
   portENTER_CRITICAL(&g_state.lock);
   if (g_radio_transition) {
     portEXIT_CRITICAL(&g_state.lock);
@@ -428,7 +501,8 @@ void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget
 void forget_network() { if (g_forget_network_callback != nullptr) g_forget_network_callback(); }
 
 ConfigResult put_config(const Config& candidate) {
-  if (g_cycle_active) return {ConfigStatus::kBusy, "cycle"};
+  if (get_snapshot().cycle_state == CycleState::kPreinfusion || get_snapshot().cycle_state == CycleState::kBrew ||
+      get_snapshot().cycle_state == CycleState::kRampdown || get_snapshot().cycle_state == CycleState::kPurge) return {ConfigStatus::kBusy, "cycle"};
   for (int attempt = 0; attempt < 2; ++attempt) {
     ConfigResult result = apply_config(candidate, get_config().revision);
     if (result.status != ConfigStatus::kStaleRevision) return result;
@@ -445,12 +519,16 @@ void note_config_rejected(const char* field) {
 }
 
 DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
-  Snapshot snapshot = get_snapshot();
-  if (!snapshot.sensors_alive) return DiagnosticStatus::kBusLost;
-  if (snapshot.lockout) return DiagnosticStatus::kLocked;
-  if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return DiagnosticStatus::kDimmerNotReady;
-  send_set(enabled, enabled ? pump_pct : 0, enabled ? 750 : 0);
-  return DiagnosticStatus::kOk;
+  // Compatibilité temporaire avec l'écran de service : il devient lui aussi
+  // un client de la face actions, sans chemin SET parallèle.
+  ActionResult result = perform_action({enabled ? Action::kPurgePress : Action::kPurgeRelease,
+                                        false, pump_pct, 0});
+  switch (result.status) {
+    case ActionStatus::kOk: return DiagnosticStatus::kOk;
+    case ActionStatus::kBusLost: return DiagnosticStatus::kBusLost;
+    case ActionStatus::kLocked: return DiagnosticStatus::kLocked;
+    default: return DiagnosticStatus::kDimmerNotReady;
+  }
 }
 
 ActionResult perform_action(const ActionCommand& command) {
@@ -461,12 +539,54 @@ ActionResult perform_action(const ActionCommand& command) {
     if (!get_snapshot().scale_present) return action_result(ActionStatus::kUnavailable);
     return action_result(ble_scale::tare() ? ActionStatus::kOk : ActionStatus::kUnavailable);
   }
+  if (command.action == Action::kDismissSummary) {
+    portENTER_CRITICAL(&g_state.lock);
+    bool ok = g_state.machine.dismiss();
+    g_state.snapshot.last_shot_available = false;
+    g_last_shot.available = false;
+    update_cycle_snapshot_locked(now_us());
+    portEXIT_CRITICAL(&g_state.lock);
+    return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
+  }
+  Snapshot snapshot = get_snapshot();
+  if (command.action == Action::kStopBrew) {
+    portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.stop(static_cast<uint64_t>(now_us() / 1000)); if (ok) remember_completed_shot_locked(g_state.snapshot); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
+    if (ok) send_set(false, 0, 0);
+    if (ok) can_link::send_log(common::LogCode::kBrewStopped, common::LogSeverity::kInfo,
+                               static_cast<uint16_t>(machine::StopReason::kManual));
+    return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
+  }
+  if (command.action == Action::kPurgeRelease) {
+    portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.purge_release(static_cast<uint64_t>(now_us() / 1000)); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
+    if (ok) send_set(false, 0, 0);
+    if (ok) can_link::send_log(common::LogCode::kPurgeStopped, common::LogSeverity::kInfo,
+                               static_cast<uint16_t>(machine::StopReason::kPurgeReleased));
+    return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
+  }
+  if (command.action == Action::kStartBrew || command.action == Action::kPurgePress) {
+    if (g_flash_active) return action_result(ActionStatus::kCycleActive);
+    if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+    if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+    if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return action_result(ActionStatus::kDimmerNotReady);
+    portENTER_CRITICAL(&g_state.lock);
+    bool ok = command.action == Action::kStartBrew
+                  ? g_state.machine.start(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()), machine_input(g_state.snapshot))
+                  : g_state.machine.purge_press(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()));
+    if (ok && command.action == Action::kStartBrew) {
+      g_state.shot_start_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+    }
+    update_cycle_snapshot_locked(now_us());
+    portEXIT_CRITICAL(&g_state.lock);
+    if (ok) can_link::send_log(command.action == Action::kStartBrew ? common::LogCode::kBrewStarted : common::LogCode::kPurgeStarted,
+                               common::LogSeverity::kInfo);
+    return action_result(ok ? ActionStatus::kOk : ActionStatus::kCycleActive);
+  }
   if (command.action != Action::kSetActuators) return action_result(ActionStatus::kUnavailable);
   if (command.dimmer > 100) return action_result(ActionStatus::kInvalidValue);
-  Snapshot snapshot = get_snapshot();
+  snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
-  if (g_cycle_active || g_flash_active) return action_result(ActionStatus::kCycleActive);
+  if (snapshot.cycle_state == CycleState::kPreinfusion || snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown || snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
   send_set(command.ssr, command.dimmer, command.ttl_ms);
   return action_result(ActionStatus::kOk);
 }
@@ -482,6 +602,11 @@ Snapshot get_snapshot() {
   TelemetryProfile profile;
   portENTER_CRITICAL(&g_state.lock);
   result = g_state.snapshot;
+  result.last_shot_available = g_last_shot.available;
+  result.last_shot_weight_g = g_last_shot.weight_g;
+  result.last_shot_duration_ms = g_last_shot.duration_ms;
+  result.last_shot_flow_ml_s = g_last_shot.flow_ml_s;
+  result.last_shot_unix_s = g_last_shot.unix_s;
   pressure_received = g_state.pressure_received_us;
   flow_received = g_state.flow_received_us;
   actuators_received = g_state.actuators_received_us;

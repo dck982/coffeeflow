@@ -31,6 +31,7 @@ namespace core {
 enum class Freshness : uint8_t { kFresh, kStale, kMissing };
 enum class FlashTarget : uint8_t { kNone, kScreen, kSensors };
 enum class RadioMode : uint8_t { kOff, kMachine, kWifi };
+enum class CycleState : uint8_t { kIdle, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
 
 // Instantané étendu de ui_model_t (ui.md), pris sous verrou puis complété sur
 // une copie. Aucun consommateur ne lit l'état interne champ par champ.
@@ -95,6 +96,14 @@ struct Snapshot {
   FlashTarget flash_target = FlashTarget::kNone;
   uint32_t flash_bytes_done = 0;
   uint32_t flash_bytes_total = 0;
+  CycleState cycle_state = CycleState::kIdle;
+  uint32_t cycle_elapsed_ms = 0;
+  bool cycle_weight_goal = false;
+  bool last_shot_available = false;
+  float last_shot_weight_g = 0.0f;
+  uint32_t last_shot_duration_ms = 0;
+  float last_shot_flow_ml_s = 0.0f;
+  int64_t last_shot_unix_s = 0;
 };
 
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
@@ -158,6 +167,7 @@ enum class ActionStatus : uint8_t {
   kLocked,
   kDimmerNotReady,
   kCycleActive,
+  kNoCycle,
   kInvalidValue,
 };
 

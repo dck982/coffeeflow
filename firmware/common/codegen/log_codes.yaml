@@ -117,3 +117,15 @@
 - name: BLE_ERROR
   severity: warn
   comment: Échec client BLE Acaia. arg16 = code NimBLE ou ESP-IDF.
+- name: BREW_STARTED
+  severity: info
+  comment: Cycle d'infusion démarré.
+- name: BREW_STOPPED
+  severity: info
+  comment: Cycle d'infusion arrêté. arg16 = motif d'arrêt.
+- name: PURGE_STARTED
+  severity: info
+  comment: Purge homme-mort démarrée.
+- name: PURGE_STOPPED
+  severity: info
+  comment: Purge arrêtée. arg16 = relâchement ou plafond.

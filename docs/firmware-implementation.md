@@ -302,11 +302,12 @@ buffer important.
 ## Suite de la phase 6
 
 Le découpage précis et les critères de sortie sont dans
-`docs/plan-phase6.md`. Les lots 0 à 8 sont clos. Ordre restant :
+`docs/plan-phase6.md`. Les lots 0 à 9 sont implémentés ; la validation de banc
+du lot 9 est volontairement regroupée après l'UI du lot 10. Ordre restant :
 
-1. Face actions du coeur : infusion et purge sans écran (lot 9), puis UI LVGL
-   complète (lot 10). LVGL et HTTP restent des clients sans accès direct aux
-   sorties.
+1. UI LVGL complète (lot 10), puis validation physique commune du lot 9 :
+   shot, purge et sécurités depuis ses grandes cibles tactiles. LVGL et HTTP
+   restent des clients sans accès direct aux sorties.
 2. Geler la table de partitions et fermer la phase (lot 11).
 
 Le code de référence Acaia est dans `docs/reference/acaia-ble/`; il faut porter le
@@ -446,6 +447,30 @@ Ne pas compenser le GT911 et ne pas activer
 `CONFIG_LCD_RGB_RESTART_IN_VSYNC` : le tactile n'était pas fautif et un restart
 à chaque VSYNC avait auparavant provoqué des sauts. Le détail historique est
 dans `docs/screen-issue.md`.
+
+### Lot 9 — cœur, face actions, implémenté (2026-09-11)
+
+`core/machine.h/.cpp` est une machine à états pure, sans ESP-IDF, couvrant
+pré-infusion, extraction, ramp-down, arrêt temps ou poids, arrêt manuel,
+perte/recul de balance et purge homme-mort plafonnée. Le cœur l'exécute toutes
+les 50 ms, émet seul les `SET` avec un bail de 500 ms renouvelé à 10 Hz, et
+coupe immédiatement à l'arrêt. `/action` expose désormais infusion, arrêt,
+purge, tare et fermeture du résumé ; `/telemetry` expose le cycle et la
+dernière infusion volatile.
+
+Le résumé (poids, durée, débit, heure prise au départ si connue) est remplacé
+par le shot suivant et effacé à la fermeture. Les transitions sont observables
+par les LOG CAN `BREW_*` et `PURGE_*`. Les tests hôte de `core/machine` et le
+build ESP-IDF de l'écran sont verts. Les essais physiques sont reportés après
+le lot 10, conformément à la décision de validation commune.
+
+**Image `v0.2.38` flashée et fonctionnelle sur le banc.** Le cycle et les
+actions du lot 9 semblent fonctionner. Régression à conserver pour le lot 10 :
+au démarrage, le contenu RGB est parfois décalé vers la droite. Le
+`esp_lcd_rgb_panel_restart()` différé d'une seconde, ajouté pour resynchroniser
+le DMA (`service_screen.cpp`), ne corrige pas le problème de façon fiable.
+Ne pas investiguer dans ce lot ; reproduire et isoler le problème pendant le
+travail UI.
 
 ## Phase 7 — mise en boîte
 

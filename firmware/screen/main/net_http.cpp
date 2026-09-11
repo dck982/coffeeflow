@@ -197,7 +197,27 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddBoolToObject(root, "scale_connected", snapshot.scale_connected);
   cJSON_AddBoolToObject(root, "scale_present", snapshot.scale_present);
   add_age(root, "scale_age_ms", snapshot.scale_age_ms);
-  cJSON_AddStringToObject(root, "cycle", "idle");
+  const char* cycle = "idle";
+  switch (snapshot.cycle_state) {
+    case core::CycleState::kPreinfusion: cycle = "preinfusion"; break;
+    case core::CycleState::kBrew: cycle = "brew"; break;
+    case core::CycleState::kRampdown: cycle = "rampdown"; break;
+    case core::CycleState::kFinished: cycle = "finished"; break;
+    case core::CycleState::kPurge: cycle = "purge"; break;
+    case core::CycleState::kIdle: break;
+  }
+  cJSON_AddStringToObject(root, "cycle", cycle);
+  cJSON_AddNumberToObject(root, "cycle_elapsed_ms", snapshot.cycle_elapsed_ms);
+  cJSON_AddBoolToObject(root, "cycle_weight_goal", snapshot.cycle_weight_goal);
+  cJSON* last_shot = cJSON_AddObjectToObject(root, "last_shot");
+  cJSON_AddBoolToObject(last_shot, "available", snapshot.last_shot_available);
+  if (snapshot.last_shot_available) {
+    cJSON_AddNumberToObject(last_shot, "weight_g", snapshot.last_shot_weight_g);
+    cJSON_AddNumberToObject(last_shot, "duration_ms", snapshot.last_shot_duration_ms);
+    cJSON_AddNumberToObject(last_shot, "flow_ml_s", snapshot.last_shot_flow_ml_s);
+    if (snapshot.last_shot_unix_s != 0) cJSON_AddNumberToObject(last_shot, "unix_s", static_cast<double>(snapshot.last_shot_unix_s));
+    else cJSON_AddNullToObject(last_shot, "unix_s");
+  }
   cJSON* flash = cJSON_AddObjectToObject(root, "flash");
   cJSON_AddBoolToObject(flash, "active", snapshot.flash_active);
   cJSON_AddStringToObject(flash, "target", snapshot.flash_target == core::FlashTarget::kScreen ? "screen" : snapshot.flash_target == core::FlashTarget::kSensors ? "sensors" : "none");

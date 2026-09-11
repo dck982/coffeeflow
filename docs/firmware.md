@@ -181,12 +181,14 @@ l'écran**, avec les rôles inversés. C'est la première fois que l'écran est
   s'ajoute et fait autorité quand il est présent. Les shots déjà stockés et le
   M5Core2 continuent de fonctionner sans rien changer.
 - **L'horodatage est pris au *départ* du shot**, converti depuis l'horloge
-  monotone à cet instant, et transporté avec lui. Pas au moment de l'envoi :
-  c'est exactement ce qui casse si un shot attend dans le tampon.
-- **Un shot non envoyé est mis de côté et réessayé**, d'où le besoin d'une
-  partition de données. Sans tampon, l'horloge embarquée n'apporte rien de plus
-  que l'horodatage serveur actuel : le tampon *est* la raison d'être de tout ce
-  paragraphe.
+  monotone à cet instant, et transporté avec lui. Il reste donc correct même
+  si l'utilisateur attend avant l'envoi.
+- **Une seule dernière infusion est conservée, en PSRAM uniquement.** L'écran
+  la montre avant envoi (heure, durée, poids) afin que l'utilisateur sache ce
+  qui partira. Un envoi accepté l'efface ; une coupure, un redémarrage ou une
+  nouvelle infusion la remplace. Il n'y a ni tampon persistant, ni réessai,
+  ni historique : sans réseau ou sans geste explicite d'envoi, l'infusion est
+  simplement perdue.
 - **L'URL et la clé du serveur vivent dans la configuration**, la clé en
   écriture seule — jamais renvoyée par `GET /config`, comme le mot de passe
   Wi-Fi.
@@ -271,12 +273,14 @@ implicite de l'UI.
 | **machine** (défaut) | complètement désinitialisés | actif ; poids à basse cadence au repos, pleine cadence pendant un cycle | infusion, purge, tare |
 | **Wi-Fi** (bouton explicite) | actifs ; API, WebSocket et flash réseau ouverts | complètement désinitialisé | diagnostic, flash, purge de banc, envoi du dernier shot au backend ; **pas d'infusion** |
 
-Entrer en mode Wi-Fi arrête et désinitialise BLE/controller avant de démarrer
-Wi-Fi. Le retour au mode machine effectue l'opération inverse : arrêt de
-httpd, Wi-Fi et netif, puis initialisation BLE. Ce n'est pas un simple
+L'UI ouvre ce mode comme une destination depuis l'accueil si la place le
+permet, sinon depuis les réglages. Son bouton retour est une vraie sortie de
+mode, pas seulement une navigation : il arrête et désinitialise Wi-Fi/httpd/
+netif avant de relancer BLE. Ce n'est pas un simple
 `esp_wifi_stop()` : les buffers doivent être rendus à la SRAM interne. L'UI
-affiche un bandeau `WIFI MODE` pendant toute la durée du mode. Le pont USB
-reste disponible dans les deux cas.
+affiche l'état (AP, association ou adresse IP), la dernière infusion à envoyer
+le cas échéant, et la progression d'un flash réseau. Le pont USB reste
+disponible dans les deux cas.
 
 Le mode Wi-Fi est volontairement modal : une infusion ne peut pas démarrer
 tant qu'il est actif et le coeur refuse cette action même si un client HTTP la

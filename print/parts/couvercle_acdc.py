@@ -25,12 +25,12 @@ def _dc_east_opening(body, y, z0, rib_dz):
         Pos(x, y-margin, z0) * Box(opening_sz, opening_sz+margin*2, rib_dz, align=AMIN)
     )
 
-def _pcb_press(body, rib_west, rib_east, y0, y1, appui_pcb_z, wall):
+def _pcb_press(body, rib_west, rib_east, y0, y1, appui_pcb_z, z0):
     """PCB press on the the middle 1/3 of a horizontal rib"""
     rib_len_third = (rib_east - rib_west) / 3.0
     appui_x0 = rib_west + rib_len_third
     appui_x1 = appui_x0 + rib_len_third
-    return body + Pos(appui_x0, y0, wall) * Box(
+    return body + Pos(appui_x0, y0, z0) * Box(
         appui_x1 - appui_x0, y1 - y0, appui_pcb_z, align=AMIN
     )
 
@@ -40,16 +40,10 @@ def couvercle_acdc(
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
     gouttiere_jeu=0.3,
-    gouttiere_epaisseur=1.2,
+    gouttiere_epaisseur=1.0,
     gouttiere_profondeur=3.0,
-    chanfrein=15.0,
-    ac_west_shift=5.0,
-    ac_east_shift=1.5,
-    ac_south_shift=4.0,
-    ac_appui_pcb_hauteur=6.0,
-    dc_appui_xiao_hauteur=6.0,
-    vis_m25_diametre=2.9,
-    vis_m3_diametre=None,
+    ac_appui_pcb_hauteur=6.7,
+    dc_appui_xiao_hauteur=10.0,
     draft=False,
 ):
     """Couvercle unique pour `ensemble_boitiers` (boitier_dc + boitier_ac).
@@ -75,14 +69,6 @@ def couvercle_acdc(
     gouttiere_jeu: jeu entre le rebord et la face intérieure d'un mur
     gouttiere_epaisseur: épaisseur du rebord
     gouttiere_profondeur: profondeur du rebord dans la cavité
-    chanfrein: doit être sync avec boitier_dc
-    ac_west_shift: décalage de boitier_ac appliqué par ensemble_boitiers,
-        doit rester égal à `boitier_int_aile_x − ac_west_shift` interne à
-        boitier_ac
-    ac_east_shift: retrait de la face est de boitier_ac, doit rester égal à
-        sa valeur interne
-    ac_south_shift: retrait de la face sud de boitier_ac, doit rester égal
-        à sa valeur interne
     ac_appui_pcb_hauteur: profondeur du rebord nord de boitier_ac sur son
         tiers central en X (aile_x + (east_x−aile_x)/3 à aile_x +
         (east_x−aile_x)*2/3) : presse le PCB du module sud par le dessus.
@@ -90,18 +76,12 @@ def couvercle_acdc(
         (muret_depuis_ouest, tour_y, rebord...).
     dc_appui_pcb_hauteur: profondeur du rebord sud de boitier_dc pour tenir
         le module XIAO
-    vis_m25_diametre: passage des deux vis M2.5 (boitier_dc)
-    vis_m3_diametre: passage de la vis M3 (boitier_ac) ; par défaut la cote
-        mesurée `vis_passage`
     """
     wall = epaisseur_paroi
     z0 = epaisseur_fond
     jeu = gouttiere_jeu
     ep = gouttiere_epaisseur
     prof = gouttiere_profondeur
-    margin = 0.5
-    if vis_m3_diametre is None:
-        vis_m3_diametre = measured("vis_passage")
 
     if wall < 1.0:
         reject(f"epaisseur_paroi {wall} is under 1 mm: raise it", param="epaisseur_paroi")
@@ -116,16 +96,6 @@ def couvercle_acdc(
         reject(
             f"gouttiere_profondeur {prof} is under 1.5 mm: raise it",
             param="gouttiere_profondeur",
-        )
-    if vis_m25_diametre < 2.0:
-        reject(
-            f"vis_m25_diametre {vis_m25_diametre} is under 2 mm: raise it",
-            param="vis_m25_diametre",
-        )
-    if vis_m3_diametre < 2.0:
-        reject(
-            f"vis_m3_diametre {vis_m3_diametre} is under 2 mm: raise it",
-            param="vis_m3_diametre",
         )
 
     marche_x = measured("boitier_int_marche_x")
@@ -163,7 +133,7 @@ def couvercle_acdc(
         )
     y_max = ac_pts[2][1]
     appui_y1 = y_max - (wall + jeu)
-    body = _pcb_press(body, ac_pts[0][0], ac_pts[2][0], appui_y1 - ep, appui_y1, ac_appui_pcb_hauteur, wall)
+    body = _pcb_press(body, ac_pts[0][0], ac_pts[2][0], appui_y1 - ep, appui_y1, ac_appui_pcb_hauteur, z0)
 
     # PCB press DC on south rib to hold the XIAO module
     if dc_appui_xiao_hauteur <= 0.0:
@@ -172,7 +142,7 @@ def couvercle_acdc(
             param="dc_appui_xiao_hauteur",
         )
     appui_y0 = wall + jeu
-    body = _pcb_press(body, dc_pts[1][0], dc_pts[2][0], appui_y0, appui_y0 + ep, dc_appui_xiao_hauteur, wall)
+    body = _pcb_press(body, dc_pts[1][0], dc_pts[2][0], appui_y0, appui_y0 + ep, dc_appui_xiao_hauteur, z0)
 
     # Placing the lid means flipping it over (about a north-south axis, the
     # long way): that mirrors X. Everything above is modelled in the direct

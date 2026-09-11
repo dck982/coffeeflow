@@ -11,7 +11,8 @@ from system import (
     add_corbel,
     offset_in,
     add_heat_insert,
-    bbox
+    bbox,
+    puit_couche,
 )
 
 from parts.boitier_ac import ssr_dc_opening, dimmer_dc_opening
@@ -270,6 +271,25 @@ def _wago_north_west(body, outer, container_bb, wago_raise, surplomb_len, surplo
     area_dz = measured("wago_423_largeur")
     return _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall)
 
+def _add_vertical_magnet(body, hauteur):
+    bb = bb_overall()
+    # Small magnet on the north wall, axis lying (into the box). Mouth on the
+    # interior; outer face keeps `aimant_puit_fond`. Teardrop roof via
+    # `puit_couche` (local +Y = world +Z). pont=1: default 2 flattens a Ø5.2.
+    d = measured("aimant_petit_diametre") + measured("aimant_puit_press_fit")
+    h = measured("aimant_petit_hauteur")
+    fond = measured("aimant_puit_fond")
+    ring_radius = d / 2 + measured("aimant_puit_mur")
+    cx = bb.min.X + bb.size.X * 0.6
+    cz = hauteur - 5
+    pad = Rot(90, 0, 0) * Pos(cx, cz, -bb.max.Y) * Cylinder(ring_radius, h, align=CMIN)
+    mouth = Plane(
+        origin=(cx, bb.max.Y - fond - h, cz),
+        x_dir=(-1, 0, 0),
+        z_dir=(0, 1, 0),
+    )
+    return body + pad - mouth * puit_couche(d / 2, h, pont=1.0)
+
 @part
 def boitier_dc(
     hauteur=27.0,
@@ -375,6 +395,9 @@ def boitier_dc(
 
     # CAN Pal
     body = _canpal_area(body, outer, floor, wall)
+
+    # Vertical magnet
+    body = _add_vertical_magnet(body, hauteur)
 
     # Two M2.5 corbel heat inserts: same recipe as boitier_ps's wall corbels,
     # an overhang from the wall's inner face near the rim (not a tower from

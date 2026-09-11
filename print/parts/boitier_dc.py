@@ -453,35 +453,14 @@ def boitier_dc(
     if draft:
         return body
 
-    conc = {
-        (round(e.center().X, 2), round(e.center().Y, 2), round(e.center().Z, 2))
-        for e in concave_edges(body)
-    }
-    chanfrein_fente = 0.6 
-
     def keep(edge):
         c = edge.center()
-        if (round(c.X, 2), round(c.Y, 2), round(c.Z, 2)) in conc:
-            return False
         if c.Y < chanfrein:
             return True
         if c.X < inner_west_x:
             return True
         if (c.X < inner_west_marche_x) and (c.Y>inner_north_y):
             return True
-        if (c.X > inner_east_x) and (c.Y < inner_north_y):
-            return True
         return False
-
-    def fente_keep(edge):
-        bb = edge.bounding_box()
-        dx = bb.max.X - bb.min.X
-        dy = bb.max.Y - bb.min.Y
-        dz = bb.max.Z - bb.min.Z
-        if (dx * dx + dy * dy + dz * dz) ** 0.5 < 2.0:
-            return False
-        if dz < 4.0:
-            return False
-        return in_fente_est(bb)
 
     return polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)

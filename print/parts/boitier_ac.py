@@ -153,7 +153,9 @@ def dimmer_ac_opening(wall, z0, hauteur):
 def dimmer_dc_opening(wall, z0, hauteur):
     obb = bb_overall()
     bb = dimmer_bb(wall, z0)
-    dc_z0 = bb.min.Z - measured("dimmer_dc_terminal_depth")
+    #dc_z0 = bb.min.Z - measured("dimmer_dc_terminal_depth")
+    # align both openings to 8, nicer look
+    dc_z0 = 8
     return (bb.min.Y, dc_z0, bb.max.Y-bb.min.Y, hauteur-dc_z0)
 
 def _add_dimmer_tower(body, outer, x, y0, dx, dy, z0, dz, tz):
@@ -214,11 +216,14 @@ def ssr_ac_opening(wall, z0, hauteur):
 def ssr_dc_opening(wall, z0, hauteur):
     obb = bb_overall()
     bb = ssr_bb(wall, z0)
-    dc_z0 = measured("ssr_dc_terminal_distance")+z0
+    #dc_z0 = measured("ssr_dc_terminal_distance")+z0
+    # align both openings to 8, nicer look
+    dc_z0 = 8
     return (
         bb.min.Y, 
         dc_z0, 
-        bb.max.Y-bb.min.Y, 
+        # make the opening larger to get rid of the middle pole
+        dimmer_dc_opening(wall, z0, hauteur)[3],
         hauteur-dc_z0)
 
 def _ssr_area(body, outer, wall_dz, z0, wall):
@@ -326,58 +331,12 @@ def boitier_ac(
     if draft:
         return body
 
-    def in_fente(bb):
-        # Keep both jamb edges (inner + outer) after east-slot X shifts.
-        on_est = (
-            bb.max.X > x_east_fente - wall - margin - 0.2
-            and bb.min.X < x_east_fente + margin + 0.2
-        )
-        my = 0.5 * (bb.min.Y + bb.max.Y)
-        se_mid = 0.5 * (y_se0 + y_se1)
-        ne_mid = 0.5 * (y_ne0 + y_ne1)
-        se = (
-            abs(my - se_mid) <= 0.5 * fente_sud_est + 0.8
-            and bb.min.Z > fente_sud_est_z - 0.5
-        )
-        ne = (
-            abs(my - ne_mid) <= 0.5 * fente_nord_est + 0.8
-            and bb.min.Z > fente_nord_est_z - 0.5
-        )
-        return on_est and (se or ne)
-
-    def in_fente_ouest(bb):
-        on_ouest = (
-            bb.max.X > x_outer_west - margin - 0.2
-            and bb.min.X < aile_x + margin + 0.2
-        )
-        my = 0.5 * (bb.min.Y + bb.max.Y)
-        mid = 0.5 * (ssr_y0 + ssr_y1)
-        y_tol = 0.5 * (ssr_y1 - ssr_y0) + 0.8
-        return (
-            on_ouest
-            and abs(my - mid) <= y_tol
-            and bb.min.Z > ssr_z - 0.5
-        )    
-
     def keep(edge):
         c = edge.center()
+        # only the east edge
         if c.X > inner_east_x:
-            return True
-        if (c.X < inner_west_x) and (c.Y > inner_south_y) and (c.Y < inner_north_y):
             return True
         return False
 
-    def fente_keep(edge):
-        bb = edge.bounding_box()
-        dx = bb.max.X - bb.min.X
-        dy = bb.max.Y - bb.min.Y
-        dz = bb.max.Z - bb.min.Z
-        if (dx * dx + dy * dy + dz * dz) ** 0.5 < 2.0:
-            return False
-        if dz < 8.0:
-            return False
-        return in_fente(bb) or in_fente_ouest(bb)
-
     body = polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)
-    # body = polish(body, body.edges().filter_by(fente_keep), chanfrein_fente)
     return body

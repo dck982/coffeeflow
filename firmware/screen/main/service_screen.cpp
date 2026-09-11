@@ -19,7 +19,7 @@
 #include "can_link.h"
 #include "common/version.hpp"
 #include "core/core.h"
-#include "ui/ui_test_screen.h"
+#include "ui/ui_root.h"
 
 namespace service_screen {
 
@@ -291,7 +291,7 @@ lv_obj_t* add_button(lv_obj_t* parent, const char* text, int x, int y) {
 // Console de debug volontairement laide : pas de style, pas de cote de
 // ui.md, police montserrat intégrée à LVGL (docs/plan-phase6.md, lot 2).
 void build_ui() {
-  ui::test_screen::build();
+  ui::root::build();
   return;
   lv_obj_t* scr = lv_screen_active();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);

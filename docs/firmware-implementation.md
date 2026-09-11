@@ -488,6 +488,23 @@ entrer/quitter le mode Wi-Fi ; il passe par le cœur, coupe BLE avant
 Wi-Fi/httpd et montre l'état AP ou STA. Ce bouton est provisoire et sera
 absorbé par la destination Wi-Fi finale.
 
+### Lot 10, sous-lot 2 — bandeau L0 et repos statique, validé (2026-09-11)
+
+`ui/ui_root.cpp` installe l'écran LVGL unique et `ui/ui_home.cpp` reproduit le
+premier cadre de la maquette sur des valeurs figées : bandeau L0, filet,
+cible poids encadrée de `−`/`+`, étiquette de paramètres et rangée
+*infuser/purge/réglages*. Les cotes sont celles de `ui.md`; aucune télémétrie,
+aucune configuration et aucune action d'infusion ne sont encore lues ou
+déclenchées par cette étape.
+
+La version d'image reste visible dans le bandeau. Le bouton de service `wifi`
+est conservé jusqu'à la destination Wi-Fi du sous-lot 4 : il demande la
+transition radio au cœur, qui arrête BLE avant Wi-Fi/httpd, et son second
+appui demande le retour au mode machine. Build ESP-IDF vert et validation
+visuelle sur dalle effectuée avec l'image `v0.2.43` : cotes du cadre 1,
+texte, boutons, version et accès Wi-Fi sont lisibles et corrects. Le bouton
+`-` emploie le tiret ASCII (le signe moins Unicode n'est pas dans la police).
+
 ## Phase 7 — mise en boîte
 
 - Archiver et vérifier les deux images factory avec leurs versions.

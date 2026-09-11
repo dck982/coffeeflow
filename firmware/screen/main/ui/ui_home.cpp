@@ -14,7 +14,7 @@ namespace ui::home {
 namespace {
 
 struct View {
-  lv_obj_t *temperature, *weight, *presence, *target, *target_unit, *target_detail, *brew, *warning;
+  lv_obj_t *pressure, *temperature, *weight, *presence, *target, *target_unit, *target_detail, *brew, *warning;
   lv_obj_t *diagnostic, *full, *full_title, *full_body;
   lv_obj_t* diag_rows[9]{};
 };
@@ -24,7 +24,7 @@ View g_view{};
 // Les valeurs CAN qui changent régulièrement ne doivent pas fragmenter ce
 // tas, déjà très contraint par le LCD RGB et les radios. Ces buffers ont une
 // durée de vie égale à l'écran et résident donc explicitement en PSRAM.
-constexpr size_t kDynamicLabelCount = 19;
+constexpr size_t kDynamicLabelCount = 20;
 constexpr size_t kDynamicTextLength = 128;
 struct TextBinding { lv_obj_t* label; char text[kDynamicTextLength]; };
 EXT_RAM_BSS_ATTR TextBinding g_text_bindings[kDynamicLabelCount]{};
@@ -136,9 +136,10 @@ void create(lv_obj_t* parent) {
   label(parent, &ignored, profile, theme::kFontStatus, theme::kText, theme::kMargin, 24);
   // Le héros Inter restreint n'embarque pas U+2014 : le tiret ASCII est le
   // repli déjà retenu au sous-lot 2 pour ne jamais afficher un carré.
-  dynamic_label(parent, &g_view.temperature, "-  ·", theme::kFontStatus, theme::kTextDim, 470, 24);
-  dynamic_label(parent, &g_view.weight, "-  ·", theme::kFontStatus, theme::kTextDim, 590, 24);
-  dynamic_label(parent, &g_view.presence, "-  -", theme::kFontLabel, theme::kTextFaint, 694, 31);
+  dynamic_label(parent, &g_view.pressure, "-  ·", theme::kFontStatus, theme::kTextDim, 410, 24);
+  dynamic_label(parent, &g_view.temperature, "-  ·", theme::kFontStatus, theme::kTextDim, 525, 24);
+  dynamic_label(parent, &g_view.weight, "-  ·", theme::kFontStatus, theme::kTextDim, 620, 24);
+  dynamic_label(parent, &g_view.presence, "-  -", theme::kFontLabel, theme::kTextFaint, 710, 31);
   hairline(parent, theme::kMargin, 82, theme::kScreenWidth - 2 * theme::kMargin);
 
   lv_obj_t* wifi = outline_button(parent, 32, 96, 112, "wifi");
@@ -197,6 +198,10 @@ void create(lv_obj_t* parent) {
 void refresh(const core::Snapshot& s, bool show_boot) {
   char text[120];
   const bool pressure = s.pressure_valid && present(s.pressure_freshness);
+  if (pressure) format_decimal(text, sizeof(text), s.pressure_bar, " bar  ·"); else std::snprintf(text, sizeof(text), "-  ·");
+  set_text(g_view.pressure, text);
+  set_color(g_view.pressure, !pressure ? theme::kTextFaint :
+            s.pressure_freshness == core::Freshness::kStale ? theme::kTextDim : theme::kText);
   if (pressure) format_decimal(text, sizeof(text), s.temperature_c, "°  ·"); else std::snprintf(text, sizeof(text), "-  ·");
   set_text(g_view.temperature, text);
   set_color(g_view.temperature, !pressure ? theme::kTextFaint :

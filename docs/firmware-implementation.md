@@ -518,7 +518,9 @@ La feuille `diagnostic` rend les mêmes données ligne à ligne, notamment l'ét
 module interne injoignable et mise à jour préemptent cet arbre. Build ESP-IDF
 vert et banc validé : affichage stable, bascule temps/poids à la connexion de
 la balance et poids réel rafraîchi. Le débranchement XDB401/CAN reste une
-régression matérielle à rejouer, sans bloquer la clôture du sous-lot.
+régression matérielle à rejouer, sans bloquer la clôture du sous-lot. Le
+power cycle des capteurs a depuis validé le second cas : L2 `module interne
+injoignable` apparaît pendant l'absence puis se ferme au retour du module.
 
 **Observation de banc à suivre (2026-09-11).** Après deux flashs, l'écran est
 arrivé sur L2 `module interne injoignable`; redémarrer l'écran ou les capteurs
@@ -529,6 +531,14 @@ capteurs et les trois `STATUS_*` ont tous été observés avant le premier
 conserver le log `coffeetool monitor` depuis le boot : il faut déterminer si
 la présence n'est pas relancée, si les trames sont perdues, ou si seul le
 rendu L2 reste figé malgré une présence restaurée.
+
+**Observation de banc à différer (2026-09-11).** Lors d'un flash HTTP, le
+panneau RGB peut perdre complètement sa synchronisation ; elle revient parfois
+seulement lorsque L2 `mise à jour` est rendu. La piste principale est une
+priorité/latence défavorable entre l'ISR LCD (cœur 1) et la pile Wi-Fi/httpd
+(cœur 0), malgré l'affinité prévue. Ne pas ouvrir cette investigation pendant
+le lot UI : la correction sera traitée après sa finalisation, dans une session
+de stabilité LCD/radio dédiée.
 
 ## Phase 7 — mise en boîte
 

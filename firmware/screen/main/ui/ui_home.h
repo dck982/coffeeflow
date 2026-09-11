@@ -5,8 +5,13 @@
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
 
+namespace core {
+struct Snapshot;
+}
+
 namespace ui::home {
 
-void create_static(lv_obj_t* parent);
+void create(lv_obj_t* parent);
+void refresh(const core::Snapshot& snapshot, bool show_boot);
 
 }  // namespace ui::home

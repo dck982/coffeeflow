@@ -505,6 +505,31 @@ visuelle sur dalle effectuée avec l'image `v0.2.43` : cotes du cadre 1,
 texte, boutons, version et accès Wi-Fi sont lisibles et corrects. Le bouton
 `-` emploie le tiret ASCII (le signe moins Unicode n'est pas dans la police).
 
+### Lot 10, sous-lot 3 — modèle vivant, clos (2026-09-11)
+
+L'arbre LVGL unique est maintenant rafraîchi à 10 Hz au plus depuis le
+`core::Snapshot` cohérent : température, poids, présence de la balance et
+cible poids/temps sont rendus sans lecture directe du CAN. La fraîcheur et la
+validité restent celles du cœur ; une mesure manquante est affichée par le
+tiret ASCII de repli de la police héros, jamais comme `0,0`.
+
+La feuille `diagnostic` rend les mêmes données ligne à ligne, notamment l'état
+`absent` de pression/température et du bus. Les priorités L2 boot, verrou,
+module interne injoignable et mise à jour préemptent cet arbre. Build ESP-IDF
+vert et banc validé : affichage stable, bascule temps/poids à la connexion de
+la balance et poids réel rafraîchi. Le débranchement XDB401/CAN reste une
+régression matérielle à rejouer, sans bloquer la clôture du sous-lot.
+
+**Observation de banc à suivre (2026-09-11).** Après deux flashs, l'écran est
+arrivé sur L2 `module interne injoignable`; redémarrer l'écran ou les capteurs
+a rétabli le fonctionnement. Ne pas conclure à un premier PING perdu : sur un
+démarrage propre capturé à `19:36:10`, le PING écran, `PRESENCE_RESTORED`, PONG
+capteurs et les trois `STATUS_*` ont tous été observés avant le premier
+`LCD_INIT_STEP`, puis `READY` à `19:36:11.763`. Si le cas se reproduit,
+conserver le log `coffeetool monitor` depuis le boot : il faut déterminer si
+la présence n'est pas relancée, si les trames sont perdues, ou si seul le
+rendu L2 reste figé malgré une présence restaurée.
+
 ## Phase 7 — mise en boîte
 
 - Archiver et vérifier les deux images factory avec leurs versions.

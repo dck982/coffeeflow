@@ -44,6 +44,9 @@ class Machine {
   bool weight_goal() const { return weight_goal_; }
   float starting_weight_g() const { return starting_weight_g_; }
   uint32_t elapsed_ms(uint64_t now_ms) const;
+  uint32_t phase_elapsed_ms(uint64_t now_ms) const {
+    return phase_started_ms_ == 0 || now_ms < phase_started_ms_ ? 0 : static_cast<uint32_t>(now_ms - phase_started_ms_);
+  }
 
  private:
   void finish(StopReason reason);

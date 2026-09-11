@@ -1,6 +1,7 @@
 #include "ui_home.h"
 
 #include <cstdio>
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -18,12 +19,15 @@ namespace {
 
 struct View {
   lv_obj_t *pressure, *temperature, *weight, *presence, *target, *target_unit, *target_detail, *brew, *warning;
-  lv_obj_t *diagnostic, *full, *full_title, *full_body;
+  lv_obj_t *minus, *plus, *target_tap, *brew_button, *purge_button, *settings_button;
+  lv_obj_t *cycle, *cycle_phase, *cycle_hero, *cycle_detail, *cycle_progress, *cycle_stop;
+  lv_obj_t *diagnostic, *full, *full_title, *full_body, *standby_title, *standby_body;
   lv_obj_t *settings, *settings_value, *settings_status, *wifi_exit, *wifi_body;
   lv_obj_t *confirm, *confirm_title, *confirm_body;
   lv_obj_t *keypad, *keypad_input;
   lv_obj_t *dim, *standby;
   lv_obj_t* diag_rows[9]{};
+  lv_obj_t* diag_dots[9]{};
   lv_obj_t* settings_buttons[6]{};
 };
 View g_view{};
@@ -32,7 +36,7 @@ View g_view{};
 // Les valeurs CAN qui changent régulièrement ne doivent pas fragmenter ce
 // tas, déjà très contraint par le LCD RGB et les radios. Ces buffers ont une
 // durée de vie égale à l'écran et résident donc explicitement en PSRAM.
-constexpr size_t kDynamicLabelCount = 36;
+constexpr size_t kDynamicLabelCount = 48;
 constexpr size_t kDynamicTextLength = 128;
 struct TextBinding { lv_obj_t* label; char text[kDynamicTextLength]; };
 EXT_RAM_BSS_ATTR TextBinding g_text_bindings[kDynamicLabelCount]{};
@@ -60,6 +64,12 @@ void set_text(lv_obj_t* object, const char* text) {
 void set_color(lv_obj_t* object, lv_color_t color) {
   if (!lv_color_eq(lv_obj_get_style_text_color(object, LV_PART_MAIN), color))
     lv_obj_set_style_text_color(object, color, 0);
+}
+
+void set_hidden(lv_obj_t* object, bool hidden) {
+  if (object == nullptr) return;
+  if (hidden) lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
 }
 
 void label(lv_obj_t* parent, lv_obj_t** out, const char* text, const lv_font_t* font,
@@ -270,6 +280,76 @@ void settings_button_cb(lv_event_t* event) {
 // PRESS_LOST arrêtent. Le plafond temporel appartient à Machine, pas à LVGL.
 void purge_press_cb(lv_event_t*) { (void)core::perform_action({core::Action::kPurgePress}); }
 void purge_release_cb(lv_event_t*) { (void)core::perform_action({core::Action::kPurgeRelease}); }
+void brew_cb(lv_event_t*) { (void)core::perform_action({core::Action::kStartBrew}); }
+void cycle_stop_cb(lv_event_t*) {
+  const core::Snapshot s = core::get_snapshot();
+  (void)core::perform_action({s.cycle_state == core::CycleState::kFinished ? core::Action::kDismissSummary : core::Action::kStopBrew});
+}
+
+bool cycle_active(const core::Snapshot& s) {
+  return s.cycle_state == core::CycleState::kPreinfusion || s.cycle_state == core::CycleState::kBrew ||
+         s.cycle_state == core::CycleState::kRampdown || s.cycle_state == core::CycleState::kPurge;
+}
+
+void set_cycle_visible(bool visible) {
+  set_hidden(g_view.cycle, !visible);
+  set_hidden(g_view.minus, visible); set_hidden(g_view.plus, visible); set_hidden(g_view.target, visible);
+  set_hidden(g_view.target_unit, visible); set_hidden(g_view.target_tap, visible); set_hidden(g_view.target_detail, visible);
+  set_hidden(g_view.warning, visible); set_hidden(g_view.brew_button, visible); set_hidden(g_view.purge_button, visible);
+  set_hidden(g_view.settings_button, visible);
+}
+
+float cycle_progress(const core::Snapshot& s, const core::Config& c) {
+  if (s.cycle_state == core::CycleState::kPreinfusion) {
+    if (c.preinfusion_mode == core::PreinfusionMode::kTime && c.preinfusion_time_s > 0)
+      return static_cast<float>(s.cycle_phase_elapsed_ms) / (c.preinfusion_time_s * 1000.0f);
+    return c.preinfusion_pressure_bar > 0 ? s.pressure_bar / c.preinfusion_pressure_bar : 0.0f;
+  }
+  if (s.cycle_state == core::CycleState::kPurge)
+    return c.purge_max_s > 0 ? static_cast<float>(s.cycle_elapsed_ms) / (c.purge_max_s * 1000.0f) : 0.0f;
+  if (s.cycle_weight_goal && c.target_weight_g > 0)
+    return (s.weight_g - s.cycle_start_weight_g) / c.target_weight_g;
+  return c.target_time_s > 0 ? static_cast<float>(s.cycle_elapsed_ms) / (c.target_time_s * 1000.0f) : 0.0f;
+}
+
+void render_cycle(const core::Snapshot& s, const core::Config& c) {
+  const bool active = cycle_active(s);
+  const bool finished = s.cycle_state == core::CycleState::kFinished;
+  set_cycle_visible(active || finished);
+  if (!active && !finished) return;
+  const bool purge = s.cycle_state == core::CycleState::kPurge;
+  const bool weight_goal = s.cycle_weight_goal && !purge;
+  const float shot_weight = s.weight_g - s.cycle_start_weight_g;
+  char text[96];
+  if (finished) {
+    std::snprintf(text, sizeof(text), "terminé"); set_text(g_view.cycle_phase, text);
+    if (s.last_shot_available) {
+      std::snprintf(text, sizeof(text), "%.1f g", static_cast<double>(s.last_shot_weight_g));
+      set_text(g_view.cycle_hero, text);
+      std::snprintf(text, sizeof(text), "%lu s · %.1f ml/s", static_cast<unsigned long>(s.last_shot_duration_ms / 1000), static_cast<double>(s.last_shot_flow_ml_s));
+      set_text(g_view.cycle_detail, text);
+    } else { set_text(g_view.cycle_hero, "-"); set_text(g_view.cycle_detail, "purge terminée"); }
+    lv_obj_set_width(g_view.cycle_progress, 420); set_color(g_view.cycle_hero, theme::kRampFull);
+    set_text(lv_obj_get_child(g_view.cycle_stop, 0), "fermer");
+    return;
+  }
+  const char* phase = purge ? "purge" : s.cycle_state == core::CycleState::kPreinfusion ? "pré-infusion" :
+                      s.cycle_state == core::CycleState::kRampdown ? "rampe" : "infusion";
+  set_text(g_view.cycle_phase, phase);
+  if (weight_goal) std::snprintf(text, sizeof(text), "%.1f g", static_cast<double>(shot_weight));
+  else std::snprintf(text, sizeof(text), "%lu s", static_cast<unsigned long>(s.cycle_elapsed_ms / 1000));
+  set_text(g_view.cycle_hero, text);
+  std::snprintf(text, sizeof(text), "%.1f bar · %.1f ml/s · pompe %u %%", static_cast<double>(s.pressure_bar),
+                static_cast<double>(s.flow_ml_s), static_cast<unsigned>(s.dimmer_pct));
+  set_text(g_view.cycle_detail, text);
+  const float progress = std::clamp(cycle_progress(s, c), 0.0f, 1.0f);
+  lv_obj_set_width(g_view.cycle_progress, static_cast<int>(420 * progress));
+  lv_obj_set_style_bg_color(g_view.cycle_progress,
+      s.cycle_state == core::CycleState::kPreinfusion ? theme::kRampLow :
+      s.cycle_state == core::CycleState::kRampdown ? theme::kRampFull : theme::kAccent, 0);
+  set_color(g_view.cycle_hero, theme::kAccent);
+  set_text(lv_obj_get_child(g_view.cycle_stop, 0), "arrêter");
+}
 
 void set_fullscreen(bool visible, const char* title, const char* body) {
   if (!visible) { lv_obj_add_flag(g_view.full, LV_OBJ_FLAG_HIDDEN); return; }
@@ -297,6 +377,11 @@ void update_idle_overlay(const core::Snapshot& snapshot) {
     const int phase = static_cast<int>((idle_s - config.standby_after_s) % 120);
     const int offset = phase < 60 ? phase - 30 : 90 - phase;
     lv_obj_set_pos(g_view.standby, 270 + offset, 194 + offset / 3);
+    // Respiration très lente, limitée aux deux labels : aucune animation plein écran.
+    const int breath = phase < 30 ? phase : (phase < 90 ? 60 - phase : phase - 120);
+    const lv_opa_t opa = static_cast<lv_opa_t>(190 + std::abs(breath) * 2);
+    lv_obj_set_style_text_opa(g_view.standby_title, opa, 0);
+    lv_obj_set_style_text_opa(g_view.standby_body, static_cast<lv_opa_t>(opa * 3 / 4), 0);
     lv_obj_remove_flag(g_view.standby, LV_OBJ_FLAG_HIDDEN);
   }
   else lv_obj_add_flag(g_view.standby, LV_OBJ_FLAG_HIDDEN);
@@ -332,31 +417,31 @@ void create(lv_obj_t* parent) {
   hairline(parent, theme::kMargin, 82, theme::kScreenWidth - 2 * theme::kMargin);
 
   constexpr int kControlY = 150;
-  lv_obj_t* minus = outline_button(parent, 172, kControlY, theme::kButtonHeight, "-", false, true);
-  lv_obj_t* plus = outline_button(parent, 540, kControlY, theme::kButtonHeight, "+", false, true);
-  lv_obj_add_event_cb(minus, target_minus_cb, LV_EVENT_CLICKED, nullptr);
-  lv_obj_add_event_cb(plus, target_plus_cb, LV_EVENT_CLICKED, nullptr);
+  g_view.minus = outline_button(parent, 172, kControlY, theme::kButtonHeight, "-", false, true);
+  g_view.plus = outline_button(parent, 540, kControlY, theme::kButtonHeight, "+", false, true);
+  lv_obj_add_event_cb(g_view.minus, target_minus_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_add_event_cb(g_view.plus, target_plus_cb, LV_EVENT_CLICKED, nullptr);
   // Valeur et unité forment une seule chaîne centrée. Deux labels fixés à des
   // coordonnées différentes créaient un trou visuel (notamment « 31    s »).
   dynamic_label(parent, &g_view.target, "-", theme::kFontHeroRest, theme::kTextFaint, 0, 155);
   lv_obj_set_width(g_view.target, theme::kScreenWidth);
   lv_obj_set_style_text_align(g_view.target, LV_TEXT_ALIGN_CENTER, 0);
   dynamic_label(parent, &g_view.target_unit, "", theme::kFontUnit, theme::kTextDim, 484, 194);
-  lv_obj_t* target_tap = lv_obj_create(parent);
-  lv_obj_remove_style_all(target_tap);
-  lv_obj_set_size(target_tap, 260, 120);
-  lv_obj_set_pos(target_tap, 270, 135);
-  lv_obj_set_style_bg_opa(target_tap, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(target_tap, 0, 0);
-  lv_obj_add_flag(target_tap, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(target_tap, note_activity_cb, LV_EVENT_PRESSED, nullptr);
-  lv_obj_add_event_cb(target_tap, show_keypad, LV_EVENT_CLICKED, nullptr);
+  g_view.target_tap = lv_obj_create(parent);
+  lv_obj_remove_style_all(g_view.target_tap);
+  lv_obj_set_size(g_view.target_tap, 260, 120);
+  lv_obj_set_pos(g_view.target_tap, 270, 135);
+  lv_obj_set_style_bg_opa(g_view.target_tap, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(g_view.target_tap, 0, 0);
+  lv_obj_add_flag(g_view.target_tap, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(g_view.target_tap, note_activity_cb, LV_EVENT_PRESSED, nullptr);
+  lv_obj_add_event_cb(g_view.target_tap, show_keypad, LV_EVENT_CLICKED, nullptr);
   dynamic_label(parent, &g_view.target_detail, "", theme::kFontLabel, theme::kTextFaint, 190, 268);
   dynamic_label(parent, &g_view.warning, "", theme::kFontLabel, theme::kFault, 190, 296);
   constexpr int kButtonsY = 368;
-  lv_obj_t* brew_button = outline_button(parent, 32, kButtonsY, 280, "infuser");
+  g_view.brew_button = outline_button(parent, 32, kButtonsY, 280, "infuser", true);
   // Seul le caption du bouton varie avec le mode poids/temps.
-  lv_obj_t* brew_caption = lv_obj_get_child(brew_button, 0);
+  lv_obj_t* brew_caption = lv_obj_get_child(g_view.brew_button, 0);
   if (g_text_binding_count < kDynamicLabelCount) {
     TextBinding& binding = g_text_bindings[g_text_binding_count++];
     binding.label = brew_caption;
@@ -364,12 +449,41 @@ void create(lv_obj_t* parent) {
     lv_label_set_text_static(brew_caption, binding.text);
   }
   g_view.brew = brew_caption;
-  lv_obj_t* purge = outline_button(parent, 336, kButtonsY, 200, "purge");
-  lv_obj_add_event_cb(purge, purge_press_cb, LV_EVENT_PRESSED, nullptr);
-  lv_obj_add_event_cb(purge, purge_release_cb, LV_EVENT_RELEASED, nullptr);
-  lv_obj_add_event_cb(purge, purge_release_cb, LV_EVENT_PRESS_LOST, nullptr);
-  lv_obj_t* settings = outline_button(parent, 560, kButtonsY, 208, "réglages");
-  lv_obj_add_event_cb(settings, show_settings, LV_EVENT_CLICKED, nullptr);
+  lv_obj_add_event_cb(g_view.brew_button, brew_cb, LV_EVENT_CLICKED, nullptr);
+  g_view.purge_button = outline_button(parent, 336, kButtonsY, 200, "purge");
+  lv_obj_add_event_cb(g_view.purge_button, purge_press_cb, LV_EVENT_PRESSED, nullptr);
+  lv_obj_add_event_cb(g_view.purge_button, purge_release_cb, LV_EVENT_RELEASED, nullptr);
+  lv_obj_add_event_cb(g_view.purge_button, purge_release_cb, LV_EVENT_PRESS_LOST, nullptr);
+  g_view.settings_button = outline_button(parent, 560, kButtonsY, 208, "réglages");
+  lv_obj_add_event_cb(g_view.settings_button, show_settings, LV_EVENT_CLICKED, nullptr);
+
+  // L1 est construit une fois, puis seulement masqué ou mis à jour : aucune
+  // recréation d'écran pendant un cycle, ce qui garde les écritures RGB locales.
+  g_view.cycle = lv_obj_create(parent);
+  lv_obj_remove_style_all(g_view.cycle);
+  lv_obj_set_size(g_view.cycle, theme::kScreenWidth, 370);
+  lv_obj_set_pos(g_view.cycle, 0, 96);
+  dynamic_label(g_view.cycle, &g_view.cycle_phase, "", theme::kFontLabel, theme::kTextDim, 0, 24);
+  lv_obj_set_width(g_view.cycle_phase, theme::kScreenWidth);
+  lv_obj_set_style_text_align(g_view.cycle_phase, LV_TEXT_ALIGN_CENTER, 0);
+  dynamic_label(g_view.cycle, &g_view.cycle_hero, "", theme::kFontHeroBrew, theme::kAccent, 0, 54);
+  lv_obj_set_width(g_view.cycle_hero, theme::kScreenWidth);
+  lv_obj_set_style_text_align(g_view.cycle_hero, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_t* progress_track = lv_obj_create(g_view.cycle);
+  lv_obj_set_size(progress_track, 420, 2); lv_obj_set_pos(progress_track, 190, 186);
+  lv_obj_set_style_bg_color(progress_track, theme::kHairline, 0); lv_obj_set_style_border_width(progress_track, 0, 0);
+  lv_obj_set_style_pad_all(progress_track, 0, 0);
+  g_view.cycle_progress = lv_obj_create(progress_track);
+  lv_obj_set_size(g_view.cycle_progress, 0, 2); lv_obj_set_pos(g_view.cycle_progress, 0, 0);
+  lv_obj_set_style_bg_color(g_view.cycle_progress, theme::kAccent, 0); lv_obj_set_style_border_width(g_view.cycle_progress, 0, 0);
+  lv_obj_set_style_pad_all(g_view.cycle_progress, 0, 0);
+  dynamic_label(g_view.cycle, &g_view.cycle_detail, "", theme::kFontSecondary, theme::kTextDim, 0, 208);
+  lv_obj_set_width(g_view.cycle_detail, theme::kScreenWidth);
+  lv_obj_set_style_text_align(g_view.cycle_detail, LV_TEXT_ALIGN_CENTER, 0);
+  g_view.cycle_stop = outline_button(g_view.cycle, 240, 272, 320, "arrêter", true);
+  bind_button_caption(g_view.cycle_stop);
+  lv_obj_add_event_cb(g_view.cycle_stop, cycle_stop_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_add_flag(g_view.cycle, LV_OBJ_FLAG_HIDDEN);
 
   g_view.diagnostic = lv_obj_create(parent);
   lv_obj_set_size(g_view.diagnostic, theme::kScreenWidth, 390);
@@ -378,12 +492,19 @@ void create(lv_obj_t* parent) {
   lv_obj_set_style_border_width(g_view.diagnostic, 0, 0);
   lv_obj_set_style_radius(g_view.diagnostic, 0, 0);
   lv_obj_set_style_pad_all(g_view.diagnostic, 0, 0);
+  lv_obj_t* diagnostic_accent = lv_obj_create(g_view.diagnostic);
+  lv_obj_set_size(diagnostic_accent, theme::kScreenWidth, 3); lv_obj_set_pos(diagnostic_accent, 0, 0);
+  lv_obj_set_style_bg_color(diagnostic_accent, theme::kAccent, 0); lv_obj_set_style_border_width(diagnostic_accent, 0, 0);
   label(g_view.diagnostic, &ignored, "diagnostic", theme::kFontButton, theme::kText, 32, 20);
   static constexpr const char* kNames[] = {"pression", "température", "débit", "pompe", "vanne",
                                             "balance", "bus can", "réseau", "versions"};
-  for (size_t i = 0; i < 9; ++i)
+  for (size_t i = 0; i < 9; ++i) {
+    g_view.diag_dots[i] = lv_obj_create(g_view.diagnostic);
+    lv_obj_set_size(g_view.diag_dots[i], 10, 10); lv_obj_set_pos(g_view.diag_dots[i], 32 + (i % 3) * 250, 77 + static_cast<int>(i / 3) * 76);
+    lv_obj_set_style_radius(g_view.diag_dots[i], LV_RADIUS_CIRCLE, 0); lv_obj_set_style_border_width(g_view.diag_dots[i], 0, 0);
     dynamic_label(g_view.diagnostic, &g_view.diag_rows[i], kNames[i], theme::kFontLabel, theme::kTextDim,
-                  32 + (i % 3) * 250, 72 + static_cast<int>(i / 3) * 76);
+                  48 + (i % 3) * 250, 72 + static_cast<int>(i / 3) * 76);
+  }
   lv_obj_t* close = outline_button(g_view.diagnostic, 568, 280, 200, "fermer");
   lv_obj_add_event_cb(close, hide_diagnostic, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_flag(g_view.diagnostic, LV_OBJ_FLAG_HIDDEN);
@@ -398,6 +519,9 @@ void create(lv_obj_t* parent) {
   lv_obj_set_style_border_width(g_view.settings, 0, 0);
   lv_obj_set_style_radius(g_view.settings, 0, 0);
   lv_obj_set_style_pad_all(g_view.settings, 0, 0);
+  lv_obj_t* settings_accent = lv_obj_create(g_view.settings);
+  lv_obj_set_size(settings_accent, theme::kScreenWidth, 3); lv_obj_set_pos(settings_accent, 0, 0);
+  lv_obj_set_style_bg_color(settings_accent, theme::kAccent, 0); lv_obj_set_style_border_width(settings_accent, 0, 0);
   label(g_view.settings, &ignored, "réglages", theme::kFontButton, theme::kText, 32, 18);
   dynamic_label(g_view.settings, &g_view.settings_value, "", theme::kFontLabel, theme::kTextDim, 32, 58);
   dynamic_label(g_view.settings, &g_view.settings_status, "", theme::kFontLabel, theme::kFault, 32, 82);
@@ -447,6 +571,9 @@ void create(lv_obj_t* parent) {
   lv_obj_set_style_border_width(g_view.keypad, 0, 0);
   lv_obj_set_style_radius(g_view.keypad, 0, 0);
   lv_obj_set_style_pad_all(g_view.keypad, 16, 0);
+  lv_obj_t* keypad_accent = lv_obj_create(g_view.keypad);
+  lv_obj_set_size(keypad_accent, theme::kScreenWidth, 3); lv_obj_set_pos(keypad_accent, -16, 0);
+  lv_obj_set_style_bg_color(keypad_accent, theme::kAccent, 0); lv_obj_set_style_border_width(keypad_accent, 0, 0);
   g_view.keypad_input = lv_textarea_create(g_view.keypad);
   lv_obj_set_size(g_view.keypad_input, 360, 56);
   lv_obj_set_pos(g_view.keypad_input, 32, 12);
@@ -490,10 +617,8 @@ void create(lv_obj_t* parent) {
   lv_obj_set_style_bg_opa(g_view.standby, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(g_view.standby, 0, 0);
   lv_obj_set_style_pad_all(g_view.standby, 0, 0);
-  lv_obj_t* standby_title = nullptr;
-  label(g_view.standby, &standby_title, "coffeeflow", theme::kFontSecondary, theme::kTextDim, 42, 8);
-  lv_obj_t* standby_body = nullptr;
-  label(g_view.standby, &standby_body, "au repos", theme::kFontLabel, theme::kTextFaint, 92, 58);
+  label(g_view.standby, &g_view.standby_title, "coffeeflow", theme::kFontSecondary, theme::kRampLow, 42, 8);
+  label(g_view.standby, &g_view.standby_body, "au repos", theme::kFontLabel, theme::kTextFaint, 92, 58);
   lv_obj_add_flag(g_view.standby, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(g_view.dim, LV_OBJ_FLAG_HIDDEN);
 }
@@ -504,8 +629,10 @@ void refresh(const core::Snapshot& s, bool show_boot) {
   const bool pressure = s.pressure_valid && present(s.pressure_freshness);
   if (pressure) format_decimal(text, sizeof(text), s.pressure_bar, " bar  ·"); else std::snprintf(text, sizeof(text), "-  ·");
   set_text(g_view.pressure, text);
+  const core::Config config = core::get_config();
+  const float pressure_target = s.cycle_state == core::CycleState::kPreinfusion ? config.preinfusion_pressure_bar : 9.0f;
   set_color(g_view.pressure, !pressure ? theme::kTextFaint :
-            s.pressure_freshness == core::Freshness::kStale ? theme::kTextDim : theme::kText);
+            s.pressure_freshness == core::Freshness::kStale ? theme::kTextDim : theme::ramp_color(s.pressure_bar, pressure_target));
   if (pressure) format_decimal(text, sizeof(text), s.temperature_c, "°  ·"); else std::snprintf(text, sizeof(text), "-  ·");
   set_text(g_view.temperature, text);
   set_color(g_view.temperature, !pressure ? theme::kTextFaint :
@@ -517,7 +644,6 @@ void refresh(const core::Snapshot& s, bool show_boot) {
   set_text(g_view.presence, text);
   set_color(g_view.presence, s.sensors_alive ? theme::kText : theme::kTextFaint);
 
-  const core::Config config = core::get_config();
   if (s.scale_present) {
     format_decimal(text, sizeof(text), config.target_weight_g, " g");
     set_text(g_view.target, text); set_text(g_view.target_unit, "");
@@ -531,6 +657,7 @@ void refresh(const core::Snapshot& s, bool show_boot) {
   }
   set_text(g_view.target_detail, text);
   set_text(g_view.warning, (!s.dimmer_ready || !s.dimmer_valid) && s.sensors_alive ? "dimmer en calibration - vérifier le secteur" : "");
+  render_cycle(s, config);
 
   // Ne jamais allouer/renouveler les chaînes de la feuille tant qu'elle est
   // cachée. LVGL stocke le texte de label dans son tas interne : remplir ces
@@ -548,6 +675,12 @@ void refresh(const core::Snapshot& s, bool show_boot) {
     std::snprintf(rows[7], sizeof(rows[7]), "réseau · %s", s.radio_mode == core::RadioMode::kWifi && s.ipv4_address != 0 ? "wifi · connecté" : "machine · ble");
     std::snprintf(rows[8], sizeof(rows[8]), "versions · écran %u.%u.%u", s.screen_version_major, s.screen_version_minor, s.screen_version_patch);
     for (size_t i = 0; i < 9; ++i) set_text(g_view.diag_rows[i], rows[i]);
+    const bool states[] = {pressure, pressure, flow, s.dimmer_valid, s.valve_open, s.scale_present,
+                           s.sensors_alive, s.radio_mode == core::RadioMode::kWifi && s.ipv4_address != 0, true};
+    for (size_t i = 0; i < 9; ++i) {
+      const bool fault = (i == 3 && s.dimmer_error_active) || (i == 6 && !s.sensors_alive);
+      lv_obj_set_style_bg_color(g_view.diag_dots[i], fault ? theme::kFault : states[i] ? theme::kAccent : theme::kTextFaint, 0);
+    }
   }
 
   if (s.lockout) set_fullscreen(true, "verrou de sécurité", "couper la machine à l'interrupteur principal, puis la rallumer");

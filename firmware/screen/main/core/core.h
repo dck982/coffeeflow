@@ -98,6 +98,8 @@ struct Snapshot {
   uint32_t flash_bytes_total = 0;
   CycleState cycle_state = CycleState::kIdle;
   uint32_t cycle_elapsed_ms = 0;
+  uint32_t cycle_phase_elapsed_ms = 0;
+  float cycle_start_weight_g = 0.0f;
   bool cycle_weight_goal = false;
   bool last_shot_available = false;
   float last_shot_weight_g = 0.0f;

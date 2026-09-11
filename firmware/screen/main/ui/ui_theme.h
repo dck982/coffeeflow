@@ -16,8 +16,8 @@ extern const lv_font_t ui_font_76;
 extern const lv_font_t ui_font_104;
 }
 
-inline const lv_color_t kBg = lv_color_hex(0x141110);
-inline const lv_color_t kBgRaised = lv_color_hex(0x1E1A18);
+inline const lv_color_t kBg = lv_color_hex(0x16110C);
+inline const lv_color_t kBgRaised = lv_color_hex(0x241B14);
 inline const lv_color_t kHairline = lv_color_hex(0x332C28);
 inline const lv_color_t kText = lv_color_hex(0xF2EBE3);
 inline const lv_color_t kTextDim = lv_color_hex(0xA2968C);
@@ -26,6 +26,14 @@ inline const lv_color_t kAccent = lv_color_hex(0xD98324);
 inline const lv_color_t kFault = lv_color_hex(0xB9412F);
 inline const lv_color_t kRampLow = lv_color_hex(0x8C5A22);
 inline const lv_color_t kRampFull = lv_color_hex(0xF2B25C);
+
+inline lv_color_t ramp_color(float value, float target) {
+  if (target <= 0.0f || value <= 0.0f) return kTextFaint;
+  const float ratio = value / target;
+  if (ratio < .85f) return kRampLow;
+  if (ratio < 1.10f) return kAccent;
+  return kRampFull;
+}
 
 inline constexpr int kScreenWidth = 800;
 inline constexpr int kScreenHeight = 480;

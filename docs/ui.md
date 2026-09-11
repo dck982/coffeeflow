@@ -64,6 +64,10 @@ tableau de bord de machine) :
 7. **Pas de jauges, pas de cadrans, pas de barres épaisses.** Un seul élément
    graphique dans tout le système : le filet de progression (voir ci-dessous).
 
+Les feuilles et le pavé numérique peuvent porter une arête ambre de 3 px. Les
+pastilles du diagnostic sont une exception de service : ambre pour une donnée
+présente, gris pour une absence et rouge pour une faute réelle.
+
 ### Le filet de progression, élément signature
 
 Sous le chiffre héros, un **filet de 2 px** qui se remplit en ambre vers la
@@ -85,8 +89,8 @@ sont déjà choisies en tenant compte de la quantification RGB565.
 
 | Jeton | Valeur | Emploi |
 | --- | --- | --- |
-| `bg` | `#141110` | fond, partout |
-| `bg_raised` | `#1E1A18` | pavé numérique, feuille de profils |
+| `bg` | `#16110C` | fond, partout |
+| `bg_raised` | `#241B14` | pavé numérique, feuille de profils |
 | `hairline` | `#332C28` | filets de séparation (≈ 12 % de blanc chaud) |
 | `text` | `#F2EBE3` | valeurs, titres |
 | `text_dim` | `#A2968C` | unités, valeurs secondaires |
@@ -125,8 +129,10 @@ l'information qu'on veut voir d'un coup d'œil pendant une extraction qui part
 mal.
 
 Les quatre valeurs restent distinctes après quantification RGB565 (les écarts
-sont d'au moins 40/255 par canal). Elles ne sont utilisées **que** sur ces deux
-grandeurs, jamais sur du texte courant.
+sont d'au moins 40/255 par canal). Elles sont prévues pour la pompe et le débit.
+Pendant un cycle, la pression peut aussi reprendre cette luminosité ambre pour
+montrer son approche du seuil de pré-infusion ou des 9 bar, sans signaler un
+état de santé.
 
 | Rôle | Taille | Notes |
 | --- | --- | --- |

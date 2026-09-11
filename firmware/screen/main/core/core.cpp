@@ -197,6 +197,8 @@ CycleState cycle_state(machine::State state) { return static_cast<CycleState>(st
 void update_cycle_snapshot_locked(int64_t now) {
   g_state.snapshot.cycle_state = cycle_state(g_state.machine.state());
   g_state.snapshot.cycle_elapsed_ms = g_state.machine.elapsed_ms(static_cast<uint64_t>(now / 1000));
+  g_state.snapshot.cycle_phase_elapsed_ms = g_state.machine.phase_elapsed_ms(static_cast<uint64_t>(now / 1000));
+  g_state.snapshot.cycle_start_weight_g = g_state.machine.starting_weight_g();
   g_state.snapshot.cycle_weight_goal = g_state.machine.weight_goal();
 }
 

@@ -592,6 +592,21 @@ survivent à un cycle d'alimentation. Les boutons `+` et `-` de l'accueil sont
 validés, ainsi que la bascule automatique de cible temps vers poids à la
 connexion de la balance. Le sous-lot 10.4 est clos.
 
+### Lot 10, sous-lot 5 — infusion vivante et finition chromatique (2026-09-11)
+
+L'écran L1 est rendu dans le même arbre LVGL que le repos : phase, héros poids
+ou temps, détail pression/débit/pompe, bouton *arrêter* et filet de progression
+de 420 × 2 px. Le coeur expose le poids initial et le temps de phase afin que
+la progression soit exacte pour une cible poids et une pré-infusion temporisée.
+Une fin de cycle conserve le héros et transforme le bouton en *fermer*.
+
+La palette anime la pression pendant le cycle, les feuilles reçoivent une arête
+ambre, le diagnostic des pastilles locales et la veille respire sans repeindre
+le fond. Les fonds sont réchauffés (`#16110C` / `#241B14`) ; aucun dégradé n'est
+utilisé pour préserver le rendu RGB565 et la bande passante. Image `v0.2.44` :
+build ESP-IDF vert le 2026-09-11; `screen.bin` produit. La validation visuelle
+et le cycle complet sur dalle restent à faire avec cette image.
+
 ## Phase 7 — mise en boîte
 
 - Archiver et vérifier les deux images factory avec leurs versions.

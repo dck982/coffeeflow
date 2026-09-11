@@ -7,17 +7,17 @@ Checks: clean
 
 ## What it is
 
-Bac AC, partie est du boîtier intérieur, posé dans `bb_overall()` à partir de `boitier_int_aile_x` / `aile_y` (plus de décalage dans `ensemble_boitiers`). 73 × 35 × 27 mm. Loge le dimmer RobotDyn (nord, face vers le bas) et le SSR (sud), un logement de vis nord, deux puits d'aimant, un corbeau M3 sud. Les ouvertures ouest (côté DC) sont des fonctions publiques : `boitier_dc` les importe au lieu de les recoder.
+Bac AC, partie est du boîtier intérieur, posé dans `bb_overall()` à partir de `boitier_int_aile_x` / `aile_y` (plus de décalage dans `ensemble_boitiers`). 73 × 35 × 27 mm. Loge le dimmer RobotDyn (nord, face vers le bas) et le SSR (sud), un logement de vis nord, deux puits d'aimant, un corbeau M3 sud. API publiques pour les siblings : ouvertures ouest (`boitier_dc`), `ac_contour` / `ac_top_contour` / `corbels` (`couvercle_acdc`).
 
 ## Design notes
 
-- Architecture bbox, comme `boitier_dc` : `bb_overall()`, `bb_encoche()` (`boitier_int_screw_*`), `_contour()` rend (polygone, bb, encoche). Murs `epaisseur_paroi` 1,68, fond `epaisseur_fond` 1,6.
+- Architecture bbox, comme `boitier_dc` : `bb_overall()`, `bb_encoche()` (`boitier_int_screw_*`). `ac_contour()` rend (polygone avec encoche, bb, encoche) pour le bac ; `ac_top_contour()` est le rectangle plein (sans encoche) pour le couvercle, au-dessus du linteau. Murs `epaisseur_paroi` 1,68, fond `epaisseur_fond` 1,6.
 - Encoche vis : dalle pleine d'épaisseur `z0` au-dessus de `screw_dz` (15 mm de vide), goussets 45° (`gousset_run` 2 mm), linteau nord refermé jusqu'à `hauteur`.
 - Dimmer : `dimmer_bb(wall, z0)` — largeur `dimmer_width`, bornier AC à l'est de l'encoche. Trois tours (`tour_y`) : parois E/W de l'encoche + une 4 mm à l'ouest pour le XH. Ouvertures `dimmer_ac_opening` (est) et `dimmer_dc_opening` (ouest), tuples `(y0, z0, dy, dz)`.
 - SSR : `ssr_bb` calé contre les tours du dimmer (press-fit). Traverse + butée est. Ouvertures `ssr_ac_opening` / `ssr_dc_opening`, même contrat.
 - **Le DC demande la géométrie des ouvertures ouest** : `from parts.boitier_ac import dimmer_dc_opening, ssr_dc_opening`. Pas `system.ouvertures_modules` (retiré). Ne pas préfixer ces fonctions d'un `_`.
 - Deux puits `add_well` : 30 % de la largeur intérieure, et 8 mm de l'est, tous deux 6,5 mm sous le nord.
-- Corbeau couvercle : `system.add_corbel` au milieu du mur sud, `Plane.YZ`, insert M3 par défaut.
+- Corbeau couvercle : `system.add_corbel` au milieu du mur sud, `Plane.YZ`, insert M3. Positions exportées par `corbels(wall)` → `(cx, cy, d)` ; `couvercle_acdc` importe cette liste.
 - Polish 1 mm sur les arêtes Z est, et ouest entre sud et nord. Le polish 0,6 mm des fentes est commenté (`fente_keep` cite des noms morts).
 
 ```toml
@@ -28,7 +28,8 @@ min_wall = 0.6
 ## Don't
 
 - Ne pas recoder les fentes ouest dans `boitier_dc` ni ramener `ouvertures_modules` : importer `dimmer_dc_opening` / `ssr_dc_opening`.
-- Ne pas préfixer `dimmer_bb` / `ssr_bb` / `*_opening` d'un `_` : ce sont des API inter-boîtiers, comme `canpal_bb`.
+- Ne pas préfixer `dimmer_bb` / `ssr_bb` / `*_opening` / `ac_contour` / `ac_top_contour` / `corbels` d'un `_` : API inter-boîtiers, comme `canpal_bb`.
+- Ne pas recoder le rectangle de sommet dans `couvercle_acdc` : importer `ac_top_contour`. Ne pas lui remettre l'encoche vis.
 - Ne pas retraduire AC dans `ensemble_boitiers` : `bb_overall` commence déjà à `aile_x`.
 - Ne pas réintroduire crochets, traverse décalée, butée triangulaire ouest, ni `ac_west_shift` : retirés dans la reconstruction bbox.
 - Ne pas réactiver `fente_keep` sans réécrire les sélecteurs : les identifiants `x_east_fente` / `y_se0` etc. n'existent plus.
@@ -39,6 +40,7 @@ min_wall = 0.6
 
 ## Changelog
 
+- 2026-09-11 — `ac_contour` / `ac_top_contour` / `corbels` publics, importés par `couvercle_acdc`. AUTO inchangé.
 - 2026-09-11 — Reconstruction bbox. Dimmer + SSR, ouvertures publiques importées par `boitier_dc`. Corbeau `system.add_corbel`. 73×35×27, 80 faces, checks clean (plus les 9 esquilles des crochets).
 - 2026-09-10 — Fentes ouest : `ouvertures_modules(y_max, wall)` comme `boitier_dc` (sliders `fente_*_ouest_z` plus passés). AUTO inchangé.
 - 2026-09-10 — `_contour` expose les coordonnées cardinales. Polish 1mm limité à la face est (continuité du joint avec `boitier_dc` à l'ouest). 111 → 102 faces, checks clean.

@@ -3,6 +3,7 @@ from nurb import *
 from system import AMIN
 from parts.boitier_dc import canpal_bb 
 
+
 def can_pal_plane(dc, z0, w):
     bb_cp = canpal_bb(z0, w)
 

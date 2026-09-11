@@ -32,9 +32,29 @@ def bb_top():
 def bb_bottom():
     return bbox(0,0,measured("boitier_int_marche_x"),measured("boitier_int_marche_y"))
 
-def _contour(chanfrein):
+def corbels(wall):
+    corbel_diameter = INSERT_M25.diametre_percage
+    corbel_wall = INSERT_M25.epaisseur_paroi_min
+    corbel_mid = corbel_wall + corbel_diameter/2
+    corbel_half = (corbel_diameter + corbel_wall)/2
+    chanfrein = measured("boitier_int_chanfrein")
+    return [
+        (
+            bb_top().min.X + wall + corbel_half,
+            bb_top().min.Y - wall + corbel_mid,
+            2.5
+        ),
+        (
+            measured("boitier_int_chanfrein") + corbel_mid,
+            bb_overall().min.Y + wall + corbel_half,
+            2.5
+        )
+    ]
+
+def dc_contour():
     bb = bb_overall()
     bbtop = bb_top()
+    chanfrein = measured("boitier_int_chanfrein")
     return ([
         (bb.min.X, chanfrein),
         (chanfrein, bb.min.Y),
@@ -243,7 +263,6 @@ def _wago_north_west(body, outer, container_bb, wago_raise, surplomb_len, surplo
 @part
 def boitier_dc(
     hauteur=27.0,
-    chanfrein=15.0,
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
     wago_raise=3.0,
@@ -253,7 +272,6 @@ def boitier_dc(
     """Boîtier DC : partie ouest, face est à x = 50, nord à y = 95.
 
     hauteur: hauteur hors-tout depuis le lit (murs compris)
-    chanfrein: angle coupé en sud-ouest
     epaisseur_paroi: épaisseur des murs, vers l'intérieur
     epaisseur_fond: épaisseur du fond vers le haut
     wago_raise: de combien monter les logements WAGO
@@ -290,7 +308,7 @@ def boitier_dc(
         )
 
     # outer and inner polygon
-    outer_pts, bb = _contour(chanfrein)
+    outer_pts, bb = dc_contour()
     inner_pts = offset_in(outer_pts, wall)
 
     # compute inner angles coords
@@ -353,6 +371,7 @@ def boitier_dc(
     # the floor) to spend minimum material. Thin at z_corbel_45, full
     # `corbel_plat` thick from z_corbel to the rim; the bore drills down
     # `corbel_profondeur` from the rim.
+    chanfrein = measured("boitier_int_chanfrein")
     body = add_corbel(body, inner_west_marche_x, inner_north_marche_y, hauteur, insert=INSERT_M25)
     body = add_corbel(body, chanfrein, inner_south_y, hauteur, insert=INSERT_M25, plane=Plane.YZ)
 

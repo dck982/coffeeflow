@@ -8,7 +8,7 @@ from system import (
     add_wall,
     add_corbel,
     offset_in, 
-    AMIN
+    AMIN, CMIN
     )
 
 def bb_overall():
@@ -29,8 +29,8 @@ def bb_encoche():
         h=measured("boitier_int_screw_dz")
     )
 
-
-def _contour():
+# contour at z0: with the encoche
+def ac_contour():
     bb = bb_overall()
     screw = bb_encoche()
     return ([
@@ -44,6 +44,32 @@ def _contour():
             (bb.min.X, bb.max.Y),
         ], bb, screw
     )
+
+# contour at hauteur: without the encoche
+def ac_top_contour():
+    bb = bb_overall()
+    return [
+            (bb.min.X, bb.min.Y),
+            (bb.max.X, bb.min.Y),
+            (bb.max.X, bb.max.Y),
+            (bb.min.X, bb.max.Y),
+        ]
+
+def corbels(wall):
+    corbel_diameter = INSERT_M3.diametre_percage
+    corbel_wall = INSERT_M3.epaisseur_paroi_min
+    corbel_mid = corbel_wall + corbel_diameter/2
+    corbel_half = (corbel_diameter + corbel_wall)/2
+    chanfrein = measured("boitier_int_chanfrein")
+    bb = bb_overall()
+    cx = (bb.max.X-wall)+(bb.min.X+wall)
+    return [
+        (
+            (bb.min.X+bb.max.X)/2 + corbel_mid,
+            bb.min.Y + wall + corbel_half,
+            3
+        ),        
+    ]
 
 def _gousset_section(run):
     """Right triangle: wall, slab underside, 45° hypotenuse. Origin on the wall, below the slab."""
@@ -252,7 +278,7 @@ def boitier_ac(
 
     (
         outer_pts_outer, bb, encoche
-    )  = _contour()
+    )  = ac_contour()
     # Build cavity from the shifted outer envelope as well: it keeps the
     # wall thickness consistent and avoids degenerate ultra-thin east walls
     # that can crash the polish/border analysis in nurb.

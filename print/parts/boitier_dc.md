@@ -7,18 +7,18 @@ Checks: clean
 
 ## What it is
 
-Bac DC de 50 × 95 × 27mm, partie ouest du boîtier intérieur, contour en L (mur est plein à x=50, chanfrein SW configurable dont la moitié ouest reste ouverte, marche haute-gauche à x=10,5). Loge le module XIAO ESP32-S3 + Grove Shield (SE), l'Adafruit CAN Pal (NE), un couple Wago 221-412 + 221-423 (SW, sous la marche) et un Wago 221-423 (NW). Sa face est reçoit les ouvertures dimmer et SSR alignées avec `boitier_ac`.
+Bac DC de 50 × 95 × 27mm, partie ouest du boîtier intérieur, contour en L (mur est plein à x=50, chanfrein SW `boitier_int_chanfrein` dont la moitié ouest reste ouverte, marche haute-gauche à x=10,5). Loge le module XIAO ESP32-S3 + Grove Shield (SE), l'Adafruit CAN Pal (NE), un couple Wago 221-412 + 221-423 (SW, sous la marche) et un Wago 221-423 (NW). Sa face est reçoit les ouvertures dimmer et SSR alignées avec `boitier_ac`. API publiques : `dc_contour` / `corbels` (`couvercle_acdc`), `canpal_bb` (`ensemble_boitiers`).
 
 ## Design notes
 
-- Fond imprimé sur le lit. Contour via `_contour(chanfrein)` sur `bb_overall()` / `bb_top()` (`system.bbox`) : mur est à x=`boitier_int_aile_x` (50), nord à y=`boitier_int_y` (95), chanfrein SW de (0, `chanfrein`) à (`chanfrein`, 0) — slider, défaut 15. Marche à x=`boitier_int_marche_x` (10,5), y=`boitier_int_marche_y` (51, plus de +3). Les compartiments Wago / CAN Pal prennent une bbox conteneur, pas des X/Y bruts.
+- Fond imprimé sur le lit. Contour via `dc_contour()` sur `bb_overall()` / `bb_top()` (`system.bbox`) : mur est à x=`boitier_int_aile_x` (50), nord à y=`boitier_int_y` (95), chanfrein SW de (0, `boitier_int_chanfrein`) à (`chanfrein`, 0) — cote mesurée 15, plus de slider. Marche à x=`boitier_int_marche_x` (10,5), y=`boitier_int_marche_y` (51, plus de +3). Les compartiments Wago / CAN Pal prennent une bbox conteneur, pas des X/Y bruts. `couvercle_acdc` importe `dc_contour`.
 - Les empreintes de modules sont **importables** : `canpal_bb(wall, z0)` et `bb_wago_north_west(container_bb, wall)` n'ont pas de préfixe `_`. `ensemble_boitiers` fait `from parts.boitier_dc import canpal_bb` pour poser un `obstacle`.
 - XIAO (SE) : deux inserts M2 (`system.INSERT_M2`) au nord de la zone, deux plots pleins Ø3 plus au sud, un mur fin (1,26mm) à l'ouest, et un puits d'aimant debout (`add_well` / `measured()`) sous le module.
 - CAN Pal (NE) : posé dans `canpal_bb` (à l'est du Wago NW, 4mm de jeu nord pour le SLNT). Module 20,32 × 20,32, inserts M2.5 depuis le fond à `bb.size.Z` (5mm). Muret sud + surplomb 1mm sur le **tiers central** seulement, pour les câbles depuis `boitier_ac`. Ne pas recoder cette bbox dans un autre fichier : l'importer.
 - Wago SW : `_wago_south_west(…, bb_bottom(), …)` — baie double dans la bbox sous la marche.
 - Wago NW : `_wago_north_west(…, bb_top(), …)` — un 221-423 ; l'empreinte est `bb_wago_north_west`, aussi importable. Ne renvoie plus le X est : le CAN Pal lit `canpal_bb`.
 - Face est : fentes dimmer et SSR **demandées à `boitier_ac`** (`from parts.boitier_ac import dimmer_dc_opening, ssr_dc_opening`), tuples `(y0, z0, dy, dz)`. Plus `system.ouvertures_modules`.
-- Corbeaux couvercle : `system.add_corbel` — un M2.5 sur la marche (`Plane.XZ`), un M2.5 au chanfrein SW (`Plane.YZ`). Pas de copie inline.
+- Corbeaux couvercle : `system.add_corbel` — un M2.5 sur la marche (`Plane.XZ`), un M2.5 au chanfrein SW (`Plane.YZ`). Positions exportées par `corbels(wall)` → `(cx, cy, d)` ; `couvercle_acdc` importe cette liste.
 
 ```toml
 [part]
@@ -28,8 +28,7 @@ min_wall = 0.6
 ## Don't
 
 - Ne pas fermer la moitié ouest du chanfrein SW.
-- Ne pas remettre `chanfrein` dans `measurements.toml` (`boitier_int_chanfrein` a été retiré) : c'est un slider, `couvercle_acdc.chanfrein` doit rester égal.
-- Ne pas désynchroniser `couvercle_acdc.chanfrein` / `epaisseur_paroi` de ce boîtier.
+- Ne pas remettre `chanfrein` en slider : c'est `measured("boitier_int_chanfrein")`. Ne pas recoder le contour dans `couvercle_acdc` : importer `dc_contour`.
 - Ne pas réintroduire le M5Stack Unit CAN Bus couché sur le flanc : c'est l'Adafruit CAN Pal, à plat, en NE.
 - Ne pas remettre un Wago 221-415 couché en NE : les Wagos sont SW (412+423) et NW (423).
 - Garder les inserts CAN Pal et les deux corbeaux de couvercle en M2.5 : le stock atelier n'a que du M2.5×4 et du M3, pas de M2.
@@ -37,14 +36,15 @@ min_wall = 0.6
 - Ne pas réintroduire `puit_diametre` / `puit_peau` / `marge_puit` : les cotes d'aimant vivent dans `measurements.toml` (`add_well`).
 - Ne pas retirer le surplomb 1mm au-dessus du PCB du CAN Pal, ni caler le muret sud ailleurs que `can_pal_pcb_height`.
 - Ne pas élargir ce muret sud / surplomb à toute la largeur du CAN Pal : le tiers central laisse le passage des câbles depuis `boitier_ac`.
-- Ne pas préfixer `canpal_bb` / `bb_wago_north_west` d'un `_` ni recopier l'empreinte ailleurs : un assemblage importe (`from parts.boitier_dc import canpal_bb`), comme `ensemble_boitiers`.
+- Ne pas préfixer `canpal_bb` / `bb_wago_north_west` / `dc_contour` / `corbels` d'un `_` ni recopier l'empreinte ailleurs : un sibling importe.
 - Ne pas rajouter 3mm à `boitier_int_marche_y` : la cote est 51, le +3 a été absorbé.
 - Ne pas recoder les fentes est : importer `dimmer_dc_opening` / `ssr_dc_opening` depuis `boitier_ac`. Ne pas ramener `ouvertures_modules`.
-- Ne pas inliner un corbeau : `add_corbel` dans `system.py` (`insert=INSERT_M25` ici).
-- Ne pas remonter le corbeau marche de 10mm au nord : il est collé à `inner_north_marche_y`. `couvercle_acdc` a encore `corbel1_y = 60.6` (l'ancienne cote) : le recaler ensemble.
+- Ne pas inliner un corbeau : `add_corbel` dans `system.py` (`insert=INSERT_M25` ici). Les trous du couvercle viennent de `corbels(wall)`, pas d'un `corbel1_y` local.
+- Ne pas remonter le corbeau marche de 10mm au nord : il est collé à `inner_north_marche_y`.
 
 ## Changelog
 
+- 2026-09-11 — `dc_contour` / `corbels` publics (couvercle). `chanfrein` redevient `boitier_int_chanfrein` (plus un slider). AUTO inchangé.
 - 2026-09-11 — Fentes est importées de `boitier_ac` (`dimmer_dc_opening` / `ssr_dc_opening`). Corbeaux via `system.add_corbel`. 137 → 136 faces, checks clean.
 - 2026-09-11 — Compartiments sur `system.bbox` (`bb_overall` / `bb_top` / `bb_bottom`). `canpal_bb` et `bb_wago_north_west` publics, importés par `ensemble_boitiers`. `boitier_int_marche_y` 48→51 (plus de +3). 141 → 137 faces, checks clean.
 - 2026-09-10 — CAN Pal : muret/surplomb sud réduits au tiers central (passage câbles AC). Surplomb 423 SW calé sur `wago_raise`. Corbeau marche collé à `inner_north_marche_y`. Fente SSR alignée sur `ouvertures_modules` (plus de max avec `wago_epaisseur`). 142 → 141 faces, checks clean.

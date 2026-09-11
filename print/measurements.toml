@@ -739,6 +739,11 @@ value = 60.0
 unit = "mm"
 how = "user drawing docs/boitier.pdf: bord bas de l'aile droite."
 
+[boitier_int_chanfrein]
+value = 15.0
+unit = "mm"
+how = "user drawing docs/boitier.pdf: un chanfrein en bas à gauche"
+
 [boitier_int_marche_x]
 value = 10.5
 unit = "mm"

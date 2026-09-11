@@ -13,7 +13,7 @@ Checks: clean
 
 Les deux pièces sont modelées dans le même repère machine. AC est déjà à `aile_x` (`bb_overall`) : plus de translation X. Toujours `float()` avant `use()`.
 
-**Importer la géométrie d'un module.** `from parts.boitier_dc import canpal_bb` pour l'obstacle CAN Pal. `from parts.boitier_ac import dimmer_dc_opening, ssr_dc_opening` pour les fentes (côté DC, pas ici). `system.add_corbel` pour les inserts de couvercle.
+**Importer la géométrie d'un module.** `from parts.boitier_dc import canpal_bb` pour l'obstacle CAN Pal. `from parts.boitier_ac import dimmer_dc_opening, ssr_dc_opening` pour les fentes (côté DC, pas ici). Contours / corbeaux : `dc_contour`, `ac_top_contour`, `corbels` — importés par `couvercle_acdc`, pas recodés ici. `system.add_corbel` pour les inserts.
 
 ## Don't
 
@@ -27,6 +27,7 @@ Les deux pièces sont modelées dans le même repère machine. AC est déjà à 
 
 ## Changelog
 
+- 2026-09-11 — Contours / corbeaux publics côté bacs ; le couvercle les importe (enveloppe toujours 123 × 95). AUTO inchangé.
 - 2026-09-11 — Plus de shift X sur AC (bbox à `aile_x`). Envelope 123,5 → 123 mm, 245 → 222 faces, checks clean.
 - 2026-09-11 — Obstacle CAN Pal via `from parts.boitier_dc import canpal_bb`. 2 → 3 solids, 198 → 245 faces, checks clean.
 - 2026-09-10 — `epaisseur_paroi` 1,6 → 1,68 pour suivre `boitier_ac`.

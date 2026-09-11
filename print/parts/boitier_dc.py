@@ -189,8 +189,12 @@ def _surplomb_xz(x, y, z, sw, slen, z0, inverse=False):
     )
 
 def _bb_wago_nw(bb, area_dx, wall):
-    area_dy = measured("wago_profondeur")
-    return bbox(bb.min.X + wall, bb.max.Y - area_dy - wall, area_dx + wall, area_dy + wall)
+    # In Y: a wago and a stop wall
+    area_dy = measured("wago_profondeur") + wall
+    # In X: a wago and a side wall
+    area_dx = area_dx + wall
+    # Get inner bounds (add/subtract wall)
+    return bbox(bb.min.X + wall, bb.max.Y - wall - area_dy, area_dx, area_dy)
 
 # Definition of a compartment for wago connectors laying on their side, in a NW corner
 def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall, count=1):
@@ -202,7 +206,7 @@ def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_l
     # Add a wall on the east side to press the WAGO
     body = add_wall(body, outer,
         bb.max.X - wall, bb.min.Y,
-        wall, area_dy,
+        wall, area_dy+wall,
         z0, area_dz + surplomb_w)
 
     # Add a parallel wall in the middle to raise the WAGO
@@ -211,7 +215,7 @@ def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_l
         dwx = (area_dx - wall) / (count+1)
         wx += dwx
         body = add_wall(body, outer,
-            wx, bb.min.Y,
+            wx, bb.min.Y+wall,
             wall, area_dy,
             z0, wago_raise)
 
@@ -225,7 +229,13 @@ def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_l
     # Surplomb (catch): 1mm return from the muret toward the WAGO
     # with its vertical face starting at the Wago top and its 45° lead-in
     # starting 1mm below.    
-    body = body + _surplomb_xz(bb.max.X - wall, bb.max.Y - wall, area_dz, surplomb_w, surplomb_len, z0).intersect(outer)
+    body = body + _surplomb_xz(
+        bb.max.X - wall, 
+        bb.max.Y,
+        area_dz, 
+        surplomb_w, 
+        surplomb_len, 
+        z0).intersect(outer)
 
     return body
 

@@ -17,6 +17,7 @@
 #include "os/os_mbuf.h"
 
 #include "core/core.h"
+#include "can_link.h"
 
 namespace ble_scale {
 namespace {
@@ -26,20 +27,31 @@ constexpr uint32_t kHeartbeatMs = 2500;
 constexpr uint32_t kIdlePublishMs = 1000;
 constexpr size_t kRxCapacity = 128;
 
-// UUID Acaia Lunar issus de l'implémentation de référence. Ils doivent être
-// confirmés avec la balance réelle avant qu'une infusion au poids soit livrée.
-const ble_uuid128_t kServiceUuid = BLE_UUID128_INIT(
+// Lunar recentes : canaux ecriture et notification distincts.
+const ble_uuid128_t kModernServiceUuid = BLE_UUID128_INIT(
     0x55, 0xE4, 0x05, 0xD2, 0xAF, 0x9F, 0xA9, 0x8F,
     0xE5, 0x4A, 0x7D, 0xFE, 0x43, 0x53, 0x53, 0x49);
-const ble_uuid128_t kCharacteristicUuid = BLE_UUID128_INIT(
+const ble_uuid128_t kModernWriteUuid = BLE_UUID128_INIT(
     0xB3, 0x9B, 0x72, 0x34, 0xBE, 0xEC, 0xD4, 0xA8,
     0xF4, 0x43, 0x41, 0x88, 0x43, 0x53, 0x53, 0x49);
+const ble_uuid128_t kModernNotifyUuid = BLE_UUID128_INIT(
+    0x16, 0x96, 0x24, 0x47, 0xC6, 0x23, 0x61, 0xBA,
+    0xD9, 0x4B, 0x4D, 0x1E, 0x43, 0x53, 0x53, 0x49);
+// Lunar legacy confirmee sur ACAIAL-C1EF4C9 le 2026-09-11.
+const ble_uuid16_t kLegacyServiceUuid = BLE_UUID16_INIT(0x1820);
+const ble_uuid16_t kLegacyCharacteristicUuid = BLE_UUID16_INIT(0x2A80);
 const ble_uuid16_t kCccdUuid = BLE_UUID16_INIT(BLE_GATT_DSC_CLT_CFG_UUID16);
+
+enum class DiscoveryMode : uint8_t { kLegacy, kModern };
 
 portMUX_TYPE g_lock = portMUX_INITIALIZER_UNLOCKED;
 uint16_t g_connection = BLE_HS_CONN_HANDLE_NONE;
+uint16_t g_service_start_handle = 0;
 uint16_t g_value_handle = 0;
+uint16_t g_notify_handle = 0;
 uint16_t g_service_end_handle = 0;
+uint16_t g_cccd_handle = 0;
+DiscoveryMode g_discovery_mode = DiscoveryMode::kLegacy;
 bool g_active = false;
 bool g_subscribed = false;
 bool g_started = false;
@@ -61,33 +73,86 @@ bool ready(uint16_t* connection, uint16_t* value_handle) {
 }
 
 void clear_connection() {
+  bool was_connected;
   portENTER_CRITICAL(&g_lock);
+  was_connected = g_connection != BLE_HS_CONN_HANDLE_NONE;
   g_connection = BLE_HS_CONN_HANDLE_NONE;
+  g_service_start_handle = 0;
   g_value_handle = 0;
+  g_notify_handle = 0;
   g_service_end_handle = 0;
+  g_cccd_handle = 0;
   g_subscribed = false;
   g_rx_len = 0;
   portEXIT_CRITICAL(&g_lock);
   core::update_scale_connection(false);
+  if (was_connected) can_link::send_log(common::LogCode::kBleDisconnected, common::LogSeverity::kWarn);
 }
 
-bool contains_acaia_name(const struct ble_gap_disc_desc& disc) {
+bool is_acaia_advertisement(const struct ble_gap_disc_desc& disc) {
   struct ble_hs_adv_fields fields{};
-  if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) != 0 || fields.name == nullptr) return false;
+  if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) != 0) return false;
+
+  // La Lunar annonce normalement ce service. Le nom est un repli utile pour
+  // les versions qui ne mettent l'UUID que dans la scan response.
+  for (uint8_t i = 0; i < fields.num_uuids128; ++i) {
+    if (ble_uuid_cmp(&fields.uuids128[i].u, &kModernServiceUuid.u) == 0) return true;
+  }
+  for (uint8_t i = 0; i < fields.num_uuids16; ++i)
+    if (ble_uuid_cmp(&fields.uuids16[i].u, &kLegacyServiceUuid.u) == 0) return true;
+
+  if (fields.name == nullptr) return false;
   char name[33]{};
   size_t n = fields.name_len < sizeof(name) - 1 ? fields.name_len : sizeof(name) - 1;
   for (size_t i = 0; i < n; ++i) name[i] = static_cast<char>(std::toupper(fields.name[i]));
   return std::strstr(name, "ACAIA") != nullptr || std::strstr(name, "LUNAR") != nullptr;
 }
 
+void discovery_failed(uint16_t connection, const char* stage, int status) {
+  ESP_LOGW(kTag, "Acaia %s failed: %d", stage, status);
+  can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                     static_cast<uint16_t>(status));
+  ble_gap_terminate(connection, BLE_ERR_REM_USER_CONN_TERM);
+}
+
 void scan() {
   uint8_t own_addr_type;
-  if (ble_hs_id_infer_auto(0, &own_addr_type) != 0) return;
+  int rc = ble_hs_id_infer_auto(0, &own_addr_type);
+  if (rc != 0) {
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(rc));
+    return;
+  }
   struct ble_gap_disc_params params{};
-  params.filter_duplicates = 1;
+  // La Lunar peut diffuser l'UUID dans l'advertising et son nom dans la scan
+  // response. Le contrôleur du S3 déduplique sinon par adresse, et masque le
+  // second paquet avant que NimBLE nous le livre.
+  params.filter_duplicates = 0;
   params.passive = 0;
-  int rc = ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &params, gap_event, nullptr);
-  if (rc != 0 && rc != BLE_HS_EALREADY) ESP_LOGW(kTag, "scan unavailable: %d", rc);
+  rc = ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &params, gap_event, nullptr);
+  if (rc == 0) {
+    can_link::send_log(common::LogCode::kBleScanStarted, common::LogSeverity::kDebug);
+  } else if (rc != BLE_HS_EALREADY) {
+    ESP_LOGW(kTag, "scan unavailable: %d", rc);
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(rc));
+  }
+}
+
+void connect_to_device(const ble_addr_t& address) {
+  uint8_t own_addr_type;
+  int rc = ble_hs_id_infer_auto(0, &own_addr_type);
+  if (rc == 0) {
+    // nullptr demande les paramètres de connexion valides par défaut de
+    // NimBLE. Une structure value-initialized contient des zéros invalides.
+    rc = ble_gap_connect(own_addr_type, &address, 30000, nullptr, gap_event, nullptr);
+  }
+  if (rc != 0) {
+    ESP_LOGW(kTag, "Acaia connect unavailable: %d", rc);
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(rc));
+    scan();
+  }
 }
 
 void send_frame(uint8_t cmd, const uint8_t* payload, size_t payload_len, bool length_prefix) {
@@ -188,71 +253,189 @@ void consume_rx(const uint8_t* data, size_t length) {
   }
 }
 
-int subscription_done(uint16_t, const struct ble_gatt_error* error, struct ble_gatt_attr*, void*) {
+int subscription_done(uint16_t connection, const struct ble_gatt_error* error,
+                      struct ble_gatt_attr*, void*) {
   if (error->status == 0) {
     portENTER_CRITICAL(&g_lock);
     g_subscribed = true;
     portEXIT_CRITICAL(&g_lock);
+    can_link::send_log(common::LogCode::kBleSubscribed, common::LogSeverity::kInfo);
     request_notifications_and_heartbeat();
+  } else {
+    ESP_LOGW(kTag, "Acaia notification subscription failed: %d", error->status);
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(error->status));
+    ble_gap_terminate(connection, BLE_ERR_REM_USER_CONN_TERM);
   }
   return 0;
 }
 
+int start_characteristic_discovery(uint16_t connection);
+int start_descriptor_discovery(uint16_t connection);
+
 int descriptor_discovered(uint16_t connection, const struct ble_gatt_error* error,
                           uint16_t, const struct ble_gatt_dsc* descriptor, void*) {
-  if (error->status != 0) return 0;
+  if (error->status == BLE_HS_EDONE) {
+    portENTER_CRITICAL(&g_lock);
+    uint16_t cccd_handle = g_cccd_handle;
+    portEXIT_CRITICAL(&g_lock);
+    if (cccd_handle == 0) {
+      discovery_failed(connection, "CCCD discovery", error->status);
+      return 0;
+    }
+    const uint8_t enable_notifications[] = {1, 0};
+    int rc = ble_gattc_write_flat(connection, cccd_handle, enable_notifications,
+                                  sizeof(enable_notifications), subscription_done, nullptr);
+    if (rc != 0) discovery_failed(connection, "CCCD subscription start", rc);
+    return rc;
+  }
+  if (error->status != 0) {
+    discovery_failed(connection, "descriptor discovery", error->status);
+    return 0;
+  }
   if (ble_uuid_cmp(&descriptor->uuid.u, &kCccdUuid.u) != 0) return 0;
-  const uint8_t enable_notifications[] = {1, 0};
-  return ble_gattc_write_flat(connection, descriptor->handle, enable_notifications,
-                              sizeof(enable_notifications), subscription_done, nullptr);
+  portENTER_CRITICAL(&g_lock);
+  g_cccd_handle = descriptor->handle;
+  portEXIT_CRITICAL(&g_lock);
+  return 0;
 }
 
 int characteristic_discovered(uint16_t connection, const struct ble_gatt_error* error,
                               const struct ble_gatt_chr* characteristic, void*) {
-  if (error->status != 0 || characteristic == nullptr) return 0;
+  if (error->status == BLE_HS_EDONE) {
+    portENTER_CRITICAL(&g_lock);
+    bool found = g_value_handle != 0 && g_notify_handle != 0;
+    portEXIT_CRITICAL(&g_lock);
+    if (!found) {
+      discovery_failed(connection, "characteristic discovery", error->status);
+      return 0;
+    }
+    return start_descriptor_discovery(connection);
+  }
+  if (error->status != 0 || characteristic == nullptr) {
+    discovery_failed(connection, "characteristic discovery", error->status);
+    return 0;
+  }
+  if (g_discovery_mode == DiscoveryMode::kModern) {
+    portENTER_CRITICAL(&g_lock);
+    if (ble_uuid_cmp(&characteristic->uuid.u, &kModernWriteUuid.u) == 0 &&
+        (characteristic->properties & (BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP)) != 0) {
+      g_value_handle = characteristic->val_handle;
+    }
+    if (ble_uuid_cmp(&characteristic->uuid.u, &kModernNotifyUuid.u) == 0 &&
+        (characteristic->properties & BLE_GATT_CHR_PROP_NOTIFY) != 0) {
+      g_notify_handle = characteristic->val_handle;
+    }
+    portEXIT_CRITICAL(&g_lock);
+    return 0;
+  }
   if ((characteristic->properties & BLE_GATT_CHR_PROP_NOTIFY) == 0 ||
       (characteristic->properties & (BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP)) == 0) return 0;
   portENTER_CRITICAL(&g_lock);
   g_value_handle = characteristic->val_handle;
-  uint16_t service_end = g_service_end_handle;
+  g_notify_handle = characteristic->val_handle;
   portEXIT_CRITICAL(&g_lock);
-  return ble_gattc_disc_all_dscs(connection, characteristic->val_handle, service_end,
-                                 descriptor_discovered, nullptr);
+  return 0;
 }
 
 int service_discovered(uint16_t connection, const struct ble_gatt_error* error,
                        const struct ble_gatt_svc* service, void*) {
-  if (error->status != 0 || service == nullptr) return 0;
+  if (error->status == BLE_HS_EDONE) {
+    portENTER_CRITICAL(&g_lock);
+    bool found = g_service_start_handle != 0;
+    portEXIT_CRITICAL(&g_lock);
+    if (found) return start_characteristic_discovery(connection);
+    if (g_discovery_mode == DiscoveryMode::kLegacy) {
+      g_discovery_mode = DiscoveryMode::kModern;
+      int rc = ble_gattc_disc_svc_by_uuid(connection, &kModernServiceUuid.u,
+                                          service_discovered, nullptr);
+      if (rc != 0) discovery_failed(connection, "modern service discovery start", rc);
+      return rc;
+    }
+    discovery_failed(connection, "service discovery", error->status);
+    return 0;
+  }
+  if (error->status != 0 || service == nullptr) {
+    discovery_failed(connection, "service discovery", error->status);
+    return 0;
+  }
   portENTER_CRITICAL(&g_lock);
+  g_service_start_handle = service->start_handle;
   g_service_end_handle = service->end_handle;
   portEXIT_CRITICAL(&g_lock);
-  return ble_gattc_disc_chrs_by_uuid(connection, service->start_handle, service->end_handle,
-                                     &kCharacteristicUuid.u, characteristic_discovered, nullptr);
+  return 0;
+}
+
+int start_characteristic_discovery(uint16_t connection) {
+  portENTER_CRITICAL(&g_lock);
+  uint16_t start = g_service_start_handle;
+  uint16_t end = g_service_end_handle;
+  portEXIT_CRITICAL(&g_lock);
+  int rc;
+  if (g_discovery_mode == DiscoveryMode::kLegacy) {
+    rc = ble_gattc_disc_chrs_by_uuid(connection, start, end, &kLegacyCharacteristicUuid.u,
+                                    characteristic_discovered, nullptr);
+  } else {
+    rc = ble_gattc_disc_all_chrs(connection, start, end, characteristic_discovered, nullptr);
+  }
+  if (rc != 0) discovery_failed(connection, "characteristic discovery start", rc);
+  return rc;
+}
+
+int start_descriptor_discovery(uint16_t connection) {
+  portENTER_CRITICAL(&g_lock);
+  uint16_t notify_handle = g_notify_handle;
+  uint16_t service_end = g_service_end_handle;
+  portEXIT_CRITICAL(&g_lock);
+  int rc = ble_gattc_disc_all_dscs(connection, notify_handle, service_end,
+                                   descriptor_discovered, nullptr);
+  if (rc != 0) discovery_failed(connection, "CCCD discovery start", rc);
+  return rc;
 }
 
 int gap_event(struct ble_gap_event* event, void*) {
   switch (event->type) {
     case BLE_GAP_EVENT_DISC:
-      if (!contains_acaia_name(event->disc)) return 0;
-      ble_gap_disc_cancel();
+      if (!is_acaia_advertisement(event->disc)) return 0;
+      can_link::send_log(common::LogCode::kBleScaleFound, common::LogSeverity::kInfo,
+                         static_cast<uint16_t>(event->disc.rssi));
       {
-        uint8_t own_addr_type;
-        if (ble_hs_id_infer_auto(0, &own_addr_type) == 0) {
-          struct ble_gap_conn_params params{};
-          int rc = ble_gap_connect(own_addr_type, &event->disc.addr, 30000, &params, gap_event, nullptr);
-          if (rc != 0) scan();
+        int rc = ble_gap_disc_cancel();
+        if (rc != 0) {
+          can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                             static_cast<uint16_t>(rc));
+          return 0;
         }
+        // NimBLE retire le callback du scan pendant l'annulation : aucun
+        // BLE_GAP_EVENT_DISC_COMPLETE ne nous sera remis. La connexion doit
+        // donc être demandée immédiatement après l'annulation réussie.
+        connect_to_device(event->disc.addr);
       }
       return 0;
     case BLE_GAP_EVENT_CONNECT:
-      if (event->connect.status != 0) { scan(); return 0; }
+      if (event->connect.status != 0) {
+        can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                           static_cast<uint16_t>(event->connect.status));
+        scan();
+        return 0;
+      }
       portENTER_CRITICAL(&g_lock);
       g_connection = event->connect.conn_handle;
+      g_service_start_handle = 0;
+      g_service_end_handle = 0;
+      g_value_handle = 0;
+      g_notify_handle = 0;
+      g_cccd_handle = 0;
       portEXIT_CRITICAL(&g_lock);
+      // La Lunar testee est legacy ; le repli moderne conserve la prise en
+      // charge des generations recentes qui publient les UUID 128 bits.
+      g_discovery_mode = DiscoveryMode::kLegacy;
       core::update_scale_connection(true);
-      if (ble_gattc_disc_svc_by_uuid(event->connect.conn_handle, &kServiceUuid.u,
-                                     service_discovered, nullptr) != 0) {
-        ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+      can_link::send_log(common::LogCode::kBleConnected, common::LogSeverity::kInfo);
+      {
+        int rc = ble_gattc_disc_svc_by_uuid(event->connect.conn_handle, &kLegacyServiceUuid.u,
+                                            service_discovered, nullptr);
+        if (rc != 0) discovery_failed(event->connect.conn_handle, "service discovery start", rc);
       }
       return 0;
     case BLE_GAP_EVENT_DISCONNECT:
@@ -272,8 +455,22 @@ int gap_event(struct ble_gap_event* event, void*) {
   }
 }
 
-void on_reset(int reason) { ESP_LOGW(kTag, "NimBLE reset: %d", reason); clear_connection(); }
-void on_sync() { if (ble_hs_util_ensure_addr(0) == 0) scan(); }
+void on_reset(int reason) {
+  ESP_LOGW(kTag, "NimBLE reset: %d", reason);
+  can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                     static_cast<uint16_t>(reason));
+  clear_connection();
+}
+
+void on_sync() {
+  int rc = ble_hs_util_ensure_addr(0);
+  if (rc == 0) {
+    scan();
+  } else {
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(rc));
+  }
+}
 void host_task(void*) { nimble_port_run(); nimble_port_freertos_deinit(); }
 
 void heartbeat_task(void*) {
@@ -297,13 +494,21 @@ void heartbeat_task(void*) {
 
 void init() {
   if (g_started) return;
-  if (nimble_port_init() != ESP_OK) { ESP_LOGE(kTag, "nimble_port_init failed"); return; }
+  esp_err_t init_err = nimble_port_init();
+  if (init_err != ESP_OK) {
+    ESP_LOGE(kTag, "nimble_port_init failed: %s", esp_err_to_name(init_err));
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(init_err));
+    return;
+  }
   ble_hs_cfg.reset_cb = on_reset;
   ble_hs_cfg.sync_cb = on_sync;
   nimble_port_freertos_init(host_task);
   if (xTaskCreatePinnedToCore(heartbeat_task, "ble_acaia", 4096, nullptr, 5,
                               &g_heartbeat_task, 0) != pdPASS) {
     ESP_LOGE(kTag, "heartbeat task creation failed");
+    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
+                       static_cast<uint16_t>(ESP_ERR_NO_MEM));
     nimble_port_stop();
     nimble_port_deinit();
     return;

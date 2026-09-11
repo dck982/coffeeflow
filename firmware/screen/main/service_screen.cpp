@@ -392,18 +392,21 @@ void refresh_timer_cb(lv_timer_t* /*timer*/) {
   core::Snapshot snapshot = core::get_snapshot();
   set_label_if_changed(g_can_label, snapshot.sensors_alive ? "CAN: OK" : "CAN: PERDU");
   char telemetry[128];
+  char weight[20];
+  if (snapshot.scale_present) std::snprintf(weight, sizeof(weight), "%.1f g", snapshot.weight_g);
+  else std::snprintf(weight, sizeof(weight), "-");
   if (snapshot.flash_active) {
     std::snprintf(telemetry, sizeof(telemetry), "MISE A JOUR %s: %lu/%lu octets",
                   snapshot.flash_target == core::FlashTarget::kScreen ? "ECRAN" : "CAPTEURS",
                   static_cast<unsigned long>(snapshot.flash_bytes_done),
                   static_cast<unsigned long>(snapshot.flash_bytes_total));
   } else if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
-    std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  n=%lu", snapshot.flow_ml_s,
-                  static_cast<unsigned long>(snapshot.flow_pulse_count));
+    std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  W: %s  n=%lu", snapshot.flow_ml_s,
+                  weight, static_cast<unsigned long>(snapshot.flow_pulse_count));
   } else {
-    std::snprintf(telemetry, sizeof(telemetry), "P: %.2f bar  T: %.1f C  F: %.2f ml/s  n=%lu",
+    std::snprintf(telemetry, sizeof(telemetry), "P: %.2f bar  T: %.1f C  F: %.2f ml/s  W: %s  n=%lu",
                   snapshot.pressure_bar, snapshot.temperature_c, snapshot.flow_ml_s,
-                  static_cast<unsigned long>(snapshot.flow_pulse_count));
+                  weight, static_cast<unsigned long>(snapshot.flow_pulse_count));
   }
   set_label_if_changed(g_telemetry_label, telemetry);
 

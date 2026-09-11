@@ -99,3 +99,21 @@
 - name: CONFIG_REJECTED
   severity: warn
   comment: POST /config rejeté. arg16 identifie la clé fautive.
+- name: BLE_SCAN_STARTED
+  severity: debug
+  comment: Client BLE Acaia prêt et scan actif.
+- name: BLE_SCALE_FOUND
+  severity: info
+  comment: Annonce BLE Acaia reconnue, connexion demandée. arg16 = RSSI signé sur 16 bits.
+- name: BLE_CONNECTED
+  severity: info
+  comment: Connexion GATT Acaia établie.
+- name: BLE_SUBSCRIBED
+  severity: info
+  comment: Notifications Acaia activées ; heartbeat démarré.
+- name: BLE_DISCONNECTED
+  severity: warn
+  comment: Connexion BLE Acaia perdue ou arrêtée.
+- name: BLE_ERROR
+  severity: warn
+  comment: Échec client BLE Acaia. arg16 = code NimBLE ou ESP-IDF.

@@ -302,16 +302,12 @@ buffer important.
 ## Suite de la phase 6
 
 Le découpage précis et les critères de sortie sont dans
-`docs/plan-phase6.md`. Les lots 0 à 7 sont clos. Ordre restant :
+`docs/plan-phase6.md`. Les lots 0 à 8 sont clos. Ordre restant :
 
-1. Client BLE GATT Acaia Lunar et politique radio (lot 8, investigation en
-   cours) : porter le protocole vers GATT ESP-IDF, valider les UUID et le bit
-   de signe sur la balance réelle, puis exposer poids, tare et
-   `scale_present` au coeur.
-2. Face actions du coeur : infusion et purge sans écran (lot 9), puis UI LVGL
+1. Face actions du coeur : infusion et purge sans écran (lot 9), puis UI LVGL
    complète (lot 10). LVGL et HTTP restent des clients sans accès direct aux
    sorties.
-3. Geler la table de partitions et fermer la phase (lot 11).
+2. Geler la table de partitions et fermer la phase (lot 11).
 
 Le code de référence Acaia est dans `docs/reference/acaia-ble/`; il faut porter le
 protocole vers GATT ESP-IDF, non compiler le code Arduino tel quel. LVGL reste
@@ -319,7 +315,7 @@ en v9 via `espressif/esp_lvgl_port`, avec bounce buffer obligatoire sur le
 panneau RGB. Les choix d'interface sont dans `docs/ui.md` et
 `docs/ui-mockup.html`.
 
-### Lot 8 — investigation mémoire/radio (2026-09-10, en cours)
+### Lot 8 — client BLE Acaia et politique radio, fait (2026-09-11)
 
 L'image écran `v0.2.31`, qui initialisait LCD/LVGL, Wi-Fi puis NimBLE, a
 redémarré en boucle dès le boot. Le rollback OTA n'a pas sélectionné le slot
@@ -392,6 +388,29 @@ en octets :
 | BLE initialisé | 33 459 | 18 432 | 14 520 |
 | aucune radio, après arrêt | 75 479 | 22 528 | 14 520 |
 
+**Image `v0.2.37` validée par OTA.** Une Lunar peut répartir l'UUID de
+service et le nom entre l'advertising et la scan response. Le filtrage de
+doublons par périphérique du contrôleur S3 masquait alors le second paquet au
+client ; le scan ne déduplique donc plus les paquets. Le moniteur CAN expose
+maintenant `BLE_SCAN_STARTED`, `BLE_SCALE_FOUND`, `BLE_CONNECTED`,
+`BLE_SUBSCRIBED`, `BLE_DISCONNECTED` et `BLE_ERROR` : le bring-up est lisible
+sans console ESP-IDF. La cadence de publication BLE est prête à passer de
+1 Hz au repos à chaque notification avec le profil de télémétrie actif du lot
+9. Le build ESP-IDF réussit. La validation sur la Lunar réelle a confirmé la
+topologie legacy `0x1820` / `0x2A80` (`WRITE_NR|NOTIFY`) / CCCD `0x2902`, puis
+le protocole applicatif et son battement. Le poids affiché par CoffeeFlow est
+identique à celui de la balance; tare, poids négatif, déconnexion, reconnexion
+et `scale_present` ont été vérifiés. Le passage en mode Wi-Fi arrête bien BLE
+et déconnecte la Lunar, conformément à la politique radio exclusive.
+
+Le premier essai `v0.2.35` a révélé une course NimBLE : `ble_gap_connect()`
+était appelé pendant que le scan était actif, provoquant la séquence répétée
+`BLE_SCALE_FOUND` puis `BLE_SCAN_STARTED`. `v0.2.37` annule le scan puis
+demande immédiatement la connexion, comme le client NimBLE de référence ;
+l'annulation retire le callback du scan et ne livre pas de
+`BLE_GAP_EVENT_DISC_COMPLETE` à l'application. La connexion passe aussi
+`nullptr` pour employer les paramètres NimBLE par défaut valides.
+
 L'écran affiche à tort `RADIO: AUCUNE` en mode BLE : le libellé est encore
 déduit de `NetworkState::kOff` au lieu de `RadioMode::kMachine`. C'est un
 défaut d'observation de l'UI, pas la preuve que BLE n'a pas démarré. Le
@@ -400,9 +419,8 @@ l'état stable de boot : après LCD/LVGL, le firmware demande désormais le mode
 `machine` et donc charge BLE par défaut. Les allocations Wi-Fi/LwIP préfèrent
 aussi la PSRAM et le seuil des allocations ordinaires préférant la mémoire
 interne passe de 16 Kio à 4 Kio ; la réserve DMA/interne reste à 32 Kio.
-Restent à valider la connexion et
-les notifications sur la Lunar réelle, l'accès HTTP, puis un aller-retour
-Wi-Fi → BLE prolongé.
+La connexion, les notifications et le retour Wi-Fi → BLE ont depuis été
+validés sur la Lunar réelle.
 
 Après le reboot persistant de cette image, le bring-up passe temporairement à
 trois états : `sans radio` au démarrage, puis `BLE` ou `Wi-Fi` demandé sur

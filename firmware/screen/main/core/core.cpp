@@ -235,6 +235,10 @@ void set_telemetry_profile(TelemetryProfile profile) {
     g_state.profile_dirty = true;
   }
   portEXIT_CRITICAL(&g_state.lock);
+  // La balance suffit à une cadence sobre au repos. La machine du lot 9
+  // sélectionnera kActive pendant une infusion ou une purge ; le client BLE
+  // publiera alors chaque notification plutôt qu'un échantillon par seconde.
+  ble_scale::set_active(profile == TelemetryProfile::kActive);
 }
 
 bool begin_flash(FlashTarget target, uint32_t total) {

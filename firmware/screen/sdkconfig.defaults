@@ -21,7 +21,13 @@ CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
 
 # LVGL (lot 2, docs/plan-phase6.md) : police montserrat pour le titre de
 # l'écran de service, le reste des labels utilise la police par défaut.
+CONFIG_LV_FONT_MONTSERRAT_18=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_26=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+CONFIG_LV_FONT_MONTSERRAT_40=y
+CONFIG_LV_FONT_MONTSERRAT_48=y
+CONFIG_LV_USE_FONT_COMPRESSED=y
 
 # Rollback applicatif : voir sensors/sdkconfig.defaults, même mécanisme.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y

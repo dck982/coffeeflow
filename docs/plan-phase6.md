@@ -758,6 +758,11 @@ Ce que ce plan ajoute :
   permettent, sinon depuis les réglages. Elle affiche l'adresse IP, la
   progression du flash réseau et, plus tard, la dernière infusion volatile à
   envoyer. Son bouton retour coupe réellement Wi-Fi/HTTP/netif et relance BLE.
+- **Tant que cette destination n'est pas écrite**, la mire garde un bouton
+  explicite *entrer en mode wifi* : il demande la transition au cœur (jamais
+  directement aux piles radio), rend l'OTA HTTP praticable et affiche l'état
+  AP/association. Il est retiré lorsque la destination Wi-Fi du sous-lot 4 le
+  remplace.
 - La veille (`ui.md`, section « Veille ») appartient au sous-lot 4 : calque
   d'atténuation, bloc de veille mobile, réveil sans action. Elle ne dépend
   d'aucun réglage tactile.

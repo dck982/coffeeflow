@@ -472,6 +472,22 @@ le DMA (`service_screen.cpp`), ne corrige pas le problème de façon fiable.
 Ne pas investiguer dans ce lot ; reproduire et isoler le problème pendant le
 travail UI.
 
+### Lot 10, sous-lot 1 — dalle et jetons, validé (2026-09-11)
+
+La mire LVGL expose les huit jetons de couleur, les sept corps Inter prévus
+par `ui.md`, et un retour tactile. Les corps texte embarquent latin-1
+(`U+00A0–U+00FF`) ; les corps héros ont un jeu de glyphes restreint aux valeurs
+café. `LV_USE_FONT_COMPRESSED` doit rester activé : `lv_font_conv` compresse
+les bitmaps par défaut et, sans le décodeur LVGL, toutes les étiquettes sont
+invisibles alors que les formes restent visibles.
+
+Validé sur la dalle : les accents français et le GT911 fonctionnent. Le titre
+affiche la version d'image courante. Tant que la destination Wi-Fi de l'UI
+n'est pas écrite (sous-lot 4), la mire conserve un bouton explicite pour
+entrer/quitter le mode Wi-Fi ; il passe par le cœur, coupe BLE avant
+Wi-Fi/httpd et montre l'état AP ou STA. Ce bouton est provisoire et sera
+absorbé par la destination Wi-Fi finale.
+
 ## Phase 7 — mise en boîte
 
 - Archiver et vérifier les deux images factory avec leurs versions.

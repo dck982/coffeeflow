@@ -19,6 +19,7 @@
 #include "can_link.h"
 #include "common/version.hpp"
 #include "core/core.h"
+#include "ui/ui_test_screen.h"
 
 namespace service_screen {
 
@@ -290,6 +291,8 @@ lv_obj_t* add_button(lv_obj_t* parent, const char* text, int x, int y) {
 // Console de debug volontairement laide : pas de style, pas de cote de
 // ui.md, police montserrat intégrée à LVGL (docs/plan-phase6.md, lot 2).
 void build_ui() {
+  ui::test_screen::build();
+  return;
   lv_obj_t* scr = lv_screen_active();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
   lv_obj_add_flag(scr, LV_OBJ_FLAG_CLICKABLE);
@@ -497,7 +500,6 @@ void init_on_core1() {
   // la tâche LVGL tenait déjà le verrou au premier tick.
   if (lvgl_port_lock(1000)) {
     build_ui();
-    lv_timer_create(refresh_timer_cb, kRefreshPeriodMs, nullptr);
     lv_timer_t* restart_timer = lv_timer_create(rgb_restart_timer_cb, 1000, panel_handle);
     lv_timer_set_repeat_count(restart_timer, 1);
     lvgl_port_unlock();

@@ -44,6 +44,7 @@ def couvercle_acdc(
     gouttiere_profondeur=3.0,
     ac_appui_pcb_hauteur=6.7,
     dc_appui_xiao_hauteur=10.0,
+    appui_pcb_largeur=3.0,
     draft=False,
 ):
     """Couvercle unique pour `ensemble_boitiers` (boitier_dc + boitier_ac).
@@ -76,6 +77,7 @@ def couvercle_acdc(
         (muret_depuis_ouest, tour_y, rebord...).
     dc_appui_pcb_hauteur: profondeur du rebord sud de boitier_dc pour tenir
         le module XIAO
+    appui_pcb_largeur: largeur de l'appui pcb
     """
     wall = epaisseur_paroi
     z0 = epaisseur_fond
@@ -119,9 +121,18 @@ def couvercle_acdc(
     for opening_y in (30, 70):
         body = _dc_east_opening(body, opening_y, z0, prof)
 
-    # Openings for corbels 
-    for (cx, cy, d) in (dc_corbels(wall)+ac_corbels(wall)):
-        body = body - Pos(cx,cy,0)*Cylinder(d/2, z0, align=CMIN)   
+    # Screw holes through the plate; interrupt the rib over each pad + 1.3 mm.
+    corbel_jeu = 1.3
+    for (cx, cy, d, plat) in (dc_corbels(wall) + ac_corbels(wall)):
+        body = body - Pos(cx, cy, 0) * Cylinder(d / 2, z0, align=CMIN)
+        body = body - Pos(
+            plat.min.X - corbel_jeu, plat.min.Y - corbel_jeu, z0
+        ) * Box(
+            plat.size.X + 2 * corbel_jeu,
+            plat.size.Y + 2 * corbel_jeu,
+            prof,
+            align=AMIN,
+        ) 
 
     # PCB press AC: the north rim segment (boitier_ac) runs deeper than
     # `gouttiere_profondeur` over the box's middle third in X, to press down
@@ -130,10 +141,10 @@ def couvercle_acdc(
         reject(
             f"ac_appui_pcb_hauteur {ac_appui_pcb_hauteur} is not positive: raise it",
             param="ac_appui_pcb_hauteur",
-        )
+        )    
     y_max = ac_pts[2][1]
     appui_y1 = y_max - (wall + jeu)
-    body = _pcb_press(body, ac_pts[0][0], ac_pts[2][0], appui_y1 - ep, appui_y1, ac_appui_pcb_hauteur, z0)
+    body = _pcb_press(body, ac_pts[0][0], ac_pts[2][0], appui_y1 - appui_pcb_largeur, appui_y1, ac_appui_pcb_hauteur, z0)
 
     # PCB press DC on south rib to hold the XIAO module
     if dc_appui_xiao_hauteur <= 0.0:
@@ -142,7 +153,7 @@ def couvercle_acdc(
             param="dc_appui_xiao_hauteur",
         )
     appui_y0 = wall + jeu
-    body = _pcb_press(body, dc_pts[1][0], dc_pts[2][0], appui_y0, appui_y0 + ep, dc_appui_xiao_hauteur, z0)
+    body = _pcb_press(body, dc_pts[1][0], dc_pts[2][0], appui_y0, appui_y0 + appui_pcb_largeur, dc_appui_xiao_hauteur, z0)
 
     # Placing the lid means flipping it over (about a north-south axis, the
     # long way): that mirrors X. Everything above is modelled in the direct

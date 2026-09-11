@@ -34,22 +34,30 @@ def bb_bottom():
     return bbox(0,0,measured("boitier_int_marche_x"),measured("boitier_int_marche_y"))
 
 def corbels(wall):
+    """Hole (cx, cy, d) and XY bbox of the pad, same origins as `add_corbel`."""
     corbel_diameter = INSERT_M3.diametre_percage
     corbel_wall = INSERT_M3.epaisseur_paroi_min
-    corbel_mid = corbel_wall + corbel_diameter/2
-    corbel_half = (corbel_diameter + corbel_wall)/2
-    chanfrein = measured("boitier_int_chanfrein")
+    corbel_mid = corbel_wall + corbel_diameter / 2
+    corbel_half = (corbel_diameter + corbel_wall) / 2
+    corbel_plat = corbel_diameter + corbel_wall
+    corbel_along = corbel_diameter + 2 * corbel_wall
+    x_marche = bb_top().min.X + wall
+    y_marche = bb_top().min.Y - wall
+    x_sw = measured("boitier_int_chanfrein")
+    y_sw = bb_overall().min.Y + wall
     return [
         (
-            bb_top().min.X + wall + corbel_half,
-            bb_top().min.Y - wall + corbel_mid,
-            3
+            x_marche + corbel_half,
+            y_marche + corbel_mid,
+            3,
+            bbox(x_marche, y_marche, corbel_plat, corbel_along),
         ),
         (
-            measured("boitier_int_chanfrein") + corbel_mid,
-            bb_overall().min.Y + wall + corbel_half,
-            3
-        )
+            x_sw + corbel_mid,
+            y_sw + corbel_half,
+            3,
+            bbox(x_sw, y_sw, corbel_along, corbel_plat),
+        ),
     ]
 
 def dc_contour():

@@ -17,7 +17,7 @@ Bac AC, partie est du boîtier intérieur, posé dans `bb_overall()` à partir d
 - SSR : `ssr_bb` calé contre les tours du dimmer (press-fit). Traverse + butée est. Ouvertures `ssr_ac_opening` / `ssr_dc_opening`, même contrat. Fente DC élargie en Y pour manger le pilier entre dimmer et SSR.
 - **Le DC demande la géométrie des ouvertures ouest** : `from parts.boitier_ac import dimmer_dc_opening, ssr_dc_opening`. Pas `system.ouvertures_modules` (retiré). Ne pas préfixer ces fonctions d'un `_`.
 - Deux puits `add_well` : 30 % de la largeur intérieure, et 8 mm de l'est, tous deux 6,5 mm sous le nord.
-- Corbeau couvercle : `system.add_corbel` au milieu du mur sud, `Plane.YZ`, insert M3. Positions exportées par `corbels(wall)` → `(cx, cy, d)` ; `couvercle_acdc` importe cette liste.
+- Corbeau couvercle : `system.add_corbel` au milieu du mur sud, `Plane.YZ`, insert M3. `corbels(wall)` → `(cx, cy, d, plat)` ; `couvercle_acdc` importe cette liste.
 - Polish 1 mm sur les arêtes Z **est seulement**. Pas de polish à l'ouest (joint DC) ni sur les fentes : le joint des deux bacs doit rester net.
 
 ```toml
@@ -42,6 +42,7 @@ min_wall = 0.6
 
 ## Changelog
 
+- 2026-09-11 — `corbels()` exporte aussi la bbox du plat (4e élément). AUTO inchangé.
 - 2026-09-11 — Fentes DC regroupées (z=8, pilier central retiré). Polish est seulement (joint ouest net). 13626 → 13538 mm3, 80 → 74 faces, checks clean.
 - 2026-09-11 — `ac_contour` / `ac_top_contour` / `corbels` publics, importés par `couvercle_acdc`. AUTO inchangé.
 - 2026-09-11 — Reconstruction bbox. Dimmer + SSR, ouvertures publiques importées par `boitier_dc`. Corbeau `system.add_corbel`. 73×35×27, 80 faces, checks clean (plus les 9 esquilles des crochets).

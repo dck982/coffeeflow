@@ -19,7 +19,7 @@ Bac DC de 50 × 95 × 27mm, partie ouest du boîtier intérieur, contour en L (m
 - Wago SW : `_wago_south_west(…, bb_bottom(), …)` — baie double dans la bbox sous la marche. `_bb_wago_nw` réserve `wago_profondeur + wall` en Y : le mur d'arrêt est au sud de la cavité (`bb.min.Y`), pas dedans. Murets de levage à `bb.min.Y + wall`. Surplomb est calé sur `bb.max.Y`.
 - Wago NW : `_wago_north_west(…, bb_top(), …)` — un 221-423, même helper. L'empreinte `bb_wago_north_west` est importable. Ne renvoie plus le X est : le CAN Pal lit `canpal_bb`.
 - Face est : fentes dimmer et SSR **demandées à `boitier_ac`** (`dimmer_dc_opening` / `ssr_dc_opening`), tuples `(y0, z0, dy, dz)`. Les deux à z=8, fente SSR élargie pour supprimer le pilier fragile entre les deux. Plus `system.ouvertures_modules`.
-- Corbeaux couvercle : `system.add_corbel` — deux M3, un sur la marche (`Plane.XZ`), un au chanfrein SW (`Plane.YZ`). Positions exportées par `corbels(wall)` → `(cx, cy, d)` ; `couvercle_acdc` importe cette liste.
+- Corbeaux couvercle : `system.add_corbel` — deux M3, un sur la marche (`Plane.XZ`), un au chanfrein SW (`Plane.YZ`). `corbels(wall)` → `(cx, cy, d, plat)` ; `couvercle_acdc` importe cette liste.
 - Polish 1 mm : chanfrein SW, ouest, marche nord. **Pas** la face est (joint AC) : les deux bacs collent mieux nets. 3 warn `concave_cosmetic` sur les fentes, acceptés.
 
 ```toml
@@ -49,6 +49,7 @@ min_wall = 0.6
 
 ## Changelog
 
+- 2026-09-11 — `corbels()` exporte aussi la bbox du plat (4e élément). AUTO inchangé.
 - 2026-09-11 — Fentes est regroupées (z=8, plus de pilier). Plus de polish sur le joint AC. 20784 → 20731 mm3, 143 → 142 faces, 3 warn concave_cosmetic.
 - 2026-09-11 — Corbeaux couvercle M2.5 → M3 (`add_corbel` + `corbels()`). CAN Pal reste M2.5. 20711 → 20784 mm3, 143 faces, checks clean.
 

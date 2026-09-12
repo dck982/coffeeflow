@@ -1,7 +1,7 @@
 from nurb import *
 
 from system import AMIN, CMIN
-from parts.boitier_ps import bb_overall, corbels
+from parts.boitier_ps import bb_overall, bb_psu, corbels
 
 _AMIN = AMIN
 _CMIN = CMIN
@@ -16,6 +16,11 @@ def _cadre(x0, y0, x1, y1, ep, z0, h):
     return outer - inner
 
 
+def _pcb_press(body, x0, x1, y0, y1, z0, h):
+    """Pad hanging from the plate, pressing a module from above."""
+    return body + Pos(x0, y0, z0) * Box(x1 - x0, y1 - y0, h, align=_AMIN)
+
+
 @part
 def couvercle_ps(
     epaisseur_paroi=1.6,
@@ -24,6 +29,8 @@ def couvercle_ps(
     gouttiere_profondeur=3.0,
     largeur_passage_cable=5.0,
     vis_diametre=None,
+    appui_pcb_largeur=3.0,
+    appui_pcb_profondeur=5.5,
     draft=False,
 ):
     """Couvercle plat de `boitier_ps`, avec un rebord intérieur qui s'appuie
@@ -41,6 +48,10 @@ def couvercle_ps(
     largeur_passage_cable: largeur du canal nord, égal à boitier_ps
     vis_diametre: passage des deux vis M3, dans les inserts ; par défaut la
         cote mesurée `vis_passage`
+    appui_pcb_largeur: épaisseur de l'appui qui presse le RAC05, même valeur
+        que sur couvercle_acdc
+    appui_pcb_profondeur: profondeur de l'appui dans la cavité, sur le
+        tiers médian en Y du logement alim
     """
     wall = epaisseur_paroi
     bb = bb_overall()
@@ -68,6 +79,17 @@ def couvercle_ps(
         )
     if vis_diametre < 2.0:
         reject(f"vis_diametre {vis_diametre} is under 2 mm: raise it", param="vis_diametre")
+    if appui_pcb_largeur < 1.5:
+        reject(
+            f"appui_pcb_largeur {appui_pcb_largeur} is under 1.5 mm: raise it",
+            param="appui_pcb_largeur",
+        )
+    if appui_pcb_profondeur <= gouttiere_profondeur:
+        reject(
+            f"appui_pcb_profondeur {appui_pcb_profondeur} must be deeper than "
+            f"gouttiere_profondeur {gouttiere_profondeur}",
+            param="appui_pcb_profondeur",
+        )
 
     plate_x0, plate_y0 = -wall, -wall
     plate_x1, plate_y1 = inner_x + wall, inner_y + wall
@@ -96,6 +118,16 @@ def couvercle_ps(
         body = body - Pos(cx, cy, -0.5) * Cylinder(
             vis_diametre / 2.0, wall + 1.0, align=_CMIN
         )
+
+    # PCB press on the RAC05: east rim, middle third in Y.
+    psu = bb_psu()
+    press_y0 = psu.min.Y + psu.size.Y / 3.0
+    press_y1 = psu.max.Y - psu.size.Y / 3.0
+    x_east = inner_x - jeu
+    body = _pcb_press(
+        body, x_east - appui_pcb_largeur, x_east,
+        press_y0, press_y1, wall, appui_pcb_profondeur,
+    )
 
     body = body + Pos(plate_x0, plate_y1, 0) * Box(
         plate_x1 - plate_x0, largeur_passage_cable + wall, wall, align=_AMIN

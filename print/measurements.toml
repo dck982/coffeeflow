@@ -750,7 +750,7 @@ unit = "mm"
 how = "user drawing docs/boitier.pdf: paroi verticale de la marche haute-gauche."
 
 [boitier_int_marche_y]
-value = 51.0
+value = 49.0
 unit = "mm"
 how = "user drawing docs/boitier.pdf: palier de la marche haute-gauche."
 
@@ -1001,4 +1001,94 @@ how = "user 2026-09-02: cable-tie width. Inner slot of the anti-tirage U is 3 mm
 value = 10.0
 unit = "mm"
 how = "user 2026-09-02: west edge of the U on the inner south face, 10 mm from the SW corner."
+[digmesa_corps_diametre]
+value = 32.0
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, extrait page 2 : corps inférieur Ø32."
 
+[digmesa_collerette_diametre]
+value = 41.0
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, extrait page 2 : collerette Ø41."
+
+[digmesa_pin_diametre_max]
+value = 4.25
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, détail C : diamètre maximum du pin central."
+
+[digmesa_pin_longueur]
+value = 7.1
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, détail C : longueur totale du pin central sous le corps."
+[digmesa_hauteur_connecte]
+value = 55.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : depuis la base du corps jusqu'aux fils pliés, connecteur branché ; les deux pins inférieurs sont exclus."
+[digmesa_semelle_epaisseur]
+value = 2.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : essai réel de fixation, vis disponibles capables de serrer une plaque imprimée de 1,6 à 2 mm ; choix de conception 2 mm."
+
+[digmesa_fixation_entraxe_y]
+value = 35.0
+unit = "mm"
+how = "docs/support-digmesa.md ; utilisateur 2026-09-12 confirme les deux trous de gauche, Y vers l'avant, X vers la droite vue arrière, Z vers le haut."
+
+[digmesa_fixation_recul_x]
+value = 23.0
+unit = "mm"
+how = "docs/support-digmesa.md : centre de la première rangée à 23 mm de la face gauche, vue arrière."
+
+[digmesa_fixation_recul_y]
+value = 23.0
+unit = "mm"
+how = "docs/support-digmesa.md : centre du premier trou à 23 mm du rebord arrière."
+
+[digmesa_plaque_reservoir_z]
+value = 102.0
+unit = "mm"
+how = "docs/support-digmesa.md : plaque portant le réservoir, hauteur depuis le fond."
+[digmesa_tube_exterieur]
+value = 8.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : diamètre du tube silicone 8 mm."
+
+[digmesa_boucle_diametre_min]
+value = 50.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : plus petite boucle 50 mm de diamètre. Référence extérieur/axe non précisée ; prendre 50 mm à l'axe pour une enveloppe conservatrice de 58 mm avec le tube Ø8."
+
+[digmesa_pin_second_diametre]
+value = 2.85
+unit = "mm"
+how = "docs/datasheets/digmesa-measurements.png, confirmé utilisateur 2026-09-12 : deuxième pin Ø2,85."
+
+[digmesa_pin_second_decalage]
+value = 12.0
+unit = "mm"
+how = "docs/datasheets/digmesa-measurements.png, repère confirmé utilisateur 2026-09-12 : sorties en +X, second pin en X=0,Y=-12 par rapport au centre."
+
+[digmesa_pied_ecart_bord_trou]
+value = 1.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : bord du pied à 1 mm vers X négatif du bord gauche du trou M6 (1,2). Avec axe X=23 et trou Ø6, bord droit du pied à X=19 mm depuis la face gauche."
+
+[digmesa_pied_recul_arriere]
+value = 35.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : espace libre en Y entre le pied et l'arrière de la machine."
+
+[digmesa_corps_hauteur]
+value = 20.0
+unit = "mm"
+how = "docs/datasheets/digmesa-measurements.png : vue de face, base du corps au dessus de la collerette, cote 20 mm."
+
+[digmesa_degagement_fond_demande]
+value = 5.0
+unit = "mm"
+how = "Utilisateur 2026-09-12 : surélever la structure de 5 mm sur pieds pour laisser passer l’eau ; cote de conception demandée, pas un relevé machine."
+
+[digmesa_jeu_guide_demande]
+value = 2.5
+unit = "mm"
+how = "Utilisateur 2026-09-12 : demande 2–3 mm de jeu diamétral pour deux segments Ø8 dans un ovale ; choix médian 2,5 mm. Guide indépendant sur le fond confirmé."

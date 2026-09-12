@@ -170,15 +170,15 @@ def boitier_ps(
     )
     body = add_wall(
         body, outer,
-        psu.min.X - _OV, psu.max.Y,
-        psu.size.X + wall + _OV, wall,
+        psu.min.X - 2*wall, psu.max.Y,
+        psu.size.X + 2*wall, wall,
         z0, psu_z,
     )
 
     # PSU west stop, south Wago side wall + stop, north Wago west stop.
     body = add_wall(
         body, outer,
-        psu.min.X - wall, psu.min.Y,
+        psu.min.X - 2*wall, psu.min.Y,
         wall, psu.size.Y,
         z0, _REGLETTE_PSU_Z,
     )

@@ -201,12 +201,13 @@ def small_magnet_well_cutter(cx, cy, z0, height=0):
     dz = height if height>0 else measured("aimant_petit_hauteur")
     return magnet_well_cutter(cx, cy, z0, height=dz, diameter=measured("aimant_petit_diametre"))
 
-def add_well(body, outer, cx, cy, z0=0):
+def add_well(body, outer, cx, cy, z0=0, h=None):
     """Fuse a standing magnet pad into `body` and cut the pocket, clipped to `outer`."""
 
     # first a pad
     d = measured("aimant_diametre") + measured("aimant_puit_press_fit")
-    h = measured("aimant_hauteur")
+    if h is None:
+        h = measured("aimant_hauteur")
     pad = Pos(cx, cy, z0) * Cylinder(d/2 + measured("aimant_puit_mur"), h, align=CMIN)
     cutter = magnet_well_cutter(cx, cy, z0, diameter=d, height=h)
     clipped = pad.intersect(outer)

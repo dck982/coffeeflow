@@ -34,7 +34,6 @@ def _pcb_press(body, rib_west, rib_east, y0, y1, appui_pcb_z, z0):
         appui_x1 - appui_x0, y1 - y0, appui_pcb_z, align=AMIN
     )
 
-
 @part
 def couvercle_acdc(
     epaisseur_paroi=1.68,

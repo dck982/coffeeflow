@@ -46,12 +46,14 @@ def corbels(wall):
     y_marche = bb_top().min.Y - wall
     x_sw = measured("boitier_int_chanfrein")
     y_sw = bb_overall().min.Y + wall
+
+    wago_bb = bb_wago_north_west(bb_top(), wall)
     return [
         (
-            x_marche + corbel_half,
-            y_marche + corbel_mid,
+            wago_bb.max.X - wall + corbel_half,
+            wago_bb.min.Y + corbel_mid,
             3,
-            bbox(x_marche, y_marche, corbel_plat, corbel_along),
+            bbox(wago_bb.max.X - wall, wago_bb.min.Y, corbel_plat, corbel_along),
         ),
         (
             x_sw + corbel_mid,
@@ -247,6 +249,16 @@ def _wago_south_west(body, outer, container_bb, wago_raise, surplomb_len, surplo
         surplomb_len, 
         z0, 
         inverse=True)
+    # add a magnet well in the center
+    bb = _bb_wago_nw(container_bb, area_dx, wall)
+    body = add_well(
+        body, 
+        outer, 
+        bb.center().X, 
+        bb.center().Y,
+        z0=0,
+        h=wago_raise+z0)
+
     return body
 
 # For ensemble_boitiers
@@ -394,7 +406,8 @@ def boitier_dc(
     # `corbel_plat` thick from z_corbel to the rim; the bore drills down
     # `corbel_profondeur` from the rim.
     chanfrein = measured("boitier_int_chanfrein")
-    body = add_corbel(body, inner_west_marche_x, inner_north_marche_y, hauteur, insert=INSERT_M3)
+    wago_bb = bb_wago_north_west(bb_top(), wall)
+    body = add_corbel(body, wago_bb.max.X-wall+0.4, wago_bb.min.Y, hauteur, insert=INSERT_M3)
     body = add_corbel(body, chanfrein, inner_south_y, hauteur, insert=INSERT_M3, plane=Plane.YZ)
 
     # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost

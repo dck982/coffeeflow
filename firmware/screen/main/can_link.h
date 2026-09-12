@@ -24,6 +24,10 @@ void send_log(common::LogCode code, common::LogSeverity severity, uint16_t arg16
 
 void send_pong();
 
+// Redémarre le module capteurs par le protocole CAN. Cette commande n'est
+// exposée au reste de l'écran que via le cœur, qui applique les interverrouillages.
+void reset_sensors();
+
 // Toute trame valide du pair maintient la présence. Après 1,5 s de silence,
 // trois PING sont envoyés à 500 ms d'intervalle avant de déclarer la perte.
 // La validation OTA reste plus stricte et requiert un PONG.

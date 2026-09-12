@@ -155,6 +155,7 @@ enum class Action : uint8_t {
   kSetActuators,
   kStartBrew,
   kStopBrew,
+  kResetSensors,
   kPurgePress,
   kPurgeRelease,
   kTare,

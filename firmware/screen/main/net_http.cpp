@@ -550,6 +550,7 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
   if (std::strcmp(action->valuestring, "set_actuators") == 0) command->action = core::Action::kSetActuators;
   else if (std::strcmp(action->valuestring, "start_brew") == 0) command->action = core::Action::kStartBrew;
   else if (std::strcmp(action->valuestring, "stop_brew") == 0) command->action = core::Action::kStopBrew;
+  else if (std::strcmp(action->valuestring, "reset_sensors") == 0) command->action = core::Action::kResetSensors;
   else if (std::strcmp(action->valuestring, "purge_press") == 0) command->action = core::Action::kPurgePress;
   else if (std::strcmp(action->valuestring, "purge_release") == 0) command->action = core::Action::kPurgeRelease;
   else if (std::strcmp(action->valuestring, "tare") == 0) command->action = core::Action::kTare;

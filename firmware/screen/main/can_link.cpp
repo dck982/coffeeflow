@@ -130,6 +130,10 @@ void send_pong() {
   send_message(common::MessageType::kPong, common::Dest::kSensors, f.data(), 8);
 }
 
+void reset_sensors() {
+  send_message(common::MessageType::kReset, common::Dest::kSensors, nullptr, 0);
+}
+
 void send_ping(common::Dest dest) {
   common::PingPayload payload;
   payload.node = common::Node::kScreen;

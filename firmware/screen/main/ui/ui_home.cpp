@@ -919,7 +919,7 @@ void create(lv_obj_t *p) {
     int x = i % 2 ? 408 : 32, y = 104 + (i / 2) * 104;
     v.tile[i] = button(v.settings, x, y, 360, 88, "");
     lv_obj_t *value = lv_obj_get_child(v.tile[i], 0);
-    lv_obj_align(value, LV_ALIGN_TOP_LEFT, 16, 42);
+    lv_obj_align(value, LV_ALIGN_TOP_LEFT, 16, 36);
     bind(v.tile[i]);
     v.tile_value[i] = value;
     dyn(v.settings, &v.tile_name[i], "", theme::kFontLabel, theme::kTextDim,

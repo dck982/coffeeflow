@@ -551,6 +551,17 @@ ActionResult perform_action(const ActionCommand& command) {
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
   }
   Snapshot snapshot = get_snapshot();
+  if (command.action == Action::kResetSensors) {
+    if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+    if (snapshot.cycle_state == CycleState::kPreinfusion ||
+        snapshot.cycle_state == CycleState::kBrew ||
+        snapshot.cycle_state == CycleState::kRampdown ||
+        snapshot.cycle_state == CycleState::kPurge || g_flash_active)
+      return action_result(ActionStatus::kCycleActive);
+    send_set(false, 0, 0);
+    can_link::reset_sensors();
+    return action_result(ActionStatus::kOk);
+  }
   if (command.action == Action::kStopBrew) {
     portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.stop(static_cast<uint64_t>(now_us() / 1000)); if (ok) remember_completed_shot_locked(g_state.snapshot); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
     if (ok) send_set(false, 0, 0);

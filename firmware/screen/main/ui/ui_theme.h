@@ -18,11 +18,15 @@ extern const lv_font_t ui_font_104;
 
 inline const lv_color_t kBg = lv_color_hex(0x16110C);
 inline const lv_color_t kBgRaised = lv_color_hex(0x241B14);
+inline const lv_color_t kSurface = lv_color_hex(0x33271E);
+inline const lv_color_t kSurfaceHigh = lv_color_hex(0x453426);
+inline const lv_color_t kSurfaceAccent = lv_color_hex(0x4A2E16);
 inline const lv_color_t kHairline = lv_color_hex(0x332C28);
 inline const lv_color_t kText = lv_color_hex(0xF2EBE3);
 inline const lv_color_t kTextDim = lv_color_hex(0xA2968C);
 inline const lv_color_t kTextFaint = lv_color_hex(0x6B615A);
 inline const lv_color_t kAccent = lv_color_hex(0xD98324);
+inline const lv_color_t kThermal = lv_color_hex(0x4A9BB5);
 inline const lv_color_t kFault = lv_color_hex(0xB9412F);
 inline const lv_color_t kRampLow = lv_color_hex(0x8C5A22);
 inline const lv_color_t kRampFull = lv_color_hex(0xF2B25C);

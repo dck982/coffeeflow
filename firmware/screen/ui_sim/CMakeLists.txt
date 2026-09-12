@@ -21,4 +21,4 @@ add_executable(ui_snapshot
 target_include_directories(ui_snapshot PRIVATE ../main include ../main/ui ../../common/include)
 target_link_libraries(ui_snapshot PRIVATE lvgl)
 target_compile_features(ui_snapshot PRIVATE cxx_std_17)
-target_compile_definitions(ui_snapshot PRIVATE LV_USE_SNAPSHOT=1 LV_USE_DRAW_SW=1)
+target_compile_definitions(ui_snapshot PRIVATE LV_USE_SNAPSHOT=1 LV_USE_DRAW_SW=1 UI_SIM=1)

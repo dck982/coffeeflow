@@ -14,4 +14,9 @@ namespace ui::home {
 void create(lv_obj_t* parent);
 void refresh(const core::Snapshot& snapshot, bool show_boot);
 
+#ifdef UI_SIM
+// Sélection déterministe des vues pour les captures hôte; absent du firmware.
+void snapshot_scenario(const char* scenario);
+#endif
+
 }  // namespace ui::home

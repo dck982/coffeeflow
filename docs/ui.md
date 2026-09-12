@@ -1,9 +1,9 @@
 # UI de l'écran — style, structure, décisions
 
 Document de travail pour le point 6 de la phase 6 (`firmware-implementation.md`).
-Il fixe **le style et la structure**, pas le code. Maquette à l'échelle :
-`docs/ui-mockup.html` (ouvrir dans le navigateur, les cadres font 800 × 480 px
-réels).
+Il fixe **le style et la structure**, pas le code. `docs/ui-mockup.html` reste
+une maquette historique à l'échelle ; en cas d'écart, les cotes et critères de
+ce document sont normatifs.
 
 Conception d'ensemble et protocole : `firmware.md`. Ordre de réalisation :
 `firmware-implementation.md`.
@@ -37,7 +37,7 @@ Conception d'ensemble et protocole : `firmware.md`. Ordre de réalisation :
 
 ## Parti pris de style
 
-**Sombre et chaud, typographique, sans cadres.** L'écran est dans un boîtier
+**Sombre et chaud, typographique, sans cadres autour des données.** L'écran est dans un boîtier
 noir avec un cadre de ~1 cm : un fond quasi noir fait disparaître la dalle et
 il ne reste que les chiffres qui flottent dans la façade. Un fond clair aurait
 fait un rectangle lumineux permanent dans une cuisine.
@@ -50,10 +50,12 @@ tableau de bord de machine) :
    dans un conteneur, il est posé sur le fond.
 2. **Beaucoup de vide.** Marge extérieure de 32 px, et l'écran de repos n'a
    que trois zones. Le vide est ce qui distingue une interface d'un synoptique.
-3. **Un seul accent.** L'ambre `#D98324` (couleur crema, et surtout pas le
-   rouge de la machine, qui entrerait en concurrence avec elle) et rien
-   d'autre. Le rouge `#B9412F` est **réservé aux fautes** — s'il apparaît
-   ailleurs il ne veut plus rien dire.
+3. **Une palette courte, mais pas monochrome.** L'ambre `#D98324` (couleur
+   crema) porte l'action et l'engagement de la machine. Un bleu-vert
+   `#4A9BB5` est réservé à la température. Les bruns des surfaces
+   rendent les zones tactiles visibles sans les transformer en cadres. Le
+   rouge `#B9412F` est **réservé aux fautes** — s'il apparaît ailleurs il ne
+   veut plus rien dire.
 4. **Pas de vert/orange/rouge en feux tricolores.** Un état normal est écrit en
    blanc cassé. La couleur signale l'action en cours, pas la santé.
 5. **Une typographie humaniste**, pas un faux afficheur sept segments ni un
@@ -64,9 +66,12 @@ tableau de bord de machine) :
 7. **Pas de jauges, pas de cadrans, pas de barres épaisses.** Un seul élément
    graphique dans tout le système : le filet de progression (voir ci-dessous).
 
-Les feuilles et le pavé numérique peuvent porter une arête ambre de 3 px. Les
-pastilles du diagnostic sont une exception de service : ambre pour une donnée
-présente, gris pour une absence et rouge pour une faute réelle.
+« Sans cadres » ne veut pas dire « sans surfaces » : une valeur reste posée sur
+le fond, tandis qu'un contrôle touchable est une surface pleine, légèrement
+plus claire. Ce contraste rend l'affordance tactile évidente et donne plus de
+profondeur que les contours actuels. Les pastilles du diagnostic sont une
+exception de service : ambre pour une donnée présente, gris pour une absence
+et rouge pour une faute réelle.
 
 ### Le filet de progression, élément signature
 
@@ -90,23 +95,37 @@ sont déjà choisies en tenant compte de la quantification RGB565.
 | Jeton | Valeur | Emploi |
 | --- | --- | --- |
 | `bg` | `#16110C` | fond, partout |
-| `bg_raised` | `#241B14` | pavé numérique, feuille de profils |
+| `bg_raised` | `#241B14` | barre haute, feuille et pavé numérique |
+| `surface` | `#33271E` | bouton ou tuile secondaire au repos |
+| `surface_high` | `#453426` | bouton pressé, choix sélectionné |
+| `surface_accent` | `#4A2E16` | fond du bouton primaire |
 | `hairline` | `#332C28` | filets de séparation (≈ 12 % de blanc chaud) |
 | `text` | `#F2EBE3` | valeurs, titres |
 | `text_dim` | `#A2968C` | unités, valeurs secondaires |
 | `text_faint` | `#6B615A` | étiquettes, valeurs absentes (`—`) |
 | `accent` | `#D98324` | action en cours, progression, bouton primaire |
-| `accent_wash` | `#D98324` à 14 % | fond d'un bouton pressé |
+| `accent_wash` | `#D98324` à 14 % | surimpression locale au toucher |
+| `thermal` | `#4A9BB5` | température valide |
 | `fault` | `#B9412F` | faute uniquement (verrou, perte de bus, erreur dimmer) |
 
-**Pas de couleur « succès ».** Ce qui va bien s'écrit en `text`.
+Ces teintes doivent toutes figurer sur l'écran de test après conversion
+RGB565. `surface`, `surface_high` et `surface_accent` doivent rester
+distinguables sur la dalle réelle ; si deux se confondent, éclaircir
+`surface_high`, pas le fond. **Pas de couleur « succès ».** Ce qui va bien
+s'écrit en `text`.
+
+`thermal` ne signifie ni erreur ni succès : la température l'emploie dès que
+sa mesure est valide. Une mesure périmée emploie la même teinte à opacité
+réduite ; une mesure absente passe en `text_faint`. Cette règle ne requiert
+donc aucune nouvelle consigne dans le modèle. L'ambre demeure la couleur de
+l'action hydraulique et de la cible.
 
 ### La rampe d'engagement
 
 Une seule échelle de couleur, partagée par **la pompe et le débit**, qui dit
 **à quel point la machine pousse** — pas si c'est bien ou mal. Quatre niveaux,
-tous dérivés de la même teinte ambre : ça reste un seul accent (règle 3 du
-parti pris), avec de la luminosité en plus, et pas un feu tricolore.
+tous dérivés de la même famille ambre : ils décrivent une intensité, avec de
+la luminosité en plus, et pas un feu tricolore.
 
 | Niveau | Jeton | Valeur | Sens |
 | --- | --- | --- | --- |
@@ -145,7 +164,8 @@ montrer son approche du seuil de pré-infusion ou des 9 bar, sans signaler un
 | Étiquette | 18 px | interlettrage +8 %, `text_faint` |
 
 Rayon des coins : **8 px** partout (assez pour ne pas être brut, assez peu pour
-ne pas faire « application mobile »). Épaisseur de contour : **1,5 px**.
+ne pas faire « application mobile »). Les contrôles pleins n'ont pas de
+contour ; les séparations d'information restent des filets de **1 px**.
 
 ### Police
 
@@ -160,9 +180,17 @@ Le 104 px n'a besoin que de `0-9`, `.`, `g`, `s` — une douzaine de glyphes en
 4 bpp ≈ 55 ko, contre ~700 ko pour un latin complet à ce corps. Les corps
 texte (18/26/40) prennent le latin-1 complet.
 
-Icônes : **quatre**, converties d'un jeu SVG libre (Lucide, ISC) en une police
-d'icônes de 24 px par le même outil. Pas de PNG : ça ne se recolore pas (or la
-rampe d'engagement ci-dessous en vit) et ça mange la partition de ressources.
+Les icônes sont converties depuis **un seul jeu SVG libre** en une police
+d'icônes par le même outil. Pas de PNG : il ne se recolore pas et mange la
+partition de ressources. Le choix exact des glyphes peut être fait pendant
+l'implémentation ; la spécification fixe leur sens, leur taille et leur
+placement, pas leur dessin.
+
+Les chevrons retour/précédent/suivant et le retour arrière du pavé proviennent
+de cette même police ; ne pas employer des caractères Unicode dont la présence
+dans Inter dépendrait du sous-ensemble de glyphes embarqué.
+
+Les quatre icônes de statut font 24 px :
 
 | Icône | Ce qu'elle dit | Couleur |
 | --- | --- | --- |
@@ -170,6 +198,19 @@ rampe d'engagement ci-dessous en vit) et ça mange la partition de ressources.
 | Wi-Fi | mode Wi-Fi actif et associé au réseau | `text` connecté / `text_faint` mode machine ou non associé |
 | pompe | le régime de la pompe | rampe d'engagement, niveaux 0-3 |
 | goutte | la vanne est ouverte | `accent` ouverte / `text_faint` fermée |
+
+L'accueil ajoute trois icônes d'action de **32 px**, toutes issues de la même
+famille et avec la même épaisseur de trait :
+
+| Destination | Sens recherché | Couleur au repos |
+| --- | --- | --- |
+| infuser | tasse, porte-filtre ou extraction | `accent` |
+| purge | eau, gouttes ou rinçage ; distinct de l'icône vanne | `ramp_full` |
+| réglages | curseurs ou engrenage | `text_dim` |
+
+Elles aident à reconnaître les trois grandes destinations, mais ne remplacent
+jamais leurs libellés. Ne pas ajouter d'icône aux réglages ligne par ligne, au
+pavé numérique ou aux confirmations : là, le texte est plus précis.
 
 **Pas d'icône Bluetooth** : elle serait redondante avec l'icône balance, qui
 est la seule chose que le BLE sert à faire. Une icône qui ne peut jamais
@@ -210,24 +251,123 @@ NimBLE, puis retourne au repos. La politique et la raison mémoire sont dans
 
 ## Les boutons
 
-**Contour, pas remplissage.** Un rectangle de 8 px de rayon, contour 1,5 px en
-`hairline`, fond transparent, libellé en `text`. Le bouton **primaire** de
-l'écran (celui qui lance) a son contour et son libellé en `accent` — c'est la
-seule différence, pas de pavé plein.
+**Surface pleine, pas cadre.** Un rectangle de 8 px de rayon, sans contour,
+fond `surface`, libellé en `text`. Un bouton doit se reconnaître à sa surface,
+pas à une boîte dessinée autour de vide. Le bouton **primaire** de l'écran
+emploie `surface_accent`, avec icône et libellé en `accent`. Les boutons
+secondaires emploient `surface`; un choix actif ou un bouton pressé emploie
+`surface_high`.
+
+Le bouton destructif ne reçoit pas un fond rouge permanent : surface normale,
+libellé `fault`, puis confirmation explicite. Un contrôle désactivé garde sa
+surface, avec fond `bg_raised` et contenu `text_faint`, pour que la disposition
+ne saute pas.
+
+Une confirmation est elle-même une surface `bg_raised` centrée sur un voile
+noir local, sans bordure ambre. Son titre ou une arête verticale de 4 px porte
+la couleur sémantique (`accent` ou `fault`). Ses deux actions sont des boutons
+pleins : annuler en `surface`, valider en `surface_accent` — ou contenu `fault`
+pour confirmer une destruction.
 
 **Retour au toucher**, en 90 ms, sur trois propriétés à la fois pour que ce
 soit perceptible même du coin de l'œil :
 
-- le fond passe à `accent_wash`,
-- le contour passe à `accent`,
-- le libellé passe à `accent`.
+- le fond passe à `surface_high`,
+- une surimpression `accent_wash` peut être appliquée au primaire,
+- le contenu gagne en luminosité (`text_dim` → `text`, ou `accent` inchangé).
 
 Au relâchement, retour en 150 ms. Pas d'ondulation façon Material (elle repeint
 une grande surface, voir la contrainte de bande passante), pas de déplacement
 de 1 px (illisible), pas de son (il n'y a pas de haut-parleur dans la façade).
 
-Un bouton fait **88 px de haut**, jamais moins. Largeur selon le texte, minimum
-200 px.
+Un bouton fait **80 px de haut au minimum**, avec une cible tactile d'au moins
+80 × 80 px. Les actions de bas d'écran font 88 ou 96 px. Un bouton texte isolé
+fait au moins 160 px de large ; les touches `−`, `+` et les chevrons peuvent
+être carrés. Deux cibles voisines gardent 16 px entre leurs surfaces.
+
+---
+
+## Évolution visuelle 2026 — référence d'implémentation
+
+Cette évolution part des snapshots de `firmware/screen/ui_sim/build/snapshots/`
+et des idées partiellement appliquées par le commit
+`2a99b6ab43a414c01910ccc256b159d5e88097ef`. Les snapshots actuels documentent
+les états déjà implémentés, mais ne sont normatifs ni pour le contenu ni pour
+le visuel : les tables d'état de ce document continuent de décider du contenu,
+et leurs cadres de boutons ainsi que leur navigation `suite` doivent
+disparaître.
+
+Les photos BambuLab de `tmp/bambu_ui/` servent uniquement de référence pour la
+hiérarchie des surfaces, la barre de retour, les flèches de pagination et la
+saisie d'une consigne. Coffeeflow conserve sa palette chaude, ses grands
+chiffres et son ratio 800 × 480 ; il ne reprend ni les tabs, ni la densité, ni
+le vert de statut de cette interface.
+
+La hiérarchie visuelle normative est la suivante :
+
+| Élément | Fond | Contenu | Trait |
+| --- | --- | --- | --- |
+| Écran | `bg` | `text` / couleurs sémantiques | aucun |
+| Barre haute L3 | `bg_raised` | retour et titre `text` | aucun |
+| Bouton secondaire | `surface` | `text` ou `text_dim` | aucun |
+| Bouton primaire | `surface_accent` | `accent` | aucun |
+| Bouton pressé / choix actif | `surface_high` | `text` ou `accent` | aucun |
+| Valeur | transparent sur le fond parent | `text`, `accent` ou `thermal` | aucun |
+| Faute / destructif | `surface` ou fond de l'écran | `fault` | jamais un aplat rouge permanent |
+
+Les tabs sont hors périmètre : il n'existe pas deux vues sœurs qu'il faille
+garder simultanément visibles. La pagination des réglages change seulement un
+groupe de paramètres et reste matérialisée par `‹`, `1/3`, `›`.
+
+### Critères visuels vérifiables dans le simulateur
+
+- `home.png` ne contient plus aucun bouton à fond transparent : les cinq
+  contrôles (`−`, `+`, *infuser*, *purge*, *réglages*) sont des surfaces.
+- La cible est au-dessus de `−` et `+`; sa largeur ou le passage de `28 s` à
+  `100,0 g` ne déplace jamais ces boutons.
+- Les trois destinations de l'accueil ont une icône et un libellé. L'action
+  *infuser* est la seule tuile primaire.
+- `settings.png`, `settings1.png` et `settings2.png` partagent exactement la
+  même barre haute. Elles n'affichent ni `suite`, ni `fermer`, ni boutons
+  `page 1/2/3`, mais le retour, le titre, l'index et deux chevrons.
+- Le pavé numérique est capturé dans au moins deux variantes : poids avec
+  virgule active, temps avec virgule désactivée.
+- Au moins quatre familles chromatiques sont visibles dans les snapshots
+  pertinents : fond brun, surfaces brunes relevées, ambre d'action, bleu-vert
+  thermique ; le rouge n'apparaît que dans un snapshot de faute ou une action
+  destructive.
+- Aucun changement d'état ne déclenche de transition ou de dégradé plein
+  écran. L'état pressé et le filet de progression restent les seules
+  animations locales.
+
+### Traduction attendue dans l'implémentation actuelle
+
+L'évolution peut rester confinée à `firmware/screen/main/ui/` et au scénario
+du simulateur. Elle ne demande aucune modification du cœur, du CAN ou du
+stockage :
+
+1. conserver les apports déjà présents du commit : filet de progression L1,
+   rampe de pression, héros coloré pendant le cycle, pastilles du diagnostic
+   et respiration de veille. L'arête ambre horizontale des anciens calques L3
+   est en revanche remplacée par la barre haute `bg_raised` ;
+2. ajouter les jetons `surface`, `surface_high`, `surface_accent` et `thermal`
+   à `ui_theme.h`, puis remplacer `outline_button()` par un constructeur de
+   bouton à rôle (`secondary`, `primary`, `destructive`, `disabled`) ;
+3. réordonner les objets de l'accueil selon les cotes, et ajouter les trois
+   glyphes d'action sans changer les callbacks existants ;
+4. donner à chaque destination L3 sa barre haute via un helper commun. Les
+   pages sont toutes créées une fois puis masquées/affichées ; la navigation
+   ne fait pas de `lv_scr_load()` et ne reconstruit pas l'arbre LVGL ;
+5. remplacer le compteur cyclique de réglages par un index borné `0..2` ; les
+   chevrons modifient cet index et leur état désactivé, jamais une tuile de
+   contenu ;
+6. réutiliser `core::put_config()` pour les éditeurs. Une valeur n'est écrite
+   qu'à *valider* ; le chevron retour abandonne la copie candidate ;
+7. conserver la garde « nouveau texte différent de l'ancien » sur chaque
+   libellé dynamique. Les icônes et fonds statiques ne sont jamais réécrits à
+   10 Hz ;
+8. étendre la génération des snapshots aux états pressés, désactivés et aux
+   deux variantes du pavé avant de remplacer les images de référence.
 
 ---
 
@@ -242,7 +382,7 @@ brew by weight et discret le reste du temps, sans dupliquer les écrans.
 | **L0 — bandeau** | repos | une ligne de 28 px en haut, toutes les mesures, séparées par des points médians ; sous un filet pleine largeur |
 | **L1 — héros** | infusion, purge | une valeur à 104 px au centre + son filet de progression + deux valeurs secondaires à 40 px ; le bandeau L0 reste, atténué |
 | **L2 — plein écran** | boot, OTA, faute, verrou, mode Wi-Fi | tout le reste disparaît ; un titre, une phrase, éventuellement un filet de progression |
-| **L3 — feuille** | profils, pavé numérique | recouvre le bas de l'écran sur `bg_raised`, le bandeau L0 reste visible |
+| **L3 — destination** | profils, réglages, diagnostic, pavé numérique | page secondaire sur `bg`, avec barre haute `bg_raised`; le bandeau L0 est remplacé par la navigation |
 | **L4 — veille** | 30 min sans touche ni infusion | recouvre tout ; un petit bloc qui se déplace lentement. Voir « Veille » |
 
 **Quelle valeur est héros en L1** : c'est la cible qui décide, pas un réglage.
@@ -268,7 +408,6 @@ attendue qui manque, pas pour une valeur qu'on n'a aucune raison d'attendre.
 | Infusion | profil | température · pression · débit (rampe) · pompe (rampe) · ⚖ · ᯤ atténuée |
 | Purge | `purge` | **pression** · pompe (rampe) · goutte · ᯤ atténuée |
 | Fin d'infusion | profil | température · ⚖ · ᯤ |
-| Feuille L3 | titre de la feuille | température · ⚖ · ᯤ |
 
 Sans balance, il n'y a **rien** à la place du poids : afficher `— g` en
 permanence sur une machine qu'on utilise sans balance serait un reproche
@@ -292,14 +431,16 @@ Trois zones, rien d'autre.
    ci-dessus. Les icônes de présence sont en `text` quand présentes, en
    `text_faint` quand absentes — jamais en rouge, une balance éteinte n'est pas
    une faute.
-2. **Cible au centre**, 76 px, encadrée de deux zones `−` et `+` de 88 px, en
-   contour comme les boutons. **Toujours visibles** : pas de mode « édition »,
-   pas de découverte à faire. Un appui = un pas (0,5 g ou 1 s), **pas de
-   répétition sur appui long** — c'est un réglage qu'on bouge de quelques
-   crans, pas une molette de volume. Pour un grand écart, on tape le chiffre :
-   **le pavé numérique** (L3) s'ouvre.
-3. **Trois boutons** en bas : *infuser* (primaire), *purge*, *réglages*. Le
-   mode Wi-Fi s'ouvre depuis les réglages, jamais depuis cet écran.
+2. **Cible au centre**, 76 px, posée au-dessus de deux surfaces `−` et `+`.
+   La valeur n'est dans aucune boîte : sa position supérieure laisse aux deux
+   boutons une largeur indépendante du nombre de chiffres, comme sur une
+   commande de consigne. Les boutons restent **toujours visibles**. Un appui =
+   un pas (0,5 g ou 1 s), sans répétition sur appui long. Un appui sur la valeur
+   ouvre le pavé numérique pour les grands écarts.
+3. **Trois tuiles pleines et iconées** en bas : *infuser* (primaire), *purge*,
+   *réglages*. Les icônes accélèrent la reconnaissance, les libellés restent
+   obligatoires. Le mode Wi-Fi s'ouvre depuis les réglages, jamais depuis cet
+   écran.
 
 Sous la cible, une ligne d'étiquette rappelle les paramètres du profil courant
 (pré-infusion, rampe) sans les rendre touchables — on les modifie dans
@@ -350,32 +491,74 @@ et le débit moyen. Reste **15 s** puis retour au repos tout seul. Un bouton
 *fermer* discret pour ceux qui n'attendent pas. Aucun jugement affiché (pas de
 « bon shot » / « trop rapide ») : la machine mesure, elle ne note pas.
 
-### Profils (feuille L3)
+### Profils (destination L3)
 
-Une **sélection du profil courant**, pas un bouton par profil : des lignes de
-88 px, nom à gauche, résumé à droite (`36 g · pré-inf. 6 s`), la ligne active
-marquée par un filet ambre à sa gauche — pas une case cochée. Quatre lignes
-visibles, défilement vertical si plus.
+Une **sélection du profil courant**, pas un bouton isolé par profil : quatre
+lignes-surface de 80 px, nom à gauche, résumé à droite
+(`36 g · pré-inf. 6 s`). La ligne active emploie `surface_high` et un filet
+ambre de 4 px à gauche — pas une case cochée. Quatre lignes sont visibles ;
+si davantage de profils existent un jour, ils sont paginés par les mêmes
+chevrons, sans geste de défilement.
 
-Tant que les profils n'existent pas, cette feuille n'est pas construite : le
+Tant que les profils n'existent pas, cette destination n'est pas construite : le
 nom du profil dans le bandeau reste affiché mais n'est pas touchable. Rien
 d'autre dans l'UI n'a à changer le jour où ils arrivent.
 
+### Navigation des destinations L3
+
+Toutes les pages secondaires emploient la même barre haute de 88 px sur
+`bg_raised` : chevron retour à gauche dans une cible 80 × 80, titre à sa droite,
+puis éventuelles actions à droite. Le chevron revient à la page précédente ;
+depuis une destination de premier niveau, il revient à l'accueil. Aucun bouton
+`fermer` n'est ajouté dans le contenu et le bandeau de télémétrie L0 n'est pas
+visible : les deux ne doivent pas se battre pour le haut de l'écran.
+
+Le retour est un **chevron gauche**, convention des interfaces mobiles, sans
+libellé. Son glyphe peut ne faire que 24–32 px, mais sa cible reste 80 × 80.
+Il n'y a jamais plus d'un niveau sous une destination : réglages → éditeur →
+réglages est la profondeur maximale.
+
 ### Réglages
 
-Même grammaire que le repos : une liste de lignes de 88 px, valeur à droite,
-`−`/`+` au tap sur la ligne. Contenu : cible temps, cible poids, stratégie de
-pré-infusion (temps fixe / attente de pression, avec le seuil), stratégie de
-ramp-down (temps avant fin / poids / chute de pression), Wi-Fi (accès à la
-destination Wi-Fi si elle n'est pas présente à l'accueil, et *réinitialiser le
-réseau*, avec confirmation),
-calibrations, version du firmware. **Pas de luminosité** : voir « Veille ».
+Les réglages occupent des pages horizontales de six tuiles pleines, deux
+colonnes par trois lignes. Chaque tuile montre une étiquette 18 px en
+`text_dim` puis la valeur courante 26 px en `text`; elle ne concatène pas les
+deux sur une seule ligne. Un appui ouvre l'éditeur adapté. On ne change plus
+silencieusement une valeur en touchant plusieurs fois une tuile.
 
-Les stratégies sont des **choix parmi 2-3**, présentés en segments côte à côte
-(contour, celui qui est actif en ambre), pas en menu déroulant — un déroulant
-demande deux touches précises et une liste flottante.
+La barre haute contient, à droite, l'indicateur `1/3`, un chevron gauche et un
+chevron droit dans deux cibles séparées. Les chevrons remplacent les boutons
+textuels `suite`, `page 1`, `page 2`, `page 3`. Au début, le chevron précédent
+est désactivé ; à la fin, le suivant est désactivé : les pages ne bouclent pas.
+Un changement de page est instantané, sans glissement plein écran.
 
-### Diagnostic (feuille L3)
+Contenu : cible temps, cible poids, stratégie de pré-infusion (temps fixe /
+attente de pression, avec le seuil), stratégie de ramp-down (temps avant fin /
+poids / chute de pression), Wi-Fi (accès à la destination Wi-Fi et
+*réinitialiser le réseau*, avec confirmation), calibrations, version du
+firmware. **Pas de luminosité** : voir « Veille ».
+
+Les stratégies sont des **choix parmi 2-4**, présentés dans un éditeur en
+segments pleins côte à côte (`surface`, choix actif `surface_high` avec texte
+`accent`), jamais en menu déroulant. Une valeur numérique ouvre le pavé décrit
+ci-dessous. Les bornes et pas restent ceux de la table « Réglages » ; la
+validation applique la même vérification que `put_config()`.
+
+### Pavé numérique
+
+Le pavé est une destination L3 complète, pas une feuille superposée. La barre
+haute porte retour, le nom court du réglage (`cible poids`, `durée pré-inf.`),
+et un bouton `valider` à droite. La valeur en cours est affichée hors surface,
+en 76 px à gauche avec son unité en 32 px. À droite, douze touches pleines sur
+quatre rangées : `1 2 3`, `4 5 6`, `7 8 9`, `⌫ 0 ,`. Pour un réglage entier,
+la virgule est visible mais désactivée afin que la grille ne change pas.
+
+Retour annule la saisie et restaure la valeur précédente. `valider` n'est actif
+que si la saisie est parseable et dans les bornes ; sinon une explication
+courte en `fault` apparaît sous la valeur, sans fermer le pavé. Le pavé est
+également celui qu'ouvre un appui sur la cible de l'accueil.
+
+### Diagnostic (destination L3)
 
 **Un appui sur le groupe d'icônes du bandeau ouvre la page de diagnostic.**
 C'est le seul raccourci caché de l'interface, et il est justifié : ces icônes
@@ -384,9 +567,12 @@ vraiment mes capteurs ? ». La cible tactile fait 88 px de haut, centrée sur le
 bandeau et débordant sous le filet — la seule cible de l'UI qui déborde d'une
 zone.
 
-Une liste, en lecture seule, de lignes de 72 px : à gauche le capteur, au
-centre sa valeur instantanée, à droite son état brut. Pas de graphique, pas de
-bouton, pas de possibilité d'agir sur quoi que ce soit.
+Une grille en lecture seule de 3 × 3 cellules : étiquette et pastille en haut,
+valeur instantanée au centre, état brut en dessous. La grille exploite le ratio
+large sans prétendre que neuf lignes de 72 px pourraient tenir sous la barre
+haute. Les cellules restent sur `bg`, séparées par les seuls filets de 1 px :
+ce ne sont pas des boutons. Pas de graphique, pas de possibilité d'agir sur
+quoi que ce soit.
 
 | Ligne | Valeur affichée | À droite |
 | --- | --- | --- |
@@ -432,7 +618,7 @@ fonctionne serait pire que d'afficher la panne.
 
 ## Notes de mise en œuvre LVGL
 
-- **LVGL v9.x** (9.3 courante), via le composant managé
+- **LVGL v9.x** (9.5 courante), via le composant managé
   `espressif/esp_lvgl_port` + `esp_lcd` RGB. v8 est en fin de vie ; l'exemple
   officiel Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-4.3`, cloné dans
   `tmp/`) est la référence de bring-up de la dalle et du GT911.
@@ -440,10 +626,28 @@ fonctionne serait pire que d'afficher la panne.
   sans lui, le framebuffer en PSRAM déchire dès qu'une tâche prend le bus.
   C'est un réglage de `sdkconfig`, pas un problème d'UI, mais il conditionne
   tout ce qui a été dit sur les animations.
+- **Répartition mémoire stricte** : le framebuffer reste en PSRAM et les deux
+  bounce buffers RGB restent en SRAM interne DMA. L'allocateur LVGL dédié
+  (`ui/lvgl_psram_allocator.cpp`) place en PSRAM les widgets, descripteurs
+  d'événements et textes non statiques ; il ne faut jamais les ramener au
+  `malloc()` ordinaire, dont les petites allocations préfèrent la SRAM.
+  Les tampons de texte persistants de l'UI sont eux aussi réservés par
+  `heap_caps_calloc(..., MALLOC_CAP_SPIRAM)`. `EXT_RAM_BSS_ATTR` ne constitue
+  pas une garantie suffisante tant que `CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY`
+  n'est pas activé.
+- **Diagnostic de démarrage LCD** : juste avant `esp_lcd_new_rgb_panel()`, les
+  logs CAN `LCD_INIT_STEP` publient `arg16=20` (SRAM interne libre), `21`
+  (plus grand bloc interne) et `22` (PSRAM libre), dans `arg32`. Cela permet
+  d'établir une pression SRAM même quand l'UART applicative transporte le flux
+  binaire CAN et qu'aucune console texte n'est disponible.
+- **Fréquence CPU** : l'écran cible 240 MHz. Cela réduit le coût CPU de LVGL,
+  mais ne corrige pas une contention de bus PSRAM ou une allocation DMA
+  impossible ; les invalidations inutiles restent interdites.
 - **Pas d'`lv_style` par objet** : une table de styles partagés
-  (`style_hero`, `style_value`, `style_label`, `style_button`,
-  `style_button_pressed`, `style_hairline`) initialisée une fois. LVGL v9 les
-  applique par référence ; en dupliquer un par widget mange la RAM interne.
+  (`style_hero`, `style_value`, `style_label`, `style_surface_button`,
+  `style_primary_button`, `style_button_pressed`, `style_navbar`,
+  `style_hairline`) initialisée une fois. LVGL v9 les applique par référence ;
+  en dupliquer un par widget mange la RAM interne.
 - **Un écran = une fonction `create_*`**, pas de `lv_scr_load` à répétition :
   les niveaux L0/L1 vivent sur le même écran et changent d'attributs
   (`lv_obj_add_flag(..., LV_OBJ_FLAG_HIDDEN)`, changement de style), les
@@ -540,17 +744,60 @@ droite, **24 px** en haut et en bas. Ces coordonnées sont normatives : elles
 | — chiffre héros 104 px | centré | 156 | h 104 |
 | — filet de progression | centré | 282 | 420 × 2 |
 | — valeurs secondaires | centré, écart 52 | 304 | h 46 |
-| Bloc héros L0 (repos, haut) | centré | 150 | — |
-| — `−`, chiffre 76 px, `+` | centré, écart 56 | 150 | boutons 88 × 88 |
-| — étiquette de paramètres | centré | 268 | h 22 |
-| Rangée de boutons | 32 → 768 | 368 | 736 × 88, gouttière 24 |
+| Cible L0 (valeur + cible tactile) | 256 | 112 | 288 × 96 |
+| `−` cible L0 | 256 | 216 | 136 × 80 |
+| `+` cible L0 | 408 | 216 | 136 × 80 |
+| Étiquette de paramètres | centré | 312 | h 22 |
+| Tuile *infuser* | 32 | 368 | 288 × 88 |
+| Tuile *purge* | 336 | 368 | 200 × 88 |
+| Tuile *réglages* | 552 | 368 | 216 × 88 |
 | Bouton d'arrêt (seul) | centré | 368 | 320 × 88 |
-| Feuille L3 | 0 → 800 | 90 | 800 × 390 |
-| Ligne de liste (L3, réglages) | 32 → 768 | — | 736 × 88 |
+| Barre haute L3 | 0 | 0 | 800 × 88 |
+| Retour L3 (cible) | 16 | 4 | 80 × 80 |
+| Titre L3 | 112 | centré dans la barre | — |
+| Réglages, colonne gauche | 32 | 104 / 208 / 312 | 360 × 88 |
+| Réglages, colonne droite | 408 | 104 / 208 / 312 | 360 × 88 |
+| Pagination : index | 504 | centré dans la barre | 72 × 80 |
+| Pagination : précédent / suivant | 592 / 688 | 4 | 80 × 80 chacun |
+| Profils : quatre lignes | 32 | 104 / 200 / 296 / 392 | 736 × 80 |
+| Diagnostic : colonnes | 32 / 280 / 528 | 104 / 216 / 328 | 240 × 96 |
+| Pavé : bloc valeur | 32 | 144 | 192 × 160 |
+| Pavé : touches, colonnes | 256 / 432 / 608 | 104 / 200 / 296 / 392 | 160 × 80 |
+| Pavé : valider | 608 | 4 | 160 × 80 |
+| Confirmation | 136 | 116 | 528 × 248 |
 
-Toute zone tactile fait **au minimum 88 × 88**, y compris quand son dessin est
-plus petit : la cible est agrandie par du remplissage transparent, pas par du
-contour visible.
+Toute zone tactile fait **au minimum 80 × 80**, y compris quand son dessin est
+plus petit. L'exception de largeur est sans risque pour `−`, `+` et les
+chevrons, dont les cibles dépassent déjà 80 px. L'agrandissement éventuel de la
+cible se fait par du remplissage transparent, jamais par un contour visible.
+
+Schémas de composition (les cotes de la table priment) :
+
+```text
+ACCUEIL
+┌ profil ─────────── température · pression · poids · présences ┐
+│                           36,0 g                              │
+│                    [    −    ] [    +    ]                   │
+│              cible · pré-infusion 6 s · rampe                │
+│ [ icône  infuser · 36 g ] [ icône  purge ] [ icône réglages ]│
+└───────────────────────────────────────────────────────────────┘
+
+RÉGLAGES
+┌ [‹]  réglages                         1/3   [‹] [›] ┐
+│ [ étiquette          ] [ étiquette                 ]│
+│ [ valeur             ] [ valeur                    ]│
+│ [ étiquette / valeur ] [ étiquette / valeur        ]│
+│ [ étiquette / valeur ] [ étiquette / valeur        ]│
+└──────────────────────────────────────────────────────┘
+
+ÉDITEUR NUMÉRIQUE
+┌ [‹]  cible poids                              [valider] ┐
+│   36,0 g       [ 1 ] [ 2 ] [ 3 ]                         │
+│                [ 4 ] [ 5 ] [ 6 ]                         │
+│                [ 7 ] [ 8 ] [ 9 ]                         │
+│                [⌫ ] [ 0 ] [ , ]                          │
+└───────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -659,7 +906,11 @@ pression **et** température à `—` : les deux viennent du même XDB401.
         │  │                     └──[ arrêter ]────────────────┘
         │  └──[ relâché / 20 s ]── UI_PURGE
         ├──[ appui maintenu purge ]──↑
-        └──[ profil / réglage ]──→ UI_SHEET ──[ valider / annuler ]──→ UI_IDLE
+        └──[ profil / réglage ]──→ UI_SHEET(destination) ──[ retour ]──→ UI_IDLE
+                                      │  ↑
+                         [valeur]     │  │ [ valider / retour ]
+                                      ↓  │
+                                  UI_SHEET(editor)
 
   UI_FULLSCREEN préempte tout état, à tout moment, et le rend au retour.
 ```
@@ -729,7 +980,7 @@ ici pour ne pas l'être à ce moment-là.
 | **Appui local pendant le mode Wi-Fi** | seul `quitter le mode wifi` est une action locale. Les contrôles d'infusion ne sont pas dessinés. |
 | **Demande d'infusion distante pendant le mode Wi-Fi** | refusée par le cœur. Diagnostic, flash, envoi du dernier shot et purge de banc restent les seules opérations distantes prévues. |
 | **Wi-Fi jamais configuré** | en mode machine, icône atténuée sans rappel. Entrer en mode Wi-Fi lance l'AP de configuration ; la machine fait café sans réseau. |
-| **Diagnostic ouvert quand le bus tombe** | la feuille se ferme et laisse la place au L2 « module injoignable » — la priorité des plein écran s'applique aussi aux feuilles. |
+| **Diagnostic ouvert quand le bus tombe** | la destination se ferme et laisse la place au L2 « module injoignable » — la priorité des plein écran s'applique aussi aux pages L3. |
 | **Verrou levé (retour de `flags` bit0 à 0)** | retour direct au repos, sans écran intermédiaire. Le verrou ne se lève que sur démarrage à froid, donc en pratique c'est un boot. |
 
 ---
@@ -750,6 +1001,8 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `btn.stop` | `arrêter` |
 | `btn.close` | `fermer` |
 | `btn.cancel` / `btn.ok` | `annuler` / `valider` |
+| `nav.back` / `nav.prev` / `nav.next` | icônes retour / précédent / suivant, sans texte visible |
+| `keypad.backspace` | icône effacer, sans texte visible |
 | `lbl.target` | `cible` |
 | `lbl.phase.pre` | `pré-infusion` |
 | `lbl.phase.pre.pressure` | `pré-infusion · attente %.0f bar` |
@@ -859,10 +1112,12 @@ et chacun a de quoi savoir qu'il est fini.
 
 1. **Dalle et jetons** — `esp_lcd` RGB + GT911 + `esp_lvgl_port`, bounce
    buffer, `ui_theme.h`, polices générées. *Fini quand* : un écran de test
-   affiche les huit couleurs et les sept corps de texte, et qu'un appui
-   quelque part change une couleur (le tactile répond).
+   affiche tous les jetons de couleur, dont les trois surfaces côte à côte,
+   ainsi que les sept corps de texte, et qu'un appui change localement l'état
+   d'une surface (le tactile répond).
 2. **Bandeau L0 + repos statique** — sur des valeurs figées en dur. *Fini
-   quand* : la maquette du cadre 1 est reproduite au pixel près.
+   quand* : `home.png` satisfait les critères de la section « Évolution
+   visuelle 2026 » et les cotes exactes.
 3. **Modèle vivant** — `ui_model_t` alimenté par le CAN réel, péremption,
    `—` sur valeur absente, bascule poids/temps sur présence de la balance.
    Page de diagnostic (elle n'est que le modèle rendu ligne à ligne : c'est le
@@ -901,7 +1156,7 @@ Réduit au minimum : tout le reste est tranché ci-dessus, y compris par défaut
 
 - **Le graphe temps réel** — hors périmètre, avec le point d'accroche décrit
   plus haut. À reconsidérer après quelques semaines d'usage réel.
-- **Les profils** — la feuille est spécifiée et dessinée, rien n'est construit
+- **Les profils** — la destination est spécifiée et dessinée, rien n'est construit
   tant que la notion de profil n'existe pas côté algorithme. Quand elle
   existera, les clés NVS ci-dessus deviennent un enregistrement indexé par
   profil, et **rien d'autre dans l'UI ne bouge**.

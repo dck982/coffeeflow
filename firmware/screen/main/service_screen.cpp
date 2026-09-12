@@ -10,6 +10,7 @@
 #include "esp_lcd_touch.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_lvgl_port.h"
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -76,6 +77,20 @@ bool g_purge_held = false;
 uint8_t g_diagnostic_pump_pct = 100;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
+
+// Le driver RGB réserve deux bounce buffers DMA internes dans
+// esp_lcd_new_rgb_panel(). Ces trois traces, émises juste avant cet appel,
+// permettent de diagnostiquer un échec sans console texte : arg16=20 est le
+// total SRAM interne libre, 21 son plus grand bloc, 22 la PSRAM libre.
+void log_lcd_memory_before_rgb_alloc() {
+  constexpr uint32_t kInternal8Bit = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug,
+                     20, heap_caps_get_free_size(kInternal8Bit));
+  can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug,
+                     21, heap_caps_get_largest_free_block(kInternal8Bit));
+  can_link::send_log(common::LogCode::kLcdInitStep, common::LogSeverity::kDebug,
+                     22, heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+}
 
 // Le flux DMA peut démarrer avant le premier rendu LVGL complet et conserver
 // un décalage fixe. Une reprise unique après une seconde le resynchronise,
@@ -151,6 +166,7 @@ esp_lcd_panel_handle_t init_rgb_panel() {
   panel_config.flags.fb_in_psram = 1;
 
   esp_lcd_panel_handle_t panel_handle = nullptr;
+  log_lcd_memory_before_rgb_alloc();
   ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&panel_config, &panel_handle));
   ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));

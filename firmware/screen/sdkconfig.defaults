@@ -19,6 +19,15 @@ CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
 CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=32768
 CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
 
+# L'arbre LVGL (widgets, événements, textes) n'est ni DMA ni ISR : son
+# allocateur dédié le place explicitement en PSRAM. Les buffers RGB et les
+# piles FreeRTOS gardent leurs capacités d'allocation internes spécifiques.
+CONFIG_LV_USE_CUSTOM_MALLOC=y
+
+# L'écran tourne aujourd'hui à 160 MHz. 240 MHz réduit le temps CPU de rendu
+# et de traitement LVGL ; cela ne remplace pas les buffers DMA en SRAM.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
 # LVGL (lot 2, docs/plan-phase6.md) : police montserrat pour le titre de
 # l'écran de service, le reste des labels utilise la police par défaut.
 CONFIG_LV_FONT_MONTSERRAT_18=y

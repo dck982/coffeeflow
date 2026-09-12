@@ -26,6 +26,7 @@ def couvercle_ps(
     insert_diametre=INSERT_M3.diametre_percage,
     insert_ouest_y=60.0,
     insert_sud_x=40.0,
+    largeur_passage_cable=5.0,
     vis_diametre=None,
     draft=False,
 ):
@@ -47,6 +48,7 @@ def couvercle_ps(
     insert_ouest_y: Y de l'insert ouest de boitier_ps (doit rester égal à puit_y_nord)
     insert_sud_x: bord est de l'insert sud de boitier_ps (doit rester égal à
         longueur_interne − 10)
+    largeur_passage_cable: largeur en mm pour passer des câbles au nord du boitier, egal a boitier_ps
     vis_diametre: passage des deux vis M3, dans les inserts ; par défaut la
         cote mesurée `vis_passage`
     """
@@ -134,6 +136,11 @@ def couvercle_ps(
         body = body - Pos(cx, cy, -0.5) * Cylinder(
             vis_diametre / 2.0, wall + 1.0, align=_CMIN
         )
+
+    # Cover for the north channel
+    body = body + Pos(plate_x0, plate_y1, 0) * Box(
+        plate_x1 - plate_x0, largeur_passage_cable + wall, wall, align=_AMIN
+    )
 
     # Placing the lid means flipping it over (about a north-south axis, the
     # long way): that mirrors X. So the west heat-insert bay has to sit on

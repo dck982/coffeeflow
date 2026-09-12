@@ -40,6 +40,7 @@ def boitier_ps(
     anti_tirage_bords=5.6,
     anti_tirage_z=5.0,
     anti_tirage_x=10.0,
+    largeur_passage_cable=5.0,
     draft=False,
 ):
     """Boîtier alim : cavité 50 × 87,6 mm, berceau PSU, 221-415 sud et 221-423 nord.
@@ -81,6 +82,7 @@ def boitier_ps(
     anti_tirage_bords: largeur hors-tout avec les deux jambes du U
     anti_tirage_z: hauteur du U (le palier vertical)
     anti_tirage_x: 10 mm depuis le coin, chaque anneau (sud depuis l'ouest, est depuis le sud, nord depuis l'ouest)
+    largeur_passage_cable: largeur en mm pour passer des câbles au nord du boitier
     """
     wall = epaisseur_paroi
     floor = epaisseur_paroi
@@ -647,6 +649,16 @@ def boitier_ps(
         (puit_x, puit_y_nord),
     ):
         body = add_well(body, outer, cx, cy)
+
+    # Add a channel for wires at the north    
+    body = body + (
+        Pos(-wall, inner_y+wall, 0) * 
+        Box(inner_x+2*wall,largeur_passage_cable+wall,floor,align=amin)
+    )
+    body = body + (
+        Pos(-wall, inner_y+wall+largeur_passage_cable, floor) * 
+        Box(inner_x+2*wall,wall,hauteur,align=amin)
+    )
 
     if draft:
         return body

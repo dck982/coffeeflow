@@ -59,6 +59,7 @@ uint8_t page = 0;
 Edit editing = Edit::None;
 Choice choosing = Choice::None;
 char candidate[24]{};
+bool candidate_edited = false;
 void note(lv_event_t *) { activity = esp_timer_get_time(); }
 Bind *get(lv_obj_t *l) {
   for (size_t i = 0; i < bn; ++i)
@@ -255,11 +256,13 @@ void close_all() {
   hidden(v.keypad, true);
   hidden(v.choice, true);
 }
+void render_settings();
 void back_settings(lv_event_t *) { close_all(); }
 void back_diag(lv_event_t *) { hidden(v.diag, true); }
 void back_key(lv_event_t *) {
   editing = Edit::None;
   hidden(v.keypad, true);
+  render_settings();
   hidden(v.settings, false);
 }
 void back_choice(lv_event_t *) {
@@ -458,6 +461,10 @@ void key_render() {
 }
 void key_press(lv_event_t *e) {
   auto *k = static_cast<const char *>(lv_event_get_user_data(e));
+  if (!candidate_edited) {
+    candidate[0] = '\0';
+    candidate_edited = true;
+  }
   if (!std::strcmp(k, "back")) {
     size_t n = std::strlen(candidate);
     if (n)
@@ -518,13 +525,13 @@ void key_accept(lv_event_t *) {
 void show_edit(Edit e) {
   editing = e;
   initial(e);
+  candidate_edited = false;
   set_title(e);
   close_all();
   hidden(v.keypad, false);
   key_render();
 }
 void show_target(lv_event_t *) { show_edit(scale ? Edit::Weight : Edit::Time); }
-void render_settings();
 void prev(lv_event_t *) {
   if (page) {
     --page;
@@ -993,22 +1000,25 @@ void create(lv_obj_t *p) {
   }
   hidden(v.choice, true);
   v.confirm = lv_obj_create(p);
-  lv_obj_set_size(v.confirm, 528, 248);
-  lv_obj_set_pos(v.confirm, 136, 116);
-  lv_obj_set_style_bg_color(v.confirm, theme::kBgRaised, 0);
+  base(v.confirm);
+  lv_obj_set_style_bg_color(v.confirm, theme::kBg, 0);
+  lv_obj_set_style_bg_opa(v.confirm, LV_OPA_70, 0);
   lv_obj_set_style_border_width(v.confirm, 0, 0);
   lv_obj_set_style_outline_width(v.confirm, 0, 0);
   lv_obj_set_style_shadow_width(v.confirm, 0, 0);
   lv_obj_set_style_width(v.confirm, 0, LV_PART_SCROLLBAR);
   lv_obj_remove_flag(v.confirm, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_radius(v.confirm, theme::kRadius, 0);
-  box(v.confirm, 0, 0, 4, 248, theme::kAccent, 0);
-  dyn(v.confirm, &v.confirm_title, "", theme::kFontSecondary, theme::kAccent,
+  lv_obj_add_flag(v.confirm, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_t *confirm_card = box(v.confirm, 136, 116, 528, 248,
+                               theme::kBgRaised, theme::kRadius);
+  box(confirm_card, 0, 0, 4, 248, theme::kAccent, 0);
+  dyn(confirm_card, &v.confirm_title, "", theme::kFontSecondary, theme::kAccent,
       28, 24);
-  dyn(v.confirm, &v.confirm_body, "", theme::kFontLabel, theme::kTextDim, 28,
+  dyn(confirm_card, &v.confirm_body, "", theme::kFontLabel, theme::kTextDim, 28,
       92);
-  lv_obj_t *c = button(v.confirm, 28, 138, 216, 80, "annuler");
-  lv_obj_t *o = button(v.confirm, 276, 138, 216, 80, "valider", Role::Primary);
+  lv_obj_t *c = button(confirm_card, 28, 138, 216, 80, "annuler");
+  lv_obj_t *o =
+      button(confirm_card, 276, 138, 216, 80, "valider", Role::Primary);
   lv_obj_add_event_cb(c, hide_confirm, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_event_cb(o, accept_confirm, LV_EVENT_CLICKED, nullptr);
   hidden(v.confirm, true);

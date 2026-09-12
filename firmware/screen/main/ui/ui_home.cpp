@@ -216,12 +216,12 @@ lv_obj_t *button(lv_obj_t *p, int x, int y, int w, int h, const char *s,
                               0);
   lv_label_set_text(l, s);
   if (has) {
-    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 42);
+    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 28);
     lv_obj_t *glyph = icon_container(b, ic,
                                      r == Role::Primary       ? theme::kAccent
                                      : r == Role::Destructive ? theme::kFault
                                                               : theme::kText);
-    lv_obj_align(glyph, LV_ALIGN_TOP_MID, 0, 7);
+    lv_obj_align(glyph, LV_ALIGN_TOP_MID, 0, -7);
   } else
     lv_obj_center(l);
   lv_obj_set_style_text_color(l, theme::kText, press);
@@ -710,11 +710,6 @@ void cycle_visible(bool on) {
     hidden(o, on);
 }
 float progress(const core::Snapshot &s, const core::Config &c) {
-  if (s.cycle_state == core::CycleState::kPreinfusion)
-    return c.preinfusion_mode == core::PreinfusionMode::kTime
-               ? float(s.cycle_phase_elapsed_ms) /
-                     (c.preinfusion_time_s * 1000.f)
-               : s.pressure_bar / c.preinfusion_pressure_bar;
   if (s.cycle_state == core::CycleState::kPurge)
     return float(s.cycle_elapsed_ms) / (c.purge_max_s * 1000.f);
   return s.cycle_weight_goal
@@ -732,8 +727,10 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     if (s.last_shot_available) {
       fmt(t, sizeof(t), s.last_shot_weight_g, " g");
       text(v.hero, t);
-    } else
-      text(v.hero, "-");
+    } else {
+      std::snprintf(t, sizeof(t), "%lu s", ulong(s.cycle_elapsed_ms / 1000));
+      text(v.hero, t);
+    }
     lv_obj_set_width(v.progress, 420);
     color(v.hero, theme::kRampFull);
     text(lv_obj_get_child(v.stop, 0), "fermer");
@@ -744,6 +741,9 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
                     ? "pré-infusion"
                 : s.cycle_state == core::CycleState::kRampdown ? "rampe"
                                                                : "infusion");
+  color(v.phase, s.cycle_state == core::CycleState::kPreinfusion
+                     ? theme::kRampLow
+                     : theme::kAccent);
   if (s.cycle_weight_goal && s.cycle_state != core::CycleState::kPurge)
     fmt(t, sizeof(t), s.weight_g - s.cycle_start_weight_g, " g");
   else
@@ -759,7 +759,9 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
       : s.cycle_state == core::CycleState::kRampdown  ? theme::kRampFull
                                                       : theme::kAccent,
       0);
-  color(v.hero, theme::kAccent);
+  color(v.hero, s.cycle_state == core::CycleState::kPreinfusion
+                    ? theme::kRampLow
+                    : theme::kAccent);
   text(lv_obj_get_child(v.stop, 0), "arrêter");
 }
 
@@ -881,10 +883,10 @@ void create(lv_obj_t *p) {
   lv_obj_remove_style_all(v.cycle);
   lv_obj_set_size(v.cycle, 800, 370);
   lv_obj_set_pos(v.cycle, 0, 96);
-  dyn(v.cycle, &v.phase, "", theme::kFontLabel, theme::kAccent, 0, 24);
+  dyn(v.cycle, &v.phase, "", theme::kFontStatus, theme::kAccent, 0, 24);
   lv_obj_set_width(v.phase, 800);
   lv_obj_set_style_text_align(v.phase, LV_TEXT_ALIGN_CENTER, 0);
-  dyn(v.cycle, &v.hero, "", theme::kFontHeroBrew, theme::kAccent, 0, 54);
+  dyn(v.cycle, &v.hero, "", theme::kFontHeroBrew, theme::kAccent, 0, 74);
   lv_obj_set_width(v.hero, 800);
   lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
   rule(v.cycle, 190, 186, 420, 2);

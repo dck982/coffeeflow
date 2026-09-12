@@ -93,6 +93,23 @@ int main(int argc, char **argv) {
   snapshot.weight_g = 18.2f;
   snapshot.dimmer_ready = true;
   snapshot.dimmer_valid = true;
+  if (std::strcmp(scenario, "brew") == 0) {
+    snapshot.cycle_state = core::CycleState::kBrew;
+    snapshot.cycle_weight_goal = true;
+    snapshot.cycle_start_weight_g = 0.0f;
+    snapshot.cycle_elapsed_ms = 24'000;
+    snapshot.flow_ml_s = 1.8f;
+    snapshot.dimmer_pct = 80;
+  }
+  if (std::strcmp(scenario, "preinfusion") == 0) {
+    snapshot.cycle_state = core::CycleState::kPreinfusion;
+    snapshot.cycle_weight_goal = true;
+    snapshot.cycle_start_weight_g = 0.0f;
+    snapshot.cycle_elapsed_ms = 4'000;
+    snapshot.cycle_phase_elapsed_ms = 4'000;
+    snapshot.flow_ml_s = 0.5f;
+    snapshot.dimmer_pct = 30;
+  }
   ui::home::refresh(snapshot, false);
   ui::home::snapshot_scenario(scenario);
   ui::home::refresh(snapshot, false);

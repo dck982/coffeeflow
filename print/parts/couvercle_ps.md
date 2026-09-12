@@ -11,20 +11,21 @@ Couvercle plat de `boitier_ps`, dimensions extérieures exactement celles de la 
 
 ## Design notes
 
-Même repère que `boitier_ps` : origine au coin intérieur sud-ouest, jusqu'au miroir final (voir plus bas). La plaque va de `(-epaisseur_paroi, -epaisseur_paroi)` à `(longueur_interne + epaisseur_paroi, largeur_interne + epaisseur_paroi)` : le contour extérieur du mur, rien de plus. Imprimé face visible sur le lit ; le rebord pousse vers +Z à l'impression et plonge dans la cavité une fois la pièce retournée. Le rebord est un cadre rectangulaire (`_cadre`, boîte moins boîte évidée) qui longe la face intérieure du mur avec `gouttiere_jeu` de jeu ; rien ne dépasse à l'extérieur du mur. Le cadre est interrompu sur l'empreinte des deux corbeaux heat insert de `boitier_ps` (ouest à Y = `insert_ouest_y`, sud au bord est `insert_sud_x`) : ces corbeaux sont à fleur du sommet côté cavité, le cadre y entrerait en collision. Les deux trous M3 tombent exactement sur l'alésage des deux inserts.
+Même repère que `boitier_ps` : origine au coin intérieur sud-ouest, jusqu'au miroir final (voir plus bas). La plaque va de `(-epaisseur_paroi, -epaisseur_paroi)` à `bb_overall()` élargi des murs : le contour extérieur du mur, rien de plus. Imprimé face visible sur le lit ; le rebord pousse vers +Z à l'impression et plonge dans la cavité une fois la pièce retournée. Le rebord est un cadre rectangulaire (`_cadre`, boîte moins boîte évidée) qui longe la face intérieure du mur avec `gouttiere_jeu` de jeu ; rien ne dépasse à l'extérieur du mur. Le cadre est interrompu sur l'empreinte des deux corbeaux (`corbels(wall)` importé de `boitier_ps`) : ces corbeaux sont à fleur du sommet côté cavité, le cadre y entrerait en collision. Les deux trous M3 tombent exactement sur l'alésage des deux inserts.
 
-Poser le couvercle sur la boîte, c'est le retourner (autour d'un axe nord-sud) : ça inverse X. Tout le corps ci-dessus est donc modelé dans le repère de `boitier_ps` PUIS mis en miroir en X (`mirror`, plan à `longueur_interne / 2`) juste avant le polish, pour que le logement ouest (modélisé à l'est) retombe à l'ouest une fois la pièce retournée sur la boîte. Le miroir porte sur la pièce entière, pas sur chaque coordonnée : plus simple, et il ne peut pas en oublier une.
+Poser le couvercle sur la boîte, c'est le retourner (autour d'un axe nord-sud) : ça inverse X. Tout le corps ci-dessus est donc modelé dans le repère de `boitier_ps` PUIS mis en miroir en X (`mirror`, plan à `bb_overall().size.X / 2`) juste avant le polish, pour que le logement ouest (modélisé à l'est) retombe à l'ouest une fois la pièce retournée sur la boîte. Le miroir porte sur la pièce entière, pas sur chaque coordonnée : plus simple, et il ne peut pas en oublier une.
 
 ## Don't
 
 - Ne pas retirer le miroir X final, ni le déplacer avant les découpes : tout le corps se modélise dans le repère direct de `boitier_ps` (logement ouest à l'ouest, etc.), le miroir est la dernière étape, sinon la pièce retournée met le logement ouest à l'est (user 2026-09-05).
 - Ne pas ajouter de rebord ou de cadre à l'extérieur du mur : la plaque doit rester dans les dimensions extérieures de `boitier_ps`, elle ne doit jamais déborder (user 2026-09-05).
 - Ne pas fermer le cadre intérieur sur toute la longueur : il doit s'arrêter sur l'empreinte des deux corbeaux (`insert_along` × `insert_plat`), sans quoi le rebord percute le heat insert ouest et le heat insert sud de `boitier_ps`.
-- Ne pas dérégler `insert_ouest_y` / `insert_sud_x` sans les recaler sur `boitier_ps` (`puit_y_nord` et `longueur_interne − 10`) : ce sont les mêmes coordonnées, dupliquées ici faute de les exposer autrement.
+- Ne pas dérégler les corbeaux sans passer par `boitier_ps.corbels(wall)` : plus de `insert_ouest_y` / `insert_sud_x` / `longueur_interne` locaux.
 - Ne pas chamfreiner les arêtes internes du cadre (jonctions concaves) : `nurb check` les signale en cosmétique seulement ; un chanfrein y romprait l'angle droit qui centre le mur.
 
 ## Changelog
 
+- 2026-09-12 — Empreinte et corbeaux importés de `boitier_ps.bb_overall` / `corbels()`. Plus de `longueur_interne` / `insert_*` en slider. Volume inchangé.
 - 2026-09-05 — Miroir en X ajouté juste avant le polish (user : poser le couvercle retourne la pièce autour d'un axe nord-sud, donc inverse X ; le logement ouest doit être modélisé à l'est pour retomber à l'ouest une fois retourné).
 - 2026-09-05 — Rebord extérieur supprimé, plaque ramenée aux dimensions exactes de `boitier_ps` (user : le couvercle ne doit pas dépasser la boîte, seul un rebord intérieur sert à l'ajustage).
 - 2026-09-05 — Première coupe : plaque 56,2 × 93,8 × 1,6 mm, gouttière double-cadre 1,2 mm d'épaisseur / 0,3 mm de jeu / 3 mm de profondeur, coupée sur les deux corbeaux M3, deux trous de passage M3 (`vis_passage`).

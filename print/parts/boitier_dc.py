@@ -13,6 +13,7 @@ from system import (
     add_heat_insert,
     bbox,
     puit_couche,
+    surplomb_xz,
 )
 
 from parts.boitier_ac import ssr_dc_opening, dimmer_dc_opening
@@ -177,26 +178,6 @@ def _canpal_area(body, outer, z0, wall):
 
     return body
 
-def _surplomb_hook_pts(xy, z_mid, surplomb_w, inverse=False):
-    multiplier = -1.0 if inverse else 1.0
-    return [
-        (xy, z_mid - surplomb_w),
-        (xy - surplomb_w * multiplier, z_mid),
-        (xy - surplomb_w * multiplier, z_mid + surplomb_w),
-        (xy, z_mid + surplomb_w),
-    ]
-
-def _surplomb_xz(x, y, z, sw, slen, z0, inverse=False):
-    hook_pts = _surplomb_hook_pts(x, z, sw, inverse=inverse) 
-    hook_y0 = y - slen
-    return (
-        Pos(0, hook_y0, z0)
-        * extrude(
-            Plane.XZ * Polygon(*hook_pts, align=None),
-            slen * (-1.0 if inverse else 1.0),
-        )
-    )
-
 def _bb_wago_nw(bb, area_dx, wall):
     # In Y: a wago and a stop wall
     area_dy = measured("wago_profondeur") + wall
@@ -238,7 +219,7 @@ def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_l
     # Surplomb (catch): 1mm return from the muret toward the WAGO
     # with its vertical face starting at the Wago top and its 45° lead-in
     # starting 1mm below.    
-    body = body + _surplomb_xz(
+    body = body + surplomb_xz(
         bb.max.X - wall, 
         bb.max.Y,
         area_dz, 
@@ -258,7 +239,7 @@ def _wago_south_west(body, outer, container_bb, wago_raise, surplomb_len, surplo
         container_bb, area_dx, dz_412, 
         wago_raise, surplomb_len, surplomb_w, z0, wall, count=2)
     # add a surplomb on the left for the 423
-    body = body + _surplomb_xz(
+    body = body + surplomb_xz(
         container_bb.min.X+wall, 
         container_bb.max.Y-wall, 
         dz_423+wago_raise, 
@@ -463,11 +444,11 @@ def boitier_dc(
 
     def keep(edge):
         c = edge.center()
-        if c.Y < chanfrein:
+        if c.Y < chanfrein and c.X < chanfrein:
             return True
-        if c.X < inner_west_x:
+        if c.X < inner_west_x - (wall/2):
             return True
-        if (c.X < inner_west_marche_x) and (c.Y>inner_north_y):
+        if (c.X < inner_west_marche_x - (wall/2)) and (c.Y>inner_north_y):
             return True
         return False
 

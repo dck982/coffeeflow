@@ -214,7 +214,7 @@ def add_well(body, outer, cx, cy, z0=0):
         body = body + clipped
     return body - cutter
 
-def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=False):
+def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=False, flush=False):
     corbel_diametre = insert.diametre_percage
     corbel_profondeur = insert.profondeur_min
     corbel_paroi = insert.epaisseur_paroi_min
@@ -236,13 +236,13 @@ def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=Fa
     if plane==Plane.XZ:
         plat_x = x
         plat_y = y+corbel_along
-        hole_x = x + corbel_plat/2
+        hole_x = x + (corbel_r if flush else corbel_plat/2) * multiplier
         hole_y = y + corbel_paroi + corbel_r
     else:
         plat_x = x
         plat_y = y
         hole_x = x + corbel_paroi + corbel_r
-        hole_y = y + corbel_plat/2
+        hole_y = y + (corbel_r if flush else corbel_plat/2)
     body = body + (
         Pos(plat_x, plat_y, 0)
         * extrude(plane * Polygon(*corbel_pts, align=None), corbel_along)
@@ -295,6 +295,63 @@ def _fuse_one(shape):
     for s in solids[1:]:
         body = body.fuse(s)
     return body
+
+
+def surplomb_hook_pts(xy, z_mid, surplomb_w, inverse=False, overlap=0.0):
+    """Section of a 45° Wago catch in the wall's plane.
+
+    `xy` is the inner face of the wall. The catch returns `surplomb_w` toward
+    the bay; `inverse` flips that toward +X / +Y. `overlap` bites into the
+    wall so the boolean fuses. `z_mid` is the bottom of the vertical face.
+    """
+    multiplier = -1.0 if inverse else 1.0
+    wall_xy = xy + overlap * multiplier
+    return [
+        (wall_xy, z_mid - surplomb_w),
+        (xy - surplomb_w * multiplier, z_mid),
+        (xy - surplomb_w * multiplier, z_mid + surplomb_w),
+        (wall_xy, z_mid + surplomb_w),
+    ]
+
+
+def surplomb(xy, along0, z_mid, sw, slen, *, plane=Plane.XZ, inverse=False, z0=0.0, overlap=0.0):
+    """Wago catch solid. `along0` + `slen` are the extrusion start and signed length."""
+    pts = surplomb_hook_pts(xy, z_mid, sw, inverse=inverse, overlap=overlap)
+    face = plane * Polygon(*pts, align=None)
+    if plane == Plane.XZ:
+        return Pos(0, along0, z0) * extrude(face, slen)
+    return Pos(along0, 0, z0) * extrude(face, slen)
+
+
+def surplomb_xz(x, y, z, sw, slen, z0, inverse=False, overlap=0.0):
+    """Catch ending at `y`, `slen` along Y (sign from `inverse`). Used by boitier_dc."""
+    along0 = y - slen
+    signed = slen * (-1.0 if inverse else 1.0)
+    return surplomb(
+        x, along0, z, sw, signed,
+        plane=Plane.XZ, inverse=inverse, z0=z0, overlap=overlap,
+    )
+
+
+def add_hook(
+    body,
+    a0,
+    inner,
+    z0,
+    *,
+    ns=True,
+    toward_plus=True,
+    wall=1.6,
+    jeu=1.2,
+    largeur=3.0,
+    bords=5.6,
+    hauteur_u=5.0,
+):
+    """Cable-tie U on an inner wall. `ns` True is north/south (extruded in X)."""
+    kw = dict(wall=wall, jeu=jeu, largeur=largeur, bords=bords, hauteur_u=hauteur_u)
+    if ns:
+        return body + anti_tirage_ns(a0, inner, z0, toward_plus, **kw)
+    return body + anti_tirage_ew(a0, inner, z0, toward_plus, **kw)
 
 
 def anti_tirage_ns(

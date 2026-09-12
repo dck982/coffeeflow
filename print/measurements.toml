@@ -864,41 +864,68 @@ unit = "mm"
 how = "user 2026-09-01: largeur Y intérieure du bac AC, murs non compris."
 
 # --- Boîtier power supply ---
+# Inner size is derived: X = recom_rac05_x + recom_rac05_rayon_min,
+# Y = helu145_rayon_min + wago south + wall + PSU + wall + wago north.
+
+[recom_rac05_x]
+value = 21.8
+unit = "mm"
+how = "RECOM RAC05-05SK pocket in X, east-aligned. user 2026-09-01: 28 → 21.8 mm from the west stop wall to inner X max. Was boitier_ps_alim."
+
+[recom_rac05_y]
+value = 27.8
+unit = "mm"
+how = "RECOM RAC05-05SK pocket in Y. user 2026-09-01: 28 → 27.8 mm. North face of the battery wall to south face of the PSU north wall. Was boitier_ps_alim_y."
+
+[recom_rac05_z]
+value = 35.0
+unit = "mm"
+how = "RECOM RAC05-05SK pocket in Z above the floor, and height of the PSU north wall. user 2026-09-02. Was boitier_ps_alim_z."
+
+[recom_rac05_rayon_min]
+value = 28.2
+unit = "mm"
+how = "Clear run west of the PSU west stop (inner face) to the inner west wall, so the RAC05 output leads can bend. Set so inner X stays 50 mm (21.8 + 28.2). Also the leftover west of the wider south Wago bay is 20.2 mm."
+
+[helu145_rayon_min]
+value = 21.6
+unit = "mm"
+how = "Clear run south of the 221-415 bay (inner south face of the south réglette) to the inner south wall, so Helutherm 145 leads can bend out the south opening. Set so inner Y stays 87.6 mm."
 
 [boitier_ps_longueur_interne]
 value = 50.0
 unit = "mm"
-how = "user 2026-09-01: cavité X du boîtier alim."
+how = "Record only: derived as recom_rac05_x + recom_rac05_rayon_min. user 2026-09-01: cavité X du boîtier alim."
 
 [boitier_ps_largeur_interne]
 value = 87.6
 unit = "mm"
-how = "user 2026-09-02: 70 + 17.6 mm au nord so the north Wago bay is 16 mm wall-to-wall. Was 86.8 (15.2 mm clear)."
+how = "Record only: derived from helu145_rayon_min + three bays + two 1.6 mm separator walls. user 2026-09-02: 70 + 17.6 mm au nord so the north Wago bay is 16 mm wall-to-wall. Was 86.8 (15.2 mm clear)."
 
 [boitier_ps_alim]
 value = 21.8
 unit = "mm"
-how = "user 2026-09-01: berceau alim en X, 28 → 21.8 mm du muret au mur X max. Flanc droit de la réglette à 50 − 21.8 = 28.2."
+how = "Record only: superseded by recom_rac05_x. user 2026-09-01: berceau alim en X, 28 → 21.8 mm du muret au mur X max. Flanc droit de la réglette à 50 − 21.8 = 28.2."
 
 [boitier_ps_alim_y]
 value = 27.8
 unit = "mm"
-how = "user 2026-09-01: 28 → 27.8 mm en Y pour l'alim. Flanc sud (muret batterie) à Y = 42.2 ; flanc nord du volume à Y = 70."
+how = "Record only: superseded by recom_rac05_y. user 2026-09-01: 28 → 27.8 mm en Y pour l'alim. Flanc sud (muret batterie) à Y = 42.2 ; flanc nord du volume à Y = 70."
 
 [boitier_ps_alim_z]
 value = 35.0
 unit = "mm"
-how = "user 2026-09-02: hauteur du volume alim au-dessus du fond, et hauteur du muret nord (largeur X = alim_x seulement)."
+how = "Record only: superseded by recom_rac05_z. user 2026-09-02: hauteur du volume alim au-dessus du fond, et hauteur du muret nord (largeur X = alim_x seulement)."
 
 [boitier_ps_surplus_nord]
 value = 17.6
 unit = "mm"
-how = "user 2026-09-02: 16 mm wall-to-wall north of the PSU wall plus the 1.6 mm wall. Was 16.8 (15.2 mm clear). PSU north face stays at Y = 70."
+how = "Record only: derived as 2×wago_epaisseur_corps + 1.6 mm PSU north wall. user 2026-09-02: 16 mm wall-to-wall north of the PSU wall plus the 1.6 mm wall. Was 16.8 (15.2 mm clear). PSU north face stays at Y = 70."
 
 [boitier_ps_reglette_alim_x]
 value = 28.2
 unit = "mm"
-how = "user 2026-09-01: flanc droit de la réglette, pas le centre. 50 − 21.8 = 28.2 (was 22 when the pocket was 28 mm)."
+how = "Record only: derived as recom_rac05_rayon_min (inner west to PSU stop inner face). user 2026-09-01: flanc droit de la réglette, pas le centre. 50 − 21.8 = 28.2 (was 22 when the pocket was 28 mm)."
 
 [boitier_ps_wago_largeur]
 value = 29.8
@@ -915,10 +942,15 @@ value = 5.0
 unit = "mm"
 how = "user 2026-09-02: 5 mm on the west wall, Y = 81.0 → 86.0 (1.6 mm south of inner Y max), so the north face runs to the west corner. Was briefly 10 mm (Y = 76 → 86); was flush with Y max before that."
 
-[boitier_ps_ouverture_z]
-value = 25.0
+[boitier_ps_ouverture_gauche]
+value = 5.0
 unit = "mm"
-how = "user 2026-09-02: sill of all three cable openings, above the floor. Was 15 mm (Wago platform)."
+how = "user 2026-09-01: 5 mm on the west wall from inner Y = 0."
+
+[boitier_ps_ouverture_z]
+value = 15.0
+unit = "mm"
+how = "user 2026-09-05: sill of all three cable openings, above the floor. Was 25 mm (seuil plus bas)."
 
 [boitier_ps_ouverture_bas]
 value = 5.0

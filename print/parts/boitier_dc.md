@@ -43,12 +43,14 @@ min_wall = 0.6
 - Ne pas recoder les fentes est : importer `dimmer_dc_opening` / `ssr_dc_opening` depuis `boitier_ac`. Ne pas ramener `ouvertures_modules`. Ne pas recréer le pilier entre les deux fentes.
 - Ne pas polir la face est (`inner_east_x`) : joint avec `boitier_ac`, volontairement net. Ne pas polir les fentes pour faire taire `concave_cosmetic`.
 - Ne pas inliner un corbeau : `add_corbel` dans `system.py` (`insert=INSERT_M3` ici). Les trous du couvercle viennent de `corbels(wall)`, pas d'un `corbel1_y` local. Ne pas les remettre en M2.5.
+- Ne pas inliner le surplomb Wago : `system.surplomb_xz` (partagé avec `boitier_ps`).
 - Ne pas poser le mur d'arrêt Wago dans la cavité : `_bb_wago_nw` inclut `wall` en Y au sud de `wago_profondeur` ; les murets de levage partent de `bb.min.Y + wall`.
 - Ne pas recouper l'aimant nord avec un cylindre : l'axe est couché, il faut `puit_couche` (goutte en +Z). Ne pas remettre `pont=2` : trop large pour `aimant_petit_diametre`.
 - Ne pas remonter le corbeau marche de 10mm au nord : il est collé à `inner_north_marche_y`.
 
 ## Changelog
 
+- 2026-09-12 — Surplomb Wago extrait vers `system.surplomb_xz`. AUTO inchangé.
 - 2026-09-11 — `corbels()` exporte aussi la bbox du plat (4e élément). AUTO inchangé.
 - 2026-09-11 — Fentes est regroupées (z=8, plus de pilier). Plus de polish sur le joint AC. 20784 → 20731 mm3, 143 → 142 faces, 3 warn concave_cosmetic.
 - 2026-09-11 — Corbeaux couvercle M2.5 → M3 (`add_corbel` + `corbels()`). CAN Pal reste M2.5. 20711 → 20784 mm3, 143 faces, checks clean.

@@ -42,8 +42,8 @@ def couvercle_acdc(
     gouttiere_jeu=0.3,
     gouttiere_epaisseur=1.0,
     gouttiere_profondeur=3.0,
-    ac_appui_pcb_hauteur=6.7,
-    dc_appui_xiao_hauteur=10.0,
+    ac_appui_pcb_hauteur=6.45,
+    dc_appui_xiao_hauteur=5.3,
     appui_pcb_largeur=3.0,
     draft=False,
 ):

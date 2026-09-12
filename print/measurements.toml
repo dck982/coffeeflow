@@ -81,7 +81,7 @@ unit = "mm"
 how = "user: small disc magnet thickness."
 
 [aimant_puit_press_fit]
-value = 0.2
+value = 0.15
 unit = "mm"
 how = "user: how much to add to the aimant_diametre to have a press fit effect"
 
@@ -754,16 +754,6 @@ value = 51.0
 unit = "mm"
 how = "user drawing docs/boitier.pdf: palier de la marche haute-gauche."
 
-[boitier_int_encoche_gauche]
-value = 90.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: paroi gauche de l'encoche du bord haut."
-
-[boitier_int_encoche_droite]
-value = 100.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: paroi droite de l'encoche du bord haut."
-
 [boitier_int_encoche_fond]
 value = 85.0
 unit = "mm"
@@ -775,7 +765,7 @@ unit = "mm"
 how = "user 2026-08-31: le puits d'aimant de l'aile droite est à 15 mm du bord droit (x = boitier_int_x − 15). Record only : l'aile a été remplacée par la gouttière."
 
 [boitier_int_screw_x]
-value = 90.0
+value = 88.0
 unit = "mm"
 how = "user 2026-08-31: paroi ouest de l'encoche vis sur le bord nord (x = 85). Was the start of the east gutter."
 

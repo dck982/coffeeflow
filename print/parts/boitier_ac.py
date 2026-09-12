@@ -203,7 +203,7 @@ def ssr_bb(wall, z0):
     y0 = dimmer_bb(wall, z0).min.Y-wall-ssr_depth-wall
 
     # 1mm east of the west side
-    return bbox(bb.min.X + 1.0, y0, measured("ssr_length"), ssr_depth + wall)
+    return bbox(bb.min.X + wall + 1.0, y0, measured("ssr_length"), ssr_depth + wall)
 
 def ssr_ac_opening(wall, z0, hauteur):
     obb = bb_overall()
@@ -259,7 +259,7 @@ def boitier_ac(
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
     hauteur_muret_ssr=10.0,
-    tour_y=3.0,
+    tour_y=5.0,
     draft=False,
 ):
     """Boîtier AC : partie est, murs 30 mm, plateforme vis et barre d'appui.

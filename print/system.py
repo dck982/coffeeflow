@@ -29,6 +29,7 @@ from nurb import (
     Plane,
     Polygon,
     Pos,
+    RegularPolygon,
     extrude,
     make_face,
     measured,
@@ -36,6 +37,57 @@ from nurb import (
     reject,
     sweep,
 )
+
+
+# Lead so a bed-flush nut trap cuts the outside face cleanly.
+_NUT_LEAD = 1.0
+_NUT_SEATED = (Align.CENTER, Align.CENTER, Align.MIN)
+
+
+def m3_nut_trap(shaft_dia, nut_af, nut_th, shoulder_z, depth, layer=1.0,
+                slack=0.2, bridge_roof=True):
+    """Captive M3 hex nut from the entry face, with a printable bridged roof.
+
+    The nut enters through the hexagonal mouth and bears at ``shoulder_z``.
+    With ``bridge_roof=True`` (the legacy default), two crossed sacrificial
+    bridge layers separate it from the clearance shaft. Set it false when the
+    support material below the nut carries the transition directly. The hex is
+    sized from across-flats plus print slack and rotated so a flat, rather than
+    a point, faces the print direction.
+    """
+    if shaft_dia <= 0 or nut_af <= 0 or nut_th <= 0 or layer <= 0:
+        raise ValueError("m3_nut_trap needs positive dimensions")
+    if shoulder_z < nut_th:
+        reject(
+            f"nut shoulder at {shoulder_z:.2f} mm is under the {nut_th} mm nut: "
+            "raise the support or shorten the screw",
+        )
+    bridge_depth = 2 * layer if bridge_roof else 0.0
+    if depth < shoulder_z + bridge_depth:
+        reject(
+            f"depth {depth:.2f} leaves no shaft above the nut seat at "
+            f"{shoulder_z:.2f} mm plus {bridge_depth:.2f} mm of bridges",
+        )
+
+    af = nut_af + slack
+    hex_face = RegularPolygon(af / 2.0, 6, major_radius=False, rotation=30)
+    hex_prism = Pos(0, 0, -_NUT_LEAD) * extrude(hex_face, shoulder_z + _NUT_LEAD)
+    across_corners = af / math.cos(math.radians(30))
+    shaft = Pos(0, 0, -_NUT_LEAD) * Cylinder(
+        shaft_dia / 2.0, depth + _NUT_LEAD, align=_NUT_SEATED
+    )
+    if not bridge_roof:
+        return hex_prism + shaft
+    bridge_zone = Pos(0, 0, shoulder_z) * Cylinder(
+        across_corners / 2.0, 2 * layer, align=_NUT_SEATED
+    )
+    first = Pos(0, 0, shoulder_z) * Box(
+        across_corners, shaft_dia, layer, align=_NUT_SEATED
+    ) & bridge_zone
+    second = Pos(0, 0, shoulder_z + layer) * Box(
+        shaft_dia, across_corners, layer, align=_NUT_SEATED
+    ) & bridge_zone
+    return hex_prism + first + second + shaft
 
 def bbox(x0, y0, w, l, z0=0.0, h=1.0):
     return (

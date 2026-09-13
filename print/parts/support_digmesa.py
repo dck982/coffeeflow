@@ -1,5 +1,5 @@
 from nurb import *
-from system import digmesa_layout
+from system import digmesa_layout, m3_nut_trap
 
 
 @part
@@ -59,11 +59,20 @@ def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.5,
     body += Pos(centre_x+14,0,0)*extrude(Plane.YZ*foot,amount=6)
     for x in d['vis_x']:
         post=block(x-5,back,x+5,back+7,h,16)
-        post-=Pos(x,back-1,d['vis_z'])*Rot(-90,0,0)*Cylinder(1.3,9,align=a)
         body+=post
     body -= Pos(centre_x,centre_y,d['berceau_z'])*extrude(drop(rayon),amount=20)
-    if not draft:
-        edges=body.edges().filter_by(lambda e: abs(e.bounding_box().min.Z-(h+16))<1e-6 and e.bounding_box().min.Y>back+0.01)
-        body=polish(body,edges,1.0)
+    for x in d['vis_x']:
+        # À l'impression, l'ouverture est au sommet du plot (Z imprimé max),
+        # jamais contre le plateau. Ce cutter est appliqué au corps déjà uni :
+        # il retire donc aussi la matière de base autour du plot, et laisse un
+        # vrai hexagone. La masse sous l'écrou porte directement l'épaulement :
+        # il n'y a donc pas de plafond en surplomb à ponter. Au montage les vis
+        # avancent vers Y+ et atteignent l'écrou par dessous. Ø3,4 ; 5,7 mm sur
+        # plats ; épaulement 2,6 mm.
+        body-=Pos(x,back+7,d['vis_z'])*Rot(90,0,0)*m3_nut_trap(
+            shaft_dia=3.4, nut_af=5.5, nut_th=2.4, shoulder_z=2.6, depth=9.0,
+            bridge_roof=False
+        )
+    # Pas de chanfrein sur cette face : il déformerait l'entrée des pièges M3.
     # Original Y=back sur le plateau ; Z machine devient -Y d'impression.
     return Pos(0,0,-back)*Rot(90,0,0)*body

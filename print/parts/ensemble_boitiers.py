@@ -1,7 +1,7 @@
 from nurb import *
 
 from system import AMIN
-from parts.boitier_dc import canpal_bb 
+from parts.boitier_dc import canpal_bb, magnet_spacer_pins
 
 
 def can_pal_plane(dc, z0, w):
@@ -26,6 +26,15 @@ def ensemble_boitiers(
     dc = use("boitier_dc", epaisseur_paroi=w)
     ac = use("boitier_ac", epaisseur_paroi=w)
 
+    spacer = use("magnet_spacer", wall=w)
+    pin_y = magnet_spacer_pins(w)[0][1]
+    spacer_bb = spacer.bounding_box()
+    spacer = Pos(
+        0,
+        pin_y - spacer_bb.size.Y / 2,
+        -spacer_bb.size.Z + epaisseur_fond,
+    ) * spacer
+
     can_pal = obstacle(can_pal_plane(dc, epaisseur_fond, w), name="Adafruit CAN Pal")
 
-    return (dc, ac, can_pal)
+    return (dc, ac, spacer, can_pal)

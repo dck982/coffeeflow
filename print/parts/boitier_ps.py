@@ -27,6 +27,7 @@ _HOOK_LARGEUR = 3.0
 _HOOK_BORDS = 5.6
 _HOOK_Z = 5.0
 _OV = 0.4
+_PRESS_FIT_JEU = 0.15
 
 
 def bb_overall():
@@ -39,7 +40,7 @@ def bb_overall():
         + w
         + measured("recom_rac05_y")
         + w
-        + 2 * measured("wago_epaisseur_corps")
+        + 2 * measured("wago_epaisseur_corps") + _PRESS_FIT_JEU
     )
     return bbox(0, 0, inner_x, inner_y)
 
@@ -67,7 +68,7 @@ def bb_wago_north():
     bb = bb_overall()
     w = _WALL
     dx = measured("wago_profondeur")
-    dy = 2 * measured("wago_epaisseur_corps")
+    dy = 2 * measured("wago_epaisseur_corps") + _PRESS_FIT_JEU
     return bbox(bb.max.X - dx, bb_psu().max.Y + w, dx, dy)
 
 
@@ -170,15 +171,24 @@ def boitier_ps(
     )
     body = add_wall(
         body, outer,
-        psu.min.X - 2*wall, psu.max.Y,
-        psu.size.X + 2*wall, wall,
+        psu.min.X - wall, psu.max.Y,
+        psu.size.X + wall, wall,
         z0, psu_z,
+    )
+
+    # PSU raise bar because the east part is shorter in Z than west part
+    # this keeps the PSU flat
+    body = add_wall(
+        body, outer,
+        psu.max.X-wall, psu.min.Y,
+        wall, psu.size.Y,
+        z0, measured("recom_rac05_z_diff")
     )
 
     # PSU west stop, south Wago side wall + stop, north Wago west stop.
     body = add_wall(
         body, outer,
-        psu.min.X - 2*wall, psu.min.Y,
+        psu.min.X - wall, psu.min.Y,
         wall, psu.size.Y,
         z0, _REGLETTE_PSU_Z,
     )

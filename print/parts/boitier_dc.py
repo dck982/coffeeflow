@@ -6,7 +6,6 @@ from system import (
     INSERT_M3,
     CMIN, AMIN,
     _fuse_one,
-    add_well,
     add_wall,
     add_corbel,
     offset_in,
@@ -32,7 +31,7 @@ def bb_top():
         )
 
 def bb_bottom():
-    return bbox(0,0,measured("boitier_int_marche_x"),measured("boitier_int_marche_y"))
+    return bbox(0,0,measured("boitier_int_aile_x"),measured("boitier_int_marche_y"))
 
 def corbels(wall):
     """Hole (cx, cy, d) and XY bbox of the pad, same origins as `add_corbel`."""
@@ -114,9 +113,6 @@ def _xiao_area(body, outer, east_x, south_y, z0):
         east_x - xiao_width - thin_wall, pin_y+3, 
         thin_wall, hole_y-pin_y-3-INSERT_M2.encombrement/2, 
         z0, xiao_height)
-
-    # add a magnet well under the XIAO module
-    body = add_well(body, outer, east_x - xiao_width/2, south_y + xiao_len - 20.0)
 
     return body
 
@@ -231,6 +227,22 @@ def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_l
 
     return body
 
+def bb_wago_south_west(container_bb, wall):
+    return _bb_wago_nw(container_bb, measured("wago_epaisseur")*2, wall)
+
+
+def magnet_spacer_pins(wall):
+    """Centres (x, y) des deux plots, même repère que boitier_dc."""
+    bb = bb_bottom()
+    wago = bb_wago_south_west(bb, wall)
+    py = wago.min.Y + wago.size.Y / 4
+    inner_west_x = bb.min.X + wall
+    inner_east_x = bb.max.X - wall
+    return (
+        (inner_west_x + wall + 1.5, py),
+        (inner_east_x - wall * 1.5, py),
+    )
+
 # A compartment for a 221-412 wago connector in the marche corner
 def _wago_south_west(body, outer, container_bb, wago_raise, surplomb_len, surplomb_w, z0, wall):
     # A 221-412 on its side
@@ -249,15 +261,6 @@ def _wago_south_west(body, outer, container_bb, wago_raise, surplomb_len, surplo
         surplomb_len, 
         z0, 
         inverse=True)
-    # add a magnet well in the center
-    bb = _bb_wago_nw(container_bb, area_dx, wall)
-    body = add_well(
-        body, 
-        outer, 
-        bb.center().X, 
-        bb.center().Y,
-        z0=0,
-        h=wago_raise+z0)
 
     return body
 
@@ -411,6 +414,13 @@ def boitier_dc(
             hauteur + 0.2,
         )
     )
+
+    # Two holes for magnet_spacer locating pins
+    pd = measured("magnet_spacer_pin_d") + measured("magnet_spacer_pin_jeu")
+    for px, py in magnet_spacer_pins(wall):
+        body = body - (
+            Pos(px, py, 0) * Cylinder(pd / 2, floor, align=CMIN)
+        )
 
     # East-face slots matching AC west: dimmer (north module) and SSR (south).
     # Y from y_max so the north faces stay aligned; Z from AC (open to the top).

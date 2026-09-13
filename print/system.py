@@ -87,7 +87,7 @@ def puit_couche_toit(rayon, pont=2.0):
     return rayon * math.sqrt(2.0) - pont / 2.0
 
 
-def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
+def puit_couche(rayon, profondeur, pont=2.0, debord=0.1):
     """Cutter d'un puits d'aimant dont l'axe est COUCHÉ sur le lit.
 
     Repère local : l'axe est +Z, le puits court de z=0 (la bouche, dans le plan
@@ -103,15 +103,12 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
     dépasse 45° et la dernière portée est un pont banal. Le sommet monte à
     `puit_couche_toit(rayon, pont)` au-dessus de l'axe.
 
-    La bouche prend un chanfrein `chanfrein` x 45° pour que l'aimant entre
-    droit ; `chanfrein=0` le supprime, ce que demande un puits trop près d'une
-    paroi pour lui laisser la place. Le cutter dépasse de `debord` en arrière de
-    la face pour la couper proprement.
+    La bouche est nette, à la cote sur toute la profondeur, pour que l'aimant
+    porte sur tout le fût. Le cutter dépasse de `debord` en arrière de la face
+    pour la couper proprement.
     """
     if pont <= 0.0:
         reject(f"pont {pont} doit être positif")
-    if chanfrein < 0.0 or chanfrein >= profondeur:
-        reject(f"chanfrein {chanfrein} ne tient pas dans un puits de {profondeur}")
     tangente = rayon / math.sqrt(2.0)
     toit = puit_couche_toit(rayon, pont)
     # Le pont doit rester au-dessus du sommet de l'alésage, sinon il le rabote et
@@ -138,13 +135,8 @@ def puit_couche(rayon, profondeur, pont=2.0, chanfrein=0.5, debord=0.1):
         ]
     )
 
-    # Le fût à la cote commence après le chanfrein d'entrée, qui évase la section
-    # elle-même à 45° pour que l'aimant entre droit ; `debord` prolonge dehors
-    # pour couper la face proprement.
-    cutter = extrude(Plane.XY.offset(chanfrein) * section, profondeur - chanfrein)
-    if chanfrein > 0.0:
-        bouche = cutter.faces().filter_by(Plane.XY).sort_by(Axis.Z)[0]
-        cutter = _fuse_one(cutter + extrude(bouche, chanfrein, taper=-45))
+    # `debord` prolonge dehors pour couper la face proprement.
+    cutter = extrude(section, profondeur)
     dehors = cutter.faces().filter_by(Plane.XY).sort_by(Axis.Z)[0]
     return _fuse_one(cutter + extrude(dehors, debord))
 
@@ -356,7 +348,7 @@ def add_hook(
     ns=True,
     toward_plus=True,
     wall=1.6,
-    jeu=1.2,
+    jeu=1.4,
     largeur=3.0,
     bords=5.6,
     hauteur_u=5.0,
@@ -374,7 +366,7 @@ def anti_tirage_ns(
     z0,
     toward_plus_y,
     wall=1.6,
-    jeu=1.2,
+    jeu=1.4,
     largeur=3.0,
     bords=5.6,
     hauteur_u=5.0,
@@ -456,7 +448,7 @@ def anti_tirage_ew(
     z0,
     toward_plus_x,
     wall=1.6,
-    jeu=1.2,
+    jeu=1.5,
     largeur=3.0,
     bords=5.6,
     hauteur_u=5.0,

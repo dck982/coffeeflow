@@ -14,9 +14,9 @@ def _ring(pts, z0, rdz, rd, w, jeu):
     b = Pos(0, 0, z0) * extrude(Polygon(*pts_in, align=None), rdz)
     return a - b
 
-def _dc_east_opening(body, y, z0, rib_dz):
+def _dc_east_opening(body, y, w, z0, rib_dz):
     """Create a 10x10 opening for cables in the cover, along the east side of the DC boitier"""
-    opening_sz = 10
+    opening_sz = w
     x = measured("boitier_int_aile_x")-opening_sz
     margin = 1
     return body - (
@@ -117,8 +117,8 @@ def couvercle_acdc(
     body = body - (Pos(0,0,z0)*Box(chanfrein,chanfrein,prof,align=AMIN))
 
     # Openings for sensors
-    for opening_y in (30, 70):
-        body = _dc_east_opening(body, opening_y, z0, prof)
+    for opening_y, opening_w in ((30,10), (70,11)):
+        body = _dc_east_opening(body, opening_y, opening_w, z0, prof)
 
     # Screw holes through the plate; interrupt the rib over each pad + 1.3 mm.
     corbel_jeu = 1.3

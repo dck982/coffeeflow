@@ -4,7 +4,7 @@
 Size: 162.00 x 87.00 x 105.00 mm, 218884.8 mm3, 13 solids, 165 faces
 Slivers: 2 under 1.0mm2, smallest 0.866mm2, 0 accepted
 Checks: clean
-Variant ensemble_digmesa_guide: 162.00 x 87.00 x 105.00 mm, 232089.8 mm3, 16 solids, 218 faces, 2 under 1.0mm2, clean
+Variant ensemble_digmesa_guide: 162.00 x 87.00 x 105.00 mm, 234127.3 mm3, 16 solids, 218 faces, 2 under 1.0mm2, clean
 <!-- /AUTO -->
 
 ## What it is
@@ -20,15 +20,18 @@ Structure à Z=5 ; berceau à Z=11 ; corps à Z=19,1 ; fils pliés à Z=74,1 ;
 dessous toit Z=77,1 ; sommet Z=80,1. Têtes M3 Ø5,5×3 à Y=2…5 : garde de 2 mm
 avec la paroi arrière. Retenue de collerette avec 0,5 mm de liberté verticale.
 
-Guide indépendant, choix confirmé par David. Fixation proposée (103,23),
-passage axial X au centre (113,29,39,1). Ces positions restent fixes quand on
-déplace le capteur en XY ; ce n'est pas un bras qui le suit. Vérifier la place
-réelle du guide et l'accès à sa M6 côté pompe. Le guide occupe un trou existant,
-avec deux rainures sous la semelle pour ne pas retenir l'eau autour.
+Guide indépendant, choix confirmé par David. Fixation sur le trou (143,23)
+de la trame 40×35, un pas à l'est de (103,23) ; `gx,gy` = (153,29). `distance_trou` 25 mm
+(slider, plancher 13) : déport du trou à l'extrémité de la pièce. Le guide
+est retourné `Rot(180)` dans l'assemblage. Ces positions restent fixes quand
+on déplace le capteur en XY ; ce n'est pas un bras qui le suit. Vérifier la
+place réelle du guide et l'accès à sa M6 côté pompe. Le guide occupe un trou
+existant, avec deux rainures sous la semelle pour ne pas retenir l'eau autour.
 
 Ovale 21×10,5 : extrémités Ø10,5, entraxe 10,5, deux tubes Ø8. Jeu diamétral
-2,5 mm, réglable entre 2 et 3. Le tube de contexte est ouvert aux extrémités,
-avec un tour de 360° de rayon 25 et un décalage de 10,5 mm entre segments.
+2,5 mm, réglable entre 2 et 3. Le tube de contexte est ouvert aux extrémités, centré sur
+`gx − distance_trou` (128 au défaut), avec un tour de 360° de rayon 25 et un
+décalage de 10,5 mm entre segments.
 Il illustre deux passages libres, pas les raccordements aux embouts réels.
 Sommet Z=93,1, garde de 8,9 mm sous la plaque Z=102. Le guide n'est pas un
 serre-tube ; vérifier qu'il ne précontraint pas le silicone une fois raccordé.
@@ -53,8 +56,8 @@ guide_tube = true
 3. Fixer les deux M6 depuis dessous, rondelles et écrous au-dessus des semelles.
    Vérifier l'appui de la rondelle nord, le dégagement du pied et le contact
    simultané des trois pieds après recuit.
-4. Fixer le guide avec une troisième M6 dans le trou proposé, après vérification
-   en machine. Enfiler les deux segments avant raccordement.
+4. Fixer le guide avec une troisième M6 dans le trou (143,23), après
+   vérification en machine. Enfiler les deux segments avant raccordement.
 5. Vérifier la boucle libre au repos, les accès et les mouvements pompe en marche.
 
 check_digmesa.py vérifie les quatre solides et leurs intersections entre eux,
@@ -64,6 +67,9 @@ recuit n'est confirmé. Les contrôles d'impression portent sur chaque pièce.
 
 ## Don't
 
+- Ne pas remettre le guide sur (103,23) / passage (113,29) : c'est le trou
+  (143,23), `gx` = 153, `distance_trou` = 25.
+- Ne pas oublier `Rot(180)` sur le guide dans l'assemblage.
 - Ne pas imprimer l'assemblage ; exporter chaque pièce dans l'orientation fournie.
 - Ne pas prendre l'éclaté pour le montage réel.
 - Ne pas remettre un tore fermé ou un guide pour un seul segment.
@@ -71,5 +77,8 @@ recuit n'est confirmé. Les contrôles d'impression portent sur chaque pièce.
 
 ## Changelog
 
+- 2026-09-13 : guide déplacé d'un pas de trame vers +X, trou (103,23) →
+  (143,23), `gx` 113 → 153. Slider `distance_trou` 25, `Rot(180)`. Variante
+  guide 232090 → 234127 mm3, 16 solids, checks clean.
 - 2026-09-12 : décalage 4 mm, pieds de 5 mm et troisième appui, guide indépendant
   retenu, tube de référence à deux passages et visserie ajoutée.

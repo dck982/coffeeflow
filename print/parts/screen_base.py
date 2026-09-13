@@ -56,7 +56,7 @@ def screen_base(
     second_opening_offset_x=19.0,
     magnet_slot_gap=2.2,
     straight_magnet_from_right=15.0,
-    cable_tie_gap=1.2,
+    cable_tie_gap=1.5,
     cable_tie_slot_width=3.0,
     cable_tie_span=5.6,
     cable_tie_height=5.0,
@@ -496,9 +496,10 @@ def screen_base(
     #     protrusion past the plain wall (straight_magnet_cover +
     #     straight_magnet_height - wall) is unsupported underneath, short
     #     enough to bridge. The magnet is pushed in from the interior — the
-    #     mouth, where puit_couche's own entry chamfer sits — and travels
-    #     toward the exterior, stopping straight_magnet_cover short of it,
-    #     the thickness the user asked the back face be reduced to here. ---
+    #     mouth is sharp, at size for the full well depth, so the disc bears
+    #     on the whole bore — and travels toward the exterior, stopping
+    #     straight_magnet_cover short of it, the thickness the user asked the
+    #     back face be reduced to here. ---
     straight_magnet_diameter = measured("aimant_diametre") + measured("aimant_puit_press_fit")
     straight_magnet_height = measured("aimant_hauteur")
     straight_magnet_r = straight_magnet_diameter / 2
@@ -512,11 +513,15 @@ def screen_base(
             param="straight_magnet_from_right",
         )
     straight_magnet_mouth_y = north_y - magnet_cover - straight_magnet_height
-    body += Pos(straight_magnet_x, (straight_magnet_mouth_y + north_y) / 2, straight_magnet_z) * Box(
+    straight_magnet_pad = Pos(
+        straight_magnet_x, (straight_magnet_mouth_y + north_y) / 2, straight_magnet_z
+    ) * Box(
         2 * straight_magnet_half,
         north_y - straight_magnet_mouth_y,
         2 * straight_magnet_half,
     )
+    straight_magnet_pad_bb = straight_magnet_pad.bounding_box()
+    body += straight_magnet_pad
     straight_magnet_plane = Plane(
         origin=(straight_magnet_x, straight_magnet_mouth_y, straight_magnet_z),
         x_dir=(-1, 0, 0),
@@ -697,12 +702,20 @@ def screen_base(
         for x0 in (-outer_half / 3, outer_half / 3):
             if on_flat_face(edge, x0 - well_width / 2) or on_flat_face(edge, x0 + well_width / 2):
                 return True
-        # the straight well's own boss: a plain box sitting flush against
-        # the back wall, tangent with it at the boss's own outer frame —
-        # chamfering that frame tessellates a sliver at the tangency, same
-        # failure mode as the ramped wells' end faces above.
-        if on_flat_face(edge, straight_magnet_x - straight_magnet_half) or on_flat_face(
-            edge, straight_magnet_x + straight_magnet_half
+        # the straight well's whole pad, including the well mouth: a 1mm
+        # polish on that rim is the entry chamfer puit_couche no longer
+        # cuts, and chamfering the box frame tessellates a sliver where
+        # it sits flush on the back wall.
+        b = edge.bounding_box()
+        pad = straight_magnet_pad_bb
+        margin = 0.1
+        if (
+            pad.min.X - margin <= b.min.X
+            and b.max.X <= pad.max.X + margin
+            and pad.min.Y - margin <= b.min.Y
+            and b.max.Y <= pad.max.Y + margin
+            and pad.min.Z - margin <= b.min.Z
+            and b.max.Z <= pad.max.Z + margin
         ):
             return True
         return False

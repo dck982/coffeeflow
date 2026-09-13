@@ -7,11 +7,11 @@ Checks: clean
 
 ## What it is
 
-Couvercle plat de `boitier_ps`, dimensions extérieures exactement celles de la boîte hors mur nord du canal (il ne déborde pas). Un rebord intérieur seul s'appuie contre la face intérieure des quatre murs pour l'ajustage. Deux trous de passage M3, alignés sur les deux heat inserts corbeaux de `boitier_ps`. Un plot presse-PCB sur le ring est, tiers médian en Y du RAC05 (`appui_pcb_largeur` 3, `appui_pcb_profondeur` 4,5).
+Couvercle plat de `boitier_ps`. La plaque reprend le contour de la boîte et se prolonge au nord de `largeur_passage_cable` jusqu'au mur du canal (qui monte à `hauteur`, même hauteur que le couvercle) ; elle bute contre ce mur, elle ne le recouvre pas. Un rebord intérieur seul s'appuie contre la face intérieure des quatre murs de la cavité pour l'ajustage. Deux trous de passage M3, alignés sur les deux heat inserts corbeaux de `boitier_ps`. Un plot presse-PCB sur le ring est, tiers médian en Y du RAC05 (`appui_pcb_largeur` 3, `appui_pcb_profondeur` 4,5).
 
 ## Design notes
 
-Même repère que `boitier_ps` : origine au coin intérieur sud-ouest, jusqu'au miroir final (voir plus bas). La plaque va de `(-epaisseur_paroi, -epaisseur_paroi)` à `bb_overall()` élargi des murs : le contour extérieur du mur, rien de plus. Imprimé face visible sur le lit ; le rebord pousse vers +Z à l'impression et plonge dans la cavité une fois la pièce retournée. Le rebord est un cadre rectangulaire (`_cadre`, boîte moins boîte évidée) qui longe la face intérieure du mur avec `gouttiere_jeu` de jeu ; rien ne dépasse à l'extérieur du mur. Le cadre est interrompu sur l'empreinte des deux corbeaux (`corbels(wall)` importé de `boitier_ps`) : ces corbeaux sont à fleur du sommet côté cavité, le cadre y entrerait en collision. Les deux trous M3 tombent exactement sur l'alésage des deux inserts.
+Même repère que `boitier_ps` : origine au coin intérieur sud-ouest, jusqu'au miroir final (voir plus bas). La plaque couvre `outer` et se prolonge au nord de `largeur_passage_cable` jusqu'au mur du canal (à `hauteur`) ; elle ne recouvre pas ce mur. Imprimé face visible sur le lit ; le rebord pousse vers +Z à l'impression et plonge dans la cavité une fois la pièce retournée. Le rebord est un cadre rectangulaire (`_cadre`, boîte moins boîte évidée) qui longe la face intérieure du mur avec `gouttiere_jeu` de jeu ; rien ne dépasse à l'extérieur du mur de la cavité. Le cadre est interrompu sur l'empreinte des deux corbeaux (`corbels(wall)` importé de `boitier_ps`) : ces corbeaux sont à fleur du sommet côté cavité, le cadre y entrerait en collision. Les deux trous M3 tombent exactement sur l'alésage des deux inserts.
 
 Poser le couvercle sur la boîte, c'est le retourner (autour d'un axe nord-sud) : ça inverse X. Tout le corps ci-dessus est donc modelé dans le repère de `boitier_ps` PUIS mis en miroir en X (`mirror`, plan à `bb_overall().size.X / 2`) juste avant le polish, pour que le logement ouest (modélisé à l'est) retombe à l'ouest une fois la pièce retournée sur la boîte. Le miroir porte sur la pièce entière, pas sur chaque coordonnée : plus simple, et il ne peut pas en oublier une.
 
@@ -20,12 +20,13 @@ Presse-PCB : `_pcb_press` sur le ring est, posée sur `epaisseur_paroi`, Y = `bb
 ## Don't
 
 - Ne pas retirer le miroir X final, ni le déplacer avant les découpes : tout le corps se modélise dans le repère direct de `boitier_ps` (logement ouest à l'ouest, etc.), le miroir est la dernière étape, sinon la pièce retournée met le logement ouest à l'est (user 2026-09-05).
-- Ne pas ajouter de rebord ou de cadre à l'extérieur du mur : la plaque doit rester dans les dimensions extérieures de `boitier_ps`, elle ne doit jamais déborder (user 2026-09-05).
+- Ne pas ajouter de rebord ou de cadre à l'extérieur du mur de la **cavité** : hors canal, la plaque ne déborde pas de `outer` (user 2026-09-05). Le prolongement nord jusqu'au mur du canal est l'exception, pas un rebord.
 - Ne pas fermer le cadre intérieur sur toute la longueur : il doit s'arrêter sur l'empreinte des deux corbeaux (`insert_along` × `insert_plat`), sans quoi le rebord percute le heat insert ouest et le heat insert sud de `boitier_ps`.
 - Ne pas dérégler les corbeaux sans passer par `boitier_ps.corbels(wall)` : plus de `insert_ouest_y` / `insert_sud_x` / `longueur_interne` locaux.
 - Ne pas chamfreiner les arêtes internes du cadre (jonctions concaves) : `nurb check` les signale en cosmétique seulement ; un chanfrein y romprait l'angle droit qui centre le mur.
 - Ne pas ajouter une presse intérieure (ouest du RAC05) : une presse sur le ring est suffit (user 2026-09-12).
 - Ne pas étendre la presse sur tout le Y du RAC05 : tiers médian seulement.
+- Ne pas ramener la plaque à l'ancien Y max de `outer` : elle doit buter contre le mur du canal (user 2026-09-13).
 - Ne pas rajouter `wall` au prolongement nord : le mur du canal est à `hauteur`, le plateau s'arrête à `largeur_passage_cable` (user 2026-09-13).
 
 ## Changelog

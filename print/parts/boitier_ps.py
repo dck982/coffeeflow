@@ -22,8 +22,8 @@ _PUIT_X = 10.0
 _PUIT_Y_SUD = 30.0
 _PUIT_Y_NORD = 60.0
 _INSERT_SUD_DEPUIS_EST = 10.0
-_HOOK_JEU = 1.2
 _HOOK_LARGEUR = 3.0
+_HOOK_JEU = 1.5
 _HOOK_BORDS = 5.6
 _HOOK_Z = 5.0
 _OV = 0.4
@@ -243,7 +243,7 @@ def boitier_ps(
     )
     z_catch_n = z0 + wago_raise + measured("wago_423_largeur")
     body = body + surplomb(
-        bb.max.Y, bb.max.X - wago_surplomb, z_catch_n, _SURPLOMB_W,
+        bb.max.Y, bb.max.X, z_catch_n, _SURPLOMB_W,
         wago_surplomb + wall,
         plane=Plane.YZ, overlap=_OV,
     )
@@ -293,9 +293,10 @@ def boitier_ps(
     )
 
     # North cable channel: floor + north wall, closed by the lid. Unpolished.
+    # Make the floor thicker to give more strength to the face
     body = body + (
         Pos(-wall, inner_y + wall, 0)
-        * Box(inner_x + 2 * wall, largeur_passage_cable + wall, z0, align=AMIN)
+        * Box(inner_x + 2 * wall, largeur_passage_cable + wall, z0*3, align=AMIN)
     )
     body = body + (
         Pos(-wall, inner_y + wall + largeur_passage_cable, z0)
@@ -304,7 +305,8 @@ def boitier_ps(
 
     # Reinforcements for west and south faces
     opening_margin = 5.0
-    reinforcement_z = hauteur*0.8
+    # 0.65 avoids the cover rim and being too close to the south corbel
+    reinforcement_z = hauteur*0.65
     body = add_wall(body, outer, 0, inner_y-ouv_ouest_n-opening_margin, wall*2, wall, z0, reinforcement_z)
     body = add_wall(body, outer, 0, ouv_ouest+opening_margin, wall*2, wall, z0, reinforcement_z)
     body = add_wall(body, outer, inner_x-ouv_bas-opening_margin, 0, wall, wall*2, z0, reinforcement_z)

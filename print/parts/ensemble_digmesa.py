@@ -5,7 +5,7 @@ from math import sin, cos, pi
 
 @assembly
 def ensemble_digmesa(centre_x=52.0, centre_y=29.0, eclate=0.0, contexte=True,
-                     guide_tube=False, hauteur_pieds=5.0, jeu_tube=2.5):
+                     guide_tube=False, hauteur_pieds=5.0, jeu_tube=2.5, distance_trou=25):
     """Montage bas ; les obstacles représentent uniquement les cotes connues.
 
     centre_x: Déplacement latéral du capteur, les M6 restent fixes.
@@ -14,6 +14,7 @@ def ensemble_digmesa(centre_x=52.0, centre_y=29.0, eclate=0.0, contexte=True,
     contexte: Afficher le capteur simplifié et les limites connues de la machine.
     guide_tube: Afficher le guide optionnel, position à vérifier face à la pompe.
     jeu_tube: Jeu diamétral du guide pour les deux segments.
+    distance_trou: Distance du guide au trou.
     hauteur_pieds: Vide sous la structure, hors des ancrages M6.
     """
     # Les wrappers de sliders nurb ne sont pas sérialisables dans use().
@@ -23,10 +24,10 @@ def ensemble_digmesa(centre_x=52.0, centre_y=29.0, eclate=0.0, contexte=True,
     berceau=Pos(centre_x,centre_y,d['berceau_z']+eclate)*use('berceau_digmesa')
     cap=Pos(0,d['arriere'],2*eclate)*Rot(-90,0,0)*use('chapeau_digmesa',hauteur_pieds=hauteur_pieds,centre_x=centre_x,centre_y=centre_y)
     solids=[support,berceau,cap]
-    gx,gy=113.0,29.0
+    gx,gy=153.0,29.0
     gz=d['assise']+20
     if guide_tube:
-        guide=Pos(gx-10,gy-6,0)*Rot(0,-90,0)*Pos(0,0,-13)*use('guide_boucle_digmesa',hauteur_passage=gz,jeu_tube=jeu_tube)
+        guide=Pos(gx-10,gy-6,0)*Rot(0,-90,0)*Rot(180,0,0)*Pos(0,0,-distance_trou)*use('guide_boucle_digmesa',hauteur_passage=gz,jeu_tube=jeu_tube,distance_trou=distance_trou)
         solids.append(guide)
     if contexte:
         a=(Align.CENTER,Align.CENTER,Align.MIN)
@@ -46,14 +47,14 @@ def ensemble_digmesa(centre_x=52.0, centre_y=29.0, eclate=0.0, contexte=True,
         if guide_tube:
             pitch=measured('digmesa_tube_exterieur')+jeu_tube
             radius=measured('digmesa_boucle_diametre_min')/2
-            points=[(gx+radius*sin(t),gy-pitch/2+pitch*t/(2*pi),gz+radius*(1-cos(t))) for t in [2*pi*i/96 for i in range(97)]]
-            start=(gx-18,gy-pitch/2,gz)
-            end=(gx+18,gy+pitch/2,gz)
+            points=[(gx-distance_trou+radius*sin(t),gy-pitch/2+pitch*t/(2*pi),gz+radius*(1-cos(t))) for t in [2*pi*i/96 for i in range(97)]]
+            start=(gx-50-distance_trou,gy-pitch/2,gz)
+            end=(gx+18-distance_trou,gy+pitch/2,gz)
             path=Wire([Line(start,points[0]),Spline(*points),Line(points[-1],end)])
             boucle=sweep(Plane(origin=start,x_dir=(0,1,0),z_dir=(1,0,0))*Circle(4),path=path)
             solids.append(obstacle(boucle,'tube de référence : 360°, deux segments libres ; trajets vers embouts à valider'))
             nut=extrude(RegularPolygon(6,6),amount=6)-Cylinder(3,7,align=a)
-            solids.append(obstacle(Pos(gx-10,gy-6,2)*nut,'écrou M6 guide indépendant ; trou proposé (103,23) au défaut'))
+            solids.append(obstacle(Pos(gx-10,gy-6,2)*nut,f'écrou M6 guide indépendant ; trou proposé ({gx-10:g},{gy-6:g}) au défaut'))
         # Fragment de fond : épaisseur illustrative, seuls Z=0 et la trame sont connus.
         floor=Pos(0,0,-1)*Box(160,85,1,align=(Align.MIN,Align.MIN,Align.MIN))
         for xx in (23,63,103,143):

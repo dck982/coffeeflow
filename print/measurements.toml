@@ -810,12 +810,12 @@ unit = "mm"
 how = "user 2026-08-31: puits unique en bas à gauche, 25 mm du bord bas (y)."
 
 [magnet_spacer_pin_d]
-value = 3
+value = 2.8
 unit = "mm"
 how = "user: magnet spacer, diamètre des pins de connexion boitier - spacer"
 
 [magnet_spacer_pin_jeu]
-value = 0.4
+value = 0.6
 unit = "mm"
 how = "user: magnet spacer, jeu à ajouter pour le trou"
 

@@ -27,8 +27,6 @@ _HOOK_LARGEUR = 3.0
 _HOOK_BORDS = 5.6
 _HOOK_Z = 5.0
 _OV = 0.4
-_PRESS_FIT_JEU = 0.15
-
 
 def bb_overall():
     """Inner cavity, origin at the inner south-west corner."""
@@ -40,7 +38,7 @@ def bb_overall():
         + w
         + measured("recom_rac05_y")
         + w
-        + 2 * measured("wago_epaisseur_corps") + _PRESS_FIT_JEU
+        + 2 * measured("wago_epaisseur")
     )
     return bbox(0, 0, inner_x, inner_y)
 
@@ -68,7 +66,7 @@ def bb_wago_north():
     bb = bb_overall()
     w = _WALL
     dx = measured("wago_profondeur")
-    dy = 2 * measured("wago_epaisseur_corps") + _PRESS_FIT_JEU
+    dy = 2 * measured("wago_epaisseur")
     return bbox(bb.max.X - dx, bb_psu().max.Y + w, dx, dy)
 
 
@@ -303,6 +301,13 @@ def boitier_ps(
         Pos(-wall, inner_y + wall + largeur_passage_cable, z0)
         * Box(inner_x + 2 * wall, wall, hauteur, align=AMIN)
     )
+
+    # Reinforcements for west and south faces
+    opening_margin = 5.0
+    reinforcement_z = hauteur*0.8
+    body = add_wall(body, outer, 0, inner_y-ouv_ouest_n-opening_margin, wall*2, wall, z0, reinforcement_z)
+    body = add_wall(body, outer, 0, ouv_ouest+opening_margin, wall*2, wall, z0, reinforcement_z)
+    body = add_wall(body, outer, inner_x-ouv_bas-opening_margin, 0, wall, wall*2, z0, reinforcement_z)
 
     body = _fuse_one(body)
     if draft:

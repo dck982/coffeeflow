@@ -48,12 +48,7 @@ how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need 
 [wago_epaisseur]
 value = 8.4
 unit = "mm"
-how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. Body without lever bulge is wago_epaisseur_corps (8.0) at the wire-end."
-
-[wago_epaisseur_corps]
-value = 8.0
-unit = "mm"
-how = "user 2026-08-31: Wago 221 body at the wire-end, without the lever bulge."
+how = "WAGO 221-415 / 221-423 datasheet height 8.4 mm with levers. "
 
 [jeu_wago]
 value = 0.3
@@ -820,9 +815,19 @@ unit = "mm"
 how = "user: magnet spacer, diamètre des pins de connexion boitier - spacer"
 
 [magnet_spacer_pin_jeu]
-value = 0.15
+value = 0.4
 unit = "mm"
 how = "user: magnet spacer, jeu à ajouter pour le trou"
+
+[magnet_spacer_ac_deborde_sud]
+value = 5.0
+unit = "mm"
+how = "user 2026-09-13: débord du spacer au sud de boitier_ac"
+
+[magnet_spacer_ac_dans_boitier]
+value = 9.0
+unit = "mm"
+how = "user 2026-09-13: recouvrement du spacer sous le sud de boitier_ac"
 
 # --- Boîtier AC (bac rectangle, retiré 2026-09-02) ---
 # Record only: the rectangle tray was replaced by the upper half of the
@@ -921,11 +926,6 @@ how = "Record only: superseded by recom_rac05_y. user 2026-09-01: 28 → 27.8 mm
 value = 35.0
 unit = "mm"
 how = "Record only: superseded by recom_rac05_z. user 2026-09-02: hauteur du volume alim au-dessus du fond, et hauteur du muret nord (largeur X = alim_x seulement)."
-
-[boitier_ps_surplus_nord]
-value = 17.6
-unit = "mm"
-how = "Record only: derived as 2×wago_epaisseur_corps + 1.6 mm PSU north wall. user 2026-09-02: 16 mm wall-to-wall north of the PSU wall plus the 1.6 mm wall. Was 16.8 (15.2 mm clear). PSU north face stays at Y = 70."
 
 [boitier_ps_reglette_alim_x]
 value = 28.2

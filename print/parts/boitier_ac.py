@@ -11,6 +11,14 @@ from system import (
     AMIN, CMIN
     )
 
+# how thick to make the east face to make it more resistant
+EAST_WALL_FACTOR = 2.0
+# inset of magnet_spacer_ac pins from the spacer's west/east, and from
+# the box south plus deborde_sud (Y = deborde_sud + 2.5*wall on the part)
+_SPACER_PIN_INSET = 2.5
+_SPACER_X0_FRAC = 0.2
+_SPACER_X1_FRAC = 0.8
+
 def bb_overall():
     return bbox(
         measured("boitier_int_aile_x"),
@@ -18,6 +26,38 @@ def bb_overall():
         measured("boitier_int_x")-measured("boitier_int_aile_x"),
         measured("boitier_int_y")-measured("boitier_int_aile_y")
     )
+
+
+def magnet_spacer_bb():
+    """XY of magnet_spacer_ac, same origin as boitier_ac."""
+    bb = bb_overall()
+    sud = measured("magnet_spacer_ac_deborde_sud")
+    nord = measured("magnet_spacer_ac_dans_boitier")
+    x0 = bb.min.X + _SPACER_X0_FRAC * bb.size.X
+    return bbox(
+        x0,
+        bb.min.Y - sud,
+        (_SPACER_X1_FRAC - _SPACER_X0_FRAC) * bb.size.X,
+        sud + nord,
+    )
+
+
+def magnet_spacer_pins(wall):
+    """Centres (x, y, z) des plots, même repère que boitier_ac.
+
+    Y = deborde_sud + 2.5*wall depuis le sud de la pièce. Ajuster ici
+    s'ils tombent dans un muret ou le SSR.
+    """
+    sp = magnet_spacer_bb()
+    inset = _SPACER_PIN_INSET * wall
+    sud = measured("magnet_spacer_ac_deborde_sud")
+    py = sp.min.Y + sud + inset
+    pz = 0.6
+    return (
+        (sp.min.X + inset, py, pz),
+        (sp.max.X - inset, py, pz),
+    )
+
 
 def bb_encoche():
     return bbox(
@@ -191,7 +231,9 @@ def _cut_opening(body, x0, wall, openings):
 
 def _dimmer_openings(body, z0, wall, hauteur):
     obb = bb_overall()
-    body = _cut_opening(body, obb.max.X-wall, wall, dimmer_ac_opening(wall, z0, hauteur))
+    body = _cut_opening(body, 
+        obb.max.X-wall*EAST_WALL_FACTOR, wall*EAST_WALL_FACTOR, 
+        dimmer_ac_opening(wall, z0, hauteur))
     body = _cut_opening(body, obb.min.X, wall, dimmer_dc_opening(wall, z0, hauteur))
 
     return body
@@ -248,7 +290,9 @@ def _ssr_area(body, outer, wall_dz, z0, wall):
 def _ssr_openings(body, z0, wall, hauteur):
     obb = bb_overall()
     bb = ssr_bb(wall, z0)
-    body = _cut_opening(body, obb.max.X-wall, wall, ssr_ac_opening(wall, z0, hauteur))
+    body = _cut_opening(body, 
+        obb.max.X-wall*EAST_WALL_FACTOR, wall*EAST_WALL_FACTOR, 
+        ssr_ac_opening(wall, z0, hauteur))
     body = _cut_opening(body, obb.min.X, wall, ssr_dc_opening(wall, z0, hauteur))
 
     return body
@@ -302,9 +346,12 @@ def boitier_ac(
 
     outer = extrude(Polygon(*outer_pts_outer, align=None), hauteur)
     cavity = Pos(0, 0, z0) * extrude(
-        Polygon(*inner_pts, align=None), hauteur + 0.2
+        Polygon(*inner_pts, align=None), hauteur
     )
     body = outer - cavity
+    # make the east face more robust (it is made of small pieces that can break)
+    body = add_wall(body, outer, 
+        bb.max.X-wall*EAST_WALL_FACTOR, bb.min.Y, wall*EAST_WALL_FACTOR, bb.size.Y, z0, hauteur*0.8)
 
     body = _build_encoche(body, encoche, inner_north_y, hauteur, z0, wall)
     
@@ -330,6 +377,12 @@ def boitier_ac(
 
     # Corbel
     body = add_corbel(body,(inner_east_x + inner_west_x)/2.0,inner_south_y,hauteur,plane=Plane.YZ)
+
+    pd = measured("magnet_spacer_pin_d") + measured("magnet_spacer_pin_jeu")
+    for px, py, _ in magnet_spacer_pins(wall):
+        body = body - (
+            Pos(px, py, 0) * Cylinder(pd / 2, z0, align=CMIN)
+        )
 
     body = _fuse_one(body)
     if draft:

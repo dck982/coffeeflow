@@ -232,15 +232,15 @@ def bb_wago_south_west(container_bb, wall):
 
 
 def magnet_spacer_pins(wall):
-    """Centres (x, y) des deux plots, même repère que boitier_dc."""
+    """Centres (x, y) des deux plots, et hauteur z même repère que boitier_dc."""
     bb = bb_bottom()
     wago = bb_wago_south_west(bb, wall)
     py = wago.min.Y + wago.size.Y / 4
     inner_west_x = bb.min.X + wall
     inner_east_x = bb.max.X - wall
     return (
-        (inner_west_x + wall + 1.5, py),
-        (inner_east_x - wall * 1.5, py),
+        (inner_west_x + wall + 1.5, py, 0.6),
+        (inner_east_x - wall * 1.5, py, 0.6),
     )
 
 # A compartment for a 221-412 wago connector in the marche corner
@@ -417,7 +417,7 @@ def boitier_dc(
 
     # Two holes for magnet_spacer locating pins
     pd = measured("magnet_spacer_pin_d") + measured("magnet_spacer_pin_jeu")
-    for px, py in magnet_spacer_pins(wall):
+    for px, py, _ in magnet_spacer_pins(wall):
         body = body - (
             Pos(px, py, 0) * Cylinder(pd / 2, floor, align=CMIN)
         )

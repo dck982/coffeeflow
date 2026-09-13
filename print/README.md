@@ -40,7 +40,7 @@ nurb export canal
 | `parts/screen_base.py` | Berceau du wedge |
 | `parts/screen_assembly.py` | Assemblage wedge + base |
 | `parts/canal.py` | Goulotte de guidage des fils |
-| `parts/base_pesage.py`, `plateau_pesage.py`, `ensemble_pesage.py`, `butee_goupille.py`, `goujon_indexage.py` | Pesée drip tray — **en pause** (le poids vient d'une Acaia Lunar en BLE). Cotes : `../docs/driptray.md` |
+| `parts/goujon_indexage.py` | Pesée drip tray — **en pause** (le poids vient d'une Acaia Lunar en BLE). Cotes : `../docs/driptray.md` |
 | `measurements.toml` | Cotes (Wago, aimants, Helutherm, M3, modules) |
 | `printer.toml` | A1 Mini |
 | `system.py` | Filet imprimable, puits d'aimant couchés, ouvertures des modules |

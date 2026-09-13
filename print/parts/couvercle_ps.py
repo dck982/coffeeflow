@@ -30,7 +30,7 @@ def couvercle_ps(
     largeur_passage_cable=5.0,
     vis_diametre=None,
     appui_pcb_largeur=3.0,
-    appui_pcb_profondeur=5.5,
+    appui_pcb_profondeur=4.5,
     draft=False,
 ):
     """Couvercle plat de `boitier_ps`, avec un rebord intérieur qui s'appuie
@@ -129,8 +129,10 @@ def couvercle_ps(
         press_y0, press_y1, wall, appui_pcb_profondeur,
     )
 
+    # The channel wall goes all the way to hauteur, cut the extension 
+    # before wall (do not add wall to largeur_passage_cable)
     body = body + Pos(plate_x0, plate_y1, 0) * Box(
-        plate_x1 - plate_x0, largeur_passage_cable + wall, wall, align=_AMIN
+        plate_x1 - plate_x0, largeur_passage_cable, wall, align=_AMIN
     )
 
     mid_x = inner_x / 2.0

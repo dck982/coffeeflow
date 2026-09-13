@@ -6,7 +6,7 @@ from parts.boitier_dc import bb_bottom, magnet_spacer_pins
 
 
 @part
-def magnet_spacer(
+def magnet_spacer_dc(
     hauteur=4.0,
     wall=1.68,
     floor=1.6,
@@ -14,7 +14,9 @@ def magnet_spacer(
 ):
     """Cale d'aimants sous le sud de boitier_dc.
 
-    hauteur: hauteur totale du spacer, le jeu sous boitier_dc
+    Repère identique à boitier_dc : pas de translation XY dans l'assemblage.
+
+    hauteur: hauteur du spacer, le jeu sous boitier_dc
     wall: épaisseur des parois, doit correspondre à boitier_dc
     floor: épaisseur du fond de boitier_dc, hauteur des plots
     """
@@ -28,18 +30,20 @@ def magnet_spacer(
 
     bb = bb_bottom()
     size_y = measured("aimant_diametre") * 2
+    pins = magnet_spacer_pins(wall)
+    py = pins[0][1]
+    y0 = py - size_y / 2.0
 
-    body = Box(bb.size.X, size_y, hauteur, align=AMIN)
+    body = Pos(bb.min.X, y0, 0) * Box(bb.size.X, size_y, hauteur, align=AMIN)
 
     wxd = bb.size.X / 3.5
-    well_y = size_y / 2
     for wx in (bb.min.X + wxd, bb.max.X - wxd):
-        body = add_well(body, body, wx, well_y, z0=0, h=hauteur + 1)
+        body = add_well(body, body, wx, py, z0=0, h=hauteur + 1)
 
     pin_r = measured("magnet_spacer_pin_d") / 2
-    for px, _py in magnet_spacer_pins(wall):
+    for px, pin_y, pz in pins:
         body = body + (
-            Pos(px, well_y, hauteur) * Cylinder(pin_r, floor, align=CMIN)
+            Pos(px, pin_y, hauteur) * Cylinder(pin_r, floor + pz, align=CMIN)
         )
 
     return body

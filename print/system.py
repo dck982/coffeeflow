@@ -2,13 +2,17 @@
 
 import math
 
-def digmesa_layout(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0):
+def digmesa_layout(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0,
+                   surelevation_berceau=17.0):
     """Interfaces communes support/chapeau : coordonnées machine, mm.
 
     Valeurs de conception, distinctes des mesures du capteur. Le berceau est
-    posé à Z=6 + hauteur_pieds ; la butée du chapeau porte sur la collerette, jamais les fils.
+    posé à Z=6 + hauteur_pieds. Sa propre surélévation porte le Digmesa plus
+    haut sans modifier le support ; la butée du chapeau porte sur la
+    collerette, jamais les fils.
     """
-    assise = hauteur_pieds + 6.0 + measured("digmesa_pin_longueur") + 1.0
+    assise = (hauteur_pieds + 6.0 + surelevation_berceau
+              + measured("digmesa_pin_longueur") + 1.0)
     return dict(x=centre_x, y=centre_y, berceau_z=hauteur_pieds + 6.0, assise=assise,
                 toit=assise + measured("digmesa_hauteur_connecte") + 3.0,
                 retenue=assise + measured("digmesa_corps_hauteur"),

@@ -1113,6 +1113,16 @@ value = 5.0
 unit = "mm"
 how = "Utilisateur 2026-09-12 : surélever la structure de 5 mm sur pieds pour laisser passer l’eau ; cote de conception demandée, pas un relevé machine."
 
+[digmesa_sortie_basse_z_actuelle]
+value = 23.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : bas de la sortie inférieure du Digmesa avec le support à 5 mm du fond. Une surélévation de 17 mm le place à Z=40."
+
+[digmesa_surelevation_berceau]
+value = 17.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : choix confirmé d'ajouter 17 mm au berceau plutôt que d'allonger les pieds du support."
+
 [digmesa_jeu_guide_demande]
 value = 2.5
 unit = "mm"
@@ -1122,6 +1132,66 @@ how = "Utilisateur 2026-09-12 : demande 2–3 mm de jeu diamétral pour deux seg
 value = 1.5
 unit = "mm"
 how = "Utilisateur: épaisseur taquets anti-rotation"
+
+[presse_etoupe_230v_centre_x]
+value = 105.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : centre du presse-étoupe 230 V depuis la face gauche, en orientation de montage."
+
+[presse_etoupe_230v_largeur]
+value = 25.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : largeur d'emprise du presse-étoupe 230 V."
+
+[presse_etoupe_230v_z_max]
+value = 34.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : sommet de l'emprise du presse-étoupe depuis la plaque de fond."
+
+[presse_etoupe_230v_y_min]
+value = 0.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : presse-étoupe sur la face arrière de la machine ; le repère de l'assemblage place cette face à Y=0."
+
+[presse_etoupe_230v_profondeur]
+value = 15.0
+unit = "mm"
+how = "Interprétation provisoire de photo1, 2026-09-14 : profondeur illustrative du volume de contexte ; aucune cote Y fournie."
+
+[cable_230v_diametre]
+value = 8.0
+unit = "mm"
+how = "Interprétation provisoire de photo1, 2026-09-14 : diamètre illustratif du câble sortant du presse-étoupe."
+
+[cable_230v_longueur_contexte]
+value = 20.0
+unit = "mm"
+how = "Interprétation provisoire de photo1, 2026-09-14 : court tronçon intérieur dessiné uniquement pour rendre le câble identifiable dans l'assemblage."
+
+[connecteur_reservoir_x_min]
+value = 55.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : enveloppe confirmée X=55…80 sous la plaque du réservoir."
+
+[connecteur_reservoir_y_max]
+value = 70.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : enveloppe confirmée Y=50…70 sous la plaque du réservoir."
+
+[connecteur_reservoir_largeur_x]
+value = 25.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : largeur X approximative du connecteur sous la plaque du réservoir."
+
+[connecteur_reservoir_profondeur_y]
+value = 20.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : profondeur Y approximative du connecteur sous la plaque du réservoir."
+
+[connecteur_reservoir_descente_z]
+value = 40.0
+unit = "mm"
+how = "Utilisateur 2026-09-14 : descente approximative du connecteur sous la plaque du réservoir."
 
 [digmesa_taquet_y]
 value = 3.0

@@ -2,7 +2,7 @@ from nurb import *
 
 
 @part
-def guide_boucle_digmesa(hauteur_passage=39.1, jeu_tube=2.5, distance_trou=25, draft=False):
+def guide_boucle_digmesa(hauteur_passage=40.0, jeu_tube=2.5, distance_trou=25.0, draft=False):
     """Guide indépendant, couché sur sa face droite pour l'impression.
 
     hauteur_passage: Axe des deux segments depuis la tôle du fond.

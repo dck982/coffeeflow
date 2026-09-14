@@ -29,24 +29,53 @@ def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.3,
     def block(x0, y0, x1, y1, z, height):
         return Pos(x0,y0,z)*Box(x1-x0,y1-y0,height,align=(Align.MIN,Align.MIN,Align.MIN))
     # Tranche arrière continue : face d'impression. Rail à droite des écrous.
-    body = block(31,back,35,68,h,3)
-    body += block(13,back,centre_x+22.5,back+7,h,8)
+    body = block(28,back,35,68,h,3)
+    # L'extension vers X− qui rejoignait l'ancien trou (23,23) est retirée :
+    # la traverse commence désormais au bord gauche de l'anneau.
+    body += block(29.5,back,centre_x+22.5,back+7,h,8)
+    # Copie du rail du trou partiel, translatée de +40 mm avec le pied.
+    body += block(69,back,76,back+10,h,3)
+    body += block(71,back+10,76,68,h,3)
     def drop(r):
         return Circle(r)+Polygon((r/2**0.5,r/2**0.5),(0,r*2**0.5),(-r/2**0.5,r/2**0.5),align=None)
-    # Deux pieds seulement ; rampes à 45° dans le sens d'impression.
-    for yy in (23,58):
-        x0=13 if yy==23 else 20
+    # Deux ancrages sur Y=58 : le trou partiel existant (23,58), puis la
+    # goutte déplacée de 40 mm en X vers (63,58). Rampes à 45° dans le sens
+    # d'impression ; l'ancien trou (23,23) est entièrement supprimé.
+    for xx,x0,x1,web_x in ((23,20,35,31),(63,56,76,71)):
+        yy=58
         lead=yy-7-h
-        pad=block(x0,yy-7,35,yy+7,0,measured('digmesa_semelle_epaisseur'))
-        ramp=Polygon((lead,h),(yy-7,0),(yy+7,0),(yy+7,2),(yy-7,2),(lead,h+2),align=None)
-        body += Pos(x0,0,0)*extrude(Plane.YZ*ramp,amount=35-x0)
+        pad_y1=yy+10
+        pad=block(x0,yy-7,x1,pad_y1,0,measured('digmesa_semelle_epaisseur'))
+#        ramp_points=[(lead,h),(yy-7,0),(yy+7,0),(yy+7,2),(yy-7,2),(lead,h+2)]
+        ramp_points=[(lead,h),(yy-7,0),(yy-7,2+4),(lead,2+4)]
+        ramp=Polygon(*ramp_points,align=None)
+        body += Pos(x0,0,0)*extrude(Plane.YZ*ramp,amount=x1-x0)
+        # Raccord 3D vers le Box du guide d'écrou. La petite section repose sur
+        # le rail ; la grande reprend exactement toute l'empreinte du pad.
+        # Sur 15 mm en Y, l'expansion maximale est 15 mm en X et 5 mm en Z.
+        support_y0=yy-22
         web=Polygon((lead,h),(yy-7,0),(yy+7,0),(yy+7,h+3),(lead,h+3),align=None)
-        body += Pos(31,0,0)*extrude(Plane.YZ*web,amount=4)
-        if yy==58:
-            flare=Polygon((31,lead-11),(35,lead-11),(35,lead+2),(20,lead+2),(20,lead),align=None)
-            body += Pos(0,0,h)*extrude(flare,amount=3)
+        body += Pos(web_x,0,0)*extrude(Plane.YZ*web,amount=4)
+        flare=Polygon((web_x,lead-11),(x1,lead-11),(x1,lead+2),(x0,lead+2),(x0,lead),align=None)
+        body += Pos(0,0,h)*extrude(flare,amount=3)
         body += pad
-        body -= Pos(23,yy,-1)*extrude(drop(3.3),amount=4)
+        body -= Pos(xx,yy,-1)*extrude(drop(3.3),amount=4)
+        # Plot plein anti-rotation, puis cutter hexagonal avec 0,15 mm de jeu
+        # radial. Le relief triangulaire prolonge le cutter vers +Y à 45° :
+        # en orientation d'impression, la cavité se referme couche par couche.
+        nut_radius=6.0+0.15
+        boss=block(x0,yy-7,x1,pad_y1,
+                   measured('digmesa_semelle_epaisseur'),4)
+        roof_y=nut_radius*(3**0.5)/2
+        roof_half=nut_radius/2
+        nut_profile=RegularPolygon(nut_radius,6,rotation=0)+Polygon(
+            (-roof_half,roof_y),(roof_half,roof_y),(0,roof_y+roof_half),align=None)
+        nut_cutter=Pos(xx,yy,measured('digmesa_semelle_epaisseur')-0.1)*extrude(
+            nut_profile,amount=4.2)
+        if xx==23:
+            nut_cutter += block(19,yy-5,23.5,yy+11,1.9,4.3)
+        nut_guide=boss -nut_cutter
+        body += nut_guide
     slot=Polygon((18,54.7),(23,54.7),(23+3.3/2**0.5,58+3.3/2**0.5),(18,58+3.3*2**0.5+5),align=None)
     body -= Pos(0,0,-1)*extrude(slot,amount=4)
     rayon = (38.5 + jeu_berceau)/2
@@ -54,11 +83,12 @@ def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.3,
     ring -= Pos(0,0,6)*extrude(drop(rayon),amount=3)
     ring -= Pos(0,-24,-1)*Box(60,6.6,20,align=a)
     body += Pos(centre_x,centre_y,h)*ring
-    # Troisième appui sous le côté libre du berceau : aucune vis, aucun drain bouché.
-    # 6×6 mm au sol ; rampe 45° pour l'impression sur la tranche arrière.
+    # Deux appuis libres symétriques sous le berceau : aucune vis, aucun drain
+    # bouché. Empreinte 6×6 mm au sol et rampe 45° dans l'orientation d'impression.
     foot=Polygon((centre_y-3-h,h),(centre_y-3,0),(centre_y+3,0),
                  (centre_y+3,h+1),(centre_y-3-h,h+1),align=None)
-    body += Pos(centre_x+14,0,0)*extrude(Plane.YZ*foot,amount=6)
+    for foot_x in (centre_x-20,centre_x+14):
+        body += Pos(foot_x,0,0)*extrude(Plane.YZ*foot,amount=6)
     for x in d['vis_x']:
         post=block(x-5,back,x+5,back+7,h,16)
         body+=post

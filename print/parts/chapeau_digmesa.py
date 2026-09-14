@@ -3,12 +3,13 @@ from system import digmesa_layout
 
 
 @part
-def chapeau_digmesa(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0, draft=False):
+def chapeau_digmesa(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0, jeu_retenue=0.1, draft=False):
     """Chapeau imprimé couché sur sa face arrière ; remise en place par l'assemblage.
 
     centre_x: Même centre X que le support.
     centre_y: Même centre Y que le support.
     hauteur_pieds: Dégagement du support au-dessus du fond.
+    jeu_retenue: Jeu à ajouter sur la retenue pour qu'elle ne sert pas trop
     """
     d = digmesa_layout(centre_x,centre_y,hauteur_pieds)
     def block(x0,y0,x1,y1,z,h):
@@ -17,7 +18,7 @@ def chapeau_digmesa(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0, draft=False
     body = block(centre_x-23,back,centre_x+23,back+3,d['berceau_z'],d['toit']+3-d['berceau_z'])
     body += block(centre_x-23,back,centre_x+23,centre_y+23,d['toit'],3)
     # Retenue au bord arrière de la collerette, 0,5 mm de garde verticale.
-    body += block(centre_x-6,back+2,centre_x+6,centre_y-17,d['retenue'],3)
+    body += block(centre_x-6,back+2,centre_x+6,centre_y-17,d['retenue']+jeu_retenue,3)
     for x in d['vis_x']:
         body -= Pos(x,back-1,d['vis_z'])*Rot(-90,0,0)*Cylinder(1.7,5,
             align=(Align.CENTER,Align.CENTER,Align.MIN))

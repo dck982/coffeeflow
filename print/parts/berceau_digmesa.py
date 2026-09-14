@@ -2,14 +2,19 @@ from nurb import *
 
 
 @part
-def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.25, profondeur_appui=2.0,
-                    epaisseur_paroi=3.0, draft=False):
+def berceau_digmesa(jeu_corps=0.3, jeu_pin=0.25, profondeur_appui=2.0,
+                    epaisseur_paroi=3.0,
+                    berceau_taquet_x=3,
+                    jeu_taquet=0.2,
+                    draft=False):
     """Coupon d'appui du Digmesa ; raccords orientés vers +X.
 
     jeu_corps: Jeu diamétral autour du corps inférieur Ø32.
     jeu_pin: Jeu diamétral ajouté aux deux pins du débitmètre.
     profondeur_appui: Hauteur du rebord autour du bas du capteur.
     epaisseur_paroi: Épaisseur radiale du rebord extérieur.
+    berceau_taquet_x: Longueur des taquets anti-rotation
+    jeu_taquet: Jeu total ajouté en X, Y et Z aux encoches des taquets.
     """
     if jeu_corps < 0.3:
         reject("Le jeu diamétral autour du corps doit être au moins 0,3 mm.", param="jeu_corps")
@@ -19,6 +24,8 @@ def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.25, profondeur_appui=2.0,
         reject("L'appui doit rester entre 1,5 et 3 mm pour dégager le raccord inférieur.", param="profondeur_appui")
     if epaisseur_paroi < 2.5:
         reject("La paroi doit mesurer au moins 2,5 mm.", param="epaisseur_paroi")
+    if not 0.1 <= jeu_taquet <= 0.8:
+        reject("Le jeu des taquets doit rester entre 0,1 et 0,8 mm.", param="jeu_taquet")
     rayon = (measured("digmesa_corps_diametre") + jeu_corps) / 2
     # 1 mm sous le pin : il ne porte jamais le poids du capteur.
     assise = measured("digmesa_pin_longueur") + 1.0
@@ -52,4 +59,31 @@ def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.25, profondeur_appui=2.0,
     body -= Pos(0, -measured("digmesa_pin_second_decalage"), -1) * Cylinder(
         (measured("digmesa_pin_second_diametre") + jeu_pin) / 2, hauteur + 2,
         align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # Encoches d'indexage pour les taquets du support. Le rectangle bas donne
+    # au taquet son jeu X, Y et Z. Son plafond est remplacé par un toit à 45° :
+    # un triangle YZ extrudé dans X, soit l'axe du tunnel. Il n'y a plus de
+    # plafond horizontal à imprimer au-dessus de l'encoche.
+    ouverture_x = berceau_taquet_x + jeu_taquet
+    ouverture_y = measured("digmesa_taquet_y") + jeu_taquet
+    ouverture_z = measured("digmesa_taquet_z") + jeu_taquet
+    x_min = body.bounding_box().min.X
+    x_max = body.bounding_box().max.X
+    roof = Plane.YZ * Polygon(
+        (-ouverture_y / 2, ouverture_z),
+        (ouverture_y / 2, ouverture_z),
+        (0, ouverture_z + ouverture_y / 2),
+        align=None,
+    )
+    for x_exterieur, longueur in (
+        (x_min, ouverture_x),
+        (x_max, -ouverture_x),
+    ):
+        body -= Pos(x_exterieur, 0, 0) * Box(
+            ouverture_x,
+            ouverture_y,
+            ouverture_z,
+            align=(Align.MIN if longueur > 0 else Align.MAX, Align.CENTER, Align.MIN),
+        )
+        body -= Pos(x_exterieur, 0, 0) * extrude(roof, longueur)
+
     return body

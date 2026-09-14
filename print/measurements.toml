@@ -1117,3 +1117,13 @@ how = "Utilisateur 2026-09-12 : surélever la structure de 5 mm sur pieds pour l
 value = 2.5
 unit = "mm"
 how = "Utilisateur 2026-09-12 : demande 2–3 mm de jeu diamétral pour deux segments Ø8 dans un ovale ; choix médian 2,5 mm. Guide indépendant sur le fond confirmé."
+
+[digmesa_taquet_z]
+value = 1.5
+unit = "mm"
+how = "Utilisateur: épaisseur taquets anti-rotation"
+
+[digmesa_taquet_y]
+value = 3.0
+unit = "mm"
+how = "Utilisateur: largeur taquets anti-rotation"

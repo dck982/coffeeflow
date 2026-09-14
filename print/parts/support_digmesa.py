@@ -3,13 +3,15 @@ from system import digmesa_layout, m3_nut_trap
 
 
 @part
-def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.5,
+def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.3,
+                    berceau_taquet_x=3,
                     hauteur_pieds=5.0, draft=False):
     """Support sur deux pieds M6 et un appui libre, imprimé sur sa tranche arrière.
 
     centre_x: Centre du capteur depuis la face gauche, vue arrière.
     centre_y: Centre du capteur depuis le rebord arrière.
     jeu_berceau: Jeu diamétral du logement recevant le berceau.
+    berceau_taquet_x: Dimension X des taquets
     hauteur_pieds: Vide sous la structure, hors des pieds.
     """
     if not 52.0 <= centre_x <= 60.0:
@@ -61,6 +63,20 @@ def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.5,
         post=block(x-5,back,x+5,back+7,h,16)
         body+=post
     body -= Pos(centre_x,centre_y,d['berceau_z'])*extrude(drop(rayon),amount=20)
+    # Taquets anti-rotation
+    # outer radius - inner radius
+    outer_radius = (38.5 + jeu_berceau)/2
+    ring_width = outer_radius - 14
+    if berceau_taquet_x >= ring_width:
+        reject(
+            f"berceau_taquet_x {berceau_taquet_x} ne peut pas être plus grand que l'anneau {ring_width}",
+            param="berceau_taquet_x"
+        )
+    for bx in (centre_x+outer_radius-berceau_taquet_x, centre_x-outer_radius):
+        body += (
+            Pos(bx,centre_y,d['berceau_z']) *
+            Box(berceau_taquet_x,measured("digmesa_taquet_y"),measured("digmesa_taquet_z"),align=(Align.MIN,Align.CENTER,Align.MIN))
+        )
     for x in d['vis_x']:
         # À l'impression, l'ouverture est au sommet du plot (Z imprimé max),
         # jamais contre le plateau. Ce cutter est appliqué au corps déjà uni :

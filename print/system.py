@@ -11,7 +11,7 @@ def digmesa_layout(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0):
     assise = hauteur_pieds + 6.0 + measured("digmesa_pin_longueur") + 1.0
     return dict(x=centre_x, y=centre_y, berceau_z=hauteur_pieds + 6.0, assise=assise,
                 toit=assise + measured("digmesa_hauteur_connecte") + 3.0,
-                retenue=assise + measured("digmesa_corps_hauteur") + 0.5,
+                retenue=assise + measured("digmesa_corps_hauteur"),
                 arriere=centre_y - 24.0, vis_x=(centre_x-19.0, centre_x+19.0),
                 vis_z=hauteur_pieds + 11.0)
 from collections import namedtuple

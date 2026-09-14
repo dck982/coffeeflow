@@ -78,16 +78,20 @@ def corbels(wall):
     half = along / 2.0
     bb = bb_overall()
     x_sud = bb.max.X - _INSERT_SUD_DEPUIS_EST
+    PAD_MARGIN = 1
     return [
-        (r, _PUIT_Y_NORD, 3, bbox(0.0, _PUIT_Y_NORD - half, plat, along)),
+        (r, _PUIT_Y_NORD, 3, bbox(0.0, _PUIT_Y_NORD - half - PAD_MARGIN, plat, along + 2*PAD_MARGIN)),
         (
             x_sud - wall - r,
             r,
             3,
-            bbox(x_sud - along, 0.0, along, plat),
+            bbox(x_sud - along - PAD_MARGIN, 0.0, along + 2*PAD_MARGIN, plat),
         ),
+        (
+            bb.size.X/2.0 - half, bb.size.Y-r, 3, 
+            bbox(bb.size.X/2.0 - along -PAD_MARGIN,bb.size.Y-plat,along+2*PAD_MARGIN,plat)
+        )
     ]
-
 
 def _cut_opening(body, x, y, dx, dy, z0, h):
     return body - (
@@ -276,6 +280,10 @@ def boitier_ps(
     body = add_corbel(
         body, inner_x - _INSERT_SUD_DEPUIS_EST - along, 0.0, hauteur,
         plane=Plane.YZ, flush=True,
+    )
+    body = add_corbel(
+        body, inner_x / 2.0, inner_y, hauteur,
+        plane=Plane.YZ, flush=True, reverse=True,
     )
 
     # Openings last, through the outer walls. Height overshoots the rim.

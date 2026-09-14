@@ -2,7 +2,7 @@ from nurb import *
 
 
 @part
-def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.5, profondeur_appui=2.0,
+def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.25, profondeur_appui=2.0,
                     epaisseur_paroi=3.0, draft=False):
     """Coupon d'appui du Digmesa ; raccords orientés vers +X.
 
@@ -11,8 +11,10 @@ def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.5, profondeur_appui=2.0,
     profondeur_appui: Hauteur du rebord autour du bas du capteur.
     epaisseur_paroi: Épaisseur radiale du rebord extérieur.
     """
-    if jeu_corps < 0.3 or jeu_pin < 0.3:
-        reject("Les jeux diamétraux doivent être au moins 0,3 mm.")
+    if jeu_corps < 0.3:
+        reject("Le jeu diamétral autour du corps doit être au moins 0,3 mm.", param="jeu_corps")
+    if jeu_pin < 0.1:
+        reject("Le jeu diamétral des pins doit être au moins 0,1 mm.", param="jeu_pin")
     if not 1.5 <= profondeur_appui <= 3.0:
         reject("L'appui doit rester entre 1,5 et 3 mm pour dégager le raccord inférieur.", param="profondeur_appui")
     if epaisseur_paroi < 2.5:
@@ -28,8 +30,24 @@ def berceau_digmesa(jeu_corps=0.5, jeu_pin=0.5, profondeur_appui=2.0,
             lambda e: abs(e.center().Z - hauteur) < 1e-6), 1.0)
     body -= Pos(0, 0, assise) * Cylinder(rayon, profondeur_appui + 1,
                     align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # Pin central étagé : depuis la face d'appui à Z=assise, Ø3,85 sur
+    # 2,5 mm, puis Ø4,25. Le jeu reste diamétral et commun aux deux alésages.
+    pin_haut = measured("digmesa_pin_hauteur_haut")
+    z_marche = assise - pin_haut
+    rayon_large = (measured("digmesa_pin_diametre_max") + jeu_pin) / 2
+    rayon_petit = (measured("digmesa_pin_diametre_haut") + jeu_pin) / 2
+    # Un raccord à 45° de 0,2 mm évite un plafond circulaire au bas du Ø3,85.
+    # Il retire légèrement plus de matière que le pin : le fit reste libre.
+    raccord = rayon_large - rayon_petit
     body -= Pos(0, 0, -1) * Cylinder(
-        (measured("digmesa_pin_diametre_max") + jeu_pin) / 2, hauteur + 2,
+        rayon_large, z_marche - raccord + 1,
+        align=(Align.CENTER, Align.CENTER, Align.MIN))
+    body -= Pos(0, 0, z_marche - raccord) * Cone(
+        rayon_large, rayon_petit, raccord,
+        align=(Align.CENTER, Align.CENTER, Align.MIN))
+    body -= Pos(0, 0, z_marche) * Cylinder(
+        rayon_petit,
+        pin_haut + 1,
         align=(Align.CENTER, Align.CENTER, Align.MIN))
     body -= Pos(0, -measured("digmesa_pin_second_decalage"), -1) * Cylinder(
         (measured("digmesa_pin_second_diametre") + jeu_pin) / 2, hauteur + 2,

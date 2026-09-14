@@ -1031,6 +1031,16 @@ value = 4.25
 unit = "mm"
 how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, détail C : diamètre maximum du pin central."
 
+[digmesa_pin_diametre_haut]
+value = 3.85
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, détail C : Ø3,85 sur les 2,5 premiers mm sous le module."
+
+[digmesa_pin_hauteur_haut]
+value = 2.5
+unit = "mm"
+how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, détail C : longueur de la partie Ø3,85 du pin central."
+
 [digmesa_pin_longueur]
 value = 7.1
 unit = "mm"

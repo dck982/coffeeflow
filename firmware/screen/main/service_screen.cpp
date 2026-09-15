@@ -75,6 +75,7 @@ uint32_t g_last_touch_ms = 0;
 bool g_touch_label_visible = false;
 bool g_purge_held = false;
 uint8_t g_diagnostic_pump_pct = 100;
+esp_lcd_panel_handle_t g_panel_handle = nullptr;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
@@ -93,11 +94,13 @@ void log_lcd_memory_before_rgb_alloc() {
 }
 
 // Le flux DMA peut démarrer avant le premier rendu LVGL complet et conserver
-// un décalage fixe. Une reprise unique après une seconde le resynchronise,
+// un décalage fixe. Une reprise unique après cinq secondes le resynchronise,
 // sans forcer un restart à chaque VSYNC (option qui provoquait des sauts).
 void rgb_restart_timer_cb(lv_timer_t* timer) {
-  auto panel = static_cast<esp_lcd_panel_handle_t>(lv_timer_get_user_data(timer));
-  esp_err_t err = esp_lcd_rgb_panel_restart(panel);
+  (void)timer;
+  esp_err_t err = g_panel_handle != nullptr
+                      ? esp_lcd_rgb_panel_restart(g_panel_handle)
+                      : ESP_ERR_INVALID_STATE;
   can_link::send_log(common::LogCode::kLcdInitStep,
                      err == ESP_OK ? common::LogSeverity::kDebug : common::LogSeverity::kError,
                      err == ESP_OK ? 8 : 0x8008, static_cast<uint32_t>(err));
@@ -168,6 +171,7 @@ esp_lcd_panel_handle_t init_rgb_panel() {
   esp_lcd_panel_handle_t panel_handle = nullptr;
   log_lcd_memory_before_rgb_alloc();
   ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&panel_config, &panel_handle));
+  g_panel_handle = panel_handle;
   ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
   return panel_handle;
@@ -516,7 +520,9 @@ void init_on_core1() {
   // la tâche LVGL tenait déjà le verrou au premier tick.
   if (lvgl_port_lock(1000)) {
     build_ui();
-    lv_timer_t* restart_timer = lv_timer_create(rgb_restart_timer_cb, 1000, panel_handle);
+    // Attendre que l'initialisation radio lancée après service_screen::init()
+    // soit normalement terminée avant de réaligner le flux RGB.
+    lv_timer_t* restart_timer = lv_timer_create(rgb_restart_timer_cb, 5000, nullptr);
     lv_timer_set_repeat_count(restart_timer, 1);
     lvgl_port_unlock();
   }
@@ -549,6 +555,18 @@ void init() {
   ESP_ERROR_CHECK(created == pdPASS ? ESP_OK : ESP_FAIL);
   xSemaphoreTake(done, portMAX_DELAY);
   vSemaphoreDelete(done);
+}
+
+bool restart_lcd() {
+  if (g_panel_handle == nullptr) {
+    return false;
+  }
+  esp_err_t err = esp_lcd_rgb_panel_restart(g_panel_handle);
+  can_link::send_log(common::LogCode::kLcdInitStep,
+                     err == ESP_OK ? common::LogSeverity::kDebug
+                                   : common::LogSeverity::kError,
+                     err == ESP_OK ? 9 : 0x8009, static_cast<uint32_t>(err));
+  return err == ESP_OK;
 }
 
 }  // namespace service_screen

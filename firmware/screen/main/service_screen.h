@@ -14,4 +14,8 @@ namespace service_screen {
 // (docs/screen-issue.md).
 void init();
 
+// Demande au pilote RGB de réaligner le flux DMA au prochain VSYNC.
+// Peut être appelée depuis l'interface après l'initialisation de l'écran.
+bool restart_lcd();
+
 }  // namespace service_screen

@@ -1,4 +1,5 @@
 #include "core/core.h"
+#include "service_screen.h"
 
 int64_t g_sim_time_us = 0;
 
@@ -16,3 +17,7 @@ RadioMode radio_mode() { return g_radio_mode; }
 void forget_network() {}
 ActionResult perform_action(const ActionCommand&) { return {}; }
 }  // namespace core
+
+namespace service_screen {
+bool restart_lcd() { return true; }
+}  // namespace service_screen

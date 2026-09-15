@@ -1,6 +1,7 @@
 #include "ui_home.h"
 #include "common/version.hpp"
 #include "core/core.h"
+#include "service_screen.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "lvgl.h"
@@ -629,6 +630,8 @@ void tile_cb(lv_event_t *e) {
       show_confirm(Confirm::Wifi);
     else if (i == 2)
       show_confirm(Confirm::Forget);
+    else if (i == 4)
+      service_screen::restart_lcd();
   }
 }
 void tile(unsigned i, const char *n, const char *val,
@@ -672,9 +675,9 @@ void render_settings() {
       tile(i, n[i], x[i]);
   } else {
     const char *n[] = {"purge max",    "wifi",     "réinitialiser réseau",
-                       "calibrations", "firmware", "veille"};
+                       "calibrations", "réinitialiser LCD", "veille"};
     const char *val[] = {"",      "ouvrir",     "effacer", "depuis /config",
-                         "écran", "automatique"};
+                         "redémarrer", "automatique"};
     std::snprintf(x[0], 40, "%u s", c.purge_max_s);
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], i ? val[i] : x[0],
@@ -1177,10 +1180,10 @@ void refresh(const core::Snapshot &s, bool boot) {
       std::snprintf(t, sizeof(t), "activation du réseau");
     else if (s.ipv4_address)
       std::snprintf(t, sizeof(t), "adresse ip · %u.%u.%u.%u",
-                    static_cast<unsigned>((s.ipv4_address >> 24) & 255),
-                    static_cast<unsigned>((s.ipv4_address >> 16) & 255),
+                    static_cast<unsigned>(s.ipv4_address & 255),
                     static_cast<unsigned>((s.ipv4_address >> 8) & 255),
-                    static_cast<unsigned>(s.ipv4_address & 255));
+                    static_cast<unsigned>((s.ipv4_address >> 16) & 255),
+                    static_cast<unsigned>((s.ipv4_address >> 24) & 255));
     else
       std::snprintf(t, sizeof(t), "configuration wifi ou association en cours");
     fullscreen(true, "wifi mode", t);

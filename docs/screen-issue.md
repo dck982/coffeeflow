@@ -1,5 +1,14 @@
 # Instabilité de synchronisation de l’écran
 
+## Nouvel essai (2026-09-15)
+
+Le décalage fixe reste observable sur certains démarrages malgré la reprise
+unique ajoutée en `v0.2.33`. Un essai à PCLK 12 MHz a placé la dalle dans une
+boucle de mires blanc/rouge/vert/bleu/noir ; PCLK reste donc à 16 MHz. La reprise
+automatique est repoussée de 1 à 5 secondes afin qu'elle arrive après le
+démarrage normal de la radio. La case « firmware » de la troisième page des
+réglages permet aussi de demander manuellement une reprise au prochain VSYNC.
+
 ## Résultat final (2026-09-10, `v0.2.33`)
 
 Le correctif `v0.2.20` a supprimé les sauts et décalages variables observés
@@ -104,13 +113,13 @@ HSYNC `48/88/40`, VSYNC `3/32/13`, PCLK 16 MHz sur front descendant. Le
 framebuffer 800×480 RGB565 est en PSRAM ; le driver `esp_lcd` utilise deux
 bounce buffers DMA internes de 40 lignes et `esp_lvgl_port` est en `bb_mode`.
 
-Le premier essai ciblé a suffi : un timer LVGL demande une seule reprise du
-panneau une seconde après la construction de l'UI. Le driver exécute la reprise
-au VSYNC suivant et le moniteur reçoit `LCD_INIT_STEP=8`. L'image et les zones
-tactiles coïncident ensuite sur le matériel.
+Le premier essai ciblé utilisait un timer LVGL une seconde après la construction
+de l'UI. Le nouvel essai porte ce délai à cinq secondes. Le driver exécute la
+reprise au VSYNC suivant et le moniteur reçoit `LCD_INIT_STEP=8`. Une demande
+manuelle depuis les réglages émet `LCD_INIT_STEP=9`.
 
 Ce restart unique est différent de `CONFIG_LCD_RGB_RESTART_IN_VSYNC`. Cette
 option reste désactivée : redémarrer à chaque trame avait aggravé les sauts.
-Les timings HSYNC/VSYNC, PCLK, les deux bounce buffers de 40 lignes et la
-configuration du GT911 ne changent pas. La bordure magenta ajoutée pour le
+Les timings, les deux bounce buffers de 40 lignes et la configuration du GT911
+ne changent pas. La bordure magenta ajoutée pour le
 diagnostic a été retirée sans modifier le correctif.

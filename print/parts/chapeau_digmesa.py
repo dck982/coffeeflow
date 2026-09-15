@@ -5,7 +5,7 @@ from system import digmesa_layout
 @part
 def chapeau_digmesa(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0,
                     surelevation_berceau=17.0, jeu_retenue=0.1,
-                    jeu_connecteur=3.0, draft=False):
+                    jeu_connecteur=3.0, largeur_faces=2.0, draft=False):
     """Chapeau imprimé couché sur sa face arrière ; remise en place par l'assemblage.
 
     centre_x: Même centre X que le support.
@@ -14,31 +14,54 @@ def chapeau_digmesa(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0,
     surelevation_berceau: Même surélévation que le berceau.
     jeu_retenue: Jeu à ajouter sur la retenue pour qu'elle ne sert pas trop
     jeu_connecteur: Jeu autour de l'enveloppe du connecteur réservoir.
+    largeur_faces: Largeur des faces de côté
     """
     if jeu_connecteur < 3.0:
         reject("Jeu connecteur d'au moins 3 mm pour éviter le contact sous vibrations.",param="jeu_connecteur")
-    RETENUE_LARGEUR=10.0
+    RETENUE_LARGEUR=12.0
+    RETENUE_DEPTH=4.0
+
     d = digmesa_layout(centre_x,centre_y,hauteur_pieds,surelevation_berceau)
     def block(x0,y0,x1,y1,z,h):
         return Pos(x0,y0,z)*Box(x1-x0,y1-y0,h,align=(Align.MIN,Align.MIN,Align.MIN))
     back = d['arriere']    
-    #body = block(centre_x-23,back,centre_x+23,back+3,d['berceau_z'],d['toit']+3-d['berceau_z'])
+    #body = block(centre_x-23,back,centre_x+23,back+3,d['berceau_z'],d['toit']+3-d['berceau_z']
+    top_x0 = centre_x-(RETENUE_LARGEUR+largeur_faces)
+    top_x1 = centre_x+(RETENUE_LARGEUR+largeur_faces)
+    bottom_x0 = centre_x-23
+    bottom_x1 = centre_x+23
     b2=Polygon(
-        (centre_x-23,d['berceau_z']),
-        (centre_x+23,d['berceau_z']),
-        (centre_x+23,d['vis_z']),
-        (centre_x+RETENUE_LARGEUR,d['retenue']+jeu_retenue),
-        (centre_x+RETENUE_LARGEUR,d['toit']+3),
-        (centre_x-RETENUE_LARGEUR,d['toit']+3),
-        (centre_x-RETENUE_LARGEUR,d['retenue']+jeu_retenue),
-        (centre_x-23,d['vis_z']),
+        (bottom_x0,d['vis_z']-10),
+        (bottom_x1,d['vis_z']-10),
+        (bottom_x1,d['vis_z']),
+        (top_x1,d['retenue']+jeu_retenue),
+        (top_x1,d['toit']+3),
+        (top_x0,d['toit']+3),
+        (top_x0,d['retenue']+jeu_retenue),
+        (bottom_x0,d['vis_z']),
         align=None)
     body = Pos(0,back+3,0)*extrude(Plane.XZ*b2,amount=3)
 
-    connector_y=measured('connecteur_reservoir_y_max')-measured('connecteur_reservoir_profondeur_y')
-    body += block(centre_x-RETENUE_LARGEUR,back,centre_x+RETENUE_LARGEUR,connector_y-jeu_connecteur,d['toit'],3)
+    connector_y=(
+        measured('connecteur_reservoir_y_max')-
+        measured('connecteur_reservoir_profondeur_y')-
+        jeu_connecteur
+    )
+    body += block(top_x0,back,top_x1,connector_y,d['toit'],3)
     # Retenue au bord arrière de la collerette, 0,5 mm de garde verticale.
-    body += block(centre_x-RETENUE_LARGEUR,back+2,centre_x+RETENUE_LARGEUR,centre_y-10,d['retenue']+jeu_retenue,3)
+    retenue_top = d['retenue']+jeu_retenue+RETENUE_DEPTH
+    body += block(
+        top_x0,
+        back+2,
+        top_x1,
+        centre_y-10,
+        d['retenue']+jeu_retenue,
+        RETENUE_DEPTH)
+
+    # Faces
+    body += block(top_x0,back,top_x0+largeur_faces,connector_y,retenue_top,d['toit']-retenue_top)
+    body += block(top_x1-largeur_faces,back,top_x1,connector_y,retenue_top,d['toit']-retenue_top)
+
     for x in d['vis_x']:
         body -= Pos(x,back-1,d['vis_z'])*Rot(-90,0,0)*Cylinder(1.7,5,
             align=(Align.CENTER,Align.CENTER,Align.MIN))

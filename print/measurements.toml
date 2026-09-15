@@ -1073,10 +1073,21 @@ how = "docs/support-digmesa.md : centre du premier trou à 23 mm du rebord arri�
 value = 102.0
 unit = "mm"
 how = "docs/support-digmesa.md : plaque portant le réservoir, hauteur depuis le fond."
+
 [digmesa_tube_exterieur]
 value = 8.0
 unit = "mm"
 how = "Utilisateur 2026-09-12 : diamètre du tube silicone 8 mm."
+
+[digmesa_axe_tube_boucle]
+value = 5.0
+unit = "mm"
+how = "Utilisateur 2026-09-15: distance entre-axe pour le tube boucle depuis le trou M6"
+
+[digmesa_tube_boucle_z]
+value = 55.0
+unit = "mm"
+how = "Utilisateur 2026-09-15: hauteur du tube boucle"
 
 [digmesa_boucle_diametre_min]
 value = 50.0

@@ -17,7 +17,7 @@ def digmesa_layout(centre_x=52.0, centre_y=29.0, hauteur_pieds=5.0,
                 toit=assise + measured("digmesa_hauteur_connecte") + 3.0,
                 retenue=assise + measured("digmesa_corps_hauteur"),
                 arriere=centre_y - 24.0, vis_x=(centre_x-19.0, centre_x+19.0),
-                vis_z=hauteur_pieds + 11.0)
+                vis_z=38)
 from collections import namedtuple
 
 from nurb import (

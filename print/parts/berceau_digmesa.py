@@ -36,19 +36,6 @@ def berceau_digmesa(jeu_corps=0.3, jeu_pin=0.25, profondeur_appui=2.0,
     hauteur = assise + profondeur_appui
     body = Cylinder(rayon + epaisseur_paroi, hauteur,
                     align=(Align.CENTER, Align.CENTER, Align.MIN))
-    # Fût creux, ouvert dessous. Le cutter cylindrique devient un cône à 45°
-    # et se ferme juste sous la zone des pins : aucune grande voûte horizontale
-    # n'est imprimée dans le vide. À 17 mm, la paroi droite reste à 3 mm.
-    # Retrait supplémentaire autour des tunnels de taquets : leur extrémité
-    # intérieure conserve au moins 1 mm de matière avant la cavité.
-    hollow_radius=min(rayon-1.2,surelevation_berceau-1.0)
-    hollow_straight=surelevation_berceau-hollow_radius
-    body -= Pos(0,0,-1)*Cylinder(
-        hollow_radius,hollow_straight+1,
-        align=(Align.CENTER,Align.CENTER,Align.MIN))
-    body -= Pos(0,0,hollow_straight)*Cone(
-        hollow_radius,0,hollow_radius,
-        align=(Align.CENTER,Align.CENTER,Align.MIN))
     if not draft:
         body = polish(body, body.edges().filter_by(
             lambda e: abs(e.center().Z - hauteur) < 1e-6), 1.0)

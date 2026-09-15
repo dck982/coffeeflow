@@ -90,7 +90,7 @@ def support_digmesa(centre_x=52.0, centre_y=29.0, jeu_berceau=0.3,
     for foot_x in (centre_x-20,centre_x+14):
         body += Pos(foot_x,0,0)*extrude(Plane.YZ*foot,amount=6)
     for x in d['vis_x']:
-        post=block(x-5,back,x+5,back+7,h,16)
+        post=block(x-5,back,x+5,back+7,h,d['vis_z']-h+5)
         body+=post
     body -= Pos(centre_x,centre_y,d['berceau_z'])*extrude(drop(rayon),amount=20)
     # Taquets anti-rotation

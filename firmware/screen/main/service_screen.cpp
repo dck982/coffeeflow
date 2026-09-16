@@ -1,5 +1,6 @@
 #include "service_screen.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -33,6 +34,12 @@ namespace {
 constexpr uint32_t kLcdHRes = 800;
 constexpr uint32_t kLcdVRes = 480;
 constexpr uint32_t kLcdPixelClockHz = 16 * 1000 * 1000;
+
+// L'écran est vu et utilisé en plongée : l'appui naturel tombe légèrement
+// au-dessus de la cible visuelle. Cette correction est appliquée après la
+// lecture du GT911, donc dans le même repère que toute l'UI LVGL.
+// À ajuster après essai sur la machine si nécessaire.
+constexpr int16_t kTouchYOffsetPx = 10;
 
 // Tentative avoid_tearing (num_fbs=2, bb_mode=0) essayée puis ABANDONNÉE
 // (2026-09-09) : résultat bien pire que le glitch résiduel qu'elle devait
@@ -76,8 +83,19 @@ bool g_touch_label_visible = false;
 bool g_purge_held = false;
 uint8_t g_diagnostic_pump_pct = 100;
 esp_lcd_panel_handle_t g_panel_handle = nullptr;
+lv_indev_read_cb_t g_touch_read_cb = nullptr;
 
 uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
+
+void touch_read_with_y_offset(lv_indev_t* indev, lv_indev_data_t* data) {
+  g_touch_read_cb(indev, data);
+  if (data->state != LV_INDEV_STATE_PRESSED) {
+    return;
+  }
+  data->point.y = std::clamp<int32_t>(
+      static_cast<int32_t>(data->point.y) + kTouchYOffsetPx, 0,
+      static_cast<int32_t>(kLcdVRes - 1));
+}
 
 // Le driver RGB réserve deux bounce buffers DMA internes dans
 // esp_lcd_new_rgb_panel(). Ces trois traces, émises juste avant cet appel,
@@ -259,6 +277,12 @@ void init_lvgl_port(esp_lcd_panel_handle_t panel_handle, esp_lcd_touch_handle_t 
     lv_indev_t* indev = lvgl_port_add_touch(&touch_cfg);
     if (indev == nullptr) {
       can_link::send_log(common::LogCode::kI2cError, common::LogSeverity::kWarn, 0);
+    } else {
+      // esp_lvgl_port assure la lecture GT911 (et d'éventuels gestes). On
+      // conserve ce callback et ne corrige que la coordonnée finale remise à
+      // l'UI, sans modifier un composant géré par ESP-IDF.
+      g_touch_read_cb = lv_indev_get_read_cb(indev);
+      lv_indev_set_read_cb(indev, touch_read_with_y_offset);
     }
   }
 }

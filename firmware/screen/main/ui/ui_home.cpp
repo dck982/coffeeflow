@@ -32,6 +32,7 @@ enum class Edit : uint8_t {
   PurgeMax
 };
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
+enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
   lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
@@ -61,6 +62,7 @@ bool scale = false;
 uint8_t page = 0;
 Edit editing = Edit::None;
 Choice choosing = Choice::None;
+KeypadMode keypad_mode = KeypadMode::Integer;
 char candidate[24]{};
 bool candidate_edited = false;
 void note(lv_event_t *) { activity = esp_timer_get_time(); }
@@ -321,14 +323,35 @@ void base(lv_obj_t *p) {
   lv_obj_set_style_shadow_width(p, 0, 0);
   lv_obj_remove_flag(p, LV_OBJ_FLAG_SCROLLABLE);
 }
+KeypadMode keypad_mode_for(Edit e) {
+  switch (e) {
+  // Ces grandeurs acceptent des fractions dans leur plage de validation.
+  case Edit::Weight:
+  case Edit::PrePressure:
+  case Edit::RampTime:
+  case Edit::RampWeight:
+  case Edit::RampDrop:
+    return KeypadMode::Decimal;
+
+  // Durées et niveaux de pompe sont stockés et validés comme entiers.
+  case Edit::Time:
+  case Edit::PreTime:
+  case Edit::PrePump:
+  case Edit::BrewPump:
+  case Edit::PurgePump:
+  case Edit::PurgeMax:
+  case Edit::None:
+    return KeypadMode::Integer;
+  }
+  return KeypadMode::Integer;
+}
 void set_title(Edit e) {
   const char *t = "réglage", *u = "";
-  bool dec = false;
+  keypad_mode = keypad_mode_for(e);
   switch (e) {
   case Edit::Weight:
     t = "cible poids";
     u = "g";
-    dec = true;
     break;
   case Edit::Time:
     t = "cible temps";
@@ -341,7 +364,6 @@ void set_title(Edit e) {
   case Edit::PrePressure:
     t = "seuil pré-inf.";
     u = "bar";
-    dec = true;
     break;
   case Edit::PrePump:
     t = "pompe pré-inf.";
@@ -350,17 +372,14 @@ void set_title(Edit e) {
   case Edit::RampTime:
     t = "avance rampe";
     u = "s";
-    dec = true;
     break;
   case Edit::RampWeight:
     t = "avance poids";
     u = "g";
-    dec = true;
     break;
   case Edit::RampDrop:
     t = "chute pression";
     u = "bar";
-    dec = true;
     break;
   case Edit::BrewPump:
     t = "pompe infusion";
@@ -379,7 +398,7 @@ void set_title(Edit e) {
   }
   text(v.key_title, t);
   text(v.key_unit, u);
-  disable(v.key_comma, !dec);
+  disable(v.key_comma, keypad_mode == KeypadMode::Integer);
 }
 void initial(Edit e) {
   auto c = core::get_config();
@@ -483,6 +502,8 @@ void key_render() {
 }
 void key_press(lv_event_t *e) {
   auto *k = static_cast<const char *>(lv_event_get_user_data(e));
+  if (keypad_mode == KeypadMode::Integer && !std::strcmp(k, ","))
+    return;
   if (!candidate_edited) {
     candidate[0] = '\0';
     candidate_edited = true;
@@ -666,8 +687,13 @@ void render_settings() {
   char x[6][40]{}, idx[8];
   std::snprintf(idx, sizeof(idx), "%u/3", page + 1);
   text(v.index, idx);
-  disable(v.prev, page == 0);
-  disable(v.next, page == 2);
+  // Les flèches qui n'ont pas de destination ne doivent pas apparaître :
+  // affichées mais désactivées, elles pouvaient conserver un rendu "pressed"
+  // lors de l'entrée dans les réglages.
+  hidden(v.prev, page == 0);
+  hidden(v.next, page == 2);
+  lv_obj_remove_state(v.prev, LV_STATE_PRESSED);
+  lv_obj_remove_state(v.next, LV_STATE_PRESSED);
   if (page == 0) {
     fmt(x[0], sizeof(x[0]), c.target_weight_g, " g");
     std::snprintf(x[1], 40, "%u s", c.target_time_s);

@@ -117,6 +117,7 @@ def main() -> int:
         time.sleep(args.duration_s)
     except (KeyError, RuntimeError) as error:
         record["error"] = str(error)
+        print(f"calibration error: {error}", flush=True)
     finally:
         if started:
             time.sleep(args.settle_s)

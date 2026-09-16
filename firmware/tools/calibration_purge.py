@@ -60,7 +60,7 @@ def main() -> int:
     parser.add_argument("--pump-pct", type=int, required=True, help="pump power: 20..100, multiple of 5")
     parser.add_argument("--duration-s", type=float, required=True, help="purge duration: 0.1..55 s")
     parser.add_argument("--settle-s", type=float, default=5.0,
-                        help="wait after purge release before final telemetry (default: 5 s)")
+                        help="wait after the actuator TTL expires before final telemetry (default: 5 s)")
     parser.add_argument("--weight-g", type=float, help="weight manually measured after the purge")
     parser.add_argument("--output", type=Path,
                         help="JSON output file (default: ./calibration/purge-…json)")
@@ -99,20 +99,23 @@ def main() -> int:
             "version": config["version"],
             "purge": {"pump_pct": args.pump_pct, "max_s": max_s},
         })
-        response = request(base_url, token, "POST", "/action", {"action": "purge_press"})
+        ttl_ms = max(1, math.ceil(args.duration_s * 1000))
+        record["request"]["ttl_ms"] = ttl_ms
+        response = request(base_url, token, "POST", "/action", {
+            "action": "set_actuators",
+            "ssr": True,
+            "dimmer": args.pump_pct,
+            "ttl_ms": ttl_ms,
+        })
         if not response.get("ok"):
-            raise RuntimeError(f"purge refusée: {response.get('reason', 'raison inconnue')}")
+            raise RuntimeError(f"actionneurs refusés: {response.get('reason', 'raison inconnue')}")
         started = True
         time.sleep(args.duration_s)
     except (KeyError, RuntimeError) as error:
         record["error"] = str(error)
     finally:
         if started:
-            try:
-                record["purge_release"] = request(base_url, token, "POST", "/action", {"action": "purge_release"})
-                time.sleep(args.settle_s)
-            except RuntimeError as error:
-                record["purge_release_error"] = str(error)
+            time.sleep(args.settle_s)
         try:
             record["telemetry_after"] = request(base_url, token, "GET", "/telemetry")
             if "telemetry_before" in record:
@@ -153,7 +156,7 @@ def main() -> int:
         output.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"Résultat écrit dans {output}")
 
-    if "error" in record or "purge_release_error" in record:
+    if "error" in record:
         return 1
     if "measured_weight_g" not in record:
         print("Saisir ensuite le poids mesuré dans le JSON ou passer --weight-g au prochain essai.")

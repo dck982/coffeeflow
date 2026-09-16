@@ -26,6 +26,47 @@ Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 �
 
 ---
 
+## État de mise en service (2026-09-16)
+
+Les modules **capteurs** et **écran** sont montés dans la machine. Ils sont
+branchés au débitmètre, au XDB401, à la pompe et à la vanne ; les premiers
+essais portent maintenant sur l'étanchéité de la plomberie et la validation
+des capteurs en conditions réelles.
+
+Le chemin de test courant est le bouton **purge** de l'écran. Il alimente
+pompe et vanne tant qu'il est maintenu ; puissance et plafond de sécurité se
+réglent par pas de 5 % et de 5 s. Le plafond de purge reste appliqué par le
+coeur, indépendamment de l'UI. L'écran de purge normal affiche pression, débit
+calculé et puissance de pompe, mais pas le compteur brut. Le compteur cumulatif
+du débitmètre apparaît sous la forme `n=<…>` uniquement dans l'écran de
+service/diagnostic historique (`MAINTENIR PURGE`).
+
+Le débit calculé peut légitimement rester à `0,0 ml/s` au début : il requiert
+des fronts du débitmètre et il est remis à zéro après 3 s sans front. Pendant
+les essais d'étanchéité, le compteur brut `n` est donc le premier indicateur à
+observer ; s'il ne bouge pas alors que l'eau traverse bien la turbine, le
+diagnostic porte sur le capteur, son câblage et son sens de montage, avant la
+calibration du facteur K.
+
+`GET /telemetry` contient déjà les éléments nécessaires à un relevé de banc :
+`weight_g`, `pressure_bar`, `pressure_raw`, `temperature_c`,
+`temperature_raw`, `flow_ml_s`, `volume_ml` et `flow_pulse_count`, avec les
+validités, présences et âges associés. `GET /config` et `POST /config` permettent de
+régler `purge.pump_pct` et `purge.max_s`; `POST /action` accepte
+`purge_press` et `purge_release`. Un futur script de calibration peut donc
+encadrer un essai par deux instantanés, conserver les deltas dans un JSON et
+garantir un `purge_release` en sortie d'erreur. L'outil prévu est
+`firmware/tools/calibration_purge.py`; il ne tente pas de lire le poids en
+Wi-Fi et attend sa saisie après l'essai.
+
+**Limite actuelle :** HTTP nécessite le mode Wi-Fi, qui désinitialise le BLE
+et déconnecte la balance Acaia. Les relevés HTTP de `weight_g` ne sont donc pas
+une mesure de poids vivante pendant une purge en Wi-Fi. La première campagne
+de calibration doit soit saisir le poids lu manuellement, soit faire évoluer
+cette politique radio avant d'automatiser la comparaison débitmètre ↔ balance.
+
+---
+
 ## Module capteurs (XIAO ESP32-S3)
 
 Brochage Grove Shield, tel que câblé. **GPIO natif de l'ESP32-S3**, pas le

@@ -67,13 +67,14 @@ void select_can();
 // second bus sur les mêmes broches.
 i2c_master_bus_handle_t i2c_bus();
 
-// Allume la dalle et sort le tactile de reset, uniquement via l'état CH422G
+// Prépare la dalle et sort le tactile de reset, uniquement via l'état CH422G
 // maintenu en RAM (ch422g_set_bit) — jamais un accès direct au registre.
-// Séquence reprise de waveshare_rgb_lcd_port.c (tmp/ESP32-S3-Touch-LCD-4.3),
-// adaptée : LCD_RST et LCD_BL passent hauts immédiatement (ce panneau RGB
-// n'a pas besoin d'un toggle de reset), puis TP_RST est impulsé bas 100 ms
-// avant de repasser haut avec 200 ms de stabilisation, comme l'exige le
-// GT911. À appeler après ch422g_init() et select_can().
+// LCD_BL reste coupé. LCD_RST et TP_RST sont maintenus bas 100 ms, puis hauts
+// pendant 200 ms avant toute initialisation RGB ou transaction GT911. À
+// appeler après ch422g_init() et select_can().
 void panel_power_on();
+
+// Rend l'image visible après l'initialisation RGB et le premier rendu LVGL.
+void panel_backlight_on();
 
 }  // namespace board

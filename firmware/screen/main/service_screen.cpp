@@ -544,6 +544,11 @@ void init_on_core1() {
   // la tâche LVGL tenait déjà le verrou au premier tick.
   if (lvgl_port_lock(1000)) {
     build_ui();
+    // Construire et transmettre la première image avant de l'exposer. Cela
+    // ne change pas la stratégie framebuffer/bounce buffer normale ; la
+    // dalle a déjà reçu un reset matériel déterministe dans panel_power_on().
+    lv_refr_now(nullptr);
+    board::panel_backlight_on();
     // Attendre que l'initialisation radio lancée après service_screen::init()
     // soit normalement terminée avant de réaligner le flux RGB.
     lv_timer_t* restart_timer = lv_timer_create(rgb_restart_timer_cb, 5000, nullptr);

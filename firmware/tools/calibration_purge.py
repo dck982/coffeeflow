@@ -24,11 +24,15 @@ def request(base_url: str, token: str, method: str, path: str,
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     if data is not None:
         headers["Content-Type"] = "application/json"
+    payload = "" if body is None else f" --data {json.dumps(body, separators=(',', ':'))!r}"
+    print(f"running curl -X {method} {path}{payload}", flush=True)
     req = Request(base_url + path, data=data, headers=headers, method=method)
     try:
         with urlopen(req, timeout=10) as response:
+            print(f"got HTTP status {response.status}", flush=True)
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
+        print(f"got HTTP status {error.code}", flush=True)
         detail = error.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"{method} {path}: HTTP {error.code}: {detail}") from error
     except URLError as error:

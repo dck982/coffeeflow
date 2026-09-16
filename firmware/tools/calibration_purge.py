@@ -15,12 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import ProxyHandler, Request, build_opener
-
-
-# L'écran est une cible HTTP sur le LAN : ne pas envoyer ses requêtes via un
-# proxy configuré globalement sur la machine qui lance la calibration.
-http_opener = build_opener(ProxyHandler({}))
+from urllib.request import Request, urlopen
 
 
 def request(base_url: str, token: str, method: str, path: str,
@@ -33,7 +28,7 @@ def request(base_url: str, token: str, method: str, path: str,
     print(f"running curl -X {method} {base_url}{path}{payload}", flush=True)
     req = Request(base_url + path, data=data, headers=headers, method=method)
     try:
-        with http_opener.open(req, timeout=10) as response:
+        with urlopen(req, timeout=10) as response:
             print(f"got HTTP status {response.status}", flush=True)
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:

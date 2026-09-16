@@ -79,6 +79,7 @@ constexpr uint8_t kDimmerRegCommand = 0x01;
 constexpr uint8_t kDimmerRegError = 0x02;
 constexpr uint8_t kDimmerRegLevel = 0x10;
 constexpr uint8_t kDimmerRegFreq = 0x20;  // informatif seulement, voir read_dimmer_health()
+constexpr uint8_t kDimmerCmdReset = 0x01;
 constexpr uint8_t kDimmerCmdRecalibrate = 0x02;
 // Lu en dehors des écritures (voir tick_dimmer_health()), pour que les flags
 // STATUS_ACTUATORS restent à jour même sans SET récent — contrairement au
@@ -196,6 +197,8 @@ void apply_ssr() { gpio_set_level(kGpioSsr, g_ssr ? 1 : 0); }
 // Déclaration en avance : apply_dimmer() a besoin de send_log(), défini plus
 // bas dans ce fichier avec les autres émetteurs.
 void send_log(common::LogCode code, common::LogSeverity severity, uint16_t arg16, uint32_t arg32);
+void send_status_actuators();
+void force_actuators_off();
 
 // Relit STATUS (0x00, bit0=READY bit1=ERROR — voir tmp/DimmerLink/
 // 04_I2C_COMMUNICATION.md, doc officielle) et, informativement seulement,
@@ -262,6 +265,29 @@ void dimmer_recalibrate() {
   if (err != ESP_OK) {
     ESP_LOGW(kTag, "dimmer recalibrate échec: %s", esp_err_to_name(err));
   }
+}
+
+void on_dimmer_command_received(const uint8_t* data, size_t len) {
+  common::DimmerCommandPayload payload;
+  if (!common::DimmerCommandPayload::unpack(data, len, &payload)) return;
+
+  // Une calibration/réinitialisation ne doit jamais coexister avec une
+  // demande de pompe encore active, même si l'interface envoie par erreur la
+  // commande pendant un cycle.
+  force_actuators_off();
+  const uint8_t cmd = payload.command == common::DimmerCommand::kReset
+                          ? kDimmerCmdReset
+                          : kDimmerCmdRecalibrate;
+  const uint8_t write_command[2] = {kDimmerRegCommand, cmd};
+  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
+  esp_err_t err = i2c_master_transmit(g_dimmer_dev, write_command, sizeof(write_command), pdMS_TO_TICKS(100));
+  xSemaphoreGive(g_i2c_mutex);
+  if (err != ESP_OK) {
+    ESP_LOGW(kTag, "dimmer command 0x%02x échec: %s", cmd, esp_err_to_name(err));
+    send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kDimmerAddr, 0);
+  }
+  read_dimmer_health();
+  send_status_actuators();
 }
 
 // Écrit le niveau courant sur le DimmerLink puis relit sa santé (STATUS,
@@ -822,6 +848,9 @@ void dispatch_frame(const twai_message_t& msg) {
       break;
     case common::MessageType::kSet:
       on_set_received(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kDimmerCommand:
+      on_dimmer_command_received(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kReqStatus:
       on_reqstatus_received(msg.data, msg.data_length_code);

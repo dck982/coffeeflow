@@ -27,6 +27,9 @@ enum class MessageType : uint8_t {
   kStop = 0x00,
   kSet = 0x01,
   kReset = 0x02,
+  // Commande de maintenance de l'esclave DimmerLink, écran → capteurs.
+  // Elle reste distincte de RESET, qui redémarre tout le module capteurs.
+  kDimmerCommand = 0x03,
   kPing = 0x08,
   kPong = 0x09,
   kReqStatus = 0x10,
@@ -45,6 +48,7 @@ constexpr bool is_known_message_type(uint8_t type) {
     case MessageType::kStop:
     case MessageType::kSet:
     case MessageType::kReset:
+    case MessageType::kDimmerCommand:
     case MessageType::kPing:
     case MessageType::kPong:
     case MessageType::kReqStatus:

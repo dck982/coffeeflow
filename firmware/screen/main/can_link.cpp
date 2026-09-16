@@ -134,6 +134,12 @@ void reset_sensors() {
   send_message(common::MessageType::kReset, common::Dest::kSensors, nullptr, 0);
 }
 
+void send_dimmer_command(common::DimmerCommand command) {
+  common::DimmerCommandPayload payload{command};
+  common::Frame frame = payload.pack();
+  send_message(common::MessageType::kDimmerCommand, common::Dest::kSensors, frame.data(), 1);
+}
+
 void send_ping(common::Dest dest) {
   common::PingPayload payload;
   payload.node = common::Node::kScreen;

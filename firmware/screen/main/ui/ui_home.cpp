@@ -42,7 +42,9 @@ struct View {
       *key_value{}, *key_unit{}, *key_error{}, *key_ok{}, *key_comma{},
       *choice{}, *choice_title{}, *choice_button[4]{}, *confirm{},
       *confirm_title{}, *confirm_body{}, *full{}, *full_title{}, *full_body{},
-      *wifi_exit{}, *dim{}, *standby{}, *standby_title{}, *standby_body{};
+      *wifi_exit{}, *dimmer_menu{}, *dimmer_menu_title{}, *dimmer_menu_body{},
+      *dimmer_reset{}, *dimmer_recalibrate{}, *dimmer_close{}, *dim{},
+      *standby{}, *standby_title{}, *standby_body{};
 } v;
 constexpr size_t N = 96, L = 128;
 struct Bind {
@@ -256,10 +258,29 @@ void close_all() {
   hidden(v.diag, true);
   hidden(v.keypad, true);
   hidden(v.choice, true);
+  hidden(v.dimmer_menu, true);
 }
 void render_settings();
 void back_settings(lv_event_t *) { close_all(); }
 void back_diag(lv_event_t *) { hidden(v.diag, true); }
+void close_dimmer_menu(lv_event_t *) { hidden(v.dimmer_menu, true); }
+void run_dimmer_action(lv_event_t *event) {
+  auto action = static_cast<core::Action>(reinterpret_cast<uintptr_t>(lv_event_get_user_data(event)));
+  core::ActionResult result = core::perform_action({action});
+  if (result.status == core::ActionStatus::kOk) {
+    hidden(v.dimmer_menu, true);
+    return;
+  }
+  text(v.dimmer_menu_body, result.status == core::ActionStatus::kBusLost
+                               ? "module capteurs injoignable"
+                               : result.status == core::ActionStatus::kCycleActive
+                                     ? "commande refusée pendant un cycle"
+                                     : "commande indisponible");
+}
+void show_dimmer_menu(lv_event_t *) {
+  text(v.dimmer_menu_body, "la pompe est arrêtée avant la commande");
+  hidden(v.dimmer_menu, false);
+}
 void back_key(lv_event_t *) {
   editing = Edit::None;
   hidden(v.keypad, true);
@@ -831,7 +852,7 @@ void create(lv_obj_t *p) {
   dyn(p, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 405, 24);
   dyn(p, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 520, 24);
   dyn(p, &v.weight, "", theme::kFontStatus, theme::kTextDim, 615, 24);
-  dyn(p, &v.presence, "bal  can", theme::kFontLabel, theme::kTextFaint, 705,
+  dyn(p, &v.presence, "bal", theme::kFontLabel, theme::kTextFaint, 705,
       31);
   lv_obj_t *t = lv_obj_create(p);
   lv_obj_remove_style_all(t);
@@ -953,6 +974,14 @@ void create(lv_obj_t *p) {
         y + 28);
     dyn(v.diag, &v.diag_state[i], "", theme::kFontLabel, theme::kTextFaint, x,
         y + 62);
+    if (i == 3) {
+      lv_obj_t *pump_tile = lv_obj_create(v.diag);
+      lv_obj_remove_style_all(pump_tile);
+      lv_obj_set_size(pump_tile, 240, 96);
+      lv_obj_set_pos(pump_tile, x, y);
+      lv_obj_add_flag(pump_tile, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_add_event_cb(pump_tile, show_dimmer_menu, LV_EVENT_CLICKED, nullptr);
+    }
     if (i % 3 != 2)
       rule(v.diag, x + 240, y, 1, 96);
     if (i < 6)
@@ -1036,6 +1065,22 @@ void create(lv_obj_t *p) {
       [](lv_event_t *) { core::request_radio_mode(core::RadioMode::kMachine); },
       LV_EVENT_CLICKED, nullptr);
   hidden(v.full, true);
+  v.dimmer_menu = lv_obj_create(p);
+  base(v.dimmer_menu);
+  dyn(v.dimmer_menu, &v.dimmer_menu_title, "dimmerlink", theme::kFontSecondary,
+      theme::kAccent, 32, 64);
+  dyn(v.dimmer_menu, &v.dimmer_menu_body, "", theme::kFontLabel, theme::kTextDim,
+      32, 126);
+  v.dimmer_reset = button(v.dimmer_menu, 32, 208, 352, 88, "reset dimmerlink",
+                          Role::Destructive);
+  v.dimmer_recalibrate = button(v.dimmer_menu, 416, 208, 352, 88, "calibrer");
+  v.dimmer_close = button(v.dimmer_menu, 224, 328, 352, 88, "fermer");
+  lv_obj_add_event_cb(v.dimmer_reset, run_dimmer_action, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<uintptr_t>(core::Action::kResetDimmer)));
+  lv_obj_add_event_cb(v.dimmer_recalibrate, run_dimmer_action, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<uintptr_t>(core::Action::kRecalibrateDimmer)));
+  lv_obj_add_event_cb(v.dimmer_close, close_dimmer_menu, LV_EVENT_CLICKED, nullptr);
+  hidden(v.dimmer_menu, true);
   v.dim = lv_obj_create(p);
   lv_obj_set_size(v.dim, 800, 480);
   lv_obj_set_pos(v.dim, 0, 0);
@@ -1093,7 +1138,11 @@ void refresh(const core::Snapshot &s, bool boot) {
   } else
     text(v.weight, "");
   color(v.weight, scale ? theme::kText : theme::kTextFaint);
-  color(v.presence, s.sensors_alive ? theme::kText : theme::kTextFaint);
+  // CAN est déjà signalé par le modal bloquant en cas de perte. Le seul
+  // indicateur utile ici est donc la balance, uniquement lorsqu'elle fournit
+  // effectivement une mesure fraîche.
+  hidden(v.presence, !scale);
+  color(v.presence, theme::kText);
   if (scale) {
     fmt(t, sizeof(t), c.target_weight_g, " g");
     text(v.target, t);

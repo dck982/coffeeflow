@@ -7,6 +7,7 @@
 #include "driver/twai.h"
 
 #include "common/protocol.hpp"
+#include "common/messages.hpp"
 #include "log_codes.hpp"
 
 namespace can_link {
@@ -27,6 +28,9 @@ void send_pong();
 // Redémarre le module capteurs par le protocole CAN. Cette commande n'est
 // exposée au reste de l'écran que via le cœur, qui applique les interverrouillages.
 void reset_sensors();
+
+// Demande une maintenance locale du DimmerLink au module capteurs.
+void send_dimmer_command(common::DimmerCommand command);
 
 // Toute trame valide du pair maintient la présence. Après 1,5 s de silence,
 // trois PING sont envoyés à 500 ms d'intervalle avant de déclarer la perte.

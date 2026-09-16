@@ -95,6 +95,27 @@ struct NodeIdentityPayload {
 using PingPayload = NodeIdentityPayload;
 using PongPayload = NodeIdentityPayload;
 
+// DIMMER_COMMAND (0x03) — écran → capteurs. Les capteurs sont le seul nœud
+// autorisé à écrire le bus I2C du DimmerLink.
+enum class DimmerCommand : uint8_t { kReset = 0x01, kRecalibrate = 0x02 };
+
+struct DimmerCommandPayload {
+  DimmerCommand command = DimmerCommand::kRecalibrate;
+
+  Frame pack() const {
+    Frame f{};
+    f[0] = static_cast<uint8_t>(command);
+    return f;
+  }
+  static bool unpack(const uint8_t* in, size_t len, DimmerCommandPayload* out) {
+    if (len < 1) return false;
+    if (in[0] != static_cast<uint8_t>(DimmerCommand::kReset) &&
+        in[0] != static_cast<uint8_t>(DimmerCommand::kRecalibrate)) return false;
+    out->command = static_cast<DimmerCommand>(in[0]);
+    return true;
+  }
+};
+
 // REQSTATUS (0x10) — écran → capteurs
 struct ReqStatusPayload {
   MessageType target_type = MessageType::kStatusPressure;  // 0x20 | 0x21 | 0x22

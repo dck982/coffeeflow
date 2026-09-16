@@ -49,12 +49,13 @@ class Machine {
   }
 
  private:
-  void finish(StopReason reason);
+  void finish(StopReason reason, uint64_t now_ms);
   State state_ = State::kIdle;
   StopReason stop_reason_ = StopReason::kNone;
   Config config_{};
   uint64_t started_ms_ = 0;
   uint64_t phase_started_ms_ = 0;
+  uint64_t finished_ms_ = 0;
   float starting_weight_g_ = 0.0f;
   float preinfusion_pressure_start_bar_ = 0.0f;
   bool weight_goal_ = false;

@@ -63,6 +63,8 @@ int main() {
   assert(purge.purge_release(2000));
   assert(!purge.tick(2001, input).ssr);
   assert(purge.stop_reason() == StopReason::kPurgeReleased);
+  assert(purge.elapsed_ms(2001) == 1000);
+  assert(purge.elapsed_ms(10000) == 1000);
   assert(purge.purge_press(3000, c));
   assert(!purge.tick(23000, input).ssr);
   assert(purge.stop_reason() == StopReason::kPurgeTimeout);

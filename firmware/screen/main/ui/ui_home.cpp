@@ -16,6 +16,9 @@
 namespace ui::home {
 namespace {
 using ulong = unsigned long;
+// Délai avant la récupération automatique d'un DimmerLink qui reste en
+// calibration. Ajuster cette constante plutôt que la logique de suivi.
+constexpr int64_t kDimmerCalibrationResetDelayS = 10;
 enum class Role : uint8_t { Secondary, Primary, Destructive, Disabled };
 enum class Edit : uint8_t {
   None,
@@ -65,6 +68,39 @@ Choice choosing = Choice::None;
 KeypadMode keypad_mode = KeypadMode::Integer;
 char candidate[24]{};
 bool candidate_edited = false;
+int64_t dimmer_calibration_started_us = 0;
+bool dimmer_calibration_reset_sent = false;
+
+void recover_stuck_dimmer_calibration(const core::Snapshot& s) {
+  // Un passage par l'état prêt et valide réarme la récupération pour la
+  // prochaine calibration. Une perte temporaire du module ne doit pas, elle,
+  // permettre une seconde tentative dans la même calibration.
+  if (s.dimmer_ready && s.dimmer_valid) {
+    dimmer_calibration_started_us = 0;
+    dimmer_calibration_reset_sent = false;
+    return;
+  }
+
+  const bool calibration_displayed =
+      s.sensors_alive && (!s.dimmer_ready || !s.dimmer_valid);
+  if (!calibration_displayed) {
+    dimmer_calibration_started_us = 0;
+    return;
+  }
+
+  const int64_t now_us = esp_timer_get_time();
+  if (dimmer_calibration_started_us == 0)
+    dimmer_calibration_started_us = now_us;
+  if (!dimmer_calibration_reset_sent &&
+      now_us - dimmer_calibration_started_us >=
+          kDimmerCalibrationResetDelayS * 1000 * 1000) {
+    // Verrouiller avant l'envoi : même si la commande est refusée (par exemple
+    // pendant un cycle), cette calibration ne doit provoquer qu'une tentative.
+    dimmer_calibration_reset_sent = true;
+    static_cast<void>(core::perform_action({core::Action::kResetDimmer}));
+  }
+}
+
 void note(lv_event_t *) { activity = esp_timer_get_time(); }
 Bind *get(lv_obj_t *l) {
   for (size_t i = 0; i < bn; ++i)
@@ -1187,6 +1223,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   text(v.warning, (!s.dimmer_ready || !s.dimmer_valid) && s.sensors_alive
                       ? "dimmer en calibration"
                       : "");
+  recover_stuck_dimmer_calibration(s);
   disable(v.brew_button, !s.dimmer_ready || !s.dimmer_valid);
   disable(v.minus, scale ? c.target_weight_g <= 10 : c.target_time_s <= 5);
   disable(v.plus, scale ? c.target_weight_g >= 100 : c.target_time_s >= 60);

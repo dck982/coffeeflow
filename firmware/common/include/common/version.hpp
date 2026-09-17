@@ -8,6 +8,6 @@ namespace common {
 // À incrémenter à chaque image flashée, dans les deux projets.
 inline constexpr uint8_t kFirmwareVersionMajor = 0;
 inline constexpr uint8_t kFirmwareVersionMinor = 2;
-inline constexpr uint8_t kFirmwareVersionPatch = 48;
+inline constexpr uint8_t kFirmwareVersionPatch = 50;
 
 }  // namespace common

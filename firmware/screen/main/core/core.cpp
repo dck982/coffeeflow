@@ -594,6 +594,12 @@ void mark_wall_time_known(int64_t unix_s) {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
+void set_boot_time_syncing(bool syncing) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.boot_time_syncing = syncing;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
 bool request_radio_mode(RadioMode mode) {
   const CycleState cycle = get_snapshot().cycle_state;
   if (cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||

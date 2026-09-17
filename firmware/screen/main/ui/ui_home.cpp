@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
@@ -37,7 +38,7 @@ enum class Edit : uint8_t {
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
 enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
-  lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *target{},
+  lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
       *purge{}, *settings_button{}, *cycle{}, *phase{}, *hero{},
       *cycle_detail{}, *progress{}, *stop{}, *settings{}, *index{}, *prev{},
@@ -297,6 +298,10 @@ void close_all() {
   hidden(v.keypad, true);
   hidden(v.choice, true);
   hidden(v.dimmer_menu, true);
+}
+void show_diagnostics(lv_event_t *) {
+  close_all();
+  hidden(v.diag, false);
 }
 void render_settings();
 void back_settings(lv_event_t *) { close_all(); }
@@ -867,6 +872,32 @@ void fullscreen(bool on, const char *t, const char *b) {
   text(v.full_body, b);
   hidden(v.full, false);
 }
+lv_obj_t *scale_icon(lv_obj_t *parent) {
+  // Une petite balance de cuisine, dessinée avec des objets LVGL plutôt
+  // qu'avec un glyphe Unicode : les sous-ensembles Inter embarqués ne
+  // contiennent pas les pictogrammes.
+  lv_obj_t *icon = lv_obj_create(parent);
+  lv_obj_remove_style_all(icon);
+  lv_obj_set_size(icon, 30, 24);
+  lv_obj_set_pos(icon, 711, 25);
+
+  lv_obj_t *body = lv_obj_create(icon);
+  lv_obj_remove_style_all(body);
+  lv_obj_set_size(body, 28, 17);
+  lv_obj_set_pos(body, 1, 6);
+  lv_obj_set_style_border_width(body, 2, 0);
+  lv_obj_set_style_border_color(body, theme::kText, 0);
+  lv_obj_set_style_radius(body, 6, 0);
+
+  lv_obj_t *display = lv_obj_create(body);
+  lv_obj_remove_style_all(display);
+  lv_obj_set_size(display, 12, 5);
+  lv_obj_set_pos(display, 6, 5);
+  lv_obj_set_style_bg_color(display, theme::kText, 0);
+  lv_obj_set_style_bg_opa(display, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(display, 2, 0);
+  return icon;
+}
 void idle(const core::Snapshot &s) {
   if (active(s) || s.flash_active || s.lockout) {
     activity = esp_timer_get_time();
@@ -914,21 +945,16 @@ void create(lv_obj_t *p) {
   dyn(p, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 405, 24);
   dyn(p, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 520, 24);
   dyn(p, &v.weight, "", theme::kFontStatus, theme::kTextDim, 615, 24);
-  dyn(p, &v.presence, "bal", theme::kFontLabel, theme::kTextFaint, 705,
-      31);
-  lv_obj_t *t = lv_obj_create(p);
-  lv_obj_remove_style_all(t);
-  lv_obj_set_size(t, 120, 88);
-  lv_obj_set_pos(t, 680, 8);
-  lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(t, note, LV_EVENT_PRESSED, nullptr);
-  lv_obj_add_event_cb(
-      t,
-      [](lv_event_t *) {
-        close_all();
-        hidden(v.diag, false);
-      },
-      LV_EVENT_CLICKED, nullptr);
+  v.presence = scale_icon(p);
+  dyn(p, &v.clock, "", theme::kFontStatus, theme::kTextDim, 705, 24);
+  // Les diagnostics sont accessibles depuis l'information visible elle-même,
+  // jamais depuis une zone transparente qui donnerait l'impression d'un tap
+  // perdu. Horloge et indicateur de balance sont mutuellement exclusifs.
+  for (lv_obj_t *status : {v.presence, v.clock}) {
+    lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(status, note, LV_EVENT_PRESSED, nullptr);
+    lv_obj_add_event_cb(status, show_diagnostics, LV_EVENT_CLICKED, nullptr);
+  }
   // Les séparateurs ne font pas partie des chaînes dynamiques : leur position
   // reste stable lorsque la largeur d'une mesure change.
   rule(p, 384, 32, 1, 24);
@@ -1200,11 +1226,18 @@ void refresh(const core::Snapshot &s, bool boot) {
   } else
     text(v.weight, "");
   color(v.weight, scale ? theme::kText : theme::kTextFaint);
-  // CAN est déjà signalé par le modal bloquant en cas de perte. Le seul
-  // indicateur utile ici est donc la balance, uniquement lorsqu'elle fournit
-  // effectivement une mesure fraîche.
-  hidden(v.presence, !scale);
-  color(v.presence, theme::kText);
+  // Le dernier segment du bandeau affiche soit l'icône de balance connectée,
+  // soit l'heure locale. Une balance associée reste signalée même entre deux
+  // mesures ; l'heure n'est jamais affichée avant la synchronisation NTP.
+  hidden(v.presence, !s.scale_connected);
+  hidden(v.clock, s.scale_connected || !s.time_known);
+  if (!s.scale_connected && s.time_known) {
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+    localtime_r(&now, &local);
+    std::strftime(t, sizeof(t), "%H:%M", &local);
+    text(v.clock, t);
+  }
   if (scale) {
     fmt(t, sizeof(t), c.target_weight_g, " g");
     text(v.target, t);
@@ -1282,6 +1315,8 @@ void refresh(const core::Snapshot &s, bool boot) {
     fullscreen(
         true, "verrou de sécurité",
         "couper la machine à l'interrupteur principal, puis la rallumer");
+  else if (s.boot_time_syncing)
+    fullscreen(true, "synchronisation heure", "connexion wifi...");
   else if (!s.sensors_alive && !boot)
     fullscreen(true, "module interne injoignable",
                "les commandes de pompe et de vanne sont coupées");
@@ -1309,7 +1344,7 @@ void refresh(const core::Snapshot &s, bool boot) {
                     static_cast<unsigned>((s.ipv4_address >> 24) & 255), recording);
     else
       std::snprintf(t, sizeof(t), "configuration wifi ou association en cours\n%s", recording);
-    fullscreen(true, "wifi mode", t);
+    fullscreen(true, "Mode wifi", t);
   } else if (boot)
     fullscreen(true, "coffeeflow", "démarrage");
   else

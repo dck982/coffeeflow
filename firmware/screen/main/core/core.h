@@ -84,6 +84,7 @@ struct Snapshot {
   uint32_t internal_heap_minimum = 0;
   bool time_known = false;
   int64_t wall_time_unix_s = 0;
+  bool boot_time_syncing = false;
 
   uint32_t pressure_raw = 0;
   uint16_t temperature_raw = 0;
@@ -170,6 +171,7 @@ void update_scale_weight(float weight_g);
 
 void update_network_status(NetworkState state, uint32_t ipv4_address);
 void mark_wall_time_known(int64_t unix_s);
+void set_boot_time_syncing(bool syncing);
 
 // Transition radio asynchrone, toujours effectuée sur le cœur 0. Au bring-up,
 // le défaut kOff permet de mesurer la SRAM avant de charger une radio.

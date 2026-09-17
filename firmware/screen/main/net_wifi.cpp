@@ -14,6 +14,7 @@
 #include "esp_wifi.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/task.h"
 
 #include "core/core.h"
@@ -35,6 +36,13 @@ constexpr const char* kNamespace = "wifi";
 constexpr const char* kCredentialKey = "credentials";
 constexpr size_t kMaxSsid = 32;
 constexpr size_t kMaxPassword = 63;
+constexpr TickType_t kBootConnectTimeout = pdMS_TO_TICKS(5000);
+// CONFIG_LWIP_SNTP_STARTUP_DELAY peut différer la première requête de 5 s.
+// Ce délai ne limite pas l'association (toujours 5 s), seulement l'attente
+// de la réponse NTP une fois l'adresse IP obtenue.
+constexpr TickType_t kBootNtpTimeout = pdMS_TO_TICKS(10000);
+constexpr EventBits_t kBootGotIp = BIT0;
+constexpr EventBits_t kBootTimeKnown = BIT1;
 
 struct Credentials { char ssid[kMaxSsid + 1]; char password[kMaxPassword + 1]; };
 esp_netif_t* g_sta_netif = nullptr;
@@ -47,6 +55,7 @@ bool g_wifi_initialized = false;
 esp_event_handler_instance_t g_wifi_event_instance = nullptr;
 esp_event_handler_instance_t g_ip_event_instance = nullptr;
 esp_event_handler_instance_t g_sntp_event_instance = nullptr;
+EventGroupHandle_t g_boot_sync_events = nullptr;
 
 bool credentials_present(Credentials* out) {
   nvs_handle_t handle;
@@ -213,6 +222,7 @@ void on_sntp_event(void*, esp_event_base_t, int32_t, void* event_data) {
   auto* event = static_cast<esp_netif_sntp_time_sync_t*>(event_data);
   if (event == nullptr || event->tv.tv_sec < 1700000000) return;
   core::mark_wall_time_known(event->tv.tv_sec);
+  if (g_boot_sync_events != nullptr) xEventGroupSetBits(g_boot_sync_events, kBootTimeKnown);
   core::events::push(core::EventKind::kTimeKnown);
   // One-shot : l'heure est valide pour la session, les mesures restent
   // monotones. Arrêter ici interdit toute resynchronisation périodique.
@@ -234,11 +244,54 @@ void on_wifi_event(void*, esp_event_base_t, int32_t event_id, void*) {
 void on_ip_event(void*, esp_event_base_t, int32_t, void* event_data) {
   auto* event = static_cast<ip_event_got_ip_t*>(event_data);
   core::update_network_status(core::NetworkState::kStaConnected, event->ip_info.ip.addr);
+  if (g_boot_sync_events != nullptr) xEventGroupSetBits(g_boot_sync_events, kBootGotIp);
   core::events::push(core::EventKind::kWifiConnected);
   can_link::send_log(common::LogCode::kWifiConnected, common::LogSeverity::kInfo);
   start_sntp_once();
   net_http::start();
 }
+}  // namespace
+
+namespace {
+
+void boot_time_sync_task(void*) {
+  Credentials credentials{};
+  if (!credentials_present(&credentials)) {
+    core::request_radio_mode(core::RadioMode::kMachine);
+    vTaskDelete(nullptr);
+    return;
+  }
+
+  core::set_boot_time_syncing(true);
+  g_boot_sync_events = xEventGroupCreate();
+  if (g_boot_sync_events == nullptr) {
+    core::set_boot_time_syncing(false);
+    core::request_radio_mode(core::RadioMode::kMachine);
+    vTaskDelete(nullptr);
+    return;
+  }
+
+  // start() conserve les handlers et la configuration STA habituels. Les
+  // identifiants ayant été vérifiés ci-dessus, il n'ouvrira jamais l'AP.
+  start();
+  EventBits_t bits = xEventGroupWaitBits(g_boot_sync_events, kBootGotIp, pdFALSE, pdTRUE,
+                                         kBootConnectTimeout);
+  if ((bits & kBootGotIp) != 0) {
+    xEventGroupWaitBits(g_boot_sync_events, kBootTimeKnown, pdFALSE, pdTRUE,
+                        kBootNtpTimeout);
+  }
+
+  // Désactiver le pointeur avant stop(): les callbacks Wi-Fi/SNTP restants ne
+  // peuvent plus écrire dans un EventGroup qui va être détruit.
+  EventGroupHandle_t events = g_boot_sync_events;
+  g_boot_sync_events = nullptr;
+  stop();
+  vEventGroupDelete(events);
+  core::set_boot_time_syncing(false);
+  core::request_radio_mode(core::RadioMode::kMachine);
+  vTaskDelete(nullptr);
+}
+
 }  // namespace
 
 void start() {
@@ -261,6 +314,14 @@ void start() {
   core::register_forget_network_callback(&forget_network_impl);
   Credentials credentials{};
   if (credentials_present(&credentials)) start_sta(); else start_ap();
+}
+
+void start_boot_time_sync() {
+  // service_screen::init() a déjà réservé les buffers RGB internes. Cette
+  // tâche reste sur le cœur 0, comme les transitions radio ordinaires.
+  if (xTaskCreatePinnedToCore(boot_time_sync_task, "boot_ntp", 6144, nullptr, 5, nullptr, 0) != pdPASS) {
+    core::request_radio_mode(core::RadioMode::kMachine);
+  }
 }
 
 void stop() {

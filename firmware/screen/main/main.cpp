@@ -73,9 +73,10 @@ extern "C" void app_main() {
   service_screen::init();
 
   // Le LCD doit allouer ses deux bounce buffers internes avant toute pile
-  // radio. Une fois l'écran prêt, le mode machine charge BLE par défaut ;
-  // kOff reste disponible comme état de transition et de diagnostic.
-  core::request_radio_mode(core::RadioMode::kMachine);
+  // radio. Avec des identifiants enregistrés, une STA éphémère récupère
+  // d'abord l'heure NTP ; elle rend ensuite toute la SRAM radio avant que le
+  // mode machine charge BLE. Sans identifiants, le basculement est immédiat.
+  net_wifi::start_boot_time_sync();
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
 }

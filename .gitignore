@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 tmp/
 calibration/
+captures/
 
 # ESP-IDF build artefacts et config générée localement — voir
 # firmware/IDF_VERSION.md pour la version figée.

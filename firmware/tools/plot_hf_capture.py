@@ -3,51 +3,32 @@
 # requires-python = ">=3.10"
 # dependencies = ["matplotlib>=3.8"]
 # ///
-"""Télécharge et trace la dernière capture haute fréquence CoffeeFlow.
+"""Trace une capture haute fréquence CoffeeFlow enregistrée localement.
 
 Exemple :
-    COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=192.168.2.196 \
-        uv run firmware/tools/plot_hf_capture.py --output capture.png
+    uv run firmware/tools/plot_hf_capture.py captures/260917-143012.json --output capture.png
+
+Le débit de la balance est une dérivée centrée et lissée du poids. Sa valeur
+est en g/s (pratiquement ml/s pour de l'eau), afin de le comparer directement
+au débitmètre.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 import matplotlib.pyplot as plt
 
 
-def base_url(value: str | None, parser: argparse.ArgumentParser) -> str:
-    if value:
-        return value.rstrip("/")
-    if address := os.environ.get("COFFEEFLOW_IP"):
-        return f"http://{address}"
-    parser.error("--http ou COFFEEFLOW_IP est requis")
-
-
-def download_capture(url: str, token: str) -> dict[str, Any]:
-    request = Request(
-        f"{url}/hf-capture?view=both",
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-        method="GET",
-    )
-    try:
-        with urlopen(request, timeout=20) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"GET /hf-capture: HTTP {error.code}: {detail}") from error
-    except URLError as error:
-        raise RuntimeError(f"GET /hf-capture: {error.reason}") from error
+def validate_capture(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise RuntimeError("le fichier JSON ne contient pas un objet")
     if payload.get("schema") != "coffeeflow.hf_capture.v1" or not isinstance(payload.get("samples"), list):
-        raise RuntimeError("réponse /hf-capture inconnue ou incompatible")
+        raise RuntimeError("capture inconnue ou incompatible")
     return payload
 
 
@@ -55,13 +36,43 @@ def values(samples: list[dict[str, Any]], key: str) -> list[float]:
     return [float(sample.get(key, 0.0)) for sample in samples]
 
 
-def plot(capture: dict[str, Any]) -> plt.Figure:
+def weight_flow_g_s(times: list[float], weight_g: list[float], window_s: float) -> list[float]:
+    """Dérivée centrée du poids sur une fenêtre temporelle donnée.
+
+    Les bords, où une fenêtre entière n'est pas disponible, sont laissés à
+    NaN pour ne pas leur attribuer une pente artificielle.
+    """
+    if window_s <= 0:
+        raise RuntimeError("la fenêtre de débit balance doit être strictement positive")
+    half_window_s = window_s / 2.0
+    flow = [float("nan")] * len(times)
+    left = 0
+    right = 0
+    for index, time_s in enumerate(times):
+        while left < len(times) and times[left] < time_s - half_window_s:
+            left += 1
+        while right < len(times) and times[right] <= time_s + half_window_s:
+            right += 1
+        right_index = right - 1
+        if left < index < right_index:
+            elapsed_s = times[right_index] - times[left]
+            if elapsed_s > 0:
+                flow[index] = (weight_g[right_index] - weight_g[left]) / elapsed_s
+    return flow
+
+
+def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0) -> plt.Figure:
     samples: list[dict[str, Any]] = capture["samples"]
     if not samples:
         raise RuntimeError("la capture ne contient aucun échantillon")
     elapsed_s = [float(sample["t_ms"]) / 1000.0 for sample in samples]
     pressure, temperature = values(samples, "pressure_bar"), values(samples, "temperature_c")
-    flow, volume, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
+    flow, volume_raw, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
+    # `volume_ml` est le compteur cumulé depuis le démarrage du module
+    # capteurs. Pour comparer une capture à son poids et à son headspace, le
+    # graphe doit montrer son incrément propre, nul au premier échantillon.
+    volume = [value - volume_raw[0] for value in volume_raw]
+    balance_flow = weight_flow_g_s(elapsed_s, weight, weight_flow_window_s)
     commanded, reported = values(samples, "pump_pct_commanded"), values(samples, "pump_pct_reported")
 
     figure, axes = plt.subplots(4, 1, figsize=(13, 10), sharex=True, layout="constrained")
@@ -77,11 +88,12 @@ def plot(capture: dict[str, Any]) -> plt.Figure:
     axes[0].legend(loc="upper left")
     pump_axis.legend(loc="upper right")
 
-    axes[1].plot(elapsed_s, flow, color="tab:green", label="débit")
-    axes[1].set_ylabel("ml/s")
+    axes[1].plot(elapsed_s, flow, color="tab:green", label="débitmètre (ml/s)")
+    axes[1].plot(elapsed_s, balance_flow, color="tab:purple", label=f"balance ({weight_flow_window_s:g} s, g/s)")
+    axes[1].set_ylabel("débit (ml/s ou g/s)")
     volume_axis = axes[1].twinx()
-    volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume")
-    volume_axis.set_ylabel("ml")
+    volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume depuis début")
+    volume_axis.set_ylabel("volume (ml)")
     axes[1].legend(loc="upper left")
     volume_axis.legend(loc="upper right")
 
@@ -97,22 +109,17 @@ def plot(capture: dict[str, Any]) -> plt.Figure:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--http", help="base URL (sinon http://$COFFEEFLOW_IP)")
+    parser.add_argument("capture", type=Path, help="fichier JSON produit par download_hf_capture.py")
     parser.add_argument("--output", type=Path, help="fichier image de sortie (PNG, PDF, SVG…)")
-    parser.add_argument("--record-json", type=Path, help="copie du JSON téléchargé")
+    parser.add_argument("--weight-flow-window-s", type=float, default=2.0,
+                        help="fenêtre centrée de dérivation du poids, en secondes (défaut : 2)")
     parser.add_argument("--no-show", action="store_true", help="ne pas ouvrir la fenêtre matplotlib")
     args = parser.parse_args()
-    token = os.environ.get("COFFEEFLOW_HTTP_TOKEN")
-    if not token:
-        parser.error("COFFEEFLOW_HTTP_TOKEN est requis")
 
     try:
-        capture = download_capture(base_url(args.http, parser), token)
-        if args.record_json:
-            args.record_json.parent.mkdir(parents=True, exist_ok=True)
-            args.record_json.write_text(json.dumps(capture, indent=2) + "\n", encoding="utf-8")
-        figure = plot(capture)
-    except RuntimeError as error:
+        capture = validate_capture(json.loads(args.capture.read_text(encoding="utf-8")))
+        figure = plot(capture, args.weight_flow_window_s)
+    except (OSError, json.JSONDecodeError, RuntimeError) as error:
         print(f"erreur: {error}", file=sys.stderr)
         return 1
     if args.output:

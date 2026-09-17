@@ -69,9 +69,11 @@ confirmé `dimmer=0`, l'endpoint retourne `409 capture_active`; il retourne
 `404` avant toute capture terminée. L'export est envoyé par morceaux, sans
 construire le document entier en SRAM.
 
-`firmware/tools/plot_hf_capture.py` télécharge et trace cette capture avec
-matplotlib. Il se lance sans environnement Python préparé :
-`COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/plot_hf_capture.py --output capture.png`.
+`firmware/tools/download_hf_capture.py` télécharge la capture et conserve le
+JSON brut dans `captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être
+analysé par d'autres outils ou tracé avec matplotlib :
+`COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/download_hf_capture.py`, puis
+`uv run firmware/tools/plot_hf_capture.py captures/YYMMDD-HHMMSS.json --output capture.png`.
 
 **Limite actuelle :** HTTP nécessite le mode Wi-Fi, qui désinitialise le BLE
 et déconnecte la balance Acaia. Les relevés HTTP de `weight_g` ne sont donc pas

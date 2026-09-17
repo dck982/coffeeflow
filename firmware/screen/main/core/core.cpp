@@ -26,6 +26,8 @@ constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmes
 constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
+constexpr uint16_t kHFCapturePeriodMs = 100;
+constexpr uint16_t kHFCaptureCapacity = 768;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
 constexpr Periods periods_for(TelemetryProfile profile) {
@@ -39,6 +41,22 @@ constexpr Periods periods_for(TelemetryProfile profile) {
 
 struct FlowSample { uint32_t pulses; uint16_t edge_ms; int64_t received_us; };
 constexpr size_t kFlowHistoryCapacity = 16;
+
+struct HFCapture {
+  HFSample* samples = nullptr;
+  HFCaptureOrigin origin = HFCaptureOrigin::kSetActuators;
+  int64_t started_at_us = 0;
+  int64_t ended_at_us = 0;
+  int64_t started_at_unix_s = 0;
+  int64_t ended_at_unix_s = 0;
+  int64_t next_sample_us = 0;
+  uint16_t count = 0;
+  uint16_t dropped_samples = 0;
+  uint8_t pump_pct_commanded = 0;
+  bool active = false;
+  bool complete = false;
+  bool actuator_seen_on = false;
+};
 
 struct State {
   portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
@@ -58,6 +76,7 @@ struct State {
   int64_t last_cycle_set_us = 0;
   bool cycle_set_on = false;
   int64_t shot_start_unix_s = 0;
+  HFCapture hf_capture;
 };
 State g_state;
 // Le seul résumé retenu ne consomme pas de SRAM interne utile aux radios/LCD.
@@ -121,7 +140,98 @@ void send_request(common::MessageType target, uint16_t period_ms) {
   can_link::send_message(common::MessageType::kReqStatus, common::Dest::kSensors, frame.data(), 3);
 }
 
-void send_set(uint8_t dimmer, uint16_t ttl_ms) {
+HFSampleMode sample_mode(machine::State state) {
+  switch (state) {
+    case machine::State::kPreinfusion: return HFSampleMode::kPreinfusion;
+    case machine::State::kBrew: return HFSampleMode::kInfusion;
+    case machine::State::kRampdown: return HFSampleMode::kRampDown;
+    default: return HFSampleMode::kPurge;
+  }
+}
+
+TelemetryProfile capture_profile_locked() {
+  if (g_flash_active) return TelemetryProfile::kSuspended;
+  return g_state.machine.active() || g_state.hf_capture.active ? TelemetryProfile::kActive : TelemetryProfile::kIdle;
+}
+
+bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
+  bool started = false;
+  portENTER_CRITICAL(&g_state.lock);
+  HFCapture& capture = g_state.hf_capture;
+  if (capture.samples != nullptr && !capture.active) {
+    capture.origin = origin;
+    capture.started_at_us = now;
+    capture.ended_at_us = 0;
+    capture.started_at_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+    capture.ended_at_unix_s = 0;
+    capture.next_sample_us = now;
+    capture.count = 0;
+    capture.dropped_samples = 0;
+    capture.pump_pct_commanded = dimmer;
+    capture.active = true;
+    capture.complete = false;
+    capture.actuator_seen_on = false;
+    started = true;
+  } else if (capture.active) {
+    capture.pump_pct_commanded = dimmer;
+  }
+  portEXIT_CRITICAL(&g_state.lock);
+  return started;
+}
+
+void note_hf_capture_stop_request() {
+  portENTER_CRITICAL(&g_state.lock);
+  if (g_state.hf_capture.active) g_state.hf_capture.pump_pct_commanded = 0;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void tick_hf_capture() {
+  const int64_t now = now_us();
+  portENTER_CRITICAL(&g_state.lock);
+  HFCapture& capture = g_state.hf_capture;
+  if (!capture.active || now < capture.next_sample_us) {
+    portEXIT_CRITICAL(&g_state.lock);
+    return;
+  }
+  capture.next_sample_us = now + static_cast<int64_t>(kHFCapturePeriodMs) * 1000;
+  if (capture.count == kHFCaptureCapacity) {
+    capture.dropped_samples++;
+    portEXIT_CRITICAL(&g_state.lock);
+    return;
+  }
+  Snapshot& snapshot = g_state.snapshot;
+  HFSample& sample = capture.samples[capture.count++];
+  sample.t_ms = static_cast<uint32_t>((now - capture.started_at_us) / 1000);
+  sample.pressure_raw = snapshot.pressure_raw;
+  sample.temperature_raw = snapshot.temperature_raw;
+  sample.flow_pulse_count = snapshot.flow_pulse_count;
+  sample.flow_last_edge_age_ms = age_ms(g_state.last_flow_edge_received_us, now);
+  sample.pressure_bar = snapshot.pressure_bar;
+  sample.temperature_c = snapshot.temperature_c;
+  sample.volume_ml = snapshot.volume_ml;
+  sample.flow_ml_s = (g_state.last_flow_edge_received_us == 0 ||
+                       now - g_state.last_flow_edge_received_us > static_cast<int64_t>(kFlowSilenceMs) * 1000)
+                          ? 0.0f : snapshot.flow_ml_s;
+  sample.weight_g = snapshot.weight_g;
+  sample.pump_pct_commanded = capture.pump_pct_commanded;
+  sample.pump_pct_reported = snapshot.dimmer_pct;
+  sample.mode = sample_mode(g_state.machine.state());
+  sample.flags = static_cast<uint8_t>((snapshot.pressure_valid ? 0x01 : 0) |
+                                      (snapshot.flow_valid ? 0x02 : 0) |
+                                      ((snapshot.scale_connected && g_state.scale_received_us != 0 &&
+                                        now - g_state.scale_received_us <= static_cast<int64_t>(kScalePresentMs) * 1000)
+                                           ? 0x04 : 0));
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void send_set(uint8_t dimmer, uint16_t ttl_ms, HFCaptureOrigin origin = HFCaptureOrigin::kSetActuators) {
+  const int64_t now = now_us();
+  if (dimmer > 0) {
+    begin_hf_capture(origin, dimmer, now);
+    set_telemetry_profile(TelemetryProfile::kActive);
+  } else {
+    note_hf_capture_stop_request();
+  }
   common::SetPayload command;
   command.dimmer = dimmer;
   command.ttl_ms = ttl_ms;
@@ -216,6 +326,8 @@ void tick_machine() {
   const int64_t now = now_us();
   machine::Output output{};
   bool send = false;
+  bool capture_active = false;
+  HFCaptureOrigin origin = HFCaptureOrigin::kBrew;
   machine::StopReason stop_reason = machine::StopReason::kNone;
   portENTER_CRITICAL(&g_state.lock);
   const bool was_active = g_state.machine.active();
@@ -228,6 +340,8 @@ void tick_machine() {
     g_state.cycle_set_on = active;
     send = true;
   }
+  capture_active = g_state.hf_capture.active;
+  origin = g_state.machine.state() == machine::State::kPurge ? HFCaptureOrigin::kPurge : HFCaptureOrigin::kBrew;
   portEXIT_CRITICAL(&g_state.lock);
   if (was_active && !active) {
     const auto reason = static_cast<uint16_t>(stop_reason);
@@ -235,8 +349,9 @@ void tick_machine() {
                            ? common::LogCode::kPurgeStopped : common::LogCode::kBrewStopped,
                        common::LogSeverity::kInfo, reason);
   }
-  if (send) send_set(output.dimmer, output.ttl_ms);
-  set_telemetry_profile(active ? TelemetryProfile::kActive : TelemetryProfile::kIdle);
+  if (send) send_set(output.dimmer, output.ttl_ms, origin);
+  set_telemetry_profile(g_flash_active ? TelemetryProfile::kSuspended
+                                       : (active || capture_active ? TelemetryProfile::kActive : TelemetryProfile::kIdle));
 }
 
 void telemetry_task(void*) {
@@ -263,6 +378,7 @@ void telemetry_task(void*) {
     }
     can_link::tick_presence();
     tick_machine();
+    tick_hf_capture();
     vTaskDelay(pdMS_TO_TICKS(kTelemetryTickMs));
   }
 }
@@ -290,7 +406,14 @@ void radio_transition_task(void* arg) {
 
 }  // namespace
 
-void init() { config_init(); }
+void init() {
+  config_init();
+  HFSample* samples = static_cast<HFSample*>(heap_caps_malloc(sizeof(HFSample) * kHFCaptureCapacity,
+                                                               MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.hf_capture.samples = samples;
+  portEXIT_CRITICAL(&g_state.lock);
+}
 
 void start_telemetry_task() {
   xTaskCreatePinnedToCore(telemetry_task, "telemetry", 4096, nullptr, 6, nullptr, 0);
@@ -394,6 +517,7 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   common::StatusActuatorsPayload payload;
   if (!common::StatusActuatorsPayload::unpack(data, len, &payload)) return;
   int64_t now = now_us();
+  TelemetryProfile profile;
   portENTER_CRITICAL(&g_state.lock);
   g_state.last_sensors_message_us = now;
   g_state.actuators_received_us = now;
@@ -405,7 +529,16 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   g_state.snapshot.dimmer_ready = (payload.flags & 0x02) != 0;
   g_state.snapshot.dimmer_valid = (payload.flags & 0x04) != 0;
   g_state.snapshot.dimmer_error_active = (payload.flags & 0x08) != 0;
+  if (g_state.hf_capture.active && payload.dimmer > 0) g_state.hf_capture.actuator_seen_on = true;
+  if (g_state.hf_capture.active && g_state.hf_capture.actuator_seen_on && payload.dimmer == 0) {
+    g_state.hf_capture.active = false;
+    g_state.hf_capture.complete = true;
+    g_state.hf_capture.ended_at_us = now;
+    g_state.hf_capture.ended_at_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+  }
+  profile = capture_profile_locked();
   portEXIT_CRITICAL(&g_state.lock);
+  set_telemetry_profile(profile);
 }
 
 void on_pong(const uint8_t* data, uint8_t len) {
@@ -614,6 +747,37 @@ ActionResult perform_action(const ActionCommand& command) {
   if (snapshot.cycle_state == CycleState::kPreinfusion || snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown || snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
   send_set(command.dimmer, command.ttl_ms);
   return action_result(ActionStatus::kOk);
+}
+
+HFCaptureInfo get_hf_capture_info() {
+  HFCaptureInfo info;
+  portENTER_CRITICAL(&g_state.lock);
+  const HFCapture& capture = g_state.hf_capture;
+  if (capture.samples != nullptr) {
+    info.status = capture.active ? HFCaptureStatus::kActive
+                                 : (capture.complete ? HFCaptureStatus::kComplete : HFCaptureStatus::kUnavailable);
+    info.origin = capture.origin;
+    info.started_at_us = capture.started_at_us;
+    info.ended_at_us = capture.ended_at_us;
+    info.started_at_unix_s = capture.started_at_unix_s;
+    info.ended_at_unix_s = capture.ended_at_unix_s;
+    info.sample_period_ms = kHFCapturePeriodMs;
+    info.capacity = kHFCaptureCapacity;
+    info.count = capture.count;
+    info.dropped_samples = capture.dropped_samples;
+  }
+  portEXIT_CRITICAL(&g_state.lock);
+  return info;
+}
+
+bool get_hf_capture_sample(uint16_t index, HFSample* sample) {
+  if (sample == nullptr) return false;
+  portENTER_CRITICAL(&g_state.lock);
+  const HFCapture& capture = g_state.hf_capture;
+  const bool available = capture.complete && capture.samples != nullptr && index < capture.count;
+  if (available) *sample = capture.samples[index];
+  portEXIT_CRITICAL(&g_state.lock);
+  return available;
 }
 
 Snapshot get_snapshot() {

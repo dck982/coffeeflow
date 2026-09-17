@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 """Exécute une purge HTTP bornée et archive les instantanés capteurs.
 
 Le poids est volontairement demandé après la purge : le mode Wi-Fi coupe le
@@ -59,7 +63,7 @@ def file_number(value: float) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--http", required=True, help="base URL, e.g. http://coffeeflow.local")
+    parser.add_argument("--http", help="base URL (sinon http://$COFFEEFLOW_IP)")
     parser.add_argument("--token", help="bearer token (or COFFEEFLOW_HTTP_TOKEN)")
     parser.add_argument("--pump-pct", type=int, required=True, help="pump power: 20..100, multiple of 5")
     parser.add_argument("--duration-s", type=float, required=True, help="purge duration: 0.1..55 s")
@@ -80,7 +84,11 @@ def main() -> int:
     if not 0 <= args.settle_s <= 20:
         parser.error("--settle-s doit être entre 0 et 20 secondes")
 
-    base_url = args.http.rstrip("/")
+    base_url = args.http or (f"http://{os.environ['COFFEEFLOW_IP']}"
+                             if os.environ.get("COFFEEFLOW_IP") else None)
+    if base_url is None:
+        parser.error("--http ou COFFEEFLOW_IP est requis")
+    base_url = base_url.rstrip("/")
     timestamp = datetime.now(timezone.utc)
     output = args.output or Path("calibration") / (
         f"purge-{args.pump_pct}pct-{file_number(args.duration_s)}s-"

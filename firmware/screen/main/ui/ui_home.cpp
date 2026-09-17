@@ -1288,16 +1288,27 @@ void refresh(const core::Snapshot &s, bool boot) {
   else if (s.flash_active)
     fullscreen(true, "mise à jour", "ne pas couper la machine");
   else if (s.radio_mode == core::RadioMode::kWifi) {
+    const core::HFCaptureInfo capture = core::get_hf_capture_info();
+    char recording[64];
+    if (capture.status == core::HFCaptureStatus::kComplete) {
+      const auto duration_s = static_cast<unsigned>(
+          (capture.ended_at_us - capture.started_at_us + 500000) / 1000000);
+      std::snprintf(recording, sizeof(recording), "un enregistrement de %u s disponible", duration_s);
+    } else if (capture.status == core::HFCaptureStatus::kActive) {
+      std::snprintf(recording, sizeof(recording), "enregistrement en cours");
+    } else {
+      std::snprintf(recording, sizeof(recording), "aucun enregistrement disponible");
+    }
     if (s.radio_transition)
-      std::snprintf(t, sizeof(t), "activation du réseau");
+      std::snprintf(t, sizeof(t), "activation du réseau\n%s", recording);
     else if (s.ipv4_address)
-      std::snprintf(t, sizeof(t), "adresse ip · %u.%u.%u.%u",
+      std::snprintf(t, sizeof(t), "adresse ip · %u.%u.%u.%u\n%s",
                     static_cast<unsigned>(s.ipv4_address & 255),
                     static_cast<unsigned>((s.ipv4_address >> 8) & 255),
                     static_cast<unsigned>((s.ipv4_address >> 16) & 255),
-                    static_cast<unsigned>((s.ipv4_address >> 24) & 255));
+                    static_cast<unsigned>((s.ipv4_address >> 24) & 255), recording);
     else
-      std::snprintf(t, sizeof(t), "configuration wifi ou association en cours");
+      std::snprintf(t, sizeof(t), "configuration wifi ou association en cours\n%s", recording);
     fullscreen(true, "wifi mode", t);
   } else if (boot)
     fullscreen(true, "coffeeflow", "démarrage");

@@ -503,6 +503,123 @@ esp_err_t telemetry_handler(httpd_req_t* request) {
   return send_json_object(request, "200 OK", encode_telemetry(core::get_snapshot()));
 }
 
+const char* hf_capture_origin_text(core::HFCaptureOrigin origin) {
+  switch (origin) {
+    case core::HFCaptureOrigin::kSetActuators: return "set_actuators";
+    case core::HFCaptureOrigin::kBrew: return "brew";
+    case core::HFCaptureOrigin::kPurge: return "purge";
+  }
+  return "set_actuators";
+}
+
+const char* hf_sample_mode_text(core::HFSampleMode mode) {
+  switch (mode) {
+    case core::HFSampleMode::kPurge: return "purge";
+    case core::HFSampleMode::kPreinfusion: return "preinfusion";
+    case core::HFSampleMode::kInfusion: return "infusion";
+    case core::HFSampleMode::kRampDown: return "ramp_down";
+  }
+  return "purge";
+}
+
+enum class HFCaptureView : uint8_t { kRaw, kCalibrated, kBoth };
+
+bool hf_capture_view(httpd_req_t* request, HFCaptureView* view) {
+  char query[32]{};
+  char value[12]{};
+  if (httpd_req_get_url_query_str(request, query, sizeof(query)) == ESP_OK &&
+      httpd_query_key_value(query, "view", value, sizeof(value)) == ESP_OK) {
+    if (std::strcmp(value, "raw") == 0) *view = HFCaptureView::kRaw;
+    else if (std::strcmp(value, "calibrated") == 0) *view = HFCaptureView::kCalibrated;
+    else if (std::strcmp(value, "both") == 0) *view = HFCaptureView::kBoth;
+    else return false;
+  } else {
+    *view = HFCaptureView::kBoth;
+  }
+  return true;
+}
+
+bool send_json_chunk(httpd_req_t* request, const char* text) {
+  return httpd_resp_send_chunk(request, text, std::strlen(text)) == ESP_OK;
+}
+
+bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, HFCaptureView view,
+                            bool first) {
+  char line[512];
+  const char* comma = first ? "" : ",";
+  int written = 0;
+  if (view == HFCaptureView::kRaw) {
+    written = std::snprintf(line, sizeof(line),
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"temperature_raw\":%u,"
+                            "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
+                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.temperature_raw,
+                            static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
+                            sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+  } else if (view == HFCaptureView::kCalibrated) {
+    written = std::snprintf(line, sizeof(line),
+                            "%s{\"t_ms\":%u,\"pressure_bar\":%.6g,\"temperature_c\":%.6g,"
+                            "\"volume_ml\":%.6g,\"flow_ml_s\":%.6g,\"weight_g\":%.6g,"
+                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<double>(sample.pressure_bar),
+                            static_cast<double>(sample.temperature_c), static_cast<double>(sample.volume_ml),
+                            static_cast<double>(sample.flow_ml_s), static_cast<double>(sample.weight_g),
+                            sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+  } else {
+    written = std::snprintf(line, sizeof(line),
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"temperature_raw\":%u,"
+                            "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
+                            "\"pressure_bar\":%.6g,\"temperature_c\":%.6g,\"volume_ml\":%.6g,"
+                            "\"flow_ml_s\":%.6g,\"weight_g\":%.6g,\"pump_pct_commanded\":%u,"
+                            "\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.temperature_raw,
+                            static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
+                            static_cast<double>(sample.pressure_bar), static_cast<double>(sample.temperature_c),
+                            static_cast<double>(sample.volume_ml), static_cast<double>(sample.flow_ml_s),
+                            static_cast<double>(sample.weight_g), sample.pump_pct_commanded,
+                            sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+  }
+  return written > 0 && static_cast<size_t>(written) < sizeof(line) && send_json_chunk(request, line);
+}
+
+esp_err_t hf_capture_handler(httpd_req_t* request) {
+  if (!require_auth(request)) return ESP_OK;
+  HFCaptureView view;
+  if (!hf_capture_view(request, &view)) return send_error(request, "400 Bad Request", "invalid_value", "view");
+  const core::HFCaptureInfo info = core::get_hf_capture_info();
+  if (info.status == core::HFCaptureStatus::kActive) {
+    return send_error(request, "409 Conflict", "capture_active", nullptr);
+  }
+  if (info.status == core::HFCaptureStatus::kUnavailable) {
+    return send_error(request, info.capacity == 0 ? "503 Service Unavailable" : "404 Not Found",
+                      info.capacity == 0 ? "capture_unavailable" : "capture_missing", nullptr);
+  }
+
+  httpd_resp_set_status(request, "200 OK");
+  httpd_resp_set_type(request, "application/json");
+  httpd_resp_set_hdr(request, "Cache-Control", "no-store");
+  char header[320];
+  const char* view_text = view == HFCaptureView::kRaw ? "raw" :
+                          view == HFCaptureView::kCalibrated ? "calibrated" : "both";
+  const int written = std::snprintf(header, sizeof(header),
+                                    "{\"schema\":\"coffeeflow.hf_capture.v1\",\"origin\":\"%s\",\"view\":\"%s\","
+                                    "\"started_at_us\":%lld,\"ended_at_us\":%lld,\"started_at_unix_s\":%lld,"
+                                    "\"ended_at_unix_s\":%lld,\"sample_period_ms\":%u,\"sample_count\":%u,"
+                                    "\"dropped_samples\":%u,\"samples\":[",
+                                    hf_capture_origin_text(info.origin), view_text,
+                                    static_cast<long long>(info.started_at_us), static_cast<long long>(info.ended_at_us),
+                                    static_cast<long long>(info.started_at_unix_s), static_cast<long long>(info.ended_at_unix_s),
+                                    info.sample_period_ms, info.count, info.dropped_samples);
+  if (written <= 0 || static_cast<size_t>(written) >= sizeof(header) || !send_json_chunk(request, header)) return ESP_FAIL;
+  for (uint16_t index = 0; index < info.count; ++index) {
+    core::HFSample sample;
+    if (!core::get_hf_capture_sample(index, &sample) ||
+        !send_hf_capture_sample(request, sample, view, index == 0)) return ESP_FAIL;
+  }
+  if (!send_json_chunk(request, "]}")) return ESP_FAIL;
+  return httpd_resp_send_chunk(request, nullptr, 0);
+}
+
 esp_err_t get_config_handler(httpd_req_t* request) {
   if (!require_auth(request)) return ESP_OK;
   return send_json_object(request, "200 OK", encode_config(core::get_config()));
@@ -684,6 +801,9 @@ void start() {
   const httpd_uri_t telemetry{.uri = "/telemetry", .method = HTTP_GET, .handler = telemetry_handler, .user_ctx = nullptr,
                              .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
                              .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t hf_capture{.uri = "/hf-capture", .method = HTTP_GET, .handler = hf_capture_handler, .user_ctx = nullptr,
+                               .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
+                               .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   const httpd_uri_t get_config{.uri = "/config", .method = HTTP_GET, .handler = get_config_handler, .user_ctx = nullptr,
                               .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
                               .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
@@ -697,6 +817,7 @@ void start() {
                              .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
                              .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
   httpd_register_uri_handler(g_server, &telemetry);
+  httpd_register_uri_handler(g_server, &hf_capture);
   httpd_register_uri_handler(g_server, &get_config);
   httpd_register_uri_handler(g_server, &post_config);
   httpd_register_uri_handler(g_server, &post_action);

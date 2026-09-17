@@ -59,6 +59,20 @@ garantir un `purge_release` en sortie d'erreur. L'outil prévu est
 `firmware/tools/calibration_purge.py`; il ne tente pas de lire le poids en
 Wi-Fi et attend sa saisie après l'essai.
 
+`GET /hf-capture` exporte la dernière session d'actionneur terminée, à 10 Hz,
+sous forme JSON. Le buffer est remis à zéro au premier `SET dimmer>0` d'une
+nouvelle session, y compris une commande brute `set_actuators`. Il conserve la
+consigne et le niveau dimmer rapporté, les phases, les valeurs brutes XDB401 /
+Digmesa et leurs valeurs calibrées. `?view=raw`, `?view=calibrated` ou
+`?view=both` (défaut) sélectionne les colonnes. Tant que les capteurs n'ont pas
+confirmé `dimmer=0`, l'endpoint retourne `409 capture_active`; il retourne
+`404` avant toute capture terminée. L'export est envoyé par morceaux, sans
+construire le document entier en SRAM.
+
+`firmware/tools/plot_hf_capture.py` télécharge et trace cette capture avec
+matplotlib. Il se lance sans environnement Python préparé :
+`COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/plot_hf_capture.py --output capture.png`.
+
 **Limite actuelle :** HTTP nécessite le mode Wi-Fi, qui désinitialise le BLE
 et déconnecte la balance Acaia. Les relevés HTTP de `weight_g` ne sont donc pas
 une mesure de poids vivante pendant une purge en Wi-Fi. La première campagne
@@ -181,7 +195,8 @@ HTTPS : le secret évite juste que le LAN soit un jouet.
 Première mouture de l'API :
 
 - `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)
-- `POST` — niveau dimmer et SSR
+- `GET /hf-capture` — dernière capture haute fréquence, seulement après arrêt confirmé
+- `POST /action` — actions, dont le niveau dimmer
 - `POST` image firmware, avec destination **screen** ou **sensors**
 - `GET` / `POST` **`/config`** — toute la configuration en un seul objet JSON, voir ci-dessous
 - WebSocket — miroir de tout le trafic CAN, brut. C'est le sniffer une fois les cartes en boîte.

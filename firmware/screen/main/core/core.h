@@ -108,6 +108,43 @@ struct Snapshot {
   int64_t last_shot_unix_s = 0;
 };
 
+// Une capture commence au premier SET dimmer>0 émis par le coeur, quelle que
+// soit sa porte d'entrée. Elle reste en RAM volatile jusqu'à la session
+// suivante et n'est exportable qu'une fois l'arrêt confirmé par les capteurs.
+enum class HFCaptureOrigin : uint8_t { kSetActuators, kBrew, kPurge };
+enum class HFSampleMode : uint8_t { kPurge, kPreinfusion, kInfusion, kRampDown };
+enum class HFCaptureStatus : uint8_t { kUnavailable, kActive, kComplete };
+
+struct HFSample {
+  uint32_t t_ms = 0;
+  uint32_t pressure_raw = 0;
+  uint16_t temperature_raw = 0;
+  uint32_t flow_pulse_count = 0;
+  uint32_t flow_last_edge_age_ms = 0;
+  float pressure_bar = 0.0f;
+  float temperature_c = 0.0f;
+  float volume_ml = 0.0f;
+  float flow_ml_s = 0.0f;
+  float weight_g = 0.0f;
+  uint8_t pump_pct_commanded = 0;
+  uint8_t pump_pct_reported = 0;
+  HFSampleMode mode = HFSampleMode::kPurge;
+  uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente
+};
+
+struct HFCaptureInfo {
+  HFCaptureStatus status = HFCaptureStatus::kUnavailable;
+  HFCaptureOrigin origin = HFCaptureOrigin::kSetActuators;
+  int64_t started_at_us = 0;
+  int64_t ended_at_us = 0;
+  int64_t started_at_unix_s = 0;
+  int64_t ended_at_unix_s = 0;
+  uint16_t sample_period_ms = 0;
+  uint16_t capacity = 0;
+  uint16_t count = 0;
+  uint16_t dropped_samples = 0;
+};
+
 enum class TelemetryProfile : uint8_t { kIdle, kActive, kSuspended };
 enum class NetworkState : uint8_t { kOff, kApProvisioning, kStaConnecting, kStaConnected, kStaDisconnected };
 
@@ -115,6 +152,8 @@ void init();
 void start_telemetry_task();
 void set_telemetry_profile(TelemetryProfile profile);
 Snapshot get_snapshot();
+HFCaptureInfo get_hf_capture_info();
+bool get_hf_capture_sample(uint16_t index, HFSample* sample);
 
 // Adaptateurs de protocole, appelés exclusivement par can_link après que la
 // trame a été attribuée au nœud sensors.

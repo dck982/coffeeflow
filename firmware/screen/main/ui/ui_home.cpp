@@ -879,7 +879,9 @@ lv_obj_t *scale_icon(lv_obj_t *parent) {
   lv_obj_t *icon = lv_obj_create(parent);
   lv_obj_remove_style_all(icon);
   lv_obj_set_size(icon, 30, 24);
-  lv_obj_set_pos(icon, 711, 25);
+  // Le dernier segment du bandeau contient l'heure et, si nécessaire,
+  // l'indicateur de balance. Garder l'icône à droite laisse l'heure lisible.
+  lv_obj_set_pos(icon, 765, 25);
 
   lv_obj_t *body = lv_obj_create(icon);
   lv_obj_remove_style_all(body);
@@ -949,7 +951,7 @@ void create(lv_obj_t *p) {
   dyn(p, &v.clock, "", theme::kFontStatus, theme::kTextDim, 705, 24);
   // Les diagnostics sont accessibles depuis l'information visible elle-même,
   // jamais depuis une zone transparente qui donnerait l'impression d'un tap
-  // perdu. Horloge et indicateur de balance sont mutuellement exclusifs.
+  // perdu. Horloge et indicateur de balance peuvent être visibles ensemble.
   for (lv_obj_t *status : {v.presence, v.clock}) {
     lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(status, note, LV_EVENT_PRESSED, nullptr);
@@ -1226,12 +1228,13 @@ void refresh(const core::Snapshot &s, bool boot) {
   } else
     text(v.weight, "");
   color(v.weight, scale ? theme::kText : theme::kTextFaint);
-  // Le dernier segment du bandeau affiche soit l'icône de balance connectée,
-  // soit l'heure locale. Une balance associée reste signalée même entre deux
-  // mesures ; l'heure n'est jamais affichée avant la synchronisation NTP.
+  // Le dernier segment du bandeau affiche l'heure locale et, le cas échéant,
+  // l'icône de balance connectée. Une balance associée reste signalée même
+  // entre deux mesures ; l'heure n'est jamais affichée avant la
+  // synchronisation NTP.
   hidden(v.presence, !s.scale_connected);
-  hidden(v.clock, s.scale_connected || !s.time_known);
-  if (!s.scale_connected && s.time_known) {
+  hidden(v.clock, !s.time_known);
+  if (s.time_known) {
     std::time_t now = std::time(nullptr);
     std::tm local{};
     localtime_r(&now, &local);

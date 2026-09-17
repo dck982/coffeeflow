@@ -61,11 +61,6 @@ constexpr size_t kVisibleEvents = 5;
 // appui (docs/plan-phase6.md, lot 2, point 5).
 constexpr uint32_t kTouchLabelHoldMs = 1000;
 
-// Période de rafraîchissement de l'écran de service — largement suffisante
-// pour une console de debug, et pour détecter la perte de présence CAN en
-// moins de 3 s (le vrai critère de sortie du lot).
-constexpr uint32_t kRefreshPeriodMs = 200;
-
 lv_obj_t* g_version_label = nullptr;
 lv_obj_t* g_can_label = nullptr;
 lv_obj_t* g_telemetry_label = nullptr;
@@ -433,89 +428,6 @@ void build_ui() {
   lv_obj_set_style_text_color(g_touch_label, lv_color_white(), 0);
   lv_label_set_text(g_touch_label, "");
   lv_obj_set_pos(g_touch_label, 4, kLcdVRes - 24);
-}
-
-void refresh_timer_cb(lv_timer_t* /*timer*/) {
-  core::Snapshot snapshot = core::get_snapshot();
-  set_label_if_changed(g_can_label, snapshot.sensors_alive ? "CAN: OK" : "CAN: PERDU");
-  char telemetry[128];
-  char weight[20];
-  if (snapshot.scale_present) std::snprintf(weight, sizeof(weight), "%.1f g", snapshot.weight_g);
-  else std::snprintf(weight, sizeof(weight), "-");
-  if (snapshot.flash_active) {
-    std::snprintf(telemetry, sizeof(telemetry), "MISE A JOUR %s: %lu/%lu octets",
-                  snapshot.flash_target == core::FlashTarget::kScreen ? "ECRAN" : "CAPTEURS",
-                  static_cast<unsigned long>(snapshot.flash_bytes_done),
-                  static_cast<unsigned long>(snapshot.flash_bytes_total));
-  } else if (!snapshot.pressure_valid || snapshot.pressure_freshness == core::Freshness::kMissing) {
-    std::snprintf(telemetry, sizeof(telemetry), "P: -  T: -  F: %.2f ml/s  W: %s  n=%lu", snapshot.flow_ml_s,
-                  weight, static_cast<unsigned long>(snapshot.flow_pulse_count));
-  } else {
-    std::snprintf(telemetry, sizeof(telemetry), "P: %.2f bar  T: %.1f C  F: %.2f ml/s  W: %s  n=%lu",
-                  snapshot.pressure_bar, snapshot.temperature_c, snapshot.flow_ml_s,
-                  weight, static_cast<unsigned long>(snapshot.flow_pulse_count));
-  }
-  set_label_if_changed(g_telemetry_label, telemetry);
-
-  const char* network = "RADIO: AUCUNE (DIAGNOSTIC SRAM)";
-  if (snapshot.radio_mode == core::RadioMode::kMachine) {
-    network = snapshot.scale_connected ? "RADIO: BLE / BALANCE CONNECTEE"
-                                       : "RADIO: BLE / RECHERCHE BALANCE";
-  } else if (snapshot.radio_mode == core::RadioMode::kWifi) {
-    switch (static_cast<core::NetworkState>(snapshot.network_state)) {
-      case core::NetworkState::kOff: network = "RADIO: WIFI / DEMARRAGE"; break;
-      case core::NetworkState::kApProvisioning: network = "RESEAU: AP CONFIGURATION"; break;
-      case core::NetworkState::kStaConnecting: network = "RESEAU: CONNEXION"; break;
-      case core::NetworkState::kStaConnected: network = "RESEAU: CONNECTE"; break;
-      case core::NetworkState::kStaDisconnected: network = "RESEAU: COUPE"; break;
-    }
-  }
-  if (snapshot.radio_transition) network = "CHANGEMENT DE MODE RADIO...";
-  set_label_if_changed(g_net_label, network);
-  char memory[96];
-  std::snprintf(memory, sizeof(memory), "SRAM INTERNE: libre %lu  bloc %lu  min %lu",
-                static_cast<unsigned long>(snapshot.internal_heap_free),
-                static_cast<unsigned long>(snapshot.internal_heap_largest),
-                static_cast<unsigned long>(snapshot.internal_heap_minimum));
-  set_label_if_changed(g_memory_label, memory);
-  char ip[32];
-  if (snapshot.ipv4_address == 0) std::snprintf(ip, sizeof(ip), "IP: -");
-  else std::snprintf(ip, sizeof(ip), "IP: %u.%u.%u.%u",
-                     static_cast<unsigned>(snapshot.ipv4_address & 0xFFu),
-                     static_cast<unsigned>((snapshot.ipv4_address >> 8) & 0xFFu),
-                     static_cast<unsigned>((snapshot.ipv4_address >> 16) & 0xFFu),
-                     static_cast<unsigned>((snapshot.ipv4_address >> 24) & 0xFFu));
-  set_label_if_changed(g_ip_label, ip);
-  char time_text[40];
-  if (!snapshot.time_known) std::snprintf(time_text, sizeof(time_text), "HEURE: -");
-  else { std::time_t seconds = static_cast<std::time_t>(snapshot.wall_time_unix_s); std::tm local{}; localtime_r(&seconds, &local);
-         std::strftime(time_text, sizeof(time_text), "HEURE: %d.%m.%Y %H:%M", &local); }
-  set_label_if_changed(g_time_label, time_text);
-  char pump[32]; std::snprintf(pump, sizeof(pump), "POMPE BANC: %u%%", g_diagnostic_pump_pct);
-  set_label_if_changed(g_pump_label, pump);
-  if (g_purge_held) {
-    core::DiagnosticStatus status = core::set_diagnostic_purge(true, g_diagnostic_pump_pct);
-    if (status != core::DiagnosticStatus::kOk) { g_purge_held = false; set_action_text("PURGE REFUSEE"); }
-    else set_action_text("PURGE ACTIVE");
-  }
-
-  core::Event events[kVisibleEvents];
-  size_t n = core::events::recent(events, kVisibleEvents);
-  for (size_t i = 0; i < kVisibleEvents; ++i) {
-    if (i < n) {
-      char buf[40];
-      std::snprintf(buf, sizeof(buf), "%lu.%03lus %s", static_cast<unsigned long>(events[i].uptime_ms / 1000),
-                    static_cast<unsigned long>(events[i].uptime_ms % 1000), core::events::to_text(events[i].kind));
-      set_label_if_changed(g_event_labels[i], buf);
-    } else {
-      set_label_if_changed(g_event_labels[i], "-");
-    }
-  }
-
-  if (g_touch_label_visible && (now_ms() - g_last_touch_ms) > kTouchLabelHoldMs) {
-    set_label_if_changed(g_touch_label, "");
-    g_touch_label_visible = false;
-  }
 }
 
 // L'ISR LCD est attachée au cœur qui appelle esp_lcd_new_rgb_panel.

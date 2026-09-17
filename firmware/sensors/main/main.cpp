@@ -166,14 +166,23 @@ common::StatusPressurePayload g_last_pressure;  // dernière valeur connue (flag
 // déchirée en pratique sur cette architecture.
 volatile uint32_t g_flow_pulse_count = 0;
 volatile int64_t g_flow_last_edge_us = 0;
+// À 0,5 L/min et 2382 imp/L, deux fronts réels sont espacés d'environ
+// 50,4 ms. Rejeter ceux qui arrivent plus tôt élimine les rebonds/ringing
+// sans limiter le débit utile du Digmesa (spécifié à 0,40 L/min maximum).
+constexpr int64_t kFlowMinEdgeIntervalMs = 50;
 uint16_t g_flow_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_flow_last_sent_us = 0;
 uint16_t g_actuators_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_actuators_last_sent_us = 0;
 
 void IRAM_ATTR flow_isr_handler(void*) {
+  int64_t edge_us = esp_timer_get_time();
+  if (g_flow_last_edge_us != 0 &&
+      edge_us - g_flow_last_edge_us < kFlowMinEdgeIntervalMs * 1000) {
+    return;
+  }
   g_flow_pulse_count = g_flow_pulse_count + 1;
-  g_flow_last_edge_us = esp_timer_get_time();
+  g_flow_last_edge_us = edge_us;
 }
 
 // Flash — un seul transfert à la fois, pas de file d'attente. `partition`

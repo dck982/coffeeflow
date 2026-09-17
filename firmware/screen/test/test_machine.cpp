@@ -25,8 +25,8 @@ int main() {
   assert(machine.tick(6999, input).dimmer == 30);
   assert(machine.tick(7000, input).dimmer == 100);
   assert(machine.state() == State::kBrew);
-  assert(machine.tick(28999, input).ssr);
-  assert(!machine.tick(29000, input).ssr);
+  assert(machine.tick(28999, input).dimmer == 100);
+  assert(machine.tick(29000, input).dimmer == 0);
   assert(machine.stop_reason() == StopReason::kTargetTime);
 
   Machine weighted;
@@ -34,7 +34,7 @@ int main() {
   assert(weighted.start(1000, c, input));
   assert(weighted.weight_goal());
   input.weight_g = 46;
-  assert(!weighted.tick(2000, input).ssr);
+  assert(weighted.tick(2000, input).dimmer == 0);
   assert(weighted.stop_reason() == StopReason::kTargetWeight);
 
   Machine ramp_weight;
@@ -43,10 +43,10 @@ int main() {
   input = {10, true, 0};
   assert(ramp_weight.start(1000, c, input));
   input.weight_g = 42;
-  assert(ramp_weight.tick(2000, input).ssr);
+  assert(ramp_weight.tick(2000, input).dimmer == 100);
   assert(ramp_weight.state() == State::kRampdown);
   input.weight_g = 46;
-  assert(!ramp_weight.tick(2100, input).ssr);
+  assert(ramp_weight.tick(2100, input).dimmer == 0);
   assert(ramp_weight.stop_reason() == StopReason::kTargetWeight);
   c = config();
 
@@ -54,19 +54,19 @@ int main() {
   input = {10, true, 0};
   assert(lost.start(1000, c, input));
   input.scale_present = false;
-  assert(!lost.tick(1100, input).ssr);
+  assert(lost.tick(1100, input).dimmer == 0);
   assert(lost.stop_reason() == StopReason::kScaleLost);
 
   Machine purge;
   assert(purge.purge_press(1000, c));
-  assert(purge.tick(2000, input).ssr);
+  assert(purge.tick(2000, input).dimmer == 100);
   assert(purge.purge_release(2000));
-  assert(!purge.tick(2001, input).ssr);
+  assert(purge.tick(2001, input).dimmer == 0);
   assert(purge.stop_reason() == StopReason::kPurgeReleased);
   assert(purge.elapsed_ms(2001) == 1000);
   assert(purge.elapsed_ms(10000) == 1000);
   assert(purge.purge_press(3000, c));
-  assert(!purge.tick(23000, input).ssr);
+  assert(purge.tick(23000, input).dimmer == 0);
   assert(purge.stop_reason() == StopReason::kPurgeTimeout);
 
   std::puts("machine tests passed");

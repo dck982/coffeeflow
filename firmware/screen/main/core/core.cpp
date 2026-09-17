@@ -121,15 +121,12 @@ void send_request(common::MessageType target, uint16_t period_ms) {
   can_link::send_message(common::MessageType::kReqStatus, common::Dest::kSensors, frame.data(), 3);
 }
 
-void send_set(bool ssr, uint8_t dimmer, uint16_t ttl_ms) {
+void send_set(uint8_t dimmer, uint16_t ttl_ms) {
   common::SetPayload command;
-  command.set_ssr = true;
-  command.set_dimmer = true;
-  command.ssr = ssr;
   command.dimmer = dimmer;
   command.ttl_ms = ttl_ms;
   common::Frame frame = command.pack();
-  can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 5);
+  can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 3);
 }
 
 uint16_t config_field_arg(const char* field) {
@@ -238,7 +235,7 @@ void tick_machine() {
                            ? common::LogCode::kPurgeStopped : common::LogCode::kBrewStopped,
                        common::LogSeverity::kInfo, reason);
   }
-  if (send) send_set(output.ssr, output.dimmer, output.ttl_ms);
+  if (send) send_set(output.dimmer, output.ttl_ms);
   set_telemetry_profile(active ? TelemetryProfile::kActive : TelemetryProfile::kIdle);
 }
 
@@ -333,7 +330,7 @@ bool begin_flash(FlashTarget target, uint32_t total) {
   g_state.profile = TelemetryProfile::kSuspended;
   g_state.profile_dirty = true;
   portEXIT_CRITICAL(&g_state.lock);
-  send_set(false, 0, 0);
+  send_set(0, 0);
   return true;
 }
 
@@ -524,7 +521,7 @@ DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
   // Compatibilité temporaire avec l'écran de service : il devient lui aussi
   // un client de la face actions, sans chemin SET parallèle.
   ActionResult result = perform_action({enabled ? Action::kPurgePress : Action::kPurgeRelease,
-                                        false, pump_pct, 0});
+                                        pump_pct, 0});
   switch (result.status) {
     case ActionStatus::kOk: return DiagnosticStatus::kOk;
     case ActionStatus::kBusLost: return DiagnosticStatus::kBusLost;
@@ -558,7 +555,7 @@ ActionResult perform_action(const ActionCommand& command) {
         snapshot.cycle_state == CycleState::kRampdown ||
         snapshot.cycle_state == CycleState::kPurge || g_flash_active)
       return action_result(ActionStatus::kCycleActive);
-    send_set(false, 0, 0);
+    send_set(0, 0);
     can_link::reset_sensors();
     return action_result(ActionStatus::kOk);
   }
@@ -571,7 +568,7 @@ ActionResult perform_action(const ActionCommand& command) {
       return action_result(ActionStatus::kCycleActive);
     // Coupe explicitement les sorties avant une maintenance qui peut rendre
     // le DimmerLink indisponible pendant quelques secondes.
-    send_set(false, 0, 0);
+    send_set(0, 0);
     can_link::send_dimmer_command(command.action == Action::kResetDimmer
                                       ? common::DimmerCommand::kReset
                                       : common::DimmerCommand::kRecalibrate);
@@ -579,14 +576,14 @@ ActionResult perform_action(const ActionCommand& command) {
   }
   if (command.action == Action::kStopBrew) {
     portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.stop(static_cast<uint64_t>(now_us() / 1000)); if (ok) remember_completed_shot_locked(g_state.snapshot); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
-    if (ok) send_set(false, 0, 0);
+    if (ok) send_set(0, 0);
     if (ok) can_link::send_log(common::LogCode::kBrewStopped, common::LogSeverity::kInfo,
                                static_cast<uint16_t>(machine::StopReason::kManual));
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
   }
   if (command.action == Action::kPurgeRelease) {
     portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.purge_release(static_cast<uint64_t>(now_us() / 1000)); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
-    if (ok) send_set(false, 0, 0);
+    if (ok) send_set(0, 0);
     if (ok) can_link::send_log(common::LogCode::kPurgeStopped, common::LogSeverity::kInfo,
                                static_cast<uint16_t>(machine::StopReason::kPurgeReleased));
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
@@ -615,7 +612,7 @@ ActionResult perform_action(const ActionCommand& command) {
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
   if (snapshot.cycle_state == CycleState::kPreinfusion || snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown || snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
-  send_set(command.ssr, command.dimmer, command.ttl_ms);
+  send_set(command.dimmer, command.ttl_ms);
   return action_result(ActionStatus::kOk);
 }
 

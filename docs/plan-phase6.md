@@ -81,7 +81,7 @@ deviner s'il avait le droit.
 | purge relâchée | — | — |
 | tarer la balance | — | balance absente |
 | fermer le résumé | — | pas dans l'état terminé |
-| commande d'actionneur brute | SSR, niveau dimmer, bail | verrou, bus perdu, infusion ou purge en cours |
+| commande d'actionneur brute | niveau dimmer, bail | verrou, bus perdu, infusion ou purge en cours |
 | démarrer un flash | cible (écran ou capteurs), image | infusion ou purge en cours, flash déjà en cours |
 
 La commande brute est un outil de banc et de calibration, pas un chemin
@@ -458,7 +458,7 @@ Contenu :
   `PRESENCE_LOST` revient.
 
 **Critère de sortie :** `coffeetool monitor` sur l'USB montre le trafic
-`REQSTATUS`/`STATUS_*` périodique émis par l'écran seul ; un `SET ssr=1
+`REQSTATUS`/`STATUS_*` périodique émis par l'écran seul ; un `SET dimmer>0
 ttl_ms=30000` envoyé à la main tient **les 30 s complètes sans boucle de `PING`
 manuelle** ; débrancher le XDB401 fait passer pression et température à
 invalides en moins de 3 s, à l'écran de service comme dans l'instantané, et les

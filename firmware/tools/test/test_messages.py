@@ -13,7 +13,8 @@ from coffeetool.protocol import MessageType, Node
 
 
 def test_set_payload_roundtrip():
-    original = SetPayload(set_ssr=True, set_dimmer=True, ssr=True, dimmer=42, ttl_ms=500)
+    original = SetPayload(dimmer=42, ttl_ms=500)
+    assert original.pack()[:3] == bytes((42, 0xF4, 0x01))
     out = SetPayload.unpack(original.pack())
     assert out == original
 

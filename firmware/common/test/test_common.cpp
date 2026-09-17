@@ -51,18 +51,16 @@ void test_known_message_type() {
 
 void test_set_payload_roundtrip() {
   SetPayload in{};
-  in.set_ssr = true;
-  in.set_dimmer = true;
-  in.ssr = true;
   in.dimmer = 42;
   in.ttl_ms = 500;
   const Frame f = in.pack();
 
+  CHECK(f[0] == 42);
+  CHECK(f[1] == 0xF4);
+  CHECK(f[2] == 0x01);
+
   SetPayload out{};
   CHECK(SetPayload::unpack(f.data(), f.size(), &out));
-  CHECK(out.set_ssr == in.set_ssr);
-  CHECK(out.set_dimmer == in.set_dimmer);
-  CHECK(out.ssr == in.ssr);
   CHECK(out.dimmer == in.dimmer);
   CHECK(out.ttl_ms == in.ttl_ms);
 }

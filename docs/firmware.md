@@ -417,11 +417,9 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 `SET` (0x01)
 
 ```
-[0]     masque      bit0 = SSR, bit1 = dimmer
-[1]     ssr         0 | 1
-[2]     dimmer      0..100
-[3..4]  ttl_ms      uint16, 0 = défaut (500)
-[5..7]  réservé
+[0]     dimmer      0..100 ; 0 demande l'arrêt, >0 l'activation
+[1..2]  ttl_ms      uint16, 0 = défaut (500)
+[3..7]  réservé
 ```
 
 `PONG` (0x09)

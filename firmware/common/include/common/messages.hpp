@@ -37,29 +37,22 @@ inline uint32_t get_u32(const uint8_t* in) {
          (static_cast<uint32_t>(in[3]) << 24);
 }
 
-// SET (0x01) — écran → capteurs
+// SET (0x01) — écran → capteurs. Le niveau demandé est l'unique intention
+// exposée par le protocole ; les capteurs séquencent SSR et dimmer localement.
 struct SetPayload {
-  bool set_ssr = false;
-  bool set_dimmer = false;
-  bool ssr = false;
   uint8_t dimmer = 0;      // 0..100
   uint16_t ttl_ms = 0;     // 0 = défaut (500 ms), voir firmware.md §1
 
   Frame pack() const {
     Frame f{};
-    f[0] = static_cast<uint8_t>((set_ssr ? 0x01 : 0) | (set_dimmer ? 0x02 : 0));
-    f[1] = ssr ? 1 : 0;
-    f[2] = dimmer;
-    put_u16(&f[3], ttl_ms);
+    f[0] = dimmer;
+    put_u16(&f[1], ttl_ms);
     return f;
   }
   static bool unpack(const uint8_t* in, size_t len, SetPayload* out) {
-    if (len < 5) return false;
-    out->set_ssr = (in[0] & 0x01) != 0;
-    out->set_dimmer = (in[0] & 0x02) != 0;
-    out->ssr = in[1] != 0;
-    out->dimmer = in[2];
-    out->ttl_ms = get_u16(&in[3]);
+    if (len < 3) return false;
+    out->dimmer = in[0];
+    out->ttl_ms = get_u16(&in[1]);
     return true;
   }
 };

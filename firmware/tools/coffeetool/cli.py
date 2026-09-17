@@ -71,9 +71,6 @@ def cmd_send(args: argparse.Namespace) -> int:
     elif args.message == "set":
         can_id = encode_can_id(CanId(MessageType.SET, dest, src))
         payload = SetPayload(
-            set_ssr=args.ssr is not None,
-            set_dimmer=args.dimmer is not None,
-            ssr=bool(args.ssr),
             dimmer=args.dimmer or 0,
             ttl_ms=args.ttl_ms,
         ).pack()
@@ -161,7 +158,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("message", choices=["ping", "pong", "stop", "reset", "set", "reqstatus"])
     p.add_argument("--src", default="screen", choices=["screen", "sensors"])
     p.add_argument("--dest", default="broadcast", choices=["broadcast", "screen", "sensors"])
-    p.add_argument("--ssr", type=int, choices=[0, 1], default=None, help="SET: 0 ou 1")
     p.add_argument("--dimmer", type=int, default=None, help="SET: 0..100")
     p.add_argument("--ttl-ms", type=int, default=0, help="SET: 0 = défaut (500 ms)")
     p.add_argument("--target", default="status_pressure", choices=["status_pressure", "status_flow", "status_actuators"])

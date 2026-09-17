@@ -63,15 +63,15 @@ void Machine::finish(StopReason reason, uint64_t now_ms) {
 Output Machine::tick(uint64_t now_ms, const Input& input) {
   if (state_ == State::kPurge) {
     if (now_ms - started_ms_ >= static_cast<uint64_t>(config_.purge_max_s) * 1000) finish(StopReason::kPurgeTimeout, now_ms);
-    else return {true, config_.purge_pump_pct, kLeaseMs};
+    else return {config_.purge_pump_pct, kLeaseMs};
   }
-  if (!active()) return {false, 0, 0};
+  if (!active()) return {0, 0};
 
   if (weight_goal_) {
     const float delta = input.weight_g - starting_weight_g_;
     if (!input.scale_present || delta < -kScaleBackwardsG) {
       finish(StopReason::kScaleLost, now_ms);
-      return {false, 0, 0};
+      return {0, 0};
     }
     const float ramp_start = config_.target_weight_g - config_.rampdown_lead_weight_g;
     if (state_ == State::kBrew && config_.rampdown_mode == RampdownMode::kWeight && delta >= ramp_start) {
@@ -80,18 +80,18 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     }
     if (delta >= (config_.rampdown_mode == RampdownMode::kWeight ? config_.target_weight_g : ramp_start)) {
       finish(StopReason::kTargetWeight, now_ms);
-      return {false, 0, 0};
+      return {0, 0};
     }
   } else if (now_ms - started_ms_ >= static_cast<uint64_t>(config_.target_time_s) * 1000) {
     finish(StopReason::kTargetTime, now_ms);
-    return {false, 0, 0};
+    return {0, 0};
   }
 
   if (state_ == State::kPreinfusion) {
     bool done = config_.preinfusion_mode == PreinfusionMode::kTime
                     ? now_ms - phase_started_ms_ >= static_cast<uint64_t>(config_.preinfusion_time_s) * 1000
                     : input.pressure_bar >= config_.preinfusion_pressure_bar;
-    if (!done) return {true, config_.preinfusion_pump_pct, kLeaseMs};
+    if (!done) return {config_.preinfusion_pump_pct, kLeaseMs};
     state_ = State::kBrew;
     phase_started_ms_ = now_ms;
   }
@@ -106,7 +106,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
   }
   // La calibration déterminera la vraie pente; le premier cycle conserve le
   // niveau nominal, mais expose explicitement la phase pour l'UI et les traces.
-  return {true, config_.brew_pump_pct, kLeaseMs};
+  return {config_.brew_pump_pct, kLeaseMs};
 }
 
 }  // namespace core::machine

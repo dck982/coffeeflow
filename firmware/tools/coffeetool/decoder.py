@@ -53,13 +53,7 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
 
     if message_type is MessageType.SET:
         p = payload
-        parts = []
-        if p.set_ssr:
-            parts.append(f"ssr={'on' if p.ssr else 'off'}")
-        if p.set_dimmer:
-            parts.append(f"dimmer={p.dimmer}%")
-        parts.append(f"ttl={p.ttl_ms or 500}ms")
-        return " ".join(parts)
+        return f"dimmer={p.dimmer}% ttl={p.ttl_ms or 500}ms"
 
     if message_type is MessageType.REQSTATUS:
         p = payload

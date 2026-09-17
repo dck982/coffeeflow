@@ -27,7 +27,7 @@ struct Config {
 };
 
 struct Input { float weight_g; bool scale_present; float pressure_bar; };
-struct Output { bool ssr; uint8_t dimmer; uint16_t ttl_ms; };
+struct Output { uint8_t dimmer; uint16_t ttl_ms; };
 
 class Machine {
  public:

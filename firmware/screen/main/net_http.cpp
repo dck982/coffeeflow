@@ -571,14 +571,6 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
       *field = store_field(child->string);
       return false;
     }
-    if (std::strcmp(child->string, "ssr") == 0) {
-      if (!cJSON_IsBool(child)) {
-        *field = "ssr";
-        return false;
-      }
-      command->ssr = cJSON_IsTrue(child);
-      continue;
-    }
     if (std::strcmp(child->string, "dimmer") == 0) {
       if (!as_u8(child, &command->dimmer)) {
         *field = "dimmer";
@@ -598,10 +590,6 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
   }
 
   if (command->action == core::Action::kSetActuators) {
-    if (cJSON_GetObjectItemCaseSensitive(root, "ssr") == nullptr) {
-      *field = "ssr";
-      return false;
-    }
     if (cJSON_GetObjectItemCaseSensitive(root, "dimmer") == nullptr) {
       *field = "dimmer";
       return false;

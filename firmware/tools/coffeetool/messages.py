@@ -25,28 +25,17 @@ def _need(data: bytes, n: int, what: str) -> None:
 
 @dataclass
 class SetPayload:
-    set_ssr: bool = False
-    set_dimmer: bool = False
-    ssr: bool = False
     dimmer: int = 0
     ttl_ms: int = 0
 
     def pack(self) -> bytes:
-        mask = (0x01 if self.set_ssr else 0) | (0x02 if self.set_dimmer else 0)
-        return struct.pack("<BBB H 3x", mask, 1 if self.ssr else 0, self.dimmer, self.ttl_ms)
+        return struct.pack("<BH 5x", self.dimmer, self.ttl_ms)
 
     @staticmethod
     def unpack(data: bytes) -> "SetPayload":
-        _need(data, 5, "SET")
-        mask = data[0]
-        (ttl_ms,) = struct.unpack("<H", data[3:5])
-        return SetPayload(
-            set_ssr=bool(mask & 0x01),
-            set_dimmer=bool(mask & 0x02),
-            ssr=data[1] != 0,
-            dimmer=data[2],
-            ttl_ms=ttl_ms,
-        )
+        _need(data, 3, "SET")
+        dimmer, ttl_ms = struct.unpack("<BH", data[:3])
+        return SetPayload(dimmer=dimmer, ttl_ms=ttl_ms)
 
 
 @dataclass

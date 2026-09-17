@@ -107,7 +107,6 @@ def main() -> int:
         record["request"]["ttl_ms"] = ttl_ms
         response = request(base_url, token, "POST", "/action", {
             "action": "set_actuators",
-            "ssr": True,
             "dimmer": args.pump_pct,
             "ttl_ms": ttl_ms,
         })

@@ -178,7 +178,6 @@ enum class ActionStatus : uint8_t {
 
 struct ActionCommand {
   Action action = Action::kSetActuators;
-  bool ssr = false;
   uint8_t dimmer = 0;
   uint16_t ttl_ms = 0;
 };

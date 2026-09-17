@@ -592,12 +592,12 @@ void on_set_received(const uint8_t* data, size_t len) {
     send_status_actuators();
     return;
   }
-  if (payload.set_ssr) {
-    g_ssr = payload.ssr;
-  }
-  if (payload.set_dimmer) {
-    g_dimmer = payload.dimmer;
-  }
+  if (payload.dimmer > 100) return;
+  // Le niveau est l'intention reçue. La politique de séquencement des deux
+  // sorties reste ici, afin de pouvoir y introduire des délais calibrés sans
+  // exposer SSR sur CAN.
+  g_ssr = payload.dimmer > 0;
+  g_dimmer = payload.dimmer;
   apply_ssr();
   apply_dimmer();
   int64_t ttl_us = (payload.ttl_ms == 0 ? kLeaseDefaultUs : static_cast<int64_t>(payload.ttl_ms) * 1000);

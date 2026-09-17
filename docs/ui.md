@@ -920,8 +920,8 @@ Transitions, **qui les déclenche** :
 | Transition | Déclencheur | Effet côté CAN |
 | --- | --- | --- |
 | `IDLE → BREW` | appui *infuser* | tare balance, `REQSTATUS` en période courte, la boucle d'infusion prend la main sur les `SET` |
-| `BREW → DONE` | cible atteinte (algorithme), appui *arrêter*, ou **perte de la balance** en brew by weight | `SET ssr=0 dimmer=0`, `REQSTATUS` en période longue |
-| `IDLE → PURGE` | **appui maintenu** sur *purge* | `SET ssr=1 dimmer=<niveau purge>` renouvelé à 10 Hz |
+| `BREW → DONE` | cible atteinte (algorithme), appui *arrêter*, ou **perte de la balance** en brew by weight | `SET dimmer=0`, `REQSTATUS` en période longue |
+| `IDLE → PURGE` | **appui maintenu** sur *purge* | `SET dimmer=<niveau purge>` renouvelé à 10 Hz |
 | `PURGE → IDLE` | doigt relâché, ou 20 s écoulées | arrêt des `SET`, le bail retombe seul |
 | `IDLE → FULLSCREEN` | OTA accepté par le cœur, seulement si les actionneurs sont confirmés à l'arrêt | voir la priorité ci-dessous |
 | `* → FULLSCREEN` | verrou / bus perdu / boot | voir la priorité ci-dessous |
@@ -945,7 +945,7 @@ Une mise à jour interrompue par une perte de bus affiche donc l'écran « modul
 injoignable », avec la phrase de reprise (« mise à jour interrompue, l'image
 précédente est intacte ») — pas un écran d'OTA figé à 46 %.
 
-Entrer en L2 **coupe les actionneurs** (`SET ssr=0 dimmer=0`) si une infusion
+Entrer en L2 **coupe les actionneurs** (`SET dimmer=0`) si une infusion
 ou une purge était en cours, avant même de dessiner. L'affichage n'est jamais
 la première chose qu'on fait.
 

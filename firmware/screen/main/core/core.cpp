@@ -132,7 +132,9 @@ float compute_flow_ml_s() {
   uint32_t delta_pulses = latest.pulses - anchor->pulses;
   uint16_t delta_ms = static_cast<uint16_t>(latest.edge_ms - anchor->edge_ms);
   if (delta_ms == 0) return 0.0f;
-  return static_cast<float>(delta_pulses) * 1000.0f / (kFlowPulsesPerLiter * static_cast<float>(delta_ms));
+  // pulses/L ÷ ms : convertir d'abord les millisecondes en secondes, puis
+  // les litres en millilitres. Le résultat est bien en ml/s.
+  return static_cast<float>(delta_pulses) * 1000000.0f / (kFlowPulsesPerLiter * static_cast<float>(delta_ms));
 }
 
 void send_request(common::MessageType target, uint16_t period_ms) {

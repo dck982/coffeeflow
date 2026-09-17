@@ -7,6 +7,10 @@ namespace core::calibration_machine {
 
 inline constexpr unsigned kSchemaVersion = 1;
 inline constexpr float kFlowPulsesPerLiter = 2382.0f;
-inline constexpr float kPressureFullScaleBar = 10.0f;  // à confirmer sur la pièce montée
+// XDB401 annoncé pour une plage de 0 à 16 bar. Les essais de purge du
+// 2026-09-17 sont cohérents avec cette pleine échelle; aucun offset fiable
+// n'a été établi avec le manomètre filmé.
+inline constexpr float kPressureFullScaleBar = 16.0f;
+inline constexpr float kPressureOffsetBar = 0.0f;
 
 }  // namespace core::calibration_machine

@@ -21,6 +21,7 @@ namespace core {
 namespace {
 
 constexpr float kPressureFullScaleBar = calibration_machine::kPressureFullScaleBar;
+constexpr float kPressureOffsetBar = calibration_machine::kPressureOffsetBar;
 constexpr float kFlowPulsesPerLiter = calibration_machine::kFlowPulsesPerLiter;
 constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmesa
 constexpr uint32_t kFlowSilenceMs = 3000;
@@ -100,7 +101,7 @@ Freshness freshness(int64_t received_us, uint16_t period_ms, int64_t now) {
 float decode_pressure_bar(uint32_t raw) {
   uint32_t be = ((raw & 0xFF) << 16) | (raw & 0xFF00) | ((raw >> 16) & 0xFF);
   int32_t signed_raw = (be & 0x800000) ? static_cast<int32_t>(be | 0xFF000000) : static_cast<int32_t>(be);
-  return static_cast<float>(signed_raw) * kPressureFullScaleBar / 8388608.0f;
+  return static_cast<float>(signed_raw) * kPressureFullScaleBar / 8388608.0f + kPressureOffsetBar;
 }
 
 float decode_temperature_c(uint16_t raw) {

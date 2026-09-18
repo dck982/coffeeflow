@@ -300,7 +300,18 @@ machine::Config machine_config(const Config& c) {
           c.purge_pump_pct, c.purge_max_s};
 }
 
-machine::Input machine_input(const Snapshot& s) { return {s.weight_g, s.scale_present, s.pressure_bar}; }
+bool scale_present_locked(int64_t now) {
+  return g_state.snapshot.scale_connected && g_state.scale_received_us != 0 &&
+         now - g_state.scale_received_us <= static_cast<int64_t>(kScalePresentMs) * 1000;
+}
+
+machine::Input machine_input(const Snapshot& s, int64_t now) {
+  // `Snapshot::scale_present` est dérivé dans get_snapshot() pour les
+  // consommateurs hors verrou. Les actions de la machine lisent toutefois
+  // l'état brut sous verrou : il faut appliquer la même règle ici, sinon un
+  // cycle démarré juste après une mesure de balance part en mode temps.
+  return {s.weight_g, scale_present_locked(now), s.pressure_bar};
+}
 
 CycleState cycle_state(machine::State state) { return static_cast<CycleState>(state); }
 
@@ -334,7 +345,7 @@ void tick_machine() {
   machine::StopReason stop_reason = machine::StopReason::kNone;
   portENTER_CRITICAL(&g_state.lock);
   const bool was_active = g_state.machine.active();
-  output = g_state.machine.tick(static_cast<uint64_t>(now / 1000), machine_input(g_state.snapshot));
+  output = g_state.machine.tick(static_cast<uint64_t>(now / 1000), machine_input(g_state.snapshot, now));
   const bool active = g_state.machine.active();
   if (was_active && !active) { remember_completed_shot_locked(g_state.snapshot); stop_reason = g_state.machine.stop_reason(); }
   update_cycle_snapshot_locked(now);
@@ -737,7 +748,7 @@ ActionResult perform_action(const ActionCommand& command) {
     if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return action_result(ActionStatus::kDimmerNotReady);
     portENTER_CRITICAL(&g_state.lock);
     bool ok = command.action == Action::kStartBrew
-                  ? g_state.machine.start(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()), machine_input(g_state.snapshot))
+                  ? g_state.machine.start(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()), machine_input(g_state.snapshot, now_us()))
                   : g_state.machine.purge_press(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()));
     if (ok && command.action == Action::kStartBrew) {
       g_state.shot_start_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;

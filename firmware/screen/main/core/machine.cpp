@@ -12,10 +12,20 @@ bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
   started_ms_ = phase_started_ms_ = now_ms;
   finished_ms_ = 0;
   starting_weight_g_ = input.weight_g;
+  preinfusion_start_weight_g_ = input.weight_g;
   preinfusion_pressure_start_bar_ = input.pressure_bar;
   weight_goal_ = input.scale_present;
+  effective_preinfusion_mode_ = config_.preinfusion_mode;
+  preinfusion_scale_armed_ = has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kWeight) &&
+                             input.scale_present;
+  if (!preinfusion_scale_armed_) {
+    effective_preinfusion_mode_ = static_cast<PreinfusionMode>(
+        static_cast<uint8_t>(effective_preinfusion_mode_) &
+        ~static_cast<uint8_t>(PreinfusionMode::kWeight));
+  }
   stop_reason_ = StopReason::kNone;
-  state_ = (config_.preinfusion_mode == PreinfusionMode::kTime && config_.preinfusion_time_s == 0)
+  state_ = (effective_preinfusion_mode_ == PreinfusionMode::kNone ||
+            (effective_preinfusion_mode_ == PreinfusionMode::kTime && config_.preinfusion_time_s == 0))
                ? State::kBrew : State::kPreinfusion;
   return true;
 }
@@ -88,9 +98,17 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
   }
 
   if (state_ == State::kPreinfusion) {
-    bool done = config_.preinfusion_mode == PreinfusionMode::kTime
-                    ? now_ms - phase_started_ms_ >= static_cast<uint64_t>(config_.preinfusion_time_s) * 1000
-                    : input.pressure_bar >= config_.preinfusion_pressure_bar;
+    bool done = false;
+    if (has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kTime)) {
+      done |= now_ms - phase_started_ms_ >= static_cast<uint64_t>(config_.preinfusion_time_s) * 1000;
+    }
+    if (has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kPressure)) {
+      done |= input.pressure_bar >= config_.preinfusion_pressure_bar;
+    }
+    if (preinfusion_scale_armed_ &&
+        input.weight_g - preinfusion_start_weight_g_ >= 0.1f) {
+      done = true;
+    }
     if (!done) return {config_.preinfusion_pump_pct, kLeaseMs};
     state_ = State::kBrew;
     phase_started_ms_ = now_ms;

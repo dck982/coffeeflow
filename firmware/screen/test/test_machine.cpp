@@ -29,6 +29,48 @@ int main() {
   assert(machine.tick(29000, input).dimmer == 0);
   assert(machine.stop_reason() == StopReason::kTargetTime);
 
+  Machine no_preinfusion;
+  c.preinfusion_mode = PreinfusionMode::kNone;
+  input = {0, false, 0};
+  assert(no_preinfusion.start(1000, c, input));
+  assert(no_preinfusion.state() == State::kBrew);
+  assert(no_preinfusion.tick(1001, input).dimmer == 100);
+
+  Machine pressure;
+  c = config();
+  c.preinfusion_mode = PreinfusionMode::kPressure;
+  input = {0, false, 0};
+  assert(pressure.start(1000, c, input));
+  assert(pressure.tick(2000, input).dimmer == 30);
+  input.pressure_bar = 4;
+  assert(pressure.tick(2100, input).dimmer == 100);
+  assert(pressure.state() == State::kBrew);
+
+  Machine first_drop;
+  c.preinfusion_mode = PreinfusionMode::kWeight;
+  input = {10, true, 0};
+  assert(first_drop.start(1000, c, input));
+  input.weight_g = 10.09f;
+  assert(first_drop.tick(1100, input).dimmer == 30);
+  input.weight_g = 10.1f;
+  assert(first_drop.tick(1200, input).dimmer == 100);
+  assert(first_drop.state() == State::kBrew);
+
+  Machine missing_scale;
+  input = {0, false, 0};
+  assert(missing_scale.start(1000, c, input));
+  assert(missing_scale.state() == State::kBrew);
+
+  Machine combined;
+  c.preinfusion_mode = PreinfusionMode::kTime | PreinfusionMode::kPressure |
+                       PreinfusionMode::kWeight;
+  input = {10, true, 0};
+  assert(combined.start(1000, c, input));
+  input.pressure_bar = 4;
+  assert(combined.tick(1100, input).dimmer == 100);
+  assert(combined.state() == State::kBrew);
+
+  c = config();
   Machine weighted;
   input = {10, true, 0};
   assert(weighted.start(1000, c, input));

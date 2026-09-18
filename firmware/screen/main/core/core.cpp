@@ -293,7 +293,7 @@ ActionResult action_result(ActionStatus status) { return {status, action_reason(
 
 machine::Config machine_config(const Config& c) {
   return {c.target_weight_g, c.target_time_s,
-          c.preinfusion_mode == PreinfusionMode::kPressure ? machine::PreinfusionMode::kPressure : machine::PreinfusionMode::kTime,
+          static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
           static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,
           c.rampdown_lead_weight_g, c.rampdown_pressure_drop_bar, c.brew_pump_pct,

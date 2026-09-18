@@ -655,38 +655,50 @@ void show_settings(lv_event_t *) {
   close_all();
   hidden(v.settings, false);
 }
+void show_choice(Choice q);
 void choose(lv_event_t *e) {
   unsigned i = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
   auto c = core::get_config();
-  if (choosing == Choice::Preinfusion)
-    c.preinfusion_mode =
-        i ? core::PreinfusionMode::kPressure : core::PreinfusionMode::kTime;
-  else
+  if (choosing == Choice::Preinfusion) {
+    const uint8_t bit = static_cast<uint8_t>(1u << i);
+    c.preinfusion_mode = static_cast<core::PreinfusionMode>(
+        static_cast<uint8_t>(c.preinfusion_mode) ^ bit);
+  } else {
     c.rampdown_mode = static_cast<core::RampdownMode>(i);
-  if (core::put_config(c).status == core::ConfigStatus::kOk)
-    back_choice(nullptr);
+  }
+  if (core::put_config(c).status == core::ConfigStatus::kOk) {
+    if (choosing == Choice::Preinfusion)
+      show_choice(Choice::Preinfusion);
+    else
+      back_choice(nullptr);
+  }
 }
 void show_choice(Choice q) {
   choosing = q;
   close_all();
   hidden(v.choice, false);
   text(v.choice_title,
-       q == Choice::Preinfusion ? "stratégie pré-inf." : "stratégie rampe");
-  const char *n[] = {"temps fixe", "attente pression", "aucune", "temps",
-                     "poids",      "chute pression"};
-  unsigned count = q == Choice::Preinfusion ? 2 : 4;
+       q == Choice::Preinfusion ? "pré-infusion" : "stratégie rampe");
+  const char *n[] = {"temps", "pression", "poids", "aucune", "temps",
+                     "poids", "chute pression"};
+  unsigned count = q == Choice::Preinfusion ? 3 : 4;
   for (unsigned i = 0; i < 4; ++i) {
     hidden(v.choice_button[i], i >= count);
     if (i < count) {
       text(lv_obj_get_child(v.choice_button[i], 0),
-           q == Choice::Preinfusion ? n[i] : n[i + 2]);
+           q == Choice::Preinfusion ? n[i] : n[i + 3]);
       auto c = core::get_config();
-      bool sel = q == Choice::Preinfusion ? unsigned(c.preinfusion_mode) == i
-                                          : unsigned(c.rampdown_mode) == i;
+      bool sel = q == Choice::Preinfusion
+                     ? (static_cast<uint8_t>(c.preinfusion_mode) & (1u << i)) != 0
+                     : unsigned(c.rampdown_mode) == i;
+      const bool preinfusion_toggle = q == Choice::Preinfusion;
       lv_obj_set_style_bg_color(v.choice_button[i],
-                                sel ? theme::kSurfaceHigh : theme::kSurface, 0);
+                                sel && preinfusion_toggle
+                                    ? theme::kSuccess
+                                    : sel ? theme::kSurfaceHigh : theme::kSurface,
+                                0);
       color(lv_obj_get_child(v.choice_button[i], 0),
-            sel ? theme::kAccent : theme::kText);
+            sel && preinfusion_toggle ? theme::kBg : sel ? theme::kAccent : theme::kText);
     }
   }
 }
@@ -735,6 +747,22 @@ void tile_cb(lv_event_t *e) {
       service_screen::restart_lcd();
   }
 }
+const char *preinfusion_mode_text(core::PreinfusionMode mode, char *buffer, size_t size) {
+  if (mode == core::PreinfusionMode::kNone) {
+    std::snprintf(buffer, size, "aucune");
+    return buffer;
+  }
+  bool first = true;
+  buffer[0] = '\0';
+  const char *names[] = {"temps", "pression", "poids"};
+  for (unsigned i = 0; i < 3; ++i) {
+    if ((static_cast<uint8_t>(mode) & (1u << i)) == 0) continue;
+    std::snprintf(buffer + std::strlen(buffer), size - std::strlen(buffer),
+                  "%s%s", first ? "" : " + ", names[i]);
+    first = false;
+  }
+  return buffer;
+}
 void tile(unsigned i, const char *n, const char *val,
           Role r = Role::Secondary) {
   text(v.tile_name[i], n);
@@ -756,10 +784,7 @@ void render_settings() {
   if (page == 0) {
     fmt(x[0], sizeof(x[0]), c.target_weight_g, " g");
     std::snprintf(x[1], 40, "%u s", c.target_time_s);
-    std::snprintf(x[2], 40, "%s",
-                  c.preinfusion_mode == core::PreinfusionMode::kTime
-                      ? "temps fixe"
-                      : "pression");
+    preinfusion_mode_text(c.preinfusion_mode, x[2], sizeof(x[2]));
     std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
     fmt(x[4], sizeof(x[4]), c.preinfusion_pressure_bar, " bar");
     std::snprintf(x[5], 40, "%u %%", c.preinfusion_pump_pct);

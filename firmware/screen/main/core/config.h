@@ -6,9 +6,26 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 1;
+inline constexpr uint16_t kConfigSchemaVersion = 2;
 
-enum class PreinfusionMode : uint8_t { kTime, kPressure };
+enum class PreinfusionMode : uint8_t {
+  kNone = 0,
+  kTime = 1 << 0,
+  kPressure = 1 << 1,
+  kWeight = 1 << 2,
+};
+
+constexpr PreinfusionMode operator|(PreinfusionMode lhs, PreinfusionMode rhs) {
+  return static_cast<PreinfusionMode>(static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
+}
+
+constexpr PreinfusionMode operator&(PreinfusionMode lhs, PreinfusionMode rhs) {
+  return static_cast<PreinfusionMode>(static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
+}
+
+constexpr bool has_preinfusion_mode(PreinfusionMode modes, PreinfusionMode mode) {
+  return (modes & mode) != PreinfusionMode::kNone;
+}
 enum class RampdownMode : uint8_t { kNone, kTime, kWeight, kPressureDrop };
 
 struct Config {

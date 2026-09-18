@@ -7,7 +7,24 @@ namespace core::machine {
 
 enum class State : uint8_t { kIdle, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
 enum class StopReason : uint8_t { kNone, kTargetTime, kTargetWeight, kManual, kScaleLost, kPurgeReleased, kPurgeTimeout };
-enum class PreinfusionMode : uint8_t { kTime, kPressure };
+enum class PreinfusionMode : uint8_t {
+  kNone = 0,
+  kTime = 1 << 0,
+  kPressure = 1 << 1,
+  kWeight = 1 << 2,
+};
+
+constexpr PreinfusionMode operator|(PreinfusionMode lhs, PreinfusionMode rhs) {
+  return static_cast<PreinfusionMode>(static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
+}
+
+constexpr PreinfusionMode operator&(PreinfusionMode lhs, PreinfusionMode rhs) {
+  return static_cast<PreinfusionMode>(static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
+}
+
+constexpr bool has_preinfusion_mode(PreinfusionMode modes, PreinfusionMode mode) {
+  return (modes & mode) != PreinfusionMode::kNone;
+}
 enum class RampdownMode : uint8_t { kNone, kTime, kWeight, kPressureDrop };
 
 struct Config {
@@ -59,6 +76,9 @@ class Machine {
   float starting_weight_g_ = 0.0f;
   float preinfusion_pressure_start_bar_ = 0.0f;
   bool weight_goal_ = false;
+  PreinfusionMode effective_preinfusion_mode_ = PreinfusionMode::kNone;
+  float preinfusion_start_weight_g_ = 0.0f;
+  bool preinfusion_scale_armed_ = false;
 };
 
 }  // namespace core::machine

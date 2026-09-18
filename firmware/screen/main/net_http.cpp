@@ -117,10 +117,6 @@ const char* network_text(core::NetworkState state) {
   return "unknown";
 }
 
-const char* preinfusion_mode_text(core::PreinfusionMode mode) {
-  return mode == core::PreinfusionMode::kPressure ? "pressure" : "time";
-}
-
 const char* rampdown_mode_text(core::RampdownMode mode) {
   switch (mode) {
     case core::RampdownMode::kNone: return "none";
@@ -147,7 +143,12 @@ cJSON* encode_config(const core::Config& config) {
   cJSON_AddNumberToObject(brew, "target_time_s", config.target_time_s);
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
-  cJSON_AddStringToObject(preinfusion, "mode", preinfusion_mode_text(config.preinfusion_mode));
+  cJSON_AddBoolToObject(preinfusion, "time",
+                        core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kTime));
+  cJSON_AddBoolToObject(preinfusion, "pressure",
+                        core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kPressure));
+  cJSON_AddBoolToObject(preinfusion, "weight",
+                        core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kWeight));
   cJSON_AddNumberToObject(preinfusion, "time_s", config.preinfusion_time_s);
   cJSON_AddNumberToObject(preinfusion, "pressure_bar", config.preinfusion_pressure_bar);
   cJSON_AddNumberToObject(preinfusion, "pump_pct", config.preinfusion_pump_pct);
@@ -277,6 +278,12 @@ bool as_u16(const cJSON* node, uint16_t* out) {
   return true;
 }
 
+bool as_bool(const cJSON* node, bool* out) {
+  if (!cJSON_IsBool(node)) return false;
+  *out = cJSON_IsTrue(node);
+  return true;
+}
+
 bool as_u8(const cJSON* node, uint8_t* out) {
   if (!is_integer_number(node) || node->valuedouble < 0 || node->valuedouble > 255) return false;
   *out = static_cast<uint8_t>(node->valuedouble);
@@ -355,6 +362,23 @@ bool apply_brew_key(const char* key, cJSON* value, core::Config* config, const c
 }
 
 bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
+  if (std::strcmp(key, "time") == 0 || std::strcmp(key, "pressure") == 0 ||
+      std::strcmp(key, "weight") == 0) {
+    bool enabled = false;
+    if (!as_bool(value, &enabled)) {
+      *error_field = join_field("preinfusion", key);
+      return false;
+    }
+    const uint8_t bit = std::strcmp(key, "time") == 0
+                            ? static_cast<uint8_t>(core::PreinfusionMode::kTime)
+                            : std::strcmp(key, "pressure") == 0
+                                  ? static_cast<uint8_t>(core::PreinfusionMode::kPressure)
+                                  : static_cast<uint8_t>(core::PreinfusionMode::kWeight);
+    uint8_t modes = static_cast<uint8_t>(config->preinfusion_mode);
+    modes = enabled ? static_cast<uint8_t>(modes | bit) : static_cast<uint8_t>(modes & ~bit);
+    config->preinfusion_mode = static_cast<core::PreinfusionMode>(modes);
+    return true;
+  }
   if (std::strcmp(key, "mode") == 0) {
     if (!cJSON_IsString(value)) {
       *error_field = "preinfusion.mode";

@@ -1,8 +1,8 @@
 from machine import Pin, SoftI2C
 import time
 
-i2c = SoftI2C(sda=Pin(7, Pin.OPEN_DRAIN, Pin.PULL_UP),
-              scl=Pin(8, Pin.OPEN_DRAIN, Pin.PULL_UP),
+i2c = SoftI2C(sda=Pin(2, Pin.OPEN_DRAIN, Pin.PULL_UP),
+              scl=Pin(1, Pin.OPEN_DRAIN, Pin.PULL_UP),
               freq=50000)
 
 devices = i2c.scan()

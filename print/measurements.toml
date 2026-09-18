@@ -1075,9 +1075,9 @@ unit = "mm"
 how = "docs/support-digmesa.md : plaque portant le réservoir, hauteur depuis le fond."
 
 [digmesa_tube_exterieur]
-value = 8.0
+value = 9.0
 unit = "mm"
-how = "Utilisateur 2026-09-12 : diamètre du tube silicone 8 mm."
+how = "Utilisateur 2026-09-12 : diamètre du tube silicone 9 mm."
 
 [digmesa_axe_tube_boucle]
 value = 5.0
@@ -1085,7 +1085,12 @@ unit = "mm"
 how = "Utilisateur 2026-09-15: distance entre-axe pour le tube boucle depuis le trou M6"
 
 [digmesa_tube_boucle_z]
-value = 55.0
+value = 50.0
+unit = "mm"
+how = "Utilisateur 2026-09-15: hauteur du tube boucle"
+
+[digmesa_tube_entree_z]
+value = 42.5
 unit = "mm"
 how = "Utilisateur 2026-09-15: hauteur du tube boucle"
 

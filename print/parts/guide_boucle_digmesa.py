@@ -2,10 +2,10 @@ from nurb import *
 
 
 @part
-def guide_boucle_digmesa(jeu_tube=2.5, distance_trou=25.0, draft=False):
+def guide_boucle_digmesa(jeu_tube=2.5, distance_trou=15.0, draft=False):
     """Guide indépendant, couché sur sa face droite pour l'impression.
 
-    jeu_tube: Jeu sur le diamètre de chacun des deux tubes Ø8.
+    jeu_tube: Jeu sur le diamètre de chacun des deux tubes Ø9.
     distance_trou: distance entre le centre du trou M6 et l'extrémité de la pièce (en Z)
     """
     if not 2.0 <= jeu_tube <= 3.0:
@@ -23,7 +23,6 @@ def guide_boucle_digmesa(jeu_tube=2.5, distance_trou=25.0, draft=False):
     boucle_width= eye_width
     hauteur_boucle = measured('digmesa_tube_boucle_z')
     boucle_cy = measured('digmesa_axe_tube_boucle')
-    entree_width=1.0
     eye_dx = 6.0
 
     a=(Align.CENTER,Align.CENTER,Align.MIN)

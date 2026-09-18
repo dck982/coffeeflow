@@ -168,7 +168,7 @@ lv_obj_t *box(lv_obj_t *p, int x, int y, int w, int h, lv_color_t c,
   lv_obj_set_style_radius(o, r, 0);
   return o;
 }
-enum class Icon { Cup, Drop, Sliders, Left, Right, Back };
+enum class Icon { Cup, Drop, Sliders, Left, Right, Back, Wifi };
 void stroke_path(lv_obj_t *parent, const lv_point_precise_t *points,
                  uint32_t point_count, int x, int y, lv_color_t color) {
   lv_obj_t *line = lv_line_create(parent);
@@ -195,6 +195,10 @@ void icon(lv_obj_t *p, Icon i, int x, int y, lv_color_t c) {
       {28, 7}, {12, 7}, {4, 16}, {12, 25}, {28, 25}, {28, 7}};
   static constexpr lv_point_precise_t kBackCrossA[] = {{15, 12}, {23, 20}};
   static constexpr lv_point_precise_t kBackCrossB[] = {{23, 12}, {15, 20}};
+  static constexpr lv_point_precise_t kWifiOuter[] = {
+      {3, 14}, {7, 10}, {11, 7}, {16, 6}, {21, 7}, {25, 10}, {29, 14}};
+  static constexpr lv_point_precise_t kWifiInner[] = {
+      {8, 20}, {11, 17}, {16, 15}, {21, 17}, {24, 20}};
   if (i == Icon::Cup) {
     box(p, x + 4, y + 10, 23, 15, c, 3);
     box(p, x + 27, y + 13, 5, 9, c);
@@ -211,6 +215,10 @@ void icon(lv_obj_t *p, Icon i, int x, int y, lv_color_t c) {
     stroke_path(p, kChevronLeft, std::size(kChevronLeft), x, y, c);
   } else if (i == Icon::Right) {
     stroke_path(p, kChevronRight, std::size(kChevronRight), x, y, c);
+  } else if (i == Icon::Wifi) {
+    stroke_path(p, kWifiOuter, std::size(kWifiOuter), x, y, c);
+    stroke_path(p, kWifiInner, std::size(kWifiInner), x, y, c);
+    box(p, x + 14, y + 24, 4, 4, c, 2);
   } else {
     stroke_path(p, kBackOutline, std::size(kBackOutline), x, y, c);
     stroke_path(p, kBackCrossA, std::size(kBackCrossA), x, y, c);
@@ -306,6 +314,9 @@ void show_diagnostics(lv_event_t *) {
 }
 void render_settings();
 void back_settings(lv_event_t *) { close_all(); }
+enum class Confirm : uint8_t { Wifi, Forget };
+void show_confirm(Confirm c);
+void wifi_nav(lv_event_t *) { show_confirm(Confirm::Wifi); }
 void back_diag(lv_event_t *) { hidden(v.diag, true); }
 void close_dimmer_menu(lv_event_t *) { hidden(v.dimmer_menu, true); }
 void run_dimmer_action(lv_event_t *event) {
@@ -337,7 +348,8 @@ void back_choice(lv_event_t *) {
   hidden(v.settings, false);
 }
 lv_obj_t *navbar(lv_obj_t *p, const char *title, lv_obj_t **out,
-                 void (*back)(lv_event_t *), bool accept = false) {
+                 void (*back)(lv_event_t *), bool accept = false,
+                 bool wifi = false) {
   lv_obj_t *bar = box(p, 0, 0, 800, 88, theme::kBgRaised, 0);
   lv_obj_t *b = button(bar, 0, 0, 80, 80, "", Role::Secondary);
   lv_obj_align(b, LV_ALIGN_LEFT_MID, 16, 0);
@@ -347,6 +359,14 @@ lv_obj_t *navbar(lv_obj_t *p, const char *title, lv_obj_t **out,
   lv_obj_add_event_cb(b, back, LV_EVENT_CLICKED, nullptr);
   dyn(bar, out, title, theme::kFontButton, theme::kText, 0, 0);
   lv_obj_align(*out, LV_ALIGN_LEFT_MID, 112, 0);
+  if (wifi) {
+    lv_obj_t *wifi_button = button(bar, 0, 0, 80, 80, "");
+    lv_obj_align(wifi_button, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(wifi_button, theme::kBgRaised, 0);
+    lv_obj_t *wifi_icon = icon_container(wifi_button, Icon::Wifi, theme::kText);
+    lv_obj_center(wifi_icon);
+    lv_obj_add_event_cb(wifi_button, wifi_nav, LV_EVENT_CLICKED, nullptr);
+  }
   if (accept) {
     v.key_ok = button(bar, 0, 0, 160, 80, "valider", Role::Primary);
     lv_obj_align(v.key_ok, LV_ALIGN_RIGHT_MID, -32, 0);
@@ -670,7 +690,6 @@ void show_choice(Choice q) {
     }
   }
 }
-enum class Confirm : uint8_t { Wifi, Forget };
 Confirm confirm = Confirm::Wifi;
 void hide_confirm(lv_event_t *) { hidden(v.confirm, true); }
 void accept_confirm(lv_event_t *) {
@@ -710,8 +729,6 @@ void tile_cb(lv_event_t *e) {
   } else {
     if (i == 0)
       show_edit(Edit::PurgeMax);
-    else if (i == 1)
-      show_confirm(Confirm::Wifi);
     else if (i == 2)
       show_confirm(Confirm::Forget);
     else if (i == 4)
@@ -763,9 +780,9 @@ void render_settings() {
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
   } else {
-    const char *n[] = {"purge max",    "wifi",     "réinitialiser réseau",
+    const char *n[] = {"purge max",    "",         "réinitialiser réseau",
                        "calibrations", "réinitialiser LCD", "veille"};
-    const char *val[] = {"",      "ouvrir",     "effacer", "depuis /config",
+    const char *val[] = {"",      "",           "effacer", "depuis /config",
                          "redémarrer", "automatique"};
     std::snprintf(x[0], 40, "%u s", c.purge_max_s);
     for (unsigned i = 0; i < 6; ++i)
@@ -1052,7 +1069,7 @@ void create(lv_obj_t *p) {
   v.settings = lv_obj_create(p);
   base(v.settings);
   lv_obj_t *settings_bar =
-      navbar(v.settings, "réglages", &ignore, back_settings);
+      navbar(v.settings, "réglages", &ignore, back_settings, false, true);
   dyn(settings_bar, &v.index, "1/3", theme::kFontButton, theme::kText, 0, 0);
   lv_obj_align(v.index, LV_ALIGN_LEFT_MID, 504, 0);
   v.prev = button(settings_bar, 0, 0, 80, 80, "");

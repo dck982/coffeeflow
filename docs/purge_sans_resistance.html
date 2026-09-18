@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Purges sans résistance — 18 septembre 2026</title>
+  <style>
+    :root { color-scheme: light; --ink:#20252b; --muted:#68727d; --line:#d9dee5; --blue:#1769aa; --orange:#c56a16; --red:#b33a3a; --paper:#fff; --soft:#f4f7fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#eef1f4; color:var(--ink); font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { max-width:1100px; margin:32px auto; padding:42px 52px 56px; background:var(--paper); box-shadow:0 4px 20px #24344718; }
+    h1 { margin:0 0 28px; font-size:2rem; letter-spacing:-.02em; }
+    h2 { margin:38px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--line); font-size:1.35rem; }
+    p { max-width:900px; }
+    code { padding:.1em .35em; border-radius:4px; background:#eef2f5; font-size:.92em; }
+    .note { padding:14px 18px; border-left:4px solid var(--blue); background:var(--soft); }
+    .review { padding:16px 20px; border-left:4px solid var(--orange); background:#fff8ef; }
+    .plot { margin:20px 0 8px; padding:14px 14px 4px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+    svg { display:block; width:100%; height:auto; }
+    .legend { display:flex; flex-wrap:wrap; gap:16px; margin:4px 0 10px; color:var(--muted); font-size:.9rem; }
+    .key { display:inline-flex; align-items:center; gap:6px; }
+    .swatch { width:18px; height:3px; display:inline-block; border-radius:2px; }
+    .swatch.dot { width:10px; height:10px; border-radius:50%; }
+    table { width:100%; margin:14px 0 22px; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+    th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:right; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+    th { background:var(--soft); font-weight:650; }
+    tr.drift { background:#fff5f2; }
+    .formula { display:inline-block; margin:4px 0 12px; padding:12px 16px; border-radius:6px; background:#20252b; color:#f7fafc; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    ul { padding-left:24px; max-width:950px; }
+    li { margin:8px 0; }
+    footer { margin-top:34px; color:var(--muted); font-size:.9rem; }
+    @media (max-width:700px) { main { margin:0; padding:26px 18px 40px; } body { background:#fff; } table { font-size:.84rem; } th,td { padding:6px 4px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Purges sans résistance — 18 septembre 2026</h1>
+
+  <h2>Objet et méthode</h2>
+  <p>Ces mesures correspondent aux fichiers <code>captures/260918-*.json</code> uniquement : 16 purges, deux par niveau de puissance, de 100&nbsp;% à 50&nbsp;% par pas de 5&nbsp;%. Chaque purge dure environ 10&nbsp;s et ne comporte pas de porte-filtre.</p>
+  <p>Pour éviter la montée initiale, la réaction de la chaudière et l'arrêt de la pompe, les résultats ci-dessous utilisent la fenêtre <strong>6,0–9,0&nbsp;s</strong> après le premier échantillon. Le débit indiqué est la moyenne de <code>samples[].flow_ml_s</code>; l'écart-type entre parenthèses donne une idée de sa stabilité. Le débit gravimétrique est la pente d'une régression linéaire de <code>weight_g</code> sur la même fenêtre, en g/s (approximativement ml/s pour de l'eau).</p>
+  <p>La balance fournit des valeurs assez espacées et parfois non monotones. Elle est donc utilisée comme contrôle indépendant, pas comme capteur principal pour établir la loi débit–puissance.</p>
+
+  <h2>Débit mesuré et régression</h2>
+  <div class="plot" aria-label="Graphique du débit en fonction de la puissance">
+    <svg viewBox="0 0 900 430" role="img" aria-labelledby="plot-title plot-desc">
+      <title id="plot-title">Débit en fonction de la puissance de la pompe</title>
+      <desc id="plot-desc">Les mesures à 60 pour cent et moins sont mises en évidence comme zone perturbée. La ligne pointillée est la régression 50 à 80 pour cent sans le palier 60 pour cent.</desc>
+      <rect x="86" y="28" width="764" height="320" fill="#fff"/>
+      <rect x="86" y="28" width="255" height="320" fill="#fff5f2"/>
+      <g stroke="#d9dee5" stroke-width="1">
+        <line x1="86" y1="348" x2="850" y2="348"/><line x1="86" y1="284" x2="850" y2="284"/>
+        <line x1="86" y1="220" x2="850" y2="220"/><line x1="86" y1="156" x2="850" y2="156"/>
+        <line x1="86" y1="92" x2="850" y2="92"/><line x1="86" y1="28" x2="850" y2="28"/>
+        <line x1="86" y1="28" x2="86" y2="348"/><line x1="213" y1="28" x2="213" y2="348"/>
+        <line x1="341" y1="28" x2="341" y2="348"/><line x1="468" y1="28" x2="468" y2="348"/>
+        <line x1="595" y1="28" x2="595" y2="348"/><line x1="723" y1="28" x2="723" y2="348"/>
+        <line x1="850" y1="28" x2="850" y2="348"/>
+      </g>
+      <g fill="#68727d" font-size="13" text-anchor="middle">
+        <text x="86" y="370">40</text><text x="213" y="370">50</text><text x="341" y="370">60</text><text x="468" y="370">70</text><text x="595" y="370">80</text><text x="723" y="370">90</text><text x="850" y="370">100</text>
+      </g>
+      <g fill="#68727d" font-size="13" text-anchor="end">
+        <text x="76" y="353">0</text><text x="76" y="289">1</text><text x="76" y="225">2</text><text x="76" y="161">3</text><text x="76" y="97">4</text><text x="76" y="33">5</text>
+      </g>
+      <g fill="#20252b" font-size="14"><text x="468" y="410" text-anchor="middle">Puissance commandée (%)</text><text transform="translate(18 188) rotate(-90)" text-anchor="middle">Débit (ml/s)</text></g>
+      <text x="277" y="50" fill="#b33a3a" font-size="13" text-anchor="middle">zone perturbée / dérive (≤ 60 %)</text>
+      <!-- regression y = .0575x - .805; plot x=50..80, y=2.07..3.79 -->
+      <line x1="213" y1="216" x2="595" y2="106" stroke="#1769aa" stroke-width="3" stroke-dasharray="9 7"/>
+      <!-- 50: 1.89,2.24; 55:2.31,2.40; 60:3.75,3.09; 65:2.88,2.96; 70:3.28,3.26; 80:3.79,3.77; 90:3.97,3.96; 100:3.76,4.02 -->
+      <g fill="#1769aa" stroke="#fff" stroke-width="2">
+        <circle cx="213" cy="227" r="6"/><circle cx="213" cy="204" r="6"/>
+        <circle cx="277" cy="200" r="6"/><circle cx="277" cy="194" r="6"/>
+        <circle cx="341" cy="108" r="6"/><circle cx="341" cy="150" r="6"/><circle cx="341" cy="114" r="6"/><circle cx="341" cy="116" r="6"/>
+        <circle cx="404" cy="164" r="6"/><circle cx="404" cy="159" r="6"/>
+        <circle cx="468" cy="138" r="6"/><circle cx="468" cy="140" r="6"/>
+        <circle cx="595" cy="105" r="6"/><circle cx="595" cy="107" r="6"/>
+        <circle cx="723" cy="94" r="6"/><circle cx="723" cy="91" r="6"/>
+        <circle cx="850" cy="108" r="6"/><circle cx="850" cy="91" r="6"/>
+      </g>
+      <g fill="#c56a16" stroke="#fff" stroke-width="2"><circle cx="277" cy="200" r="6"/><circle cx="277" cy="194" r="6"/><circle cx="341" cy="108" r="6"/><circle cx="341" cy="150" r="6"/><circle cx="341" cy="114" r="6"/><circle cx="341" cy="116" r="6"/><circle cx="213" cy="227" r="6"/><circle cx="213" cy="204" r="6"/></g>
+      <line x1="710" y1="64" x2="753" y2="64" stroke="#1769aa" stroke-width="3" stroke-dasharray="9 7"/><text x="762" y="69" fill="#68727d" font-size="13">régression</text>
+    </svg>
+    <div class="legend"><span class="key"><i class="swatch dot" style="background:#1769aa"></i>mesures du débitmètre</span><span class="key"><i class="swatch dot" style="background:#c56a16"></i>paliers ≤ 60&nbsp;%</span><span class="key"><i class="swatch" style="background:#1769aa"></i>tendance 50–80&nbsp;% hors 60&nbsp;%</span></div>
+  </div>
+  <p>Une régression linéaire sur les moyennes de <strong>50–80&nbsp;%</strong>, en retirant 60&nbsp;% car ses quatre essais sont instables et incompatibles avec la balance, donne :</p>
+  <div class="formula">débit [ml/s] = 0,0575 × puissance [%] − 0,805<br>R² = 0,998</div>
+  <p>La régression contrainte à passer par zéro donne environ <strong>0,0453&nbsp;ml/s par point de puissance</strong>, soit 4,53&nbsp;ml/s à 100&nbsp;%. Cette forme est utile comme approximation pour les niveaux bas, mais elle ne décrit pas correctement les niveaux élevés : au-dessus de 80&nbsp;%, le débit plafonne autour de 3,8–4,0&nbsp;ml/s et 90&nbsp;% est même légèrement supérieur à 100&nbsp;% dans ces captures.</p>
+  <p>Si l'on force une régression sur tous les paliers 50–100&nbsp;%, en incluant les quatre essais à 60&nbsp;%, on obtient environ <code>0,0351 × puissance + 0,719</code>, avec <code>R² = 0,73</code>. Ce résultat plus mauvais n'est pas une preuve de non-linéarité de la pompe : il mélange probablement le régime normal avec les mesures perturbées par l'air.</p>
+
+  <h2>Relecture critique de l'approche</h2>
+  <div class="review">
+    <p><strong>Ce qui est solide.</strong> Retenir une fenêtre commune de 6 à 9&nbsp;s est un choix simple et reproductible, cohérent avec les plateaux visibles aux puissances élevées. Présenter les deux répétitions séparément et confronter le débitmètre à la pente de poids permet aussi de détecter les régimes où le débit apparent ne correspond plus à l'eau réellement recueillie.</p>
+    <p><strong>Limite importante.</strong> Le <code>R² = 0,998</code> ne doit pas être interprété comme la preuve que le débit est proportionnel à la puissance. La régression ne porte que sur cinq moyennes, retire le point à 60&nbsp;% qui contredit fortement la tendance, mais conserve 50 et 55&nbsp;% alors que ces paliers sont eux-mêmes suspects d'après la balance et l'observation d'air. Les deux nouvelles mesures à 60&nbsp;% (3,66 et 3,62&nbsp;ml/s) ne changent pas ce diagnostic : leur moyenne reste très au-dessus des ~2,65&nbsp;ml/s attendus par la droite, tandis que la balance reste vers 1,3&nbsp;g/s. C'est donc une <em>tendance descriptive conditionnelle</em>, sélectionnée après observation des données, et non une loi de calibration prédictive.</p>
+    <p><strong>Lecture recommandée.</strong> La conclusion robuste est qualitative et par zones&nbsp;: fonctionnement reproductible de 65 à 80&nbsp;%, plafonnement vers 90–100&nbsp;%, régime perturbé à 60&nbsp;% et moins. Pour configurer la pré-infusion, les moyennes mesurées par palier sont plus défendables qu'une extrapolation de la droite. Une future série plus longue, avec davantage de répétitions et un ordre de puissances randomisé, permettrait de séparer l'effet de la commande de celui de l'état thermique et du niveau de chaudière.</p>
+  </div>
+
+  <h2>Hypothèse électrique pour l'outlier à 60&nbsp;%</h2>
+  <div class="note">
+    <p>Le DimmerLink commande le BTA136 par <strong>découpage d'angle de phase</strong>&nbsp;: après chaque passage par zéro, il attend un délai puis applique une impulsion de gâchette au TRIAC. Avec la courbe linéaire décrite dans <code>rbdimmerESP32</code>, 60&nbsp;% correspond à un amorçage environ 4&nbsp;ms après le zéro d'une demi-alternance de 10&nbsp;ms à 50&nbsp;Hz (contre 4,5&nbsp;ms à 55&nbsp;% et 3,5&nbsp;ms à 65&nbsp;%).</p>
+    <p>La commutation d'une charge inductive telle que la pompe peut produire des fronts rapides, du rebond de masse et des parasites conduits ou rayonnés. Le signal du Digmesa est un collecteur ouvert lu sur front descendant, avec un filtre matériel de 1&nbsp;kΩ / 10&nbsp;nF. Le firmware rejette seulement les fronts espacés de moins de 50&nbsp;ms&nbsp;: des parasites suffisamment espacés peuvent donc être comptés comme des impulsions réelles. Cela fournirait une explication cohérente au débitmètre proche de 3,5&nbsp;ml/s alors que la balance ne voit qu'environ 1,5&nbsp;g/s.</p>
+    <p><strong>Cette explication reste une hypothèse.</strong> Le code ne révèle aucune discontinuité particulière à exactement 60&nbsp;%&nbsp;: le délai varie normalement par pas réguliers. Un maximum de bruit à ce niveau devrait donc venir de l'interaction entre angle de phase, pompe, câblage, alimentation et seuil logique, et non d'un cas spécial logiciel.</p>
+  </div>
+
+  <h3>Pistes de confirmation</h3>
+  <ul>
+    <li>Mesurer 55, 57, 58, 59, 60, 61, 62, 63 et 65&nbsp;% dans un ordre aléatoire. Une pointe étroite du compteur brut autour de 60&nbsp;% soutiendrait l'hypothèse électrique.</li>
+    <li>Comparer, pour chaque essai, le nombre brut d'impulsions du débitmètre au gain de poids. Des impulsions supplémentaires sans masse recueillie indiqueraient des faux fronts.</li>
+    <li>Observer à l'oscilloscope le GPIO du débitmètre et sa masse locale en le déclenchant sur l'amorçage du TRIAC. Une impulsion parasite répétée 100 fois par seconde, ou des franchissements du seuil logique, constituerait une preuve directe.</li>
+    <li>Faire un essai de câblage&nbsp;: éloigner ou torsader le fil du débitmètre avec sa masse, ajouter temporairement une ferrite, ou renforcer prudemment le filtrage côté entrée. Si l'outlier disparaît sans changement hydraulique, le couplage EMI est confirmé.</li>
+    <li>Comparer avec une alimentation de pompe non hachée ou un réglage voisin produisant un débit gravimétrique comparable. Cela permet de distinguer bruit électrique et phénomène hydraulique d'air/cavitation.</li>
+  </ul>
+  <p class="note"><strong>Sécurité&nbsp;:</strong> toute mesure côté secteur ou TRIAC doit utiliser une sonde différentielle ou une isolation adaptée. Ne pas relier directement la masse d'un oscilloscope de table au circuit secteur.</p>
+
+  <h2>Résultats par essai</h2>
+  <table><thead><tr><th>Puissance</th><th>Capture</th><th>Débitmètre (ml/s)</th><th>σ débitmètre</th><th>Balance (g/s)</th></tr></thead><tbody>
+    <tr><td>100 %</td><td><code>260918-103627</code></td><td>3,76</td><td>0,05</td><td>3,96</td></tr><tr><td>100 %</td><td><code>260918-103731</code></td><td>4,02</td><td>0,01</td><td>5,07</td></tr>
+    <tr><td>90 %</td><td><code>260918-103830</code></td><td>3,97</td><td>0,02</td><td>4,45</td></tr><tr><td>90 %</td><td><code>260918-104010</code></td><td>3,96</td><td>0,01</td><td>4,89</td></tr>
+    <tr><td>80 %</td><td><code>260918-104115</code></td><td>3,79</td><td>0,02</td><td>3,15</td></tr><tr><td>80 %</td><td><code>260918-104211</code></td><td>3,77</td><td>0,02</td><td>4,01</td></tr>
+    <tr><td>70 %</td><td><code>260918-104255</code></td><td>3,28</td><td>0,02</td><td>3,21</td></tr><tr><td>70 %</td><td><code>260918-104337</code></td><td>3,26</td><td>0,01</td><td>4,06</td></tr>
+    <tr><td>65 %</td><td><code>260918-104432</code></td><td>2,88</td><td>0,09</td><td>2,06</td></tr><tr><td>65 %</td><td><code>260918-104524</code></td><td>2,96</td><td>0,09</td><td>2,52</td></tr>
+    <tr class="drift"><td>60 %</td><td><code>260918-104743</code></td><td>3,75</td><td>0,43</td><td>1,46</td></tr><tr class="drift"><td>60 %</td><td><code>260918-104823</code></td><td>3,09</td><td>0,38</td><td>1,53</td></tr>
+    <tr class="drift"><td>60 %</td><td><code>260918-111942</code></td><td>3,66</td><td>0,27</td><td>1,47</td></tr><tr class="drift"><td>60 %</td><td><code>260918-112029</code></td><td>3,62</td><td>0,66</td><td>1,29</td></tr>
+    <tr class="drift"><td>55 %</td><td><code>260918-105129</code></td><td>2,31</td><td>0,19</td><td>0,47</td></tr><tr class="drift"><td>55 %</td><td><code>260918-105212</code></td><td>2,40</td><td>0,19</td><td>0,72</td></tr>
+    <tr class="drift"><td>50 %</td><td><code>260918-104923</code></td><td>1,89</td><td>0,17</td><td>0,96</td></tr><tr class="drift"><td>50 %</td><td><code>260918-105037</code></td><td>2,24</td><td>0,29</td><td>2,53</td></tr>
+  </tbody></table>
+
+  <h2>Moyenne des deux essais</h2>
+  <table><thead><tr><th>Puissance</th><th>Débit moyen (ml/s)</th><th>Écart entre les deux essais</th><th>Balance moyenne (g/s)</th></tr></thead><tbody>
+    <tr><td>100 %</td><td>3,89</td><td>0,19</td><td>4,52</td></tr><tr><td>90 %</td><td>3,97</td><td>0,01</td><td>4,67</td></tr><tr><td>80 %</td><td>3,78</td><td>0,02</td><td>3,58</td></tr><tr><td>70 %</td><td>3,27</td><td>0,01</td><td>3,64</td></tr><tr><td>65 %</td><td>2,92</td><td>0,06</td><td>2,29</td></tr><tr class="drift"><td>60 %</td><td>3,53</td><td>0,66</td><td>1,50</td></tr><tr class="drift"><td>55 %</td><td>2,36</td><td>0,07</td><td>0,60</td></tr><tr class="drift"><td>50 %</td><td>2,06</td><td>0,24</td><td>1,75</td></tr>
+  </tbody></table>
+
+  <h2>Conclusions pour la pré-infusion</h2>
+  <ul>
+    <li>Le régime stable est bien visible environ entre <strong>6 et 9&nbsp;s</strong> dans les essais hauts : par exemple, à 100&nbsp;%, le débitmètre passe d'environ 3,9&nbsp;ml/s après la montée à environ 4,0&nbsp;ml/s et reste très peu dispersé.</li>
+    <li>De 65 à 80&nbsp;%, le débit est reproductible et descend d'environ <strong>2,92 à 3,78&nbsp;ml/s</strong>. À 90–100&nbsp;%, il atteint un plateau d'environ <strong>4&nbsp;ml/s</strong> : augmenter la commande au-delà de 90&nbsp;% n'augmente pratiquement plus le débit.</li>
+    <li>À <strong>60&nbsp;%</strong>, les quatre essais donnent 3,53&nbsp;ml/s en moyenne, mais avec une forte dispersion et un débitmètre oscillant (écarts-types individuels de 0,27–0,66&nbsp;ml/s). Le résultat reste très au-dessus de la tendance basse et la balance reste vers 1,5&nbsp;g/s : 60&nbsp;% est donc toujours un outlier du débit apparent, pas un nouveau point de la régression.</li>
+    <li>À <strong>55&nbsp;%</strong>, la balance n'enregistre presque plus d'augmentation pendant la zone finale (0,47 et 0,72&nbsp;g/s), alors que le débitmètre continue d'indiquer environ 2,3–2,4&nbsp;ml/s. À 50&nbsp;%, les deux essais de balance sont également incompatibles. Cela correspond au bruit d'air observé à partir de 55&nbsp;% : le débitmètre peut compter une circulation interne/irrégulière qui ne devient pas de l'eau réellement recueillie.</li>
+    <li>Pour régler une pré-infusion, il est donc prudent de rester <strong>au-dessus de 60&nbsp;%, idéalement dans la zone 65–80&nbsp;%</strong>, et de calibrer ensuite avec une mesure de volume ou de poids sur la machine complète. Les valeurs 50–60&nbsp;% ne doivent pas être extrapolées comme des débits d'eau fiables.</li>
+  </ul>
+  <p>Ces conclusions concernent cette configuration précise (température, niveau d'eau, tuyauterie et état thermique) et une purge sans résistance. Elles ne constituent pas une courbe de débit sous pression avec café.</p>
+  <footer>Source : captures locales <code>260918-*.json</code>, fenêtre analysée 6,0–9,0 s.</footer>
+</main>
+</body>
+</html>

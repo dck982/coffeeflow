@@ -90,6 +90,8 @@ int main(int argc, char **argv) {
   snapshot.pressure_bar = 9.1f;
   snapshot.temperature_c = 93.4f;
   snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0;
+  snapshot.scale_connected = snapshot.scale_present;
+  snapshot.time_known = true;
   snapshot.weight_g = 18.2f;
   snapshot.dimmer_ready = true;
   snapshot.dimmer_valid = true;

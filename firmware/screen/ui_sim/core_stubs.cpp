@@ -12,6 +12,8 @@ RadioMode g_radio_mode = RadioMode::kMachine;
 Config get_config() { return g_config; }
 ConfigResult put_config(const Config& candidate) { g_config = candidate; ++g_config.revision; return {}; }
 Snapshot get_snapshot() { return {}; }
+HFCaptureInfo get_hf_capture_info() { return {}; }
+bool get_hf_capture_sample(uint16_t, HFSample *) { return false; }
 bool request_radio_mode(RadioMode mode) { g_radio_mode = mode; return true; }
 RadioMode radio_mode() { return g_radio_mode; }
 void forget_network() {}

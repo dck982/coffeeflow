@@ -38,7 +38,8 @@ enum class Edit : uint8_t {
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
 enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
-  lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *clock{}, *target{},
+  lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *diagnostic{},
+      *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
       *purge{}, *settings_button{}, *cycle{}, *phase{}, *hero{},
       *cycle_detail{}, *progress{}, *stop{}, *settings{}, *index{}, *prev{},
@@ -881,7 +882,7 @@ lv_obj_t *scale_icon(lv_obj_t *parent) {
   lv_obj_set_size(icon, 30, 24);
   // Le dernier segment du bandeau contient l'heure et, si nécessaire,
   // l'indicateur de balance. Garder l'icône à droite laisse l'heure lisible.
-  lv_obj_set_pos(icon, 765, 25);
+  lv_obj_set_pos(icon, 765, 27);
 
   lv_obj_t *body = lv_obj_create(icon);
   lv_obj_remove_style_all(body);
@@ -898,6 +899,31 @@ lv_obj_t *scale_icon(lv_obj_t *parent) {
   lv_obj_set_style_bg_color(display, theme::kText, 0);
   lv_obj_set_style_bg_opa(display, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(display, 2, 0);
+  return icon;
+}
+lv_obj_t *diagnostic_icon(lv_obj_t *parent) {
+  lv_obj_t *icon = lv_obj_create(parent);
+  lv_obj_remove_style_all(icon);
+  lv_obj_set_size(icon, 24, 24);
+  lv_obj_set_pos(icon, 32, 29);
+
+  lv_obj_t *body = lv_obj_create(icon);
+  lv_obj_remove_style_all(body);
+  lv_obj_set_size(body, 20, 20);
+  lv_obj_set_pos(body, 2, 2);
+  lv_obj_set_style_border_width(body, 2, 0);
+  lv_obj_set_style_border_color(body, theme::kText, 0);
+  lv_obj_set_style_radius(body, 4, 0);
+
+  for (int y : {6, 11, 16}) {
+    lv_obj_t *line = lv_obj_create(body);
+    lv_obj_remove_style_all(line);
+    lv_obj_set_size(line, y == 11 ? 10 : 7, 2);
+    lv_obj_set_pos(line, 5, y);
+    lv_obj_set_style_bg_color(line, theme::kText, 0);
+    lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(line, 1, 0);
+  }
   return icon;
 }
 void idle(const core::Snapshot &s) {
@@ -940,29 +966,32 @@ void create(lv_obj_t *p) {
   activity = esp_timer_get_time();
   lv_obj_t *ignore = nullptr;
   char profile[40];
-  std::snprintf(profile, sizeof(profile), "espresso v%u.%u.%u",
+  std::snprintf(profile, sizeof(profile), "v%u.%u.%02u",
                 common::kFirmwareVersionMajor, common::kFirmwareVersionMinor,
                 common::kFirmwareVersionPatch);
-  lab(p, &ignore, profile, theme::kFontStatus, theme::kText, 32, 24);
+  lab(p, &ignore, profile, theme::kFontStatus, theme::kText, 160, 24);
+  lv_label_set_long_mode(ignore, LV_LABEL_LONG_CLIP);
+  lv_obj_set_width(ignore, 104);
+  v.diagnostic = diagnostic_icon(p);
   dyn(p, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 405, 24);
   dyn(p, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 520, 24);
   dyn(p, &v.weight, "", theme::kFontStatus, theme::kTextDim, 615, 24);
   v.presence = scale_icon(p);
-  dyn(p, &v.clock, "", theme::kFontStatus, theme::kTextDim, 705, 24);
-  // Les diagnostics sont accessibles depuis l'information visible elle-même,
-  // jamais depuis une zone transparente qui donnerait l'impression d'un tap
-  // perdu. Horloge et indicateur de balance peuvent être visibles ensemble.
-  for (lv_obj_t *status : {v.presence, v.clock}) {
+  dyn(p, &v.clock, "", theme::kFontStatus, theme::kTextDim, 62, 24);
+  lv_obj_set_width(v.clock, 72);
+  // L'icône et la cellule de l'heure sont les deux zones d'accès aux
+  // diagnostics. La balance reste une indication tactile séparée à droite.
+  for (lv_obj_t *status : {v.diagnostic, v.clock, v.presence}) {
     lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(status, note, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(status, show_diagnostics, LV_EVENT_CLICKED, nullptr);
   }
   // Les séparateurs ne font pas partie des chaînes dynamiques : leur position
   // reste stable lorsque la largeur d'une mesure change.
-  rule(p, 384, 32, 1, 24);
+  rule(p, 144, 32, 1, 24);
   rule(p, 504, 32, 1, 24);
   rule(p, 600, 32, 1, 24);
-  rule(p, 696, 32, 1, 24);
+  rule(p, 272, 32, 1, 24);
   dyn(p, &v.target, "-", theme::kFontHeroRest, theme::kText, 0, 112);
   lv_obj_set_width(v.target, 800);
   lv_obj_set_style_text_align(v.target, LV_TEXT_ALIGN_CENTER, 0);

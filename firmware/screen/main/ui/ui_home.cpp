@@ -35,6 +35,9 @@ enum class Edit : uint8_t {
   None,
   Weight,
   Time,
+  FillingTime,
+  FillingDelta,
+  FillingPump,
   PreTime,
   PrePressure,
   PrePump,
@@ -425,6 +428,7 @@ KeypadMode keypad_mode_for(Edit e) {
   // Ces grandeurs acceptent des fractions dans leur plage de validation.
   case Edit::Weight:
   case Edit::PrePressure:
+  case Edit::FillingDelta:
   case Edit::RampTime:
   case Edit::RampWeight:
   case Edit::RampDrop:
@@ -432,6 +436,8 @@ KeypadMode keypad_mode_for(Edit e) {
 
   // Durées et niveaux de pompe sont stockés et validés comme entiers.
   case Edit::Time:
+  case Edit::FillingTime:
+  case Edit::FillingPump:
   case Edit::PreTime:
   case Edit::PrePump:
   case Edit::BrewPump:
@@ -453,6 +459,18 @@ void set_title(Edit e) {
   case Edit::Time:
     t = "cible temps";
     u = "s";
+    break;
+  case Edit::FillingTime:
+    t = "durée remplissage";
+    u = "s";
+    break;
+  case Edit::FillingDelta:
+    t = "delta pression rempl.";
+    u = "bar";
+    break;
+  case Edit::FillingPump:
+    t = "pompe remplissage";
+    u = "%";
     break;
   case Edit::PreTime:
     t = "durée pré-inf.";
@@ -500,36 +518,46 @@ void set_title(Edit e) {
 void initial(Edit e) {
   auto c = core::get_config();
   float n = 0;
-  bool d = false;
+  unsigned decimals = 0;
   switch (e) {
   case Edit::Weight:
     n = c.target_weight_g;
-    d = true;
+    decimals = 1;
     break;
   case Edit::Time:
     n = c.target_time_s;
+    break;
+  case Edit::FillingTime:
+    n = c.filling_time_s;
+    break;
+  case Edit::FillingDelta:
+    n = c.filling_pressure_delta_bar;
+    decimals = 2;
+    break;
+  case Edit::FillingPump:
+    n = c.filling_pump_pct;
     break;
   case Edit::PreTime:
     n = c.preinfusion_time_s;
     break;
   case Edit::PrePressure:
     n = c.preinfusion_pressure_bar;
-    d = true;
+    decimals = 1;
     break;
   case Edit::PrePump:
     n = c.preinfusion_pump_pct;
     break;
   case Edit::RampTime:
     n = c.rampdown_lead_time_s;
-    d = true;
+    decimals = 1;
     break;
   case Edit::RampWeight:
     n = c.rampdown_lead_weight_g;
-    d = true;
+    decimals = 1;
     break;
   case Edit::RampDrop:
     n = c.rampdown_pressure_drop_bar;
-    d = true;
+    decimals = 1;
     break;
   case Edit::BrewPump:
     n = c.brew_pump_pct;
@@ -543,8 +571,9 @@ void initial(Edit e) {
   default:
     break;
   }
-  if (d) {
-    std::snprintf(candidate, sizeof(candidate), "%.1f", static_cast<double>(n));
+  if (decimals != 0) {
+    std::snprintf(candidate, sizeof(candidate), decimals == 2 ? "%.2f" : "%.1f",
+                  static_cast<double>(n));
     for (char *p = candidate; *p; ++p)
       if (*p == '.')
         *p = ',';
@@ -567,6 +596,14 @@ bool valid(float *n) {
            std::fabs(*n * 2 - std::round(*n * 2)) < .01;
   case Edit::Time:
     return *n >= 5 && *n <= 60 && std::floor(*n) == *n;
+  case Edit::FillingTime:
+    return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
+  case Edit::FillingDelta:
+    return *n >= .01f && *n <= 1.0f &&
+           std::fabs(*n * 100 - std::round(*n * 100)) < .01f;
+  case Edit::FillingPump:
+    return *n >= 20 && *n <= 100 && std::floor(*n) == *n &&
+           static_cast<unsigned>(*n) % 5 == 0;
   case Edit::PreTime:
     return *n >= 0 && *n <= 20 && std::floor(*n) == *n;
   case Edit::PrePressure:
@@ -627,6 +664,15 @@ void key_accept(lv_event_t *) {
   case Edit::Time:
     c.target_time_s = n;
     break;
+  case Edit::FillingTime:
+    c.filling_time_s = n;
+    break;
+  case Edit::FillingDelta:
+    c.filling_pressure_delta_bar = n;
+    break;
+  case Edit::FillingPump:
+    c.filling_pump_pct = n;
+    break;
   case Edit::PreTime:
     c.preinfusion_time_s = n;
     break;
@@ -679,7 +725,7 @@ void prev(lv_event_t *) {
   }
 }
 void next(lv_event_t *) {
-  if (page < 2) {
+  if (page < 3) {
     ++page;
     render_settings();
   }
@@ -758,27 +804,29 @@ void show_confirm(Confirm c) {
 void tile_cb(lv_event_t *e) {
   unsigned i = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
   if (page == 0) {
-    if (i == 2)
+    Edit a[] = {Edit::Time, Edit::FillingPump, Edit::Weight,
+                Edit::PrePump, Edit::None, Edit::BrewPump};
+    if (a[i] != Edit::None) show_edit(a[i]);
+  } else if (page == 1) {
+    if (i == 1)
       show_choice(Choice::Preinfusion);
     else {
-      Edit a[] = {Edit::Weight,  Edit::Time,        Edit::None,
-                  Edit::PreTime, Edit::PrePressure, Edit::PrePump};
-      show_edit(a[i]);
+      Edit a[] = {Edit::FillingTime, Edit::None, Edit::FillingDelta,
+                  Edit::PreTime, Edit::None, Edit::PrePressure};
+      if (a[i] != Edit::None) show_edit(a[i]);
     }
-  } else if (page == 1) {
+  } else if (page == 2) {
     if (i == 0)
       show_choice(Choice::Rampdown);
     else {
       Edit a[] = {Edit::None,     Edit::RampTime, Edit::RampWeight,
-                  Edit::RampDrop, Edit::BrewPump, Edit::PurgePump};
+                  Edit::RampDrop, Edit::PurgePump, Edit::PurgeMax};
       show_edit(a[i]);
     }
   } else {
     if (i == 0)
-      show_edit(Edit::PurgeMax);
-    else if (i == 2)
       show_confirm(Confirm::Forget);
-    else if (i == 4)
+    else if (i == 2)
       service_screen::restart_lcd();
   }
 }
@@ -807,47 +855,67 @@ void tile(unsigned i, const char *n, const char *val,
 void render_settings() {
   auto c = core::get_config();
   char x[6][40]{}, idx[8];
-  std::snprintf(idx, sizeof(idx), "%u/3", page + 1);
+  std::snprintf(idx, sizeof(idx), "%u/4", page + 1);
   text(v.index, idx);
   // Les flèches qui n'ont pas de destination ne doivent pas apparaître :
   // affichées mais désactivées, elles pouvaient conserver un rendu "pressed"
   // lors de l'entrée dans les réglages.
   hidden(v.prev, page == 0);
-  hidden(v.next, page == 2);
+  hidden(v.next, page == 3);
   lv_obj_remove_state(v.prev, LV_STATE_PRESSED);
   lv_obj_remove_state(v.next, LV_STATE_PRESSED);
+  for (unsigned i = 0; i < 6; ++i) {
+    hidden(v.tile[i], false);
+    hidden(v.tile_name[i], false);
+    disable(v.tile[i], false);
+  }
   if (page == 0) {
-    fmt(x[0], sizeof(x[0]), c.target_weight_g, " g");
-    std::snprintf(x[1], 40, "%u s", c.target_time_s);
-    preinfusion_mode_text(c.preinfusion_mode, x[2], sizeof(x[2]));
-    std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
-    fmt(x[4], sizeof(x[4]), c.preinfusion_pressure_bar, " bar");
-    std::snprintf(x[5], 40, "%u %%", c.preinfusion_pump_pct);
-    const char *n[] = {"cible poids",    "cible temps",    "stratégie pré-inf.",
-                       "durée pré-inf.", "seuil pré-inf.", "pompe pré-inf."};
+    std::snprintf(x[0], 40, "%u s", c.target_time_s);
+    std::snprintf(x[1], 40, "%u %%", c.filling_pump_pct);
+    fmt(x[2], sizeof(x[2]), c.target_weight_g, " g");
+    std::snprintf(x[3], 40, "%u %%", c.preinfusion_pump_pct);
+    std::snprintf(x[4], 40, "à venir");
+    std::snprintf(x[5], 40, "%u %%", c.brew_pump_pct);
+    const char *n[] = {"cible temps", "pompe remplissage", "cible poids",
+                       "pompe pré-inf.", "cible pression", "pompe infusion"};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
+    disable(v.tile[4], true);
   } else if (page == 1) {
+    std::snprintf(x[0], 40, "%u s", c.filling_time_s);
+    preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));
+    std::snprintf(x[2], 40, "%.2f bar", double(c.filling_pressure_delta_bar));
+    std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
+    fmt(x[5], sizeof(x[5]), c.preinfusion_pressure_bar, " bar");
+    const char *n[] = {"durée remplissage", "critères pré-inf.", "delta pression rempl.",
+                       "échéance pré-inf.", "", "seuil pression pré-inf."};
+    for (unsigned i = 0; i < 6; ++i) tile(i, n[i], x[i]);
+    hidden(v.tile[4], true);
+    hidden(v.tile_name[4], true);
+  } else if (page == 2) {
     const char *m[] = {"aucune", "temps", "poids", "chute pression"};
     std::snprintf(x[0], 40, "%s", m[unsigned(c.rampdown_mode)]);
     fmt(x[1], sizeof(x[1]), c.rampdown_lead_time_s, " s");
     fmt(x[2], sizeof(x[2]), c.rampdown_lead_weight_g, " g");
     fmt(x[3], sizeof(x[3]), c.rampdown_pressure_drop_bar, " bar");
-    std::snprintf(x[4], 40, "%u %%", c.brew_pump_pct);
-    std::snprintf(x[5], 40, "%u %%", c.purge_pump_pct);
+    std::snprintf(x[4], 40, "%u %%", c.purge_pump_pct);
+    std::snprintf(x[5], 40, "%u s", c.purge_max_s);
     const char *n[] = {"stratégie rampe", "avance temps",   "avance poids",
-                       "chute pression",  "pompe infusion", "pompe purge"};
+                       "chute pression",  "pompe purge", "purge max"};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
   } else {
-    const char *n[] = {"purge max",    "",         "réinitialiser réseau",
-                       "calibrations", "réinitialiser LCD", "veille"};
-    const char *val[] = {"",      "",           "effacer", "depuis /config",
-                         "redémarrer", "automatique"};
-    std::snprintf(x[0], 40, "%u s", c.purge_max_s);
+    const char *n[] = {"réinitialiser réseau", "calibrations", "réinitialiser LCD",
+                       "veille", "", ""};
+    const char *val[] = {"effacer", "depuis /config", "redémarrer",
+                         "automatique", "", ""};
     for (unsigned i = 0; i < 6; ++i)
-      tile(i, n[i], i ? val[i] : x[0],
-           i == 2 ? Role::Destructive : Role::Secondary);
+      tile(i, n[i], val[i],
+           i == 0 ? Role::Destructive : Role::Secondary);
+    for (unsigned i : {4u, 5u}) {
+      hidden(v.tile[i], true);
+      hidden(v.tile_name[i], true);
+    }
   }
 }
 void target_step(int d) {
@@ -874,7 +942,8 @@ void stop(lv_event_t *) {
                             : core::Action::kStopBrew});
 }
 bool active(const core::Snapshot &s) {
-  return s.cycle_state == core::CycleState::kPreinfusion ||
+  return s.cycle_state == core::CycleState::kFilling ||
+         s.cycle_state == core::CycleState::kPreinfusion ||
          s.cycle_state == core::CycleState::kBrew ||
          s.cycle_state == core::CycleState::kRampdown ||
          s.cycle_state == core::CycleState::kPurge;
@@ -922,6 +991,8 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     return;
   }
   text(v.phase, s.cycle_state == core::CycleState::kPurge ? "purge"
+                : s.cycle_state == core::CycleState::kFilling
+                    ? "remplissage"
                 : s.cycle_state == core::CycleState::kPreinfusion
                     ? "pré-infusion"
                 : s.cycle_state == core::CycleState::kRampdown ? "rampe"
@@ -1206,7 +1277,7 @@ void create(lv_obj_t *p) {
   base(v.settings);
   lv_obj_t *settings_bar =
       navbar(v.settings, "réglages", &ignore, back_settings, false, true);
-  dyn(settings_bar, &v.index, "1/3", theme::kFontButton, theme::kText, 0, 0);
+  dyn(settings_bar, &v.index, "1/4", theme::kFontButton, theme::kText, 0, 0);
   lv_obj_align(v.index, LV_ALIGN_LEFT_MID, 504, 0);
   v.prev = button(settings_bar, 0, 0, 80, 80, "");
   v.next = button(settings_bar, 0, 0, 80, 80, "");
@@ -1549,8 +1620,10 @@ void refresh(const core::Snapshot &s, bool boot) {
 void snapshot_scenario(const char *scenario) {
   if (std::strcmp(scenario, "settings") == 0 ||
       std::strcmp(scenario, "settings1") == 0 ||
-      std::strcmp(scenario, "settings2") == 0) {
-    page = static_cast<uint8_t>(std::strcmp(scenario, "settings2") == 0   ? 2
+      std::strcmp(scenario, "settings2") == 0 ||
+      std::strcmp(scenario, "settings3") == 0) {
+    page = static_cast<uint8_t>(std::strcmp(scenario, "settings3") == 0   ? 3
+                                : std::strcmp(scenario, "settings2") == 0 ? 2
                                 : std::strcmp(scenario, "settings1") == 0 ? 1
                                                                           : 0);
     render_settings();
@@ -1564,7 +1637,7 @@ void snapshot_scenario(const char *scenario) {
     close_all();
     hidden(v.diag, false);
   } else if (std::strcmp(scenario, "wifi-confirm") == 0) {
-    page = 2;
+    page = 3;
     render_settings();
     close_all();
     hidden(v.settings, false);

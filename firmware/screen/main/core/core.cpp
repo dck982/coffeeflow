@@ -152,6 +152,7 @@ void send_request(common::MessageType target, uint16_t period_ms) {
 
 HFSampleMode sample_mode(machine::State state) {
   switch (state) {
+    case machine::State::kFilling: return HFSampleMode::kFilling;
     case machine::State::kPreinfusion: return HFSampleMode::kPreinfusion;
     case machine::State::kBrew: return HFSampleMode::kInfusion;
     case machine::State::kRampdown: return HFSampleMode::kRampDown;
@@ -306,6 +307,10 @@ uint16_t config_field_arg(const char* field) {
       {"rampdown", 20},
       {"purge", 21},
       {"ui", 22},
+      {"filling.time_s", 23},
+      {"filling.pressure_delta_bar", 24},
+      {"filling.pump_pct", 25},
+      {"filling", 26},
   };
   for (const Entry& entry : kFields) {
     if (std::strcmp(entry.name, field) == 0) return entry.id;
@@ -330,7 +335,8 @@ const char* action_reason(ActionStatus status) {
 ActionResult action_result(ActionStatus status) { return {status, action_reason(status)}; }
 
 machine::Config machine_config(const Config& c) {
-  return {c.target_weight_g, c.target_time_s,
+  return {c.target_weight_g, c.target_time_s, c.filling_time_s,
+          c.filling_pressure_delta_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
           static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,
@@ -348,10 +354,24 @@ machine::Input machine_input(const Snapshot& s, int64_t now) {
   // consommateurs hors verrou. Les actions de la machine lisent toutefois
   // l'état brut sous verrou : il faut appliquer la même règle ici, sinon un
   // cycle démarré juste après une mesure de balance part en mode temps.
-  return {s.weight_g, scale_present_locked(now), s.pressure_bar};
+  const bool pressure_fresh = s.pressure_valid && g_state.pressure_received_us != 0 &&
+                              now - g_state.pressure_received_us <= 300 * 1000;
+  return {s.weight_g, scale_present_locked(now), s.pressure_bar, pressure_fresh,
+          static_cast<uint64_t>(g_state.pressure_received_us / 1000)};
 }
 
-CycleState cycle_state(machine::State state) { return static_cast<CycleState>(state); }
+CycleState cycle_state(machine::State state) {
+  switch (state) {
+    case machine::State::kIdle: return CycleState::kIdle;
+    case machine::State::kFilling: return CycleState::kFilling;
+    case machine::State::kPreinfusion: return CycleState::kPreinfusion;
+    case machine::State::kBrew: return CycleState::kBrew;
+    case machine::State::kRampdown: return CycleState::kRampdown;
+    case machine::State::kFinished: return CycleState::kFinished;
+    case machine::State::kPurge: return CycleState::kPurge;
+  }
+  return CycleState::kIdle;
+}
 
 void update_cycle_snapshot_locked(int64_t now) {
   g_state.snapshot.cycle_state = cycle_state(g_state.machine.state());
@@ -499,7 +519,8 @@ void set_telemetry_profile(TelemetryProfile profile) {
 }
 
 bool begin_flash(FlashTarget target, uint32_t total) {
-  if (target == FlashTarget::kNone || total == 0 || g_flash_active || get_snapshot().cycle_state == CycleState::kPreinfusion ||
+  if (target == FlashTarget::kNone || total == 0 || g_flash_active || get_snapshot().cycle_state == CycleState::kFilling ||
+      get_snapshot().cycle_state == CycleState::kPreinfusion ||
       get_snapshot().cycle_state == CycleState::kBrew || get_snapshot().cycle_state == CycleState::kRampdown ||
       get_snapshot().cycle_state == CycleState::kPurge || get_snapshot().capture_cooldown) return false;
   Snapshot snapshot = get_snapshot();
@@ -668,7 +689,7 @@ void set_boot_time_syncing(bool syncing) {
 
 bool request_radio_mode(RadioMode mode) {
   const CycleState cycle = get_snapshot().cycle_state;
-  if (cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||
+  if (cycle == CycleState::kFilling || cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||
       cycle == CycleState::kRampdown || cycle == CycleState::kPurge ||
       get_snapshot().capture_cooldown || g_flash_active) return false;
   portENTER_CRITICAL(&g_state.lock);
@@ -706,7 +727,8 @@ void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget
 void forget_network() { if (g_forget_network_callback != nullptr) g_forget_network_callback(); }
 
 ConfigResult put_config(const Config& candidate) {
-  if (get_snapshot().cycle_state == CycleState::kPreinfusion || get_snapshot().cycle_state == CycleState::kBrew ||
+  if (get_snapshot().cycle_state == CycleState::kFilling || get_snapshot().cycle_state == CycleState::kPreinfusion ||
+      get_snapshot().cycle_state == CycleState::kBrew ||
       get_snapshot().cycle_state == CycleState::kRampdown || get_snapshot().cycle_state == CycleState::kPurge) return {ConfigStatus::kBusy, "cycle"};
   for (int attempt = 0; attempt < 2; ++attempt) {
     ConfigResult result = apply_config(candidate, get_config().revision);
@@ -762,7 +784,8 @@ ActionResult perform_action(const ActionCommand& command) {
   Snapshot snapshot = get_snapshot();
   if (command.action == Action::kResetSensors) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
-    if (snapshot.cycle_state == CycleState::kPreinfusion ||
+    if (snapshot.cycle_state == CycleState::kFilling ||
+        snapshot.cycle_state == CycleState::kPreinfusion ||
         snapshot.cycle_state == CycleState::kBrew ||
         snapshot.cycle_state == CycleState::kRampdown ||
         snapshot.cycle_state == CycleState::kPurge || snapshot.capture_cooldown || g_flash_active)
@@ -773,7 +796,8 @@ ActionResult perform_action(const ActionCommand& command) {
   }
   if (command.action == Action::kResetDimmer || command.action == Action::kRecalibrateDimmer) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
-    if (snapshot.cycle_state == CycleState::kPreinfusion ||
+    if (snapshot.cycle_state == CycleState::kFilling ||
+        snapshot.cycle_state == CycleState::kPreinfusion ||
         snapshot.cycle_state == CycleState::kBrew ||
         snapshot.cycle_state == CycleState::kRampdown ||
         snapshot.cycle_state == CycleState::kPurge || snapshot.capture_cooldown || g_flash_active)
@@ -824,7 +848,9 @@ ActionResult perform_action(const ActionCommand& command) {
   snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
-  if (snapshot.cycle_state == CycleState::kPreinfusion || snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown || snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
+  if (snapshot.cycle_state == CycleState::kFilling || snapshot.cycle_state == CycleState::kPreinfusion ||
+      snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown ||
+      snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
   send_set(command.dimmer, command.ttl_ms);
   return action_result(ActionStatus::kOk);
 }

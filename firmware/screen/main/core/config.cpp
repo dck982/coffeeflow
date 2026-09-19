@@ -17,13 +17,12 @@ constexpr uint32_t kMagic = 0x43464731;  // CFG1
 struct StoredConfig { uint32_t magic; Config config; uint32_t checksum; };
 static_assert(sizeof(StoredConfig) < 512, "configuration must remain a small NVS blob");
 
-enum class LegacyPreinfusionMode : uint8_t { kTime, kPressure };
-struct LegacyConfig {
+struct ConfigV2 {
   uint16_t version;
   uint32_t revision;
   float target_weight_g;
   uint16_t target_time_s;
-  LegacyPreinfusionMode preinfusion_mode;
+  PreinfusionMode preinfusion_mode;
   uint16_t preinfusion_time_s;
   float preinfusion_pressure_bar;
   uint8_t preinfusion_pump_pct;
@@ -37,8 +36,30 @@ struct LegacyConfig {
   uint16_t dim_after_s;
   uint16_t standby_after_s;
 };
-struct LegacyStoredConfig { uint32_t magic; LegacyConfig config; uint32_t checksum; };
-static_assert(sizeof(LegacyStoredConfig) == sizeof(StoredConfig), "configuration layout changed unexpectedly");
+struct StoredConfigV2 { uint32_t magic; ConfigV2 config; uint32_t checksum; };
+
+enum class PreinfusionModeV1 : uint8_t { kTime, kPressure };
+struct ConfigV1 {
+  uint16_t version;
+  uint32_t revision;
+  float target_weight_g;
+  uint16_t target_time_s;
+  PreinfusionModeV1 preinfusion_mode;
+  uint16_t preinfusion_time_s;
+  float preinfusion_pressure_bar;
+  uint8_t preinfusion_pump_pct;
+  RampdownMode rampdown_mode;
+  float rampdown_lead_time_s;
+  float rampdown_lead_weight_g;
+  float rampdown_pressure_drop_bar;
+  uint8_t brew_pump_pct;
+  uint8_t purge_pump_pct;
+  uint16_t purge_max_s;
+  uint16_t dim_after_s;
+  uint16_t standby_after_s;
+};
+struct StoredConfigV1 { uint32_t magic; ConfigV1 config; uint32_t checksum; };
+static_assert(sizeof(StoredConfigV1) == sizeof(StoredConfigV2), "v1 and v2 layouts must match");
 
 portMUX_TYPE g_lock = portMUX_INITIALIZER_UNLOCKED;
 Config g_config{};
@@ -54,8 +75,12 @@ uint32_t checksum(const StoredConfig& stored) {
   return checksum_bytes(&stored, offsetof(StoredConfig, checksum));
 }
 
-uint32_t legacy_checksum(const LegacyStoredConfig& stored) {
-  return checksum_bytes(&stored, offsetof(LegacyStoredConfig, checksum));
+uint32_t checksum_v2(const StoredConfigV2& stored) {
+  return checksum_bytes(&stored, offsetof(StoredConfigV2, checksum));
+}
+
+uint32_t checksum_v1(const StoredConfigV1& stored) {
+  return checksum_bytes(&stored, offsetof(StoredConfigV1, checksum));
 }
 
 bool read_slot(nvs_handle_t handle, const char* key, StoredConfig* out) {
@@ -64,21 +89,25 @@ bool read_slot(nvs_handle_t handle, const char* key, StoredConfig* out) {
   return out->magic == kMagic && out->config.version == kConfigSchemaVersion && out->checksum == checksum(*out);
 }
 
-bool read_legacy_slot(nvs_handle_t handle, const char* key, LegacyStoredConfig* out) {
+bool read_v2_slot(nvs_handle_t handle, const char* key, StoredConfigV2* out) {
   size_t size = sizeof(*out);
   if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
-  return out->magic == kMagic && out->config.version == 1 && out->checksum == legacy_checksum(*out);
+  return out->magic == kMagic && out->config.version == 2 && out->checksum == checksum_v2(*out);
 }
 
-Config migrate_legacy(const LegacyConfig& legacy) {
+bool read_v1_slot(nvs_handle_t handle, const char* key, StoredConfigV1* out) {
+  size_t size = sizeof(*out);
+  if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
+  return out->magic == kMagic && out->config.version == 1 && out->checksum == checksum_v1(*out);
+}
+
+Config migrate_v2(const ConfigV2& legacy) {
   Config migrated{};
   migrated.version = kConfigSchemaVersion;
   migrated.revision = legacy.revision;
   migrated.target_weight_g = legacy.target_weight_g;
   migrated.target_time_s = legacy.target_time_s;
-  migrated.preinfusion_mode = legacy.preinfusion_mode == LegacyPreinfusionMode::kPressure
-                                  ? PreinfusionMode::kPressure
-                                  : PreinfusionMode::kTime;
+  migrated.preinfusion_mode = legacy.preinfusion_mode;
   migrated.preinfusion_time_s = legacy.preinfusion_time_s;
   migrated.preinfusion_pressure_bar = legacy.preinfusion_pressure_bar;
   migrated.preinfusion_pump_pct = legacy.preinfusion_pump_pct;
@@ -94,6 +123,30 @@ Config migrate_legacy(const LegacyConfig& legacy) {
   return migrated;
 }
 
+Config migrate_v1(const ConfigV1& legacy) {
+  ConfigV2 v2{};
+  v2.version = 2;
+  v2.revision = legacy.revision;
+  v2.target_weight_g = legacy.target_weight_g;
+  v2.target_time_s = legacy.target_time_s;
+  v2.preinfusion_mode = legacy.preinfusion_mode == PreinfusionModeV1::kPressure
+                            ? PreinfusionMode::kPressure
+                            : PreinfusionMode::kTime;
+  v2.preinfusion_time_s = legacy.preinfusion_time_s;
+  v2.preinfusion_pressure_bar = legacy.preinfusion_pressure_bar;
+  v2.preinfusion_pump_pct = legacy.preinfusion_pump_pct;
+  v2.rampdown_mode = legacy.rampdown_mode;
+  v2.rampdown_lead_time_s = legacy.rampdown_lead_time_s;
+  v2.rampdown_lead_weight_g = legacy.rampdown_lead_weight_g;
+  v2.rampdown_pressure_drop_bar = legacy.rampdown_pressure_drop_bar;
+  v2.brew_pump_pct = legacy.brew_pump_pct;
+  v2.purge_pump_pct = legacy.purge_pump_pct;
+  v2.purge_max_s = legacy.purge_max_s;
+  v2.dim_after_s = legacy.dim_after_s;
+  v2.standby_after_s = legacy.standby_after_s;
+  return migrate_v2(v2);
+}
+
 bool valid_step(float value, float min, float max, float step) {
   if (!std::isfinite(value) || value < min || value > max) return false;
   float scaled = (value - min) / step;
@@ -104,6 +157,9 @@ const char* validate(const Config& c) {
   if (c.version != kConfigSchemaVersion) return "version";
   if (!valid_step(c.target_weight_g, 10, 100, .5f)) return "brew.target_weight_g";
   if (c.target_time_s < 5 || c.target_time_s > 60) return "brew.target_time_s";
+  if (c.filling_time_s < 1 || c.filling_time_s > 10) return "filling.time_s";
+  if (!valid_step(c.filling_pressure_delta_bar, .01f, 1.0f, .01f)) return "filling.pressure_delta_bar";
+  if (c.filling_pump_pct < 20 || c.filling_pump_pct > 100 || c.filling_pump_pct % 5) return "filling.pump_pct";
   if ((static_cast<uint8_t>(c.preinfusion_mode) & ~0x07u) != 0) {
     return "preinfusion.mode";
   }
@@ -152,16 +208,26 @@ void config_init() {
       selected = (!b_valid || (a_valid && a.config.revision >= b.config.revision)) ? a.config : b.config;
       found = true;
     } else {
-      LegacyStoredConfig legacy_a{}, legacy_b{};
-      bool legacy_a_valid = read_legacy_slot(handle, "a", &legacy_a);
-      bool legacy_b_valid = read_legacy_slot(handle, "b", &legacy_b);
-      if (legacy_a_valid || legacy_b_valid) {
-        const LegacyStoredConfig& legacy =
-            (!legacy_b_valid || (legacy_a_valid && legacy_a.config.revision >= legacy_b.config.revision))
-                ? legacy_a : legacy_b;
-        selected = migrate_legacy(legacy.config);
+      StoredConfigV2 v2_a{}, v2_b{};
+      bool v2_a_valid = read_v2_slot(handle, "a", &v2_a);
+      bool v2_b_valid = read_v2_slot(handle, "b", &v2_b);
+      if (v2_a_valid || v2_b_valid) {
+        const StoredConfigV2& legacy =
+            (!v2_b_valid || (v2_a_valid && v2_a.config.revision >= v2_b.config.revision)) ? v2_a : v2_b;
+        selected = migrate_v2(legacy.config);
         found = true;
         migrated = true;
+      } else {
+        StoredConfigV1 v1_a{}, v1_b{};
+        bool v1_a_valid = read_v1_slot(handle, "a", &v1_a);
+        bool v1_b_valid = read_v1_slot(handle, "b", &v1_b);
+        if (v1_a_valid || v1_b_valid) {
+          const StoredConfigV1& legacy =
+              (!v1_b_valid || (v1_a_valid && v1_a.config.revision >= v1_b.config.revision)) ? v1_a : v1_b;
+          selected = migrate_v1(legacy.config);
+          found = true;
+          migrated = true;
+        }
       }
     }
     nvs_close(handle);

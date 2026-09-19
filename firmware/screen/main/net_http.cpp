@@ -142,6 +142,10 @@ cJSON* encode_config(const core::Config& config) {
   cJSON_AddNumberToObject(brew, "target_weight_g", config.target_weight_g);
   cJSON_AddNumberToObject(brew, "target_time_s", config.target_time_s);
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
+  cJSON* filling = cJSON_AddObjectToObject(root, "filling");
+  cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
+  cJSON_AddNumberToObject(filling, "pressure_delta_bar", config.filling_pressure_delta_bar);
+  cJSON_AddNumberToObject(filling, "pump_pct", config.filling_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
   cJSON_AddBoolToObject(preinfusion, "time",
                         core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kTime));
@@ -200,6 +204,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   add_age(root, "scale_age_ms", snapshot.scale_age_ms);
   const char* cycle = "idle";
   switch (snapshot.cycle_state) {
+    case core::CycleState::kFilling: cycle = "filling"; break;
     case core::CycleState::kPreinfusion: cycle = "preinfusion"; break;
     case core::CycleState::kBrew: cycle = "brew"; break;
     case core::CycleState::kRampdown: cycle = "rampdown"; break;
@@ -409,6 +414,21 @@ bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, 
   return false;
 }
 
+bool apply_filling_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
+  if (std::strcmp(key, "time_s") == 0) {
+    return overlay_number_u16(value, "filling.time_s", &config->filling_time_s, error_field);
+  }
+  if (std::strcmp(key, "pressure_delta_bar") == 0) {
+    return overlay_number_float(value, "filling.pressure_delta_bar", &config->filling_pressure_delta_bar,
+                                error_field);
+  }
+  if (std::strcmp(key, "pump_pct") == 0) {
+    return overlay_number_u8(value, "filling.pump_pct", &config->filling_pump_pct, error_field);
+  }
+  *error_field = join_field("filling", key);
+  return false;
+}
+
 bool apply_rampdown_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
   if (std::strcmp(key, "mode") == 0) {
     if (!cJSON_IsString(value)) {
@@ -489,6 +509,10 @@ bool apply_json_patch(cJSON* root, core::Config* config, const char** error_fiel
       if (!overlay_object(child, "brew", config, error_field, apply_brew_key)) return false;
       continue;
     }
+    if (std::strcmp(child->string, "filling") == 0) {
+      if (!overlay_object(child, "filling", config, error_field, apply_filling_key)) return false;
+      continue;
+    }
     if (std::strcmp(child->string, "preinfusion") == 0) {
       if (!overlay_object(child, "preinfusion", config, error_field, apply_preinfusion_key)) return false;
       continue;
@@ -544,6 +568,7 @@ const char* hf_sample_mode_text(core::HFSampleMode mode) {
     case core::HFSampleMode::kInfusion: return "infusion";
     case core::HFSampleMode::kRampDown: return "ramp_down";
     case core::HFSampleMode::kCooldown: return "cooldown";
+    case core::HFSampleMode::kFilling: return "filling";
   }
   return "purge";
 }

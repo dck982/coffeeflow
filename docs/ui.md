@@ -317,7 +317,7 @@ La hiérarchie visuelle normative est la suivante :
 
 Les tabs sont hors périmètre : il n'existe pas deux vues sœurs qu'il faille
 garder simultanément visibles. La pagination des réglages change seulement un
-groupe de paramètres et reste matérialisée par `‹`, `1/3`, `›`.
+groupe de paramètres et reste matérialisée par `‹`, `1/4`, `›`.
 
 ### Critères visuels vérifiables dans le simulateur
 
@@ -327,9 +327,9 @@ groupe de paramètres et reste matérialisée par `‹`, `1/3`, `›`.
   `100,0 g` ne déplace jamais ces boutons.
 - Les trois destinations de l'accueil ont une icône et un libellé. L'action
   *infuser* est la seule tuile primaire.
-- `settings.png`, `settings1.png` et `settings2.png` partagent exactement la
+- `settings.png`, `settings1.png`, `settings2.png` et `settings3.png` partagent exactement la
   même barre haute. Elles n'affichent ni `suite`, ni `fermer`, ni boutons
-  `page 1/2/3`, mais le retour, le titre, l'index et deux chevrons.
+  `page 1/2/3/4`, mais le retour, le titre, l'index et deux chevrons.
 - Le pavé numérique est capturé dans au moins deux variantes : poids avec
   virgule active, temps avec virgule désactivée.
 - Au moins quatre familles chromatiques sont visibles dans les snapshots
@@ -526,17 +526,16 @@ colonnes par trois lignes. Chaque tuile montre une étiquette 18 px en
 deux sur une seule ligne. Un appui ouvre l'éditeur adapté. On ne change plus
 silencieusement une valeur en touchant plusieurs fois une tuile.
 
-La barre haute contient, à droite, l'indicateur `1/3`, un chevron gauche et un
+La barre haute contient, à droite, l'indicateur `1/4`, un chevron gauche et un
 chevron droit dans deux cibles séparées. Les chevrons remplacent les boutons
-textuels `suite`, `page 1`, `page 2`, `page 3`. Au début, le chevron précédent
+textuels de pagination. Au début, le chevron précédent
 est désactivé ; à la fin, le suivant est désactivé : les pages ne bouclent pas.
 Un changement de page est instantané, sans glissement plein écran.
 
-Contenu : cible temps, cible poids, stratégie de pré-infusion (temps fixe /
-attente de pression, avec le seuil), stratégie de ramp-down (temps avant fin /
-poids / chute de pression), Wi-Fi (accès à la destination Wi-Fi et
-*réinitialiser le réseau*, avec confirmation), calibrations, version du
-firmware. **Pas de luminosité** : voir « Veille ».
+Contenu : cycle et puissances de pompe, remplissage et pré-infusion, ramp-down
+et purge, puis réglages système. La cible pression est réservée visuellement
+mais reste désactivée jusqu'à l'ajout de sa régulation. **Pas de luminosité** :
+voir « Veille ».
 
 Les stratégies sont des **choix parmi 2-4**, présentés dans un éditeur en
 segments pleins côte à côte (`surface`, choix actif `surface_high` avec texte
@@ -783,7 +782,7 @@ ACCUEIL
 └───────────────────────────────────────────────────────────────┘
 
 RÉGLAGES
-┌ [‹]  réglages                         1/3   [‹] [›] ┐
+┌ [‹]  réglages                         1/4   [‹] [›] ┐
 │ [ étiquette          ] [ étiquette                 ]│
 │ [ valeur             ] [ valeur                    ]│
 │ [ étiquette / valeur ] [ étiquette / valeur        ]│
@@ -1048,9 +1047,12 @@ remplacement de XIAO ne fait rien perdre). Espace de noms `ui`.
 | --- | --- | --- | --- | --- | --- |
 | Cible poids | `tgt_w` | 36,0 g | 10 g | 100 g | **0,5 g** |
 | Cible temps | `tgt_t` | 28 s | 5 s | 60 s | **1 s** |
-| Stratégie pré-infusion | `pi_mode` | `temps` | — | — | `temps` / `pression` |
-| Pré-infusion, durée | `pi_t` | 6 s | 0 s | 20 s | 1 s |
-| Pré-infusion, seuil | `pi_bar` | 4,0 bar | 1 bar | 9 bar | 0,5 bar |
+| Remplissage, durée maximale | `fill_t` | 3 s | 1 s | 10 s | 1 s |
+| Remplissage, delta pression | `fill_bar` | 0,05 bar | 0,01 bar | 1,00 bar | 0,01 bar |
+| Remplissage, niveau pompe | `fill_pct` | 100 % | 20 % | 100 % | 5 % |
+| Critères pré-infusion | `pi_mode` | `temps` | — | — | combinaison `temps` / `pression` / `poids` |
+| Pré-infusion, durée relative | `pi_t` | 4 s | 0 s | 20 s | 1 s |
+| Pré-infusion, seuil | `pi_bar` | 1,5 bar | 1 bar | 9 bar | 0,5 bar |
 | Pré-infusion, niveau pompe | `pi_pct` | 30 % | 0 % | 100 % | 5 % |
 | Stratégie ramp-down | `rd_mode` | `aucune` | — | — | `aucune` / `temps` / `poids` / `chute de pression` |
 | Ramp-down, avance | `rd_t` | 3 s | 0 s | 15 s | 0,5 s |

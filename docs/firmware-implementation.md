@@ -569,8 +569,8 @@ montre l'association ou l'adresse IP et son retour demande réellement le mode
 machine au cœur. Le raccourci diagnostic est désormais le groupe de présence
 du bandeau, conformément à `ui.md`.
 
-La feuille `réglages` est répartie sur trois pages : cibles et pré-infusion,
-rampe et niveaux de pompe, puis plafond de purge et réseau. Chaque appui passe
+La feuille `réglages` est répartie sur quatre pages : cycle et niveaux de
+pompe, remplissage et pré-infusion, rampe et purge, puis système. Chaque appui passe
 par la validation transactionnelle du cœur et avance la valeur dans sa plage.
 Les seuils d'atténuation et de veille restent configurables par `/config`,
 mais sont volontairement absents de cette feuille. Entrer en Wi-Fi et effacer
@@ -581,7 +581,7 @@ Après `dim_after_s` (240 s par défaut), un calque atténue la façade. Après
 `standby_after_s` (1800 s), le calque devient L4 et le bloc `coffeeflow · au
 repos` se déplace localement, sans animation plein écran. Le premier toucher
 est capturé par ce calque et ne peut donc pas déclencher le contrôle situé
-dessous. Les snapshots hôte couvrent l'accueil, les trois pages de réglages,
+dessous. Les snapshots hôte couvrent l'accueil et les quatre pages de réglages,
 l'atténuation, la veille et la confirmation Wi-Fi ; le build ESP-IDF reste
 vert.
 
@@ -606,6 +606,24 @@ le fond. Les fonds sont réchauffés (`#16110C` / `#241B14`) ; aucun dégradé n
 utilisé pour préserver le rendu RGB565 et la bande passante. Image `v0.2.44` :
 build ESP-IDF vert le 2026-09-11; `screen.bin` produit. La validation visuelle
 et le cycle complet sur dalle restent à faire avec cette image.
+
+### Remplissage initial (2026-09-19)
+
+Chaque infusion commence désormais par `kFilling`. La pompe reste au niveau
+`filling.pump_pct` sans condition pendant une seconde. Le premier nouvel
+échantillon de pression valide reçu ensuite devient la référence ; la phase se
+termine à `filling.time_s` ou lorsque la pression augmente de
+`filling.pressure_delta_bar`, selon le premier critère atteint. Les défauts sont
+3 s, 0,05 bar et 100 %. Une pression absente ou périmée ne peut pas poser la
+référence ; le timeout garantit néanmoins la progression du cycle.
+
+La durée de pré-infusion est relative à l'entrée dans cette phase. Ses critères
+temps, pression et poids restent combinés par un OU, tandis que la cible temps
+globale de l'infusion reste absolue depuis le démarrage du cycle. Les captures
+HF exposent le nouveau mode `filling`. Le schéma de configuration passe à la
+version 3 avec migration des versions 1 et 2, et l'écran de réglages utilise
+quatre pages. La tuile `cible pression` est réservée mais désactivée : sa
+régulation fera l'objet d'un lot séparé.
 
 ## Phase 7 — mise en boîte
 

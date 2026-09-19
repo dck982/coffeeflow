@@ -61,18 +61,30 @@ def weight_flow_g_s(times: list[float], weight_g: list[float], window_s: float) 
     return flow
 
 
-def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0) -> plt.Figure:
+def derivative(values_: list[float], times: list[float], sample_distance: int = 1) -> list[float]:
+    """Dérivée arrière sur plusieurs samples, en tenant compte du temps réel."""
+    if sample_distance <= 0:
+        raise RuntimeError("la distance de dérivation du débit doit être strictement positive")
+    result = [float("nan")] * len(values_)
+    for index in range(sample_distance, len(values_)):
+        delta = values_[index] - values_[index - sample_distance]
+        result[index] = delta
+    return result
+
+
+def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
+         flow_derivative_samples: int = 0) -> plt.Figure:
     samples: list[dict[str, Any]] = capture["samples"]
     if not samples:
         raise RuntimeError("la capture ne contient aucun échantillon")
     elapsed_s = [float(sample["t_ms"]) / 1000.0 for sample in samples]
     pressure, temperature = values(samples, "pressure_bar"), values(samples, "temperature_c")
-    flow, volume_raw, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
-    # `volume_ml` est le compteur cumulé depuis le démarrage du module
-    # capteurs. Pour comparer une capture à son poids et à son headspace, le
-    # graphe doit montrer son incrément propre, nul au premier échantillon.
-    volume = [value - volume_raw[0] for value in volume_raw]
+    flow, volume, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
     balance_flow = weight_flow_g_s(elapsed_s, weight, weight_flow_window_s)
+    if flow_derivative_samples>0:
+        flow_derivative = derivative(flow, elapsed_s, flow_derivative_samples)
+    else:
+        flow_derivative = None
     commanded, reported = values(samples, "pump_pct_commanded"), values(samples, "pump_pct_reported")
 
     figure, axes = plt.subplots(4, 1, figsize=(13, 10), sharex=True, layout="constrained")
@@ -91,17 +103,28 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0) -> plt.Figu
     axes[1].plot(elapsed_s, flow, color="tab:green", label="débitmètre (ml/s)")
     axes[1].plot(elapsed_s, balance_flow, color="tab:purple", label=f"balance ({weight_flow_window_s:g} s, g/s)")
     axes[1].set_ylabel("débit (ml/s ou g/s)")
-    volume_axis = axes[1].twinx()
-    volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume depuis début")
-    volume_axis.set_ylabel("volume (ml)")
-    axes[1].legend(loc="upper left")
-    volume_axis.legend(loc="upper right")
+    if flow_derivative is not None:
+        flow_derivative_axis = axes[1].twinx()
+        flow_derivative_axis.plot(
+            elapsed_s,
+            flow_derivative,
+            color="tab:brown",
+            label=f"dérivée du débitmètre ({flow_derivative_samples} sample(s), ml/s²)",
+        )
+        flow_derivative_axis.set_ylabel("variation du débit (ml/s²)")
+        axes[1].legend(loc="upper left")
+        flow_derivative_axis.legend(loc="upper right")
 
     axes[2].plot(elapsed_s, temperature, color="tab:orange")
     axes[2].set_ylabel("température (°C)")
-    axes[3].plot(elapsed_s, weight, color="tab:purple")
+    axes[3].plot(elapsed_s, weight, color="tab:purple", label="poids")
     axes[3].set_ylabel("poids (g)")
+    volume_axis = axes[3].twinx()
+    volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume depuis début")
+    volume_axis.set_ylabel("volume (ml)")
     axes[3].set_xlabel("temps depuis SET dimmer>0 (s)")
+    axes[3].legend(loc="upper left")
+    volume_axis.legend(loc="upper right")
     for axis in axes:
         axis.grid(True, alpha=0.25)
     return figure
@@ -113,12 +136,14 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="fichier image de sortie (PNG, PDF, SVG…)")
     parser.add_argument("--weight-flow-window-s", type=float, default=2.0,
                         help="fenêtre centrée de dérivation du poids, en secondes (défaut : 2)")
+    parser.add_argument("--flow-derivative", type=int, default=0,
+                        help="distance en samples pour la dérivée du débitmètre (défaut : 0)")
     parser.add_argument("--no-show", action="store_true", help="ne pas ouvrir la fenêtre matplotlib")
     args = parser.parse_args()
 
     try:
         capture = validate_capture(json.loads(args.capture.read_text(encoding="utf-8")))
-        figure = plot(capture, args.weight_flow_window_s)
+        figure = plot(capture, args.weight_flow_window_s, args.flow_derivative)
     except (OSError, json.JSONDecodeError, RuntimeError) as error:
         print(f"erreur: {error}", file=sys.stderr)
         return 1

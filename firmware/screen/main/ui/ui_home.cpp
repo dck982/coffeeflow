@@ -903,8 +903,11 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     lv_obj_set_width(v.hero, 800);
     lv_obj_set_pos(v.hero, 0, 74);
     lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
-    text(v.phase, "terminé");
-    if (s.last_shot_available) {
+    text(v.phase, s.capture_cooldown ? "écoulement" : "terminé");
+    if (s.capture_cooldown && s.cycle_weight_goal) {
+      fmt(t, sizeof(t), s.weight_g - s.cycle_start_weight_g, " g");
+      text(v.hero, t);
+    } else if (s.last_shot_available) {
       fmt(t, sizeof(t), s.last_shot_weight_g, " g");
       text(v.hero, t);
     } else {
@@ -914,6 +917,7 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     lv_obj_set_width(v.progress, 420);
     color(v.hero, theme::kRampFull);
     text(lv_obj_get_child(v.stop, 0), "fermer");
+    disable(v.stop, s.capture_cooldown);
     return;
   }
   text(v.phase, s.cycle_state == core::CycleState::kPurge ? "purge"
@@ -964,6 +968,7 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
                          ? theme::kRampLow
                          : theme::kAccent);
   text(lv_obj_get_child(v.stop, 0), "arrêter");
+  disable(v.stop, false);
 }
 
 void fullscreen(bool on, const char *t, const char *b) {

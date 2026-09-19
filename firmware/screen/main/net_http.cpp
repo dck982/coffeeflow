@@ -210,6 +210,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddStringToObject(root, "cycle", cycle);
   cJSON_AddNumberToObject(root, "cycle_elapsed_ms", snapshot.cycle_elapsed_ms);
   cJSON_AddBoolToObject(root, "cycle_weight_goal", snapshot.cycle_weight_goal);
+  cJSON_AddBoolToObject(root, "capture_cooldown", snapshot.capture_cooldown);
   cJSON* last_shot = cJSON_AddObjectToObject(root, "last_shot");
   cJSON_AddBoolToObject(last_shot, "available", snapshot.last_shot_available);
   if (snapshot.last_shot_available) {
@@ -542,6 +543,7 @@ const char* hf_sample_mode_text(core::HFSampleMode mode) {
     case core::HFSampleMode::kPreinfusion: return "preinfusion";
     case core::HFSampleMode::kInfusion: return "infusion";
     case core::HFSampleMode::kRampDown: return "ramp_down";
+    case core::HFSampleMode::kCooldown: return "cooldown";
   }
   return "purge";
 }

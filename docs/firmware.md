@@ -63,10 +63,15 @@ Wi-Fi et attend sa saisie après l'essai.
 sous forme JSON. Le buffer est remis à zéro au premier `SET dimmer>0` d'une
 nouvelle session, y compris une commande brute `set_actuators`. Il conserve la
 consigne et le niveau dimmer rapporté, les phases, les valeurs brutes XDB401 /
-Digmesa et leurs valeurs calibrées. `?view=raw`, `?view=calibrated` ou
-`?view=both` (défaut) sélectionne les colonnes. Tant que les capteurs n'ont pas
-confirmé `dimmer=0`, l'endpoint retourne `409 capture_active`; il retourne
-`404` avant toute capture terminée. L'export est envoyé par morceaux, sans
+Digmesa et leurs valeurs calibrées. Dans les échantillons calibrés,
+`volume_ml` est relatif à la capture et vaut toujours zéro au premier
+échantillon. Après la confirmation de l'arrêt du dimmer, la capture conserve
+quatre secondes d'échantillons `mode="cooldown"` afin d'inclure la fin de
+l'écoulement en tasse. `?view=raw`, `?view=calibrated` ou
+`?view=both` (défaut) sélectionne les colonnes. L'endpoint retourne
+`409 capture_active` jusqu'à la confirmation de `dimmer=0` puis pendant ce
+cooldown de quatre secondes; il retourne `404` avant toute capture terminée.
+L'export est envoyé par morceaux, sans
 construire le document entier en SRAM.
 
 `firmware/tools/download_hf_capture.py` télécharge la capture et conserve le

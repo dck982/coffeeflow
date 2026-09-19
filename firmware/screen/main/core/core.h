@@ -102,6 +102,7 @@ struct Snapshot {
   uint32_t cycle_phase_elapsed_ms = 0;
   float cycle_start_weight_g = 0.0f;
   bool cycle_weight_goal = false;
+  bool capture_cooldown = false;
   bool last_shot_available = false;
   float last_shot_weight_g = 0.0f;
   uint32_t last_shot_duration_ms = 0;
@@ -113,7 +114,7 @@ struct Snapshot {
 // soit sa porte d'entrée. Elle reste en RAM volatile jusqu'à la session
 // suivante et n'est exportable qu'une fois l'arrêt confirmé par les capteurs.
 enum class HFCaptureOrigin : uint8_t { kSetActuators, kBrew, kPurge };
-enum class HFSampleMode : uint8_t { kPurge, kPreinfusion, kInfusion, kRampDown };
+enum class HFSampleMode : uint8_t { kPurge, kPreinfusion, kInfusion, kRampDown, kCooldown };
 enum class HFCaptureStatus : uint8_t { kUnavailable, kActive, kComplete };
 
 struct HFSample {

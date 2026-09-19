@@ -135,16 +135,22 @@ void add_age(cJSON* object, const char* key, uint32_t age_ms) {
   cJSON_AddNumberToObject(object, key, age_ms);
 }
 
+void add_config_decimal(cJSON* object, const char* key, float value) {
+  char formatted[32];
+  std::snprintf(formatted, sizeof(formatted), "%.1f", static_cast<double>(value));
+  cJSON_AddRawToObject(object, key, formatted);
+}
+
 cJSON* encode_config(const core::Config& config) {
   cJSON* root = cJSON_CreateObject();
   cJSON_AddNumberToObject(root, "version", config.version);
   cJSON* brew = cJSON_AddObjectToObject(root, "brew");
-  cJSON_AddNumberToObject(brew, "target_weight_g", config.target_weight_g);
+  add_config_decimal(brew, "target_weight_g", config.target_weight_g);
   cJSON_AddNumberToObject(brew, "target_time_s", config.target_time_s);
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
-  cJSON_AddNumberToObject(filling, "pressure_target_bar", config.filling_pressure_target_bar);
+  add_config_decimal(filling, "pressure_target_bar", config.filling_pressure_target_bar);
   cJSON_AddNumberToObject(filling, "pump_pct", config.filling_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
   cJSON_AddBoolToObject(preinfusion, "time",
@@ -154,13 +160,13 @@ cJSON* encode_config(const core::Config& config) {
   cJSON_AddBoolToObject(preinfusion, "weight",
                         core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kWeight));
   cJSON_AddNumberToObject(preinfusion, "time_s", config.preinfusion_time_s);
-  cJSON_AddNumberToObject(preinfusion, "pressure_bar", config.preinfusion_pressure_bar);
+  add_config_decimal(preinfusion, "pressure_bar", config.preinfusion_pressure_bar);
   cJSON_AddNumberToObject(preinfusion, "pump_pct", config.preinfusion_pump_pct);
   cJSON* rampdown = cJSON_AddObjectToObject(root, "rampdown");
   cJSON_AddStringToObject(rampdown, "mode", rampdown_mode_text(config.rampdown_mode));
-  cJSON_AddNumberToObject(rampdown, "lead_time_s", config.rampdown_lead_time_s);
-  cJSON_AddNumberToObject(rampdown, "lead_weight_g", config.rampdown_lead_weight_g);
-  cJSON_AddNumberToObject(rampdown, "pressure_drop_bar", config.rampdown_pressure_drop_bar);
+  add_config_decimal(rampdown, "lead_time_s", config.rampdown_lead_time_s);
+  add_config_decimal(rampdown, "lead_weight_g", config.rampdown_lead_weight_g);
+  add_config_decimal(rampdown, "pressure_drop_bar", config.rampdown_pressure_drop_bar);
   cJSON* purge = cJSON_AddObjectToObject(root, "purge");
   cJSON_AddNumberToObject(purge, "pump_pct", config.purge_pump_pct);
   cJSON_AddNumberToObject(purge, "max_s", config.purge_max_s);

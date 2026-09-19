@@ -12,7 +12,7 @@ using core::machine::State;
 using core::machine::StopReason;
 
 Config config() {
-  return {36, 28, 1, .05f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
+  return {36, 28, 1, .3f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
           3, 4, 1, 100, 100, 20};
 }
 
@@ -112,18 +112,17 @@ int main() {
   Machine filling_pressure;
   c = config();
   c.filling_time_s = 3;
-  input = {0, false, 0, true, 1900};
+  input = {0, false, 0, true};
   assert(filling_pressure.start(1000, c, input));
-  assert(filling_pressure.tick(2000, input).dimmer == 100);  // sample antérieur à 1 s ignoré
+  assert(filling_pressure.tick(2000, input).dimmer == 100);  // seuil non atteint
   input.pressure_bar = .2f;
-  input.pressure_sample_ms = 2000;
-  assert(filling_pressure.tick(2050, input).dimmer == 100);  // pose la référence
+  assert(filling_pressure.tick(2050, input).dimmer == 100);
   input.pressure_bar = .24f;
-  input.pressure_sample_ms = 2100;
   assert(filling_pressure.tick(2100, input).dimmer == 100);
-  input.pressure_bar = .25f;
-  input.pressure_sample_ms = 2200;
-  assert(filling_pressure.tick(2200, input).dimmer == 30);
+  input.pressure_bar = .3f;
+  assert(filling_pressure.tick(2200, input).dimmer == 100);  // strictement supérieur
+  input.pressure_bar = .31f;
+  assert(filling_pressure.tick(2300, input).dimmer == 30);
   assert(filling_pressure.state() == State::kPreinfusion);
 
   Machine purge;

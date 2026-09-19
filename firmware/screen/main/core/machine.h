@@ -31,7 +31,7 @@ struct Config {
   float target_weight_g;
   uint16_t target_time_s;
   uint16_t filling_time_s;
-  float filling_pressure_delta_bar;
+  float filling_pressure_target_bar;
   uint8_t filling_pump_pct;
   PreinfusionMode preinfusion_mode;
   uint16_t preinfusion_time_s;
@@ -51,7 +51,6 @@ struct Input {
   bool scale_present;
   float pressure_bar;
   bool pressure_valid = false;
-  uint64_t pressure_sample_ms = 0;
 };
 struct Output { uint8_t dimmer; uint16_t ttl_ms; };
 
@@ -88,9 +87,6 @@ class Machine {
   PreinfusionMode effective_preinfusion_mode_ = PreinfusionMode::kNone;
   float preinfusion_start_weight_g_ = 0.0f;
   bool preinfusion_scale_armed_ = false;
-  bool filling_pressure_reference_set_ = false;
-  float filling_pressure_reference_bar_ = 0.0f;
-  uint64_t filling_pressure_reference_sample_ms_ = 0;
 };
 
 }  // namespace core::machine

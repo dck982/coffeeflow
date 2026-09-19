@@ -25,9 +25,6 @@ bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
         ~static_cast<uint8_t>(PreinfusionMode::kWeight));
   }
   stop_reason_ = StopReason::kNone;
-  filling_pressure_reference_set_ = false;
-  filling_pressure_reference_bar_ = 0.0f;
-  filling_pressure_reference_sample_ms_ = 0;
   state_ = State::kFilling;
   return true;
 }
@@ -103,17 +100,8 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     const uint64_t elapsed = now_ms - started_ms_;
     if (elapsed < kFillingPressureGuardMs) return {config_.filling_pump_pct, kLeaseMs};
 
-    bool pressure_done = false;
-    if (!filling_pressure_reference_set_ && input.pressure_valid &&
-        input.pressure_sample_ms >= started_ms_ + kFillingPressureGuardMs) {
-      filling_pressure_reference_set_ = true;
-      filling_pressure_reference_bar_ = input.pressure_bar;
-      filling_pressure_reference_sample_ms_ = input.pressure_sample_ms;
-    } else if (filling_pressure_reference_set_ && input.pressure_valid &&
-               input.pressure_sample_ms > filling_pressure_reference_sample_ms_) {
-      pressure_done = input.pressure_bar - filling_pressure_reference_bar_ >=
-                      config_.filling_pressure_delta_bar - 0.000001f;
-    }
+    const bool pressure_done = input.pressure_valid &&
+                                input.pressure_bar > config_.filling_pressure_target_bar;
 
     const bool time_done = elapsed >= static_cast<uint64_t>(config_.filling_time_s) * 1000;
     if (!time_done && !pressure_done) return {config_.filling_pump_pct, kLeaseMs};

@@ -1048,7 +1048,7 @@ remplacement de XIAO ne fait rien perdre). Espace de noms `ui`.
 | Cible poids | `tgt_w` | 36,0 g | 10 g | 100 g | **0,5 g** |
 | Cible temps | `tgt_t` | 28 s | 5 s | 60 s | **1 s** |
 | Remplissage, durée maximale | `fill_t` | 3 s | 1 s | 10 s | 1 s |
-| Remplissage, delta pression | `fill_bar` | 0,05 bar | 0,01 bar | 1,00 bar | 0,01 bar |
+| Remplissage, cible pression | `fill_bar` | 0,3 bar | 0,1 bar | 1,0 bar | 0,1 bar |
 | Remplissage, niveau pompe | `fill_pct` | 100 % | 20 % | 100 % | 5 % |
 | Critères pré-infusion | `pi_mode` | `temps` | — | — | combinaison `temps` / `pression` / `poids` |
 | Pré-infusion, durée relative | `pi_t` | 4 s | 0 s | 20 s | 1 s |

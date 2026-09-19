@@ -610,18 +610,18 @@ et le cycle complet sur dalle restent à faire avec cette image.
 ### Remplissage initial (2026-09-19)
 
 Chaque infusion commence désormais par `kFilling`. La pompe reste au niveau
-`filling.pump_pct` sans condition pendant une seconde. Le premier nouvel
-échantillon de pression valide reçu ensuite devient la référence ; la phase se
-termine à `filling.time_s` ou lorsque la pression augmente de
-`filling.pressure_delta_bar`, selon le premier critère atteint. Les défauts sont
-3 s, 0,05 bar et 100 %. Une pression absente ou périmée ne peut pas poser la
-référence ; le timeout garantit néanmoins la progression du cycle.
+`filling.pump_pct` sans condition pendant une seconde. La phase se termine à
+`filling.time_s` ou lorsque la pression dépasse
+`filling.pressure_target_bar`, selon le premier critère atteint. Les défauts sont
+3 s, 0,3 bar et 100 %. La pression n'est évaluée qu'après cette première
+seconde, puis la phase se termine si elle est strictement supérieure à la
+cible ; le timeout garantit néanmoins la progression du cycle.
 
 La durée de pré-infusion est relative à l'entrée dans cette phase. Ses critères
 temps, pression et poids restent combinés par un OU, tandis que la cible temps
 globale de l'infusion reste absolue depuis le démarrage du cycle. Les captures
 HF exposent le nouveau mode `filling`. Le schéma de configuration passe à la
-version 3 avec migration des versions 1 et 2, et l'écran de réglages utilise
+version 4 avec migration des versions 1 à 3, et l'écran de réglages utilise
 quatre pages. La tuile `cible pression` est réservée mais désactivée : sa
 régulation fera l'objet d'un lot séparé.
 

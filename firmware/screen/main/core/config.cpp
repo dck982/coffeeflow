@@ -38,6 +38,33 @@ struct ConfigV2 {
 };
 struct StoredConfigV2 { uint32_t magic; ConfigV2 config; uint32_t checksum; };
 
+// Version 3 used a pressure delta relative to the first valid sample after
+// the one-second filling guard. Keep its layout so existing NVS blobs can be
+// migrated to the new absolute target semantics.
+struct ConfigV3 {
+  uint16_t version;
+  uint32_t revision;
+  float target_weight_g;
+  uint16_t target_time_s;
+  uint16_t filling_time_s;
+  float filling_pressure_delta_bar;
+  uint8_t filling_pump_pct;
+  PreinfusionMode preinfusion_mode;
+  uint16_t preinfusion_time_s;
+  float preinfusion_pressure_bar;
+  uint8_t preinfusion_pump_pct;
+  RampdownMode rampdown_mode;
+  float rampdown_lead_time_s;
+  float rampdown_lead_weight_g;
+  float rampdown_pressure_drop_bar;
+  uint8_t brew_pump_pct;
+  uint8_t purge_pump_pct;
+  uint16_t purge_max_s;
+  uint16_t dim_after_s;
+  uint16_t standby_after_s;
+};
+struct StoredConfigV3 { uint32_t magic; ConfigV3 config; uint32_t checksum; };
+
 enum class PreinfusionModeV1 : uint8_t { kTime, kPressure };
 struct ConfigV1 {
   uint16_t version;
@@ -79,6 +106,10 @@ uint32_t checksum_v2(const StoredConfigV2& stored) {
   return checksum_bytes(&stored, offsetof(StoredConfigV2, checksum));
 }
 
+uint32_t checksum_v3(const StoredConfigV3& stored) {
+  return checksum_bytes(&stored, offsetof(StoredConfigV3, checksum));
+}
+
 uint32_t checksum_v1(const StoredConfigV1& stored) {
   return checksum_bytes(&stored, offsetof(StoredConfigV1, checksum));
 }
@@ -95,6 +126,12 @@ bool read_v2_slot(nvs_handle_t handle, const char* key, StoredConfigV2* out) {
   return out->magic == kMagic && out->config.version == 2 && out->checksum == checksum_v2(*out);
 }
 
+bool read_v3_slot(nvs_handle_t handle, const char* key, StoredConfigV3* out) {
+  size_t size = sizeof(*out);
+  if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
+  return out->magic == kMagic && out->config.version == 3 && out->checksum == checksum_v3(*out);
+}
+
 bool read_v1_slot(nvs_handle_t handle, const char* key, StoredConfigV1* out) {
   size_t size = sizeof(*out);
   if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
@@ -107,6 +144,33 @@ Config migrate_v2(const ConfigV2& legacy) {
   migrated.revision = legacy.revision;
   migrated.target_weight_g = legacy.target_weight_g;
   migrated.target_time_s = legacy.target_time_s;
+  migrated.preinfusion_mode = legacy.preinfusion_mode;
+  migrated.preinfusion_time_s = legacy.preinfusion_time_s;
+  migrated.preinfusion_pressure_bar = legacy.preinfusion_pressure_bar;
+  migrated.preinfusion_pump_pct = legacy.preinfusion_pump_pct;
+  migrated.rampdown_mode = legacy.rampdown_mode;
+  migrated.rampdown_lead_time_s = legacy.rampdown_lead_time_s;
+  migrated.rampdown_lead_weight_g = legacy.rampdown_lead_weight_g;
+  migrated.rampdown_pressure_drop_bar = legacy.rampdown_pressure_drop_bar;
+  migrated.brew_pump_pct = legacy.brew_pump_pct;
+  migrated.purge_pump_pct = legacy.purge_pump_pct;
+  migrated.purge_max_s = legacy.purge_max_s;
+  migrated.dim_after_s = legacy.dim_after_s;
+  migrated.standby_after_s = legacy.standby_after_s;
+  return migrated;
+}
+
+Config migrate_v3(const ConfigV3& legacy) {
+  Config migrated{};
+  migrated.version = kConfigSchemaVersion;
+  migrated.revision = legacy.revision;
+  migrated.target_weight_g = legacy.target_weight_g;
+  migrated.target_time_s = legacy.target_time_s;
+  migrated.filling_time_s = legacy.filling_time_s;
+  // There is no lossless conversion from the old delta without the pressure
+  // reference captured during a cycle; use the new requested default.
+  migrated.filling_pressure_target_bar = Config{}.filling_pressure_target_bar;
+  migrated.filling_pump_pct = legacy.filling_pump_pct;
   migrated.preinfusion_mode = legacy.preinfusion_mode;
   migrated.preinfusion_time_s = legacy.preinfusion_time_s;
   migrated.preinfusion_pressure_bar = legacy.preinfusion_pressure_bar;
@@ -158,7 +222,7 @@ const char* validate(const Config& c) {
   if (!valid_step(c.target_weight_g, 10, 100, .5f)) return "brew.target_weight_g";
   if (c.target_time_s < 5 || c.target_time_s > 60) return "brew.target_time_s";
   if (c.filling_time_s < 1 || c.filling_time_s > 10) return "filling.time_s";
-  if (!valid_step(c.filling_pressure_delta_bar, .01f, 1.0f, .01f)) return "filling.pressure_delta_bar";
+  if (!valid_step(c.filling_pressure_target_bar, .1f, 1.0f, .1f)) return "filling.pressure_target_bar";
   if (c.filling_pump_pct < 20 || c.filling_pump_pct > 100 || c.filling_pump_pct % 5) return "filling.pump_pct";
   if ((static_cast<uint8_t>(c.preinfusion_mode) & ~0x07u) != 0) {
     return "preinfusion.mode";
@@ -208,25 +272,36 @@ void config_init() {
       selected = (!b_valid || (a_valid && a.config.revision >= b.config.revision)) ? a.config : b.config;
       found = true;
     } else {
-      StoredConfigV2 v2_a{}, v2_b{};
-      bool v2_a_valid = read_v2_slot(handle, "a", &v2_a);
-      bool v2_b_valid = read_v2_slot(handle, "b", &v2_b);
-      if (v2_a_valid || v2_b_valid) {
-        const StoredConfigV2& legacy =
-            (!v2_b_valid || (v2_a_valid && v2_a.config.revision >= v2_b.config.revision)) ? v2_a : v2_b;
-        selected = migrate_v2(legacy.config);
+      StoredConfigV3 v3_a{}, v3_b{};
+      bool v3_a_valid = read_v3_slot(handle, "a", &v3_a);
+      bool v3_b_valid = read_v3_slot(handle, "b", &v3_b);
+      if (v3_a_valid || v3_b_valid) {
+        const StoredConfigV3& legacy =
+            (!v3_b_valid || (v3_a_valid && v3_a.config.revision >= v3_b.config.revision)) ? v3_a : v3_b;
+        selected = migrate_v3(legacy.config);
         found = true;
         migrated = true;
       } else {
-        StoredConfigV1 v1_a{}, v1_b{};
-        bool v1_a_valid = read_v1_slot(handle, "a", &v1_a);
-        bool v1_b_valid = read_v1_slot(handle, "b", &v1_b);
-        if (v1_a_valid || v1_b_valid) {
-          const StoredConfigV1& legacy =
-              (!v1_b_valid || (v1_a_valid && v1_a.config.revision >= v1_b.config.revision)) ? v1_a : v1_b;
-          selected = migrate_v1(legacy.config);
+        StoredConfigV2 v2_a{}, v2_b{};
+        bool v2_a_valid = read_v2_slot(handle, "a", &v2_a);
+        bool v2_b_valid = read_v2_slot(handle, "b", &v2_b);
+        if (v2_a_valid || v2_b_valid) {
+          const StoredConfigV2& legacy =
+              (!v2_b_valid || (v2_a_valid && v2_a.config.revision >= v2_b.config.revision)) ? v2_a : v2_b;
+          selected = migrate_v2(legacy.config);
           found = true;
           migrated = true;
+        } else {
+          StoredConfigV1 v1_a{}, v1_b{};
+          bool v1_a_valid = read_v1_slot(handle, "a", &v1_a);
+          bool v1_b_valid = read_v1_slot(handle, "b", &v1_b);
+          if (v1_a_valid || v1_b_valid) {
+            const StoredConfigV1& legacy =
+                (!v1_b_valid || (v1_a_valid && v1_a.config.revision >= v1_b.config.revision)) ? v1_a : v1_b;
+            selected = migrate_v1(legacy.config);
+            found = true;
+            migrated = true;
+          }
         }
       }
     }

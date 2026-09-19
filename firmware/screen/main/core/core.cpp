@@ -308,7 +308,7 @@ uint16_t config_field_arg(const char* field) {
       {"purge", 21},
       {"ui", 22},
       {"filling.time_s", 23},
-      {"filling.pressure_delta_bar", 24},
+      {"filling.pressure_target_bar", 24},
       {"filling.pump_pct", 25},
       {"filling", 26},
   };
@@ -336,7 +336,7 @@ ActionResult action_result(ActionStatus status) { return {status, action_reason(
 
 machine::Config machine_config(const Config& c) {
   return {c.target_weight_g, c.target_time_s, c.filling_time_s,
-          c.filling_pressure_delta_bar, c.filling_pump_pct,
+          c.filling_pressure_target_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
           static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,
@@ -356,8 +356,7 @@ machine::Input machine_input(const Snapshot& s, int64_t now) {
   // cycle démarré juste après une mesure de balance part en mode temps.
   const bool pressure_fresh = s.pressure_valid && g_state.pressure_received_us != 0 &&
                               now - g_state.pressure_received_us <= 300 * 1000;
-  return {s.weight_g, scale_present_locked(now), s.pressure_bar, pressure_fresh,
-          static_cast<uint64_t>(g_state.pressure_received_us / 1000)};
+  return {s.weight_g, scale_present_locked(now), s.pressure_bar, pressure_fresh};
 }
 
 CycleState cycle_state(machine::State state) {

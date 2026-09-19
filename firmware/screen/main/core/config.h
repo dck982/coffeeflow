@@ -6,7 +6,7 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 3;
+inline constexpr uint16_t kConfigSchemaVersion = 4;
 
 enum class PreinfusionMode : uint8_t {
   kNone = 0,
@@ -34,7 +34,7 @@ struct Config {
   float target_weight_g = 36.0f;
   uint16_t target_time_s = 28;
   uint16_t filling_time_s = 3;
-  float filling_pressure_delta_bar = 0.05f;
+  float filling_pressure_target_bar = 0.3f;
   uint8_t filling_pump_pct = 100;
   PreinfusionMode preinfusion_mode = PreinfusionMode::kTime;
   uint16_t preinfusion_time_s = 4;

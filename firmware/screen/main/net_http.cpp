@@ -144,7 +144,7 @@ cJSON* encode_config(const core::Config& config) {
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
-  cJSON_AddNumberToObject(filling, "pressure_delta_bar", config.filling_pressure_delta_bar);
+  cJSON_AddNumberToObject(filling, "pressure_target_bar", config.filling_pressure_target_bar);
   cJSON_AddNumberToObject(filling, "pump_pct", config.filling_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
   cJSON_AddBoolToObject(preinfusion, "time",
@@ -418,8 +418,8 @@ bool apply_filling_key(const char* key, cJSON* value, core::Config* config, cons
   if (std::strcmp(key, "time_s") == 0) {
     return overlay_number_u16(value, "filling.time_s", &config->filling_time_s, error_field);
   }
-  if (std::strcmp(key, "pressure_delta_bar") == 0) {
-    return overlay_number_float(value, "filling.pressure_delta_bar", &config->filling_pressure_delta_bar,
+  if (std::strcmp(key, "pressure_target_bar") == 0) {
+    return overlay_number_float(value, "filling.pressure_target_bar", &config->filling_pressure_target_bar,
                                 error_field);
   }
   if (std::strcmp(key, "pump_pct") == 0) {

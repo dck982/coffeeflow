@@ -36,7 +36,7 @@ enum class Edit : uint8_t {
   Weight,
   Time,
   FillingTime,
-  FillingDelta,
+  FillingPressureTarget,
   FillingPump,
   PreTime,
   PrePressure,
@@ -407,7 +407,7 @@ lv_obj_t *navbar(lv_obj_t *p, const char *title, lv_obj_t **out,
   }
   if (accept) {
     v.key_ok = button(bar, 0, 0, 160, 80, "valider", Role::Primary);
-    lv_obj_align(v.key_ok, LV_ALIGN_RIGHT_MID, -32, 0);
+    lv_obj_align(v.key_ok, LV_ALIGN_RIGHT_MID, 0, 0);
     bind(v.key_ok);
   }
   return bar;
@@ -428,7 +428,7 @@ KeypadMode keypad_mode_for(Edit e) {
   // Ces grandeurs acceptent des fractions dans leur plage de validation.
   case Edit::Weight:
   case Edit::PrePressure:
-  case Edit::FillingDelta:
+  case Edit::FillingPressureTarget:
   case Edit::RampTime:
   case Edit::RampWeight:
   case Edit::RampDrop:
@@ -464,8 +464,8 @@ void set_title(Edit e) {
     t = "durée remplissage";
     u = "s";
     break;
-  case Edit::FillingDelta:
-    t = "delta pression rempl.";
+  case Edit::FillingPressureTarget:
+    t = "cible pression rempl.";
     u = "bar";
     break;
   case Edit::FillingPump:
@@ -530,9 +530,9 @@ void initial(Edit e) {
   case Edit::FillingTime:
     n = c.filling_time_s;
     break;
-  case Edit::FillingDelta:
-    n = c.filling_pressure_delta_bar;
-    decimals = 2;
+  case Edit::FillingPressureTarget:
+    n = c.filling_pressure_target_bar;
+    decimals = 1;
     break;
   case Edit::FillingPump:
     n = c.filling_pump_pct;
@@ -598,9 +598,9 @@ bool valid(float *n) {
     return *n >= 5 && *n <= 60 && std::floor(*n) == *n;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
-  case Edit::FillingDelta:
-    return *n >= .01f && *n <= 1.0f &&
-           std::fabs(*n * 100 - std::round(*n * 100)) < .01f;
+  case Edit::FillingPressureTarget:
+    return *n >= .1f && *n <= 1.0f &&
+           std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
   case Edit::FillingPump:
     return *n >= 20 && *n <= 100 && std::floor(*n) == *n &&
            static_cast<unsigned>(*n) % 5 == 0;
@@ -667,8 +667,8 @@ void key_accept(lv_event_t *) {
   case Edit::FillingTime:
     c.filling_time_s = n;
     break;
-  case Edit::FillingDelta:
-    c.filling_pressure_delta_bar = n;
+  case Edit::FillingPressureTarget:
+    c.filling_pressure_target_bar = n;
     break;
   case Edit::FillingPump:
     c.filling_pump_pct = n;
@@ -811,7 +811,7 @@ void tile_cb(lv_event_t *e) {
     if (i == 1)
       show_choice(Choice::Preinfusion);
     else {
-      Edit a[] = {Edit::FillingTime, Edit::None, Edit::FillingDelta,
+      Edit a[] = {Edit::FillingPressureTarget, Edit::None, Edit::FillingTime,
                   Edit::PreTime, Edit::None, Edit::PrePressure};
       if (a[i] != Edit::None) show_edit(a[i]);
     }
@@ -882,12 +882,12 @@ void render_settings() {
       tile(i, n[i], x[i]);
     disable(v.tile[4], true);
   } else if (page == 1) {
-    std::snprintf(x[0], 40, "%u s", c.filling_time_s);
+    std::snprintf(x[0], 40, "%.1f bar", double(c.filling_pressure_target_bar));
     preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));
-    std::snprintf(x[2], 40, "%.2f bar", double(c.filling_pressure_delta_bar));
+    std::snprintf(x[2], 40, "%u s", c.filling_time_s);
     std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
     fmt(x[5], sizeof(x[5]), c.preinfusion_pressure_bar, " bar");
-    const char *n[] = {"durée remplissage", "critères pré-inf.", "delta pression rempl.",
+    const char *n[] = {"cible pression rempl.", "critères pré-inf.", "durée remplissage",
                        "échéance pré-inf.", "", "seuil pression pré-inf."};
     for (unsigned i = 0; i < 6; ++i) tile(i, n[i], x[i]);
     hidden(v.tile[4], true);

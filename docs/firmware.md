@@ -306,9 +306,9 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "brew": { "target_weight_g": 36.0, "target_time_s": 28, "pump_pct": 100 },
-  "filling": { "time_s": 3, "pressure_delta_bar": 0.05, "pump_pct": 100 },
+  "filling": { "time_s": 3, "pressure_target_bar": 0.3, "pump_pct": 100 },
   "preinfusion": { "time": true, "pressure": false, "weight": false, "time_s": 4, "pressure_bar": 1.5, "pump_pct": 30 },
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
   "purge": { "pump_pct": 100, "max_s": 20 },

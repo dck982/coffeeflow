@@ -621,9 +621,10 @@ La durée de pré-infusion est relative à l'entrée dans cette phase. Ses crit�
 temps, pression et poids restent combinés par un OU, tandis que la cible temps
 globale de l'infusion reste absolue depuis le démarrage du cycle. Les captures
 HF exposent le nouveau mode `filling`. Le schéma de configuration passe à la
-version 4 avec migration des versions 1 à 3, et l'écran de réglages utilise
-quatre pages. La tuile `cible pression` est réservée mais désactivée : sa
-régulation fera l'objet d'un lot séparé.
+version 5 avec migration des versions 1 à 4, et l'écran de réglages utilise
+quatre pages. La tuile `cible pression` configure désormais
+`brew.target_pressure_bar` entre 6 et 12 bar. Sa régulation reste un travail
+séparé.
 
 ## Phase 7 — mise en boîte
 

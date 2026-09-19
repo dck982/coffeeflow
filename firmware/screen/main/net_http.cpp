@@ -147,6 +147,7 @@ cJSON* encode_config(const core::Config& config) {
   cJSON* brew = cJSON_AddObjectToObject(root, "brew");
   add_config_decimal(brew, "target_weight_g", config.target_weight_g);
   cJSON_AddNumberToObject(brew, "target_time_s", config.target_time_s);
+  add_config_decimal(brew, "target_pressure_bar", config.target_pressure_bar);
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
@@ -365,6 +366,9 @@ bool apply_brew_key(const char* key, cJSON* value, core::Config* config, const c
   }
   if (std::strcmp(key, "target_time_s") == 0) {
     return overlay_number_u16(value, "brew.target_time_s", &config->target_time_s, error_field);
+  }
+  if (std::strcmp(key, "target_pressure_bar") == 0) {
+    return overlay_number_float(value, "brew.target_pressure_bar", &config->target_pressure_bar, error_field);
   }
   if (std::strcmp(key, "pump_pct") == 0) {
     return overlay_number_u8(value, "brew.pump_pct", &config->brew_pump_pct, error_field);

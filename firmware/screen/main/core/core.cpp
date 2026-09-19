@@ -311,6 +311,7 @@ uint16_t config_field_arg(const char* field) {
       {"filling.pressure_target_bar", 24},
       {"filling.pump_pct", 25},
       {"filling", 26},
+      {"brew.target_pressure_bar", 27},
   };
   for (const Entry& entry : kFields) {
     if (std::strcmp(entry.name, field) == 0) return entry.id;

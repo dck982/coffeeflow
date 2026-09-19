@@ -35,6 +35,7 @@ enum class Edit : uint8_t {
   None,
   Weight,
   Time,
+  BrewPressure,
   FillingTime,
   FillingPressureTarget,
   FillingPump,
@@ -427,6 +428,7 @@ KeypadMode keypad_mode_for(Edit e) {
   switch (e) {
   // Ces grandeurs acceptent des fractions dans leur plage de validation.
   case Edit::Weight:
+  case Edit::BrewPressure:
   case Edit::PrePressure:
   case Edit::FillingPressureTarget:
   case Edit::RampTime:
@@ -459,6 +461,10 @@ void set_title(Edit e) {
   case Edit::Time:
     t = "cible temps";
     u = "s";
+    break;
+  case Edit::BrewPressure:
+    t = "cible pression";
+    u = "bar";
     break;
   case Edit::FillingTime:
     t = "durée remplissage";
@@ -526,6 +532,10 @@ void initial(Edit e) {
     break;
   case Edit::Time:
     n = c.target_time_s;
+    break;
+  case Edit::BrewPressure:
+    n = c.target_pressure_bar;
+    decimals = 1;
     break;
   case Edit::FillingTime:
     n = c.filling_time_s;
@@ -596,6 +606,9 @@ bool valid(float *n) {
            std::fabs(*n * 2 - std::round(*n * 2)) < .01;
   case Edit::Time:
     return *n >= 5 && *n <= 60 && std::floor(*n) == *n;
+  case Edit::BrewPressure:
+    return *n >= 6 && *n <= 12 &&
+           std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
   case Edit::FillingPressureTarget:
@@ -663,6 +676,9 @@ void key_accept(lv_event_t *) {
     break;
   case Edit::Time:
     c.target_time_s = n;
+    break;
+  case Edit::BrewPressure:
+    c.target_pressure_bar = n;
     break;
   case Edit::FillingTime:
     c.filling_time_s = n;
@@ -805,7 +821,7 @@ void tile_cb(lv_event_t *e) {
   unsigned i = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
   if (page == 0) {
     Edit a[] = {Edit::Time, Edit::FillingPump, Edit::Weight,
-                Edit::PrePump, Edit::None, Edit::BrewPump};
+                Edit::PrePump, Edit::BrewPressure, Edit::BrewPump};
     if (a[i] != Edit::None) show_edit(a[i]);
   } else if (page == 1) {
     if (i == 1)
@@ -874,13 +890,12 @@ void render_settings() {
     std::snprintf(x[1], 40, "%u %%", c.filling_pump_pct);
     fmt(x[2], sizeof(x[2]), c.target_weight_g, " g");
     std::snprintf(x[3], 40, "%u %%", c.preinfusion_pump_pct);
-    std::snprintf(x[4], 40, "à venir");
+    fmt(x[4], sizeof(x[4]), c.target_pressure_bar, " bar");
     std::snprintf(x[5], 40, "%u %%", c.brew_pump_pct);
     const char *n[] = {"cible temps", "pompe remplissage", "cible poids",
                        "pompe pré-inf.", "cible pression", "pompe infusion"};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
-    disable(v.tile[4], true);
   } else if (page == 1) {
     std::snprintf(x[0], 40, "%.1f bar", double(c.filling_pressure_target_bar));
     preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));

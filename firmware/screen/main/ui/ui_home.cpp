@@ -379,6 +379,7 @@ void back_key(lv_event_t *) {
 void back_choice(lv_event_t *) {
   choosing = Choice::None;
   hidden(v.choice, true);
+  render_settings();
   hidden(v.settings, false);
 }
 lv_obj_t *navbar(lv_obj_t *p, const char *title, lv_obj_t **out,

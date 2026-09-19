@@ -14,12 +14,22 @@
 #include <cstring>
 #include <iterator>
 
+#if defined(UI_SIM)
+extern char g_sim_clock_override[6];
+#endif
+
 namespace ui::home {
 namespace {
 using ulong = unsigned long;
 // Délai avant la récupération automatique d'un DimmerLink qui reste en
 // calibration. Ajuster cette constante plutôt que la logique de suivi.
 constexpr int64_t kDimmerCalibrationResetDelayS = 10;
+// Espacement horizontal uniforme du bandeau ; le réduire condense toutes ses
+// cellules sans modifier les largeurs réservées aux textes et aux icônes.
+constexpr int kTopbarGap = 12;
+// ui_font_28 a une hauteur de ligne légèrement supérieure à 32 px : ces deux
+// pixels empêchent le parent Flex de rogner les descendantes (notamment le g).
+constexpr int kTopbarHeight = 34;
 enum class Role : uint8_t { Secondary, Primary, Destructive, Disabled };
 enum class Edit : uint8_t {
   None,
@@ -42,6 +52,7 @@ struct View {
       *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
       *purge{}, *settings_button{}, *cycle{}, *phase{}, *hero{},
+      *hero_time{}, *hero_divider{},
       *cycle_detail{}, *progress{}, *stop{}, *settings{}, *index{}, *prev{},
       *next{}, *tile[6]{}, *tile_name[6]{}, *tile_value[6]{}, *diag{},
       *diag_val[9]{}, *diag_state[9]{}, *dot[9]{}, *keypad{}, *key_title{},
@@ -293,6 +304,29 @@ void disable(lv_obj_t *b, bool d) {
 }
 void rule(lv_obj_t *p, int x, int y, int w, int h = 1) {
   box(p, x, y, w, h, theme::kHairline, 0);
+}
+lv_obj_t *spacer(lv_obj_t *p, int w) {
+  lv_obj_t *o = lv_obj_create(p);
+  lv_obj_remove_style_all(o);
+  lv_obj_set_size(o, w, 1);
+  lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+  return o;
+}
+lv_obj_t *topbar_group(lv_obj_t *p, int w, bool grow = false) {
+  lv_obj_t *o = lv_obj_create(p);
+  lv_obj_remove_style_all(o);
+  lv_obj_set_size(o, w, kTopbarHeight);
+  lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(o, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(o, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  if (grow)
+    lv_obj_set_flex_grow(o, 1);
+  return o;
+}
+void topbar_rule(lv_obj_t *p) {
+  lv_obj_t *o = box(p, 0, 0, 1, 24, theme::kHairline, 0);
+  lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
 }
 void fmt(char *out, size_t n, float f, const char *s) {
   std::snprintf(out, n, "%.1f%s", static_cast<double>(f), s);
@@ -864,6 +898,11 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     return;
   char t[96];
   if (done) {
+    hidden(v.hero_time, true);
+    hidden(v.hero_divider, true);
+    lv_obj_set_width(v.hero, 800);
+    lv_obj_set_pos(v.hero, 0, 74);
+    lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
     text(v.phase, "terminé");
     if (s.last_shot_available) {
       fmt(t, sizeof(t), s.last_shot_weight_g, " g");
@@ -885,11 +924,29 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
   color(v.phase, s.cycle_state == core::CycleState::kPreinfusion
                      ? theme::kRampLow
                      : theme::kAccent);
-  if (s.cycle_weight_goal && s.cycle_state != core::CycleState::kPurge)
+  const bool show_weight_and_time =
+      s.cycle_weight_goal && s.cycle_state != core::CycleState::kPurge;
+  if (show_weight_and_time) {
+    // Deux zones fixes de part et d'autre de la barre centrale. Aucun objet
+    // n'est repositionné lors des mises à jour de télémétrie.
+    lv_obj_set_width(v.hero, 399);
+    lv_obj_set_pos(v.hero, 0, 74);
+    lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
     fmt(t, sizeof(t), s.weight_g - s.cycle_start_weight_g, " g");
-  else
+    text(v.hero, t);
     std::snprintf(t, sizeof(t), "%lu s", ulong(s.cycle_elapsed_ms / 1000));
-  text(v.hero, t);
+    text(v.hero_time, t);
+    hidden(v.hero_time, false);
+    hidden(v.hero_divider, false);
+  } else {
+    lv_obj_set_width(v.hero, 800);
+    lv_obj_set_pos(v.hero, 0, 74);
+    lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
+    std::snprintf(t, sizeof(t), "%lu s", ulong(s.cycle_elapsed_ms / 1000));
+    text(v.hero, t);
+    hidden(v.hero_time, true);
+    hidden(v.hero_divider, true);
+  }
   std::snprintf(t, sizeof(t), "%.1f bar · %.1f ml/s · pompe %u %%",
                 double(s.pressure_bar), double(s.flow_ml_s), s.dimmer_pct);
   text(v.cycle_detail, t);
@@ -903,6 +960,9 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
   color(v.hero, s.cycle_state == core::CycleState::kPreinfusion
                     ? theme::kRampLow
                     : theme::kAccent);
+  color(v.hero_time, s.cycle_state == core::CycleState::kPreinfusion
+                         ? theme::kRampLow
+                         : theme::kAccent);
   text(lv_obj_get_child(v.stop, 0), "arrêter");
 }
 
@@ -922,9 +982,6 @@ lv_obj_t *scale_icon(lv_obj_t *parent) {
   lv_obj_t *icon = lv_obj_create(parent);
   lv_obj_remove_style_all(icon);
   lv_obj_set_size(icon, 30, 24);
-  // Le dernier segment du bandeau contient l'heure et, si nécessaire,
-  // l'indicateur de balance. Garder l'icône à droite laisse l'heure lisible.
-  lv_obj_set_pos(icon, 765, 27);
 
   lv_obj_t *body = lv_obj_create(icon);
   lv_obj_remove_style_all(body);
@@ -947,7 +1004,6 @@ lv_obj_t *diagnostic_icon(lv_obj_t *parent) {
   lv_obj_t *icon = lv_obj_create(parent);
   lv_obj_remove_style_all(icon);
   lv_obj_set_size(icon, 24, 24);
-  lv_obj_set_pos(icon, 32, 29);
 
   lv_obj_t *body = lv_obj_create(icon);
   lv_obj_remove_style_all(body);
@@ -1006,21 +1062,66 @@ void create(lv_obj_t *p) {
     return;
   bn = 0;
   activity = esp_timer_get_time();
-  lv_obj_t *ignore = nullptr;
+  // Le bandeau n'emploie plus de coordonnées pour ses valeurs : les deux
+  // extrémités ont une largeur réservée et les télémétries occupent le solde.
+  // Les séparateurs font partie de ces calculs, afin qu'aucune valeur ne les
+  // recouvre lorsque son texte s'allonge.
+  lv_obj_t *topbar = lv_obj_create(p);
+  lv_obj_remove_style_all(topbar);
+  lv_obj_set_pos(topbar, theme::kMargin, 24);
+  lv_obj_set_size(topbar, theme::kScreenWidth - 2 * theme::kMargin + 27,
+                  kTopbarHeight);
+  lv_obj_remove_flag(topbar, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_flex_flow(topbar, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(topbar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+
+  // 24 icône + espacement + 82 horloge (80 px d'avance mesurée, +2 de
+  // marge) + espacement + séparateur + espacement + 104 version +
+  // espacement + séparateur = 260 px.
+  lv_obj_t *left = topbar_group(topbar, 260);
+  v.diagnostic = diagnostic_icon(left);
+  spacer(left, kTopbarGap);
+  dyn(left, &v.clock, "", theme::kFontStatus, theme::kTextDim, 0, 0);
+  lv_obj_set_width(v.clock, 82);
+  lv_label_set_long_mode(v.clock, LV_LABEL_LONG_CLIP);
+  spacer(left, kTopbarGap);
+  topbar_rule(left);
+  spacer(left, kTopbarGap);
   char profile[40];
   std::snprintf(profile, sizeof(profile), "v%u.%u.%02u",
                 common::kFirmwareVersionMajor, common::kFirmwareVersionMinor,
                 common::kFirmwareVersionPatch);
-  lab(p, &ignore, profile, theme::kFontStatus, theme::kText, 160, 24);
+  lv_obj_t *ignore = nullptr;
+  lab(left, &ignore, profile, theme::kFontStatus, theme::kText, 0, 0);
   lv_label_set_long_mode(ignore, LV_LABEL_LONG_CLIP);
   lv_obj_set_width(ignore, 104);
-  v.diagnostic = diagnostic_icon(p);
-  dyn(p, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 405, 24);
-  dyn(p, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 520, 24);
-  dyn(p, &v.weight, "", theme::kFontStatus, theme::kTextDim, 615, 24);
-  v.presence = scale_icon(p);
-  dyn(p, &v.clock, "", theme::kFontStatus, theme::kTextDim, 62, 24);
-  lv_obj_set_width(v.clock, 72);
+  spacer(left, kTopbarGap);
+  topbar_rule(left);
+
+  // Les trois valeurs se tassent naturellement vers la droite du solde, sans
+  // largeur artificielle. Les séparateurs restent attachés à leur valeur.
+  lv_obj_t *sensors = topbar_group(topbar, 1, true);
+  lv_obj_set_flex_align(sensors, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  dyn(sensors, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
+  spacer(sensors, kTopbarGap);
+  topbar_rule(sensors);
+  spacer(sensors, kTopbarGap);
+  dyn(sensors, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
+  spacer(sensors, kTopbarGap);
+  topbar_rule(sensors);
+  spacer(sensors, kTopbarGap);
+  dyn(sensors, &v.weight, "", theme::kFontStatus, theme::kTextDim, 0, 0);
+  // Préserver le même blanc avant le séparateur de la balance, y compris
+  // quand le poids est la dernière valeur visible.
+  spacer(sensors, kTopbarGap);
+
+  // Le groupe droit inclut son séparateur : 1 + espacement + 30 = 43 px.
+  lv_obj_t *right = topbar_group(topbar, 1 + kTopbarGap + 30);
+  topbar_rule(right);
+  spacer(right, kTopbarGap);
+  v.presence = scale_icon(right);
   // L'icône et la cellule de l'heure sont les deux zones d'accès aux
   // diagnostics. La balance reste une indication tactile séparée à droite.
   for (lv_obj_t *status : {v.diagnostic, v.clock, v.presence}) {
@@ -1028,12 +1129,6 @@ void create(lv_obj_t *p) {
     lv_obj_add_event_cb(status, note, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(status, show_diagnostics, LV_EVENT_CLICKED, nullptr);
   }
-  // Les séparateurs ne font pas partie des chaînes dynamiques : leur position
-  // reste stable lorsque la largeur d'une mesure change.
-  rule(p, 144, 32, 1, 24);
-  rule(p, 504, 32, 1, 24);
-  rule(p, 600, 32, 1, 24);
-  rule(p, 272, 32, 1, 24);
   dyn(p, &v.target, "-", theme::kFontHeroRest, theme::kText, 0, 112);
   lv_obj_set_width(v.target, 800);
   lv_obj_set_style_text_align(v.target, LV_TEXT_ALIGN_CENTER, 0);
@@ -1079,8 +1174,18 @@ void create(lv_obj_t *p) {
   lv_obj_set_width(v.phase, 800);
   lv_obj_set_style_text_align(v.phase, LV_TEXT_ALIGN_CENTER, 0);
   dyn(v.cycle, &v.hero, "", theme::kFontHeroBrew, theme::kAccent, 0, 74);
+  // Deux cellules héro fixes de 399 px, séparées par une barre verticale de
+  // 2 px exactement au centre. Hors du mode poids, la première reprend toute
+  // la largeur et la barre est masquée.
   lv_obj_set_width(v.hero, 800);
   lv_obj_set_style_text_align(v.hero, LV_TEXT_ALIGN_CENTER, 0);
+  dyn(v.cycle, &v.hero_time, "", theme::kFontHeroBrew, theme::kAccent, 401,
+      74);
+  lv_obj_set_width(v.hero_time, 399);
+  lv_obj_set_style_text_align(v.hero_time, LV_TEXT_ALIGN_CENTER, 0);
+  hidden(v.hero_time, true);
+  v.hero_divider = box(v.cycle, 399, 74, 2, 104, theme::kTextFaint, 0);
+  hidden(v.hero_divider, true);
   rule(v.cycle, 190, 186, 420, 2);
   v.progress = box(v.cycle, 190, 186, 0, 2, theme::kAccent, 0);
   dyn(v.cycle, &v.cycle_detail, "", theme::kFontSecondary, theme::kTextDim, 0,
@@ -1306,11 +1411,19 @@ void refresh(const core::Snapshot &s, bool boot) {
   hidden(v.presence, !s.scale_connected);
   hidden(v.clock, !s.time_known);
   if (s.time_known) {
+#if defined(UI_SIM)
+    if (g_sim_clock_override[0] != '\0') {
+      text(v.clock, g_sim_clock_override);
+    } else {
+#endif
     std::time_t now = std::time(nullptr);
     std::tm local{};
     localtime_r(&now, &local);
     std::strftime(t, sizeof(t), "%H:%M", &local);
     text(v.clock, t);
+#if defined(UI_SIM)
+    }
+#endif
   }
   if (scale) {
     fmt(t, sizeof(t), c.target_weight_g, " g");

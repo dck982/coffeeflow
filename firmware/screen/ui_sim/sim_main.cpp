@@ -10,6 +10,7 @@
 #include "ui/ui_theme.h"
 
 extern int64_t g_sim_time_us;
+char g_sim_clock_override[6]{};
 
 namespace {
 uint32_t g_display_buffer[800 * 480];
@@ -65,6 +66,37 @@ void click_at(lv_obj_t *screen, int x, int y) {
   if (button != nullptr)
     lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
 }
+
+int clock_width(const char *clock) {
+  int width = 0;
+  uint32_t previous = 0;
+  for (const char *c = clock; *c != '\0'; ++c) {
+    lv_font_glyph_dsc_t dsc{};
+    if (lv_font_get_glyph_dsc(ui::theme::kFontStatus, &dsc,
+                              static_cast<uint8_t>(*c), previous))
+      width += dsc.adv_w;
+    previous = static_cast<uint8_t>(*c);
+  }
+  return width;
+}
+
+void select_widest_valid_clock() {
+  int widest = -1;
+  for (int hour = 0; hour < 24; ++hour) {
+    for (int minute = 0; minute < 60; ++minute) {
+      char candidate[6];
+      std::snprintf(candidate, sizeof(candidate), "%02d:%02d", hour, minute);
+      const int width = clock_width(candidate);
+      if (width > widest) {
+        widest = width;
+        std::snprintf(g_sim_clock_override, sizeof(g_sim_clock_override), "%s",
+                      candidate);
+      }
+    }
+  }
+  std::printf("wide top bar clock: %s (%d px advance)\n",
+              g_sim_clock_override, widest);
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -82,12 +114,14 @@ int main(int argc, char **argv) {
   lv_obj_set_style_bg_color(screen, ui::theme::kBg, 0);
   lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
   lv_screen_load(screen);
+  if (std::strcmp(scenario, "wide-topbar") == 0)
+    select_widest_valid_clock();
   ui::home::create(screen);
   core::Snapshot snapshot{};
   snapshot.sensors_alive = true;
   snapshot.pressure_valid = true;
   snapshot.pressure_freshness = core::Freshness::kFresh;
-  snapshot.pressure_bar = 9.1f;
+  snapshot.pressure_bar = std::strcmp(scenario, "wide-topbar") == 0 ? -10.1f : 9.1f;
   snapshot.temperature_c = 93.4f;
   snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0;
   snapshot.scale_connected = snapshot.scale_present;

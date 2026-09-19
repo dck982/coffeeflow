@@ -30,6 +30,7 @@ enum class RampdownMode : uint8_t { kNone, kTime, kWeight, kPressureDrop };
 struct Config {
   float target_weight_g;
   uint16_t target_time_s;
+  float target_pressure_bar;
   uint16_t filling_time_s;
   float filling_pressure_target_bar;
   uint8_t filling_pump_pct;
@@ -74,6 +75,7 @@ class Machine {
   }
 
  private:
+  void enter_brew(uint64_t now_ms);
   void finish(StopReason reason, uint64_t now_ms);
   State state_ = State::kIdle;
   StopReason stop_reason_ = StopReason::kNone;
@@ -87,6 +89,8 @@ class Machine {
   PreinfusionMode effective_preinfusion_mode_ = PreinfusionMode::kNone;
   float preinfusion_start_weight_g_ = 0.0f;
   bool preinfusion_scale_armed_ = false;
+  uint8_t brew_pump_pct_ = 0;
+  uint64_t last_brew_pressure_adjustment_ms_ = 0;
 };
 
 }  // namespace core::machine

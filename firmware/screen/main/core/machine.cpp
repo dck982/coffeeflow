@@ -1,10 +1,14 @@
 #include "core/machine.h"
 
+#include "core/config.h"
+
 namespace core::machine {
 namespace {
 constexpr uint16_t kLeaseMs = 500;
 constexpr float kScaleBackwardsG = 5.0f;
 constexpr uint64_t kFillingPressureGuardMs = 1000;
+constexpr uint64_t kBrewPressureAdjustmentPeriodMs = 200;
+constexpr uint8_t kBrewPressureAdjustmentStepPct = 5;
 }
 
 bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
@@ -69,6 +73,15 @@ void Machine::finish(StopReason reason, uint64_t now_ms) {
   stop_reason_ = reason;
 }
 
+void Machine::enter_brew(uint64_t now_ms) {
+  state_ = State::kBrew;
+  phase_started_ms_ = now_ms;
+  brew_pump_pct_ = config_.brew_pump_pct < core::kMinimumBrewPumpPct
+                       ? core::kMinimumBrewPumpPct
+                       : config_.brew_pump_pct;
+  last_brew_pressure_adjustment_ms_ = now_ms;
+}
+
 Output Machine::tick(uint64_t now_ms, const Input& input) {
   if (state_ == State::kPurge) {
     if (now_ms - started_ms_ >= static_cast<uint64_t>(config_.purge_max_s) * 1000) finish(StopReason::kPurgeTimeout, now_ms);
@@ -106,12 +119,14 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     const bool time_done = elapsed >= static_cast<uint64_t>(config_.filling_time_s) * 1000;
     if (!time_done && !pressure_done) return {config_.filling_pump_pct, kLeaseMs};
 
-    state_ = (effective_preinfusion_mode_ == PreinfusionMode::kNone ||
-              (effective_preinfusion_mode_ == PreinfusionMode::kTime &&
-               config_.preinfusion_time_s == 0))
-                 ? State::kBrew
-                 : State::kPreinfusion;
-    phase_started_ms_ = now_ms;
+    if (effective_preinfusion_mode_ == PreinfusionMode::kNone ||
+        (effective_preinfusion_mode_ == PreinfusionMode::kTime &&
+         config_.preinfusion_time_s == 0)) {
+      enter_brew(now_ms);
+    } else {
+      state_ = State::kPreinfusion;
+      phase_started_ms_ = now_ms;
+    }
   }
 
   if (state_ == State::kPreinfusion) {
@@ -127,8 +142,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
       done = true;
     }
     if (!done) return {config_.preinfusion_pump_pct, kLeaseMs};
-    state_ = State::kBrew;
-    phase_started_ms_ = now_ms;
+    enter_brew(now_ms);
   }
   if (state_ == State::kBrew) {
     bool ramp = config_.rampdown_mode == RampdownMode::kTime &&
@@ -139,9 +153,27 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
       phase_started_ms_ = now_ms;
     }
   }
-  // La calibration déterminera la vraie pente; le premier cycle conserve le
-  // niveau nominal, mais expose explicitement la phase pour l'UI et les traces.
-  return {config_.brew_pump_pct, kLeaseMs};
+  if (state_ == State::kBrew &&
+      now_ms - last_brew_pressure_adjustment_ms_ >= kBrewPressureAdjustmentPeriodMs) {
+    // Une échéance retardée ne vaut qu'un seul palier : il ne faut pas tenter
+    // de rattraper les périodes écoulées dans un même tick().
+    last_brew_pressure_adjustment_ms_ = now_ms;
+    if (input.pressure_valid) {
+      if (input.pressure_bar > config_.target_pressure_bar) {
+        brew_pump_pct_ = brew_pump_pct_ <= core::kMinimumBrewPumpPct + kBrewPressureAdjustmentStepPct
+                             ? core::kMinimumBrewPumpPct
+                             : static_cast<uint8_t>(brew_pump_pct_ - kBrewPressureAdjustmentStepPct);
+      } else if (input.pressure_bar < config_.target_pressure_bar) {
+        const uint8_t brew_pump_ceiling = config_.brew_pump_pct < core::kMinimumBrewPumpPct
+                                            ? core::kMinimumBrewPumpPct
+                                            : config_.brew_pump_pct;
+        brew_pump_pct_ = brew_pump_pct_ >= brew_pump_ceiling - kBrewPressureAdjustmentStepPct
+                             ? brew_pump_ceiling
+                             : static_cast<uint8_t>(brew_pump_pct_ + kBrewPressureAdjustmentStepPct);
+      }
+    }
+  }
+  return {brew_pump_pct_, kLeaseMs};
 }
 
 }  // namespace core::machine

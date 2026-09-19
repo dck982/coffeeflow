@@ -297,7 +297,7 @@ const char* validate(const Config& c) {
   if (!valid_step(c.rampdown_lead_time_s, 0, 15, .5f)) return "rampdown.lead_time_s";
   if (!valid_step(c.rampdown_lead_weight_g, 0, 20, .5f)) return "rampdown.lead_weight_g";
   if (!valid_step(c.rampdown_pressure_drop_bar, .5f, 4, .5f)) return "rampdown.pressure_drop_bar";
-  if (c.brew_pump_pct < 20 || c.brew_pump_pct > 100 || c.brew_pump_pct % 5) return "brew.pump_pct";
+  if (c.brew_pump_pct < kMinimumBrewPumpPct || c.brew_pump_pct > 100 || c.brew_pump_pct % 5) return "brew.pump_pct";
   if (c.purge_pump_pct < 20 || c.purge_pump_pct > 100 || c.purge_pump_pct % 5) return "purge.pump_pct";
   if (c.purge_max_s < 5 || c.purge_max_s > 60 || c.purge_max_s % 5) return "purge.max_s";
   if (c.dim_after_s < 60 || c.dim_after_s > 1800 || c.dim_after_s % 60) return "ui.dim_after_s";
@@ -381,7 +381,11 @@ void config_init() {
     }
     nvs_close(handle);
   }
-  if (migrated && !persist(selected)) ESP_LOGE(kTag, "cannot persist migrated configuration");
+  const bool normalized_brew_pump = selected.brew_pump_pct < kMinimumBrewPumpPct;
+  if (normalized_brew_pump) selected.brew_pump_pct = kMinimumBrewPumpPct;
+  if ((migrated || (found && normalized_brew_pump)) && !persist(selected)) {
+    ESP_LOGE(kTag, "cannot persist migrated or normalized configuration");
+  }
   if (!found) { selected = Config{}; selected.revision = 1; if (!persist(selected)) ESP_LOGE(kTag, "cannot persist defaults"); }
   portENTER_CRITICAL(&g_lock); g_config = selected; portEXIT_CRITICAL(&g_lock);
 }

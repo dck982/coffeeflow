@@ -336,7 +336,7 @@ const char* action_reason(ActionStatus status) {
 ActionResult action_result(ActionStatus status) { return {status, action_reason(status)}; }
 
 machine::Config machine_config(const Config& c) {
-  return {c.target_weight_g, c.target_time_s, c.filling_time_s,
+  return {c.target_weight_g, c.target_time_s, c.target_pressure_bar, c.filling_time_s,
           c.filling_pressure_target_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,

@@ -630,6 +630,8 @@ bool valid(float *n) {
   case Edit::RampDrop:
     return *n >= .5 && *n <= 4;
   case Edit::BrewPump:
+    return *n >= core::kMinimumBrewPumpPct && *n <= 100 && std::floor(*n) == *n &&
+           static_cast<unsigned>(*n) % 5 == 0;
   case Edit::PurgePump:
     return *n >= 20 && *n <= 100 && std::floor(*n) == *n;
   case Edit::PurgeMax:

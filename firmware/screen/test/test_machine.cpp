@@ -12,7 +12,7 @@ using core::machine::State;
 using core::machine::StopReason;
 
 Config config() {
-  return {36, 28, 1, .3f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
+  return {36, 28, 9.0f, 1, .3f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
           3, 4, 1, 100, 100, 20};
 }
 
@@ -39,6 +39,54 @@ int main() {
   assert(no_preinfusion.state() == State::kFilling);
   assert(no_preinfusion.tick(2000, input).dimmer == 100);
   assert(no_preinfusion.state() == State::kBrew);
+
+  Machine regulated;
+  c = config();
+  c.preinfusion_mode = PreinfusionMode::kNone;
+  input = {0, false, 8.0f, true};
+  assert(regulated.start(1000, c, input));
+  assert(regulated.tick(2000, input).dimmer == 100);
+  assert(regulated.tick(2199, input).dimmer == 100);  // pas avant 200 ms
+  input.pressure_bar = 9.5f;
+  assert(regulated.tick(2200, input).dimmer == 95);
+  assert(regulated.tick(2399, input).dimmer == 95);
+  assert(regulated.tick(2400, input).dimmer == 90);
+  input.pressure_bar = 8.5f;
+  assert(regulated.tick(2600, input).dimmer == 95);
+  assert(regulated.tick(2800, input).dimmer == 100);
+  input.pressure_bar = 9.0f;
+  assert(regulated.tick(3000, input).dimmer == 100);
+  input.pressure_bar = 10.0f;
+  assert(regulated.tick(10000, input).dimmer == 95);  // un seul palier après un retard
+  input.pressure_valid = false;
+  assert(regulated.tick(10200, input).dimmer == 95);
+  input.pressure_valid = true;
+  for (uint64_t now = 10400; now <= 12200; now += 200) {
+    assert(regulated.tick(now, input).dimmer >= 50);
+  }
+  assert(regulated.tick(12400, input).dimmer == 50);
+
+  Machine safe_direct_config;
+  c = config();
+  c.preinfusion_mode = PreinfusionMode::kNone;
+  c.brew_pump_pct = 20;
+  input = {0, false, 10.0f, true};
+  assert(safe_direct_config.start(1000, c, input));
+  assert(safe_direct_config.tick(2000, input).dimmer == 50);
+  assert(safe_direct_config.tick(2200, input).dimmer == 50);
+
+  Machine ramp_after_regulation;
+  c = config();
+  c.preinfusion_mode = PreinfusionMode::kNone;
+  c.rampdown_mode = RampdownMode::kTime;
+  c.rampdown_lead_time_s = 3;
+  input = {0, false, 10.0f, true};
+  assert(ramp_after_regulation.start(1000, c, input));
+  assert(ramp_after_regulation.tick(2000, input).dimmer == 100);
+  assert(ramp_after_regulation.tick(2200, input).dimmer == 95);
+  assert(ramp_after_regulation.tick(2400, input).dimmer == 90);
+  assert(ramp_after_regulation.tick(26000, input).dimmer == 90);
+  assert(ramp_after_regulation.state() == State::kRampdown);
 
   Machine pressure;
   c = config();

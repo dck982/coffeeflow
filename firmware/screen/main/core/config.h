@@ -7,6 +7,9 @@
 namespace core {
 
 inline constexpr uint16_t kConfigSchemaVersion = 5;
+// Sous cette puissance, la pompe ne maintient plus une pression d'infusion
+// sûre. Cette borne est distincte des puissances de remplissage et de purge.
+inline constexpr uint8_t kMinimumBrewPumpPct = 50;
 
 enum class PreinfusionMode : uint8_t {
   kNone = 0,

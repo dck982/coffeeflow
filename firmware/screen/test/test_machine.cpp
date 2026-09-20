@@ -43,28 +43,30 @@ int main() {
   Machine regulated;
   c = config();
   c.preinfusion_mode = PreinfusionMode::kNone;
-  input = {0, false, 8.0f, true};
+  input = {0, false, 6.9f, true};
   assert(regulated.start(1000, c, input));
   assert(regulated.tick(2000, input).dimmer == 100);
   assert(regulated.tick(2199, input).dimmer == 100);  // pas avant 200 ms
-  input.pressure_bar = 9.5f;
-  assert(regulated.tick(2200, input).dimmer == 95);
-  assert(regulated.tick(2399, input).dimmer == 95);
-  assert(regulated.tick(2400, input).dimmer == 90);
+  assert(regulated.tick(2200, input).dimmer == 100);  // PI inactif sous cible - 2 bar
+  input.pressure_bar = 7.0f;
+  assert(regulated.tick(2400, input).dimmer == 100);  // activation sans saut
+  input.pressure_bar = 8.0f;
+  assert(regulated.tick(2600, input).dimmer == 86);   // terme proportionnel dominant
   input.pressure_bar = 8.5f;
-  assert(regulated.tick(2600, input).dimmer == 95);
-  assert(regulated.tick(2800, input).dimmer == 100);
+  assert(regulated.tick(2800, input).dimmer == 78);
   input.pressure_bar = 9.0f;
-  assert(regulated.tick(3000, input).dimmer == 100);
-  input.pressure_bar = 10.0f;
-  assert(regulated.tick(10000, input).dimmer == 95);  // un seul palier après un retard
+  assert(regulated.tick(3000, input).dimmer == 71);
+  input.pressure_bar = 9.5f;
+  assert(regulated.tick(3200, input).dimmer == 63);
   input.pressure_valid = false;
-  assert(regulated.tick(10200, input).dimmer == 95);
+  assert(regulated.tick(3400, input).dimmer == 63);
   input.pressure_valid = true;
-  for (uint64_t now = 10400; now <= 12200; now += 200) {
-    assert(regulated.tick(now, input).dimmer >= 50);
+  input.pressure_bar = 12.0f;
+  for (uint64_t now = 3600; now <= 5600; now += 200) {
+    assert(regulated.tick(now, input).dimmer == 50);
   }
-  assert(regulated.tick(12400, input).dimmer == 50);
+  input.pressure_bar = 9.0f;
+  assert(regulated.tick(5800, input).dimmer == 71);  // pas de windup à la borne basse
 
   Machine safe_direct_config;
   c = config();
@@ -83,9 +85,9 @@ int main() {
   input = {0, false, 10.0f, true};
   assert(ramp_after_regulation.start(1000, c, input));
   assert(ramp_after_regulation.tick(2000, input).dimmer == 100);
-  assert(ramp_after_regulation.tick(2200, input).dimmer == 95);
-  assert(ramp_after_regulation.tick(2400, input).dimmer == 90);
-  assert(ramp_after_regulation.tick(26000, input).dimmer == 90);
+  assert(ramp_after_regulation.tick(2200, input).dimmer == 85);
+  assert(ramp_after_regulation.tick(2400, input).dimmer == 84);
+  assert(ramp_after_regulation.tick(26000, input).dimmer == 84);
   assert(ramp_after_regulation.state() == State::kRampdown);
 
   Machine pressure;

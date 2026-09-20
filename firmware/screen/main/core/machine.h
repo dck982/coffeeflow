@@ -90,7 +90,9 @@ class Machine {
   float preinfusion_start_weight_g_ = 0.0f;
   bool preinfusion_scale_armed_ = false;
   uint8_t brew_pump_pct_ = 0;
-  uint64_t last_brew_pressure_adjustment_ms_ = 0;
+  bool brew_pressure_control_active_ = false;
+  float brew_pressure_integral_pct_ = 0.0f;
+  uint64_t last_brew_pressure_control_ms_ = 0;
 };
 
 }  // namespace core::machine

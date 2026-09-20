@@ -1,5 +1,8 @@
 #include "core/machine.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "core/config.h"
 
 namespace core::machine {
@@ -7,8 +10,12 @@ namespace {
 constexpr uint16_t kLeaseMs = 500;
 constexpr float kScaleBackwardsG = 5.0f;
 constexpr uint64_t kFillingPressureGuardMs = 1000;
-constexpr uint64_t kBrewPressureAdjustmentPeriodMs = 200;
-constexpr uint8_t kBrewPressureAdjustmentStepPct = 5;
+constexpr uint64_t kBrewPressureControlPeriodMs = 200;
+constexpr float kBrewPressureActivationMarginBar = 2.0f;
+// Réglage initial tiré de la première capture réelle : autour de 9 bar, le
+// point de fonctionnement est proche de 70 %, avec 300 à 400 ms de retard.
+constexpr float kBrewPressureKpPctPerBar = 15.0f;
+constexpr float kBrewPressureKiPctPerBarSecond = 3.0f;
 }
 
 bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
@@ -79,7 +86,9 @@ void Machine::enter_brew(uint64_t now_ms) {
   brew_pump_pct_ = config_.brew_pump_pct < core::kMinimumBrewPumpPct
                        ? core::kMinimumBrewPumpPct
                        : config_.brew_pump_pct;
-  last_brew_pressure_adjustment_ms_ = now_ms;
+  brew_pressure_control_active_ = false;
+  brew_pressure_integral_pct_ = static_cast<float>(brew_pump_pct_);
+  last_brew_pressure_control_ms_ = now_ms;
 }
 
 Output Machine::tick(uint64_t now_ms, const Input& input) {
@@ -154,22 +163,45 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     }
   }
   if (state_ == State::kBrew &&
-      now_ms - last_brew_pressure_adjustment_ms_ >= kBrewPressureAdjustmentPeriodMs) {
-    // Une échéance retardée ne vaut qu'un seul palier : il ne faut pas tenter
-    // de rattraper les périodes écoulées dans un même tick().
-    last_brew_pressure_adjustment_ms_ = now_ms;
+      now_ms - last_brew_pressure_control_ms_ >= kBrewPressureControlPeriodMs) {
+    last_brew_pressure_control_ms_ = now_ms;
     if (input.pressure_valid) {
-      if (input.pressure_bar > config_.target_pressure_bar) {
-        brew_pump_pct_ = brew_pump_pct_ <= core::kMinimumBrewPumpPct + kBrewPressureAdjustmentStepPct
-                             ? core::kMinimumBrewPumpPct
-                             : static_cast<uint8_t>(brew_pump_pct_ - kBrewPressureAdjustmentStepPct);
-      } else if (input.pressure_bar < config_.target_pressure_bar) {
-        const uint8_t brew_pump_ceiling = config_.brew_pump_pct < core::kMinimumBrewPumpPct
-                                            ? core::kMinimumBrewPumpPct
-                                            : config_.brew_pump_pct;
-        brew_pump_pct_ = brew_pump_pct_ >= brew_pump_ceiling - kBrewPressureAdjustmentStepPct
-                             ? brew_pump_ceiling
-                             : static_cast<uint8_t>(brew_pump_pct_ + kBrewPressureAdjustmentStepPct);
+      const float error_bar = config_.target_pressure_bar - input.pressure_bar;
+      const float pump_floor = static_cast<float>(core::kMinimumBrewPumpPct);
+      const float pump_ceiling = static_cast<float>(config_.brew_pump_pct < core::kMinimumBrewPumpPct
+                                                        ? core::kMinimumBrewPumpPct
+                                                        : config_.brew_pump_pct);
+
+      if (!brew_pressure_control_active_ &&
+          input.pressure_bar >= config_.target_pressure_bar - kBrewPressureActivationMarginBar) {
+        // Initialiser I pour que P + I reproduise la commande courante : le
+        // passage en boucle fermée ne crée ainsi aucun saut de puissance.
+        brew_pressure_control_active_ = true;
+        brew_pressure_integral_pct_ = std::clamp(
+            static_cast<float>(brew_pump_pct_) - kBrewPressureKpPctPerBar * error_bar,
+            pump_floor, pump_ceiling);
+      } else if (brew_pressure_control_active_) {
+        const float proportional_pct = kBrewPressureKpPctPerBar * error_bar;
+        const float candidate_integral_pct = brew_pressure_integral_pct_ +
+            kBrewPressureKiPctPerBarSecond * error_bar *
+                (static_cast<float>(kBrewPressureControlPeriodMs) / 1000.0f);
+        const float candidate_output_pct = proportional_pct + candidate_integral_pct;
+
+        // Anti-windup conditionnel : ne pas pousser davantage l'intégrale
+        // lorsqu'une saturation empêche déjà la commande demandée.
+        const bool winds_up_high = candidate_output_pct > pump_ceiling && error_bar > 0.0f;
+        const bool winds_up_low = candidate_output_pct < pump_floor && error_bar < 0.0f;
+        if (!winds_up_high && !winds_up_low) {
+          brew_pressure_integral_pct_ = std::clamp(candidate_integral_pct,
+                                                   pump_floor, pump_ceiling);
+        }
+      }
+
+      if (brew_pressure_control_active_) {
+        const float output_pct = std::clamp(
+            kBrewPressureKpPctPerBar * error_bar + brew_pressure_integral_pct_,
+            pump_floor, pump_ceiling);
+        brew_pump_pct_ = static_cast<uint8_t>(std::lround(output_pct));
       }
     }
   }

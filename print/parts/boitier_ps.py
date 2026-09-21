@@ -3,6 +3,7 @@ from nurb import *
 from system import (
     INSERT_M3,
     AMIN,
+    CMIN,
     _fuse_one,
     add_well,
     add_wall,
@@ -282,9 +283,12 @@ def boitier_ps(
         plane=Plane.YZ, flush=True,
     )
     body = add_corbel(
-        body, inner_x / 2.0, inner_y, hauteur,
+        body, inner_x / 2.0 - along, inner_y, hauteur,
         plane=Plane.YZ, flush=True, reverse=True,
     )
+    # body += Pos(corbels(wall)[2][0],corbels(wall)[2][1],hauteur-5)*Cylinder(1,5,align=CMIN)
+    # cb = corbels(wall)[2][3]
+    # body += Pos(cb.min.X,cb.min.Y,hauteur+5)*Box(cb.size.X,cb.size.Y,2,align=AMIN)
 
     # Openings last, through the outer walls. Height overshoots the rim.
     margin = 0.5

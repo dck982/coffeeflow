@@ -40,11 +40,6 @@ value = 18.6
 unit = "mm"
 how = "user: Wago 221-423 body in the wire-entry direction. Matches WAGO datasheet depth 18.6 mm."
 
-[wago_hauteur]
-value = 8.3
-unit = "mm"
-how = "user: Wago 221-423 body height. Datasheet 221-423 is 8.4 mm; levers need extra room to open."
-
 [wago_epaisseur]
 value = 8.4
 unit = "mm"
@@ -1016,10 +1011,66 @@ how = "user 2026-09-02: cable-tie width. Inner slot of the anti-tirage U is 3 mm
 value = 10.0
 unit = "mm"
 how = "user 2026-09-02: west edge of the U on the inner south face, 10 mm from the SW corner."
+
 [digmesa_corps_diametre]
 value = 32.0
 unit = "mm"
 how = "Digmesa FHKSC, docs/datasheets/digmesa-measurements.png, extrait page 2 : corps inférieur Ø32."
+
+[boitier_pid_largeur]
+value = 60
+unit = "mm"
+how = "user 2026-09-20: largeur disponible pour boitier PID (X)"
+
+[boitier_pid_longueur]
+value = 50
+unit = "mm"
+how = "user 2026-09-20: longeur disponible pour boitier PID (Y)"
+
+[boitier_pid_ouverture_largeur]
+value = 55
+unit = "mm"
+how = "user 2026-09-20: largeur de l'ouverture, centrée (X)"
+
+[boitier_pid_ouverture_hauteur]
+value = 25
+unit = "mm"
+how = "user 2026-09-20: hauteur de l'ouverture, alignée au bas du boitier (Y)"
+
+[boitier_pid_ouverture_y]
+value = 12.5
+unit = "mm"
+how = "user 2026-09-20: distance de l'ouverture depuis le sud du boitier"
+
+[boitier_pid_goujon_x]
+value = 10.0
+unit = "mm"
+how = "user 2026-09-21: distance des bords est/ouest pour le goujon indexeur"
+
+[boitier_pid_goujon_w]
+value = 6.0
+unit = "mm"
+how = "user 2026-09-21: taille x/y du goujon indexeur"
+
+[hw399_largeur]
+value = 26.0
+unit = "mm"
+how = "user 2026-09-21: largeur module optocoupleur HW-399"
+
+[hw399_longueur]
+value = 25.2
+unit = "mm"
+how = "user 2026-09-21: longueur module optocoupleur HW-399"
+
+[hw399_marge]
+value = 12.5
+unit = "mm"
+how = "user 2026-09-21: marge au nord pour les fils du HW-399"
+
+[hw399_pcb_width]
+value = 1.4
+unit = "mm"
+how = "user 2026-09-21: épaisseur PCB HW-399"
 
 [digmesa_collerette_diametre]
 value = 41.0
@@ -1095,9 +1146,9 @@ unit = "mm"
 how = "Utilisateur 2026-09-15: hauteur du tube boucle"
 
 [digmesa_boucle_diametre_min]
-value = 50.0
+value = 45.0
 unit = "mm"
-how = "Utilisateur 2026-09-12 : plus petite boucle 50 mm de diamètre. Référence extérieur/axe non précisée ; prendre 50 mm à l'axe pour une enveloppe conservatrice de 58 mm avec le tube Ø8."
+how = "Utilisateur 2026-09-12 : plus petite boucle 45 mm de diamètre. Référence extérieur/axe non précisée ; prendre 50 mm à l'axe pour une enveloppe conservatrice de 58 mm avec le tube Ø8."
 
 [digmesa_pin_second_diametre]
 value = 2.85

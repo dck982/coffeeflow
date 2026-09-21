@@ -34,9 +34,9 @@ def ensemble_digmesa(centre_x=52.0, centre_y=29.0, eclate=0.0, contexte=True,
     gx,gy=153.0,29.0
     # Le bas de la sortie était mesuré à Z=23 pour hauteur_pieds=5. Monter le
     # support de 12…17 mm place donc sortie et guide ensemble à Z=35…40.
-    gz=measured('digmesa_sortie_basse_z_actuelle')+surelevation_berceau
+    gz=measured('digmesa_tube_boucle_z')
     if guide_tube:
-        guide=Pos(gx-10,gy-6,0)*Rot(0,-90,0)*Rot(180,0,0)*Pos(0,0,-distance_trou)*use('guide_boucle_digmesa',hauteur_passage=gz,jeu_tube=jeu_tube,distance_trou=distance_trou)
+        guide=Pos(gx-10,gy-6,0)*Rot(0,-90,0)*Rot(180,0,0)*Pos(0,0,-distance_trou)*use('guide_boucle_digmesa',jeu_tube=jeu_tube,distance_trou=distance_trou)
         solids.append(guide)
     if contexte:
         a=(Align.CENTER,Align.CENTER,Align.MIN)

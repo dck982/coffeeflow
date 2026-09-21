@@ -297,17 +297,17 @@ def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=Fa
 
     if plane==Plane.XZ:
         plat_x = x
-        plat_y = y+corbel_along
+        plat_y = y + corbel_along
         hole_x = x + (corbel_r if flush else corbel_plat/2) * multiplier
         hole_y = y + corbel_paroi + corbel_r
     else:
         plat_x = x
         plat_y = y
-        hole_x = x + (corbel_paroi + corbel_r)*multiplier
+        hole_x = x + (corbel_paroi + corbel_r)
         hole_y = y + (corbel_r if flush else corbel_plat/2)*multiplier
     body = body + (
         Pos(plat_x, plat_y, 0)
-        * extrude(plane * Polygon(*corbel_pts, align=None), corbel_along)
+        * extrude(plane * Polygon(*corbel_pts, align=None), corbel_along * multiplier)
     )
     body = body - (
         Pos(hole_x, hole_y, z_corbel)

@@ -513,7 +513,7 @@ Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a co
 
 Pas de texte sur le bus. **La table de codes est générée depuis une source unique** dans `common/`, consommée à la fois par le C++ et par le décodeur Python. Sinon la table du Mac dérive de celle du firmware, et le premier message qu'on ne comprendra plus sera celui d'un crash.
 
-Codes de départ : boot, prêt, reboot demandé ; bail expiré, présence perdue, **verrou 60 s déclenché** (arg32 = ms d'activation), commande refusée car verrouillée ; erreur I2C (arg16 = adresse), dimmer en calibration, erreur dimmer (arg16 = registre `0x02`), timeout XDB401, débitmètre muet ; début / progression / fin / échec de flash ; OTA en attente de validation, validée, rollback.
+Codes de départ : boot, prêt, reboot demandé ; bail expiré, présence perdue, **verrou 60 s déclenché** (arg32 = ms d'activation), commande refusée car verrouillée ; erreur I2C (arg16 = adresse, arg32 = `esp_err_t` quand disponible), dimmer en calibration, erreur dimmer (arg16 = registre `0x02`), timeout XDB401 (arg32 = `esp_err_t`), débitmètre muet ; début / progression / fin / échec de flash ; OTA en attente de validation, validée, rollback.
 
 ### Flash — le seul cas de réassemblage
 

@@ -11,7 +11,10 @@ constexpr uint16_t kLeaseMs = 500;
 constexpr float kScaleBackwardsG = 5.0f;
 constexpr uint64_t kFillingPressureGuardMs = 1000;
 constexpr uint64_t kBrewPressureControlPeriodMs = 200;
-constexpr float kBrewPressureActivationMarginBar = 2.0f;
+// Au-delà, une indisponibilité prolongée ne doit pas provoquer un rattrapage
+// d'intégrale brutal quand la pression réapparaît.
+constexpr uint64_t kBrewPressureMaxIntegrationPeriodMs = 400;
+constexpr float kBrewPressureActivationMarginBar = 3.0f;
 // Réglage initial tiré de la première capture réelle : autour de 9 bar, le
 // point de fonctionnement est proche de 70 %, avec 300 à 400 ms de retard.
 constexpr float kBrewPressureKpPctPerBar = 15.0f;
@@ -164,8 +167,12 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
   }
   if (state_ == State::kBrew &&
       now_ms - last_brew_pressure_control_ms_ >= kBrewPressureControlPeriodMs) {
-    last_brew_pressure_control_ms_ = now_ms;
     if (input.pressure_valid) {
+      // Cette date n'avance que lorsqu'une commande PI est réellement
+      // calculée. Une courte absence de mesure ne réduit donc pas Ki.
+      const uint64_t control_elapsed_ms = std::min(
+          now_ms - last_brew_pressure_control_ms_, kBrewPressureMaxIntegrationPeriodMs);
+      last_brew_pressure_control_ms_ = now_ms;
       const float error_bar = config_.target_pressure_bar - input.pressure_bar;
       const float pump_floor = static_cast<float>(core::kMinimumBrewPumpPct);
       const float pump_ceiling = static_cast<float>(config_.brew_pump_pct < core::kMinimumBrewPumpPct
@@ -184,7 +191,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
         const float proportional_pct = kBrewPressureKpPctPerBar * error_bar;
         const float candidate_integral_pct = brew_pressure_integral_pct_ +
             kBrewPressureKiPctPerBarSecond * error_bar *
-                (static_cast<float>(kBrewPressureControlPeriodMs) / 1000.0f);
+                (static_cast<float>(control_elapsed_ms) / 1000.0f);
         const float candidate_output_pct = proportional_pct + candidate_integral_pct;
 
         // Anti-windup conditionnel : ne pas pousser davantage l'intégrale

@@ -473,7 +473,8 @@ void read_pressure() {
   xSemaphoreGive(g_i2c_mutex);
 
   if (err != ESP_OK) {
-    send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kXdb401Addr);
+    send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kXdb401Addr,
+             static_cast<uint32_t>(err));
     g_last_pressure.flags &= ~0x01;  // capteur invalide (I2C injoignable)
     return;
   }
@@ -529,9 +530,10 @@ void read_pressure() {
   xSemaphoreGive(g_i2c_mutex);
 
   if (err != ESP_OK) {
-    send_log(common::LogCode::kXdb401Timeout, common::LogSeverity::kError);
+    send_log(common::LogCode::kXdb401Timeout, common::LogSeverity::kError, 0,
+             static_cast<uint32_t>(err));
     g_last_pressure.flags = static_cast<uint8_t>(g_last_pressure.flags | 0x02);  // timeout
-    g_last_pressure.flags &= ~0x01;  // capteur invalide (conversion jamais terminée)
+    g_last_pressure.flags &= ~0x01;  // capteur invalide (transaction I2C échouée)
     return;
   }
 

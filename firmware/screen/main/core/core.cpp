@@ -67,6 +67,7 @@ struct State {
   portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
   Snapshot snapshot;
   int64_t pressure_received_us = 0;
+  int64_t pressure_last_valid_us = 0;
   int64_t flow_received_us = 0;
   int64_t actuators_received_us = 0;
   int64_t last_sensors_message_us = 0;
@@ -355,8 +356,11 @@ machine::Input machine_input(const Snapshot& s, int64_t now) {
   // consommateurs hors verrou. Les actions de la machine lisent toutefois
   // l'état brut sous verrou : il faut appliquer la même règle ici, sinon un
   // cycle démarré juste après une mesure de balance part en mode temps.
-  const bool pressure_fresh = s.pressure_valid && g_state.pressure_received_us != 0 &&
-                              now - g_state.pressure_received_us <= 300 * 1000;
+  // `pressure_valid` reflète le dernier paquet reçu et reste exposé ainsi à
+  // l'UI. La boucle PI peut en revanche tenir la dernière mesure valide
+  // pendant une brève erreur I2C, mais jamais au-delà de 300 ms.
+  const bool pressure_fresh = g_state.pressure_last_valid_us != 0 &&
+                              now - g_state.pressure_last_valid_us <= 300 * 1000;
   return {s.weight_g, scale_present_locked(now), s.pressure_bar, pressure_fresh};
 }
 
@@ -571,6 +575,7 @@ void on_status_pressure(const uint8_t* data, uint8_t len) {
   g_state.snapshot.pressure_raw = payload.pressure_raw;
   g_state.snapshot.temperature_raw = payload.temperature_raw;
   if (g_state.snapshot.pressure_valid) {
+    g_state.pressure_last_valid_us = now;
     g_state.snapshot.pressure_bar = decode_pressure_bar(payload.pressure_raw);
     g_state.snapshot.temperature_c = decode_temperature_c(payload.temperature_raw);
   }

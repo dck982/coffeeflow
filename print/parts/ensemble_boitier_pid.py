@@ -1,7 +1,5 @@
 from nurb import *
-
-from parts.boitier_pid import bb_overall
-
+import copy
 
 @assembly
 def ensemble_boitier_pid(open=10.0):
@@ -15,13 +13,17 @@ def ensemble_boitier_pid(open=10.0):
 
     box = use("boitier_pid")
     lid = use("couvercle_pid")
+    cache = use("cache_pid")
+    goujon_a = use("goujon_pid")
+    goujon_b = copy.copy(goujon_a)
 
     # Print orientation is plate on the bed, rim +Z, already mirrored in X so
     # a north-south flip lands west on west. Rotate 180 about Y to hang the
     # rim into the cavity, then lift by the box rim plus `open`.
     # The cavity rim is `hauteur` from the bed (40). bbox.max.Z is 41.6 because
     # the north channel wall stands `hauteur` on `epaisseur_fond`.
-    mid_x = bb_overall().size.X / 2.0
+    box_bb = box.bounding_box()
+    mid_x = box_bb.size.X / 2.0
     z_top = box.bounding_box().size.Z
     plate = 1.6
     lid = (
@@ -31,4 +33,28 @@ def ensemble_boitier_pid(open=10.0):
         * Pos(-mid_x, 0, 0)
         * lid
     )
-    return (box, lid)
+    machine_plate = 2.0
+    opening_dy = measured("boitier_pid_ouverture_hauteur")
+    opening_y = measured("boitier_pid_ouverture_y")
+    cache_bb = cache.bounding_box()
+    cache = (
+        Rot(180,0,0)
+        * Pos(-(cache_bb.size.X-box_bb.size.X)/2,
+            -cache_bb.size.Y/2 - opening_y - opening_dy/2,
+            machine_plate)
+        * cache
+    )
+    opening_dx = measured("boitier_pid_ouverture_largeur")
+    goujon_w = measured("boitier_pid_goujon_w")
+    goujon_x0 = measured("boitier_pid_goujon_x")
+    goujon_z = measured("cache_pid_goujon_z")
+    goujon_y = opening_y + opening_dy/2 - goujon_w/2
+    goujon_coords = (
+        (box_bb.center().X-opening_dx/2+goujon_x0,goujon_y,-goujon_z-machine_plate),
+        (box_bb.center().X+opening_dx/2-goujon_x0-goujon_w,goujon_y,-goujon_z-machine_plate)
+    )
+
+    goujon_a = Pos(goujon_coords[0][0],goujon_coords[0][1],goujon_coords[0][2])*goujon_a
+    goujon_b = Pos(goujon_coords[1][0],goujon_coords[1][1],goujon_coords[0][2])*goujon_b
+
+    return (box, lid, cache, goujon_a, goujon_b)

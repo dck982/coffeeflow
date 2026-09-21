@@ -1052,6 +1052,29 @@ value = 6.0
 unit = "mm"
 how = "user 2026-09-21: taille x/y du goujon indexeur"
 
+[cache_pid_goujon_z]
+value = 3.0
+unit = "mm"
+how = "user 2026-09-21: profondeur du trou pour les goujons"
+
+[goujon_pid_z]
+value = 6.6
+unit = "mm"
+how = "user 2026-09-21: longueur goujon indexeur: 3mm dans cache_pid, 2mm de face, 1.6mm de fond boitier_pid"
+
+[cache_pid_largeur]
+value = 70.0
+unit = "mm"
+how = "user 2026-09-21: taille x du cache PID"
+
+[cache_pid_longueur]
+value = 30.0
+how = "user 2026-09-21: taille y du cache PID"
+
+[cache_pid_epaisseur]
+value = 5.0
+how = "user 2026-09-21: taille z du cache PID"
+
 [hw399_largeur]
 value = 26.0
 unit = "mm"

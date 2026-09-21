@@ -56,6 +56,8 @@ def boitier_pid(
     hauteur=27.0,
     wago_surplomb=6.0,
     hauteur_hw399=5.0,
+    ouvertures_sud_x=15.0,
+    ouvertures_sud_dx=8.0,
     draft=False):
     """Boîtier PID avec ouverture en façade
 
@@ -64,6 +66,8 @@ def boitier_pid(
     hauteur: hauteur Z du boitier
     wago_surplomb: longueur du surplomb WAGO
     hauteur_hw399: hauteur en-dessus du floor pour le HW399
+    ouvertures_sud_x: distance au bord pour chacune des ouvertures
+    ouvertures_sud_dx: largeur de ouvertures
     """
 
     bb = bb_overall()
@@ -88,6 +92,20 @@ def boitier_pid(
     body += _block(
         0,inner_north_y,floor,
         bb.max.X,wall,hauteur
+    )
+
+    # Mur sud
+    body += _block(
+        0,bb.min.Y,floor,
+        bb.size.X,wall,hauteur
+    )
+    body -= _block(
+        wall + ouvertures_sud_x, bb.min.Y, floor+hauteur/2,
+        ouvertures_sud_dx, wall, hauteur/2
+    )
+    body -= _block(
+        inner_east_x - ouvertures_sud_x - ouvertures_sud_dx, bb.min.Y, floor+hauteur/2,
+        ouvertures_sud_dx, wall, hauteur/2
     )
 
     # Deux carrés ouverts dans le fond pour emboiter le cache externe

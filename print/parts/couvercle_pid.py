@@ -43,8 +43,6 @@ def couvercle_pid(
         bb.max.X - wall - jeu, bb.max.Y - wall - jeu, 
         ep, floor, prof
     )
-    # remove south
-    body -= Pos(bb.min.X,bb.min.Y,floor)*Box(bb.size.X,wall+jeu+ep,prof,align=AMIN)
 
     margin = 0.5
     vis_diametre = 3.0

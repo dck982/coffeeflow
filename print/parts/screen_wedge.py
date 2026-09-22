@@ -347,7 +347,13 @@ def screen_wedge(
     for sx in (-1, 1):
         body -= small_magnet_well_cutter(sx * magnet_x, magnet_y, 0, height=rear_wall - magnet_cover)
 
-    # 
+    # 45 degrees triangle at the top to get the wedge against the machine's edge
+    top_extension_z = body.bounding_box().size.Z
+    top_extension_pts = [(0,0),(top_extension_z,top_extension_z),(0,top_extension_z)]
+    body += (
+        Pos(body.bounding_box().min.X,body.bounding_box().max.Y,0) 
+        * extrude(Plane.YZ*Polygon(*top_extension_pts,align=None),body.bounding_box().size.X)
+    )
 
     if draft:
         return body

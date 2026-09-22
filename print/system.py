@@ -271,9 +271,12 @@ def add_well(body, outer, cx, cy, z0=0, h=None):
         h = measured("aimant_hauteur")
     pad = Pos(cx, cy, z0) * Cylinder(d/2 + measured("aimant_puit_mur"), h, align=CMIN)
     cutter = magnet_well_cutter(cx, cy, z0, diameter=d, height=h)
-    clipped = pad.intersect(outer)
-    if clipped is not None:
-        body = body + clipped
+    if outer is not None:
+        clipped = pad.intersect(outer)
+        if clipped is not None:
+            body = body + clipped
+    else:
+        body += pad
     return body - cutter
 
 def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=False, flush=False):
@@ -735,24 +738,6 @@ def passe_cable_body(
         body + Pos(0, 0, epaisseur_bride + h_col - 0.2) * filet
     )
 
-    # Flange rim chamfer BEFORE the cable bores: chamfering the rim on a body
-    # that already carries the two through bores makes OCCT rebuild the solid
-    # without them (measured: 2124mm3 polished against 1709mm3 draft, the two
-    # Ø5.2 bores silently healed shut). Bores last is the same geometry and
-    # survives.
-    if not draft:
-
-        def keep(edge):
-            ebb = edge.bounding_box()
-            if ebb.min.Z < epaisseur_bride - 0.2:
-                return False
-            if ebb.max.Z > epaisseur_bride + 0.2:
-                return False
-            span = max(ebb.max.X - ebb.min.X, ebb.max.Y - ebb.min.Y)
-            return span > diametre_bride - 1.5
-
-        body = polish(body, body.edges().filter_by(keep), 1.0)
-
     for sign in (-1.0, 1.0):
         body = body - Pos(sign * entraxe_passages / 2.0, 0, -0.5) * Cylinder(
             diametre_passage / 2.0,
@@ -794,7 +779,7 @@ def back_face_layout(
     channel_fit=0.4,
     rail_width=2.0,
     back_opening_from_left=25.0,
-    back_opening_below_top=40.0,
+    back_opening_below_top=40.0-27,
     second_opening_offset_x=20.0,
 ):
     """screen_base's back face: its own size, and its two openings' centres,

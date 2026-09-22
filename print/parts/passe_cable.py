@@ -2,10 +2,9 @@ from nurb import *
 
 from system import passe_cable_body
 
-
 @part
 def passe_cable(
-    diametre_bride=25.0,
+    diametre_bride=19.0,
     epaisseur_bride=1.6,
     diametre_fut=15.8,
     diametre_passage=4.6,

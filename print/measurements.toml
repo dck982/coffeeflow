@@ -407,6 +407,46 @@ value = 1.5
 unit = "mm"
 how = "Male thread past the seated nut (about three quarters of a turn of runout). Male thread height = nut 5.0 + this 1.5 = 6.5 mm = 3.25 turns at pitch 2.0; smooth collar below = tole 1.0 + floor 1.6."
 
+[ads1115_largeur]
+value = 27.7
+unit = "mm"
+how = "user 2026-09-22: largeur X ADS1115"
+
+[ads1115_longueur]
+value = 16.7
+unit = "mm"
+how = "user 2026-09-22: longueur Y ADS1115"
+
+[ads1115_pcb_width]
+value = 1.5
+unit = "mm"
+how = "user 2026-09-22: épaisseur PCB ADS1115"
+
+[ldo_width]
+value = 8.6
+unit = "mm"
+how = "user 2026-09-22: largeur X LDO AMS1117"
+
+[ldo_length]
+value = 12.2
+unit = "mm"
+how = "user 2026-09-22: longueur Y LDO AMS1117"
+
+[ldo_pcb_width]
+value = 1.4
+unit = "mm"
+how = "user 2026-09-22: épaisseur PCB LDO AMS1117"
+
+[tower_res_x]
+value = 40.0
+unit = "mm"
+how = "user 2026-09-22: distance tour pour résistance depuis mur ouest"
+
+[tower_res_dx]
+value = 30.0
+unit = "mm"
+how = "user 2026-09-22: distance entre les tours pour la résistance"
+
 # --- Pesée du drip tray (docs/driptray.md, relevés utilisateur 2026-08-25) ---
 #
 # NOMENCLATURE (utilisateur, 2026-08-26) — trois pièces distinctes, à ne pas
@@ -1028,7 +1068,7 @@ unit = "mm"
 how = "user 2026-09-20: longeur disponible pour boitier PID (Y)"
 
 [boitier_pid_ouverture_largeur]
-value = 55
+value = 58
 unit = "mm"
 how = "user 2026-09-20: largeur de l'ouverture, centrée (X)"
 
@@ -1043,9 +1083,9 @@ unit = "mm"
 how = "user 2026-09-20: distance de l'ouverture depuis le sud du boitier"
 
 [boitier_pid_goujon_x]
-value = 10.0
+value = 20.0
 unit = "mm"
-how = "user 2026-09-21: distance des bords est/ouest pour le goujon indexeur"
+how = "user 2026-09-21: distance du centre pour le goujon indexeur"
 
 [boitier_pid_goujon_w]
 value = 6.0
@@ -1063,17 +1103,24 @@ unit = "mm"
 how = "user 2026-09-21: longueur goujon indexeur: 3mm dans cache_pid, 2mm de face, 1.6mm de fond boitier_pid"
 
 [cache_pid_largeur]
-value = 70.0
+value = 74.0
 unit = "mm"
 how = "user 2026-09-21: taille x du cache PID"
 
 [cache_pid_longueur]
 value = 30.0
+unit = "mm"
 how = "user 2026-09-21: taille y du cache PID"
 
 [cache_pid_epaisseur]
 value = 5.0
+unit = "mm"
 how = "user 2026-09-21: taille z du cache PID"
+
+[plaque_pid_epaisseur]
+unit = "mm"
+value = 2.0
+how = "user 2026-09-22: taille z de la plaque PID"
 
 [hw399_largeur]
 value = 26.0

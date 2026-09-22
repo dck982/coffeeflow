@@ -116,8 +116,8 @@ def boitier_pid(
     goujon_x0 = measured("boitier_pid_goujon_x")
     goujon_y = opening_y + opening_dy/2 - goujon_w/2
     goujon_coords = (
-        (body.bounding_box().center().X-opening_dx/2+goujon_x0,goujon_y),
-        (body.bounding_box().center().X+opening_dx/2-goujon_x0-goujon_w,goujon_y)
+        (body.bounding_box().center().X-goujon_x0,goujon_y),
+        (body.bounding_box().center().X+goujon_x0-goujon_w,goujon_y)
     )
     for (gx, gy) in goujon_coords:
         body -= _block(gx,gy,0,goujon_w,goujon_w,floor)

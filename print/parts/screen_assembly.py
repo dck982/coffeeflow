@@ -15,7 +15,7 @@ from system import back_face_layout
 def screen_assembly(
     slide=0.0,
     tilt=45.0,
-    seat_height=5.0,
+    seat_height=18.0,
     show_machine_face=True,
     machine_face_thickness=2.0,
     machine_face_overhang=10.0,
@@ -86,9 +86,9 @@ def screen_assembly(
     if show_machine_face:
         layout = back_face_layout(tilt=tilt, seat_height=seat_height)
         plate_width = layout["width"] + machine_face_overhang
-        plate_height = layout["north_height"] + machine_face_overhang
+        plate_height = layout["north_height"] + 27.72
         plate_x = machine_face_overhang / 2
-        plate_z = (layout["north_height"] - machine_face_overhang) / 2
+        plate_z = (layout["north_height"] + 27.72) / 2
         plate_y = layout["north_y"] + machine_face_thickness / 2
         plate = Pos(plate_x, plate_y, plate_z) * Box(
             plate_width, machine_face_thickness, plate_height

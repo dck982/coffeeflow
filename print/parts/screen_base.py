@@ -5,6 +5,10 @@ from system import (
     anti_tirage_ns,
     back_face_layout,
     puit_couche,
+    AMIN,
+    add_well,
+    INSERT_M25,
+    surplomb
 )
 
 # Side profile, front (south) to back:
@@ -27,10 +31,149 @@ WEDGE_THICKNESS = 19.60
 WEDGE_LENGTH = 77.80
 ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's foot
 
+def _block(x0,y0,z0,dx,dy,dz):
+    return Pos(x0,y0,z0)*Box(dx,dy,dz,align=AMIN)
+
+def _cable_tie_tower(body, tx, ty, th, floor):
+    tower_w = 2.0
+    bridge_w = 3.0
+    body += _block(tx, ty, floor, tower_w, tower_w*2, th)
+    body += _block(tx + tower_w + bridge_w, ty, floor, tower_w, tower_w*2, th)
+    body += _block(tx, ty, floor+th-tower_w, tower_w*2 + bridge_w, tower_w*2, tower_w)
+    return body
+
+def _add_floor_components(body, side_width, north_y, seat_y, floor, wall):
+    # Fond, nord est, de gauche à droite
+    # Marge pour espace depuis ventilation
+    # ADS1115, trous au nord
+    # 2x WAGO 221-423 l'un sur l'autre à plat
+    # AMS1117 LDO, connecteur au sud
+    side_margin = 8.0
+    north_y -= wall
+    ads1115 = (measured("ads1115_largeur"),measured("ads1115_longueur"),measured("ads1115_pcb_width"))
+    pcb_height = 3.0
+    ads1115_east = body.bounding_box().max.X - side_width - side_margin - wall
+    ads1115_west = ads1115_east - ads1115[0]
+    # ADS1115, mur est, ouest, sud
+    body += _block(
+        ads1115_east,north_y-ads1115[1]-wall,floor,
+        wall,ads1115[1]+wall,pcb_height+ads1115[2])
+    body += _block(
+        ads1115_west-wall,north_y-ads1115[1]-wall,floor,
+        wall,ads1115[1]+wall,pcb_height+ads1115[2])
+    body += _block(
+        ads1115_west,north_y-ads1115[1]-wall,floor,
+        ads1115[0],wall,pcb_height+ads1115[2])
+    # barre de soutien
+    ads1115_support_y = north_y-ads1115[1]/3-wall
+    body += _block(ads1115_west,ads1115_support_y,floor,ads1115[0],wall,pcb_height)
+    wago_width = measured("wago_423_largeur")-0.15
+    wago_length = measured("wago_profondeur")
+    wago_height = measured("wago_epaisseur")*2
+    wago_west_x = ads1115_west-wall-wago_width
+    # mur est, ouest wago
+    surplomb_w = 1.0
+    surplomb_l = 8.0
+    body += _block(
+        wago_west_x+wago_width,north_y-wago_length-wall,floor,
+        wall, wago_length+wall, wago_height + surplomb_w)
+    body += _block(
+        wago_west_x-wall,north_y-wago_length-wall,floor,
+        wall, wago_length+wall, wago_height + surplomb_w)
+    # seuil
+    body += _block(
+        wago_west_x-wall,north_y-wago_length-wall,floor,
+        wago_width+2*wall,wall,1.0
+    )
+    # surplomb
+    body += surplomb(
+        wago_west_x+wago_width,north_y-surplomb_l,wago_height+floor,
+        surplomb_w,surplomb_l
+    )
+    body += surplomb(
+        wago_west_x,north_y,wago_height+floor,
+        surplomb_w,surplomb_l,inverse=True
+    )
+    # LDO
+    ldo = (measured("ldo_width"),measured("ldo_length"),measured("ldo_pcb_width"))
+    # Add 1.5 for the XH connector
+    ldo_west_x = wago_west_x-wall-ldo[0]-1.5
+    # mur est, ouest, sud
+    body += _block(
+        ldo_west_x+ldo[0],north_y-ldo[1]-wall,floor,
+        wall,ldo[1]+wall,pcb_height+ldo[2]
+    )
+    body += _block(
+        ldo_west_x-wall,north_y-ldo[1]-wall,floor,
+        wall,ldo[1]+wall,pcb_height+ldo[2]
+    )
+    body += _block(
+        ldo_west_x-wall,north_y-ldo[1]-wall,floor,
+        ldo[0]+2*wall,wall,pcb_height+ldo[2]
+    )
+    # mur de soutien
+    body += _block(
+        ldo_west_x-wall,north_y-ldo[1]/2-wall,floor,
+        ldo[0]+2*wall,wall,pcb_height
+    )
+    
+    # WAGO 221-423 contre mur ouest, 
+    # un peu au nord de seat_y pour eviter de toucher le bas du wedge
+    inner_west = body.bounding_box().min.X + side_width
+    wago_south = seat_y+2.0+wall
+    wago_height = measured("wago_epaisseur")
+    wago_415 = measured("wago_415_largeur")
+    # murs sud, nord
+    body += _block(
+        inner_west, wago_south-wall, floor,
+        wago_length+wall, wall, wago_height
+    )
+    # base pour WAGO 415 qui vient dessus
+    body += _block(
+        inner_west, wago_south+wago_width, floor,
+        wago_length+wall, wall+wago_415-wago_width, wago_height
+    )
+    # seuil
+    body += _block(
+        inner_west + wago_length, wago_south-wall, floor,
+        wall, wago_width+2*wall, 1.0
+    )
+    # WAGO 221-415 par dessus
+    # murs sud, nord
+    body += _block(
+        inner_west, wago_south-wall, floor,
+        wago_length+wall, wall, wago_height*2+surplomb_w
+    )
+    body += _block(
+        inner_west, wago_south+wago_415, floor,
+        wago_length+wall, wall, wago_height*2+surplomb_w
+    )
+    # seuil
+    body += _block(
+        inner_west + wago_length, wago_south+wago_width, floor+wago_height,
+        wall, wago_415-wago_width, 1.0
+    )
+    # surplomb
+    body += surplomb(
+        wago_south,inner_west,wago_height*2+floor,
+        surplomb_w,surplomb_l,plane=Plane.YZ,inverse=True
+    )
+    body += surplomb(
+        wago_south + wago_415,inner_west+surplomb_l,wago_height*2+floor,
+        surplomb_w,surplomb_l,plane=Plane.YZ
+    )
+
+    body = _cable_tie_tower(body, 
+        inner_west + measured("tower_res_x"), wago_south, wago_height, floor)
+    body = _cable_tie_tower(body, 
+        inner_west + measured("tower_res_x") + measured("tower_res_dx"), wago_south, wago_height, floor)
+
+    return body
+
 @part
 def screen_base(
     wedge_width=126.1,
-    seat_height=5.0,
+    seat_height=18.0,
     backing=WEDGE_LENGTH,
     tilt=45.0,
     wall=2.0,
@@ -49,7 +192,7 @@ def screen_base(
     back_opening_width=16.0,
     back_opening_height=16.0,
     back_opening_from_left=25.0,
-    back_opening_below_top=40.0,
+    back_opening_below_top=40.0-27,
     back_opening_chamfer=4.0,
     second_opening_width=6.0,
     second_opening_height=6.0,
@@ -380,11 +523,16 @@ def screen_base(
     ]
     opening_profile = Plane.XZ * Polygon(*opening_pts, align=None)
     body -= Pos(0, north_y, 0) * extrude(opening_profile, amount=wall * 2, both=True)
+    # second opening 40mm lower
+    opening_pts2 = [(x,z-40) for (x,z) in opening_pts]
+    opening_profile2 = Plane.XZ * Polygon(*opening_pts2, align=None)
+    body -= Pos(0, north_y, 0) * extrude(opening_profile2, amount=wall * 2, both=True)
 
     # --- the second opening: a small square port next to the first, same
     #     plate covers it so its rim goes unchamfered too, but at only 6mm
     #     wide its own roof bridges clean with no corner relief needed. ---
-    body -= Pos(second_opening_x, north_y, second_opening_z) * Box(
+    # 40mm lower
+    body -= Pos(second_opening_x, north_y, second_opening_z-40.0) * Box(
         second_opening_width, wall * 2, second_opening_height, align=Align.CENTER
     )
 
@@ -505,7 +653,7 @@ def screen_base(
     straight_magnet_r = straight_magnet_diameter / 2
     straight_magnet_half = straight_magnet_r + measured("aimant_puit_mur")
     straight_magnet_x = outer_half - wall - straight_magnet_from_right
-    straight_magnet_z = back_opening_z
+    straight_magnet_z = back_opening_z - 20.0
     if abs(straight_magnet_x) + straight_magnet_half > outer_half:
         reject(
             f"straight_magnet_from_right {straight_magnet_from_right:.1f}mm puts "
@@ -528,30 +676,6 @@ def screen_base(
         z_dir=(0, 1, 0),
     )
     body -= straight_magnet_plane * puit_couche(straight_magnet_r, straight_magnet_height)
-
-    # --- cable-tie rings: three loops against the back face's own interior
-    #     side, standing off `interior_y` (the same interior-face Y the
-    #     magnet ramps stand off), for a tie to strap cables against the
-    #     wall. Same shape as boitier_ps's anti_tirage_ns, called on this
-    #     wall the same way as its own north wall (toward_plus_y False, the
-    #     ring projecting into the box's interior). Centred on the magnet
-    #     wells' own X: two on the right-hand well's column, one lone one on
-    #     the left-hand well's column. ---
-    cable_tie_kw = dict(
-        wall=wall,
-        jeu=cable_tie_gap,
-        largeur=cable_tie_slot_width,
-        bords=cable_tie_span,
-        hauteur_u=cable_tie_height,
-    )
-    for x_center, z_center in (
-        (outer_half / 3, cable_tie_low_z),
-        (outer_half / 3, cable_tie_right_high_z),
-        (-outer_half / 3, cable_tie_left_z),
-    ):
-        tie_x0 = x_center - cable_tie_span / 2
-        tie_z0 = z_center - cable_tie_height / 2
-        body += anti_tirage_ns(tie_x0, interior_y, tie_z0, False, **cable_tie_kw)
 
     body = body & silhouette
 
@@ -635,9 +759,14 @@ def screen_base(
     press_half = wedge_width / 2 + side_panel_fit / 2
     notch_out = notch + n * side_panel_depth
     ridge_out = ridge + n * side_panel_depth
+    # Extend the outer panel edge along the seat slope until it reaches the
+    # base's rear-most Y.  `up` is unit length, so this finds the distance
+    # needed in Y and preserves the slope (45° at the default tilt) in Z.
+    panel_back_top = ridge_out + up * ((north_y - ridge_out.Y) / up.Y)
     side_panel_profile = Plane.YZ * Polygon(
         (seat_y, seat_height),
         (north_y, north_height),
+        (panel_back_top.Y, panel_back_top.Z),
         (ridge_out.Y, ridge_out.Z),
         (notch_out.Y, notch_out.Z),
         align=None,
@@ -658,6 +787,8 @@ def screen_base(
             foot_pin_diameter / 2, foot_pin_length,
             align=(Align.CENTER, Align.CENTER, Align.MIN),
         )
+
+    body = _add_floor_components(body, rail_width + shelf_width, north_y, seat_y, floor, wall)
 
     if draft:
         return body
@@ -685,8 +816,19 @@ def screen_base(
     shelf_inner = channel_half - shelf_width
 
     def seating(edge):
+        # Keep the whole electronics-seat volume sharp: an edge wholly inside
+        # the rails/shelves, from the floor to the seat height, belongs to the
+        # seating area even when it is not on one of its named slope planes.
+        b = edge.bounding_box()
+        inside_seat = (
+            b.min.X >= -outer_half - 0.05
+            and b.max.X <= outer_half + 0.05
+            and b.min.Z >= floor - 0.05
+            and b.max.Z <= floor + seat_height + 0.05
+        )
         return (
-            on_plane(edge, notch, n)
+            inside_seat
+            or on_plane(edge, notch, n)
             or on_plane(edge, notch, up)
             or on_plane(edge, notch_out, n)
             or on_flat_face(edge, press_half)
@@ -752,7 +894,8 @@ def screen_base(
         b = edge.bounding_box()
         for cx, cz, w, h in (
             (back_opening_x, back_opening_z, back_opening_width, back_opening_height),
-            (second_opening_x, second_opening_z, second_opening_width, second_opening_height),
+            (back_opening_x, back_opening_z-40, back_opening_width, back_opening_height),
+            (second_opening_x, second_opening_z-40, second_opening_width, second_opening_height),
         ):
             margin = 0.1
             if (

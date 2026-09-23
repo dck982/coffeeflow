@@ -150,8 +150,7 @@ Monté au **nord de `boitier_dc`**.
 - **Broche `SLNT`** (pastille suivante du header, entre TX et CANH) : reliée au **GND**
   (vis GND du bornier CAN). Sur ce clone, `SLNT` flottant se retrouve tiré haut (mode
   Silent, émetteur coupé) au lieu de rester bas comme le prévoit le pull-down interne du
-  TJA1051 — voir `docs/canpal-findings.md` pour le diagnostic complet et la validation
-  (2026-09-09).
+  TJA1051
 
 ### La ligne
 

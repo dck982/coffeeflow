@@ -36,7 +36,7 @@ constexpr const char* kTag = "sensors";
 // XIAO (D8/D9/D10 ≠ GPIO8/9/10 : voir la note dans docs/cablage.md).
 //
 // Module Adafruit CAN Pal (TJA1051T/3, clone AliExpress) — SLNT reworké
-// au GND (voir docs/canpal-findings.md), remplace le Unit CAN de
+// au GND, remplace le Unit CAN de
 // contournement. Câblage Pal (docs/cablage.md) : TX → blanc → GPIO7,
 // RX → jaune → GPIO8. Confirmé par self-test TWAI en boucle isolée
 // (firmware/can-selftest, PINOUT_CANPAL 1) le 2026-09-09 : 17/17 PASS,

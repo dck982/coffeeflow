@@ -29,6 +29,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_DIR = PROJECT_ROOT / "captures"
 POLL_INTERVAL_S = 0.5
 STATUS_INTERVAL_S = 10.0
+TARGET_TOLERANCE_C = 1.0
+STABLE_DURATION_S = 30.0
 MAX_DURATION_S = 600.0
 
 
@@ -73,12 +75,14 @@ def target_from_config(config: dict[str, Any]) -> tuple[int, float]:
     return version, target
 
 
-def reached_target(sample: dict[str, Any], target_c: float) -> bool:
+def valid_temperature(sample: dict[str, Any]) -> float | None:
     temperature = sample.get("boiler_temperature_c")
-    return (sample.get("boiler_temperature_valid") is True and
+    if (sample.get("boiler_temperature_valid") is True and
             sample.get("boiler_temperature_freshness") == "fresh" and
             not isinstance(temperature, bool) and isinstance(temperature, (int, float)) and
-            math.isfinite(temperature) and temperature >= target_c)
+            math.isfinite(temperature)):
+        return float(temperature)
+    return None
 
 
 def confirmed_heating(response: dict[str, Any], enabled: bool) -> bool:
@@ -98,6 +102,8 @@ def record_heating(output: Path,
         "started_at_utc": utc_now(),
         "interval_s": POLL_INTERVAL_S,
         "max_duration_s": max_duration_s,
+        "target_tolerance_c": TARGET_TOLERANCE_C,
+        "stable_duration_s": STABLE_DURATION_S,
         "samples": [],
         "stop_reason": "error",
         "heating_enable_attempted": False,
@@ -122,6 +128,7 @@ def record_heating(output: Path,
         deadline = started + max_duration_s
         next_poll = started
         next_status = started
+        in_band_since: float | None = None
         while clock() < deadline:
             sleep(max(0.0, next_poll - clock()))
             if clock() >= deadline:
@@ -133,22 +140,24 @@ def record_heating(output: Path,
                 "received_at_utc": utc_now(),
                 "telemetry": telemetry,
             })
+            temperature = valid_temperature(telemetry)
             if received >= next_status:
-                temperature = telemetry.get("boiler_temperature_c")
-                if (telemetry.get("boiler_temperature_valid") is True and
-                        telemetry.get("boiler_temperature_freshness") == "fresh" and
-                        isinstance(temperature, (int, float)) and
-                        not isinstance(temperature, bool) and math.isfinite(temperature)):
-                    current = f"{temperature:.1f} °C"
-                else:
-                    current = "indisponible"
-                print(f"{received - started:5.1f} s : chaudière {current} / cible {target_c:.1f} °C",
-                      flush=True)
+                current = f"{temperature:.1f} °C" if temperature is not None else "indisponible"
+                power = telemetry.get("heating_power_pct")
+                requested = (f"{power:.1f} %" if isinstance(power, (int, float)) and
+                             not isinstance(power, bool) and math.isfinite(power) else "indisponible")
+                print(f"{received - started:5.1f} s : chaudière {current} / cible {target_c:.1f} °C"
+                      f" / puissance demandée {requested}", flush=True)
                 while next_status <= received:
                     next_status += STATUS_INTERVAL_S
-            if reached_target(telemetry, target_c):
-                capture["stop_reason"] = "target_reached"
-                break
+            if temperature is not None and abs(temperature - target_c) < TARGET_TOLERANCE_C:
+                if in_band_since is None:
+                    in_band_since = received
+                elif received - in_band_since >= STABLE_DURATION_S:
+                    capture["stop_reason"] = "target_stable"
+                    break
+            else:
+                in_band_since = None
             next_poll += POLL_INTERVAL_S
             while next_poll < received:
                 next_poll += POLL_INTERVAL_S
@@ -207,7 +216,7 @@ def main() -> int:
         return 1
     if capture["stop_reason"] == "interrupted":
         return 130
-    return 0 if capture["stop_reason"] == "target_reached" else 2
+    return 0 if capture["stop_reason"] == "target_stable" else 2
 
 
 if __name__ == "__main__":

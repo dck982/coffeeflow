@@ -35,7 +35,8 @@ class CaptureTests(unittest.TestCase):
                 raise RuntimeError("réseau perdu")
             return {"boiler_temperature_c": next(readings),
                     "boiler_temperature_valid": True,
-                    "boiler_temperature_freshness": "fresh"}
+                    "boiler_temperature_freshness": "fresh",
+                    "heating_power_pct": 37.5}
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "heating.json"
@@ -44,13 +45,18 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(json.loads(output.read_text()), result)
         return result, calls
 
-    def test_stops_at_target_and_disables_heating(self):
-        result, calls = self.run_capture([20, 89, 90, 120])
-        self.assertEqual(result["stop_reason"], "target_reached")
-        self.assertEqual(len(result["samples"]), 3)
-        self.assertEqual([s["elapsed_s"] for s in result["samples"]], [0, 0.5, 1.0])
+    def test_stops_after_thirty_seconds_in_band_and_disables_heating(self):
+        result, calls = self.run_capture([20, 89.5] + [90] * 70, max_duration_s=40)
+        self.assertEqual(result["stop_reason"], "target_stable")
+        self.assertEqual(len(result["samples"]), 62)
+        self.assertEqual(result["samples"][-1]["elapsed_s"], 30.5)
         self.assertEqual(calls[-1][2]["heating"]["enabled"], False)
         self.assertTrue(result["heating_disabled"])
+
+    def test_excursion_resets_stability_timer(self):
+        result, _ = self.run_capture([89.5] * 20 + [91] + [90] * 70, max_duration_s=45)
+        self.assertEqual(result["stop_reason"], "target_stable")
+        self.assertEqual(result["samples"][-1]["elapsed_s"], 40.5)
 
     def test_timeout_still_disables_heating(self):
         result, calls = self.run_capture([20] * 10, max_duration_s=1)
@@ -64,8 +70,8 @@ class CaptureTests(unittest.TestCase):
             self.run_capture([20] * 30, max_duration_s=11)
         lines = output.getvalue().splitlines()
         self.assertEqual(len(lines), 2)
-        self.assertIn("0.0 s : chaudière 20.0 °C / cible 90.0 °C", lines[0])
-        self.assertIn("10.0 s : chaudière 20.0 °C / cible 90.0 °C", lines[1])
+        self.assertIn("0.0 s : chaudière 20.0 °C / cible 90.0 °C / puissance demandée 37.5 %", lines[0])
+        self.assertIn("10.0 s : chaudière 20.0 °C / cible 90.0 °C / puissance demandée 37.5 %", lines[1])
 
     def test_telemetry_error_keeps_partial_file_and_disables(self):
         result, calls = self.run_capture([], fail_telemetry=True)

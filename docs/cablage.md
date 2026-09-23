@@ -15,7 +15,7 @@ Deux SSR ont des rôles distincts : le **M5Stack Unit SSR** dans `boitier_ac` co
 | 230 V — puissance chaudière | câblage de la machine | **1 mm²** |
 | 5 V, signaux, CAN | **Helutherm 145** | **0,25 mm²** |
 
-Le **0,75 mm²** décrit les conducteurs ajoutés pour l'alimentation, la vanne et la pompe. Le circuit de puissance de la **résistance de chaudière** est en **1 mm²** ; son chemin borne par borne reste à relever. Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à 40–50 °C.
+Le **0,75 mm²** décrit les conducteurs ajoutés pour l'alimentation, la vanne et la pompe. Le circuit de puissance de la **résistance de chaudière** est en **1 mm²** ; son chemin est décrit ci-dessous. Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à 40–50 °C.
 
 ### Compatibilité électromagnétique
 
@@ -76,7 +76,15 @@ de la gaine thermo, et entrent dans `boitier_ac` par sa **face est** :
 
 ### SSR de chaudière fourni avec la machine
 
-Ses **deux bornes de puissance 230 VAC** sont raccordées au câblage d'alimentation générale **au niveau de l'interrupteur principal** et appartiennent au circuit de la résistance de chauffe. Le branchement borne par borne de cette partie n'est pas encore établi dans ce document ; voir la précision à apporter avant de dessiner le circuit. Les **deux bornes DC + / −** rejoignent le `boitier_pid` et la sortie du HW-399 décrite plus bas. Ce SSR est distinct de celui de la vanne situé dans `boitier_ac`.
+Le SSR est **en série** dans le circuit de puissance de la chaudière, en **1 mm²** :
+
+```text
+phase de l'interrupteur principal → borne AC du SSR chaudière
+→ autre borne AC du SSR → résistance de chaudière
+→ protection / relais thermique → neutre de l'interrupteur principal
+```
+
+Les **deux bornes DC + / −** rejoignent le `boitier_pid` et la sortie du HW-399 décrite plus bas. Ce SSR est distinct de celui de la vanne situé dans `boitier_ac`. La protection thermique reste dans le chemin de retour vers le neutre.
 
 ### Résumé des paires 230 V
 
@@ -87,6 +95,8 @@ Ses **deux bornes de puissance 230 VAC** sont raccordées au câblage d'alimenta
 5. **L + N** `boitier_ps` → dimmer (`boitier_ac`)
 6. **L + N** SSR → vanne
 7. **L + N** dimmer → pompe
+
+Circuit de chauffe distinct : **phase interrupteur → SSR chaudière → résistance → protection thermique → neutre interrupteur** (conducteurs de puissance en **1 mm²**).
 
 ---
 
@@ -275,11 +285,13 @@ par le port Grove.
 
 Le port Grove **L2** du Shield (broche **D2** sur le PCB, **GPIO 3** natif du XIAO) porte la commande du chauffage. **HIGH active la résistance de chauffe.** Le GPIO en 3,3 V ne commande pas directement le SSR Keysolu/Maxwell, dont l'entrée de l'exemplaire est indiquée pour 4–24 VDC.
 
-Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Dans ce montage, **OUT4 est à 5 V quand IN4 est à 3,3 V**, pour commander l'entrée DC du SSR chaudière. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance commute la résistance de chaudière ; le chemin exact des conducteurs secteur d'origine reste à relever avant d'en documenter le détail.
+Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Dans ce montage, **OUT4 est à 5 V quand IN4 est à 3,3 V**, pour commander l'entrée DC du SSR chaudière. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance est décrit dans la section « SSR de chaudière fourni avec la machine » ci-dessus.
 
 ### Sonde NTC et ADS1115 dans le boîtier de l'écran
 
-La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. Un **AMS1117** avec connecteur XH transforme le 5 V de l'alimentation en 3,3 V stabilisé. Ce 3,3 V va à **A0** du breakout **ADS1115 16 bits** et, via une **Wago**, à une borne de la NTC. Le retour de la NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers **GND**. Les masses sont communes. L'ADS1115 est connecté au port **I2C partagé** de l'écran Waveshare, avec notamment le CH422G et le contrôleur tactile GT911.
+La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Un **AMS1117** distinct, avec connecteur XH, transforme le 5 V de l'alimentation en 3,3 V stabilisé pour le **pont NTC**. Ce 3,3 V va à **A0** de l'ADS1115 et, via une **Wago**, à une borne de la NTC. Le retour de la NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers **GND**. Les masses sont communes.
+
+Les deux rails 3,3 V ont des sources différentes ; leurs tensions ont été vérifiées sur la machine. La valeur ponctuelle mesurée en sortie du LDO n'est pas une constante de calcul : l'ADS1115 lit **A0 et A1**, puis le firmware utilise leur **rapport** pour obtenir la résistance NTC. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
 Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 n'est pas encore intégrée au firmware `screen`.
 

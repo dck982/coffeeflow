@@ -100,7 +100,7 @@ Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qu
 | Transceiver CAN côté XIAO | **Adafruit CAN Pal** (TJA1051T/3), [produit 5708](https://www.adafruit.com/product/5708) | — |
 | Dimmer pompe | **RBDimmer AC Dimmer 4 A 1 canal**, logique 3,3 V, mode **[DimmerLink](https://www.rbdimmer.com/docs/dimmerlink-overview)** ([boutique](https://www.rbdimmer.com/shop/ac-dimmers-1/ac-dimmer-module-4a-1-channel-33v5v-logic-ac-400v-4a-6?attribute_values=48)) | — |
 | SSR vanne | **M5Stack Unit SSR** (2 A), commande 3,3–5 V, zero-crossing MOC3043M | `docs/datasheets/m5stack-unit-ssr.md` |
-| SSR chaudière | **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine ; deux bornes de puissance 230 VAC côté interrupteur principal, entrée de commande DC +/− via HW-399 ; cosses mâles FASTON 4,8 mm | [Câblage](docs/cablage.md#ssr-de-chaudière-fourni-avec-la-machine) |
+| SSR chaudière | **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine ; en série entre la phase de l'interrupteur principal et la résistance, suivie de la protection thermique puis du neutre ; commande DC +/− via HW-399, FASTON mâles 4,8 mm | [Câblage](docs/cablage.md#ssr-de-chaudière-fourni-avec-la-machine) |
 | Interface SSR chaudière | **HW-399 4-channel Optocoupler**, voie IN4 / OUT4, logé dans `boitier_pid` | `docs/cablage.md` |
 | Température chaudière | Sonde **NTC G1/8**, AMS1117 3,3 V et breakout **ADS1115 16 bits** sur l'I2C de l'écran | [Calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md) |
 | Pression | **Yufavor XDB401**, I2C, filetage **G1/8** | `docs/datasheets/xidibei_xdb401.pdf` |

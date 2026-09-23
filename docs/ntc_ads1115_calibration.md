@@ -6,9 +6,10 @@ L'objectif est de mesurer la température de la chaudière d'une machine à
 café avec la sonde NTC 1/8" déjà installée, en utilisant un ADS1115 I²C
 relié à un ESP32-S3-WROOM.
 
-L'alimentation principale est en 5 V. L'ESP32 et la carte breakout
-ADS1115 sont alimentés normalement depuis ce système. Un LDO AMS1117
-dédié fournit une alimentation 3,3 V propre au pont de mesure de la NTC.
+L'alimentation principale est en 5 V. L'ESP32 du Waveshare est alimenté par
+sa carte ; le breakout ADS1115 reçoit **3,3 V du connecteur I2C du Waveshare**.
+Un LDO AMS1117 dédié fournit un autre rail 3,3 V pour le pont de mesure de
+la NTC. Les masses sont communes.
 
 La plage utile est principalement \~80--100 °C en mode café et jusqu'à
 \~120--130 °C en mode vapeur.
@@ -44,6 +45,10 @@ Notes :
 -   La résistance fixe nominale est 2,2 kΩ ; sa valeur mesurée est
     **2,193 kΩ**.
 -   La sortie du LDO AMS1117 mesurée au multimètre est **3,316 V**.
+-   Le LDO du pont et le VDD de l'ADS1115 sont deux rails distincts ; leurs
+    tensions ont été vérifiées sur la machine. La valeur **3,316 V** est un
+    relevé de diagnostic, pas une constante nécessaire au calcul : celui-ci
+    utilise le rapport des mesures A0 et A1.
 -   `LDO_V = 3.316 V` est conservé comme valeur de référence/diagnostic
     ; le calcul normal doit utiliser A0.
 -   Toutes les masses doivent être communes.

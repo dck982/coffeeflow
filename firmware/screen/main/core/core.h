@@ -53,6 +53,13 @@ struct Snapshot {
   bool flow_valid = false;
   bool valve_open = false;
   uint8_t dimmer_pct = 0;
+  uint8_t pump_pct = 0;
+  bool heating_capable = false;
+  bool heater_on = false;
+  bool heating_requested = false;
+  uint16_t heating_lease_remaining_ms = 0;
+  Freshness heating_freshness = Freshness::kMissing;
+  uint32_t heating_age_ms = UINT32_MAX;
   bool dimmer_ready = false;
   bool dimmer_valid = false;
   bool dimmer_error_active = false;
@@ -74,6 +81,8 @@ struct Snapshot {
   uint16_t sensors_twai_rx_errors = 0;
   uint16_t sensors_twai_tx_errors = 0;
   uint32_t sensors_twai_bus_errors = 0;
+  bool touch_ready = false;
+  uint32_t touch_press_count = 0;
 
   uint8_t network_state = 0;  // NetworkState, évite une dépendance d'ordre dans Snapshot
   uint32_t ipv4_address = 0;  // ordre réseau, 0 = aucune adresse
@@ -162,6 +171,7 @@ bool get_hf_capture_sample(uint16_t index, HFSample* sample);
 void on_status_pressure(const uint8_t* data, uint8_t len);
 void on_status_flow(const uint8_t* data, uint8_t len);
 void on_status_actuators(const uint8_t* data, uint8_t len);
+void on_status_heating(const uint8_t* data, uint8_t len);
 void on_pong(const uint8_t* data, uint8_t len);
 void on_log(const uint8_t* data, uint8_t len);
 
@@ -169,6 +179,8 @@ void on_log(const uint8_t* data, uint8_t len);
 // reste au coeur : connectée et une pesée reçue depuis moins de deux secondes.
 void update_scale_connection(bool connected);
 void update_scale_weight(float weight_g);
+void set_touch_ready(bool ready);
+void note_touch_press();
 
 void update_network_status(NetworkState state, uint32_t ipv4_address);
 void mark_wall_time_known(int64_t unix_s);
@@ -195,6 +207,8 @@ DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct);
 
 enum class Action : uint8_t {
   kSetActuators,
+  kSetBrewActuators,
+  kSetHeating,
   kStartBrew,
   kStopBrew,
   kResetSensors,
@@ -218,10 +232,15 @@ enum class ActionStatus : uint8_t {
   kInvalidValue,
 };
 
+struct BrewActuatorsCommand { uint8_t pump_pct = 0; uint16_t ttl_ms = 0; };
+struct HeatingCommand { bool on = false; uint16_t duration_ms = 0; };
 struct ActionCommand {
   Action action = Action::kSetActuators;
-  uint8_t dimmer = 0;
-  uint16_t ttl_ms = 0;
+  BrewActuatorsCommand brew;
+  HeatingCommand heating;
+  ActionCommand() = default;
+  ActionCommand(Action type, BrewActuatorsCommand brew_command = {}, HeatingCommand heating_command = {})
+      : action(type), brew(brew_command), heating(heating_command) {}
 };
 
 struct ActionResult {

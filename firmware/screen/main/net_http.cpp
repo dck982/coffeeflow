@@ -9,6 +9,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
+#include "esp_partition.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -16,6 +17,7 @@
 #include "common/crc.hpp"
 #include "net_ws.h"
 #include "ota_proxy.h"
+#include "ota_local.h"
 
 #if __has_include("secrets.h")
 #include "secrets.h"
@@ -104,6 +106,18 @@ const char* freshness_text(core::Freshness freshness) {
     case core::Freshness::kMissing: return "missing";
   }
   return "missing";
+}
+
+const char* ota_state_text(esp_ota_img_states_t state) {
+  switch (state) {
+    case ESP_OTA_IMG_NEW: return "new";
+    case ESP_OTA_IMG_PENDING_VERIFY: return "pending_verify";
+    case ESP_OTA_IMG_VALID: return "valid";
+    case ESP_OTA_IMG_INVALID: return "invalid";
+    case ESP_OTA_IMG_ABORTED: return "aborted";
+    case ESP_OTA_IMG_UNDEFINED: return "undefined";
+  }
+  return "unknown";
 }
 
 const char* network_text(core::NetworkState state) {
@@ -197,8 +211,32 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   add_age(root, "actuators_age_ms", snapshot.actuators_age_ms);
   add_age(root, "flow_last_edge_age_ms", snapshot.flow_last_edge_age_ms);
   cJSON_AddBoolToObject(root, "sensors_alive", snapshot.sensors_alive);
+  cJSON_AddBoolToObject(root, "touch_ready", snapshot.touch_ready);
+  cJSON_AddNumberToObject(root, "touch_press_count", snapshot.touch_press_count);
+  cJSON_AddBoolToObject(root, "screen_ota_pending_verify", ota_local::pending_verify());
+  const esp_partition_t* staging = esp_partition_find_first(
+      ESP_PARTITION_TYPE_DATA, static_cast<esp_partition_subtype_t>(0x40), "ota_staging");
+  cJSON_AddBoolToObject(root, "ota_staging_available", staging != nullptr);
+  if (staging != nullptr) cJSON_AddNumberToObject(root, "ota_staging_size", staging->size);
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  if (running != nullptr) {
+    cJSON_AddStringToObject(root, "screen_running_partition", running->label);
+    esp_ota_img_states_t ota_state;
+    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK)
+      cJSON_AddStringToObject(root, "screen_ota_state", ota_state_text(ota_state));
+    else cJSON_AddStringToObject(root, "screen_ota_state", "unavailable");
+  }
   cJSON_AddBoolToObject(root, "valve_open", snapshot.valve_open);
   cJSON_AddNumberToObject(root, "dimmer_pct", snapshot.dimmer_pct);
+  cJSON_AddNumberToObject(root, "pump_pct", snapshot.pump_pct);
+  cJSON_AddBoolToObject(root, "heating_capable", snapshot.heating_capable);
+  cJSON_AddBoolToObject(root, "heating_requested", snapshot.heating_requested);
+  cJSON_AddStringToObject(root, "heating_freshness", freshness_text(snapshot.heating_freshness));
+  add_age(root, "heating_age_ms", snapshot.heating_age_ms);
+  if (snapshot.heating_freshness == core::Freshness::kFresh)
+    cJSON_AddBoolToObject(root, "heater_on", snapshot.heater_on);
+  else cJSON_AddNullToObject(root, "heater_on");
+  cJSON_AddNumberToObject(root, "heating_lease_remaining_ms", snapshot.heating_lease_remaining_ms);
   cJSON_AddBoolToObject(root, "dimmer_ready", snapshot.dimmer_ready);
   cJSON_AddBoolToObject(root, "dimmer_valid", snapshot.dimmer_valid);
   cJSON_AddBoolToObject(root, "dimmer_error_active", snapshot.dimmer_error_active);
@@ -726,6 +764,8 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
     return false;
   }
   if (std::strcmp(action->valuestring, "set_actuators") == 0) command->action = core::Action::kSetActuators;
+  else if (std::strcmp(action->valuestring, "set_brew_actuators") == 0) command->action = core::Action::kSetBrewActuators;
+  else if (std::strcmp(action->valuestring, "set_heating") == 0) command->action = core::Action::kSetHeating;
   else if (std::strcmp(action->valuestring, "start_brew") == 0) command->action = core::Action::kStartBrew;
   else if (std::strcmp(action->valuestring, "stop_brew") == 0) command->action = core::Action::kStopBrew;
   else if (std::strcmp(action->valuestring, "reset_sensors") == 0) command->action = core::Action::kResetSensors;
@@ -745,19 +785,29 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
       return false;
     }
     if (std::strcmp(child->string, "action") == 0) continue;
-    if (command->action != core::Action::kSetActuators) {
+    if (command->action == core::Action::kSetHeating) {
+      if (std::strcmp(child->string, "on") == 0 && cJSON_IsBool(child)) {
+        command->heating.on = cJSON_IsTrue(child);
+        continue;
+      }
+      if (std::strcmp(child->string, "duration_ms") == 0 && as_u16(child, &command->heating.duration_ms)) continue;
       *field = store_field(child->string);
       return false;
     }
-    if (std::strcmp(child->string, "dimmer") == 0) {
-      if (!as_u8(child, &command->dimmer)) {
-        *field = "dimmer";
+    if (command->action != core::Action::kSetActuators && command->action != core::Action::kSetBrewActuators) {
+      *field = store_field(child->string);
+      return false;
+    }
+    const char* pump_field = command->action == core::Action::kSetActuators ? "dimmer" : "pump_pct";
+    if (std::strcmp(child->string, pump_field) == 0) {
+      if (!as_u8(child, &command->brew.pump_pct)) {
+        *field = pump_field;
         return false;
       }
       continue;
     }
     if (std::strcmp(child->string, "ttl_ms") == 0) {
-      if (!as_u16(child, &command->ttl_ms)) {
+      if (!as_u16(child, &command->brew.ttl_ms)) {
         *field = "ttl_ms";
         return false;
       }
@@ -767,10 +817,21 @@ bool parse_action(cJSON* root, core::ActionCommand* command, const char** field)
     return false;
   }
 
-  if (command->action == core::Action::kSetActuators) {
-    if (cJSON_GetObjectItemCaseSensitive(root, "dimmer") == nullptr) {
-      *field = "dimmer";
+  if (command->action == core::Action::kSetActuators || command->action == core::Action::kSetBrewActuators) {
+    const char* pump_field = command->action == core::Action::kSetActuators ? "dimmer" : "pump_pct";
+    if (cJSON_GetObjectItemCaseSensitive(root, pump_field) == nullptr ||
+        (command->action == core::Action::kSetBrewActuators &&
+         cJSON_GetObjectItemCaseSensitive(root, "ttl_ms") == nullptr)) {
+      *field = cJSON_GetObjectItemCaseSensitive(root, pump_field) == nullptr ? pump_field : "ttl_ms";
       return false;
+    }
+  } else if (command->action == core::Action::kSetHeating) {
+    if (!cJSON_IsBool(cJSON_GetObjectItemCaseSensitive(root, "on"))) { *field = "on"; return false; }
+    if (command->heating.on && cJSON_GetObjectItemCaseSensitive(root, "duration_ms") == nullptr) {
+      *field = "duration_ms"; return false;
+    }
+    if (!command->heating.on && cJSON_GetObjectItemCaseSensitive(root, "duration_ms") != nullptr) {
+      *field = "duration_ms"; return false;
     }
   }
   return true;
@@ -792,10 +853,19 @@ esp_err_t post_action_handler(httpd_req_t* request) {
   cJSON* response = cJSON_CreateObject();
   cJSON_AddBoolToObject(response, "ok", result.status == core::ActionStatus::kOk);
   cJSON_AddStringToObject(response, "reason", result.reason);
+  if (command.action == core::Action::kSetHeating) {
+    const core::Snapshot snapshot = core::get_snapshot();
+    cJSON_AddBoolToObject(response, "heating_requested", snapshot.heating_requested);
+    cJSON_AddStringToObject(response, "heating_freshness", freshness_text(snapshot.heating_freshness));
+    if (snapshot.heating_freshness == core::Freshness::kFresh)
+      cJSON_AddBoolToObject(response, "heater_on", snapshot.heater_on);
+    else cJSON_AddNullToObject(response, "heater_on");
+  }
   if (result.status == core::ActionStatus::kOk) return send_json_object(request, "200 OK", response);
   if (result.status == core::ActionStatus::kInvalidValue) {
     cJSON_Delete(response);
-    return send_error(request, "400 Bad Request", "invalid_value", "dimmer");
+    return send_error(request, "400 Bad Request", "invalid_value",
+                      command.action == core::Action::kSetHeating ? "duration_ms" : "pump_pct");
   }
   return send_json_object(request, "409 Conflict", response);
 }
@@ -814,6 +884,7 @@ esp_err_t firmware_handler(httpd_req_t* request) {
   const bool screen = std::strcmp(target, "screen") == 0;
   const bool sensors = std::strcmp(target, "sensors") == 0;
   if (!screen && !sensors) return send_error(request, "400 Bad Request", "invalid_firmware", "target");
+  if (ota_local::pending_verify()) return send_error(request, "409 Conflict", "pending_verification", nullptr);
   if (!core::begin_flash(screen ? core::FlashTarget::kScreen : core::FlashTarget::kSensors, size)) return send_error(request, "409 Conflict", "busy", nullptr);
 
   bool started = false;
@@ -843,6 +914,13 @@ esp_err_t firmware_handler(httpd_req_t* request) {
   }
   if (!ota_proxy::commit_upload()) { ota_proxy::abort_upload(); return send_error(request, "500 Internal Server Error", "queue_failed", nullptr); }
   return send_status_json(request, "202 Accepted", "{\"ok\":true,\"queued\":true}");
+}
+
+esp_err_t firmware_confirm_handler(httpd_req_t* request) {
+  if (!require_auth(request)) return ESP_OK;
+  if (!ota_local::confirm_pending_verify())
+    return send_error(request, "409 Conflict", "not_ready", nullptr);
+  return send_status_json(request, "200 OK", "{\"ok\":true,\"confirmed\":true}");
 }
 
 }  // namespace
@@ -877,12 +955,18 @@ void start() {
   const httpd_uri_t firmware{.uri = "/firmware", .method = HTTP_POST, .handler = firmware_handler, .user_ctx = nullptr,
                              .is_websocket = false, .handle_ws_control_frames = false, .supported_subprotocol = nullptr,
                              .ws_pre_handshake_cb = nullptr, .ws_post_handshake_cb = nullptr};
+  const httpd_uri_t firmware_confirm{.uri = "/firmware/confirm", .method = HTTP_POST,
+                                     .handler = firmware_confirm_handler, .user_ctx = nullptr,
+                                     .is_websocket = false, .handle_ws_control_frames = false,
+                                     .supported_subprotocol = nullptr, .ws_pre_handshake_cb = nullptr,
+                                     .ws_post_handshake_cb = nullptr};
   httpd_register_uri_handler(g_server, &telemetry);
   httpd_register_uri_handler(g_server, &hf_capture);
   httpd_register_uri_handler(g_server, &get_config);
   httpd_register_uri_handler(g_server, &post_config);
   httpd_register_uri_handler(g_server, &post_action);
   httpd_register_uri_handler(g_server, &firmware);
+  httpd_register_uri_handler(g_server, &firmware_confirm);
   net_ws::start(g_server, require_auth);
 }
 

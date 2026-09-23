@@ -14,6 +14,7 @@
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/protocol.hpp"
+#include "core/core.h"
 #include "serial_bridge.h"
 
 namespace ota_local {
@@ -22,7 +23,7 @@ namespace {
 
 constexpr const char* kTag = "screen";
 
-constexpr int64_t kOtaValidationTimeoutUs = 30 * 1000 * 1000;
+constexpr int64_t kOtaValidationTimeoutUs = 5 * 60 * 1000 * 1000;
 constexpr size_t kFlashBlockSize = 2048;
 bool g_ota_pending_verify = false;
 int64_t g_ota_pending_since_us = 0;
@@ -157,18 +158,10 @@ void on_flash_end(uint32_t expected_crc32) {
 
 // Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
 // phase 4 point 3, et sensors/main.cpp::tick_ota_validation() (même
-// mécanique). IDF ne redémarre jamais tout seul une image en
-// PENDING_VERIFY ; preuve de vie = un PING/PONG reçu de sensors sur le CAN
-// (can_link::presence_lost() à faux).
+// mécanique). IDF ne redémarre jamais tout seul une image en NEW ou
+// PENDING_VERIFY. La validation requiert une confirmation HTTP explicite.
 void tick_ota_validation() {
   if (!g_ota_pending_verify) return;
-
-  if (can_link::peer_roundtrip_confirmed()) {
-    esp_ota_mark_app_valid_cancel_rollback();
-    g_ota_pending_verify = false;
-    can_link::send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
-    return;
-  }
 
   if (now_us() - g_ota_pending_since_us > kOtaValidationTimeoutUs) {
     can_link::send_log(common::LogCode::kOtaRollback, common::LogSeverity::kError);
@@ -194,13 +187,31 @@ void init_pending_verify() {
   const esp_partition_t* running = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
   if (running != nullptr && esp_ota_get_state_partition(running, &ota_state) == ESP_OK &&
-      ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+      (ota_state == ESP_OTA_IMG_PENDING_VERIFY || ota_state == ESP_OTA_IMG_NEW)) {
     g_ota_pending_verify = true;
     g_ota_pending_since_us = now_us();
   }
 }
 
 bool pending_verify() { return g_ota_pending_verify; }
+
+bool confirm_pending_verify() {
+  if (!g_ota_pending_verify) {
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    return running != nullptr && esp_ota_get_state_partition(running, &state) == ESP_OK &&
+           state == ESP_OTA_IMG_VALID;
+  }
+  const core::Snapshot snapshot = core::get_snapshot();
+  if (!can_link::peer_roundtrip_confirmed() ||
+      snapshot.radio_mode != core::RadioMode::kWifi ||
+      snapshot.network_state != static_cast<uint8_t>(core::NetworkState::kStaConnected) ||
+      !snapshot.sensors_alive || snapshot.actuators_freshness != core::Freshness::kFresh) return false;
+  if (esp_ota_mark_app_valid_cancel_rollback() != ESP_OK) return false;
+  g_ota_pending_verify = false;
+  can_link::send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
+  return true;
+}
 
 void start_validation_task() {
   xTaskCreatePinnedToCore(ota_validation_task, "ota_valid", 4096, nullptr, 5, nullptr, 0);
@@ -225,6 +236,7 @@ void on_flash_ctrl_received(const uint8_t* data, size_t len) {
       }
       break;
     case common::FlashSubCmd::kBlockAck:
+    case common::FlashSubCmd::kBlockStart:
       // BLOCK_ACK n'est émis que par nous (le récepteur) ; rien à faire si on
       // le reçoit.
       break;

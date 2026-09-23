@@ -14,6 +14,9 @@ namespace board {
 // I2C partagé CH422G/tactile (tactile non utilisé par ce pont).
 constexpr gpio_num_t kI2cSda = GPIO_NUM_8;
 constexpr gpio_num_t kI2cScl = GPIO_NUM_9;
+// GT911 TP_IRQ. Piloté LOW pendant son reset pour choisir l'adresse 0x5D ;
+// la lecture tactile fonctionne ensuite en polling.
+constexpr gpio_num_t kTouchIrq = GPIO_NUM_4;
 
 // TWAI — GPIO20=TX, GPIO19=RX, broches natives D+/D- de l'USB de
 // l'ESP32-S3, basculées vers CAN_TX/CAN_RX par le mux analogique FSUSB42UMX
@@ -73,6 +76,10 @@ i2c_master_bus_handle_t i2c_bus();
 // pendant 200 ms avant toute initialisation RGB ou transaction GT911. À
 // appeler après ch422g_init() et select_can().
 void panel_power_on();
+
+// Reprise du GT911 après un reset logiciel où le tactile ne répond pas.
+// Ne change ni LCD_RST ni CAN_SEL.
+void touch_reset();
 
 // Rend l'image visible après l'initialisation RGB et le premier rendu LVGL.
 void panel_backlight_on();

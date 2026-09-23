@@ -43,10 +43,9 @@ extern "C" void app_main() {
   board::ch422g_init();
   board::select_can();
 
-  // PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4 point 3,
-  // et sensors/main.cpp (même mécanique). Ne jamais valider l'image tout de
-  // suite ici — ota_local::start_validation_task() ne le fait qu'après un
-  // PING/PONG confirmé sur le bus, ou rollback au bout du délai prévu.
+  // NEW ou PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4 point 3,
+  // et sensors/main.cpp (même mécanique). La validation exige une
+  // confirmation HTTP ; le temporisateur invalide l'image au bout du délai.
   ota_local::init_pending_verify();
 
   storage::init();
@@ -76,7 +75,12 @@ extern "C" void app_main() {
   // radio. Avec des identifiants enregistrés, une STA éphémère récupère
   // d'abord l'heure NTP ; elle rend ensuite toute la SRAM radio avant que le
   // mode machine charge BLE. Sans identifiants, le basculement est immédiat.
-  net_wifi::start_boot_time_sync();
+  if (ota_local::pending_verify()) {
+    // Garder HTTP disponible même si le GT911 ne répond pas après le reset OTA.
+    core::request_radio_mode(core::RadioMode::kWifi);
+  } else {
+    net_wifi::start_boot_time_sync();
+  }
 
   can_link::send_log(common::LogCode::kReady, common::LogSeverity::kInfo);
 }

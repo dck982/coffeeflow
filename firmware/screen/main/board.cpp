@@ -67,6 +67,15 @@ void select_can() { ch422g_set_bit(kCh422gCanSel, true); }
 i2c_master_bus_handle_t i2c_bus() { return g_bus; }
 
 void panel_power_on() {
+  gpio_set_level(kTouchIrq, 0);
+  gpio_config_t touch_irq_cfg{};
+  touch_irq_cfg.pin_bit_mask = 1ULL << kTouchIrq;
+  touch_irq_cfg.mode = GPIO_MODE_OUTPUT;
+  touch_irq_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+  touch_irq_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  touch_irq_cfg.intr_type = GPIO_INTR_DISABLE;
+  ESP_ERROR_CHECK(gpio_config(&touch_irq_cfg));
+  gpio_set_level(kTouchIrq, 0);
   // Réinitialiser réellement la dalle avant de démarrer le flux RGB. Le
   // précédent démarrage ne faisait que placer LCD_RST à 1, ce qui laissait
   // son état de capture RGB dépendre du boot précédent. Le rétroéclairage
@@ -79,6 +88,14 @@ void panel_power_on() {
   ch422g_set_bit(kCh422gLcdRst, true);
   ch422g_set_bit(kCh422gTpRst, true);
   vTaskDelay(pdMS_TO_TICKS(200));
+}
+
+void touch_reset() {
+  gpio_set_level(kTouchIrq, 0);
+  ch422g_set_bit(kCh422gTpRst, false);
+  vTaskDelay(pdMS_TO_TICKS(50));
+  ch422g_set_bit(kCh422gTpRst, true);
+  vTaskDelay(pdMS_TO_TICKS(150));
 }
 
 void panel_backlight_on() { ch422g_set_bit(kCh422gLcdBl, true); }

@@ -57,12 +57,6 @@ void on_ping_received(const uint8_t* data, uint8_t len) {
   send_pong();
 }
 
-void on_reset_received() {
-  send_log(common::LogCode::kRebootRequested, common::LogSeverity::kInfo);
-  vTaskDelay(pdMS_TO_TICKS(50));  // laisser partir le LOG avant le reboot
-  esp_restart();
-}
-
 }  // namespace
 
 void init() {
@@ -193,8 +187,10 @@ void dispatch_own_protocol(const twai_message_t& msg) {
       on_ping_received(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kPong:
-      g_peer_roundtrip_confirmed = true;
-      core::on_pong(msg.data, msg.data_length_code);
+      if (msg.data_length_code == 8 && msg.data[0] == static_cast<uint8_t>(common::Node::kSensors)) {
+        g_peer_roundtrip_confirmed = true;
+        core::on_pong(msg.data, msg.data_length_code);
+      }
       break;
     case common::MessageType::kStatusPressure:
       core::on_status_pressure(msg.data, msg.data_length_code);
@@ -205,14 +201,14 @@ void dispatch_own_protocol(const twai_message_t& msg) {
     case common::MessageType::kStatusActuators:
       core::on_status_actuators(msg.data, msg.data_length_code);
       break;
+    case common::MessageType::kStatusHeating:
+      core::on_status_heating(msg.data, msg.data_length_code);
+      break;
     case common::MessageType::kLog:
       core::on_log(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kFlashCtrl:
       ota_proxy::on_flash_ctrl_received(msg.data, msg.data_length_code);
-      break;
-    case common::MessageType::kReset:
-      on_reset_received();
       break;
     default:
       // Le reste (STATUS_*, LOG, FLASH_*) ne nous concerne pas en tant que

@@ -1534,11 +1534,13 @@ void refresh(const core::Snapshot &s, bool boot) {
                       : "cible temps · balance absente",
                 c.preinfusion_time_s);
   text(v.detail, t);
-  text(v.warning, (!s.dimmer_ready || !s.dimmer_valid) && s.sensors_alive
+  text(v.warning, s.lockout ? "verrou de sécurité · couper puis rallumer la machine" :
+                  !s.sensors_alive ? "module interne injoignable · wifi disponible pour récupération" :
+                  (!s.dimmer_ready || !s.dimmer_valid) && s.sensors_alive
                       ? "dimmer en calibration"
                       : "");
   recover_stuck_dimmer_calibration(s);
-  disable(v.brew_button, !s.dimmer_ready || !s.dimmer_valid);
+  disable(v.brew_button, s.lockout || !s.sensors_alive || !s.dimmer_ready || !s.dimmer_valid);
   disable(v.minus, scale ? c.target_weight_g <= 10 : c.target_time_s <= 5);
   disable(v.plus, scale ? c.target_weight_g >= 100 : c.target_time_s >= 60);
   cycle(s, c);
@@ -1592,15 +1594,8 @@ void refresh(const core::Snapshot &s, bool boot) {
                   s.screen_version_minor, s.screen_version_patch);
     text(v.diag_val[8], t);
   }
-  if (s.lockout)
-    fullscreen(
-        true, "verrou de sécurité",
-        "couper la machine à l'interrupteur principal, puis la rallumer");
-  else if (s.boot_time_syncing)
+  if (s.boot_time_syncing)
     fullscreen(true, "synchronisation heure", "connexion wifi...");
-  else if (!s.sensors_alive && !boot)
-    fullscreen(true, "module interne injoignable",
-               "les commandes de pompe et de vanne sont coupées");
   else if (s.flash_active)
     fullscreen(true, "mise à jour", "ne pas couper la machine");
   else if (s.radio_mode == core::RadioMode::kWifi) {

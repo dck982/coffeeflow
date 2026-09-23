@@ -41,7 +41,8 @@ constexpr const char* kTag = "sensors";
 // RX → jaune → GPIO8. Confirmé par self-test TWAI en boucle isolée
 // (firmware/can-selftest, PINOUT_CANPAL 1) le 2026-09-09 : 17/17 PASS,
 // tx_err=0 rx_err=0 bus_err=0.
-constexpr gpio_num_t kGpioSsr = GPIO_NUM_9;    // D10
+constexpr gpio_num_t kGpioValve = GPIO_NUM_9;    // D10
+constexpr gpio_num_t kGpioHeater = GPIO_NUM_3; // L2/D2, HW-399 IN4
 constexpr gpio_num_t kGpioCanTx = GPIO_NUM_7;  // D8
 constexpr gpio_num_t kGpioCanRx = GPIO_NUM_8;  // D9
 
@@ -106,6 +107,7 @@ constexpr int64_t kRuntimeLockoutUs = 60 * 1000 * 1000;
 constexpr int64_t kRuntimeRearmGapUs = 2000 * 1000;
 constexpr int64_t kTwaiCountersLogPeriodUs = 5000 * 1000;
 constexpr int64_t kTickPeriodUs = 100 * 1000;
+constexpr uint16_t kHeatingMaxDurationMs = 2000;
 
 // OTA — voir docs/firmware-implementation.md, phase 4. IDF ne redémarre
 // jamais tout seul une image en PENDING_VERIFY : ce délai est le
@@ -123,8 +125,10 @@ RTC_NOINIT_ATTR bool s_lockout_active;
 
 // État des actionneurs — RAM ordinaire, remis à zéro à chaque redémarrage,
 // logiciel ou non (seul le verrou ci-dessus doit survivre).
-bool g_ssr = false;
-uint8_t g_dimmer = 0;
+bool g_valve_open = false;
+bool g_heater_on = false;
+int64_t g_heating_deadline_us = 0;
+uint8_t g_pump_pct = 0;
 // Santé dimmer, mise à jour à chaque écriture (voir apply_dimmer()) : reflète
 // la dernière transaction I2C réelle, pas un état supposé.
 bool g_dimmer_present = false;      // dernière transaction I2C a abouti (adresse ack)
@@ -147,6 +151,7 @@ bool g_presence_lost = true;  // état de repos correct, carte seule sur la tabl
 bool g_ota_pending_verify = false;
 int64_t g_ota_pending_since_us = 0;
 bool g_ota_roundtrip_confirmed = false;
+bool g_ota_screen_confirmed = false;
 
 // XDB401 — voir docs/firmware.md, "I2C partagé" : le mutex sérialise
 // l'accès au bus (utile dès que le dimmer sera câblé dessus), mais ne
@@ -174,6 +179,8 @@ uint16_t g_flow_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_flow_last_sent_us = 0;
 uint16_t g_actuators_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_actuators_last_sent_us = 0;
+uint16_t g_heating_period_ms = 0;
+int64_t g_heating_last_sent_us = 0;
 
 void IRAM_ATTR flow_isr_handler(void*) {
   int64_t edge_us = esp_timer_get_time();
@@ -193,6 +200,8 @@ struct FlashState {
   uint32_t image_size = 0;
   uint32_t bytes_written = 0;
   uint16_t block_number = 0;  // nombre de blocs déjà acquittés
+  uint16_t last_block_crc16 = 0;
+  bool replay_ignored = false;
   uint8_t block_buf[kFlashBlockSize];
   size_t block_buf_len = 0;
   common::Crc32Incremental image_crc;
@@ -201,7 +210,12 @@ FlashState g_flash;
 
 int64_t now_us() { return esp_timer_get_time(); }
 
-void apply_ssr() { gpio_set_level(kGpioSsr, g_ssr ? 1 : 0); }
+void apply_valve() { gpio_set_level(kGpioValve, g_valve_open ? 1 : 0); }
+void force_heating_off() {
+  g_heater_on = false;
+  g_heating_deadline_us = 0;
+  gpio_set_level(kGpioHeater, 0);
+}
 
 // Déclaration en avance : apply_dimmer() a besoin de send_log(), défini plus
 // bas dans ce fichier avec les autres émetteurs.
@@ -303,7 +317,7 @@ void on_dimmer_command_received(const uint8_t* data, size_t len) {
 // erreur si besoin, fréquence en informatif) — voir docs/firmware.md,
 // "Dimmer — pompe".
 void apply_dimmer() {
-  const uint8_t write_level[2] = {kDimmerRegLevel, g_dimmer};
+  const uint8_t write_level[2] = {kDimmerRegLevel, g_pump_pct};
 
   xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
   esp_err_t err = i2c_master_transmit(g_dimmer_dev, write_level, sizeof(write_level), pdMS_TO_TICKS(100));
@@ -394,8 +408,8 @@ void send_ping(common::Dest dest) {
 
 void send_status_actuators() {
   common::StatusActuatorsPayload payload;
-  payload.ssr = g_ssr;
-  payload.dimmer = g_dimmer;
+  payload.valve_open = g_valve_open;
+  payload.pump_pct = g_pump_pct;
   int64_t t = now_us();
   int64_t lease_remaining = g_lease_deadline_us > t ? (g_lease_deadline_us - t) / 1000 : 0;
   payload.lease_remaining_ms = static_cast<uint16_t>(lease_remaining > 0xFFFF ? 0xFFFF : lease_remaining);
@@ -407,12 +421,22 @@ void send_status_actuators() {
   send_message(common::MessageType::kStatusActuators, common::Dest::kScreen, f.data(), 7);
 }
 
+void send_status_heating() {
+  common::StatusHeatingPayload payload;
+  payload.heater_on = g_heater_on;
+  const int64_t remaining = g_heating_deadline_us > now_us() ?
+      (g_heating_deadline_us - now_us()) / 1000 : 0;
+  payload.lease_remaining_ms = static_cast<uint16_t>(remaining);
+  const common::Frame frame = payload.pack();
+  send_message(common::MessageType::kStatusHeating, common::Dest::kScreen, frame.data(), 4);
+}
+
 // Coupe les actionneurs immédiatement, sans toucher au verrou lui-même.
 void force_actuators_off() {
-  g_ssr = false;
-  g_dimmer = 0;
+  g_valve_open = false;
+  g_pump_pct = 0;
   g_lease_deadline_us = 0;
-  apply_ssr();
+  apply_valve();
   apply_dimmer();
 }
 
@@ -598,18 +622,19 @@ void on_set_received(const uint8_t* data, size_t len) {
   if (!common::SetPayload::unpack(data, len, &payload)) {
     return;
   }
+  if (g_flash.partition != nullptr) return;
   if (s_lockout_active) {
     send_log(common::LogCode::kCommandRefusedLocked, common::LogSeverity::kWarn);
     send_status_actuators();
     return;
   }
-  if (payload.dimmer > 100) return;
+  if (payload.pump_pct > 100) return;
   // Le niveau est l'intention reçue. La politique de séquencement des deux
   // sorties reste ici, afin de pouvoir y introduire des délais calibrés sans
   // exposer SSR sur CAN.
-  g_ssr = payload.dimmer > 0;
-  g_dimmer = payload.dimmer;
-  apply_ssr();
+  g_valve_open = payload.pump_pct > 0;
+  g_pump_pct = payload.pump_pct;
+  apply_valve();
   apply_dimmer();
   int64_t ttl_us = (payload.ttl_ms == 0 ? kLeaseDefaultUs : static_cast<int64_t>(payload.ttl_ms) * 1000);
   g_lease_deadline_us = now_us() + ttl_us;
@@ -617,8 +642,24 @@ void on_set_received(const uint8_t* data, size_t len) {
 }
 
 void on_stop_received() {
+  force_heating_off();
   force_actuators_off();
   send_status_actuators();
+  send_status_heating();
+}
+
+void on_set_heating_received(const uint8_t* data, size_t len) {
+  common::SetHeatingPayload payload;
+  if (!common::SetHeatingPayload::unpack(data, len, &payload)) return;
+  if (!payload.on) {
+    force_heating_off();
+  } else if (!g_heater_on && !s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
+             payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
+    g_heater_on = true;
+    g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
+    gpio_set_level(kGpioHeater, 1);
+  }
+  send_status_heating();
 }
 
 void on_reqstatus_received(const uint8_t* data, size_t len) {
@@ -644,6 +685,10 @@ void on_reqstatus_received(const uint8_t* data, size_t len) {
       g_actuators_period_ms = payload.period_ms;
       g_actuators_last_sent_us = 0;
       break;
+    case common::MessageType::kStatusHeating:
+      g_heating_period_ms = payload.period_ms;
+      g_heating_last_sent_us = 0;
+      break;
     default:
       break;
   }
@@ -666,6 +711,8 @@ void reset_flash_state() {
   g_flash.image_size = 0;
   g_flash.bytes_written = 0;
   g_flash.block_number = 0;
+  g_flash.last_block_crc16 = 0;
+  g_flash.replay_ignored = false;
   g_flash.block_buf_len = 0;
   g_flash.image_crc = common::Crc32Incremental{};
 }
@@ -681,6 +728,10 @@ void flash_abort(const char* reason) {
 }
 
 void on_flash_begin(uint32_t image_size) {
+  force_heating_off();
+  force_actuators_off();
+  send_status_heating();
+  send_status_actuators();
   if (g_flash.partition != nullptr) {
     flash_abort("nouveau BEGIN reçu avant la fin du précédent transfert");
   }
@@ -772,6 +823,19 @@ void on_flash_ctrl_received(const uint8_t* data, size_t len) {
       // BLOCK_ACK n'est émis que par le récepteur (nous) ; rien à faire si
       // on le reçoit (écran mal aligné sur son propre rôle).
       break;
+    case common::FlashSubCmd::kBlockStart:
+      if (g_flash.partition == nullptr) break;
+      if (payload.block_number == g_flash.block_number && g_flash.block_number > 0 &&
+          payload.block_crc16 == g_flash.last_block_crc16) {
+        g_flash.replay_ignored = true;
+        // Les données rejouées seront ignorées jusqu'au prochain BLOCK_START.
+        send_flash_ack(common::FlashSubCmd::kBlockAck, g_flash.block_number, g_flash.last_block_crc16);
+      } else if (payload.block_number == g_flash.block_number + 1 && g_flash.block_buf_len == 0) {
+        g_flash.replay_ignored = false;
+      } else {
+        flash_abort("numéro de bloc inattendu");
+      }
+      break;
   }
 }
 
@@ -779,19 +843,12 @@ void on_flash_ctrl_received(const uint8_t* data, size_t len) {
 // donnée, aucun en-tête. Écrit au fil de l'eau, jamais l'image entière en
 // RAM — voir docs/firmware-implementation.md, phase 4, point 2.
 //
-// Limite connue : si un bloc est rejoué par flash_client.py après un
-// BLOCK_ACK dont le CRC ne correspondait pas à ce qu'il a envoyé, ce
-// firmware n'a aucun moyen de distinguer ce rejeu d'un bloc suivant — les
-// octets rejoués sont alors traités comme la suite de l'image, ce qui la
-// corrompt. Le CRC16 par bloc protège contre une corruption silencieuse
-// (le transfert échouera au CRC32 global du END plutôt que de flasher une
-// image fausse), mais ne permet pas un vrai rattrapage bloc par bloc tant
-// que le protocole n'a pas de signal explicite de rejeu. Non exercé sur le
-// vrai bus avant cette session : le CAN a son propre CRC/ACK matériel, donc
-// le cas ne devrait se déclencher qu'en cas de bug logiciel, pas de bruit
-// électrique — mais c'est un point ouvert, pas une garantie.
+// Le proxy annonce chaque bloc par BLOCK_START. Si l'ACK s'est perdu,
+// le marqueur permet de reconnaître un rejeu et d'ignorer ses données.
+// Les anciens clients sans marqueur restent acceptés mais ne bénéficient
+// pas de cette déduplication.
 void on_flash_data_received(const uint8_t* data, size_t len) {
-  if (g_flash.partition == nullptr || len == 0) {
+  if (g_flash.partition == nullptr || len == 0 || g_flash.replay_ignored) {
     return;
   }
 
@@ -818,6 +875,7 @@ void on_flash_data_received(const uint8_t* data, size_t len) {
   }
   g_flash.image_crc.update(g_flash.block_buf, g_flash.block_buf_len);
   uint16_t block_crc16 = common::crc16_ccitt(g_flash.block_buf, g_flash.block_buf_len);
+  g_flash.last_block_crc16 = block_crc16;
   g_flash.bytes_written += g_flash.block_buf_len;
   g_flash.block_buf_len = 0;
   g_flash.block_number += 1;
@@ -860,6 +918,15 @@ void dispatch_frame(const twai_message_t& msg) {
     case common::MessageType::kSet:
       on_set_received(msg.data, msg.data_length_code);
       break;
+    case common::MessageType::kSetHeating:
+      on_set_heating_received(msg.data, msg.data_length_code);
+      break;
+    case common::MessageType::kConfirmSensorsOta:
+      if (msg.data_length_code == 1 && msg.data[0] == common::kHeatingProtocolMinPatch &&
+          g_ota_roundtrip_confirmed &&
+          g_heating_period_ms != 0 && g_actuators_period_ms != 0 &&
+          !g_heater_on && !g_valve_open && g_pump_pct == 0) g_ota_screen_confirmed = true;
+      break;
     case common::MessageType::kDimmerCommand:
       on_dimmer_command_received(msg.data, msg.data_length_code);
       break;
@@ -889,9 +956,13 @@ void twai_rx_task(void*) {
 
 // Bail : coupe les actionneurs si le SET le plus récent a expiré.
 void tick_lease() {
+  if (g_heater_on && now_us() >= g_heating_deadline_us) {
+    force_heating_off();
+    send_status_heating();
+  }
   if (g_lease_deadline_us == 0) return;
   if (now_us() < g_lease_deadline_us) return;
-  if (!g_ssr && g_dimmer == 0) {
+  if (!g_valve_open && g_pump_pct == 0) {
     g_lease_deadline_us = 0;
     return;
   }
@@ -918,7 +989,9 @@ void tick_presence() {
   }
   if (!g_presence_lost && t - g_presence_check_started_us >= kPresenceCheckBailUs) {
     g_presence_lost = true;
+    force_heating_off();
     force_actuators_off();
+    send_status_heating();
     send_log(common::LogCode::kPresenceLost, common::LogSeverity::kWarn);
   }
 }
@@ -927,7 +1000,7 @@ void tick_presence() {
 // n'est remis à zéro que par un arrêt d'au moins kRuntimeRearmGapUs : un
 // écran qui commuterait juste avant l'échéance ne rearme rien.
 void tick_runtime_lockout() {
-  bool running = g_ssr || g_dimmer > 0;
+  bool running = g_valve_open || g_pump_pct > 0;
   int64_t t = now_us();
 
   if (running) {
@@ -970,19 +1043,19 @@ void tick_twai_counters() {
 }
 
 // Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
-// phase 4, point 3 : une image en PENDING_VERIFY qui ne reçoit jamais de
-// PING/PONG doit rollback elle-même, IDF ne le fait pas tout seul.
-// La présence ordinaire peut désormais être maintenue par toute trame. La
-// validation OTA reste plus stricte : elle exige un PONG, donc un aller-
-// retour réel avec l'écran.
+// phase 4, point 3 : une image en NEW ou PENDING_VERIFY qui ne reçoit jamais
+// la confirmation explicite de screen doit rollback elle-même. La présence
+// ordinaire peut être maintenue par toute trame, mais la validation OTA
+// exige un aller-retour PING/PONG et des échos sûrs des actionneurs.
 void tick_ota_validation() {
   if (!g_ota_pending_verify) return;
 
-  if (g_ota_roundtrip_confirmed) {
-    esp_ota_mark_app_valid_cancel_rollback();
-    g_ota_pending_verify = false;
-    send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
-    return;
+  if (g_ota_screen_confirmed) {
+    if (esp_ota_mark_app_valid_cancel_rollback() == ESP_OK) {
+      g_ota_pending_verify = false;
+      send_log(common::LogCode::kOtaValidated, common::LogSeverity::kInfo);
+      return;
+    }
   }
 
   if (now_us() - g_ota_pending_since_us > kOtaValidationTimeoutUs) {
@@ -991,7 +1064,7 @@ void tick_ota_validation() {
     esp_ota_mark_app_invalid_rollback_and_reboot();
     // N'atteint ce point que si l'appel ci-dessus a échoué (pas d'image
     // précédente valide, p.ex.) : pas de seconde tentative, la carte reste
-    // en PENDING_VERIFY jusqu'au prochain reset.
+    // en NEW ou PENDING_VERIFY jusqu'au prochain reset.
     ESP_LOGE(kTag, "esp_ota_mark_app_invalid_rollback_and_reboot a échoué");
     g_ota_pending_verify = false;
   }
@@ -1016,6 +1089,14 @@ void tick_actuators() {
   g_actuators_last_sent_us = t;
 }
 
+void tick_heating() {
+  if (g_heating_period_ms == 0) return;
+  const int64_t t = now_us();
+  if (t - g_heating_last_sent_us < static_cast<int64_t>(g_heating_period_ms) * 1000) return;
+  send_status_heating();
+  g_heating_last_sent_us = t;
+}
+
 void safety_task(void*) {
   for (;;) {
     tick_lease();
@@ -1025,6 +1106,7 @@ void safety_task(void*) {
     tick_ota_validation();
     tick_flow();
     tick_actuators();
+    tick_heating();
     tick_dimmer_health();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }
@@ -1065,28 +1147,38 @@ void init_lockout_state() {
 }  // namespace
 
 extern "C" void app_main() {
+  // La protection pendant le reset exige aussi une vérification matérielle.
+  gpio_set_level(kGpioHeater, 0);
+  gpio_config_t heater_cfg{};
+  heater_cfg.pin_bit_mask = 1ULL << kGpioHeater;
+  heater_cfg.mode = GPIO_MODE_OUTPUT;
+  heater_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+  heater_cfg.pull_down_en = GPIO_PULLDOWN_ENABLE;
+  heater_cfg.intr_type = GPIO_INTR_DISABLE;
+  ESP_ERROR_CHECK(gpio_config(&heater_cfg));
+  gpio_set_level(kGpioHeater, 0);
   // GPIO 10 tenu bas avant toute autre initialisation, y compris le CAN —
   // voir docs/firmware.md, "Le SSR est bas au boot, avant toute
   // initialisation du CAN."
   gpio_config_t ssr_cfg{};
-  ssr_cfg.pin_bit_mask = 1ULL << kGpioSsr;
+  ssr_cfg.pin_bit_mask = 1ULL << kGpioValve;
   ssr_cfg.mode = GPIO_MODE_OUTPUT;
   ssr_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
   ssr_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
   ssr_cfg.intr_type = GPIO_INTR_DISABLE;
   gpio_config(&ssr_cfg);
-  gpio_set_level(kGpioSsr, 0);
+  gpio_set_level(kGpioValve, 0);
 
   init_lockout_state();
 
-  // PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4, point 3.
+  // NEW ou PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4, point 3.
   // Ne jamais valider l'image tout de suite ici — tick_ota_validation() ne
   // le fait qu'après un PING/PONG confirmé sur le bus, ou rollback au bout
   // de kOtaValidationTimeoutUs.
   const esp_partition_t* running = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
   if (running != nullptr && esp_ota_get_state_partition(running, &ota_state) == ESP_OK &&
-      ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+      (ota_state == ESP_OTA_IMG_PENDING_VERIFY || ota_state == ESP_OTA_IMG_NEW)) {
     g_ota_pending_verify = true;
     g_ota_pending_since_us = now_us();
   }
@@ -1102,7 +1194,7 @@ extern "C" void app_main() {
   g_last_own_ping_us = 0;
 
   // Identité au démarrage : le PING versionné informe immédiatement l'écran
-  // et le PONG reçu valide une image OTA PENDING_VERIFY.
+  // et le PONG reçu participe à la validation d'une image OTA.
   send_ping(common::Dest::kScreen);
 
   send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);

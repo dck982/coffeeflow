@@ -30,12 +30,15 @@ enum class MessageType : uint8_t {
   // Commande de maintenance de l'esclave DimmerLink, écran → capteurs.
   // Elle reste distincte de RESET, qui redémarre tout le module capteurs.
   kDimmerCommand = 0x03,
+  kSetHeating = 0x04,
+  kConfirmSensorsOta = 0x05,
   kPing = 0x08,
   kPong = 0x09,
   kReqStatus = 0x10,
   kStatusPressure = 0x20,
   kStatusFlow = 0x21,
   kStatusActuators = 0x22,
+  kStatusHeating = 0x23,
   kLog = 0x30,
   kFlashCtrl = 0x38,
   kFlashData = 0x39,
@@ -49,12 +52,15 @@ constexpr bool is_known_message_type(uint8_t type) {
     case MessageType::kSet:
     case MessageType::kReset:
     case MessageType::kDimmerCommand:
+    case MessageType::kSetHeating:
+    case MessageType::kConfirmSensorsOta:
     case MessageType::kPing:
     case MessageType::kPong:
     case MessageType::kReqStatus:
     case MessageType::kStatusPressure:
     case MessageType::kStatusFlow:
     case MessageType::kStatusActuators:
+    case MessageType::kStatusHeating:
     case MessageType::kLog:
     case MessageType::kFlashCtrl:
     case MessageType::kFlashData:

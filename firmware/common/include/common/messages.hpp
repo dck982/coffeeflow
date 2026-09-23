@@ -38,21 +38,57 @@ inline uint32_t get_u32(const uint8_t* in) {
 }
 
 // SET (0x01) — écran → capteurs. Le niveau demandé est l'unique intention
-// exposée par le protocole ; les capteurs séquencent SSR et dimmer localement.
+// exposée par le protocole ; les capteurs séquencent vanne et pompe localement.
 struct SetPayload {
-  uint8_t dimmer = 0;      // 0..100
+  uint8_t pump_pct = 0;      // 0..100
   uint16_t ttl_ms = 0;     // 0 = défaut (500 ms), voir firmware.md §1
 
   Frame pack() const {
     Frame f{};
-    f[0] = dimmer;
+    f[0] = pump_pct;
     put_u16(&f[1], ttl_ms);
     return f;
   }
   static bool unpack(const uint8_t* in, size_t len, SetPayload* out) {
     if (len < 3) return false;
-    out->dimmer = in[0];
+    out->pump_pct = in[0];
     out->ttl_ms = get_u16(&in[1]);
+    return true;
+  }
+};
+
+// Commande chaudière indépendante du SET infusion. Bail non renouvelé par screen.
+struct SetHeatingPayload {
+  bool on = false;
+  uint16_t duration_ms = 0;
+  Frame pack() const {
+    Frame f{};
+    f[0] = on ? 1 : 0;
+    put_u16(&f[1], duration_ms);
+    return f;
+  }
+  static bool unpack(const uint8_t* in, size_t len, SetHeatingPayload* out) {
+    if (len < 3 || in[0] > 1) return false;
+    out->on = in[0] != 0;
+    out->duration_ms = get_u16(&in[1]);
+    return true;
+  }
+};
+
+struct StatusHeatingPayload {
+  bool heater_on = false;
+  uint16_t lease_remaining_ms = 0;
+  Frame pack() const {
+    Frame f{};
+    f[0] = heater_on ? 1 : 0;
+    put_u16(&f[1], lease_remaining_ms);
+    f[3] = 1;  // capacité chauffage diagnostique
+    return f;
+  }
+  static bool unpack(const uint8_t* in, size_t len, StatusHeatingPayload* out) {
+    if (len < 4 || in[0] > 1 || (in[3] & 1) == 0) return false;
+    out->heater_on = in[0] != 0;
+    out->lease_remaining_ms = get_u16(&in[1]);
     return true;
   }
 };
@@ -190,19 +226,19 @@ struct StatusFlowPayload {
 
 // STATUS_ACTUATORS (0x22) — accusé de réception d'un SET
 struct StatusActuatorsPayload {
-  bool ssr = false;
-  uint8_t dimmer = 0;
+  bool valve_open = false;
+  uint8_t pump_pct = 0;
   uint16_t lease_remaining_ms = 0;
   uint16_t continuous_on_ms = 0;
-  // bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C,
+  // bit0 verrou actif, bit1 DimmerLink prêt, bit2 DimmerLink valide (détection I2C,
   // même sens que le bit0 des autres STATUS_* — pas le bit0 ici, la place
   // est prise par le verrou).
   uint8_t flags = 0;
 
   Frame pack() const {
     Frame f{};
-    f[0] = ssr ? 1 : 0;
-    f[1] = dimmer;
+    f[0] = valve_open ? 1 : 0;
+    f[1] = pump_pct;
     put_u16(&f[2], lease_remaining_ms);
     put_u16(&f[4], continuous_on_ms);
     f[6] = flags;
@@ -210,8 +246,8 @@ struct StatusActuatorsPayload {
   }
   static bool unpack(const uint8_t* in, size_t len, StatusActuatorsPayload* out) {
     if (len < 7) return false;
-    out->ssr = in[0] != 0;
-    out->dimmer = in[1];
+    out->valve_open = in[0] != 0;
+    out->pump_pct = in[1];
     out->lease_remaining_ms = get_u16(&in[2]);
     out->continuous_on_ms = get_u16(&in[4]);
     out->flags = in[6];
@@ -252,6 +288,7 @@ enum class FlashSubCmd : uint8_t {
   kBlockAck = 1,
   kEnd = 2,
   kAbort = 3,
+  kBlockStart = 4,  // numéro et CRC du bloc annoncé avant FLASH_DATA
 };
 
 struct FlashCtrlPayload {
@@ -269,6 +306,7 @@ struct FlashCtrlPayload {
         put_u32(&f[1], image_size);
         break;
       case FlashSubCmd::kBlockAck:
+      case FlashSubCmd::kBlockStart:
         put_u16(&f[1], block_number);
         put_u16(&f[3], block_crc16);
         break;
@@ -289,6 +327,7 @@ struct FlashCtrlPayload {
         out->image_size = get_u32(&in[1]);
         return true;
       case FlashSubCmd::kBlockAck:
+      case FlashSubCmd::kBlockStart:
         if (len < 5) return false;
         out->block_number = get_u16(&in[1]);
         out->block_crc16 = get_u16(&in[3]);

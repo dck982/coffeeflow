@@ -51,7 +51,7 @@ void test_known_message_type() {
 
 void test_set_payload_roundtrip() {
   SetPayload in{};
-  in.dimmer = 42;
+  in.pump_pct = 42;
   in.ttl_ms = 500;
   const Frame f = in.pack();
 
@@ -61,8 +61,37 @@ void test_set_payload_roundtrip() {
 
   SetPayload out{};
   CHECK(SetPayload::unpack(f.data(), f.size(), &out));
-  CHECK(out.dimmer == in.dimmer);
+  CHECK(out.pump_pct == in.pump_pct);
   CHECK(out.ttl_ms == in.ttl_ms);
+}
+
+void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
+  CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kSetHeating)));
+  CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kStatusHeating)));
+  SetHeatingPayload command{};
+  command.on = true;
+  command.duration_ms = 1000;
+  const Frame request = command.pack();
+  CHECK(request[0] == 1 && request[1] == 0xE8 && request[2] == 0x03);
+  SetHeatingPayload decoded{};
+  CHECK(SetHeatingPayload::unpack(request.data(), 3, &decoded));
+  CHECK(decoded.on && decoded.duration_ms == 1000);
+  CHECK(!SetHeatingPayload::unpack(request.data(), 2, &decoded));
+  Frame invalid = request;
+  invalid[0] = 2;
+  CHECK(!SetHeatingPayload::unpack(invalid.data(), 3, &decoded));
+
+  StatusHeatingPayload status{};
+  status.heater_on = true;
+  status.lease_remaining_ms = 750;
+  const Frame echo = status.pack();
+  StatusHeatingPayload decoded_status{};
+  CHECK(StatusHeatingPayload::unpack(echo.data(), 4, &decoded_status));
+  CHECK(decoded_status.heater_on && decoded_status.lease_remaining_ms == 750);
+  CHECK(!StatusHeatingPayload::unpack(echo.data(), 3, &decoded_status));
+  invalid = echo;
+  invalid[3] = 0;
+  CHECK(!StatusHeatingPayload::unpack(invalid.data(), 4, &decoded_status));
 }
 
 void test_pong_payload_roundtrip() {
@@ -127,8 +156,8 @@ void test_status_flow_payload_roundtrip() {
 
 void test_status_actuators_payload_roundtrip() {
   StatusActuatorsPayload in{};
-  in.ssr = true;
-  in.dimmer = 77;
+  in.valve_open = true;
+  in.pump_pct = 77;
   in.lease_remaining_ms = 480;
   in.continuous_on_ms = 59000;
   in.flags = 0b101;
@@ -136,8 +165,8 @@ void test_status_actuators_payload_roundtrip() {
 
   StatusActuatorsPayload out{};
   CHECK(StatusActuatorsPayload::unpack(f.data(), f.size(), &out));
-  CHECK(out.ssr == in.ssr);
-  CHECK(out.dimmer == in.dimmer);
+  CHECK(out.valve_open == in.valve_open);
+  CHECK(out.pump_pct == in.pump_pct);
   CHECK(out.lease_remaining_ms == in.lease_remaining_ms);
   CHECK(out.continuous_on_ms == in.continuous_on_ms);
   CHECK(out.flags == in.flags);
@@ -181,6 +210,18 @@ void test_flash_ctrl_payload_roundtrip() {
     CHECK(FlashCtrlPayload::unpack(f.data(), f.size(), &out));
     CHECK(out.block_number == in.block_number);
     CHECK(out.block_crc16 == in.block_crc16);
+  }
+  {
+    FlashCtrlPayload in{};
+    in.subcmd = FlashSubCmd::kBlockStart;
+    in.block_number = 7;
+    in.block_crc16 = 0xA55A;
+    const Frame f = in.pack();
+    FlashCtrlPayload out{};
+    CHECK(FlashCtrlPayload::unpack(f.data(), 5, &out));
+    CHECK(out.subcmd == FlashSubCmd::kBlockStart);
+    CHECK(out.block_number == 7 && out.block_crc16 == 0xA55A);
+    CHECK(!FlashCtrlPayload::unpack(f.data(), 4, &out));
   }
   {
     FlashCtrlPayload in{};
@@ -310,6 +351,7 @@ int main() {
   test_can_id_priority_ordering();
   test_known_message_type();
   test_set_payload_roundtrip();
+  test_heating_protocol_is_independent_and_rejects_invalid_frames();
   test_pong_payload_roundtrip();
   test_reqstatus_payload_roundtrip();
   test_status_pressure_payload_roundtrip();

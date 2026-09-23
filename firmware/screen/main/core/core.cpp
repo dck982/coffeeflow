@@ -70,6 +70,8 @@ struct State {
   int64_t pressure_last_valid_us = 0;
   int64_t flow_received_us = 0;
   int64_t actuators_received_us = 0;
+  int64_t heating_received_us = 0;
+  int64_t heating_deadline_us = 0;
   int64_t last_sensors_message_us = 0;
   int64_t last_flow_edge_received_us = 0;
   int64_t scale_received_us = 0;
@@ -276,10 +278,18 @@ void send_set(uint8_t dimmer, uint16_t ttl_ms, HFCaptureOrigin origin = HFCaptur
     note_hf_capture_stop_request();
   }
   common::SetPayload command;
-  command.dimmer = dimmer;
+  command.pump_pct = dimmer;
   command.ttl_ms = ttl_ms;
   common::Frame frame = command.pack();
   can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 3);
+}
+
+void send_heating(bool on, uint16_t duration_ms) {
+  common::SetHeatingPayload command;
+  command.on = on;
+  command.duration_ms = duration_ms;
+  const common::Frame frame = command.pack();
+  can_link::send_message(common::MessageType::kSetHeating, common::Dest::kSensors, frame.data(), 3);
 }
 
 uint16_t config_field_arg(const char* field) {
@@ -461,12 +471,38 @@ void telemetry_task(void*) {
       send_request(common::MessageType::kStatusPressure, p.pressure);
       send_request(common::MessageType::kStatusFlow, p.flow);
       send_request(common::MessageType::kStatusActuators, p.actuators);
+      send_request(common::MessageType::kStatusHeating, 250);
       portENTER_CRITICAL(&g_state.lock);
       g_state.profile_dirty = false;
       g_state.last_request_us = now;
       portEXIT_CRITICAL(&g_state.lock);
     }
     can_link::tick_presence();
+    static int64_t last_ota_confirm_us = 0;
+    const Snapshot ota_snapshot = get_snapshot();
+    if (now - last_ota_confirm_us >= 1000 * 1000 &&
+        ota_snapshot.sensors_alive && ota_snapshot.sensors_version_major == common::kFirmwareVersionMajor &&
+        ota_snapshot.sensors_version_minor == common::kFirmwareVersionMinor &&
+        ota_snapshot.sensors_version_patch >= common::kHeatingProtocolMinPatch &&
+        ota_snapshot.actuators_freshness == Freshness::kFresh &&
+        ota_snapshot.heating_freshness == Freshness::kFresh &&
+        !ota_snapshot.valve_open && ota_snapshot.pump_pct == 0 && !ota_snapshot.heater_on) {
+      const uint8_t version = common::kHeatingProtocolMinPatch;
+      can_link::send_message(common::MessageType::kConfirmSensorsOta, common::Dest::kSensors, &version, 1);
+      last_ota_confirm_us = now;
+    }
+    bool heating_expired = false;
+    portENTER_CRITICAL(&g_state.lock);
+    if (g_state.heating_deadline_us != 0 &&
+        (now >= g_state.heating_deadline_us ||
+         g_state.heating_received_us == 0 ||
+         now - g_state.heating_received_us > 750 * 1000)) {
+      g_state.heating_deadline_us = 0;
+      g_state.snapshot.heating_requested = false;
+      heating_expired = true;
+    }
+    portEXIT_CRITICAL(&g_state.lock);
+    if (heating_expired) send_heating(false, 0);
     tick_machine();
     tick_hf_capture();
     vTaskDelay(pdMS_TO_TICKS(kTelemetryTickMs));
@@ -528,13 +564,42 @@ bool begin_flash(FlashTarget target, uint32_t total) {
       get_snapshot().cycle_state == CycleState::kBrew || get_snapshot().cycle_state == CycleState::kRampdown ||
       get_snapshot().cycle_state == CycleState::kPurge || get_snapshot().capture_cooldown) return false;
   Snapshot snapshot = get_snapshot();
-  // Sans secteur le dimmer ne répond pas sur I2C : STATUS_ACTUATORS est alors
-  // légitimement absent. Le CAN vivant reste indispensable, et un écho frais
-  // qui dit SSR/pompe actifs interdit toujours le flash. L'arrêt est envoyé
-  // juste après l'acceptation dans tous les cas.
-  if (!snapshot.sensors_alive ||
-      (snapshot.actuators_freshness == Freshness::kFresh &&
-       (snapshot.valve_open || snapshot.dimmer_pct != 0))) return false;
+  if (snapshot.heating_requested ||
+      (snapshot.actuators_freshness == Freshness::kFresh && (snapshot.valve_open || snapshot.pump_pct != 0)) ||
+      (snapshot.heating_freshness == Freshness::kFresh && snapshot.heater_on)) return false;
+  if (target == FlashTarget::kSensors) {
+    if (!snapshot.sensors_alive || snapshot.actuators_freshness != Freshness::kFresh ||
+        (snapshot.heating_capable && snapshot.heating_freshness != Freshness::kFresh)) return false;
+    int64_t old_received = 0;
+    int64_t old_heating_received = 0;
+    portENTER_CRITICAL(&g_state.lock);
+    old_received = g_state.actuators_received_us;
+    old_heating_received = g_state.heating_received_us;
+    portEXIT_CRITICAL(&g_state.lock);
+    can_link::send_message(common::MessageType::kStop, common::Dest::kSensors, nullptr, 0);
+    bool stopped = false;
+    for (int i = 0; i < 20; ++i) {
+      vTaskDelay(pdMS_TO_TICKS(25));
+      const Snapshot echo = get_snapshot();
+      int64_t received = 0;
+      int64_t heating_received = 0;
+      portENTER_CRITICAL(&g_state.lock);
+      received = g_state.actuators_received_us;
+      heating_received = g_state.heating_received_us;
+      portEXIT_CRITICAL(&g_state.lock);
+      if (received > old_received && echo.actuators_freshness == Freshness::kFresh &&
+          !echo.valve_open && echo.dimmer_pct == 0 &&
+          (!echo.heating_capable || (heating_received > old_heating_received &&
+                                    echo.heating_freshness == Freshness::kFresh && !echo.heater_on))) {
+        stopped = true;
+        break;
+      }
+    }
+    if (!stopped) return false;
+  } else {
+    // Un écran qui ne décode plus le CAN doit garder son propre chemin OTA.
+    can_link::send_message(common::MessageType::kStop, common::Dest::kSensors, nullptr, 0);
+  }
   g_flash_active = true;
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.flash_active = true;
@@ -545,6 +610,7 @@ bool begin_flash(FlashTarget target, uint32_t total) {
   g_state.profile_dirty = true;
   portEXIT_CRITICAL(&g_state.lock);
   send_set(0, 0);
+  send_heating(false, 0);
   return true;
 }
 
@@ -613,17 +679,18 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   portENTER_CRITICAL(&g_state.lock);
   g_state.last_sensors_message_us = now;
   g_state.actuators_received_us = now;
-  g_state.snapshot.valve_open = payload.ssr;
-  g_state.snapshot.dimmer_pct = payload.dimmer;
+  g_state.snapshot.valve_open = payload.valve_open;
+  g_state.snapshot.dimmer_pct = payload.pump_pct;
+  g_state.snapshot.pump_pct = payload.pump_pct;
   g_state.snapshot.lease_remaining_ms = payload.lease_remaining_ms;
   g_state.snapshot.continuous_on_ms = payload.continuous_on_ms;
   g_state.snapshot.lockout = (payload.flags & 0x01) != 0;
   g_state.snapshot.dimmer_ready = (payload.flags & 0x02) != 0;
   g_state.snapshot.dimmer_valid = (payload.flags & 0x04) != 0;
   g_state.snapshot.dimmer_error_active = (payload.flags & 0x08) != 0;
-  if (g_state.hf_capture.active && payload.dimmer > 0) g_state.hf_capture.actuator_seen_on = true;
+  if (g_state.hf_capture.active && payload.pump_pct > 0) g_state.hf_capture.actuator_seen_on = true;
   if (g_state.hf_capture.active && !g_state.hf_capture.cooldown &&
-      g_state.hf_capture.actuator_seen_on && payload.dimmer == 0) {
+      g_state.hf_capture.actuator_seen_on && payload.pump_pct == 0) {
     g_state.hf_capture.cooldown = true;
     g_state.hf_capture.cooldown_ends_at_us = now + kHFCaptureCooldownUs;
     g_state.snapshot.capture_cooldown = true;
@@ -633,12 +700,34 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   set_telemetry_profile(profile);
 }
 
+void on_status_heating(const uint8_t* data, uint8_t len) {
+  common::StatusHeatingPayload payload;
+  if (!common::StatusHeatingPayload::unpack(data, len, &payload)) return;
+  const int64_t now = now_us();
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.last_sensors_message_us = now;
+  g_state.heating_received_us = now;
+  g_state.snapshot.heating_capable = true;
+  g_state.snapshot.heater_on = payload.heater_on;
+  g_state.snapshot.heating_lease_remaining_ms = payload.lease_remaining_ms;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
 void on_pong(const uint8_t* data, uint8_t len) {
   common::PongPayload payload;
   if (!common::PongPayload::unpack(data, len, &payload) || payload.node != common::Node::kSensors) return;
   int64_t now = now_us();
   portENTER_CRITICAL(&g_state.lock);
   g_state.last_sensors_message_us = now;
+  if (payload.uptime_s < g_state.snapshot.sensors_uptime_s ||
+      payload.version_major != common::kFirmwareVersionMajor ||
+      payload.version_minor != common::kFirmwareVersionMinor ||
+      payload.version_patch < common::kHeatingProtocolMinPatch) {
+    g_state.heating_received_us = 0;
+    g_state.snapshot.heating_capable = false;
+    g_state.snapshot.heater_on = false;
+    g_state.snapshot.heating_lease_remaining_ms = 0;
+  }
   g_state.snapshot.sensors_version_major = payload.version_major;
   g_state.snapshot.sensors_version_minor = payload.version_minor;
   g_state.snapshot.sensors_version_patch = payload.version_patch;
@@ -669,6 +758,18 @@ void update_scale_weight(float weight_g) {
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.weight_g = weight_g;
   g_state.scale_received_us = now;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void set_touch_ready(bool ready) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.touch_ready = ready;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void note_touch_press() {
+  portENTER_CRITICAL(&g_state.lock);
+  ++g_state.snapshot.touch_press_count;
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -754,7 +855,7 @@ DiagnosticStatus set_diagnostic_purge(bool enabled, uint8_t pump_pct) {
   // Compatibilité temporaire avec l'écran de service : il devient lui aussi
   // un client de la face actions, sans chemin SET parallèle.
   ActionResult result = perform_action({enabled ? Action::kPurgePress : Action::kPurgeRelease,
-                                        pump_pct, 0});
+                                        {pump_pct, 0}, {}});
   switch (result.status) {
     case ActionStatus::kOk: return DiagnosticStatus::kOk;
     case ActionStatus::kBusLost: return DiagnosticStatus::kBusLost;
@@ -787,6 +888,29 @@ ActionResult perform_action(const ActionCommand& command) {
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
   }
   Snapshot snapshot = get_snapshot();
+  if (command.action == Action::kSetHeating) {
+    if (!command.heating.on) {
+      portENTER_CRITICAL(&g_state.lock);
+      g_state.heating_deadline_us = 0;
+      g_state.snapshot.heating_requested = false;
+      portEXIT_CRITICAL(&g_state.lock);
+      send_heating(false, 0);
+      return action_result(ActionStatus::kOk);
+    }
+    if (command.heating.duration_ms == 0 || command.heating.duration_ms > 2000)
+      return action_result(ActionStatus::kInvalidValue);
+    if (g_flash_active) return action_result(ActionStatus::kCycleActive);
+    if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+    if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+    if (!snapshot.heating_capable || snapshot.heating_freshness != Freshness::kFresh ||
+        snapshot.heater_on || snapshot.heating_requested) return action_result(ActionStatus::kUnavailable);
+    portENTER_CRITICAL(&g_state.lock);
+    g_state.heating_deadline_us = now_us() + static_cast<int64_t>(command.heating.duration_ms) * 1000;
+    g_state.snapshot.heating_requested = true;
+    portEXIT_CRITICAL(&g_state.lock);
+    send_heating(true, command.heating.duration_ms);
+    return action_result(ActionStatus::kOk);
+  }
   if (command.action == Action::kResetSensors) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
     if (snapshot.cycle_state == CycleState::kFilling ||
@@ -848,15 +972,15 @@ ActionResult perform_action(const ActionCommand& command) {
                                common::LogSeverity::kInfo);
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kCycleActive);
   }
-  if (command.action != Action::kSetActuators) return action_result(ActionStatus::kUnavailable);
-  if (command.dimmer > 100) return action_result(ActionStatus::kInvalidValue);
+  if (command.action != Action::kSetActuators && command.action != Action::kSetBrewActuators) return action_result(ActionStatus::kUnavailable);
+  if (command.brew.pump_pct > 100) return action_result(ActionStatus::kInvalidValue);
   snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
   if (snapshot.cycle_state == CycleState::kFilling || snapshot.cycle_state == CycleState::kPreinfusion ||
       snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown ||
       snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
-  send_set(command.dimmer, command.ttl_ms);
+  send_set(command.brew.pump_pct, command.brew.ttl_ms);
   return action_result(ActionStatus::kOk);
 }
 
@@ -896,6 +1020,7 @@ Snapshot get_snapshot() {
   int64_t pressure_received;
   int64_t flow_received;
   int64_t actuators_received;
+  int64_t heating_received;
   int64_t sensors_message;
   int64_t last_edge;
   int64_t scale_received;
@@ -910,6 +1035,7 @@ Snapshot get_snapshot() {
   pressure_received = g_state.pressure_received_us;
   flow_received = g_state.flow_received_us;
   actuators_received = g_state.actuators_received_us;
+  heating_received = g_state.heating_received_us;
   sensors_message = g_state.last_sensors_message_us;
   last_edge = g_state.last_flow_edge_received_us;
   scale_received = g_state.scale_received_us;
@@ -921,6 +1047,12 @@ Snapshot get_snapshot() {
   result.pressure_age_ms = age_ms(pressure_received, now);
   result.flow_age_ms = age_ms(flow_received, now);
   result.actuators_age_ms = age_ms(actuators_received, now);
+  result.heating_age_ms = age_ms(heating_received, now);
+  result.heating_freshness = freshness(heating_received, 250, now);
+  if (result.heating_freshness != Freshness::kFresh) {
+    result.heater_on = false;
+    result.heating_lease_remaining_ms = 0;
+  }
   result.pressure_freshness = result.pressure_valid ? freshness(pressure_received, periods.pressure, now) : Freshness::kMissing;
   result.flow_freshness = result.flow_valid ? freshness(flow_received, periods.flow, now) : Freshness::kMissing;
   result.actuators_freshness = freshness(actuators_received, periods.actuators, now);

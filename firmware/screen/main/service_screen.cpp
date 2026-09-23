@@ -84,6 +84,9 @@ uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
 void touch_read_with_y_offset(lv_indev_t* indev, lv_indev_data_t* data) {
   g_touch_read_cb(indev, data);
+  static bool was_pressed = false;
+  if (data->state == LV_INDEV_STATE_PRESSED && !was_pressed) core::note_touch_press();
+  was_pressed = data->state == LV_INDEV_STATE_PRESSED;
   if (data->state != LV_INDEV_STATE_PRESSED) {
     return;
   }
@@ -190,16 +193,12 @@ esp_lcd_panel_handle_t init_rgb_panel() {
   return panel_handle;
 }
 
-// GT911 observé intermittent au tout premier accès I2C juste après le reset
-// impulsionnel (bus qui finit de se stabiliser après la mise sous tension de
-// la dalle) : un échec isolé au premier boot, jamais au second, pendant le
-// bring-up (docs/plan-phase6.md, "attends-toi à des écarts... prévoir un
-// repli"). Le tactile n'est pas indispensable au reste de l'écran de service
-// (CAN/version/événements) : on retente une fois puis on continue sans
-// tactile plutôt que de faire planter tout l'écran (et donc le pont CAN).
+// Le GT911 peut manquer au premier accès après un reset logiciel, alors
+// qu'un cycle d'alimentation le rétablit. Essayer ses deux adresses possibles,
+// puis refaire un reset matériel du tactile seul avant le second passage.
+// L'écran et le pont CAN restent disponibles si toutes les tentatives échouent.
 esp_lcd_touch_handle_t init_touch() {
   esp_lcd_panel_io_i2c_config_t tp_io_config{};
-  tp_io_config.dev_addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS;
   tp_io_config.scl_speed_hz = 400000;
   tp_io_config.control_phase_bytes = 1;
   tp_io_config.dc_bit_offset = 0;
@@ -214,20 +213,21 @@ esp_lcd_touch_handle_t init_touch() {
   tp_cfg.levels.reset = 0;
   tp_cfg.levels.interrupt = 0;
 
-  constexpr int kAttempts = 3;
-  for (int attempt = 0; attempt < kAttempts; ++attempt) {
-    esp_lcd_panel_io_handle_t tp_io_handle = nullptr;
-    esp_err_t err = esp_lcd_new_panel_io_i2c(board::i2c_bus(), &tp_io_config, &tp_io_handle);
-    if (err == ESP_OK) {
-      esp_lcd_touch_handle_t touch_handle = nullptr;
-      err = esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &touch_handle);
+  for (int reset_attempt = 0; reset_attempt < 2; ++reset_attempt) {
+    if (reset_attempt != 0) board::touch_reset();
+    for (const uint16_t address : {ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS,
+                                   ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP}) {
+      tp_io_config.dev_addr = address;
+      esp_lcd_panel_io_handle_t tp_io_handle = nullptr;
+      esp_err_t err = esp_lcd_new_panel_io_i2c(board::i2c_bus(), &tp_io_config, &tp_io_handle);
       if (err == ESP_OK) {
-        return touch_handle;
+        esp_lcd_touch_handle_t touch_handle = nullptr;
+        err = esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &touch_handle);
+        if (err == ESP_OK) return touch_handle;
+        esp_lcd_panel_io_del(tp_io_handle);
       }
+      can_link::send_log(common::LogCode::kI2cError, common::LogSeverity::kWarn, address);
     }
-    can_link::send_log(common::LogCode::kI2cError, common::LogSeverity::kWarn,
-                        static_cast<uint16_t>(ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS));
-    vTaskDelay(pdMS_TO_TICKS(100));
   }
   return nullptr;
 }
@@ -278,6 +278,7 @@ void init_lvgl_port(esp_lcd_panel_handle_t panel_handle, esp_lcd_touch_handle_t 
       // l'UI, sans modifier un composant géré par ESP-IDF.
       g_touch_read_cb = lv_indev_get_read_cb(indev);
       lv_indev_set_read_cb(indev, touch_read_with_y_offset);
+      core::set_touch_ready(true);
     }
   }
 }

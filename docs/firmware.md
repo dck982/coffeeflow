@@ -120,24 +120,26 @@ l'investigation ; il n'est plus utilisé côté capteurs.
 
 GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
 
-### Extension chaudière à implémenter
+### Commande diagnostique de chaudière
 
 Le matériel est câblé pour deux nouveaux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → **OUT4 à 5 V** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont 3,3 V AMS1117 → **A0/A1 de l'ADS1115** sur l'I2C du Waveshare. HIGH sur GPIO 3 active la résistance. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Plans temporaires : [heating et OTA](heating-firmware-plan.md), [température chaudière](boiler-temperature-firmware-plan.md).
 
-**Ces fonctions ne sont pas encore dans le firmware.** Le SSR existant dans le code est celui de la **vanne** ; `temperature_c` et `temperature_raw` concernent le **XDB401**, pas la NTC chaudière. La lecture ADS1115 devra produire une mesure de chaudière distincte, avec ses propres indicateurs de validité. La commande de chauffage devra être distincte de la consigne de pompe et disposer d'un état sûr au démarrage et en cas de perte de commande.
+Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 2000 ms, sans renouvellement. Le GPIO est mis à LOW dès l'entrée dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_c` et `temperature_raw` concernent le **XDB401**, pas la NTC chaudière. La lecture ADS1115 et la régulation restent à implémenter ; aucune chauffe continue n'est autorisée par cette API. Vérifier physiquement que GPIO 3 et la LED du SSR restent bas pendant les phases de reset avant d'activer le circuit de puissance : le firmware ne contrôle pas encore la broche à ce stade. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
+
+`POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating_requested`, `heater_on` (`null` sans écho frais), `heating_freshness`, `heating_capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `dimmer_pct` reste un alias de `pump_pct` en télémétrie.
 
 Revue des noms dans le code actuel :
 
 | Endroit | Nom actuel | Sens actuel | Nom conseillé pour l'extension |
 | --- | --- | --- | --- |
-| `firmware/sensors/main/main.cpp` | `g_ssr`, `apply_ssr()`, `kGpioSsr` | relais de vanne R4 | `g_valve_open`, `apply_valve()`, `kGpioValve` ; réserver `heater` au L2 |
-| `firmware/common/include/common/messages.hpp` | `StatusActuatorsPayload::ssr` | état de la vanne | `valve_open` dans le type C++ ; conserver pour l'instant son octet CAN actuel |
-| `firmware/common/include/common/messages.hpp` | `SetPayload::dimmer` | puissance de pompe, seule consigne actuelle | `pump_pct` dans le type C++ ; conserver pour l'instant son octet CAN actuel |
-| `firmware/sensors/main/main.cpp` | `g_dimmer`, `apply_dimmer()`, registres `kDimmer*` | niveau de pompe et pilote matériel DimmerLink | `g_pump_pct` pour la valeur métier ; garder `dimmer` pour le pilote et ses registres |
-| `firmware/screen/main/core` | `snapshot.valve_open`, `snapshot.dimmer_pct` | état de vanne et niveau de pompe | garder `valve_open`, préférer `pump_pct` pour le niveau ; ajouter un état `heater_on` séparé |
-| HTTP (`net_http.cpp`) | `dimmer` dans `set_actuators`, `dimmer_pct` dans la télémétrie | commande et retour de pompe | envisager `pump_pct` lors de l'évolution de l'API, avec compatibilité explicite pour les clients existants |
+| `firmware/sensors/main/main.cpp` | `g_valve_open`, `apply_valve()`, `kGpioValve` | relais de vanne R4 | chauffage séparé sur L2 |
+| `firmware/common/include/common/messages.hpp` | `StatusActuatorsPayload::valve_open` | état de la vanne | octet CAN 0 conservé |
+| `firmware/common/include/common/messages.hpp` | `SetPayload::pump_pct` | puissance de pompe | octet CAN 0 conservé |
+| `firmware/sensors/main/main.cpp` | `g_pump_pct`, `apply_dimmer()`, registres `kDimmer*` | niveau de pompe et pilote matériel DimmerLink | pilotes DimmerLink inchangés |
+| `firmware/screen/main/core` | `snapshot.valve_open`, `snapshot.pump_pct`, `snapshot.heater_on` | vanne, pompe et chaudière | `dimmer_pct` reste un alias |
+| HTTP (`net_http.cpp`) | `set_brew_actuators` avec `pump_pct` | commande de pompe | `set_actuators` avec `dimmer` reste un alias |
 
-Aujourd'hui, `on_set_received()` déduit l'état de la vanne de `payload.dimmer > 0`. Le chauffage ne doit pas être déduit de cette consigne : il nécessite une commande et un état séparés. Un simple renommage de `ssr` en `heater` inverserait le sens des messages existants. Les noms de protocole et les champs HTTP font partie des interfaces externes : décider de leur versionnement avant de changer leur sens.
+`on_set_received()` déduit l'état de la vanne de `payload.pump_pct > 0`. Le chauffage utilise sa propre commande et son propre état. Les octets des messages CAN existants et les champs HTTP historiques gardent leur sens.
 
 ### Dimmer — pompe
 
@@ -182,6 +184,8 @@ Mesure côté groupe, en amont de la vanne solénoïde.
 ## Module écran (Waveshare ESP32-S3-Touch-LCD-4.3)
 
 Dalle RGB 800 × 480, tactile GT911, 16 Mo de flash, 8 Mo de PSRAM, TJA1051T/3 intégré. CAN sur GPIO 15 TX / 16 RX. `CAN_SEL` est l'EXIO5 du CH422G et **doit être tenu haut**, sinon le transceiver n'est pas sélectionné (cette ligne est aussi USB_SEL, actif bas). Notes de bring-up CH422G / GT911 : `../tests/screen/hello_waveshare/`.
+
+Depuis v0.2.64, le reset du tactile maintient `TP_IRQ` (GPIO 4) à LOW pendant `TP_RST` pour fixer l'adresse I²C du GT911, comme dans l'exemple Waveshare. En cas d'échec à l'initialisation, `screen` essaie les deux adresses possibles puis réinitialise seulement le tactile et réessaie. La télémétrie publie `touch_ready` et `touch_press_count` : une pression physique doit incrémenter ce compteur avant de confirmer une nouvelle image. Après le flash OTA de la v0.2.64, le tactile a fonctionné dès le redémarrage et trois pressions ont été comptées.
 
 Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 
@@ -438,12 +442,15 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x00` | `STOP` | S → X | vide |
 | `0x01` | `SET` | S → X | actionneurs + bail |
 | `0x02` | `RESET` | S → X | vide |
+| `0x04` | `SET_HEATING` | S → X | commande chaudière + durée diagnostique |
+| `0x05` | `CONFIRM_SENSORS_OTA` | S → X | confirmation de nouvelle image |
 | `0x08` | `PING` | ↔ | identité + uptime |
 | `0x09` | `PONG` | ↔ | identité + uptime |
 | `0x10` | `REQSTATUS` | S → X | quoi, à quelle période |
 | `0x20` | `STATUS_PRESSURE` | X → S | XDB401 brut |
 | `0x21` | `STATUS_FLOW` | X → S | compteur d'impulsions |
 | `0x22` | `STATUS_ACTUATORS` | X → S | état + santé |
+| `0x23` | `STATUS_HEATING` | X → S | état chaudière + bail |
 | `0x30` | `LOG` | ↔ | code + arguments |
 | `0x38` | `FLASH_CTRL` | ↔ | sous-commande |
 | `0x39` | `FLASH_DATA` | ↔ | 8 octets bruts |
@@ -476,7 +483,7 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 `REQSTATUS` (0x10)
 
 ```
-[0]     type visé   0x20 | 0x21 | 0x22
+[0]     type visé   0x20 | 0x21 | 0x22 | 0x23
 [1..2]  periode_ms  uint16, 0 = arrêt
 [3..7]  réservé
 ```
@@ -521,6 +528,8 @@ individuel diffusable périodiquement par `REQSTATUS`
 ```
 
 Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux dimmer.
+
+`SET_HEATING` (0x04) porte `[0] on` (0 ou 1) et `[1..2] duration_ms` en little endian. `on=1` est accepté pour 1 à 2000 ms, indépendamment du bail et de la marche de la pompe. `STATUS_HEATING` (0x23) porte `[0] heater_on`, `[1..2] bail restant ms`, `[3] bit0 capacité diagnostique`. Un ancien `sensors` n'émet pas cet écho ; `screen` refuse alors l'activation.
 
 `LOG` (0x30)
 
@@ -583,13 +592,18 @@ L'image factory du **module capteurs** est le vrai filet : TWAI, `FLASH`, ping/p
 
 ### Flash local (l'écran)
 
-`POST /firmware?target=screen`, en-tête `Authorization`, corps `.bin`. Écriture de l'emplacement OTA inactif, marquage bootable, reset. Après redémarrage, la nouvelle image ne se valide **qu'une fois le ping/pong CAN reconfirmé**.
+`POST /firmware?target=screen`, en-tête `Authorization`, corps `.bin`. Écriture de l'emplacement OTA inactif, marquage bootable, reset. Après redémarrage, vérifier Wi-Fi, HTTP, `GET /telemetry` et la route `/firmware`, puis appeler `POST /firmware/confirm` avec le même jeton dans les cinq minutes. La confirmation exige Wi-Fi connecté, CAN vivant et écho des actionneurs frais. Sinon l'image revient en arrière. Une panne CAN laisse l'accès au mode Wi-Fi et le flash de `screen` disponibles ; le flash de `sensors` exige toujours un écho CAN sûr.
+
+`GET /telemetry` expose `screen_ota_pending_verify`, `screen_running_partition`, `ota_staging_available` et `ota_staging_size` pour préparer le déploiement. Tant que l'image écran attend sa confirmation, un autre flash est refusé afin de conserver l'image de repli.
+
+Pendant `NEW` ou `PENDING_VERIFY`, `screen` démarre directement en mode Wi-Fi après l'initialisation LCD. HTTP reste ainsi accessible si le tactile échoue au premier démarrage OTA. Vérifier `touch_press_count` après un appui réel, puis confirmer ; en cas d'échec du tactile, laisser expirer le délai de rollback.
+Le bootloader actuellement installé sur l'écran a laissé l'image 0.2.64 en état `NEW` après un POST OTA (observé via `screen_ota_state`). Depuis 0.2.65, l'application traite aussi `NEW` comme une image à confirmer : elle garde le Wi-Fi actif et son délai de rollback applicatif, et `POST /firmware/confirm` peut la marquer `VALID`. Cette reprise applicative ne remplace pas le rollback du bootloader en cas de plantage avant le démarrage de l'application ; corriger le bootloader installé exigera un flash physique.
 
 Attention à ce qu'IDF fait et ne fait pas : en `PENDING_VERIFY`, si l'application ne se valide pas, le bootloader revient en arrière **au prochain redémarrage** — mais rien ne redémarre tout seul. Il faut un temporisateur propre qui appelle l'invalidation-et-reboot, ou laisser le task watchdog frapper. Sans ça, une image qui démarre et ne se valide jamais reste en place indéfiniment.
 
 ### Flash distant (les capteurs, à travers l'écran)
 
-Même route, `target=sensors`. L'écran ne lit pas l'image : `BEGIN`, blocs acquittés, `END`. Le module capteurs écrit l'emplacement inactif, vérifie le CRC32, bascule, remonte sa progression en `LOG` (que le WebSocket affiche), redémarre. Il doit ensuite répondre au ping avec sa nouvelle version ; l'écran attend ce pong. S'il ne vient pas, le rollback du module joue seul.
+Même route, `target=sensors`. Le proxy utilise exclusivement la partition `ota_staging` : si la table installée ne la contient pas, il refuse le transfert sans effacer `assets`. L'écran relaie `BEGIN`, des blocs numérotés et acquittés, puis `END`. Le rejeu d'un bloc est idempotent avec `sensors` depuis v0.2.63 ; avec une ancienne image, le proxy ne retente pas un bloc sans ACK. Après redémarrage, `screen` confirme automatiquement la nouvelle image par CAN seulement après version v0.2.63 ou supérieure, échos frais de la pompe/vanne et de la chaudière, et sorties au repos. Depuis v0.2.65, `sensors` accepte cette confirmation en état `NEW` ou `PENDING_VERIFY`. En l'absence de confirmation, `sensors` revient en arrière après 30 s. Il n'y a pas de POST de confirmation pour `sensors`.
 
 ### Pourquoi factory + deux OTA, et pas seulement deux OTA
 

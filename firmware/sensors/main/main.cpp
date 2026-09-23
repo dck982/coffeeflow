@@ -1150,15 +1150,16 @@ void init_lockout_state() {
 
 extern "C" void app_main() {
   // La protection pendant le reset exige aussi une vérification matérielle.
-  gpio_set_level(kGpioHeater, 0);
+  // Précharge le latch à l'état inactif avant d'activer le driver de sortie.
+  gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
   gpio_config_t heater_cfg{};
   heater_cfg.pin_bit_mask = 1ULL << kGpioHeater;
   heater_cfg.mode = GPIO_MODE_OUTPUT;
-  heater_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
-  heater_cfg.pull_down_en = GPIO_PULLDOWN_ENABLE;
+  heater_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  heater_cfg.pull_up_en = GPIO_PULLUP_ENABLE;
   heater_cfg.intr_type = GPIO_INTR_DISABLE;
   ESP_ERROR_CHECK(gpio_config(&heater_cfg));
-  gpio_set_level(kGpioHeater, 0);
+  gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
   // GPIO 10 tenu bas avant toute autre initialisation, y compris le CAN —
   // voir docs/firmware.md, "Le SSR est bas au boot, avant toute
   // initialisation du CAN."

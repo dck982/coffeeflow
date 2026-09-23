@@ -897,7 +897,7 @@ ActionResult perform_action(const ActionCommand& command) {
       send_heating(false, 0);
       return action_result(ActionStatus::kOk);
     }
-    if (command.heating.duration_ms == 0 || command.heating.duration_ms > 2000)
+    if (command.heating.duration_ms == 0 || command.heating.duration_ms > 30000)
       return action_result(ActionStatus::kInvalidValue);
     if (g_flash_active) return action_result(ActionStatus::kCycleActive);
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);

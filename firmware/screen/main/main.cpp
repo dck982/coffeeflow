@@ -24,6 +24,7 @@
 // "Le Waveshare reste atteignable en USB-C... image factory minuscule".
 
 #include "board.h"
+#include "boiler_ntc.h"
 #include "can_link.h"
 #include "ota_local.h"
 #include "serial_bridge.h"
@@ -63,6 +64,7 @@ extern "C" void app_main() {
   serial_bridge::start_tasks();
   ota_local::start_validation_task();
   core::start_telemetry_task();
+  boiler_ntc::start();
 
   // Écran de service (docs/plan-phase6.md, lot 2) : après le pont et le CAN,
   // pour que le conflit CH422G (dalle vs CAN_SEL) se révèle contre un bus

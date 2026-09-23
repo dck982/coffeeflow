@@ -37,7 +37,14 @@ enum class CycleState : uint8_t { kIdle, kFilling, kPreinfusion, kBrew, kRampdow
 // une copie. Aucun consommateur ne lit l'état interne champ par champ.
 struct Snapshot {
   float pressure_bar = 0.0f;
-  float temperature_c = 0.0f;
+  float temperature_c = 0.0f;  // ancien champ interne XDB401 ; alias HTTP = chaudière
+  float xdb401_temperature_c = 0.0f;
+  float boiler_temperature_c = 0.0f;
+  int16_t boiler_ntc_a0_raw = 0;
+  int16_t boiler_ntc_a1_raw = 0;
+  bool boiler_temperature_valid = false;
+  Freshness boiler_temperature_freshness = Freshness::kMissing;
+  uint32_t boiler_temperature_age_ms = UINT32_MAX;
   float flow_ml_s = 0.0f;
   float volume_ml = 0.0f;
   uint32_t flow_pulse_count = 0;
@@ -96,7 +103,8 @@ struct Snapshot {
   bool boot_time_syncing = false;
 
   uint32_t pressure_raw = 0;
-  uint16_t temperature_raw = 0;
+  uint16_t temperature_raw = 0;  // XDB401 ; le pont NTC possède deux codes ADC
+  uint16_t xdb401_temperature_raw = 0;
 
   uint8_t screen_version_major = 0;
   uint8_t screen_version_minor = 0;
@@ -129,18 +137,22 @@ enum class HFCaptureStatus : uint8_t { kUnavailable, kActive, kComplete };
 struct HFSample {
   uint32_t t_ms = 0;
   uint32_t pressure_raw = 0;
-  uint16_t temperature_raw = 0;
+  uint16_t xdb401_temperature_raw = 0;
+  int16_t boiler_ntc_a0_raw = 0;
+  int16_t boiler_ntc_a1_raw = 0;
+  uint32_t boiler_temperature_age_ms = UINT32_MAX;
   uint32_t flow_pulse_count = 0;
   uint32_t flow_last_edge_age_ms = 0;
   float pressure_bar = 0.0f;
-  float temperature_c = 0.0f;
+  float xdb401_temperature_c = 0.0f;
+  float boiler_temperature_c = 0.0f;
   float volume_ml = 0.0f;
   float flow_ml_s = 0.0f;
   float weight_g = 0.0f;
   uint8_t pump_pct_commanded = 0;
   uint8_t pump_pct_reported = 0;
   HFSampleMode mode = HFSampleMode::kPurge;
-  uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente
+  uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente, bit3 chaudière valide/fraîche
 };
 
 struct HFCaptureInfo {
@@ -165,6 +177,9 @@ void set_telemetry_profile(TelemetryProfile profile);
 Snapshot get_snapshot();
 HFCaptureInfo get_hf_capture_info();
 bool get_hf_capture_sample(uint16_t index, HFSample* sample);
+
+// Publication atomique d'une paire ADS1115 depuis la tâche I2C locale.
+void on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok);
 
 // Adaptateurs de protocole, appelés exclusivement par can_link après que la
 // trame a été attribuée au nœud sensors.

@@ -1322,7 +1322,7 @@ void create(lv_obj_t *p) {
   v.diag = lv_obj_create(p);
   base(v.diag);
   navbar(v.diag, "diagnostic", &ignore, back_diag);
-  const char *names[] = {"pression", "température", "débit",
+  const char *names[] = {"pression", "chaudière", "débit",
                          "pompe",    "vanne",       "balance",
                          "bus can",  "réseau",      "versions"};
   for (unsigned i = 0; i < 9; ++i) {
@@ -1468,6 +1468,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   scale = s.scale_present;
   auto c = core::get_config();
   bool press = s.pressure_valid && present(s.pressure_freshness);
+  bool boiler = s.boiler_temperature_valid && s.boiler_temperature_freshness == core::Freshness::kFresh;
   if (press)
     fmt(t, sizeof(t), s.pressure_bar, " bar");
   else
@@ -1481,16 +1482,14 @@ void refresh(const core::Snapshot &s, bool boot) {
                                 s.cycle_state == core::CycleState::kPreinfusion
                                     ? c.preinfusion_pressure_bar
                                     : 9));
-  if (press)
-    fmt(t, sizeof(t), s.temperature_c, "°");
+  if (boiler)
+    fmt(t, sizeof(t), s.boiler_temperature_c, "°");
   else
     std::snprintf(t, sizeof(t), "-");
   text(v.temperature, t);
-  color(v.temperature, !press ? theme::kTextFaint : theme::kThermal);
+  color(v.temperature, !boiler ? theme::kTextFaint : theme::kThermal);
   lv_obj_set_style_text_opa(v.temperature,
-                            s.pressure_freshness == core::Freshness::kStale
-                                ? LV_OPA_60
-                                : LV_OPA_COVER,
+                            LV_OPA_COVER,
                             0);
   if (scale) {
     fmt(t, sizeof(t), s.weight_g, " g");
@@ -1547,7 +1546,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   if (!lv_obj_has_flag(v.diag, LV_OBJ_FLAG_HIDDEN)) {
     bool flow = s.flow_valid && present(s.flow_freshness),
          states[] = {press,
-                     press,
+                     boiler,
                      flow,
                      s.dimmer_valid,
                      s.valve_open,
@@ -1568,10 +1567,13 @@ void refresh(const core::Snapshot &s, bool boot) {
     if (press) {
       fmt(t, sizeof(t), s.pressure_bar, " bar");
       text(v.diag_val[0], t);
-      fmt(t, sizeof(t), s.temperature_c, "°");
-      text(v.diag_val[1], t);
     } else {
       text(v.diag_val[0], "-");
+    }
+    if (boiler) {
+      fmt(t, sizeof(t), s.boiler_temperature_c, "°");
+      text(v.diag_val[1], t);
+    } else {
       text(v.diag_val[1], "-");
     }
     if (flow)

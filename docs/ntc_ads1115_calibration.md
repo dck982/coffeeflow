@@ -220,5 +220,6 @@ Procédure souhaitée :
 
 Une fois ce point obtenu, refaire la régression sur l'ensemble des
 données fiables, déterminer les constantes définitives (`R0`, `B`, ou
-coefficients Steinhart-Hart), puis implémenter et valider la conversion
-ADS1115 -\> résistance -\> température sur l'ESP32.
+coefficients Steinhart-Hart), puis remplacer les constantes provisoires de
+`firmware/screen/main/core/calibration_machine.h` et valider la conversion
+ADS1115 -\> résistance -\> température sur la machine.

@@ -51,8 +51,18 @@ calibration du facteur K.
 `GET /telemetry` contient déjà les éléments nécessaires à un relevé de banc :
 `weight_g`, `pressure_bar`, `pressure_raw`, `temperature_c`,
 `temperature_raw`, `flow_ml_s`, `volume_ml` et `flow_pulse_count`, avec les
-validités, présences et âges associés. `GET /config` et `POST /config` permettent de
-régler `purge.pump_pct` et `purge.max_s`; `POST /action` accepte
+validités, présences et âges associés. Depuis l'image écran 0.2.67,
+`boiler_temperature_c`, `boiler_temperature_valid`,
+`boiler_temperature_freshness`, `boiler_temperature_age_ms` et les codes
+`boiler_ntc_a0_raw` / `boiler_ntc_a1_raw` décrivent la sonde NTC chaudière.
+`xdb401_temperature_c` / `xdb401_temperature_raw` décrivent explicitement la
+température amont chaudière. Dans `/telemetry`, `temperature_c` est un alias
+de `boiler_temperature_c` ; `temperature_raw` reste le code brut XDB401.
+La validité de la chaudière est indiquée par `boiler_temperature_valid`.
+L'écran principal affiche uniquement la chaudière
+NTC et un tiret si la mesure est absente ou périmée.
+`GET /config` et `POST /config` permettent de régler `purge.pump_pct` et
+`purge.max_s`; `POST /action` accepte
 `purge_press` et `purge_release`. Un futur script de calibration peut donc
 encadrer un essai par deux instantanés, conserver les deltas dans un JSON et
 garantir un `purge_release` en sortie d'erreur. L'outil prévu est
@@ -72,7 +82,10 @@ l'écoulement en tasse. `?view=raw`, `?view=calibrated` ou
 `409 capture_active` jusqu'à la confirmation de `dimmer=0` puis pendant ce
 cooldown de quatre secondes; il retourne `404` avant toute capture terminée.
 L'export est envoyé par morceaux, sans
-construire le document entier en SRAM.
+construire le document entier en SRAM. L'image écran 0.2.67 produit le schéma
+`coffeeflow.hf_capture.v2` avec les codes A0/A1, la température chaudière,
+son âge et sa validité. L'outil de tracé accepte aussi les captures v1 et y
+interprète `temperature_c` comme la température XDB401.
 
 `firmware/tools/download_hf_capture.py` télécharge la capture et conserve le
 JSON brut dans `captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être
@@ -122,9 +135,9 @@ GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = ferm
 
 ### Commande diagnostique de chaudière
 
-Le matériel est câblé pour deux nouveaux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → sortie absorbante **OUT4** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont 3,3 V AMS1117 → **A0/A1 de l'ADS1115** sur l'I2C du Waveshare. La commande du SSR est câblée **5 V → SSR `+` → SSR `−` → OUT4**. La logique est inversée : **LOW sur GPIO 3 active la chauffe**, HIGH l'arrête. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Plans temporaires : [heating et OTA](heating-firmware-plan.md), [température chaudière](boiler-temperature-firmware-plan.md).
+Le matériel est câblé pour deux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → sortie absorbante **OUT4** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont 3,3 V AMS1117 → **A0/A1 de l'ADS1115** sur l'I2C du Waveshare. La commande du SSR est câblée **5 V → SSR `+` → SSR `−` → OUT4**. La logique est inversée : **LOW sur GPIO 3 active la chauffe**, HIGH l'arrête. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md).
 
-Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_c` et `temperature_raw` concernent le **XDB401**, pas la NTC chaudière. La lecture ADS1115 et la régulation restent à implémenter ; aucune chauffe continue n'est autorisée par cette API. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
+Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. La lecture ADS1115 est intégrée à cette image ; la régulation reste à implémenter et aucune chauffe continue n'est autorisée par cette API. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
 
 `POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating_requested`, `heater_on` (`null` sans écho frais), `heating_freshness`, `heating_capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `dimmer_pct` reste un alias de `pump_pct` en télémétrie.
 

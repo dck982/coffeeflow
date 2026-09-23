@@ -1,10 +1,12 @@
 #include "core/core.h"
 
 #include <cstring>
+#include <cmath>
 
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "esp_attr.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -28,6 +30,7 @@ constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
 constexpr uint16_t kHFCapturePeriodMs = 100;
+constexpr uint16_t kBoilerPairPeriodMs = 100;
 constexpr uint16_t kHFCaptureCapacity = 768;
 constexpr int64_t kHFCaptureCooldownUs = 4 * 1000 * 1000;
 
@@ -67,6 +70,7 @@ struct State {
   portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
   Snapshot snapshot;
   int64_t pressure_received_us = 0;
+  int64_t boiler_received_us = 0;
   int64_t pressure_last_valid_us = 0;
   int64_t flow_received_us = 0;
   int64_t actuators_received_us = 0;
@@ -248,11 +252,15 @@ void tick_hf_capture() {
   HFSample& sample = capture.samples[capture.count++];
   sample.t_ms = static_cast<uint32_t>((now - capture.started_at_us) / 1000);
   sample.pressure_raw = snapshot.pressure_raw;
-  sample.temperature_raw = snapshot.temperature_raw;
+  sample.xdb401_temperature_raw = snapshot.xdb401_temperature_raw;
+  sample.boiler_ntc_a0_raw = snapshot.boiler_ntc_a0_raw;
+  sample.boiler_ntc_a1_raw = snapshot.boiler_ntc_a1_raw;
+  sample.boiler_temperature_age_ms = age_ms(g_state.boiler_received_us, now);
   sample.flow_pulse_count = snapshot.flow_pulse_count;
   sample.flow_last_edge_age_ms = age_ms(g_state.last_flow_edge_received_us, now);
   sample.pressure_bar = snapshot.pressure_bar;
-  sample.temperature_c = snapshot.temperature_c;
+  sample.xdb401_temperature_c = snapshot.xdb401_temperature_c;
+  sample.boiler_temperature_c = snapshot.boiler_temperature_c;
   sample.volume_ml = snapshot.volume_ml - capture.volume_ml_reference;
   sample.flow_ml_s = (g_state.last_flow_edge_received_us == 0 ||
                        now - g_state.last_flow_edge_received_us > static_cast<int64_t>(kFlowSilenceMs) * 1000)
@@ -265,7 +273,10 @@ void tick_hf_capture() {
                                       (snapshot.flow_valid ? 0x02 : 0) |
                                       ((snapshot.scale_connected && g_state.scale_received_us != 0 &&
                                         now - g_state.scale_received_us <= static_cast<int64_t>(kScalePresentMs) * 1000)
-                                           ? 0x04 : 0));
+                                           ? 0x04 : 0) |
+                                      (snapshot.boiler_temperature_valid &&
+                                       freshness(g_state.boiler_received_us, kBoilerPairPeriodMs, now) == Freshness::kFresh
+                                           ? 0x08 : 0));
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -536,6 +547,8 @@ void init() {
   config_init();
   HFSample* samples = static_cast<HFSample*>(heap_caps_malloc(sizeof(HFSample) * kHFCaptureCapacity,
                                                                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  ESP_LOGI("core", "HF capture: %u bytes/sample, %u bytes PSRAM", static_cast<unsigned>(sizeof(HFSample)),
+           static_cast<unsigned>(sizeof(HFSample) * kHFCaptureCapacity));
   portENTER_CRITICAL(&g_state.lock);
   g_state.hf_capture.samples = samples;
   portEXIT_CRITICAL(&g_state.lock);
@@ -640,10 +653,39 @@ void on_status_pressure(const uint8_t* data, uint8_t len) {
   g_state.snapshot.pressure_valid = (payload.flags & 0x01) != 0;
   g_state.snapshot.pressure_raw = payload.pressure_raw;
   g_state.snapshot.temperature_raw = payload.temperature_raw;
+  g_state.snapshot.xdb401_temperature_raw = payload.temperature_raw;
   if (g_state.snapshot.pressure_valid) {
     g_state.pressure_last_valid_us = now;
     g_state.snapshot.pressure_bar = decode_pressure_bar(payload.pressure_raw);
     g_state.snapshot.temperature_c = decode_temperature_c(payload.temperature_raw);
+    g_state.snapshot.xdb401_temperature_c = g_state.snapshot.temperature_c;
+  }
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
+  bool valid = read_ok && a0_raw >= 16000 && a0_raw < 32767 && a1_raw > 0 && a1_raw < a0_raw;
+  float temperature_c = 0.0f;
+  if (valid) {
+    const float resistance = calibration_machine::kBoilerNtcFixedOhm *
+                             (static_cast<float>(a0_raw) / static_cast<float>(a1_raw) - 1.0f);
+    const float inverse_k = 1.0f / calibration_machine::kBoilerNtcT0K +
+                            std::log(resistance / calibration_machine::kBoilerNtcR0Ohm) /
+                                calibration_machine::kBoilerNtcBetaK;
+    temperature_c = 1.0f / inverse_k - 273.15f;
+    valid = std::isfinite(resistance) && std::isfinite(temperature_c) &&
+            resistance > 0.0f && temperature_c >= -10.0f && temperature_c <= 160.0f;
+  }
+  const int64_t now = now_us();
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.boiler_temperature_valid = valid;
+  if (read_ok) {
+    g_state.snapshot.boiler_ntc_a0_raw = a0_raw;
+    g_state.snapshot.boiler_ntc_a1_raw = a1_raw;
+  }
+  if (valid) {
+    g_state.snapshot.boiler_temperature_c = temperature_c;
+    g_state.boiler_received_us = now;
   }
   portEXIT_CRITICAL(&g_state.lock);
 }
@@ -1018,6 +1060,7 @@ bool get_hf_capture_sample(uint16_t index, HFSample* sample) {
 Snapshot get_snapshot() {
   Snapshot result;
   int64_t pressure_received;
+  int64_t boiler_received;
   int64_t flow_received;
   int64_t actuators_received;
   int64_t heating_received;
@@ -1033,6 +1076,7 @@ Snapshot get_snapshot() {
   result.last_shot_flow_ml_s = g_last_shot.flow_ml_s;
   result.last_shot_unix_s = g_last_shot.unix_s;
   pressure_received = g_state.pressure_received_us;
+  boiler_received = g_state.boiler_received_us;
   flow_received = g_state.flow_received_us;
   actuators_received = g_state.actuators_received_us;
   heating_received = g_state.heating_received_us;
@@ -1045,6 +1089,10 @@ Snapshot get_snapshot() {
   int64_t now = now_us();
   Periods periods = periods_for(profile);
   result.pressure_age_ms = age_ms(pressure_received, now);
+  result.boiler_temperature_age_ms = age_ms(boiler_received, now);
+  result.boiler_temperature_freshness = result.boiler_temperature_valid
+      ? freshness(boiler_received, kBoilerPairPeriodMs, now) : Freshness::kMissing;
+  if (result.boiler_temperature_freshness != Freshness::kFresh) result.boiler_temperature_valid = false;
   result.flow_age_ms = age_ms(flow_received, now);
   result.actuators_age_ms = age_ms(actuators_received, now);
   result.heating_age_ms = age_ms(heating_received, now);

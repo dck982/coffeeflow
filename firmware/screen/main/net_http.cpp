@@ -195,11 +195,28 @@ cJSON* encode_config(const core::Config& config) {
 cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON* root = cJSON_CreateObject();
   cJSON_AddNumberToObject(root, "pressure_bar", snapshot.pressure_bar);
-  cJSON_AddNumberToObject(root, "temperature_c", snapshot.temperature_c);
+  if (snapshot.pressure_valid && snapshot.pressure_freshness == core::Freshness::kFresh)
+    cJSON_AddNumberToObject(root, "xdb401_temperature_c", snapshot.xdb401_temperature_c);
+  else cJSON_AddNullToObject(root, "xdb401_temperature_c");
+  // Alias HTTP demandé pour la température affichée : même valeur et même
+  // comportement null que boiler_temperature_c.
+  if (snapshot.boiler_temperature_age_ms == UINT32_MAX) {
+    cJSON_AddNullToObject(root, "temperature_c");
+    cJSON_AddNullToObject(root, "boiler_temperature_c");
+  } else {
+    cJSON_AddNumberToObject(root, "temperature_c", snapshot.boiler_temperature_c);
+    cJSON_AddNumberToObject(root, "boiler_temperature_c", snapshot.boiler_temperature_c);
+  }
+  cJSON_AddBoolToObject(root, "boiler_temperature_valid", snapshot.boiler_temperature_valid);
+  cJSON_AddStringToObject(root, "boiler_temperature_freshness", freshness_text(snapshot.boiler_temperature_freshness));
+  add_age(root, "boiler_temperature_age_ms", snapshot.boiler_temperature_age_ms);
+  cJSON_AddNumberToObject(root, "boiler_ntc_a0_raw", snapshot.boiler_ntc_a0_raw);
+  cJSON_AddNumberToObject(root, "boiler_ntc_a1_raw", snapshot.boiler_ntc_a1_raw);
   cJSON_AddNumberToObject(root, "flow_ml_s", snapshot.flow_ml_s);
   cJSON_AddNumberToObject(root, "volume_ml", snapshot.volume_ml);
   cJSON_AddNumberToObject(root, "pressure_raw", snapshot.pressure_raw);
   cJSON_AddNumberToObject(root, "temperature_raw", snapshot.temperature_raw);
+  cJSON_AddNumberToObject(root, "xdb401_temperature_raw", snapshot.xdb401_temperature_raw);
   cJSON_AddNumberToObject(root, "flow_pulse_count", snapshot.flow_pulse_count);
   cJSON_AddBoolToObject(root, "pressure_valid", snapshot.pressure_valid);
   cJSON_AddBoolToObject(root, "flow_valid", snapshot.flow_valid);
@@ -644,36 +661,61 @@ bool send_json_chunk(httpd_req_t* request, const char* text) {
 
 bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, HFCaptureView view,
                             bool first) {
-  char line[512];
+  char line[768];
+  char boiler_temperature[32];
+  char boiler_age[16];
+  if (sample.boiler_temperature_age_ms == UINT32_MAX) {
+    std::snprintf(boiler_temperature, sizeof(boiler_temperature), "null");
+    std::snprintf(boiler_age, sizeof(boiler_age), "null");
+  } else {
+    std::snprintf(boiler_temperature, sizeof(boiler_temperature), "%.6g",
+                  static_cast<double>(sample.boiler_temperature_c));
+    std::snprintf(boiler_age, sizeof(boiler_age), "%u", static_cast<unsigned>(sample.boiler_temperature_age_ms));
+  }
   const char* comma = first ? "" : ",";
   int written = 0;
+  const unsigned boiler_valid = (sample.flags & 0x08) != 0;
   if (view == HFCaptureView::kRaw) {
     written = std::snprintf(line, sizeof(line),
-                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"temperature_raw\":%u,"
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"xdb401_temperature_raw\":%u,"
+                            "\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
+                            "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
                             "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
-                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.temperature_raw,
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
+                            sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
+                            boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
                             sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
   } else if (view == HFCaptureView::kCalibrated) {
     written = std::snprintf(line, sizeof(line),
-                            "%s{\"t_ms\":%u,\"pressure_bar\":%.6g,\"temperature_c\":%.6g,"
+                            "%s{\"t_ms\":%u,\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
+                            "\"boiler_temperature_c\":%s,\"boiler_temperature_age_ms\":%s,"
+                            "\"boiler_temperature_valid\":%s,"
                             "\"volume_ml\":%.6g,\"flow_ml_s\":%.6g,\"weight_g\":%.6g,"
                             "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
                             comma, static_cast<unsigned>(sample.t_ms), static_cast<double>(sample.pressure_bar),
-                            static_cast<double>(sample.temperature_c), static_cast<double>(sample.volume_ml),
+                            static_cast<double>(sample.xdb401_temperature_c), boiler_temperature,
+                            boiler_age, boiler_valid ? "true" : "false",
+                            static_cast<double>(sample.volume_ml),
                             static_cast<double>(sample.flow_ml_s), static_cast<double>(sample.weight_g),
                             sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
   } else {
     written = std::snprintf(line, sizeof(line),
-                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"temperature_raw\":%u,"
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"xdb401_temperature_raw\":%u,"
+                            "\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
+                            "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
-                            "\"pressure_bar\":%.6g,\"temperature_c\":%.6g,\"volume_ml\":%.6g,"
+                            "\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
+                            "\"boiler_temperature_c\":%s,\"volume_ml\":%.6g,"
                             "\"flow_ml_s\":%.6g,\"weight_g\":%.6g,\"pump_pct_commanded\":%u,"
                             "\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
-                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.temperature_raw,
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
+                            sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
+                            boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
-                            static_cast<double>(sample.pressure_bar), static_cast<double>(sample.temperature_c),
+                            static_cast<double>(sample.pressure_bar), static_cast<double>(sample.xdb401_temperature_c),
+                            boiler_temperature,
                             static_cast<double>(sample.volume_ml), static_cast<double>(sample.flow_ml_s),
                             static_cast<double>(sample.weight_g), sample.pump_pct_commanded,
                             sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
@@ -701,7 +743,7 @@ esp_err_t hf_capture_handler(httpd_req_t* request) {
   const char* view_text = view == HFCaptureView::kRaw ? "raw" :
                           view == HFCaptureView::kCalibrated ? "calibrated" : "both";
   const int written = std::snprintf(header, sizeof(header),
-                                    "{\"schema\":\"coffeeflow.hf_capture.v1\",\"origin\":\"%s\",\"view\":\"%s\","
+                                    "{\"schema\":\"coffeeflow.hf_capture.v2\",\"origin\":\"%s\",\"view\":\"%s\","
                                     "\"started_at_us\":%lld,\"ended_at_us\":%lld,\"started_at_unix_s\":%lld,"
                                     "\"ended_at_unix_s\":%lld,\"sample_period_ms\":%u,\"sample_count\":%u,"
                                     "\"dropped_samples\":%u,\"samples\":[",

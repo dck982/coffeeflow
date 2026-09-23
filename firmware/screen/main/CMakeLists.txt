@@ -1,6 +1,6 @@
 idf_component_register(
   WHOLE_ARCHIVE
-  SRCS "main.cpp" "board.cpp" "can_link.cpp" "serial_bridge.cpp" "ota_local.cpp" "ota_proxy.cpp" "ble_scale.cpp"
+  SRCS "main.cpp" "board.cpp" "boiler_ntc.cpp" "can_link.cpp" "serial_bridge.cpp" "ota_local.cpp" "ota_proxy.cpp" "ble_scale.cpp"
        "service_screen.cpp" "storage.cpp" "net_wifi.cpp" "net_http.cpp" "net_ws.cpp" "core/events.cpp" "core/core.cpp" "core/config.cpp" "core/machine.cpp" "ui/lvgl_psram_allocator.cpp" "ui/ui_root.cpp" "ui/ui_home.cpp"
        "ui/ui_fonts/ui_font_18.c" "ui/ui_fonts/ui_font_26.c" "ui/ui_fonts/ui_font_28.c" "ui/ui_fonts/ui_font_32.c" "ui/ui_fonts/ui_font_40.c" "ui/ui_fonts/ui_font_76.c" "ui/ui_fonts/ui_font_104.c"
   INCLUDE_DIRS "."

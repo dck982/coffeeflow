@@ -230,12 +230,10 @@ Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intér
 
 ## Firmware
 
-- **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO du SSR vanne, comptage d'impulsions du débitmètre, TWAI/CAN. Le GPIO 3 (L2/D2) est câblé pour la future commande du SSR chaudière.
-- **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar. L'ADS1115 est câblé sur son I2C pour la future mesure de la température chaudière.
+- **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO du SSR vanne et du SSR chaudière, comptage d'impulsions du débitmètre, TWAI/CAN.
+- **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar. L'ADS1115 sur son I2C mesure la température chaudière par une NTC.
 
-**État du firmware :** la commande de chauffage dans `firmware/sensors` et la lecture NTC/ADS1115 dans `firmware/screen` ne sont pas encore intégrées. Les champs de température existants concernent le XDB401 ; ils ne représentent pas la NTC chaudière. La [revue des noms d'actionneurs](docs/firmware.md#extension-chaudière-à-implémenter) distingue le SSR vanne, le SSR chaudière et le dimmer pompe.
-
-Plans temporaires d'implémentation : [actionneur heating et OTA](docs/heating-firmware-plan.md) ; [température chaudière, affichage et capture HF](docs/boiler-temperature-firmware-plan.md). À supprimer après intégration dans la documentation permanente.
+**État du firmware :** la commande diagnostique de chauffage dans `firmware/sensors` est implémentée et testée. La lecture NTC/ADS1115 dans `firmware/screen` est intégrée au code ; sa mesure reste à valider sur la machine. L'écran et `temperature_c` dans `/telemetry` utilisent la température chaudière ; le XDB401 reste disponible sous un nom explicite. Voir [le contrat firmware](docs/firmware.md) et [la calibration NTC](docs/ntc_ads1115_calibration.md).
 
 Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 

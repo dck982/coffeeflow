@@ -123,6 +123,9 @@ int main(int argc, char **argv) {
   snapshot.pressure_freshness = core::Freshness::kFresh;
   snapshot.pressure_bar = std::strcmp(scenario, "wide-topbar") == 0 ? -10.1f : 9.1f;
   snapshot.temperature_c = 93.4f;
+  snapshot.boiler_temperature_c = 93.4f;
+  snapshot.boiler_temperature_valid = true;
+  snapshot.boiler_temperature_freshness = core::Freshness::kFresh;
   snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0;
   snapshot.scale_connected = snapshot.scale_present;
   snapshot.time_known = true;

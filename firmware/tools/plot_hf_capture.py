@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 def validate_capture(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("le fichier JSON ne contient pas un objet")
-    if payload.get("schema") != "coffeeflow.hf_capture.v1" or not isinstance(payload.get("samples"), list):
+    if payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2") or not isinstance(payload.get("samples"), list):
         raise RuntimeError("capture inconnue ou incompatible")
     return payload
 
@@ -78,7 +78,20 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
     if not samples:
         raise RuntimeError("la capture ne contient aucun échantillon")
     elapsed_s = [float(sample["t_ms"]) / 1000.0 for sample in samples]
-    pressure, temperature = values(samples, "pressure_bar"), values(samples, "temperature_c")
+    pressure = values(samples, "pressure_bar")
+    v2 = capture["schema"] == "coffeeflow.hf_capture.v2"
+    if v2:
+        temperature = [float(sample["boiler_temperature_c"])
+                       if sample.get("boiler_temperature_valid") and sample.get("boiler_temperature_c") is not None
+                       else float("nan")
+                       for sample in samples]
+        xdb401_temperature = [float(sample["xdb401_temperature_c"])
+                              if int(sample.get("flags", 0)) & 0x01 and sample.get("xdb401_temperature_c") is not None
+                              else float("nan")
+                              for sample in samples]
+    else:
+        temperature = values(samples, "temperature_c")
+        xdb401_temperature = None
     flow, volume, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
     balance_flow = weight_flow_g_s(elapsed_s, weight, weight_flow_window_s)
     if flow_derivative_samples>0:
@@ -115,7 +128,10 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
         axes[1].legend(loc="upper left")
         flow_derivative_axis.legend(loc="upper right")
 
-    axes[2].plot(elapsed_s, temperature, color="tab:orange")
+    axes[2].plot(elapsed_s, temperature, color="tab:orange", label="chaudière NTC" if v2 else "XDB401")
+    if xdb401_temperature is not None:
+        axes[2].plot(elapsed_s, xdb401_temperature, color="tab:gray", alpha=0.65, label="XDB401 amont")
+    axes[2].legend(loc="upper left")
     axes[2].set_ylabel("température (°C)")
     axes[3].plot(elapsed_s, weight, color="tab:purple", label="poids")
     axes[3].set_ylabel("poids (g)")

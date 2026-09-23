@@ -28,6 +28,7 @@
   <p>Ports Grove du XIAO ESP32-S3, filtre RC du débitmètre, bus I2C partagé et bus CAN de bout en bout.
      Le 230 V n'apparaît pas ici. Chaque liaison porte son étiquette (GPIO, signal, couleur de fil) :
      la couleur du tracé n'est jamais la seule information.</p>
+  <p>Ajout chaudière : L2 / D2 / GPIO3 commande IN4 du HW-399 dans boitier_pid, puis OUT4 à 5 V commande le SSR chaudière. La NTC est reliée à l'ADS1115 sur l'I2C de l'écran. Ces deux liaisons sont détaillées dans <a href="cablage.md">le câblage</a> et ne figurent pas encore dans le dessin ci-dessous.</p>
 </header>
 
 <div class="sheet">
@@ -80,9 +81,9 @@
   <text class="tb"   x="502" y="292" text-anchor="middle">L3</text>
   <text class="tmut" x="502" y="309" text-anchor="middle">libre</text>
 
-  <rect class="port" x="455" y="392" width="95" height="46" rx="3"/>
+  <rect class="portOn" x="455" y="392" width="95" height="46" rx="3"/>
   <text class="tb"   x="502" y="412" text-anchor="middle">L2</text>
-  <text class="tmut" x="502" y="429" text-anchor="middle">libre</text>
+  <text class="t" x="502" y="429" text-anchor="middle">chauffage</text>
 
   <rect class="port" x="455" y="512" width="95" height="46" rx="3"/>
   <text class="tb"   x="502" y="532" text-anchor="middle">L1</text>
@@ -130,7 +131,7 @@
   <text class="t12" x="60" y="320">colonne de gauche = <tspan font-weight="650">L</tspan>, colonne de droite = <tspan font-weight="650">R</tspan>.</text>
   <text class="t12" x="60" y="340">Le port <tspan font-weight="650">1</tspan> est au plus près du XIAO,</text>
   <text class="t12" x="60" y="360">le <tspan font-weight="650">4</tspan> au plus loin.</text>
-  <text class="tmut" x="60" y="392">Les ports L1, L2 et L3 restent libres.</text>
+  <text class="tmut" x="60" y="392">L2 : chaudière (voir note) ; L1 et L3 restent libres.</text>
 
   <!-- L4 : dimmer -->
   <rect class="boxOn" x="60" y="122" width="280" height="106" rx="4"/>
@@ -140,7 +141,7 @@
   <text class="t"  x="74" y="200">L4 est câblé en copie de R1</text>
   <text class="t"  x="74" y="218">pas de pull-up sur le module</text>
   <path class="w" d="M 455 175 L 340 175"/>
-  <text class="t" x="397" y="168" text-anchor="middle">I2C · GPIO 4 / 5</text>
+  <text class="t" x="397" y="168" text-anchor="middle">I2C · GPIO 5 / 6</text>
   <text class="t" x="397" y="192" text-anchor="middle">alim 3,3 V</text>
 
   <!-- R4 : SSR -->
@@ -149,10 +150,10 @@
   <text class="t"  x="894" y="164">câble Grove 10 cm, VCC coupé à ras côté XIAO</text>
   <text class="t"  x="894" y="182">le VCC coupé est dénudé et repris dans la Wago nord-ouest</text>
   <text class="t"  x="894" y="200">alimentation 5 V par la Wago, pas par le port Grove</text>
-  <text class="t"  x="894" y="218">commande : fil jaune → GPIO 10</text>
+  <text class="t"  x="894" y="218">commande : fil jaune → D10 / GPIO 9</text>
   <path class="w" d="M 705 175 L 880 175"/>
   <text class="t" x="792" y="154" text-anchor="middle">commande</text>
-  <text class="t" x="792" y="169" text-anchor="middle">GPIO 10 · fil jaune</text>
+  <text class="t" x="792" y="169" text-anchor="middle">GPIO 9 · fil jaune</text>
   <text class="t" x="792" y="192" text-anchor="middle">alim 5 V hors câble</text>
 
   <!-- R3 : CAN Pal -->
@@ -160,11 +161,11 @@
   <text class="tb" x="894" y="264">Adafruit CAN Pal — TJA1051T/3</text>
   <text class="t"  x="894" y="284">monté au nord de boitier_dc</text>
   <text class="t"  x="894" y="302">Grove → fils dénudés dans le bornier à vis 2,54 mm</text>
-  <text class="t"  x="894" y="320">TX = fil blanc → GPIO 8 · RX = fil jaune → GPIO 9</text>
+  <text class="t"  x="894" y="320">TX = fil blanc → GPIO 7 · RX = fil jaune → GPIO 8</text>
   <text class="t"  x="894" y="338">sortie CANH / CANL : voir le panneau 4</text>
   <path class="w" d="M 705 295 L 880 295"/>
-  <text class="t" x="792" y="274" text-anchor="middle">TX GPIO 8 · blanc</text>
-  <text class="t" x="792" y="289" text-anchor="middle">RX GPIO 9 · jaune</text>
+  <text class="t" x="792" y="274" text-anchor="middle">TX GPIO 7 · blanc</text>
+  <text class="t" x="792" y="289" text-anchor="middle">RX GPIO 8 · jaune</text>
   <text class="t" x="792" y="312" text-anchor="middle">alim 3,3 V</text>
 
   <!-- R2 : Digmesa -->
@@ -173,10 +174,10 @@
   <text class="t"  x="894" y="404">JST SM 3 poles : rouge, noir, jaune</text>
   <text class="t"  x="894" y="422">noir (GND) + jaune (signal) sertis dans le connecteur Grove</text>
   <text class="t"  x="894" y="440">rouge (5 V) seul → Wago du compartiment nord-ouest</text>
-  <text class="t"  x="894" y="458">côté capteur : VH3.96 — rouge VCC, noir GND, jaune signal</text>
+  <text class="t"  x="894" y="458">côté capteur : VH3.96 — rouge signal, noir GND, jaune VCC</text>
   <path class="w" d="M 705 415 L 880 415"/>
   <text class="t" x="792" y="394" text-anchor="middle">impulsions</text>
-  <text class="t" x="792" y="409" text-anchor="middle">GPIO 7 · fil jaune</text>
+  <text class="t" x="792" y="409" text-anchor="middle">GPIO 44 (D7) · fil jaune</text>
   <text class="t" x="792" y="432" text-anchor="middle">alim 5 V hors câble</text>
 
   <!-- R1 : XDB401 -->
@@ -188,7 +189,7 @@
   <text class="t"  x="894" y="578">alimenté en 3,3 V · porte les pull-ups 4,7 kΩ (panneau 3)</text>
   <path class="w" d="M 705 535 L 880 535"/>
   <text class="t" x="792" y="514" text-anchor="middle">I2C</text>
-  <text class="t" x="792" y="529" text-anchor="middle">SDA GPIO 4 · SCL GPIO 5</text>
+  <text class="t" x="792" y="529" text-anchor="middle">SDA GPIO 5 · SCL GPIO 6</text>
   <text class="t" x="792" y="552" text-anchor="middle">alim 3,3 V</text>
 
   <!-- ==================================================================== -->
@@ -205,7 +206,7 @@
   <circle class="comp" cx="170" cy="1020" r="6"/>
   <circle class="comp" cx="170" cy="1055" r="6"/>
   <circle class="comp" cx="170" cy="1090" r="6"/>
-  <text class="t12" x="152" y="884" text-anchor="end">7 · GPIO 7</text>
+  <text class="t12" x="152" y="884" text-anchor="end">7 · D7 / GPIO 44</text>
   <text class="tmut" x="152" y="919" text-anchor="end">6</text>
   <text class="tmut" x="152" y="954" text-anchor="end">5</text>
   <text class="tmut" x="152" y="989" text-anchor="end">4</text>
@@ -219,7 +220,7 @@
   <path class="w" d="M 176 880 L 960 880"/>
   <path class="w" d="M 960 880 L 898 880" marker-end="url(#fleche)"/>
   <text class="t12" x="860" y="866" text-anchor="middle">signal Digmesa · fil jaune (port R2)</text>
-  <text class="t12" x="300" y="866">nœud GPIO 7 — pastille 7</text>
+  <text class="t12" x="300" y="866">nœud GPIO 44 — pastille D7</text>
   <circle cx="620" cy="880" r="3.5" fill="#3a3a36"/>
   <circle cx="760" cy="880" r="3.5" fill="#3a3a36"/>
 
@@ -246,7 +247,7 @@
   <text class="t12" x="950" y="980">vers 3,3 V qui fixe le niveau haut — le capteur est alimenté</text>
   <text class="t12" x="950" y="1000">en 5 V sans jamais présenter plus de 3,3 V au GPIO.</text>
   <text class="t12" x="950" y="1028">Le 10 nF filtre les transitoires.</text>
-  <text class="t12" x="950" y="1056"><tspan font-weight="650">GPIO 7 en INPUT, pull-up interne éteinte.</tspan></text>
+  <text class="t12" x="950" y="1056"><tspan font-weight="650">GPIO 44 en INPUT, pull-up interne éteinte.</tspan></text>
   <text class="t12" x="950" y="1092">Pastilles 1 (5 V) et 2 (GND) : bornier à vis 2 poles soudé,</text>
   <text class="t12" x="950" y="1112">alimentation du XIAO depuis boitier_ps. Une patte du 10 nF</text>
   <text class="t12" x="950" y="1132">partage cette borne GND.</text>
@@ -261,14 +262,14 @@
   <rect class="boxOn" x="60" y="1340" width="180" height="90" rx="4"/>
   <text class="tb" x="150" y="1368" text-anchor="middle">XIAO ESP32-S3</text>
   <text class="t"  x="150" y="1388" text-anchor="middle">maître I2C</text>
-  <text class="t"  x="150" y="1408" text-anchor="middle">SDA GPIO 4 · SCL GPIO 5</text>
+  <text class="t"  x="150" y="1408" text-anchor="middle">SDA GPIO 5 · SCL GPIO 6</text>
 
   <!-- lignes de bus, avec sauts aux croisements -->
   <path class="w" d="M 240 1370 L 674 1370 a 6 6 0 0 1 12 0 L 1060 1370"/>
   <path class="w" d="M 240 1400 L 514 1400 a 6 6 0 0 1 12 0 L 844 1400
                      a 6 6 0 0 1 12 0 L 1060 1400"/>
-  <text class="t12" x="252" y="1362">SDA · GPIO 4</text>
-  <text class="t12" x="252" y="1392">SCL · GPIO 5</text>
+  <text class="t12" x="252" y="1362">SDA · GPIO 5</text>
+  <text class="t12" x="252" y="1392">SCL · GPIO 6</text>
 
   <!-- rail 3,3 V et pull-ups -->
   <path class="w" d="M 600 1320 L 690 1320"/>
@@ -329,7 +330,7 @@
   <text class="t"  x="54" y="1750">4 pastilles de gauche, dans l'ordre :</text>
   <text class="t"  x="54" y="1768">VCC · GND · RX · TX → bornier à vis 2,54 mm</text>
   <text class="t"  x="54" y="1786">→ port Grove R3 du XIAO</text>
-  <text class="t"  x="54" y="1804">TX GPIO 8 fil blanc · RX GPIO 9 fil jaune</text>
+  <text class="t"  x="54" y="1804">TX GPIO 7 fil blanc · RX GPIO 8 fil jaune</text>
   <text class="t"  x="54" y="1824">2 pastilles de droite : CANH · CANL → JST XH</text>
 
   <!-- nœud écran -->

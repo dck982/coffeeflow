@@ -15,10 +15,11 @@ Modification d'une **Profitec Go** pour du *flow profiling* et du *brew by weigh
 
 ## Ce que la modification ajoute
 
-Le 230 V de la pompe et de la vanne est repris dans un boîtier dédié, sans remplacer le câblage d'origine :
+La modification pilote la pompe, la vanne et la résistance de chaudière :
 
 1. **Pompe** — un dimmer AC 4 A en mode **DimmerLink** (I2C) fait varier la pression.
 2. **Vanne solénoïde** — un SSR ouvre et ferme le circuit d'infusion.
+3. **Chaudière** — le SSR Keysolu/Maxwell fourni avec la machine commande la résistance de chauffe ; sa commande 5 V passe par un HW-399 dans `boitier_pid`.
 
 Plus de bouton brew, plus de relais NC de « mode manuel » : la commande passe par l'écran. Le système est alimenté dès que l'**interrupteur principal** de la machine est enfoncé.
 
@@ -27,11 +28,13 @@ Deux retours capteurs, sur le module interne :
 - **Pression** sur la plomberie, en amont de la vanne (I2C 3,3 V)
 - **Débit** en amont de la pompe, côté basse pression (le capteur ne tient que 3 bar)
 
+La **température de la chaudière** vient de la sonde NTC vissée en G1/8 dans la chaudière. Son câble rejoint le boîtier de l'écran, proche de la sonde, où un ADS1115 la mesure via un pont alimenté en 3,3 V par un AMS1117. Voir [la calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
+
 Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. La pesée du drip tray par cellule de charge est **abandonnée pour l'instant** (peser quelques grammes sur un plateau d'un kilo) — pièces et cotes conservées dans `print/parts/*_pesage*` et `docs/driptray.md`.
 
 ## Architecture électronique
 
-**Quatre boîtiers imprimés, deux nœuds ESP32-S3.** Le 230 V ne sort pas de la machine.
+**Cinq boîtiers imprimés, deux nœuds ESP32-S3.** Le 230 V ne sort pas de la machine.
 
 ```
              interrupteur principal (230 V L/N)
@@ -48,19 +51,21 @@ Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. L
  XIAO ESP32-S3       Waveshare 4,3"   │    └── L/N → vanne solénoïde
  + Grove Shield      ESP32-S3         └────── L/N → pompe vibratoire
  + CAN Pal           UI · Wi-Fi · BLE
+      │                   └── I2C ← ADS1115 ← NTC chaudière
       │                   │
       └──── bus CAN ──────┘   paire torsadée, par le trou Ø16 de l'ex-bouton brew
       │
       ├── I2C 3,3 V ─→ dimmer (DimmerLink)
-      ├── GPIO ──────→ SSR
+      ├── GPIO ──────→ SSR vanne (M5Stack Unit SSR)
+      ├── GPIO 3 ────→ [boitier_pid : HW-399] ─→ SSR chaudière ─→ résistance
       ├── I2C 3,3 V ←─ capteur de pression XDB401
       └── GPIO ──────← débitmètre Digmesa
 ```
 
 | Nœud | Alias | Où | Rôle |
 | --- | --- | --- | --- |
-| **Waveshare 4,3" LCD Touch** (ESP32-S3-WROOM) | *screen*, *écran*, *waveshare* | façade, dans `screen_base` + `screen_wedge` | Interface utilisateur, algorithme d'infusion (flow control, stop on weight), **Wi-Fi et BLE** (Acaia Lunar) |
-| **Seeed XIAO ESP32-S3** sur Grove Shield | *xiao*, *module interne*, *module capteurs*, *contrôleur* | intérieur, `boitier_dc`, zone froide entre le module PID et le cadran manomètre | Capteurs (XDB401, Digmesa) et actionneurs (dimmer, SSR) |
+| **Waveshare 4,3" LCD Touch** (ESP32-S3-WROOM) | *screen*, *écran*, *waveshare* | façade, dans `screen_base` + `screen_wedge` | Interface utilisateur, algorithme d'infusion, **Wi-Fi et BLE** (Acaia Lunar) ; raccordement de la NTC chaudière via ADS1115 |
+| **Seeed XIAO ESP32-S3** sur Grove Shield | *xiao*, *module interne*, *module capteurs*, *contrôleur* | intérieur, `boitier_dc`, zone froide entre le module PID et le cadran manomètre | Capteurs (XDB401, Digmesa) et actionneurs (dimmer pompe, SSR vanne, commande du SSR chaudière via HW-399) |
 
 Les deux nœuds parlent **CAN**. L'écran est le seul à utiliser la radio.
 
@@ -79,7 +84,8 @@ L'Atom Echo S3R de l'ancienne architecture est spécifié à **40 °C**. Le XIAO
 | **PS** | `boitier_ps`, `couvercle_ps` | intérieur, contre la face **gauche** vue de face, le long de la séparation avec le réservoir | Alim RECOM, Wago 230 V (entrée + LED façade), Wago 5 V / GND |
 | **DC** | `boitier_dc` | intérieur, **zone froide** entre le module PID et le cadran manomètre | XIAO + Grove Shield, Adafruit CAN Pal, Wago 5 V |
 | **AC** | `boitier_ac` | accolé au DC | Dimmer 4 A DimmerLink, M5Stack Unit SSR |
-| **UI** | `screen_base`, `screen_wedge` | façade de la machine | Écran Waveshare 4,3" |
+| **PID** | `boitier_pid`, `couvercle_pid` | compartiment technique, près du contrôleur PID d'origine | HW-399, connecteurs XH et Wago de distribution 5 V / GND ; commande du SSR chaudière |
+| **UI** | `screen_base`, `screen_wedge` | façade de la machine | Écran Waveshare 4,3", AMS1117, ADS1115 et raccordement NTC |
 
 Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qui est commun aux deux (`couvercle_acdc`, assemblage `ensemble_boitiers`).
 
@@ -94,11 +100,14 @@ Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qu
 | Transceiver CAN côté XIAO | **Adafruit CAN Pal** (TJA1051T/3), [produit 5708](https://www.adafruit.com/product/5708) | — |
 | Dimmer pompe | **RBDimmer AC Dimmer 4 A 1 canal**, logique 3,3 V, mode **[DimmerLink](https://www.rbdimmer.com/docs/dimmerlink-overview)** ([boutique](https://www.rbdimmer.com/shop/ac-dimmers-1/ac-dimmer-module-4a-1-channel-33v5v-logic-ac-400v-4a-6?attribute_values=48)) | — |
 | SSR vanne | **M5Stack Unit SSR** (2 A), commande 3,3–5 V, zero-crossing MOC3043M | `docs/datasheets/m5stack-unit-ssr.md` |
+| SSR chaudière | **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine ; deux bornes de puissance 230 VAC côté interrupteur principal, entrée de commande DC +/− via HW-399 ; cosses mâles FASTON 4,8 mm | [Câblage](docs/cablage.md#ssr-de-chaudière-fourni-avec-la-machine) |
+| Interface SSR chaudière | **HW-399 4-channel Optocoupler**, voie IN4 / OUT4, logé dans `boitier_pid` | `docs/cablage.md` |
+| Température chaudière | Sonde **NTC G1/8**, AMS1117 3,3 V et breakout **ADS1115 16 bits** sur l'I2C de l'écran | [Calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md) |
 | Pression | **Yufavor XDB401**, I2C, filetage **G1/8** | `docs/datasheets/xidibei_xdb401.pdf` |
 | Débit | **Digmesa FHKSC 932-9525-B**, buse **1,00 mm** | `docs/datasheets/flowmeter-digmesa.pdf`, `docs/debitmetres.md` |
 | Alimentation | **RECOM RAC05-05SK/277/W** — 5 W, 5 V / 1 A, encapsulée, 85–305 VAC, version fils | `docs/datasheets/RAC05-K_277.pdf` |
 | Poids | **Acaia Lunar**, BLE, lue par l'écran | — |
-| Câble | **Helutherm 145** — 0,75 mm² en 230 V, 0,25 mm² en 5 V / signaux / CAN | `docs/datasheets/helutherm145.pdf` |
+| Câble | **Helutherm 145** — 0,75 mm² pour les ajouts 230 V, 0,25 mm² en 5 V / signaux / CAN ; puissance chaudière en 1 mm² | `docs/datasheets/helutherm145.pdf` |
 
 Actionneurs d'origine pilotés : vanne solénoïde **OLAB 08252L50-A14-1A-G** (bobine 08000BH-J5IV, 15 VA, 220/230 V 50/60 Hz, orifice Ø 1,4 mm, joint FKM, laiton CW510L, NSF) et pompe vibratoire **OLAB Silent Green 35 W**.
 
@@ -112,20 +121,23 @@ Le Shield expose **deux colonnes de quatre connecteurs**. XIAO en bas : colonne 
 
 | Port | Périphérique | Bus / GPIO | Alim | Câble |
 | --- | --- | --- | --- | --- |
-| **R1** | Capteur de pression XDB401 | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V | Grove à clip (quelques cm) → JST SM 4 poles, débrochable **hors du boîtier** |
-| **R2** | Débitmètre Digmesa | impulsions — **GPIO 7** | 5 V (voir ci-dessous) | Grove 2 fils (noir + jaune) → JST SM 3 poles → VH3.96 côté Digmesa |
-| **R3** | Adafruit CAN Pal | TWAI — TX **GPIO 8** (fil blanc), RX **GPIO 9** (fil jaune) | 3,3 V | Grove → fils dénudés dans le bornier à vis du CAN Pal |
-| **R4** | M5Stack Unit SSR | commande — **GPIO 10** (fil jaune) | 5 V, repris hors du câble | Grove 10 cm, VCC coupé à ras côté XIAO |
-| **L4** | Dimmer DimmerLink | I2C — SDA **GPIO 4**, SCL **GPIO 5** | 3,3 V | Grove |
+| **R1** | Capteur de pression XDB401 | I2C — SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V | Grove à clip (quelques cm) → JST SM 4 pôles, débrochable **hors du boîtier** |
+| **R2** | Débitmètre Digmesa | impulsions — **GPIO 44** (D7 sur le PCB) | 5 V (voir ci-dessous) | Grove 2 fils (noir + jaune) → JST SM 3 pôles → VH3.96 côté Digmesa |
+| **R3** | Adafruit CAN Pal | TWAI — TX **GPIO 7** (fil blanc), RX **GPIO 8** (fil jaune) | 3,3 V | Grove → fils dénudés dans le bornier à vis du CAN Pal |
+| **R4** | M5Stack Unit SSR, **vanne** | commande — **GPIO 9** (D10, fil jaune) | 5 V, repris hors du câble | Grove 10 cm, VCC coupé à ras côté XIAO |
+| **L2** | HW-399 → SSR **chaudière** | commande — **GPIO 3** (D2 sur le PCB), HIGH = chauffe active | 5 V côté sortie du HW-399 | Grove → XH 2 pôles (GND, IN4) ; XH 3 pôles (GND, VCC, OUT4) côté sortie |
+| **L4** | Dimmer DimmerLink | I2C — SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V | Grove |
+
+Les repères `Dn` imprimés sur le Shield ne correspondent pas toujours aux GPIO natifs du XIAO. Le [tableau de câblage](docs/cablage.md#ports-grove-du-xiao) donne les deux numérotations.
 
 **L4 est câblé en copie de R1** pour exposer une deuxième prise I2C. Le dimmer et le capteur de pression sont donc **sur le même bus** : le dimmer n'a pas de pull-up, il profite des **4,7 kΩ du XDB401**. Conséquence : retirer le capteur de pression laisse SDA / SCL sans tirage et le dimmer ne répond plus (sauf câble très court, sur les pull-ups internes de l'ESP32). Ne pas empiler un second 4,7 kΩ côté MCU tant que le XDB401 est sur le bus.
 
 ### Pastilles du Shield
 
-Le Shield porte une rangée de pastilles à **gauche du XIAO** (board tenu XIAO en bas, ports vers le haut). Les trois premières sont **5 V**, **GND**, **3V3** ; la septième est **GPIO 7**.
+Le Shield porte une rangée de pastilles à **gauche du XIAO** (carte tenue XIAO en bas, ports vers le haut). Les trois premières sont **5 V**, **GND**, **3V3** ; la septième est **D7 / GPIO 44**.
 
 - Un **bornier 2 poles** est soudé sur les pastilles 5 V et GND : il alimente le XIAO depuis le boîtier PS et sert de point de reprise.
-- **Filtre RC du débitmètre** : résistance **1 kΩ** entre la pastille 3 (3V3) et la pastille 7 (GPIO 7), condensateur **10 nF** à cheval entre la pastille 2 (GND) et la pastille 7. Le Digmesa est un collecteur ouvert NPN : il tire la ligne à la masse mais ne la monte jamais, c'est le tirage vers 3,3 V qui fixe le niveau haut, alors même que le capteur est alimenté en 5 V. GPIO en `INPUT`, pull-up interne éteinte.
+- **Filtre RC du débitmètre** : résistance **1 kΩ** entre la pastille 3 (3V3) et la pastille D7 (GPIO 44), condensateur **10 nF** à cheval entre la pastille 2 (GND) et la pastille D7. Le Digmesa est un collecteur ouvert NPN : il tire la ligne à la masse mais ne la monte jamais, c'est le tirage vers 3,3 V qui fixe le niveau haut, alors même que le capteur est alimenté en 5 V. GPIO en `INPUT`, pull-up interne éteinte.
 
 ### Bus CAN
 
@@ -160,6 +172,7 @@ L'alim **RECOM RAC05-05SK/277/W** vit dans `boitier_ps` et alimente **tout** : l
 - Deux autres fils rouge / noir vont à `boitier_dc`, dans les deux Wago du **compartiment sud-ouest** : **3 poles à gauche = 5 V**, **2 poles à droite = GND**.
 - De ces bornes partent (a) le 5 V / GND du **XIAO**, par le bornier soudé aux pastilles du Shield, et (b) le 5 V vers la **Wago 3 poles du compartiment nord-ouest**.
 - La Wago nord-ouest distribue le 5 V au **SSR** (fil du câble Grove dont le VCC a été coupé à ras côté XIAO, dénudé et repris ici) et au **Digmesa** (fil rouge du câble JST SM).
+- Le `boitier_pid` reçoit aussi le **5 V / GND** pour les Wago et la sortie du HW-399 qui commande le SSR chaudière. Dans le boîtier de l'écran, le 5 V alimente l'**AMS1117** dédié au pont NTC.
 
 ### Le câble du Digmesa
 
@@ -173,6 +186,10 @@ Côté capteur, le câble est en **VH3.96** : rouge = VCC, noir = GND, jaune = s
 ---
 
 ## Capteurs
+
+### Température chaudière — NTC G1/8
+
+La sonde rejoint directement le boîtier de l'écran, voisin de la chaudière. Le 5 V est abaissé à 3,3 V par un AMS1117 muni d'un connecteur XH. Une Wago distribue ce 3,3 V à la NTC et à l'entrée **A0** de l'ADS1115 ; le retour NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers GND. L'ADS1115 16 bits est sur le port I2C du Waveshare. A0 permet de mesurer la tension réelle d'alimentation du pont. Schéma et paramètres de conversion : [calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
 
 ### Pression — Yufavor XDB401
 
@@ -205,26 +222,30 @@ Deux conséquences qui ne relèvent pas du câblage :
 
 | Domaine | Fil | Connectique |
 | --- | --- | --- |
-| 230 V | **Helutherm 145 0,75 mm²**, paires L/N sous gaine thermo | Wago 221 à leviers ; FASTON 6,3 × 0,8 mm côté machine |
+| 230 V — ajouts pompe/vanne/alimentation | **Helutherm 145 0,75 mm²**, paires L/N sous gaine thermo | Wago 221 à leviers ; FASTON 6,3 × 0,8 mm côté machine |
+| 230 V — puissance chaudière | **1 mm²** | SSR chaudière fourni avec la machine, FASTON mâles 4,8 mm |
 | 5 V / signaux / CAN | **Helutherm 145 0,25 mm²** | Grove, JST SM (débrochable), JST XH / PH 2.0, borniers à vis 2,54 mm, Wago 221 |
 
 Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intérieur → façade : le trou **Ø 16 mm** de l'ancien bouton brew, avec le passe-câble imprimé.
 
 ## Firmware
 
-- **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO SSR, comptage d'impulsions du débitmètre, TWAI/CAN. Pas de radio. Il exécute ce que l'écran lui demande et remonte la télémétrie.
-- **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar.
+- **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO du SSR vanne, comptage d'impulsions du débitmètre, TWAI/CAN. Le GPIO 3 (L2/D2) est câblé pour la future commande du SSR chaudière.
+- **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar. L'ADS1115 est câblé sur son I2C pour la future mesure de la température chaudière.
+
+**État du firmware :** la commande de chauffage dans `firmware/sensors` et la lecture NTC/ADS1115 dans `firmware/screen` ne sont pas encore intégrées. Les champs de température existants concernent le XDB401 ; ils ne représentent pas la NTC chaudière. La [revue des noms d'actionneurs](docs/firmware.md#extension-chaudière-à-implémenter) distingue le SSR vanne, le SSR chaudière et le dimmer pompe.
+
+Plans temporaires d'implémentation : [actionneur heating et OTA](docs/heating-firmware-plan.md) ; [température chaudière, affichage et capture HF](docs/boiler-temperature-firmware-plan.md). À supprimer après intégration dans la documentation permanente.
 
 Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 
 Conception, protocole CAN et sécurité : `docs/firmware.md`. Ordre de réalisation : `docs/firmware-implementation.md`. Style et structure de l'interface tactile (LVGL) : `docs/ui.md`, maquette à l'échelle `docs/ui-mockup.html`.
 
-Le firmware n'est pas encore dans le dépôt. `sound_test/` (sketch Arduino Atom S3) est un reliquat.
-
 ## Disposition mécanique
 
 - **`boitier_ps`** — intérieur, contre la face gauche vue de face, le long de la séparation avec le réservoir.
 - **`boitier_dc` + `boitier_ac`** — intérieur, zone froide entre le module PID et le cadran manomètre ; côte à côte, couvercle commun.
+- **`boitier_pid`** — compartiment technique, près du contrôleur PID d'origine ; HW-399 et distribution 5 V / GND.
 - **UI** — façade, à l'emplacement des boutons. Le wedge cadre l'écran (vissé par l'arrière), la base accueille le wedge (`screen_assembly`).
 
 Pas de perçage du châssis : aimants Ø8 × 3 mm à l'intérieur, trou brew existant vers l'extérieur.
@@ -238,6 +259,8 @@ Projet [nurb](https://pypi.org/project/nurb/) : lancer `nurb` depuis `print/`. E
 | `boitier_ps` / `couvercle_ps` | intérieur, face ouest | Alim RECOM, Wago 230 V et 5 V |
 | `boitier_dc` | intérieur, zone froide | XIAO + Grove Shield, CAN Pal, Wago 5 V |
 | `boitier_ac` | accolé au DC | Dimmer, SSR |
+| `boitier_pid` / `couvercle_pid` | compartiment technique | HW-399, connecteurs XH et Wago de commande du SSR chaudière |
+| `ensemble_boitier_pid` | — | Assemblage du boîtier PID et de son couvercle |
 | `couvercle_acdc` | — | Couvercle unique des deux boîtiers |
 | `ensemble_boitiers` | — | Assemblage DC + AC |
 | `screen_wedge` / `screen_base` | façade | Cadre de l'écran Waveshare (vis M2.5 à l'arrière) et son berceau |

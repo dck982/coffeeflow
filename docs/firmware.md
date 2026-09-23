@@ -1,6 +1,6 @@
 # Firmware
 
-Deux cartes ESP32-S3 font tourner la machine. Le **Waveshare 4,3"** est en façade et il est le seul nœud qui parle au monde extérieur (tactile, Wi-Fi, BLE). Le **XIAO** vit dans `boitier_dc`, dans le compartiment technique, et il est le seul à toucher les capteurs et les actionneurs 230 V. Ils se rejoignent sur un bus CAN d'un seul segment, terminé 120 Ω aux deux bouts.
+Deux cartes ESP32-S3 font tourner la machine. Le **Waveshare 4,3"** est en façade et il est le seul nœud qui parle au monde extérieur (tactile, Wi-Fi, BLE). Le **XIAO** vit dans `boitier_dc`, dans le compartiment technique. Les capteurs de pression et de débit et les commandes des actionneurs y sont raccordés ; la NTC de chaudière rejoint directement l'écran. Ils se rejoignent sur un bus CAN d'un seul segment, terminé 120 Ω aux deux bouts.
 
 Vue d'ensemble du matériel : `../README.md`. Détail fil par fil : `cablage.md`.
 
@@ -22,7 +22,7 @@ L'**écran est le cerveau**. Il porte l'algorithme d'infusion, l'UI, l'Acaia Lun
 
 Le module **capteurs est les mains**. Il exécute des commandes (SSR, dimmer), compte les impulsions du débitmètre, lit la pression et la température, et publie de la télémétrie quand on la lui demande. Pas de radio. Pas de calibration. Pas d'interprétation : il transporte des valeurs brutes.
 
-Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 °C et vit dans un compartiment à 45–50 °C ; le Waveshare reste en façade. Le 230 V ne sort jamais de la machine, seule la paire CAN passe par le trou de l'ancien bouton brew.
+Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 °C et vit dans un compartiment à 45–50 °C ; le Waveshare reste en façade. Le 230 V ne sort jamais de la machine. La paire CAN et le câble de la NTC rejoignent l'écran.
 
 ---
 
@@ -104,6 +104,7 @@ bring-up phase 2 en échec faute de cette traduction :
 | R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
 | R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
 | R4 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
+| L2 | HW-399 → SSR chaudière Keysolu/Maxwell | sortie GPIO | D2 | **GPIO 3** |
 
 **CAN Pal validé de bout en bout le 2026-09-09**, après rework de la broche `SLNT`
 (tirée au GND — le clone la laissait flottante sous les connecteurs rapportés,
@@ -118,6 +119,25 @@ l'investigation ; il n'est plus utilisé côté capteurs.
 ### SSR — vanne solénoïde
 
 GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
+
+### Extension chaudière à implémenter
+
+Le matériel est câblé pour deux nouveaux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → **OUT4 à 5 V** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont 3,3 V AMS1117 → **A0/A1 de l'ADS1115** sur l'I2C du Waveshare. HIGH sur GPIO 3 active la résistance. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Plans temporaires : [heating et OTA](heating-firmware-plan.md), [température chaudière](boiler-temperature-firmware-plan.md).
+
+**Ces fonctions ne sont pas encore dans le firmware.** Le SSR existant dans le code est celui de la **vanne** ; `temperature_c` et `temperature_raw` concernent le **XDB401**, pas la NTC chaudière. La lecture ADS1115 devra produire une mesure de chaudière distincte, avec ses propres indicateurs de validité. La commande de chauffage devra être distincte de la consigne de pompe et disposer d'un état sûr au démarrage et en cas de perte de commande.
+
+Revue des noms dans le code actuel :
+
+| Endroit | Nom actuel | Sens actuel | Nom conseillé pour l'extension |
+| --- | --- | --- | --- |
+| `firmware/sensors/main/main.cpp` | `g_ssr`, `apply_ssr()`, `kGpioSsr` | relais de vanne R4 | `g_valve_open`, `apply_valve()`, `kGpioValve` ; réserver `heater` au L2 |
+| `firmware/common/include/common/messages.hpp` | `StatusActuatorsPayload::ssr` | état de la vanne | `valve_open` dans le type C++ ; conserver pour l'instant son octet CAN actuel |
+| `firmware/common/include/common/messages.hpp` | `SetPayload::dimmer` | puissance de pompe, seule consigne actuelle | `pump_pct` dans le type C++ ; conserver pour l'instant son octet CAN actuel |
+| `firmware/sensors/main/main.cpp` | `g_dimmer`, `apply_dimmer()`, registres `kDimmer*` | niveau de pompe et pilote matériel DimmerLink | `g_pump_pct` pour la valeur métier ; garder `dimmer` pour le pilote et ses registres |
+| `firmware/screen/main/core` | `snapshot.valve_open`, `snapshot.dimmer_pct` | état de vanne et niveau de pompe | garder `valve_open`, préférer `pump_pct` pour le niveau ; ajouter un état `heater_on` séparé |
+| HTTP (`net_http.cpp`) | `dimmer` dans `set_actuators`, `dimmer_pct` dans la télémétrie | commande et retour de pompe | envisager `pump_pct` lors de l'évolution de l'API, avec compatibilité explicite pour les clients existants |
+
+Aujourd'hui, `on_set_received()` déduit l'état de la vanne de `payload.dimmer > 0`. Le chauffage ne doit pas être déduit de cette consigne : il nécessite une commande et un état séparés. Un simple renommage de `ssr` en `heater` inverserait le sens des messages existants. Les noms de protocole et les champs HTTP font partie des interfaces externes : décider de leur versionnement avant de changer leur sens.
 
 ### Dimmer — pompe
 

@@ -39,7 +39,7 @@
 <body>
 <div id="hud">
   <h1>Profitec Go — maquette</h1>
-  <p>Encombrements internes et placement des quatre boîtiers imprimés. Détail dans <code>README.md</code> et <code>docs/cablage.md</code>.</p>
+  <p>Encombrements internes et placement de quatre boîtiers imprimés. Le cinquième, <code>boitier_pid</code> (HW-399 pour le SSR chaudière), n'est pas encore placé dans cette maquette. Détail dans <code>README.md</code> et <code>docs/cablage.md</code>.</p>
   <div class="dims">
     <div>Machine <b>207 × 305 × 368</b></div>
     <div>1 · surplomb boiler/groupe <b>125</b></div>
@@ -95,12 +95,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   depuis la façade) et la cloison réservoir (195 mm). Pas de cloison physique
   entre boiler et baie : c'est le passage des câbles.
 
-  Les quatre boîtiers : boitier_ps (alim RECOM RAC05-05SK/277/W + Wago 230 V)
+  Les quatre boîtiers représentés : boitier_ps (alim RECOM RAC05-05SK/277/W + Wago 230 V)
   contre la paroi ouest, le long de la cloison réservoir ; boitier_dc (XIAO +
   Grove Shield + CAN Pal) et boitier_ac (dimmer 4 A DimmerLink + Unit SSR)
   accolés dans la zone froide, entre le PID et le cadran, sous un couvercle
   commun ; l'écran (screen_base + screen_wedge) en façade, en haut. Le CAN
-  passe par le trou Ø16 de l'ancien bouton brew.
+  passe par le trou Ø16 de l'ancien bouton brew. Le cinquième boîtier,
+  boitier_pid (HW-399 et Wago pour le SSR chaudière), n'est pas encore modélisé.
   Détail dans README.md et docs/cablage.md.
 */
 

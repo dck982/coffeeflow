@@ -2,12 +2,13 @@
 
 Pièces FDM de coffeeflow. Vue d'ensemble, câblage et brochage : `../README.md` et `../docs/cablage.md`.
 
-Quatre boîtiers autour de la machine :
+Cinq boîtiers autour de la machine :
 
 - **`boitier_ps`** — alimentation RECOM et Wago 230 V, intérieur, face ouest le long du réservoir
 - **`boitier_dc`** — XIAO ESP32-S3 + Grove Shield, M5Stack Unit CAN Bus, Wago 5 V ; intérieur, zone froide entre le module PID et le cadran manomètre
 - **`boitier_ac`** — dimmer 4 A DimmerLink et M5Stack Unit SSR ; accolé au DC
-- **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3"
+- **`boitier_pid`** — HW-399 et Wago 5 V / GND pour commander le SSR de chaudière fourni avec la machine
+- **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3", LDO AMS1117, ADS1115 et sonde NTC chaudière
 
 `boitier_dc` et `boitier_ac` sont **côte à côte et reliés par un couvercle commun** (`couvercle_acdc`) ; l'assemblage des deux bacs est `ensemble_boitiers`.
 
@@ -31,6 +32,8 @@ nurb export canal
 | `parts/couvercle_ps.py` | Couvercle du bac alimentation |
 | `parts/boitier_dc.py` | Bac intérieur ouest : XIAO + Shield, Unit CAN Bus, Wago 5 V |
 | `parts/boitier_ac.py` | Bac intérieur est : dimmer et SSR |
+| `parts/boitier_pid.py` / `parts/couvercle_pid.py` | Boîtier du HW-399 et des Wago 5 V / GND, et son couvercle |
+| `parts/ensemble_boitier_pid.py` | Assemblage du boîtier PID et de son couvercle |
 | `parts/couvercle_acdc.py` | Couvercle unique des deux bacs |
 | `parts/ensemble_boitiers.py` | Assemblage DC + AC |
 | `parts/passe_cable.py` | Passe-câble fileté pour le trou Ø16 de l'ex-bouton brew (câble CAN) |
@@ -45,7 +48,7 @@ nurb export canal
 | `printer.toml` | A1 Mini |
 | `system.py` | Filet imprimable, puits d'aimant couchés, ouvertures des modules |
 
-Traversée intérieur → façade : **câble CAN** (paire torsadée orange/gris) par le trou **Ø 16 mm** de l'ancien bouton brew, avec `passe_cable`. Le 5 V de l'écran vient de `boitier_ps` par un bornier adaptateur USB-C. Le 230 V ne quitte pas le compartiment technique.
+Vers la façade : **câble CAN** (paire torsadée orange/gris) par le trou **Ø 16 mm** de l'ancien bouton brew, avec `passe_cable` ; la sonde NTC de chaudière rejoint le boîtier de l'écran voisin. Le 5 V de l'écran vient de `boitier_ps` par un bornier adaptateur USB-C. Le 230 V ne quitte pas le compartiment technique. Détail du pont NTC : [`docs/ntc_ads1115_calibration.md`](../docs/ntc_ads1115_calibration.md).
 
 Encombrements machine : `../docs/profitec_go.html`.
 
@@ -66,7 +69,7 @@ Côté machine : FASTON 6,3 × 0,8 mm isolées nylon. Côté mod : Wago 221 (412
 - Vis **M3×10** classique (trou pilote 2,6 mm) ; **M2.5×8** pour l'écran dans le wedge
 - Inserts laiton **M2.5×4** et **M3** (stock atelier) pour le montage des cartes
 - Aimants **8 × 3 mm**, fond de puits 0,6 mm
-- Helutherm 145 : **0,75 mm²** en 230 V (paires L/N sous gaine thermo), **0,25 mm²** en 5 V / signaux / CAN
+- Helutherm 145 : **0,75 mm²** pour les ajouts 230 V pompe/vanne/alimentation (paires L/N sous gaine thermo), **0,25 mm²** en 5 V / signaux / CAN ; câblage de puissance chaudière : **1 mm²**
 
 ## Atelier
 

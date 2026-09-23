@@ -3,17 +3,19 @@
 Vue d'ensemble et choix des composants : `../README.md`. Ce fichier tient le détail :
 quel fil, quelle couleur, quelle connectique, d'où à où.
 
-Tout le 230 V reste dans le compartiment technique. Seul le CAN traverse vers la façade.
+Tout le 230 V reste dans le compartiment technique. Le CAN et le câble de la sonde NTC rejoignent le boîtier de l'écran en façade.
+
+Deux SSR ont des rôles distincts : le **M5Stack Unit SSR** dans `boitier_ac` commande la **vanne**, tandis que le **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine, commande la **résistance de chaudière**. Le second possède deux bornes d'entrée DC **+ / −** (plage **4–24 VDC indiquée pour l'exemplaire**) et deux bornes de puissance **230 VAC**. La [fiche de la série KS53](https://manage.keysolu.com/upload/product/file/20241204/KS53_EN.pdf) donne une plage générique d'entrée de 4–32 VDC ; le 5 V du montage appartient aux deux plages.
 
 ## Câble
 
 | Domaine | Référence | Section |
 | --- | --- | --- |
 | 230 V | **Helutherm 145** (`datasheets/helutherm145.pdf`) | **0,75 mm²** |
+| 230 V — puissance chaudière | câblage de la machine | **1 mm²** |
 | 5 V, signaux, CAN | **Helutherm 145** | **0,25 mm²** |
 
-0,75 mm² est largement suffisant pour une consommation totale sous 50 W. Le Helutherm 145
-tient 145 °C en continu, ce que l'enceinte de la machine (40–50 °C) ne met jamais en défaut.
+Le **0,75 mm²** décrit les conducteurs ajoutés pour l'alimentation, la vanne et la pompe. Le circuit de puissance de la **résistance de chaudière** est en **1 mm²** ; son chemin borne par borne reste à relever. Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à 40–50 °C.
 
 ### Compatibilité électromagnétique
 
@@ -72,6 +74,10 @@ de la gaine thermo, et entrent dans `boitier_ac` par sa **face est** :
 | SSR | **Vanne solénoïde** OLAB 08252L50-A14-1A-G (bobine 08000BH-J5IV, 15 VA) | jaune | bleu |
 | Dimmer | **Pompe vibratoire** OLAB Silent Green 35 W | violet | bleu |
 
+### SSR de chaudière fourni avec la machine
+
+Ses **deux bornes de puissance 230 VAC** sont raccordées au câblage d'alimentation générale **au niveau de l'interrupteur principal** et appartiennent au circuit de la résistance de chauffe. Le branchement borne par borne de cette partie n'est pas encore établi dans ce document ; voir la précision à apporter avant de dessiner le circuit. Les **deux bornes DC + / −** rejoignent le `boitier_pid` et la sortie du HW-399 décrite plus bas. Ce SSR est distinct de celui de la vanne situé dans `boitier_ac`.
+
 ### Résumé des paires 230 V
 
 1. **L + N** interrupteur principal → `boitier_ps`
@@ -93,6 +99,8 @@ départs partent de là, en **0,25 mm² rouge (5 V) / noir (GND)** :
 | --- | --- | --- |
 | 1 | **Écran Waveshare** | bornier adaptateur **USB-C** |
 | 2 | **`boitier_dc`** | Wago du compartiment **sud-ouest** |
+
+Le 5 V / GND est aussi distribué au **`boitier_pid`** (Wago de distribution pour le HW-399 et la commande du SSR chaudière). Dans le boîtier **screen**, le 5 V alimente également un **LDO AMS1117** équipé d'un connecteur XH, dédié au 3,3 V du pont NTC. Le PCB Waveshare ne présente pas de reprise 3,3 V facilement accessible sur une pastille ou un connecteur séparé.
 
 ### Distribution dans `boitier_dc`
 
@@ -174,6 +182,7 @@ phase 2 resté silencieux sur le bus faute de cette traduction.
 | **R2** | Digmesa (débit) | impulsions — D7 | **GPIO 44** | 5 V, hors du câble Grove |
 | **R3** | CAN Pal | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** | 3,3 V |
 | **R4** | Unit SSR | commande — D10 (fil jaune) | **GPIO 9** | 5 V, hors du câble Grove |
+| **L2** | HW-399 → SSR chaudière | commande — D2 | **GPIO 3** | 5 V côté sortie du HW-399 |
 | **L4** | Dimmer DimmerLink | I2C — SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V |
 
 **L4 est une copie de R1** : le dimmer et le capteur de pression partagent le même bus I2C.
@@ -255,12 +264,24 @@ jamais. C'est le 1 kΩ vers 3,3 V qui fixe le niveau haut — le capteur peut do
 alimenté en 5 V sans jamais présenter plus de 3,3 V au GPIO. Le 10 nF filtre les
 transitoires. GPIO en `INPUT`, **pull-up interne éteinte**.
 
-### Câble du SSR (R4)
+### Câble du SSR de vanne (R4)
 
 Câble **Grove 10 cm** dont le **VCC est coupé à ras côté XIAO**, dénudé et repris dans la
 **Wago nord-ouest** (5 V). Le **fil jaune** porte la commande vers le SSR, sur **GPIO 9**
 (D10 sur le silkscreen du Grove Shield). Le SSR est donc alimenté en 5 V par la Wago, pas
 par le port Grove.
+
+### Commande du SSR de chaudière (L2)
+
+Le port Grove **L2** du Shield (broche **D2** sur le PCB, **GPIO 3** natif du XIAO) porte la commande du chauffage. **HIGH active la résistance de chauffe.** Le GPIO en 3,3 V ne commande pas directement le SSR Keysolu/Maxwell, dont l'entrée de l'exemplaire est indiquée pour 4–24 VDC.
+
+Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Dans ce montage, **OUT4 est à 5 V quand IN4 est à 3,3 V**, pour commander l'entrée DC du SSR chaudière. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance commute la résistance de chaudière ; le chemin exact des conducteurs secteur d'origine reste à relever avant d'en documenter le détail.
+
+### Sonde NTC et ADS1115 dans le boîtier de l'écran
+
+La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. Un **AMS1117** avec connecteur XH transforme le 5 V de l'alimentation en 3,3 V stabilisé. Ce 3,3 V va à **A0** du breakout **ADS1115 16 bits** et, via une **Wago**, à une borne de la NTC. Le retour de la NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers **GND**. Les masses sont communes. L'ADS1115 est connecté au port **I2C partagé** de l'écran Waveshare, avec notamment le CH422G et le contrôleur tactile GT911.
+
+Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 n'est pas encore intégrée au firmware `screen`.
 
 ### Câble du dimmer (L4)
 
@@ -277,10 +298,11 @@ aucune commande.
 | Type | Où |
 | --- | --- |
 | **FASTON 6,3 × 0,8 mm** isolées nylon | côté machine : interrupteur principal, LED, pompe, vanne. Pas de piggyback |
+| **FASTON 4,8 mm** mâles | sur le SSR de chaudière fourni avec la machine |
 | **Wago 221** (412 / 415 / 423) | toutes les dérivations, 230 V et 5 V |
 | **Grove** | XIAO ↔ périphériques |
 | **JST SM** | jonctions débrochables : XDB401 (4 p.), Digmesa (3 p.), CAN (2 p.) |
-| **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal |
+| **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal ; HW-399 : entrée 2 pôles (GND, IN4) et sortie 3 pôles (GND, VCC, OUT4) ; connecteur du LDO AMS1117 |
 | **JST PH 2.0** | entrée CAN du Waveshare |
 | **VH3.96** | côté Digmesa |
 | **Bornier à vis 2,54 mm** | pastilles VCC/GND/RX/TX du CAN Pal ; pastilles 5 V/GND du Grove Shield |

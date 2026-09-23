@@ -39,6 +39,35 @@ class SetPayload:
 
 
 @dataclass
+class SetHeatingPayload:
+    on: bool = False
+    duration_ms: int = 0
+
+    def pack(self) -> bytes:
+        return struct.pack("<BH5x", 1 if self.on else 0, self.duration_ms)
+
+    @staticmethod
+    def unpack(data: bytes) -> "SetHeatingPayload":
+        _need(data, 3, "SET_HEATING")
+        if data[0] > 1:
+            raise ValueError("SET_HEATING: état invalide")
+        return SetHeatingPayload(bool(data[0]), struct.unpack("<H", data[1:3])[0])
+
+
+@dataclass
+class ConfirmSensorsOtaPayload:
+    protocol_patch: int = 63
+
+    def pack(self) -> bytes:
+        return bytes([self.protocol_patch]) + b"\x00" * 7
+
+    @staticmethod
+    def unpack(data: bytes) -> "ConfirmSensorsOtaPayload":
+        _need(data, 1, "CONFIRM_SENSORS_OTA")
+        return ConfirmSensorsOtaPayload(data[0])
+
+
+@dataclass
 class PongPayload:
     node: Node = Node.SENSORS
     version_major: int = 0
@@ -150,6 +179,23 @@ class StatusActuatorsPayload:
 
 
 @dataclass
+class StatusHeatingPayload:
+    heater_on: bool = False
+    lease_remaining_ms: int = 0
+    capable: bool = True
+
+    def pack(self) -> bytes:
+        return struct.pack("<BHB4x", 1 if self.heater_on else 0, self.lease_remaining_ms, 1 if self.capable else 0)
+
+    @staticmethod
+    def unpack(data: bytes) -> "StatusHeatingPayload":
+        _need(data, 4, "STATUS_HEATING")
+        if data[0] > 1 or not data[3] & 1:
+            raise ValueError("STATUS_HEATING: état ou capacité invalide")
+        return StatusHeatingPayload(bool(data[0]), struct.unpack("<H", data[1:3])[0], True)
+
+
+@dataclass
 class LogPayload:
     code: int = 0
     severity: int = 0
@@ -171,6 +217,7 @@ class FlashSubCmd(IntEnum):
     BLOCK_ACK = 1
     END = 2
     ABORT = 3
+    BLOCK_START = 4
 
 
 @dataclass
@@ -187,7 +234,7 @@ class FlashCtrlPayload:
         head = bytes([int(self.subcmd)])
         if self.subcmd == FlashSubCmd.BEGIN:
             return head + struct.pack("<I", self.image_size) + b"\x00\x00\x00"
-        if self.subcmd == FlashSubCmd.BLOCK_ACK:
+        if self.subcmd in (FlashSubCmd.BLOCK_ACK, FlashSubCmd.BLOCK_START):
             return head + struct.pack("<HH", self.block_number, self.block_crc16) + b"\x00\x00\x00"
         if self.subcmd == FlashSubCmd.END:
             return head + struct.pack("<I", self.image_crc32) + b"\x00\x00\x00"
@@ -201,8 +248,8 @@ class FlashCtrlPayload:
             _need(data, 5, "FLASH_CTRL BEGIN")
             (image_size,) = struct.unpack("<I", data[1:5])
             return FlashCtrlPayload(subcmd, image_size=image_size)
-        if subcmd == FlashSubCmd.BLOCK_ACK:
-            _need(data, 5, "FLASH_CTRL BLOCK_ACK")
+        if subcmd in (FlashSubCmd.BLOCK_ACK, FlashSubCmd.BLOCK_START):
+            _need(data, 5, f"FLASH_CTRL {subcmd.name}")
             block_number, block_crc16 = struct.unpack("<HH", data[1:5])
             return FlashCtrlPayload(subcmd, block_number=block_number, block_crc16=block_crc16)
         if subcmd == FlashSubCmd.END:
@@ -218,11 +265,14 @@ class FlashCtrlPayload:
 PAYLOAD_BY_TYPE = {
     MessageType.PING: PingPayload,
     MessageType.SET: SetPayload,
+    MessageType.SET_HEATING: SetHeatingPayload,
+    MessageType.CONFIRM_SENSORS_OTA: ConfirmSensorsOtaPayload,
     MessageType.PONG: PongPayload,
     MessageType.REQSTATUS: ReqStatusPayload,
     MessageType.STATUS_PRESSURE: StatusPressurePayload,
     MessageType.STATUS_FLOW: StatusFlowPayload,
     MessageType.STATUS_ACTUATORS: StatusActuatorsPayload,
+    MessageType.STATUS_HEATING: StatusHeatingPayload,
     MessageType.LOG: LogPayload,
     MessageType.FLASH_CTRL: FlashCtrlPayload,
 }

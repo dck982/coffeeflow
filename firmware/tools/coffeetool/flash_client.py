@@ -99,6 +99,12 @@ def flash(
         expected_crc = crc16_ccitt(block)
 
         for attempt in range(1, MAX_RETRIES_PER_BLOCK + 1):
+            start = FlashCtrlPayload(
+                subcmd=FlashSubCmd.BLOCK_START,
+                block_number=block_number + 1,
+                block_crc16=expected_crc,
+            )
+            transport.send(RawFrame(ctrl_id, start.pack()))
             for offset in range(0, len(block), 8):
                 transport.send(RawFrame(data_id, block[offset : offset + 8]))
                 # Sans cette pause, can-monitor (pont série->CAN) ne suit

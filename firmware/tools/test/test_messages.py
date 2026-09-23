@@ -1,12 +1,15 @@
 from coffeetool.messages import (
     FlashCtrlPayload,
     FlashSubCmd,
+    ConfirmSensorsOtaPayload,
     LogPayload,
     PongPayload,
     ReqStatusPayload,
     SetPayload,
+    SetHeatingPayload,
     StatusActuatorsPayload,
     StatusFlowPayload,
+    StatusHeatingPayload,
     StatusPressurePayload,
 )
 from coffeetool.protocol import MessageType, Node
@@ -17,6 +20,15 @@ def test_set_payload_roundtrip():
     assert original.pack()[:3] == bytes((42, 0xF4, 0x01))
     out = SetPayload.unpack(original.pack())
     assert out == original
+
+
+def test_heating_payloads_roundtrip():
+    command = SetHeatingPayload(True, 1000)
+    assert SetHeatingPayload.unpack(command.pack()) == command
+    status = StatusHeatingPayload(True, 350)
+    assert StatusHeatingPayload.unpack(status.pack()) == status
+    confirmation = ConfirmSensorsOtaPayload(63)
+    assert ConfirmSensorsOtaPayload.unpack(confirmation.pack()[:1]) == confirmation
 
 
 def test_pong_payload_roundtrip():
@@ -62,6 +74,9 @@ def test_flash_ctrl_payload_roundtrip():
     block_ack = FlashCtrlPayload(subcmd=FlashSubCmd.BLOCK_ACK, block_number=42, block_crc16=0xBEEF)
     assert FlashCtrlPayload.unpack(block_ack.pack()) == block_ack
 
+    block_start = FlashCtrlPayload(subcmd=FlashSubCmd.BLOCK_START, block_number=42, block_crc16=0xBEEF)
+    assert FlashCtrlPayload.unpack(block_start.pack()) == block_start
+
     end = FlashCtrlPayload(subcmd=FlashSubCmd.END, image_crc32=0xDEADBEEF)
     assert FlashCtrlPayload.unpack(end.pack()) == end
 
@@ -69,10 +84,13 @@ def test_flash_ctrl_payload_roundtrip():
 def test_all_payloads_pack_to_eight_bytes():
     for payload in (
         SetPayload(),
+        SetHeatingPayload(),
+        ConfirmSensorsOtaPayload(),
         PongPayload(),
         ReqStatusPayload(),
         StatusPressurePayload(),
         StatusFlowPayload(),
+        StatusHeatingPayload(),
         StatusActuatorsPayload(),
         LogPayload(),
         FlashCtrlPayload(),

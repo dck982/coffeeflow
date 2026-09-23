@@ -53,7 +53,14 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
 
     if message_type is MessageType.SET:
         p = payload
-        return f"dimmer={p.dimmer}% ttl={p.ttl_ms or 500}ms"
+        return f"pompe={p.dimmer}% ttl={p.ttl_ms or 500}ms"
+
+    if message_type is MessageType.SET_HEATING:
+        p = payload
+        return f"chauffage={'on' if p.on else 'off'} duree={p.duration_ms}ms"
+
+    if message_type is MessageType.CONFIRM_SENSORS_OTA:
+        return f"version_protocole_chauffage={payload.protocol_patch}"
 
     if message_type is MessageType.REQSTATUS:
         p = payload
@@ -71,9 +78,13 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
     if message_type is MessageType.STATUS_ACTUATORS:
         p = payload
         return (
-            f"ssr={'on' if p.ssr else 'off'} dimmer={p.dimmer}% "
+            f"vanne={'ouverte' if p.ssr else 'fermee'} pompe={p.dimmer}% "
             f"bail_restant={p.lease_remaining_ms}ms marche_continue={p.continuous_on_ms}ms flags={p.flags:#05b}"
         )
+
+    if message_type is MessageType.STATUS_HEATING:
+        p = payload
+        return f"chauffage={'on' if p.heater_on else 'off'} bail_restant={p.lease_remaining_ms}ms capable={'oui' if p.capable else 'non'}"
 
     if message_type is MessageType.FLASH_CTRL:
         p = payload
@@ -81,6 +92,8 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
             return f"BEGIN taille={p.image_size}"
         if p.subcmd == messages.FlashSubCmd.BLOCK_ACK:
             return f"BLOCK_ACK bloc={p.block_number} crc16={p.block_crc16:#06x}"
+        if p.subcmd == messages.FlashSubCmd.BLOCK_START:
+            return f"BLOCK_START bloc={p.block_number} crc16={p.block_crc16:#06x}"
         if p.subcmd == messages.FlashSubCmd.END:
             return f"END crc32={p.image_crc32:#010x}"
         return "ABORT"

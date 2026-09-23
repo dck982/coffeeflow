@@ -26,12 +26,15 @@ class MessageType(IntEnum):
     STOP = 0x00
     SET = 0x01
     RESET = 0x02
+    SET_HEATING = 0x04
+    CONFIRM_SENSORS_OTA = 0x05
     PING = 0x08
     PONG = 0x09
     REQSTATUS = 0x10
     STATUS_PRESSURE = 0x20
     STATUS_FLOW = 0x21
     STATUS_ACTUATORS = 0x22
+    STATUS_HEATING = 0x23
     LOG = 0x30
     FLASH_CTRL = 0x38
     FLASH_DATA = 0x39

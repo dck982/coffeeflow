@@ -17,6 +17,7 @@ class _FakeReceiver:
         self.received = bytearray()
         self.image_size = None
         self.pending = []
+        self.block_starts = []
 
     def send(self, frame: RawFrame) -> None:
         message_type = (frame.can_id >> 5) & 0x3F
@@ -28,6 +29,8 @@ class _FakeReceiver:
                 self._ack(FlashCtrlPayload(subcmd=FlashSubCmd.BLOCK_ACK, block_number=0))
             elif ctrl.subcmd == FlashSubCmd.END:
                 self._ack(FlashCtrlPayload(subcmd=FlashSubCmd.END, image_crc32=ctrl.image_crc32))
+            elif ctrl.subcmd == FlashSubCmd.BLOCK_START:
+                self.block_starts.append(ctrl)
         elif message_type == int(MessageType.FLASH_DATA):
             self.received.extend(frame.data)
             if len(self.received) % BLOCK_SIZE == 0 or len(self.received) == self.image_size:
@@ -65,6 +68,9 @@ def test_flash_small_image_succeeds():
     flash(receiver, image, src=Node.SCREEN, dest=Dest.SENSORS)
 
     assert bytes(receiver.received) == image
+    assert len(receiver.block_starts) == 1
+    assert receiver.block_starts[0].block_number == 1
+    assert receiver.block_starts[0].block_crc16 == crc16_ccitt(image)
 
 
 def test_flash_gives_up_without_begin_ack():

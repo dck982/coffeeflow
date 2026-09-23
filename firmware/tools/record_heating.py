@@ -28,6 +28,7 @@ from urllib.request import Request, urlopen
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_DIR = PROJECT_ROOT / "captures"
 POLL_INTERVAL_S = 0.5
+STATUS_INTERVAL_S = 10.0
 MAX_DURATION_S = 600.0
 
 
@@ -120,6 +121,7 @@ def record_heating(output: Path,
         started = clock()
         deadline = started + max_duration_s
         next_poll = started
+        next_status = started
         while clock() < deadline:
             sleep(max(0.0, next_poll - clock()))
             if clock() >= deadline:
@@ -131,6 +133,19 @@ def record_heating(output: Path,
                 "received_at_utc": utc_now(),
                 "telemetry": telemetry,
             })
+            if received >= next_status:
+                temperature = telemetry.get("boiler_temperature_c")
+                if (telemetry.get("boiler_temperature_valid") is True and
+                        telemetry.get("boiler_temperature_freshness") == "fresh" and
+                        isinstance(temperature, (int, float)) and
+                        not isinstance(temperature, bool) and math.isfinite(temperature)):
+                    current = f"{temperature:.1f} °C"
+                else:
+                    current = "indisponible"
+                print(f"{received - started:5.1f} s : chaudière {current} / cible {target_c:.1f} °C",
+                      flush=True)
+                while next_status <= received:
+                    next_status += STATUS_INTERVAL_S
             if reached_target(telemetry, target_c):
                 capture["stop_reason"] = "target_reached"
                 break

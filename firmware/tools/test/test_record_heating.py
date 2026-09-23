@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -55,6 +57,15 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(result["stop_reason"], "timeout")
         self.assertEqual(len(result["samples"]), 2)
         self.assertEqual(calls[-1][2]["heating"]["enabled"], False)
+
+    def test_displays_temperature_every_ten_seconds(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.run_capture([20] * 30, max_duration_s=11)
+        lines = output.getvalue().splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertIn("0.0 s : chaudière 20.0 °C / cible 90.0 °C", lines[0])
+        self.assertIn("10.0 s : chaudière 20.0 °C / cible 90.0 °C", lines[1])
 
     def test_telemetry_error_keeps_partial_file_and_disables(self):
         result, calls = self.run_capture([], fail_telemetry=True)

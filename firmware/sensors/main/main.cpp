@@ -43,6 +43,8 @@ constexpr const char* kTag = "sensors";
 // tx_err=0 rx_err=0 bus_err=0.
 constexpr gpio_num_t kGpioValve = GPIO_NUM_9;    // D10
 constexpr gpio_num_t kGpioHeater = GPIO_NUM_3; // L2/D2, HW-399 IN4
+constexpr int kHeaterActiveLevel = 0; // HW-399 OUT4 absorbe le courant du SSR
+constexpr int kHeaterInactiveLevel = 1;
 constexpr gpio_num_t kGpioCanTx = GPIO_NUM_7;  // D8
 constexpr gpio_num_t kGpioCanRx = GPIO_NUM_8;  // D9
 
@@ -107,7 +109,7 @@ constexpr int64_t kRuntimeLockoutUs = 60 * 1000 * 1000;
 constexpr int64_t kRuntimeRearmGapUs = 2000 * 1000;
 constexpr int64_t kTwaiCountersLogPeriodUs = 5000 * 1000;
 constexpr int64_t kTickPeriodUs = 100 * 1000;
-constexpr uint16_t kHeatingMaxDurationMs = 2000;
+constexpr uint16_t kHeatingMaxDurationMs = 30000;
 
 // OTA — voir docs/firmware-implementation.md, phase 4. IDF ne redémarre
 // jamais tout seul une image en PENDING_VERIFY : ce délai est le
@@ -214,7 +216,7 @@ void apply_valve() { gpio_set_level(kGpioValve, g_valve_open ? 1 : 0); }
 void force_heating_off() {
   g_heater_on = false;
   g_heating_deadline_us = 0;
-  gpio_set_level(kGpioHeater, 0);
+  gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
 }
 
 // Déclaration en avance : apply_dimmer() a besoin de send_log(), défini plus
@@ -657,7 +659,7 @@ void on_set_heating_received(const uint8_t* data, size_t len) {
              payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
     g_heater_on = true;
     g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
-    gpio_set_level(kGpioHeater, 1);
+    gpio_set_level(kGpioHeater, kHeaterActiveLevel);
   }
   send_status_heating();
 }

@@ -283,9 +283,9 @@ par le port Grove.
 
 ### Commande du SSR de chaudière (L2)
 
-Le port Grove **L2** du Shield (broche **D2** sur le PCB, **GPIO 3** natif du XIAO) porte la commande du chauffage. **HIGH active la résistance de chauffe.** Le GPIO en 3,3 V ne commande pas directement le SSR Keysolu/Maxwell, dont l'entrée de l'exemplaire est indiquée pour 4–24 VDC.
+Le port Grove **L2** du Shield (broche **D2** sur le PCB, **GPIO 3** natif du XIAO) porte la commande du chauffage. Le GPIO commande **IN4** du HW-399 ; la commande est inversée côté logiciel : **LOW active le chauffage, HIGH l'arrête**. Le GPIO en 3,3 V ne commande pas directement le SSR Keysolu/Maxwell, dont l'entrée de l'exemplaire est indiquée pour 4–24 VDC.
 
-Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Dans ce montage, **OUT4 est à 5 V quand IN4 est à 3,3 V**, pour commander l'entrée DC du SSR chaudière. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance est décrit dans la section « SSR de chaudière fourni avec la machine » ci-dessus.
+Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Le SSR est câblé en mode absorption : **5 V (VCC) → borne `+` du SSR ; borne `−` du SSR → OUT4**. Quand GPIO 3 / IN4 est LOW, le transistor de sortie tire OUT4 vers GND et le SSR s'allume ; quand GPIO 3 est HIGH, OUT4 remonte à 5 V et le SSR s'éteint. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance est décrit dans la section « SSR de chaudière fourni avec la machine » ci-dessus.
 
 ### Sonde NTC et ADS1115 dans le boîtier de l'écran
 

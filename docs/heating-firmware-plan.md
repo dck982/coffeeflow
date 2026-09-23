@@ -6,7 +6,7 @@ Ce document suit l'introduction de la commande de chaudière. Le supprimer une f
 
 Un `POST /action` authentifié active brièvement le chauffage **sans démarrer la pompe ni ouvrir la vanne**. La réponse HTTP et `GET /telemetry` montrent la consigne et l'état rapporté par `sensors`, et la LED du SSR chaudière s'allume puis s'éteint. Ce premier jalon vérifie la chaîne de commande ; il ne constitue pas encore une régulation de température. La mesure NTC/ADS1115 dans `screen` et la régulation viendront ensuite.
 
-Matériel : **L2 / D2 / GPIO 3** du XIAO → **IN4 du HW-399** dans `boitier_pid` → **OUT4 à 5 V** → entrée DC `+`/`−` du SSR chaudière. HIGH demande la chauffe. Le SSR de **vanne** reste le M5Stack Unit SSR sur **R4 / D10 / GPIO 9**. Le dimmer de **pompe** reste sur I2C. Voir `cablage.md`.
+Matériel : **L2 / D2 / GPIO 3** du XIAO → **IN4 du HW-399** dans `boitier_pid`. Câblage validé : **5 V → SSR `+` → SSR `−` → OUT4** ; LOW demande la chauffe (logique inversée). Le SSR de **vanne** reste le M5Stack Unit SSR sur **R4 / D10 / GPIO 9**. Le dimmer de **pompe** reste sur I2C. Voir `cablage.md`.
 
 ## 1. Figer les interfaces et les noms
 
@@ -20,11 +20,11 @@ Matériel : **L2 / D2 / GPIO 3** du XIAO → **IN4 du HW-399** dans `boitier_pid
 
 ## 2. Rendre le chauffage indépendant
 
-- Dans `sensors`, configurer **GPIO 3 en sortie LOW dès le début du boot**, avant CAN et avant de traiter des commandes. Mettre LOW aussi sur `STOP`, perte de présence, début d'OTA, erreur fatale et expiration du bail chauffage.
+- Implémenté dans `sensors` : GPIO 3 est HIGH au repos et passe LOW pour chauffer. Les arrêts (`STOP`, perte de présence, OTA, expiration du bail) rétablissent HIGH.
 - **GPIO 3 est une broche de strapping de l'ESP32-S3** ([documentation Espressif](https://docs.espressif.com/projects/esp-idf/en/v5.0/esp32s3/api-reference/peripherals/gpio.html)). Avant le premier flash, mesurer son niveau au démarrage avec le HW-399 raccordé et vérifier que le montage n'active pas le SSR avant l'initialisation logicielle et ne modifie pas le chemin JTAG/USB de récupération. Un LOW défini uniquement par le firmware arrive trop tard pour protéger la phase de reset.
 - Garder le séquencement actuel pompe → vanne pour les cycles d'infusion ; le futur code peut le nommer explicitement. La commande chauffage possède **son propre état et son propre bail**. Elle ne dépend ni de `pump_pct > 0` ni de l'état de la vanne. Un `SET` infusion ne doit ni activer ni éteindre le chauffage ; `SET_HEATING` ne doit pas toucher à la pompe ou à la vanne.
 - Le verrou actuel de **60 s** concerne pompe/vanne. Le chauffage devra fonctionner au repos et durant une infusion ; il ne doit pas hériter de ce plafond. Prévoir une limite adaptée à la chaudière et à sa future mesure NTC. Pour le premier essai LED, limiter la commande à une impulsion courte avec extinction automatique et sans restauration après reboot. Conserver les protections thermiques matérielles de la machine.
-- Dans `screen`, conserver une consigne chauffage indépendante de la machine d'infusion. La perte de CAN, l'arrêt du service ou un flash doivent laisser le délai chauffage expirer et ramener GPIO 3 à LOW. Ne pas réactiver automatiquement la chauffe après un redémarrage. Le POST `set_heating` avec `on:false` doit couper immédiatement, même si une infusion est active.
+- Dans `screen`, conserver une consigne chauffage indépendante de la machine d'infusion. La perte de CAN, l'arrêt du service ou un flash doivent laisser le délai chauffage expirer et ramener GPIO 3 à HIGH (état inactif). Ne pas réactiver automatiquement la chauffe après un redémarrage. Le POST `set_heating` avec `on:false` doit couper immédiatement, même si une infusion est active.
 - Distinguer dans le code un **essai diagnostic limité dans le temps**, qui s'arrête sans renouvellement, et la future demande de chauffe régulée, qui pourra renouveler son bail. La première livraison n'autorise que l'essai diagnostic.
 - Dans `core::perform_action()`, conserver l'interdiction de modifier les actionneurs brew pendant un cycle actif. Autoriser `set_heating` pendant une infusion si ses propres conditions de sécurité sont réunies. Un flash refuse toute commande d'activation et exige pompe, vanne et chauffage à l'arrêt ; une commande d'arrêt chauffage reste prioritaire.
 - Faire remonter `heater_on`, la fraîcheur de son écho et la capacité de `sensors` dans le snapshot et `GET /telemetry`. Une réponse `200` au POST signifie seulement « commande acceptée » ; vérifier ensuite l'écho et la LED. Si l'écho manque ou vieillit, exposer un état inconnu et couper la consigne.
@@ -48,7 +48,7 @@ Ordre de déploiement :
 
 1. Relever via HTTP/CAN les versions, partitions et états de démarrage actuels ; conserver les deux binaires connus fonctionnels et un accès réseau stable. Vérifier que `screen` peut encore flasher `sensors` avant de toucher à ce dernier.
 2. Déployer **`screen` compatible ancien/nouveau protocole**, avec le proxy et l'OTA durcis. Confirmer HTTP, CAN, télémétrie et possibilité de mise à jour après redémarrage ; sinon laisser revenir l'image précédente.
-3. Déployer **`sensors`** avec GPIO 3 LOW au boot et le nouveau message chauffage. Confirmer version, capacité, état `heater_on=false`, télémétrie pompe/vanne et capacité de recevoir un autre flash. En cas d'échec, laisser le rollback se faire sans valider l'image.
+3. Déployer **`sensors`** avec GPIO 3 HIGH au repos et le nouveau message chauffage. Confirmer version, capacité, état `heater_on=false`, télémétrie pompe/vanne et capacité de recevoir un autre flash. En cas d'échec, laisser le rollback se faire sans valider l'image.
 4. Autoriser le POST de chauffage seulement après confirmation de la capacité et de l'écho `STATUS_HEATING`. Faire une impulsion courte, constater LED allumée, puis `on:false` et LED éteinte. Vérifier que pompe et vanne restent inactives ; vérifier aussi l'extinction à l'expiration du bail et à la perte du bus.
 
 ## 4. Contrats POST et migration

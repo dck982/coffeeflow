@@ -28,7 +28,7 @@
   <p>Ports Grove du XIAO ESP32-S3, filtre RC du débitmètre, bus I2C partagé et bus CAN de bout en bout.
      Le 230 V n'apparaît pas ici. Chaque liaison porte son étiquette (GPIO, signal, couleur de fil) :
      la couleur du tracé n'est jamais la seule information.</p>
-  <p>Ajout chaudière : L2 / D2 / GPIO3 commande IN4 du HW-399 dans boitier_pid, puis OUT4 à 5 V commande le SSR chaudière. La NTC est reliée à l'ADS1115 sur l'I2C de l'écran. Ces deux liaisons sont détaillées dans <a href="cablage.md">le câblage</a> et ne figurent pas encore dans le dessin ci-dessous.</p>
+  <p>Ajout chaudière : L2 / D2 / GPIO3 commande IN4 du HW-399 dans boitier_pid. Le SSR est câblé 5 V → SSR+ → SSR− → OUT4 ; GPIO3 LOW active la chauffe. La NTC est reliée à l'ADS1115 sur l'I2C de l'écran. Ces deux liaisons sont détaillées dans <a href="cablage.md">le câblage</a> et ne figurent pas encore dans le dessin ci-dessous.</p>
 </header>
 
 <div class="sheet">

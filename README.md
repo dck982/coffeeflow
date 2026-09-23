@@ -125,7 +125,7 @@ Le Shield expose **deux colonnes de quatre connecteurs**. XIAO en bas : colonne 
 | **R2** | Débitmètre Digmesa | impulsions — **GPIO 44** (D7 sur le PCB) | 5 V (voir ci-dessous) | Grove 2 fils (noir + jaune) → JST SM 3 pôles → VH3.96 côté Digmesa |
 | **R3** | Adafruit CAN Pal | TWAI — TX **GPIO 7** (fil blanc), RX **GPIO 8** (fil jaune) | 3,3 V | Grove → fils dénudés dans le bornier à vis du CAN Pal |
 | **R4** | M5Stack Unit SSR, **vanne** | commande — **GPIO 9** (D10, fil jaune) | 5 V, repris hors du câble | Grove 10 cm, VCC coupé à ras côté XIAO |
-| **L2** | HW-399 → SSR **chaudière** | commande — **GPIO 3** (D2 sur le PCB), HIGH = chauffe active | 5 V côté sortie du HW-399 | Grove → XH 2 pôles (GND, IN4) ; XH 3 pôles (GND, VCC, OUT4) côté sortie |
+| **L2** | HW-399 → SSR **chaudière** | commande — **GPIO 3** (D2 sur le PCB), LOW = chauffe active | 5 V côté sortie du HW-399 | Grove → XH 2 pôles (GND, IN4) ; XH 3 pôles (GND, VCC, OUT4) côté sortie |
 | **L4** | Dimmer DimmerLink | I2C — SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V | Grove |
 
 Les repères `Dn` imprimés sur le Shield ne correspondent pas toujours aux GPIO natifs du XIAO. Le [tableau de câblage](docs/cablage.md#ports-grove-du-xiao) donne les deux numérotations.

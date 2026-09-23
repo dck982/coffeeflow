@@ -15,6 +15,7 @@
 #include "net_wifi.h"
 #include "core/calibration_machine.h"
 #include "core/machine.h"
+#include "core/thermal_control.h"
 #include "common/messages.hpp"
 #include "common/version.hpp"
 #include "log_codes.hpp"
@@ -76,6 +77,10 @@ struct State {
   int64_t actuators_received_us = 0;
   int64_t heating_received_us = 0;
   int64_t heating_deadline_us = 0;
+  thermal::Controller thermal_controller;
+  int64_t last_heating_power_send_us = 0;
+  int64_t last_thermal_step_us = 0;
+  uint16_t last_heating_power_sent = 0;
   int64_t last_sensors_message_us = 0;
   int64_t last_flow_edge_received_us = 0;
   int64_t scale_received_us = 0;
@@ -303,6 +308,45 @@ void send_heating(bool on, uint16_t duration_ms) {
   can_link::send_message(common::MessageType::kSetHeating, common::Dest::kSensors, frame.data(), 3);
 }
 
+void send_heating_power(uint16_t power_permille) {
+  common::SetHeatingPowerPayload command{power_permille, 1500};
+  const common::Frame frame = command.pack();
+  can_link::send_message(common::MessageType::kSetHeatingPower, common::Dest::kSensors,
+                         frame.data(), 4);
+}
+
+void tick_thermal() {
+  const int64_t now = now_us();
+  if (now - g_state.last_thermal_step_us < 250 * 1000) return;
+  g_state.last_thermal_step_us = now;
+  const Config config = get_config();
+  const Snapshot snapshot = get_snapshot();
+  const bool brewing = snapshot.cycle_state == CycleState::kFilling ||
+      snapshot.cycle_state == CycleState::kPreinfusion ||
+      snapshot.cycle_state == CycleState::kBrew ||
+      snapshot.cycle_state == CycleState::kRampdown;
+  const bool can_heat = config.heating_enabled && !g_flash_active &&
+      !snapshot.heating_requested && !snapshot.lockout && snapshot.sensors_alive &&
+      snapshot.heating_power_capable && snapshot.heating_freshness == Freshness::kFresh;
+  const auto output = g_state.thermal_controller.step(
+      static_cast<uint64_t>(now / 1000), snapshot.boiler_temperature_c,
+      config.brew_temperature_c,
+      snapshot.boiler_temperature_valid &&
+          snapshot.boiler_temperature_freshness == Freshness::kFresh,
+      can_heat, brewing);
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
+  g_state.snapshot.brew_temperature_ready = output.ready;
+  portEXIT_CRITICAL(&g_state.lock);
+  if ((output.power_permille != g_state.last_heating_power_sent ||
+       (output.power_permille > 0 && now - g_state.last_heating_power_send_us >= 500 * 1000)) &&
+      snapshot.sensors_alive && snapshot.heating_power_capable) {
+    send_heating_power(output.power_permille);
+    g_state.last_heating_power_sent = output.power_permille;
+    g_state.last_heating_power_send_us = now;
+  }
+}
+
 uint16_t config_field_arg(const char* field) {
   if (field == nullptr) return 0;
   struct Entry { const char* name; uint16_t id; };
@@ -334,6 +378,9 @@ uint16_t config_field_arg(const char* field) {
       {"filling.pump_pct", 25},
       {"filling", 26},
       {"brew.target_pressure_bar", 27},
+      {"heating.enabled", 28},
+      {"heating.brew_temperature_c", 29},
+      {"heating", 30},
   };
   for (const Entry& entry : kFields) {
     if (std::strcmp(entry.name, field) == 0) return entry.id;
@@ -491,13 +538,17 @@ void telemetry_task(void*) {
     can_link::tick_presence();
     static int64_t last_ota_confirm_us = 0;
     const Snapshot ota_snapshot = get_snapshot();
+    const bool controlled_heating = ota_snapshot.heating_power_capable &&
+        ota_snapshot.heating_power_accepted_pct > 0 &&
+        ota_snapshot.heating_lease_remaining_ms > 0;
     if (now - last_ota_confirm_us >= 1000 * 1000 &&
         ota_snapshot.sensors_alive && ota_snapshot.sensors_version_major == common::kFirmwareVersionMajor &&
         ota_snapshot.sensors_version_minor == common::kFirmwareVersionMinor &&
         ota_snapshot.sensors_version_patch >= common::kHeatingProtocolMinPatch &&
         ota_snapshot.actuators_freshness == Freshness::kFresh &&
         ota_snapshot.heating_freshness == Freshness::kFresh &&
-        !ota_snapshot.valve_open && ota_snapshot.pump_pct == 0 && !ota_snapshot.heater_on) {
+        !ota_snapshot.valve_open && ota_snapshot.pump_pct == 0 &&
+        (!ota_snapshot.heater_on || controlled_heating)) {
       const uint8_t version = common::kHeatingProtocolMinPatch;
       can_link::send_message(common::MessageType::kConfirmSensorsOta, common::Dest::kSensors, &version, 1);
       last_ota_confirm_us = now;
@@ -515,6 +566,7 @@ void telemetry_task(void*) {
     portEXIT_CRITICAL(&g_state.lock);
     if (heating_expired) send_heating(false, 0);
     tick_machine();
+    tick_thermal();
     tick_hf_capture();
     vTaskDelay(pdMS_TO_TICKS(kTelemetryTickMs));
   }
@@ -750,7 +802,9 @@ void on_status_heating(const uint8_t* data, uint8_t len) {
   g_state.last_sensors_message_us = now;
   g_state.heating_received_us = now;
   g_state.snapshot.heating_capable = true;
+  g_state.snapshot.heating_power_capable = payload.fine_power_capable;
   g_state.snapshot.heater_on = payload.heater_on;
+  g_state.snapshot.heating_power_accepted_pct = payload.power_permille / 10.0f;
   g_state.snapshot.heating_lease_remaining_ms = payload.lease_remaining_ms;
   portEXIT_CRITICAL(&g_state.lock);
 }
@@ -767,7 +821,9 @@ void on_pong(const uint8_t* data, uint8_t len) {
       payload.version_patch < common::kHeatingProtocolMinPatch) {
     g_state.heating_received_us = 0;
     g_state.snapshot.heating_capable = false;
+    g_state.snapshot.heating_power_capable = false;
     g_state.snapshot.heater_on = false;
+    g_state.snapshot.heating_power_accepted_pct = 0;
     g_state.snapshot.heating_lease_remaining_ms = 0;
   }
   g_state.snapshot.sensors_version_major = payload.version_major;
@@ -879,8 +935,26 @@ ConfigResult put_config(const Config& candidate) {
       get_snapshot().cycle_state == CycleState::kBrew ||
       get_snapshot().cycle_state == CycleState::kRampdown || get_snapshot().cycle_state == CycleState::kPurge) return {ConfigStatus::kBusy, "cycle"};
   for (int attempt = 0; attempt < 2; ++attempt) {
-    ConfigResult result = apply_config(candidate, get_config().revision);
-    if (result.status != ConfigStatus::kStaleRevision) return result;
+    const Config previous = get_config();
+    ConfigResult result = apply_config(candidate, previous.revision);
+    if (result.status != ConfigStatus::kStaleRevision) {
+      if (result.status == ConfigStatus::kOk &&
+          (!candidate.heating_enabled || candidate.brew_temperature_c != previous.brew_temperature_c)) {
+        portENTER_CRITICAL(&g_state.lock);
+        g_state.snapshot.brew_temperature_ready = false;
+        if (!candidate.heating_enabled) {
+          g_state.snapshot.heating_power_pct = 0;
+          g_state.snapshot.heating_requested = false;
+          g_state.heating_deadline_us = 0;
+        }
+        portEXIT_CRITICAL(&g_state.lock);
+        if (!candidate.heating_enabled) {
+          send_heating_power(0);
+          send_heating(false, 0);
+        }
+      }
+      return result;
+    }
   }
   return {ConfigStatus::kStaleRevision, "revision"};
 }
@@ -941,11 +1015,13 @@ ActionResult perform_action(const ActionCommand& command) {
     }
     if (command.heating.duration_ms == 0 || command.heating.duration_ms > 30000)
       return action_result(ActionStatus::kInvalidValue);
+    if (!get_config().heating_enabled) return action_result(ActionStatus::kUnavailable);
     if (g_flash_active) return action_result(ActionStatus::kCycleActive);
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
     if (snapshot.lockout) return action_result(ActionStatus::kLocked);
     if (!snapshot.heating_capable || snapshot.heating_freshness != Freshness::kFresh ||
-        snapshot.heater_on || snapshot.heating_requested) return action_result(ActionStatus::kUnavailable);
+        snapshot.heater_on || snapshot.heating_requested || snapshot.heating_power_pct > 0 ||
+        snapshot.heating_power_accepted_pct > 0) return action_result(ActionStatus::kUnavailable);
     portENTER_CRITICAL(&g_state.lock);
     g_state.heating_deadline_us = now_us() + static_cast<int64_t>(command.heating.duration_ms) * 1000;
     g_state.snapshot.heating_requested = true;
@@ -999,6 +1075,15 @@ ActionResult perform_action(const ActionCommand& command) {
     if (g_flash_active) return action_result(ActionStatus::kCycleActive);
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
     if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+    if (command.action == Action::kStartBrew) {
+      const Config config = get_config();
+      if (!config.heating_enabled || !snapshot.brew_temperature_ready ||
+          !snapshot.heating_power_capable || snapshot.heating_freshness != Freshness::kFresh ||
+          !snapshot.boiler_temperature_valid ||
+          snapshot.boiler_temperature_freshness != Freshness::kFresh ||
+          std::fabs(snapshot.boiler_temperature_c - config.brew_temperature_c) > 0.5f)
+        return action_result(ActionStatus::kUnavailable);
+    }
     if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return action_result(ActionStatus::kDimmerNotReady);
     portENTER_CRITICAL(&g_state.lock);
     finalize_pending_shot_locked();

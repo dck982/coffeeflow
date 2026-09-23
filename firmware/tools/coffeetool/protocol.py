@@ -28,6 +28,7 @@ class MessageType(IntEnum):
     RESET = 0x02
     SET_HEATING = 0x04
     CONFIRM_SENSORS_OTA = 0x05
+    SET_HEATING_POWER = 0x06
     PING = 0x08
     PONG = 0x09
     REQSTATUS = 0x10

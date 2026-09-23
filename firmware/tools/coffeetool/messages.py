@@ -55,6 +55,26 @@ class SetHeatingPayload:
 
 
 @dataclass
+class SetHeatingPowerPayload:
+    power_permille: int = 0
+    lease_ms: int = 1500
+
+    def pack(self) -> bytes:
+        return struct.pack("<HH4x", self.power_permille, self.lease_ms)
+
+    @staticmethod
+    def unpack(data: bytes) -> "SetHeatingPowerPayload":
+        _need(data, 3, "SET_HEATING_POWER")
+        if len(data) == 3 and data[0] <= 100:
+            return SetHeatingPowerPayload(data[0] * 10, struct.unpack("<H", data[1:3])[0])
+        _need(data, 4, "SET_HEATING_POWER")
+        power_permille, lease_ms = struct.unpack("<HH", data[:4])
+        if power_permille > 1000:
+            raise ValueError("SET_HEATING_POWER: puissance invalide")
+        return SetHeatingPowerPayload(power_permille, lease_ms)
+
+
+@dataclass
 class ConfirmSensorsOtaPayload:
     protocol_patch: int = 63
 
@@ -183,16 +203,25 @@ class StatusHeatingPayload:
     heater_on: bool = False
     lease_remaining_ms: int = 0
     capable: bool = True
+    power_capable: bool = False
+    fine_power_capable: bool = False
+    power_permille: int = 0
 
     def pack(self) -> bytes:
-        return struct.pack("<BHB4x", 1 if self.heater_on else 0, self.lease_remaining_ms, 1 if self.capable else 0)
+        flags = (1 if self.capable else 0) | (2 if self.power_capable else 0) | (4 if self.fine_power_capable else 0)
+        return struct.pack("<BHBBB2x", 1 if self.heater_on else 0, self.lease_remaining_ms,
+                           flags, self.power_permille // 10, self.power_permille % 10)
 
     @staticmethod
     def unpack(data: bytes) -> "StatusHeatingPayload":
         _need(data, 4, "STATUS_HEATING")
         if data[0] > 1 or not data[3] & 1:
             raise ValueError("STATUS_HEATING: état ou capacité invalide")
-        return StatusHeatingPayload(bool(data[0]), struct.unpack("<H", data[1:3])[0], True)
+        power_capable = bool(data[3] & 2) and len(data) >= 5
+        fine_power_capable = power_capable and bool(data[3] & 4) and len(data) >= 6
+        return StatusHeatingPayload(bool(data[0]), struct.unpack("<H", data[1:3])[0],
+                                    True, power_capable, fine_power_capable,
+                                    data[4] * 10 + (data[5] if fine_power_capable else 0) if power_capable else 0)
 
 
 @dataclass
@@ -266,6 +295,7 @@ PAYLOAD_BY_TYPE = {
     MessageType.PING: PingPayload,
     MessageType.SET: SetPayload,
     MessageType.SET_HEATING: SetHeatingPayload,
+    MessageType.SET_HEATING_POWER: SetHeatingPowerPayload,
     MessageType.CONFIRM_SENSORS_OTA: ConfirmSensorsOtaPayload,
     MessageType.PONG: PongPayload,
     MessageType.REQSTATUS: ReqStatusPayload,

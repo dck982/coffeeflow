@@ -36,6 +36,7 @@ enum class Edit : uint8_t {
   Weight,
   Time,
   BrewPressure,
+  BrewTemperature,
   FillingTime,
   FillingPressureTarget,
   FillingPump,
@@ -429,6 +430,7 @@ KeypadMode keypad_mode_for(Edit e) {
   // Ces grandeurs acceptent des fractions dans leur plage de validation.
   case Edit::Weight:
   case Edit::BrewPressure:
+  case Edit::BrewTemperature:
   case Edit::PrePressure:
   case Edit::FillingPressureTarget:
   case Edit::RampTime:
@@ -465,6 +467,10 @@ void set_title(Edit e) {
   case Edit::BrewPressure:
     t = "cible pression";
     u = "bar";
+    break;
+  case Edit::BrewTemperature:
+    t = "cible chaudière";
+    u = "°C";
     break;
   case Edit::FillingTime:
     t = "durée remplissage";
@@ -535,6 +541,10 @@ void initial(Edit e) {
     break;
   case Edit::BrewPressure:
     n = c.target_pressure_bar;
+    decimals = 1;
+    break;
+  case Edit::BrewTemperature:
+    n = c.brew_temperature_c;
     decimals = 1;
     break;
   case Edit::FillingTime:
@@ -609,6 +619,9 @@ bool valid(float *n) {
   case Edit::BrewPressure:
     return *n >= 6 && *n <= 12 &&
            std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
+  case Edit::BrewTemperature:
+    return *n >= 80 && *n <= 100 &&
+           std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
   case Edit::FillingPressureTarget:
@@ -681,6 +694,9 @@ void key_accept(lv_event_t *) {
     break;
   case Edit::BrewPressure:
     c.target_pressure_bar = n;
+    break;
+  case Edit::BrewTemperature:
+    c.brew_temperature_c = n;
     break;
   case Edit::FillingTime:
     c.filling_time_s = n;
@@ -846,6 +862,8 @@ void tile_cb(lv_event_t *e) {
       show_confirm(Confirm::Forget);
     else if (i == 2)
       service_screen::restart_lcd();
+    else if (i == 4)
+      show_edit(Edit::BrewTemperature);
   }
 }
 const char *preinfusion_mode_text(core::PreinfusionMode mode, char *buffer, size_t size) {
@@ -923,13 +941,15 @@ void render_settings() {
       tile(i, n[i], x[i]);
   } else {
     const char *n[] = {"réinitialiser réseau", "calibrations", "réinitialiser LCD",
-                       "veille", "", ""};
+                       "veille", "cible chaudière", ""};
     const char *val[] = {"effacer", "depuis /config", "redémarrer",
                          "automatique", "", ""};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], val[i],
            i == 0 ? Role::Destructive : Role::Secondary);
-    for (unsigned i : {4u, 5u}) {
+    fmt(x[4], sizeof(x[4]), c.brew_temperature_c, " °C");
+    tile(4, n[4], x[4]);
+    for (unsigned i : {5u}) {
       hidden(v.tile[i], true);
       hidden(v.tile_name[i], true);
     }
@@ -1199,14 +1219,23 @@ void create(lv_obj_t *p) {
   lv_obj_set_flex_align(sensors, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
   dyn(sensors, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
+  lv_obj_set_width(v.pressure, 100);
+  lv_label_set_long_mode(v.pressure, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(v.pressure, LV_TEXT_ALIGN_RIGHT, 0);
   spacer(sensors, kTopbarGap);
   topbar_rule(sensors);
   spacer(sensors, kTopbarGap);
   dyn(sensors, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
+  lv_obj_set_width(v.temperature, 104);
+  lv_label_set_long_mode(v.temperature, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(v.temperature, LV_TEXT_ALIGN_RIGHT, 0);
   spacer(sensors, kTopbarGap);
   topbar_rule(sensors);
   spacer(sensors, kTopbarGap);
   dyn(sensors, &v.weight, "", theme::kFontStatus, theme::kTextDim, 0, 0);
+  lv_obj_set_width(v.weight, 100);
+  lv_label_set_long_mode(v.weight, LV_LABEL_LONG_CLIP);
+  lv_obj_set_style_text_align(v.weight, LV_TEXT_ALIGN_RIGHT, 0);
   // Préserver le même blanc avant le séparateur de la balance, y compris
   // quand le poids est la dernière valeur visible.
   spacer(sensors, kTopbarGap);
@@ -1469,6 +1498,9 @@ void refresh(const core::Snapshot &s, bool boot) {
   auto c = core::get_config();
   bool press = s.pressure_valid && present(s.pressure_freshness);
   bool boiler = s.boiler_temperature_valid && s.boiler_temperature_freshness == core::Freshness::kFresh;
+  bool brew_temperature_ready = c.heating_enabled && boiler && s.brew_temperature_ready &&
+      s.heating_power_capable && s.heating_freshness == core::Freshness::kFresh &&
+      std::fabs(s.boiler_temperature_c - c.brew_temperature_c) <= 0.5f;
   if (press)
     fmt(t, sizeof(t), s.pressure_bar, " bar");
   else
@@ -1487,7 +1519,14 @@ void refresh(const core::Snapshot &s, bool boot) {
   else
     std::snprintf(t, sizeof(t), "-");
   text(v.temperature, t);
-  color(v.temperature, !boiler ? theme::kTextFaint : theme::kThermal);
+  const lv_color_t temperature_color =
+      !c.heating_enabled ? theme::kTextFaint
+      : !boiler ? theme::kTextDim
+      : s.boiler_temperature_c > c.brew_temperature_c + 0.5f ? theme::kFault
+      : brew_temperature_ready ? theme::kSuccess
+      : s.boiler_temperature_c >= c.brew_temperature_c - 5.0f ? theme::kThermalNear
+      : theme::kThermal;
+  color(v.temperature, temperature_color);
   lv_obj_set_style_text_opa(v.temperature,
                             LV_OPA_COVER,
                             0);
@@ -1537,9 +1576,13 @@ void refresh(const core::Snapshot &s, bool boot) {
                   !s.sensors_alive ? "module interne injoignable · wifi disponible pour récupération" :
                   (!s.dimmer_ready || !s.dimmer_valid) && s.sensors_alive
                       ? "dimmer en calibration"
+                      : !c.heating_enabled ? "chauffe désactivée · purge disponible"
+                      : !s.heating_power_capable ? "chauffage indisponible"
+                      : !brew_temperature_ready ? "chaudière en chauffe"
                       : "");
   recover_stuck_dimmer_calibration(s);
-  disable(v.brew_button, s.lockout || !s.sensors_alive || !s.dimmer_ready || !s.dimmer_valid);
+  disable(v.brew_button, s.lockout || !s.sensors_alive || !s.dimmer_ready || !s.dimmer_valid ||
+             !brew_temperature_ready);
   disable(v.minus, scale ? c.target_weight_g <= 10 : c.target_time_s <= 5);
   disable(v.plus, scale ? c.target_weight_g >= 100 : c.target_time_s >= 60);
   cycle(s, c);

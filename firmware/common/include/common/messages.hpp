@@ -75,20 +75,54 @@ struct SetHeatingPayload {
   }
 };
 
+// Régulation continue : le bail est renouvelé même lorsque la puissance est nulle.
+struct SetHeatingPowerPayload {
+  uint16_t power_permille = 0;  // 0..1000 = 0,0..100,0 %
+  uint16_t lease_ms = 0;
+  Frame pack() const {
+    Frame f{};
+    put_u16(&f[0], power_permille);
+    put_u16(&f[2], lease_ms);
+    return f;
+  }
+  static bool unpack(const uint8_t* in, size_t len, SetHeatingPowerPayload* out) {
+    if (len == 3 && in[0] <= 100) {  // écran v0.2.68
+      out->power_permille = static_cast<uint16_t>(in[0]) * 10;
+      out->lease_ms = get_u16(&in[1]);
+      return true;
+    }
+    if (len != 4 || get_u16(in) > 1000) return false;
+    out->power_permille = get_u16(in);
+    out->lease_ms = get_u16(&in[2]);
+    return true;
+  }
+};
+
 struct StatusHeatingPayload {
   bool heater_on = false;
   uint16_t lease_remaining_ms = 0;
+  bool power_capable = false;
+  bool fine_power_capable = false;
+  uint16_t power_permille = 0;
   Frame pack() const {
     Frame f{};
     f[0] = heater_on ? 1 : 0;
     put_u16(&f[1], lease_remaining_ms);
-    f[3] = 1;  // capacité chauffage diagnostique
+    f[3] = 1 | (power_capable ? 2 : 0) | (fine_power_capable ? 4 : 0);
+    f[4] = static_cast<uint8_t>(power_permille / 10);
+    f[5] = static_cast<uint8_t>(power_permille % 10);
     return f;
   }
   static bool unpack(const uint8_t* in, size_t len, StatusHeatingPayload* out) {
     if (len < 4 || in[0] > 1 || (in[3] & 1) == 0) return false;
     out->heater_on = in[0] != 0;
     out->lease_remaining_ms = get_u16(&in[1]);
+    out->power_capable = (in[3] & 2) != 0 && len >= 5;
+    if (out->power_capable && in[4] > 100) return false;
+    if ((in[3] & 4) != 0 && (len < 6 || in[5] > 9 || (in[4] == 100 && in[5] != 0))) return false;
+    out->fine_power_capable = (in[3] & 4) != 0 && out->power_capable;
+    out->power_permille = out->power_capable
+        ? static_cast<uint16_t>(in[4] * 10 + (out->fine_power_capable ? in[5] : 0)) : 0;
     return true;
   }
 };

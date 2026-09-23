@@ -67,6 +67,7 @@ void test_set_payload_roundtrip() {
 
 void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
   CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kSetHeating)));
+  CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kSetHeatingPower)));
   CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kStatusHeating)));
   SetHeatingPayload command{};
   command.on = true;
@@ -81,6 +82,19 @@ void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
   invalid[0] = 2;
   CHECK(!SetHeatingPayload::unpack(invalid.data(), 3, &decoded));
 
+  SetHeatingPowerPayload power{6, 1500};
+  const Frame power_frame = power.pack();
+  SetHeatingPowerPayload decoded_power{};
+  CHECK(SetHeatingPowerPayload::unpack(power_frame.data(), 4, &decoded_power));
+  CHECK(decoded_power.power_permille == 6 && decoded_power.lease_ms == 1500);
+  invalid = power_frame;
+  invalid[0] = 0xE9;
+  invalid[1] = 0x03;
+  CHECK(!SetHeatingPowerPayload::unpack(invalid.data(), 4, &decoded_power));
+  const uint8_t legacy_power[] = {1, 0xDC, 0x05};
+  CHECK(SetHeatingPowerPayload::unpack(legacy_power, 3, &decoded_power));
+  CHECK(decoded_power.power_permille == 10);
+
   StatusHeatingPayload status{};
   status.heater_on = true;
   status.lease_remaining_ms = 750;
@@ -88,6 +102,14 @@ void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
   StatusHeatingPayload decoded_status{};
   CHECK(StatusHeatingPayload::unpack(echo.data(), 4, &decoded_status));
   CHECK(decoded_status.heater_on && decoded_status.lease_remaining_ms == 750);
+  CHECK(!decoded_status.power_capable);
+  status.power_capable = true;
+  status.fine_power_capable = true;
+  status.power_permille = 6;
+  const Frame power_echo = status.pack();
+  CHECK(StatusHeatingPayload::unpack(power_echo.data(), 6, &decoded_status));
+  CHECK(decoded_status.power_capable && decoded_status.fine_power_capable &&
+        decoded_status.power_permille == 6);
   CHECK(!StatusHeatingPayload::unpack(echo.data(), 3, &decoded_status));
   invalid = echo;
   invalid[3] = 0;

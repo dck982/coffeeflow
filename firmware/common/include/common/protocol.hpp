@@ -32,6 +32,7 @@ enum class MessageType : uint8_t {
   kDimmerCommand = 0x03,
   kSetHeating = 0x04,
   kConfirmSensorsOta = 0x05,
+  kSetHeatingPower = 0x06,
   kPing = 0x08,
   kPong = 0x09,
   kReqStatus = 0x10,
@@ -53,6 +54,7 @@ constexpr bool is_known_message_type(uint8_t type) {
     case MessageType::kReset:
     case MessageType::kDimmerCommand:
     case MessageType::kSetHeating:
+    case MessageType::kSetHeatingPower:
     case MessageType::kConfirmSensorsOta:
     case MessageType::kPing:
     case MessageType::kPong:

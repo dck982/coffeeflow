@@ -23,6 +23,7 @@
 #include "common/crc.hpp"
 #include "common/framing.hpp"
 #include "common/messages.hpp"
+#include "heating_pwm.h"
 #include "common/protocol.hpp"
 #include "common/version.hpp"
 #include "log_codes.hpp"
@@ -110,6 +111,7 @@ constexpr int64_t kRuntimeRearmGapUs = 2000 * 1000;
 constexpr int64_t kTwaiCountersLogPeriodUs = 5000 * 1000;
 constexpr int64_t kTickPeriodUs = 100 * 1000;
 constexpr uint16_t kHeatingMaxDurationMs = 30000;
+constexpr uint16_t kHeatingPowerLeaseMs = 1500;
 
 // OTA — voir docs/firmware-implementation.md, phase 4. IDF ne redémarre
 // jamais tout seul une image en PENDING_VERIFY : ce délai est le
@@ -130,6 +132,9 @@ RTC_NOINIT_ATTR bool s_lockout_active;
 bool g_valve_open = false;
 bool g_heater_on = false;
 int64_t g_heating_deadline_us = 0;
+bool g_heating_power_mode = false;
+uint16_t g_heating_power_permille = 0;
+HeatingPwm g_heating_pwm;
 uint8_t g_pump_pct = 0;
 // Santé dimmer, mise à jour à chaque écriture (voir apply_dimmer()) : reflète
 // la dernière transaction I2C réelle, pas un état supposé.
@@ -216,6 +221,9 @@ void apply_valve() { gpio_set_level(kGpioValve, g_valve_open ? 1 : 0); }
 void force_heating_off() {
   g_heater_on = false;
   g_heating_deadline_us = 0;
+  g_heating_power_mode = false;
+  g_heating_power_permille = 0;
+  g_heating_pwm.reset();
   gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
 }
 
@@ -429,8 +437,11 @@ void send_status_heating() {
   const int64_t remaining = g_heating_deadline_us > now_us() ?
       (g_heating_deadline_us - now_us()) / 1000 : 0;
   payload.lease_remaining_ms = static_cast<uint16_t>(remaining);
+  payload.power_capable = true;
+  payload.fine_power_capable = true;
+  payload.power_permille = g_heating_power_mode ? g_heating_power_permille : 0;
   const common::Frame frame = payload.pack();
-  send_message(common::MessageType::kStatusHeating, common::Dest::kScreen, frame.data(), 4);
+  send_message(common::MessageType::kStatusHeating, common::Dest::kScreen, frame.data(), 6);
 }
 
 // Coupe les actionneurs immédiatement, sans toucher au verrou lui-même.
@@ -655,11 +666,27 @@ void on_set_heating_received(const uint8_t* data, size_t len) {
   if (!common::SetHeatingPayload::unpack(data, len, &payload)) return;
   if (!payload.on) {
     force_heating_off();
-  } else if (!g_heater_on && !s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
+  } else if (!g_heater_on && !g_heating_power_mode && !s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
              payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
     g_heater_on = true;
     g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
     gpio_set_level(kGpioHeater, kHeaterActiveLevel);
+  }
+  send_status_heating();
+}
+
+void on_set_heating_power_received(const uint8_t* data, size_t len) {
+  common::SetHeatingPowerPayload payload;
+  if (!common::SetHeatingPowerPayload::unpack(data, len, &payload) ||
+      payload.lease_ms != kHeatingPowerLeaseMs) return;
+  if (payload.power_permille == 0) {
+    force_heating_off();
+  } else if (!s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
+             (g_heating_power_mode || !g_heater_on)) {
+    g_heating_pwm.set_power(now_us(), payload.power_permille);
+    g_heating_power_mode = true;
+    g_heating_power_permille = payload.power_permille;
+    g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.lease_ms) * 1000;
   }
   send_status_heating();
 }
@@ -923,11 +950,15 @@ void dispatch_frame(const twai_message_t& msg) {
     case common::MessageType::kSetHeating:
       on_set_heating_received(msg.data, msg.data_length_code);
       break;
+    case common::MessageType::kSetHeatingPower:
+      on_set_heating_power_received(msg.data, msg.data_length_code);
+      break;
     case common::MessageType::kConfirmSensorsOta:
       if (msg.data_length_code == 1 && msg.data[0] == common::kHeatingProtocolMinPatch &&
           g_ota_roundtrip_confirmed &&
           g_heating_period_ms != 0 && g_actuators_period_ms != 0 &&
-          !g_heater_on && !g_valve_open && g_pump_pct == 0) g_ota_screen_confirmed = true;
+          (!g_heater_on || (g_heating_power_mode && g_heating_deadline_us > now_us())) &&
+          !g_valve_open && g_pump_pct == 0) g_ota_screen_confirmed = true;
       break;
     case common::MessageType::kDimmerCommand:
       on_dimmer_command_received(msg.data, msg.data_length_code);
@@ -1016,6 +1047,7 @@ void tick_runtime_lockout() {
     if (!s_lockout_active && g_run_start_us != 0 && (t - g_run_start_us) > kRuntimeLockoutUs) {
       uint32_t activated_ms = static_cast<uint32_t>((t - g_run_start_us) / 1000);
       s_lockout_active = true;
+      force_heating_off();
       force_actuators_off();
       send_log(common::LogCode::kRuntimeLockoutTriggered, common::LogSeverity::kError, 0, activated_ms);
       send_status_actuators();
@@ -1092,6 +1124,14 @@ void tick_actuators() {
 }
 
 void tick_heating() {
+  if (g_heating_power_mode) {
+    const bool on = g_heating_pwm.tick(now_us());
+    if (on != g_heater_on) {
+      g_heater_on = on;
+      gpio_set_level(kGpioHeater, on ? kHeaterActiveLevel : kHeaterInactiveLevel);
+      send_status_heating();
+    }
+  }
   if (g_heating_period_ms == 0) return;
   const int64_t t = now_us();
   if (t - g_heating_last_sent_us < static_cast<int64_t>(g_heating_period_ms) * 1000) return;

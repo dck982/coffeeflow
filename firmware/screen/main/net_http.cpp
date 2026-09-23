@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 #include "freertos/FreeRTOS.h"
@@ -163,6 +164,9 @@ cJSON* encode_config(const core::Config& config) {
   cJSON_AddNumberToObject(brew, "target_time_s", config.target_time_s);
   add_config_decimal(brew, "target_pressure_bar", config.target_pressure_bar);
   cJSON_AddNumberToObject(brew, "pump_pct", config.brew_pump_pct);
+  cJSON* heating = cJSON_AddObjectToObject(root, "heating");
+  cJSON_AddBoolToObject(heating, "enabled", config.heating_enabled);
+  add_config_decimal(heating, "brew_temperature_c", config.brew_temperature_c);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
   add_config_decimal(filling, "pressure_target_bar", config.filling_pressure_target_bar);
@@ -195,6 +199,15 @@ cJSON* encode_config(const core::Config& config) {
 cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON* root = cJSON_CreateObject();
   cJSON_AddNumberToObject(root, "pressure_bar", snapshot.pressure_bar);
+  cJSON_AddNumberToObject(root, "uptime_ms", static_cast<double>(esp_timer_get_time() / 1000));
+  const core::Config config = core::get_config();
+  cJSON_AddBoolToObject(root, "heating_enabled", config.heating_enabled);
+  cJSON_AddNumberToObject(root, "brew_temperature_target_c", config.brew_temperature_c);
+  cJSON_AddBoolToObject(root, "brew_temperature_ready", snapshot.brew_temperature_ready);
+  cJSON_AddNumberToObject(root, "heating_power_pct", snapshot.heating_power_pct);
+  if (snapshot.heating_freshness == core::Freshness::kFresh)
+    cJSON_AddNumberToObject(root, "heating_power_accepted_pct", snapshot.heating_power_accepted_pct);
+  else cJSON_AddNullToObject(root, "heating_power_accepted_pct");
   if (snapshot.pressure_valid && snapshot.pressure_freshness == core::Freshness::kFresh)
     cJSON_AddNumberToObject(root, "xdb401_temperature_c", snapshot.xdb401_temperature_c);
   else cJSON_AddNullToObject(root, "xdb401_temperature_c");
@@ -247,6 +260,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddNumberToObject(root, "dimmer_pct", snapshot.dimmer_pct);
   cJSON_AddNumberToObject(root, "pump_pct", snapshot.pump_pct);
   cJSON_AddBoolToObject(root, "heating_capable", snapshot.heating_capable);
+  cJSON_AddBoolToObject(root, "heating_power_capable", snapshot.heating_power_capable);
   cJSON_AddBoolToObject(root, "heating_requested", snapshot.heating_requested);
   cJSON_AddStringToObject(root, "heating_freshness", freshness_text(snapshot.heating_freshness));
   add_age(root, "heating_age_ms", snapshot.heating_age_ms);
@@ -432,6 +446,21 @@ bool apply_brew_key(const char* key, cJSON* value, core::Config* config, const c
   return false;
 }
 
+bool apply_heating_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
+  if (std::strcmp(key, "enabled") == 0) {
+    if (!cJSON_IsBool(value)) {
+      *error_field = "heating.enabled";
+      return false;
+    }
+    config->heating_enabled = cJSON_IsTrue(value);
+    return true;
+  }
+  if (std::strcmp(key, "brew_temperature_c") == 0)
+    return overlay_number_float(value, "heating.brew_temperature_c", &config->brew_temperature_c, error_field);
+  *error_field = join_field("heating", key);
+  return false;
+}
+
 bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
   if (std::strcmp(key, "time") == 0 || std::strcmp(key, "pressure") == 0 ||
       std::strcmp(key, "weight") == 0) {
@@ -572,6 +601,10 @@ bool apply_json_patch(cJSON* root, core::Config* config, const char** error_fiel
     if (std::strcmp(child->string, "version") == 0) continue;
     if (std::strcmp(child->string, "brew") == 0) {
       if (!overlay_object(child, "brew", config, error_field, apply_brew_key)) return false;
+      continue;
+    }
+    if (std::strcmp(child->string, "heating") == 0) {
+      if (!overlay_object(child, "heating", config, error_field, apply_heating_key)) return false;
       continue;
     }
     if (std::strcmp(child->string, "filling") == 0) {

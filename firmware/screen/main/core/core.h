@@ -62,7 +62,11 @@ struct Snapshot {
   uint8_t dimmer_pct = 0;
   uint8_t pump_pct = 0;
   bool heating_capable = false;
+  bool heating_power_capable = false;
   bool heater_on = false;
+  float heating_power_pct = 0;  // consigne calculée par screen, pas de 0,1 %
+  float heating_power_accepted_pct = 0;  // dernier écho sensors
+  bool brew_temperature_ready = false;
   bool heating_requested = false;
   uint16_t heating_lease_remaining_ms = 0;
   Freshness heating_freshness = Freshness::kMissing;

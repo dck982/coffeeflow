@@ -6,7 +6,7 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 5;
+inline constexpr uint16_t kConfigSchemaVersion = 6;
 // Sous cette puissance, la pompe ne maintient plus une pression d'infusion
 // sûre. Cette borne est distincte des puissances de remplissage et de purge.
 inline constexpr uint8_t kMinimumBrewPumpPct = 50;
@@ -37,6 +37,8 @@ struct Config {
   float target_weight_g = 36.0f;
   uint16_t target_time_s = 28;
   float target_pressure_bar = 9.0f;
+  float brew_temperature_c = 90.0f;
+  bool heating_enabled = true;
   uint16_t filling_time_s = 3;
   float filling_pressure_target_bar = 0.3f;
   uint8_t filling_pump_pct = 100;

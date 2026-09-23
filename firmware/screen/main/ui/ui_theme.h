@@ -28,6 +28,7 @@ inline const lv_color_t kTextFaint = lv_color_hex(0x6B615A);
 inline const lv_color_t kAccent = lv_color_hex(0xD98324);
 inline const lv_color_t kSuccess = lv_color_hex(0x4CAF50);
 inline const lv_color_t kThermal = lv_color_hex(0x4A9BB5);
+inline const lv_color_t kThermalNear = lv_color_hex(0x849B82);
 inline const lv_color_t kFault = lv_color_hex(0xB9412F);
 inline const lv_color_t kRampLow = lv_color_hex(0x8C5A22);
 inline const lv_color_t kRampFull = lv_color_hex(0xF2B25C);

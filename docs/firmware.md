@@ -136,7 +136,7 @@ GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = ferm
 
 Le matériel est câblé pour deux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → sortie absorbante **OUT4** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont 3,3 V AMS1117 → **A0/A1 de l'ADS1115** sur l'I2C du Waveshare. La commande du SSR est câblée **5 V → SSR `+` → SSR `−` → OUT4**. La logique est inversée : **LOW sur GPIO 3 active la chauffe**, HIGH l'arrête. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md).
 
-Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. La lecture ADS1115 est intégrée à cette image ; la régulation reste à implémenter et aucune chauffe continue n'est autorisée par cette API. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
+Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 5 s ; un renouvellement ne redémarre pas cette période. Sous 2 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
 
 `POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating_requested`, `heater_on` (`null` sans écho frais), `heating_freshness`, `heating_capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `dimmer_pct` reste un alias de `pump_pct` en télémétrie.
 
@@ -342,8 +342,9 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 5,
+  "version": 6,
   "brew": { "target_weight_g": 36.0, "target_time_s": 28, "target_pressure_bar": 9.0, "pump_pct": 100 },
+  "heating": { "enabled": true, "brew_temperature_c": 90.0 },
   "filling": { "time_s": 3, "pressure_target_bar": 0.3, "pump_pct": 100 },
   "preinfusion": { "time": true, "pressure": false, "weight": false, "time_s": 4, "pressure_bar": 1.5, "pump_pct": 30 },
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
@@ -455,6 +456,7 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x01` | `SET` | S → X | actionneurs + bail |
 | `0x02` | `RESET` | S → X | vide |
 | `0x04` | `SET_HEATING` | S → X | commande chaudière + durée diagnostique |
+| `0x06` | `SET_HEATING_POWER` | S → X | puissance chaudière par pas de 0,1 % + bail 1500 ms |
 | `0x05` | `CONFIRM_SENSORS_OTA` | S → X | confirmation de nouvelle image |
 | `0x08` | `PING` | ↔ | identité + uptime |
 | `0x09` | `PONG` | ↔ | identité + uptime |
@@ -541,7 +543,7 @@ individuel diffusable périodiquement par `REQSTATUS`
 
 Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux dimmer.
 
-`SET_HEATING` (0x04) porte `[0] on` (0 ou 1) et `[1..2] duration_ms` en little endian. `on=1` est accepté pour 1 à 30000 ms, indépendamment du bail et de la marche de la pompe. `STATUS_HEATING` (0x23) porte `[0] heater_on`, `[1..2] bail restant ms`, `[3] bit0 capacité diagnostique`. Un ancien `sensors` n'émet pas cet écho ; `screen` refuse alors l'activation.
+`SET_HEATING` (0x04) porte `[0] on` (0 ou 1) et `[1..2] duration_ms` en little endian. `on=1` est accepté pour 1 à 30000 ms, indépendamment du bail et de la marche de la pompe. `SET_HEATING_POWER` (0x06) porte `[0..1] power_permille` (0–1000, soit 0,0–100,0 %) et `[2..3] lease_ms` ; seul un bail de 1500 ms est accepté. Le format ancien à 3 octets (pourcentage entier puis bail) reste accepté par `sensors`. `STATUS_HEATING` (0x23) porte `[0] heater_on`, `[1..2] bail restant ms`, `[3] bit0 capacité diagnostique, bit1 capacité puissance, bit2 résolution 0,1 %`, `[4] partie entière du pourcentage`, `[5] dixième`. `screen` exige le bit2 pour la régulation.
 
 `LOG` (0x30)
 
@@ -615,7 +617,7 @@ Attention à ce qu'IDF fait et ne fait pas : en `PENDING_VERIFY`, si l'applicati
 
 ### Flash distant (les capteurs, à travers l'écran)
 
-Même route, `target=sensors`. Le proxy utilise exclusivement la partition `ota_staging` : si la table installée ne la contient pas, il refuse le transfert sans effacer `assets`. L'écran relaie `BEGIN`, des blocs numérotés et acquittés, puis `END`. Le rejeu d'un bloc est idempotent avec `sensors` depuis v0.2.63 ; avec une ancienne image, le proxy ne retente pas un bloc sans ACK. Après redémarrage, `screen` confirme automatiquement la nouvelle image par CAN seulement après version v0.2.63 ou supérieure, échos frais de la pompe/vanne et de la chaudière, et sorties au repos. Depuis v0.2.65, `sensors` accepte cette confirmation en état `NEW` ou `PENDING_VERIFY`. En l'absence de confirmation, `sensors` revient en arrière après 30 s. Il n'y a pas de POST de confirmation pour `sensors`.
+Même route, `target=sensors`. Le proxy utilise exclusivement la partition `ota_staging` : si la table installée ne la contient pas, il refuse le transfert sans effacer `assets`. L'écran relaie `BEGIN`, des blocs numérotés et acquittés, puis `END`. Le rejeu d'un bloc est idempotent avec `sensors` depuis v0.2.63 ; avec une ancienne image, le proxy ne retente pas un bloc sans ACK. Après redémarrage, `screen` confirme automatiquement la nouvelle image par CAN seulement après version v0.2.63 ou supérieure, échos frais de la pompe/vanne et de la chaudière, pompe et vanne au repos. Depuis v0.2.69, une chauffe régulée peut continuer pendant cette confirmation si son bail est actif ; une impulsion diagnostique doit être terminée. Depuis v0.2.65, `sensors` accepte cette confirmation en état `NEW` ou `PENDING_VERIFY`. En l'absence de confirmation, `sensors` revient en arrière après 30 s. Il n'y a pas de POST de confirmation pour `sensors`.
 
 ### Pourquoi factory + deux OTA, et pas seulement deux OTA
 

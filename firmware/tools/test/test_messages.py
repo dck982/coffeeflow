@@ -7,6 +7,7 @@ from coffeetool.messages import (
     ReqStatusPayload,
     SetPayload,
     SetHeatingPayload,
+    SetHeatingPowerPayload,
     StatusActuatorsPayload,
     StatusFlowPayload,
     StatusHeatingPayload,
@@ -25,8 +26,13 @@ def test_set_payload_roundtrip():
 def test_heating_payloads_roundtrip():
     command = SetHeatingPayload(True, 1000)
     assert SetHeatingPayload.unpack(command.pack()) == command
+    power = SetHeatingPowerPayload(6, 1500)
+    assert SetHeatingPowerPayload.unpack(power.pack()[:4]) == power
+    assert SetHeatingPowerPayload.unpack(bytes((1, 0xDC, 0x05))).power_permille == 10
     status = StatusHeatingPayload(True, 350)
     assert StatusHeatingPayload.unpack(status.pack()) == status
+    power_status = StatusHeatingPayload(True, 1000, True, True, True, 6)
+    assert StatusHeatingPayload.unpack(power_status.pack()[:6]) == power_status
     confirmation = ConfirmSensorsOtaPayload(63)
     assert ConfirmSensorsOtaPayload.unpack(confirmation.pack()[:1]) == confirmation
 
@@ -85,6 +91,7 @@ def test_all_payloads_pack_to_eight_bytes():
     for payload in (
         SetPayload(),
         SetHeatingPayload(),
+        SetHeatingPowerPayload(),
         ConfirmSensorsOtaPayload(),
         PongPayload(),
         ReqStatusPayload(),

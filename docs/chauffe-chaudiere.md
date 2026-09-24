@@ -82,8 +82,10 @@ et A1 ; le calcul de résistance utilise le rapport des deux codes bruts.
 
 La calibration 0.3.5 a essayé un offset de -18 °C ; de la vapeur est sortie
 pendant la purge. Depuis 0.3.6, l'offset est revenu à 0 °C et la coupure de
-chauffe à 105 °C de la température publiée est rétablie. Les constantes NTC
-restent provisoires en attendant une mesure à froid de la machine.
+chauffe à 105 °C de la température publiée est rétablie. En 0.3.8, les
+constantes NTC ont été remplacées par l'ajustement des mesures directes de la
+sonde ; en 0.3.9, elles ont été arrondies à des valeurs nominales proches.
+La nouvelle conversion demande une validation sur la machine.
 
 ## État des essais du 24 septembre 2026 — reprise de la calibration
 
@@ -92,18 +94,31 @@ référencée comme NTC 1/8″ dans la nomenclature du fabricant. Sa courbe
 résistance/température n'est pas indiquée dans cette nomenclature. Les
 marquages lus sur le métal de la sonde installée sont `1408504` et `16/18` ;
 leur signification n'a pas été confirmée et ne donne pas de valeur de `R25`
-ou de `Beta`. La sonde n'a pas été démontée. La résistance fixe du pont, entre
+ou de `Beta`. Lors de ces essais, la sonde n'avait pas encore été démontée. La résistance fixe du pont, entre
 A1 et GND, a été mesurée à **2,193 kΩ** ; la résistance de la NTC débranchée,
 mesurée directement sur ses deux fils, était **42,1 kΩ** lors des essais à
-froid. Les constantes actuellement compilées sont `R25 = 27 290 Ω`,
-`Beta = 3 728 K`, sans offset. Avec elles, 42,1 kΩ donnent environ 15 °C.
-Deux hypothèses nominales à comparer après l'essai à froid sont
+froid. Les anciennes constantes compilées jusqu'en 0.3.7 étaient
+`R25 = 27 290 Ω`, `Beta = 3 728 K`, sans offset. Avec elles, 42,1 kΩ donnent
+environ 15 °C.
+Avant la dépose de la sonde, deux hypothèses nominales envisagées étaient
 `R25 = 47 kΩ, Beta = 4 700 K` et `R25 = 50 kΩ, Beta = 4 800 K` ; seule la
 première correspond à une combinaison trouvée dans un
 [catalogue Panasonic](https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf),
-et ce composant n'identifie pas la sonde montée dans la chaudière. Une mesure
-de résistance après une nuit d'équilibre près de 25 °C donnera directement
-un meilleur ancrage pour `R25`. Comparer les deux courbes dans
+et ce composant n'identifie pas la sonde montée dans la chaudière. La mesure
+directe ultérieure près de 25 °C est décrite plus bas.
+
+Une troisième hypothèse envisagée était **`R25 = 47 kΩ` avec `Beta = 4 400–4 450 K`**.
+Le modèle Beta donne alors environ **3,35–3,25 kΩ à 90 °C**. Le PID d'origine
+porte l'inscription **`NTC 3K3`**. Elle pourrait désigner une résistance fixe
+de **3,3 kΩ** dans son pont diviseur, choisie proche de la résistance de la
+NTC vers 90 °C pour améliorer la sensibilité dans la plage café. Le marquage
+seul ne confirme toutefois ni le schéma du PID ni les caractéristiques de la
+sonde. Cette hypothèse ne coïncide pas exactement avec les **2,89 kΩ** mesurés
+après l'affichage de 90 °C sur le PID ; cet affichage n'est pas une référence
+indépendante de température. Le pont ADS1115 ajouté à la machine possède,
+quant à lui, une résistance fixe mesurée de **2,193 kΩ**.
+
+Comparer les courbes dans
 [l'explorateur NTC](ntc_curve_explorer.html).
 Les anciens couples résistance/température de
 [`ntc_ads1115_calibration.md`](ntc_ads1115_calibration.md) utilisent la
@@ -111,9 +126,135 @@ température entière indiquée par le PID d'origine, lue avant coupure puis
 débranchement de la sonde : ce n'est pas une mesure indépendante de la
 température réelle de la NTC.
 
+### Essai de résistances sur le PID Gicar d'origine
+
+Des résistances mesurées ont été branchées à la place de la NTC sur l'entrée
+du PID Gicar alimenté séparément ; son affichage est arrondi au degré :
+
+| Résistance | Température affichée |
+| ---: | ---: |
+| 23,44 kΩ | 28 °C |
+| 22,90 kΩ | 29 °C |
+| 21,91 kΩ | 30 °C |
+| 14,61 kΩ | 41 °C |
+| 9,93 kΩ | 52 °C |
+| 5,70 kΩ | 68 °C |
+| 4,68 kΩ | 74 °C |
+| 2,196 kΩ | 101 °C |
+| 0,989 kΩ | 132 °C |
+
+Un ajustement indicatif du modèle Beta à ces neuf points donne environ
+**`R25 = 27,2 kΩ` et `Beta = 3 710 K`** pour la *courbe d'affichage du PID*.
+La valeur calculée pour 42 kΩ est alors environ **15 °C**, et la résistance
+correspondant à 90 °C affichés environ **2,92 kΩ**. Ces résultats rejoignent
+les constantes provisoires du firmware (`27,29 kΩ / 3 728 K`) parce que
+celles-ci ont été déduites de mesures dont la température provenait déjà de
+l'affichage du PID : cet accord ne valide pas la température réelle de la
+chaudière. Les écarts des points du tableau à une courbe Beta unique restent
+de l'ordre du degré ; ils ne montrent pas de rupture de courbe particulière
+à basse température.
+
+Avec l'hypothèse physique **`47 kΩ / 4 425 K`**, 42 kΩ correspondraient à
+environ **27,3 °C**, cohérents avec la mesure à froid proche de 27–28 °C ;
+mais le PID afficherait environ **15 °C** pour cette résistance. À 90 °C
+réels, cette hypothèse prévoit environ **3,3 kΩ**, que la courbe Gicar
+afficherait vers **86 °C**. L'ancienne mesure de 2,89 kΩ prise lorsque le PID
+affichait 90 °C donnerait, avec cette hypothèse, environ **94 °C réels**.
+Cette interprétation antérieure est remise en cause par les mesures directes
+ci-dessous : `Beta ≈ 3 900–3 950 K` leur correspond mieux. Le PID affiche `UP`
+pendant la montée en température et masque ainsi son écart à froid. Pour
+vérifier l'écart à chaud, il faut une température indépendante au voisinage
+de la NTC, stabilisée et associée à sa résistance ; la température du panier
+ne mesure pas celle de la sonde.
+
+Le PID est alimenté par le secteur 230 V et porte un module d'alimentation
+`prim BV 202 0154` marqué 6 V / 0,5 VA. Un STMicro L4941BV et un condensateur
+ont été repérés près de la piste de l'entrée NTC. Ces observations ne
+permettent pas encore d'identifier la résistance fixe du pont ni de
+confirmer ce que signifie l'inscription `NTC 3K3`.
+
+### Mesures directes de la sonde démontée
+
+La NTC a ensuite été démontée et mesurée à plusieurs températures. Les points
+chauds ont été pris pendant un refroidissement et sont moins stables ; le
+point à 24,7 °C utilise un autre thermomètre, avant immersion.
+La sonde NTC répond plus lentement que le thermomètre digital. Le minimum de
+résistance a été attendu alors que la température de l'eau baissait déjà de
+0,1 à 0,2 °C/s : le chiffre du thermomètre à cet instant n'est donc pas
+nécessairement la température de l'élément NTC. Cette inertie explique une
+partie de la dispersion des points chauds et limite la précision de `Beta`.
+
+| Température relevée | Résistance NTC |
+| ---: | ---: |
+| 20,1 °C | 57,7 kΩ |
+| 21,6 °C | 54,6 kΩ |
+| 24,7 °C | 49,1 kΩ |
+| 24,9–25,0 °C | 47,6 kΩ |
+| 43 °C | 21,42 kΩ |
+| 49 °C | 18,70 kΩ |
+| 74 °C | 7,60 kΩ |
+| 77,7 °C | 6,66 kΩ |
+| 78 °C | 5,97 kΩ |
+| 86,2 °C | 4,95 kΩ |
+| 89,5–89,8 °C | 4,73 kΩ |
+| 91,0–91,3 °C | 4,31 kΩ |
+
+Le point stabilisé près de 25 °C soutient fortement une **NTC nominale
+47 kΩ**. Un ajustement Beta indicatif des douze points, en prenant le milieu
+des intervalles de température, donne **`R25 ≈ 47,2 kΩ` et
+`Beta ≈ 3 920 K`**. Sans les deux derniers points chauds, l'ajustement
+donnait `47,3 kΩ / 3 944 K` : l'ordre de grandeur est stable. La dispersion
+à chaud empêche d'en faire une calibration définitive : les points à 77,7 et
+78 °C diffèrent déjà de 10 % en résistance ; les deux nouveaux points vers
+90 °C impliquent séparément `Beta ≈ 3 860 K` et `Beta ≈ 3 940 K` lorsqu'ils
+sont ancrés à 47,6 kΩ vers 25 °C. En particulier,
+l'ancienne hypothèse `47 kΩ / 4 425 K` ne décrit pas ces mesures chaudes :
+elle prévoit environ 3,8 kΩ à 86,2 °C, contre 4,95 kΩ mesurés.
+
+Pour chacune des douze résistances, la courbe ajustée du PID Gicar donne une
+température affichée inférieure de **11,7 à 16,0 °C** à la température
+relevée sur la sonde, soit **13,6 °C en moyenne**. Ce décalage presque
+constant pourrait être volontaire : un afficheur de machine à café peut
+viser la température d'infusion plutôt que la température locale de la
+chaudière. Cela reste une interprétation, sans documentation Gicar ni mesure
+indépendante dans l'eau au point d'extraction. Avec l'ajustement indicatif de
+la sonde, la résistance vers 90 °C locaux serait environ **4,49 kΩ** ; le
+Gicar afficherait alors environ **75 °C**. Inversement, ses 90 °C affichés
+correspondraient à environ **105 °C locaux** selon cet ajustement extrapolé.
+Les deux relevés voisins de 90 °C soutiennent cette plage, mais leur écart
+montre qu'un bain à température presque constante serait nécessaire avant
+d'en faire une calibration précise de chauffe. Les mesures actuelles suffisent
+à identifier l'ordre de grandeur et ne justifient pas de retarder le
+remontage de la sonde.
+
+Jusqu'en 0.3.7, le firmware (`27,29 kΩ / 3 728 K`) suivait presque exactement
+la courbe d'affichage Gicar. Le firmware 0.3.8 utilisait l'ajustement mesuré
+`47,2 kΩ / 3 922 K` ; depuis 0.3.9, il utilise les valeurs nominales proches
+**`47 kΩ / 3 950 K`** pour estimer la température **locale de la sonde**.
+La consigne enregistrée reste inchangée ; à 90 °C, elle correspond désormais
+à environ 4,38 kΩ, contre 2,92 kΩ avant 0.3.8. Ce changement réduit la
+température visée par la chaudière pour une même consigne numérique. Une
+nouvelle validation de la chauffe et de la température d'infusion est
+nécessaire.
+
+Avec la courbe indicative de la sonde, sa résistance vers **90 °C locaux**
+est d'environ **4,5 kΩ**. Une résistance fixe de **4,7 kΩ** aurait donc placé
+le pont ADS1115 près de sa sensibilité maximale à cette température. Le
+pont actuel mesure **2,193 kΩ** ; à 90 °C, le modèle donne environ **21,7 mV/°C**
+sur A1 contre **24,5 mV/°C** avec 4,7 kΩ, à alimentation 3,3 V identique :
+un gain d'environ **13 %** de sensibilité, pas de justesse absolue. Avec le
+PGA ADS1115 à ±4,096 V (125 µV par code), cela représente environ **173**
+contre **196 codes par degré**, soit un pas théorique de **0,0058** contre
+**0,0051 °C par code**. Cette différence est minime devant l'incertitude
+actuelle de la courbe et de la température réelle de la sonde ; elle ne
+justifie pas à elle seule de modifier le montage.
+La résistance **3,3 kΩ** évoquée par le marquage du Gicar reste une hypothèse
+sur son propre circuit ; elle serait proche de l'optimum vers 100 °C locaux
+avec cette sonde. Sa présence réelle sur la carte n'a pas été vérifiée.
+
 Après trois heures d'arrêt, la pièce était à **24,8 °C** près de la machine,
 la plaque supérieure de la chaudière et l'écrou du raccord à **26,7 °C** au
-thermomètre IR, tandis que le nouveau firmware affichait environ **13–15 °C**.
+thermomètre IR, tandis que le firmware 0.3.7 affichait environ **13–15 °C**.
 Les températures d'eau mesurées en tasse après purges, de 28,50 à 26,69 °C,
 ne sont pas des mesures au contact de la NTC mais confortent l'existence d'un
 écart à froid. Captures :
@@ -127,7 +268,7 @@ pour une consigne de 80 °C ([capture](../captures/260924-162535.json)) et
 **86,7 puis 88,4 °C** pour une consigne de 90 °C
 ([avant mode écoulement](../captures/260924-164051.json),
 [après](../captures/260924-165337.json)). Il semble donc possible de faire
-un café autour de 90 °C avec le firmware actuel, à quelques degrés près dans
+un café autour de 90 °C avec le firmware 0.3.7, à quelques degrés près dans
 ces conditions ; la température du panier n'est pas identique à celle de la
 NTC. À consigne 65 °C, deux purges ont donné **72,6 puis 69,6 °C** dans le
 panier malgré une NTC proche de 65 °C avant chaque purge
@@ -145,9 +286,10 @@ relevés à 65 °C sont
 [`171044`](../captures/monitor-heating-20260924-171044-990745.json).
 Ces fichiers `captures/` sont locaux et ignorés par Git.
 
-### Prochain essai à froid
+### Vérification à froid après remontage
 
-Laisser `heating.enabled=false` et la machine au repos toute la nuit. Au
+La sonde démontée est maintenant caractérisée près de 25 °C. Après son
+remontage, laisser `heating.enabled=false` et la machine au repos toute la nuit. Au
 redémarrage, vérifier que la chauffe est toujours désactivée. Avant toute
 purge, relever la température ambiante près de la chaudière, celle de l'eau
 du réservoir avec le même thermomètre digital utilisé dans le panier, et
@@ -178,11 +320,10 @@ captures si nécessaire. `record_heating.py --mode monitor` requiert
 `heating.enabled=true` et ne convient donc pas à cet essai. Le calcul de
 résistance à partir de la télémétrie est
 `R_NTC = 2193 × (A0/A1 − 1)` en ohms ; comparer ce résultat à la mesure
-directe antérieure de 42,1 kΩ. Si la NTC affiche encore environ 15 °C alors
-que l'ensemble machine/eau/pièce est proche de 25 °C, on aura un point froid
-solide. On pourra ensuite ajuster `Beta` et `R25` en conservant un ancrage
-logiciel à 90 °C, puis contrôler la nouvelle courbe à 50–100 °C et la coupure
-de chauffe. [Explorateur interactif des courbes](ntc_curve_explorer.html) :
+directe antérieure de 42,1 kΩ. Avec la courbe compilée depuis 0.3.9, cette
+résistance donne environ 27,5 °C ; comparer à la température stabilisée de la
+machine, puis contrôler la conversion à chaud et la coupure de chauffe.
+[Explorateur interactif des courbes](ntc_curve_explorer.html) :
 il montre la sensibilité de chaque paramètre sans modifier le firmware.
 
 Pour mesurer une montée depuis l'ambiante :

@@ -15,14 +15,15 @@ inline constexpr float kFlowPulsesPerLiter = 3450.0f;
 // n'a été établi avec le manomètre filmé.
 inline constexpr float kPressureFullScaleBar = 16.0f;
 inline constexpr float kPressureOffsetBar = 0.0f;
-// Pont NTC chaudière : valeurs provisoires de docs/ntc_ads1115_calibration.md.
-// Remplacer après une mesure stabilisée, sans changer le pilote ADS1115.
+// Pont NTC chaudière : valeurs nominales proches de l'ajustement des mesures
+// directes de la sonde (docs/chauffe-chaudiere.md). Les points chauds restent
+// incertains et ne permettent pas d'identifier la référence exacte.
 inline constexpr float kBoilerNtcFixedOhm = 2193.0f;
-inline constexpr float kBoilerNtcR0Ohm = 27290.0f;
-inline constexpr float kBoilerNtcBetaK = 3728.0f;
+inline constexpr float kBoilerNtcR0Ohm = 47000.0f;
+inline constexpr float kBoilerNtcBetaK = 3950.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;
-// L'essai à -18 °C a produit de la vapeur ; retour à la courbe provisoire
-// sans décalage jusqu'à la mesure à froid de la machine.
+// La température calculée représente la sonde dans la chaudière. L'écart
+// avec l'ancien affichage Gicar n'est pas compensé par un offset logiciel.
 inline constexpr float kBoilerNtcTemperatureOffsetC = 0.0f;
 
 }  // namespace core::calibration_machine

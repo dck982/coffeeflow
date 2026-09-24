@@ -107,7 +107,32 @@ Pour obtenir directement la température en °C :
 T_C = 1 / (1/T0 + ln(R_NTC/R0)/B) - 273.15
 ```
 
-### Paramètres provisoires
+### Paramètres compilés depuis le firmware 0.3.9
+
+Les mesures directes de la sonde démontée, détaillées dans
+[`chauffe-chaudiere.md`](chauffe-chaudiere.md#mesures-directes-de-la-sonde-démontée),
+ont été ajustées par un modèle Beta (`R25 ≈ 47,2 kΩ`, `B ≈ 3 922 K`). Le
+firmware utilise des valeurs nominales proches de cet ajustement :
+
+``` text
+R0 = 47000 Ω
+B  = 3950 K
+T0 = 298.15 K
+offset = 0 °C
+```
+
+Cette conversion estime la température locale de la sonde ; les points chauds,
+relevés pendant le refroidissement, limitent sa précision. Avec la même
+consigne enregistrée de 90 °C, la chaudière sera moins chaude qu'avec
+l'ancienne courbe proche de l'affichage Gicar : 2,92 kΩ représentent environ
+104 °C avec la nouvelle courbe, contre 90 °C auparavant. La consigne et les
+gains de chauffe devront être validés sur la machine.
+
+Le firmware 0.3.8 compilait l'ajustement direct `47 200 Ω / 3 922 K`. À
+résistance identique, les valeurs nominales de 0.3.9 indiquent environ
+0,7 °C de moins vers 90 °C et 1,2 °C de moins vers 130 °C.
+
+### Paramètres historiques jusqu'au firmware 0.3.7
 
 Les mesures actuelles, en excluant volontairement l'ancienne mesure très
 incertaine à \~45 °C, donnent approximativement :
@@ -125,8 +150,8 @@ B  = 3728 K
 T0 = 298.15 K
 ```
 
-Ces constantes devront être recalculées après la prochaine mesure
-stabilisée.
+Ces constantes ont été remplacées en 0.3.8 après les mesures directes de
+la sonde démontée.
 
 **Essai firmware 0.3.5 :** un décalage de `-18 °C` a été essayé pour comparer
 la température en tasse ; de la vapeur est sortie pendant la purge. L'offset
@@ -168,7 +193,7 @@ Les points doivent donc être considérés comme des données de calibration
 expérimentales avec une incertitude non négligeable, et non comme des
 références métrologiques.
 
-## Détermination provisoire de la courbe
+## Détermination historique de la courbe Gicar
 
 Les points situés entre 80 et 115 °C sont cohérents avec un modèle NTC
 Beta proche de :
@@ -206,7 +231,7 @@ Une régression définitive devra comparer au minimum :
 2.  éventuellement une courbe Steinhart-Hart si elle améliore
     significativement les résidus sur la plage 25--130 °C.
 
-## Next step : mesure stabilisée
+## Validation sur la machine
 
 Effectuer une mesure à froid après stabilisation complète de la machine
 et de la chaudière à température ambiante.
@@ -223,8 +248,7 @@ Procédure souhaitée :
 4.  mesurer la résistance de la NTC ;
 5.  noter le couple exact `température / résistance`.
 
-Une fois ce point obtenu, refaire la régression sur l'ensemble des
-données fiables, déterminer les constantes définitives (`R0`, `B`, ou
-coefficients Steinhart-Hart), puis remplacer les constantes provisoires de
-`firmware/screen/main/core/calibration_machine.h` et valider la conversion
-ADS1115 -\> résistance -\> température sur la machine.
+Comparer ensuite les codes ADS1115 et la résistance calculée à une mesure
+directe connue, puis contrôler une montée en température et la coupure de
+chauffe avec la nouvelle courbe. Un point stabilisé à chaud permettrait de
+réviser `R0` et `B` si nécessaire.

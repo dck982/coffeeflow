@@ -57,36 +57,40 @@
   <main>
     <p class="eyebrow">CoffeeFlow · calibration chaudière</p>
     <h1>Explorer la courbe NTC</h1>
-    <p class="intro">Déplacez β et R<sub>25</sub> pour voir la température calculée à résistance identique. Le mode « ancrer 90 °C » ajuste automatiquement R<sub>25</sub> afin de conserver le point chaud affiché par le firmware actuel.</p>
+    <p class="intro">Comparez la courbe réglable au firmware 0.3.9, à l'affichage du PID Gicar et à la sonde NTC démontée. Les mesures chaudes de la sonde ont été prises pendant son refroidissement : sa courbe ajustée reste indicative. Le mode « ancrer 90 °C » conserve le point chaud de l'ancien firmware, proche du Gicar.</p>
 
     <div class="layout">
       <section class="card chart-card" aria-labelledby="chart-title">
         <h2 id="chart-title">Température calculée selon la résistance</h2>
-        <div class="plot-wrap"><svg id="chart" viewBox="0 0 880 460" role="img" aria-label="Courbes de température NTC actuelle et modifiée selon la résistance"></svg></div>
+        <div class="plot-wrap"><svg id="chart" viewBox="0 0 880 460" role="img" aria-label="Courbes de température du firmware, du PID Gicar, de la sonde mesurée et des paramètres modifiés selon la résistance"></svg></div>
         <div class="legend">
           <span style="--line:#718187">Firmware actuel</span>
+          <span style="--line:#a04d93">Gicar (courbe ajustée et mesures)</span>
+          <span style="--line:#3379ba">Sonde démontée (courbe ajustée et mesures)</span>
           <span style="--line:#087b71">Paramètres modifiés</span>
           <span style="--line:#e09b3c">Repères de mesure</span>
         </div>
-        <div id="readout" class="readout" aria-live="polite">Survolez le graphique pour comparer les deux températures à une résistance donnée.</div>
+        <div id="readout" class="readout" aria-live="polite">Survolez le graphique pour comparer les quatre températures à une résistance donnée.</div>
       </section>
 
       <section class="card" aria-labelledby="controls-title">
         <h2 id="controls-title">Paramètres</h2>
         <div class="control">
           <div class="control-head"><label for="beta">β, pente de la courbe</label><output id="beta-value" for="beta"></output></div>
-          <input id="beta" type="range" min="2500" max="6000" step="1" value="3728">
+          <input id="beta" type="range" min="2500" max="6000" step="1" value="3950">
           <div class="ends"><span>2 500 K</span><span>6 000 K</span></div>
         </div>
         <div class="control">
           <div class="control-head"><label for="r25">R<sub>25</sub>, résistance à 25 °C</label><output id="r25-value" for="r25"></output></div>
-          <input id="r25" type="range" min="10000" max="120000" step="10" value="27290">
+          <input id="r25" type="range" min="10000" max="120000" step="10" value="47000">
           <div class="ends"><span>10 kΩ</span><span>120 kΩ</span></div>
         </div>
-        <label class="check"><input id="anchor" type="checkbox"><span>Conserver exactement le point affiché à <strong>90 °C</strong> (≈ 2,91 kΩ). R<sub>25</sub> suivra automatiquement β.</span></label>
+        <label class="check"><input id="anchor" type="checkbox"><span>Conserver le point de l'ancien firmware affiché à <strong>90 °C</strong> (≈ 2,91 kΩ). R<sub>25</sub> suivra automatiquement β.</span></label>
         <div class="presets">
           <button type="button" id="reset">Valeurs actuelles</button>
+          <button type="button" id="measured">Sonde mesurée · indicatif</button>
           <button type="button" id="example">Exemple froid + ancre 90 °C</button>
+          <button type="button" id="hypothesis47">Ancienne hypothèse 47 kΩ / 4 425 K</button>
           <button type="button" id="nominal47">47 kΩ / 4 700 K</button>
           <button type="button" id="nominal50">50 kΩ / 4 800 K</button>
         </div>
@@ -98,10 +102,10 @@
     </div>
 
     <section class="card table-card" aria-labelledby="table-title">
-      <h2 id="table-title">Même résistance, autres paramètres</h2>
+      <h2 id="table-title">Même résistance, trois courbes</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Repère</th><th>NTC</th><th>Actuel</th><th>Modifié</th><th>Écart</th></tr></thead>
+          <thead><tr><th>Repère</th><th>NTC</th><th>Firmware</th><th>Gicar</th><th>Sonde ajustée</th><th>Modifié</th><th>Modifié − Gicar</th></tr></thead>
           <tbody id="comparison"></tbody>
         </table>
       </div>
@@ -109,19 +113,33 @@
 
     <section class="card note-card" aria-labelledby="notes-title">
       <h2 id="notes-title">Ce que représentent les repères</h2>
-      <p>Le point froid <strong>42,1 kΩ</strong> a été mesuré directement sur la sonde débranchée. Sa température réelle reste à confirmer après une nuit d'équilibre ; <strong>26,7 °C</strong> était une mesure IR de la chaudière et du raccord, pas de l'élément NTC lui-même. Le point chaud est celui que les constantes actuelles <em>affichent</em> à 90 °C. L'ancrer conserve ce comportement logiciel ; il ne prouve pas que la sonde ou l'eau du panier est exactement à 90 °C.</p>
+      <p>Le point froid <strong>42,1 kΩ</strong> avait été mesuré sur la sonde encore montée ; la courbe ajustée après démontage lui attribue environ <strong>28 °C</strong>. Les <strong>26,7 °C</strong> relevés auparavant par IR concernaient la chaudière et son raccord, pas l'élément NTC lui-même. Le point chaud à ≈ 2,91 kΩ était affiché à 90 °C par l'ancien firmware ; la courbe compilée en 0.3.9 lui attribue environ <strong>104 °C locaux</strong>. L'ancrer conserve l'ancien comportement logiciel.</p>
+      <p>La courbe Gicar (<strong>R<sub>25</sub> ≈ 27,17 kΩ, β ≈ 3 713 K</strong>) est ajustée sur <a href="chauffe-chaudiere.md#essai-de-résistances-sur-le-pid-gicar-dorigine">neuf résistances connues</a> à la place de la NTC ; les points violets sont les températures entières affichées. Elle décrit la conversion du PID, pas une mesure indépendante de la température de la sonde. Sa proximité avec l'ancien firmware s'explique par les relevés Gicar utilisés pour les anciennes constantes.</p>
+      <p>La sonde démontée mesure <strong>47,6 kΩ vers 25 °C</strong>. Sa courbe bleue est un ajustement indicatif des <a href="chauffe-chaudiere.md#mesures-directes-de-la-sonde-démontée">douze mesures directes</a> : R<sub>25</sub> ≈ 47,2 kΩ et β ≈ 3 920 K. Les points bleus montrent leur dispersion, notamment les deux relevés voisins de 90 °C. Aux résistances mesurées, le Gicar affiche en moyenne environ <strong>14 °C de moins</strong> que la température relevée sur la sonde ; l'écart est peut-être une convention d'affichage de la machine, sans confirmation à ce stade.</p>
       <p>Le pont ADS1115 utilise la résistance fixe mesurée à <strong>2,193 kΩ</strong> : <code>R_NTC = 2193 × (A0/A1 − 1)</code>. Elle convertit les codes ADC en ohms ; elle ne change pas avec les curseurs. La conversion en température est <code>1/T = 1/298,15 + ln(R_NTC/R25)/β</code>, avec T en kelvins. Une vraie calibration devra vérifier la courbe et la coupure de chauffe avant usage à haute température.</p>
-      <p>Le préréglage 47 kΩ / 4 700 K correspond à une famille réelle de thermistances <a href="https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf">Panasonic</a> ; il ne permet pas d'identifier la sonde G1/8 de la machine. Le préréglage 50 kΩ / 4 800 K est une hypothèse à comparer aux mesures, sans identification de modèle.</p>
+      <p>L'ancienne hypothèse 47 kΩ / 4 425 K ne suit pas les points chauds de la sonde démontée. Le préréglage 47 kΩ / 4 700 K correspond à une famille réelle de thermistances <a href="https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf">Panasonic</a> ; il ne permet pas d'identifier la sonde G1/8 de la machine. Le préréglage 50 kΩ / 4 800 K reste une autre hypothèse historique.</p>
     </section>
   </main>
 
   <script>
     'use strict';
-    const CURRENT = { beta: 3728, r25: 27290 };
+    const CURRENT = { beta: 3950, r25: 47000 };
+    const PREVIOUS = { beta: 3728, r25: 27290 };
+    const GICAR = { beta: 3713, r25: 27168 };
+    const MEASURED_NTC = { beta: 3922, r25: 47238 };
+    const GICAR_POINTS = [
+      [4680, 74], [2196, 101], [9930, 52], [21910, 30], [989, 132],
+      [5700, 68], [22900, 29], [14610, 41], [23440, 28],
+    ];
+    const NTC_POINTS = [
+      [57700, 20.1], [54600, 21.6], [49100, 24.7], [47600, 24.95],
+      [21420, 43], [18700, 49], [7600, 74], [6660, 77.7],
+      [5970, 78], [4950, 86.2], [4730, 89.65], [4310, 91.15],
+    ];
     const T25 = 298.15;
     const HOT_C = 90;
     const COLD_R = 42100;
-    const HOT_R = resistanceAt(HOT_C, CURRENT);
+    const HOT_R = resistanceAt(HOT_C, PREVIOUS);
     const exampleBeta = Math.log(COLD_R / HOT_R) / (1 / (26.7 + 273.15) - 1 / (HOT_C + 273.15));
     const betaInput = document.getElementById('beta');
     const r25Input = document.getElementById('r25');
@@ -143,7 +161,7 @@
 
     const W = 880, H = 460;
     const plot = { left: 74, right: W - 28, top: 25, bottom: H - 59 };
-    const rMin = 2000, rMax = 60000, tMin = -10, tMax = 125;
+    const rMin = 800, rMax = 60000, tMin = -10, tMax = 140;
     const x = r => plot.left + (Math.log(r / rMin) / Math.log(rMax / rMin)) * (plot.right - plot.left);
     const y = t => plot.bottom - ((t - tMin) / (tMax - tMin)) * (plot.bottom - plot.top);
 
@@ -156,7 +174,7 @@
       return pieces.join(' ');
     }
     function drawChart(params) {
-      const xTicks = [2000, 3000, 5000, 10000, 20000, 40000, 60000];
+      const xTicks = [1000, 2000, 3000, 5000, 10000, 20000, 40000, 60000];
       const yTicks = [0, 25, 50, 75, 100, 125];
       const gridX = xTicks.map(r => `<line x1="${x(r)}" x2="${x(r)}" y1="${plot.top}" y2="${plot.bottom}" stroke="#e6ece8"/><text x="${x(r)}" y="${plot.bottom + 23}" text-anchor="middle" fill="#66777d" font-size="13">${r / 1000}k</text>`).join('');
       const gridY = yTicks.map(t => `<line x1="${plot.left}" x2="${plot.right}" y1="${y(t)}" y2="${y(t)}" stroke="#e6ece8"/><text x="${plot.left - 13}" y="${y(t) + 5}" text-anchor="end" fill="#66777d" font-size="13">${t}°</text>`).join('');
@@ -164,18 +182,23 @@
         { r: COLD_R, label: '42,1 kΩ mesurés', dx: -6, anchor: 'end' },
         { r: HOT_R, label: '≈ 2,91 kΩ', dx: 7, anchor: 'start' },
       ].map(({ r, label, dx, anchor }) => `<line x1="${x(r)}" x2="${x(r)}" y1="${plot.top}" y2="${plot.bottom}" stroke="#e09b3c" stroke-width="1.5" stroke-dasharray="5 5"/><text x="${x(r) + dx}" y="${plot.top + 16}" text-anchor="${anchor}" fill="#9d6720" font-size="13" font-weight="650">${label}</text><circle cx="${x(r)}" cy="${y(temperatureAt(r, params))}" r="5" fill="#087b71" stroke="white" stroke-width="2"/>`).join('');
-      chart.innerHTML = `<defs><clipPath id="plot-clip"><rect x="${plot.left}" y="${plot.top}" width="${plot.right - plot.left}" height="${plot.bottom - plot.top}"/></clipPath></defs>${gridX}${gridY}<g clip-path="url(#plot-clip)"><path d="${curvePath(CURRENT)}" fill="none" stroke="#718187" stroke-width="3"/><path d="${curvePath(params)}" fill="none" stroke="#087b71" stroke-width="3.5"/></g>${markers}<text x="${(plot.left + plot.right) / 2}" y="${H - 13}" text-anchor="middle" fill="#41535b" font-size="14">Résistance NTC (kΩ, échelle logarithmique)</text><text transform="translate(22 ${(plot.top + plot.bottom) / 2}) rotate(-90)" text-anchor="middle" fill="#41535b" font-size="14">Température calculée (°C)</text>`;
+      const gicarPoints = GICAR_POINTS.map(([r, t]) => `<circle cx="${x(r)}" cy="${y(t)}" r="4" fill="#a04d93" stroke="white" stroke-width="1.5"/>`).join('');
+      const ntcPoints = NTC_POINTS.map(([r, t]) => `<circle cx="${x(r)}" cy="${y(t)}" r="4" fill="#3379ba" stroke="white" stroke-width="1.5"/>`).join('');
+      chart.innerHTML = `<defs><clipPath id="plot-clip"><rect x="${plot.left}" y="${plot.top}" width="${plot.right - plot.left}" height="${plot.bottom - plot.top}"/></clipPath></defs>${gridX}${gridY}<g clip-path="url(#plot-clip)"><path d="${curvePath(CURRENT)}" fill="none" stroke="#718187" stroke-width="3"/><path d="${curvePath(GICAR)}" fill="none" stroke="#a04d93" stroke-width="3" stroke-dasharray="8 5"/><path d="${curvePath(MEASURED_NTC)}" fill="none" stroke="#3379ba" stroke-width="3" stroke-dasharray="5 4"/><path d="${curvePath(params)}" fill="none" stroke="#087b71" stroke-width="3.5"/>${gicarPoints}${ntcPoints}</g>${markers}<text x="${(plot.left + plot.right) / 2}" y="${H - 13}" text-anchor="middle" fill="#41535b" font-size="14">Résistance NTC (kΩ, échelle logarithmique)</text><text transform="translate(22 ${(plot.top + plot.bottom) / 2}) rotate(-90)" text-anchor="middle" fill="#41535b" font-size="14">Température calculée (°C)</text>`;
     }
     function renderTable(params) {
       const rows = [
         { label: 'Mesure directe à froid', resistance: COLD_R, reference: true },
-        ...[50, 65, 80, 90, 100].map(t => ({ label: `Affichage actuel ${t} °C`, resistance: resistanceAt(t, CURRENT), reference: t === 90 })),
+        { label: 'Résistance 3,3 kΩ', resistance: 3300, reference: true },
+        ...[50, 65, 80, 90, 100].map(t => ({ label: `Ancien affichage ${t} °C`, resistance: resistanceAt(t, PREVIOUS), reference: t === 90 })),
       ];
       document.getElementById('comparison').innerHTML = rows.map(({ label, resistance, reference }) => {
         const oldT = temperatureAt(resistance, CURRENT);
+        const gicarT = temperatureAt(resistance, GICAR);
+        const measuredT = temperatureAt(resistance, MEASURED_NTC);
         const newT = temperatureAt(resistance, params);
-        const delta = newT - oldT;
-        return `<tr${reference ? ' class="reference"' : ''}><td>${label}</td><td>${format(resistance / 1000, 2)} kΩ</td><td>${format(oldT)} °C</td><td>${format(newT)} °C</td><td>${delta >= 0 ? '+' : ''}${format(delta)} °C</td></tr>`;
+        const delta = newT - gicarT;
+        return `<tr${reference ? ' class="reference"' : ''}><td>${label}</td><td>${format(resistance / 1000, 2)} kΩ</td><td>${format(oldT)} °C</td><td>${format(gicarT)} °C</td><td>${format(measuredT)} °C</td><td>${format(newT)} °C</td><td>${delta >= 0 ? '+' : ''}${format(delta)} °C</td></tr>`;
       }).join('');
     }
     function render() {
@@ -199,12 +222,18 @@
       r25Input.value = String(CURRENT.r25);
       render();
     });
+    document.getElementById('measured').addEventListener('click', () => {
+      anchorInput.checked = false;
+      betaInput.value = String(MEASURED_NTC.beta);
+      r25Input.value = String(MEASURED_NTC.r25);
+      render();
+    });
     document.getElementById('example').addEventListener('click', () => {
       anchorInput.checked = true;
       betaInput.value = String(Math.round(exampleBeta / 10) * 10);
       render();
     });
-    for (const [id, beta, r25] of [['nominal47', 4700, 47000], ['nominal50', 4800, 50000]]) {
+    for (const [id, beta, r25] of [['hypothesis47', 4425, 47000], ['nominal47', 4700, 47000], ['nominal50', 4800, 50000]]) {
       document.getElementById(id).addEventListener('click', () => {
         anchorInput.checked = false;
         betaInput.value = String(beta);
@@ -217,10 +246,10 @@
       const position = (event.clientX - box.left) / box.width * W;
       if (position < plot.left || position > plot.right) return;
       const resistance = rMin * Math.pow(rMax / rMin, (position - plot.left) / (plot.right - plot.left));
-      document.getElementById('readout').textContent = `${format(resistance / 1000, 2)} kΩ → actuel ${format(temperatureAt(resistance, CURRENT))} °C ; modifié ${format(temperatureAt(resistance, model()))} °C`;
+      document.getElementById('readout').textContent = `${format(resistance / 1000, 2)} kΩ → firmware ${format(temperatureAt(resistance, CURRENT))} °C ; Gicar ${format(temperatureAt(resistance, GICAR))} °C ; sonde ${format(temperatureAt(resistance, MEASURED_NTC))} °C ; modifié ${format(temperatureAt(resistance, model()))} °C`;
     });
     chart.addEventListener('pointerleave', () => {
-      document.getElementById('readout').textContent = 'Survolez le graphique pour comparer les deux températures à une résistance donnée.';
+      document.getElementById('readout').textContent = 'Survolez le graphique pour comparer les quatre températures à une résistance donnée.';
     });
     render();
   </script>

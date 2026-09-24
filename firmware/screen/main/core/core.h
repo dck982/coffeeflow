@@ -150,6 +150,7 @@ struct HFSample {
   float pressure_bar = 0.0f;
   float xdb401_temperature_c = 0.0f;
   float boiler_temperature_c = 0.0f;
+  float heating_power_pct = 0.0f;
   float volume_ml = 0.0f;
   float flow_ml_s = 0.0f;
   float weight_g = 0.0f;

@@ -28,6 +28,67 @@ int main() {
   assert(pwm.tick(0));
   pwm.set_power(2000000, 6);
   assert(!pwm.tick(2000000));  // baisse appliquée sans attendre 5 s
+
+  // La hausse reçue après l'arrêt est retenue pour la fenêtre suivante.
+  pwm.set_power(2100000, 1000);
+  assert(!pwm.tick(2100000));
+  assert(!pwm.tick(4900000));
+  assert(pwm.tick(5000000));
+
+  pwm.reset();
+  pwm.set_power(0, 200);
+  assert(pwm.tick(0));
+  pwm.set_power(500000, 800);  // une hausse prolonge une impulsion en cours
+  assert(pwm.tick(2000000));
+  pwm.set_power(2100000, 100);
+  assert(!pwm.tick(2100000));
+  pwm.set_power(2200000, 1000);
+  assert(!pwm.tick(2200000));
+  assert(pwm.tick(5000000));
+
+  pwm.reset();
+  pwm.set_power(0, 1000);
+  assert(pwm.tick(0));
+  for (int i = 1; i < 50; ++i) {
+    const int64_t t = static_cast<int64_t>(i) * 100000;
+    pwm.set_power(t, i % 2 == 0 ? 1000 : 0);
+    assert(!pwm.tick(t));  // aucun rallumage pendant la fenêtre
+  }
+  pwm.set_power(4950000, 1000);
+  assert(!pwm.tick(4950000));
+  assert(pwm.tick(5000000));  // dernière consigne non nulle retenue
+
+  pwm.reset();
+  pwm.set_power(0, 1000);
+  assert(pwm.tick(0));
+  pwm.set_power(1000000, 0);  // arrêt et expiration simulée du bail
+  assert(!pwm.tick(1000000));
+  pwm.set_power(2600000, 0);
+  pwm.set_power(2700000, 1000);
+  assert(!pwm.tick(2700000));
+  assert(pwm.tick(5000000));
+
+  pwm.reset();
+  pwm.set_power(0, 1000);
+  assert(pwm.tick(0));
+  pwm.set_power(1000000, 0);
+  assert(!pwm.tick(1000000));
+  pwm.set_power(2000000, 10);
+  assert(!pwm.tick(2000000));
+  assert(pwm.tick(5000000));  // 1 % démarre dès la prochaine fenêtre
+  assert(!pwm.tick(5100000));
+
+  pwm.reset();
+  pwm.set_power(0, 10);  // impulsion de 100 ms à faible puissance
+  assert(pwm.tick(0));
+  assert(!pwm.tick(100000));
+  pwm.set_power(200000, 1000);
+  assert(!pwm.tick(200000));
+  assert(pwm.tick(5000000));
+
   pwm.reset();
   assert(!pwm.tick(0));
+  pwm.set_power(0, 0);
+  pwm.set_power(100000, 1000);
+  assert(pwm.tick(100000));  // pas de délai au premier démarrage
 }

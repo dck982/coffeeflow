@@ -266,6 +266,7 @@ void tick_hf_capture() {
   sample.pressure_bar = snapshot.pressure_bar;
   sample.xdb401_temperature_c = snapshot.xdb401_temperature_c;
   sample.boiler_temperature_c = snapshot.boiler_temperature_c;
+  sample.heating_power_pct = snapshot.heating_power_pct;
   sample.volume_ml = snapshot.volume_ml - capture.volume_ml_reference;
   sample.flow_ml_s = (g_state.last_flow_edge_received_us == 0 ||
                        now - g_state.last_flow_edge_received_us > static_cast<int64_t>(kFlowSilenceMs) * 1000)

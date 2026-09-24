@@ -48,7 +48,7 @@ def download_capture(url: str, token: str) -> dict[str, Any]:
         raise RuntimeError(f"GET /hf-capture: HTTP {error.code}: {detail}") from error
     except URLError as error:
         raise RuntimeError(f"GET /hf-capture: {error.reason}") from error
-    if not isinstance(payload, dict) or payload.get("schema") != "coffeeflow.hf_capture.v1" or not isinstance(payload.get("samples"), list):
+    if not isinstance(payload, dict) or payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2") or not isinstance(payload.get("samples"), list):
         raise RuntimeError("réponse /hf-capture inconnue ou incompatible")
     return payload
 

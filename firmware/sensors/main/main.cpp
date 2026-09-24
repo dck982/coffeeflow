@@ -135,6 +135,7 @@ int64_t g_heating_deadline_us = 0;
 bool g_heating_power_mode = false;
 uint16_t g_heating_power_permille = 0;
 HeatingPwm g_heating_pwm;
+portMUX_TYPE g_heating_lock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t g_pump_pct = 0;
 // Santé dimmer, mise à jour à chaque écriture (voir apply_dimmer()) : reflète
 // la dernière transaction I2C réelle, pas un état supposé.
@@ -218,13 +219,20 @@ FlashState g_flash;
 int64_t now_us() { return esp_timer_get_time(); }
 
 void apply_valve() { gpio_set_level(kGpioValve, g_valve_open ? 1 : 0); }
-void force_heating_off() {
+// L'état PWM et la sortie SSR sont modifiés par la réception CAN et la tâche
+// de sécurité : ils doivent avancer ensemble, sans appliquer un tick périmé.
+void force_heating_off_locked() {
   g_heater_on = false;
   g_heating_deadline_us = 0;
   g_heating_power_mode = false;
   g_heating_power_permille = 0;
   g_heating_pwm.reset();
   gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
+}
+void force_heating_off() {
+  portENTER_CRITICAL(&g_heating_lock);
+  force_heating_off_locked();
+  portEXIT_CRITICAL(&g_heating_lock);
 }
 
 // Déclaration en avance : apply_dimmer() a besoin de send_log(), défini plus
@@ -433,6 +441,7 @@ void send_status_actuators() {
 
 void send_status_heating() {
   common::StatusHeatingPayload payload;
+  portENTER_CRITICAL(&g_heating_lock);
   payload.heater_on = g_heater_on;
   const int64_t remaining = g_heating_deadline_us > now_us() ?
       (g_heating_deadline_us - now_us()) / 1000 : 0;
@@ -440,6 +449,7 @@ void send_status_heating() {
   payload.power_capable = true;
   payload.fine_power_capable = true;
   payload.power_permille = g_heating_power_mode ? g_heating_power_permille : 0;
+  portEXIT_CRITICAL(&g_heating_lock);
   const common::Frame frame = payload.pack();
   send_message(common::MessageType::kStatusHeating, common::Dest::kScreen, frame.data(), 6);
 }
@@ -666,28 +676,53 @@ void on_set_heating_received(const uint8_t* data, size_t len) {
   if (!common::SetHeatingPayload::unpack(data, len, &payload)) return;
   if (!payload.on) {
     force_heating_off();
-  } else if (!g_heater_on && !g_heating_power_mode && !s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
-             payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
-    g_heater_on = true;
-    g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
-    gpio_set_level(kGpioHeater, kHeaterActiveLevel);
+  } else {
+    portENTER_CRITICAL(&g_heating_lock);
+    if (!g_heater_on && !g_heating_power_mode && !s_lockout_active && !g_presence_lost &&
+        g_flash.partition == nullptr && payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
+      g_heater_on = true;
+      g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
+      gpio_set_level(kGpioHeater, kHeaterActiveLevel);
+    }
+    portEXIT_CRITICAL(&g_heating_lock);
   }
   send_status_heating();
+}
+
+bool apply_heating_pwm_locked(int64_t now) {
+  const bool on = g_heating_pwm.tick(now);
+  if (on == g_heater_on) return false;
+  g_heater_on = on;
+  gpio_set_level(kGpioHeater, on ? kHeaterActiveLevel : kHeaterInactiveLevel);
+  return true;
 }
 
 void on_set_heating_power_received(const uint8_t* data, size_t len) {
   common::SetHeatingPowerPayload payload;
   if (!common::SetHeatingPowerPayload::unpack(data, len, &payload) ||
       payload.lease_ms != kHeatingPowerLeaseMs) return;
+  portENTER_CRITICAL(&g_heating_lock);
   if (payload.power_permille == 0) {
-    force_heating_off();
+    if (g_heating_power_mode || (g_heating_pwm.active() && !g_heater_on)) {
+      const int64_t now = now_us();
+      g_heating_pwm.set_power(now, 0);
+      g_heating_power_permille = 0;
+      if (g_heating_power_mode)
+        g_heating_deadline_us = now + static_cast<int64_t>(payload.lease_ms) * 1000;
+      apply_heating_pwm_locked(now);
+    } else {
+      force_heating_off_locked();
+    }
   } else if (!s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
              (g_heating_power_mode || !g_heater_on)) {
-    g_heating_pwm.set_power(now_us(), payload.power_permille);
+    const int64_t now = now_us();
+    g_heating_pwm.set_power(now, payload.power_permille);
     g_heating_power_mode = true;
     g_heating_power_permille = payload.power_permille;
-    g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.lease_ms) * 1000;
+    g_heating_deadline_us = now + static_cast<int64_t>(payload.lease_ms) * 1000;
+    apply_heating_pwm_locked(now);
   }
+  portEXIT_CRITICAL(&g_heating_lock);
   send_status_heating();
 }
 
@@ -989,10 +1024,24 @@ void twai_rx_task(void*) {
 
 // Bail : coupe les actionneurs si le SET le plus récent a expiré.
 void tick_lease() {
-  if (g_heater_on && now_us() >= g_heating_deadline_us) {
-    force_heating_off();
-    send_status_heating();
+  bool heating_expired = false;
+  portENTER_CRITICAL(&g_heating_lock);
+  if ((g_heater_on || g_heating_power_mode) && g_heating_deadline_us != 0 &&
+      now_us() >= g_heating_deadline_us) {
+    if (g_heating_power_mode) {
+      g_heating_pwm.set_power(now_us(), 0);
+      g_heating_power_mode = false;
+      g_heating_power_permille = 0;
+      g_heating_deadline_us = 0;
+      g_heater_on = false;
+      gpio_set_level(kGpioHeater, kHeaterInactiveLevel);
+    } else {
+      force_heating_off_locked();
+    }
+    heating_expired = true;
   }
+  portEXIT_CRITICAL(&g_heating_lock);
+  if (heating_expired) send_status_heating();
   if (g_lease_deadline_us == 0) return;
   if (now_us() < g_lease_deadline_us) return;
   if (!g_valve_open && g_pump_pct == 0) {
@@ -1124,14 +1173,10 @@ void tick_actuators() {
 }
 
 void tick_heating() {
-  if (g_heating_power_mode) {
-    const bool on = g_heating_pwm.tick(now_us());
-    if (on != g_heater_on) {
-      g_heater_on = on;
-      gpio_set_level(kGpioHeater, on ? kHeaterActiveLevel : kHeaterInactiveLevel);
-      send_status_heating();
-    }
-  }
+  portENTER_CRITICAL(&g_heating_lock);
+  const bool heating_changed = g_heating_power_mode && apply_heating_pwm_locked(now_us());
+  portEXIT_CRITICAL(&g_heating_lock);
+  if (heating_changed) send_status_heating();
   if (g_heating_period_ms == 0) return;
   const int64_t t = now_us();
   if (t - g_heating_last_sent_us < static_cast<int64_t>(g_heating_period_ms) * 1000) return;

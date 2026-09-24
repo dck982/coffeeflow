@@ -714,25 +714,27 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             "\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
                             "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
-                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,\"mode\":\"%s\",\"flags\":%u}",
                             comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
                             sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
                             boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
-                            sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+                            sample.pump_pct_commanded, sample.pump_pct_reported,
+                            static_cast<double>(sample.heating_power_pct), hf_sample_mode_text(sample.mode), sample.flags);
   } else if (view == HFCaptureView::kCalibrated) {
     written = std::snprintf(line, sizeof(line),
                             "%s{\"t_ms\":%u,\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
                             "\"boiler_temperature_c\":%s,\"boiler_temperature_age_ms\":%s,"
                             "\"boiler_temperature_valid\":%s,"
                             "\"volume_ml\":%.6g,\"flow_ml_s\":%.6g,\"weight_g\":%.6g,"
-                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,\"mode\":\"%s\",\"flags\":%u}",
                             comma, static_cast<unsigned>(sample.t_ms), static_cast<double>(sample.pressure_bar),
                             static_cast<double>(sample.xdb401_temperature_c), boiler_temperature,
                             boiler_age, boiler_valid ? "true" : "false",
                             static_cast<double>(sample.volume_ml),
                             static_cast<double>(sample.flow_ml_s), static_cast<double>(sample.weight_g),
-                            sample.pump_pct_commanded, sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+                            sample.pump_pct_commanded, sample.pump_pct_reported,
+                            static_cast<double>(sample.heating_power_pct), hf_sample_mode_text(sample.mode), sample.flags);
   } else {
     written = std::snprintf(line, sizeof(line),
                             "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"xdb401_temperature_raw\":%u,"
@@ -742,7 +744,7 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             "\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
                             "\"boiler_temperature_c\":%s,\"volume_ml\":%.6g,"
                             "\"flow_ml_s\":%.6g,\"weight_g\":%.6g,\"pump_pct_commanded\":%u,"
-                            "\"pump_pct_reported\":%u,\"mode\":\"%s\",\"flags\":%u}",
+                            "\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,\"mode\":\"%s\",\"flags\":%u}",
                             comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
                             sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
                             boiler_age, boiler_valid ? "true" : "false",
@@ -751,7 +753,8 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             boiler_temperature,
                             static_cast<double>(sample.volume_ml), static_cast<double>(sample.flow_ml_s),
                             static_cast<double>(sample.weight_g), sample.pump_pct_commanded,
-                            sample.pump_pct_reported, hf_sample_mode_text(sample.mode), sample.flags);
+                            sample.pump_pct_reported, static_cast<double>(sample.heating_power_pct),
+                            hf_sample_mode_text(sample.mode), sample.flags);
   }
   return written > 0 && static_cast<size_t>(written) < sizeof(line) && send_json_chunk(request, line);
 }

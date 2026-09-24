@@ -131,6 +131,16 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
     axes[2].plot(elapsed_s, temperature, color="tab:orange", label="chaudière NTC" if v2 else "XDB401")
     if xdb401_temperature is not None:
         axes[2].plot(elapsed_s, xdb401_temperature, color="tab:gray", alpha=0.65, label="XDB401 amont")
+    if any("heating_power_pct" in sample for sample in samples):
+        heating_power = [float(sample["heating_power_pct"])
+                         if sample.get("heating_power_pct") is not None else float("nan")
+                         for sample in samples]
+        heating_axis = axes[2].twinx()
+        heating_axis.step(elapsed_s, heating_power, where="post", color="tab:red", linestyle="--",
+                          label="chauffage demandé")
+        heating_axis.set_ylabel("chauffage (%)")
+        heating_axis.set_ylim(0, 100)
+        heating_axis.legend(loc="upper right")
     axes[2].legend(loc="upper left")
     axes[2].set_ylabel("température (°C)")
     axes[3].plot(elapsed_s, weight, color="tab:purple", label="poids")

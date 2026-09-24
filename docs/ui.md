@@ -190,11 +190,10 @@ Les chevrons retour/précédent/suivant et le retour arrière du pavé provienne
 de cette même police ; ne pas employer des caractères Unicode dont la présence
 dans Inter dépendrait du sous-ensemble de glyphes embarqué.
 
-Les quatre icônes de statut font 24 px :
+Les icônes de statut prévues font 24 px :
 
 | Icône | Ce qu'elle dit | Couleur |
 | --- | --- | --- |
-| balance | la balance est appairée et répond | `text` présente / `text_faint` absente |
 | Wi-Fi | mode Wi-Fi actif et associé au réseau | `text` connecté / `text_faint` mode machine ou non associé |
 | pompe | le régime de la pompe | rampe d'engagement, niveaux 0-3 |
 | goutte | la vanne est ouverte | `accent` ouverte / `text_faint` fermée |
@@ -212,9 +211,8 @@ Elles aident à reconnaître les trois grandes destinations, mais ne remplacent
 jamais leurs libellés. Ne pas ajouter d'icône aux réglages ligne par ligne, au
 pavé numérique ou aux confirmations : là, le texte est plus précis.
 
-**Pas d'icône Bluetooth** : elle serait redondante avec l'icône balance, qui
-est la seule chose que le BLE sert à faire. Une icône qui ne peut jamais
-contredire sa voisine ne porte pas d'information.
+**Pas d'icône Bluetooth ni de balance dans le bandeau** : le poids visible
+indique déjà qu'une balance fournit des mesures.
 
 En mode machine, le Wi-Fi est entièrement déchargé et l'icône reste atténuée :
 ce n'est ni une panne ni une connexion en attente. En mode Wi-Fi, elle devient
@@ -396,23 +394,20 @@ une seule notion d'« objectif courant », lue à deux endroits.
 
 ### Composition du bandeau L0, état par état
 
-Le bandeau n'affiche pas toujours les mêmes grandeurs : il montre **ce qui est
-pertinent maintenant**, et rien d'autre. Une mesure sans objet n'est pas
-affichée en `—`, elle est **absente** — la règle du `—` vaut pour une valeur
-attendue qui manque, pas pour une valeur qu'on n'a aucune raison d'attendre.
+Le bandeau aligne à droite trois sous-zones dans l'ordre **poids · pression ·
+température**. La température est à droite et la pression juste avant elle.
+La sous-zone du poids absorbe l'espace restant ; son contenu disparaît quand la
+balance ne fournit pas de mesure, sans déplacer les deux autres valeurs.
+Une mesure de pression ou de température manquante affiche `-` dans sa propre
+sous-zone.
 
 | État | À gauche | À droite, dans l'ordre |
 | --- | --- | --- |
-| Repos, balance présente | profil | température · poids · ⚖ · ᯤ |
-| Repos, **balance absente** | profil | température · ⚖ · ᯤ — **aucun champ de poids** |
-| Infusion | profil | température · pression · débit (rampe) · pompe (rampe) · ⚖ · ᯤ atténuée |
-| Purge | `purge` | **pression** · pompe (rampe) · goutte · ᯤ atténuée |
-| Fin d'infusion | profil | température · ⚖ · ᯤ |
+| Balance présente | diagnostic · heure · version | poids · pression · température |
+| Balance absente | diagnostic · heure · version | pression · température |
 
-Sans balance, il n'y a **rien** à la place du poids : afficher `— g` en
-permanence sur une machine qu'on utilise sans balance serait un reproche
-affiché en continu. L'icône balance atténuée suffit à dire que la fonction
-existe et dort.
+Sans balance, le contenu du poids disparaît. Sa sous-zone flexible conserve
+l'espace libre, et la pression ainsi que la température restent en place.
 
 **La purge montre la pression** : c'est le seul moment où elle est
 l'information utile (backflush, contrôle de l'OPV), et le débitmètre n'y veut
@@ -426,11 +421,9 @@ rien dire — la pompe recircule (`firmware.md`, section débitmètre).
 
 Trois zones, rien d'autre.
 
-1. **Bandeau L0** — à gauche le nom du profil, touchable (ouvre la feuille de
-   profils) ; à droite les mesures et les présences, composées selon la table
-   ci-dessus. Les icônes de présence sont en `text` quand présentes, en
-   `text_faint` quand absentes — jamais en rouge, une balance éteinte n'est pas
-   une faute.
+1. **Bandeau L0** — à gauche le diagnostic, l'heure et la version ; à droite
+   le poids quand la balance fournit des mesures, puis la pression et la
+   température, dont la position reste fixe.
 2. **Cible au centre**, 76 px, posée au-dessus de deux surfaces `−` et `+`.
    La valeur n'est dans aucune boîte : sa position supérieure laisse aux deux
    boutons une largeur indépendante du nombre de chiffres, comme sur une

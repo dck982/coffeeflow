@@ -15,6 +15,6 @@ sips -s format png firmware/screen/ui_sim/build/snapshots/home.ppm --out firmwar
 Le format PPM est volontaire : il évite d'ajouter un encodeur PNG à LVGL.
 `sips` est disponible sur macOS pour consultation ou intégration dans un test
 visuel. `build/snapshots/` est ignoré par Git avec les autres artefacts de
-build. Les scénarios disponibles sont l'accueil (défaut), `settings`,
+build. Les scénarios disponibles sont l'accueil (défaut), `no-scale`, `settings`,
 `settings1`, `settings2`, `settings3`, `wifi-confirm`, `dim` et `standby`. Le simulateur ne
 remplace pas un essai tactile ou RGB sur la dalle.

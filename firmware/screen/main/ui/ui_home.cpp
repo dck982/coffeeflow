@@ -53,7 +53,7 @@ enum class Edit : uint8_t {
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
 enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
-  lv_obj_t *pressure{}, *temperature{}, *weight{}, *presence{}, *diagnostic{},
+  lv_obj_t *pressure{}, *temperature{}, *weight{}, *weight_group{}, *weight_content{}, *diagnostic{},
       *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
       *purge{}, *settings_button{}, *cycle{}, *phase{}, *hero{},
@@ -1089,31 +1089,6 @@ void fullscreen(bool on, const char *t, const char *b) {
   text(v.full_body, b);
   hidden(v.full, false);
 }
-lv_obj_t *scale_icon(lv_obj_t *parent) {
-  // Une petite balance de cuisine, dessinée avec des objets LVGL plutôt
-  // qu'avec un glyphe Unicode : les sous-ensembles Inter embarqués ne
-  // contiennent pas les pictogrammes.
-  lv_obj_t *icon = lv_obj_create(parent);
-  lv_obj_remove_style_all(icon);
-  lv_obj_set_size(icon, 30, 24);
-
-  lv_obj_t *body = lv_obj_create(icon);
-  lv_obj_remove_style_all(body);
-  lv_obj_set_size(body, 28, 17);
-  lv_obj_set_pos(body, 1, 6);
-  lv_obj_set_style_border_width(body, 2, 0);
-  lv_obj_set_style_border_color(body, theme::kText, 0);
-  lv_obj_set_style_radius(body, 6, 0);
-
-  lv_obj_t *display = lv_obj_create(body);
-  lv_obj_remove_style_all(display);
-  lv_obj_set_size(display, 12, 5);
-  lv_obj_set_pos(display, 6, 5);
-  lv_obj_set_style_bg_color(display, theme::kText, 0);
-  lv_obj_set_style_bg_opa(display, LV_OPA_COVER, 0);
-  lv_obj_set_style_radius(display, 2, 0);
-  return icon;
-}
 lv_obj_t *diagnostic_icon(lv_obj_t *parent) {
   lv_obj_t *icon = lv_obj_create(parent);
   lv_obj_remove_style_all(icon);
@@ -1213,41 +1188,32 @@ void create(lv_obj_t *p) {
   spacer(left, kTopbarGap);
   topbar_rule(left);
 
-  // Les trois valeurs se tassent naturellement vers la droite du solde, sans
-  // largeur artificielle. Les séparateurs restent attachés à leur valeur.
+  // La température reste à droite, la pression juste avant. La cellule du
+  // poids absorbe tout l'espace restant et son contenu disparaît sans balance.
   lv_obj_t *sensors = topbar_group(topbar, 1, true);
   lv_obj_set_flex_align(sensors, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
+  v.weight_group = topbar_group(sensors, 1, true);
+  lv_obj_set_flex_align(v.weight_group, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  v.weight_content = topbar_group(v.weight_group, LV_SIZE_CONTENT);
+  dyn(v.weight_content, &v.weight, "", theme::kFontStatus, theme::kTextDim, 0, 0);
+  spacer(v.weight_content, kTopbarGap);
+  topbar_rule(v.weight_content);
+  spacer(v.weight_content, kTopbarGap);
   dyn(sensors, &v.pressure, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
-  lv_obj_set_width(v.pressure, 100);
+  lv_obj_set_width(v.pressure, 110);
   lv_label_set_long_mode(v.pressure, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(v.pressure, LV_TEXT_ALIGN_RIGHT, 0);
   spacer(sensors, kTopbarGap);
   topbar_rule(sensors);
   spacer(sensors, kTopbarGap);
   dyn(sensors, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
-  lv_obj_set_width(v.temperature, 104);
+  lv_obj_set_width(v.temperature, 110);
   lv_label_set_long_mode(v.temperature, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(v.temperature, LV_TEXT_ALIGN_RIGHT, 0);
-  spacer(sensors, kTopbarGap);
-  topbar_rule(sensors);
-  spacer(sensors, kTopbarGap);
-  dyn(sensors, &v.weight, "", theme::kFontStatus, theme::kTextDim, 0, 0);
-  lv_obj_set_width(v.weight, 100);
-  lv_label_set_long_mode(v.weight, LV_LABEL_LONG_CLIP);
-  lv_obj_set_style_text_align(v.weight, LV_TEXT_ALIGN_RIGHT, 0);
-  // Préserver le même blanc avant le séparateur de la balance, y compris
-  // quand le poids est la dernière valeur visible.
-  spacer(sensors, kTopbarGap);
-
-  // Le groupe droit inclut son séparateur : 1 + espacement + 30 = 43 px.
-  lv_obj_t *right = topbar_group(topbar, 1 + kTopbarGap + 30);
-  topbar_rule(right);
-  spacer(right, kTopbarGap);
-  v.presence = scale_icon(right);
-  // L'icône et la cellule de l'heure sont les deux zones d'accès aux
-  // diagnostics. La balance reste une indication tactile séparée à droite.
-  for (lv_obj_t *status : {v.diagnostic, v.clock, v.presence}) {
+  // L'icône de diagnostic et l'heure ouvrent les diagnostics.
+  for (lv_obj_t *status : {v.diagnostic, v.clock}) {
     lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(status, note, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(status, show_diagnostics, LV_EVENT_CLICKED, nullptr);
@@ -1535,12 +1501,10 @@ void refresh(const core::Snapshot &s, bool boot) {
     text(v.weight, t);
   } else
     text(v.weight, "");
+  hidden(v.weight_content, !scale);
   color(v.weight, scale ? theme::kText : theme::kTextFaint);
-  // Le dernier segment du bandeau affiche l'heure locale et, le cas échéant,
-  // l'icône de balance connectée. Une balance associée reste signalée même
-  // entre deux mesures ; l'heure n'est jamais affichée avant la
-  // synchronisation NTP.
-  hidden(v.presence, !s.scale_connected);
+  // L'heure n'est affichée qu'après la synchronisation NTP. Le poids visible
+  // suffit à signaler la présence d'une balance qui fournit des mesures.
   hidden(v.clock, !s.time_known);
   if (s.time_known) {
 #if defined(UI_SIM)

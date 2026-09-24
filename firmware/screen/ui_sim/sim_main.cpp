@@ -126,7 +126,8 @@ int main(int argc, char **argv) {
   snapshot.boiler_temperature_c = 93.4f;
   snapshot.boiler_temperature_valid = true;
   snapshot.boiler_temperature_freshness = core::Freshness::kFresh;
-  snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0;
+  snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0 &&
+                           std::strcmp(scenario, "no-scale") != 0;
   snapshot.scale_connected = snapshot.scale_present;
   snapshot.time_known = true;
   snapshot.weight_g = 18.2f;

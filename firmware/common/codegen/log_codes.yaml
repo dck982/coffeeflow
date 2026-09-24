@@ -129,3 +129,18 @@
 - name: PURGE_STOPPED
   severity: info
   comment: Purge arrêtée. arg16 = relâchement ou plafond.
+- name: BOILER_ADC_NOT_FOUND
+  severity: error
+  comment: ADS1115 chaudière absent aux adresses 0x48–0x4B. arg32 = dernier code esp_err_t de probe.
+- name: BOILER_ADC_I2C_ERROR
+  severity: error
+  comment: Transaction ADS1115 échouée. arg16 = étape (octet haut) et adresse (octet bas), arg32 = code esp_err_t.
+- name: BOILER_ADC_CONVERSION_TIMEOUT
+  severity: error
+  comment: ADS1115 sans conversion prête après 15 lectures. arg16 = canal (octet haut, 0=A0 1=A1) et adresse (octet bas).
+- name: BOILER_NTC_INVALID_READING
+  severity: warn
+  comment: Paire ADS1115 lue mais température NTC invalide. arg16 = adresse, arg32 = A0 brut (16 bits hauts) et A1 brut (16 bits bas).
+- name: BOILER_ADC_RECOVERED
+  severity: info
+  comment: Première mesure NTC valide après une erreur ADS1115. arg16 = adresse, arg32 = durée de l'interruption en ms.

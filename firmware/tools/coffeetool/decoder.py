@@ -15,6 +15,10 @@ from .framing import RawFrame
 
 _NODE_NAMES = {Node.SCREEN: "écran", Node.SENSORS: "capteurs"}
 _DEST_NAMES = {Dest.BROADCAST: "broadcast", Dest.SCREEN: "écran", Dest.SENSORS: "capteurs"}
+_BOILER_ADC_STAGES = {
+    0: "bus indisponible", 1: "ajout du périphérique", 2: "configuration A0", 3: "statut A0", 4: "résultat A0",
+    5: "configuration A1", 6: "statut A1", 7: "résultat A1",
+}
 
 
 def _node_name(value) -> str:
@@ -36,13 +40,33 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
 
     if message_type is MessageType.LOG:
         p: messages.LogPayload = payload
+        name = log_code_name(p.code)
+        severity = log_severity_name(p.severity)
+        if name == "BOILER_ADC_NOT_FOUND":
+            return f"{name} [{severity}] adresses=0x48–0x4b dernier_esp_err={p.arg32:#x}"
+        if name == "BOILER_ADC_I2C_ERROR":
+            stage = _BOILER_ADC_STAGES.get(p.arg16 >> 8, f"étape {p.arg16 >> 8}")
+            return f"{name} [{severity}] adresse={p.arg16 & 0xff:#04x} étape={stage} esp_err={p.arg32:#x}"
+        if name == "BOILER_ADC_CONVERSION_TIMEOUT":
+            return f"{name} [{severity}] adresse={p.arg16 & 0xff:#04x} canal=A{p.arg16 >> 8}"
+        if name == "BOILER_NTC_INVALID_READING":
+            a0 = p.arg32 >> 16
+            a1 = p.arg32 & 0xffff
+            if a0 & 0x8000:
+                a0 -= 0x10000
+            if a1 & 0x8000:
+                a1 -= 0x10000
+            return (f"{name} [{severity}] adresse={p.arg16:#04x} "
+                    f"A0_brut={a0} A1_brut={a1}")
+        if name == "BOILER_ADC_RECOVERED":
+            return f"{name} [{severity}] adresse={p.arg16:#04x} interruption={p.arg32}ms"
         extra = []
         if p.arg16:
             extra.append(f"arg16={p.arg16}")
         if p.arg32:
             extra.append(f"arg32={p.arg32}")
         extra_str = " " + " ".join(extra) if extra else ""
-        return f"{log_code_name(p.code)} [{log_severity_name(p.severity)}]{extra_str}"
+        return f"{name} [{severity}]{extra_str}"
 
     if message_type is MessageType.PING and not data:
         return "(PING ancien, sans identité)"

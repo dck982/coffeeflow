@@ -103,6 +103,43 @@ class CaptureTests(unittest.TestCase):
         self.assertFalse(result["heating_disabled"])
         self.assertEqual(result["disable_error"], "réseau perdu")
 
+    def test_monitor_records_full_duration_without_changing_heating(self):
+        calls = []
+        clock = Clock()
+
+        def client(method, path, body):
+            calls.append((method, path, body))
+            if path == "/config":
+                return {"version": 6, "heating": {"enabled": True, "brew_temperature_c": 90}}
+            return {"boiler_temperature_c": 90, "boiler_temperature_valid": True,
+                    "boiler_temperature_freshness": "fresh", "heating_power_pct": 20}
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "monitor.json"
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = record_heating(output, client, mode="monitor", monitor_time_s=120,
+                                        clock=clock.monotonic, sleep=clock.sleep)
+            self.assertEqual(json.loads(output.read_text()), result)
+        self.assertEqual(result["mode"], "monitor")
+        self.assertEqual(result["stop_reason"], "monitor_duration")
+        self.assertEqual(result["max_duration_s"], 120)
+        self.assertEqual(len(result["samples"]), 240)
+        self.assertEqual(calls[0][:2], ("GET", "/config"))
+        self.assertFalse(any(method == "POST" for method, _, _ in calls))
+
+    def test_monitor_requires_enabled_heating_without_post(self):
+        calls = []
+
+        def client(method, path, body):
+            calls.append((method, path, body))
+            return {"version": 6, "heating": {"enabled": False, "brew_temperature_c": 90}}
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = record_heating(Path(directory) / "monitor.json", client, mode="monitor")
+        self.assertEqual(result["stop_reason"], "error")
+        self.assertIn("heating.enabled doit être true", result["error"])
+        self.assertEqual(calls, [("GET", "/config", None)])
+
 
 if __name__ == "__main__":
     unittest.main()

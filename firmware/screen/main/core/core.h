@@ -184,7 +184,7 @@ HFCaptureInfo get_hf_capture_info();
 bool get_hf_capture_sample(uint16_t index, HFSample* sample);
 
 // Publication atomique d'une paire ADS1115 depuis la tâche I2C locale.
-void on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok);
+bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok);
 
 // Adaptateurs de protocole, appelés exclusivement par can_link après que la
 // trame a été attribuée au nœud sensors.

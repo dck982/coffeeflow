@@ -2,10 +2,13 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Mesure une montée en température, puis désactive la chauffe.
+"""Enregistre une montée en température ou surveille une chauffe déjà active.
 
 Exemple : COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=192.168.2.196 \
-    uv run firmware/tools/record_heating.py
+    uv run firmware/tools/record_heating.py --mode heat
+
+Pour surveiller pendant 120 secondes sans modifier la configuration :
+    uv run firmware/tools/record_heating.py --mode monitor --monitor-time 120
 
 Les captures sont écrites par défaut dans captures/ (ignoré par Git).
 """
@@ -94,14 +97,21 @@ def record_heating(output: Path,
                    client: Callable[[str, str, dict[str, Any] | None], dict[str, Any]],
                    *, clock: Callable[[], float] = time.monotonic,
                    sleep: Callable[[float], None] = time.sleep,
-                   max_duration_s: float = MAX_DURATION_S) -> dict[str, Any]:
+                   max_duration_s: float = MAX_DURATION_S,
+                   mode: str = "heat",
+                   monitor_time_s: float = 60.0) -> dict[str, Any]:
+    if mode not in ("heat", "monitor"):
+        raise ValueError(f"mode inconnu : {mode}")
+    if not math.isfinite(monitor_time_s) or monitor_time_s <= 0:
+        raise ValueError("monitor-time doit être un nombre de secondes positif")
     if output.exists():
         raise FileExistsError(f"le fichier existe déjà : {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     capture: dict[str, Any] = {
         "started_at_utc": utc_now(),
+        "mode": mode,
         "interval_s": POLL_INTERVAL_S,
-        "max_duration_s": max_duration_s,
+        "max_duration_s": max_duration_s if mode == "heat" else monitor_time_s,
         "target_tolerance_c": TARGET_TOLERANCE_C,
         "stable_duration_s": STABLE_DURATION_S,
         "samples": [],
@@ -112,20 +122,25 @@ def record_heating(output: Path,
     enable_attempted = False
     version: int | None = None
     try:
-        version, target_c = target_from_config(client("GET", "/config", None))
+        config = client("GET", "/config", None)
+        version, target_c = target_from_config(config)
         capture["target_c"] = target_c
         capture["config_version"] = version
 
-        # Un POST peut être appliqué malgré un timeout côté client : tenter le
-        # POST false dans finally dès que la requête true a été lancée.
-        enable_attempted = True
-        capture["heating_enable_attempted"] = True
-        response = client("POST", "/config", {"version": version, "heating": {"enabled": True}})
-        if not confirmed_heating(response, True):
-            raise RuntimeError("POST /config: activation non confirmée")
+        if mode == "monitor":
+            if not confirmed_heating(config, True):
+                raise RuntimeError("GET /config: heating.enabled doit être true en mode monitor")
+        else:
+            # Un POST peut être appliqué malgré un timeout côté client : tenter le
+            # POST false dans finally dès que la requête true a été lancée.
+            enable_attempted = True
+            capture["heating_enable_attempted"] = True
+            response = client("POST", "/config", {"version": version, "heating": {"enabled": True}})
+            if not confirmed_heating(response, True):
+                raise RuntimeError("POST /config: activation non confirmée")
 
         started = clock()
-        deadline = started + max_duration_s
+        deadline = started + (max_duration_s if mode == "heat" else monitor_time_s)
         next_poll = started
         next_status = started
         in_band_since: float | None = None
@@ -150,7 +165,7 @@ def record_heating(output: Path,
                       f" / puissance demandée {requested}", flush=True)
                 while next_status <= received:
                     next_status += STATUS_INTERVAL_S
-            if temperature is not None and abs(temperature - target_c) < TARGET_TOLERANCE_C:
+            if mode == "heat" and temperature is not None and abs(temperature - target_c) < TARGET_TOLERANCE_C:
                 if in_band_since is None:
                     in_band_since = received
                 elif received - in_band_since >= STABLE_DURATION_S:
@@ -162,9 +177,9 @@ def record_heating(output: Path,
             while next_poll < received:
                 next_poll += POLL_INTERVAL_S
         else:
-            capture["stop_reason"] = "timeout"
+            capture["stop_reason"] = "timeout" if mode == "heat" else "monitor_duration"
         if capture["stop_reason"] == "error":
-            capture["stop_reason"] = "timeout"
+            capture["stop_reason"] = "timeout" if mode == "heat" else "monitor_duration"
     except KeyboardInterrupt:
         capture["stop_reason"] = "interrupted"
     except (OSError, RuntimeError, ValueError, TypeError) as error:
@@ -193,18 +208,24 @@ def record_heating(output: Path,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, help="fichier JSON de sortie")
+    parser.add_argument("--mode", choices=("heat", "monitor"), default="heat")
+    parser.add_argument("--monitor-time", type=float, default=60.0, metavar="SECONDS",
+                        help="durée du mode monitor en secondes (défaut : 60)")
     args = parser.parse_args()
+    if not math.isfinite(args.monitor_time) or args.monitor_time <= 0:
+        parser.error("--monitor-time doit être un nombre de secondes positif")
     token = os.environ.get("COFFEEFLOW_HTTP_TOKEN")
     address = os.environ.get("COFFEEFLOW_IP")
     if not token or not address:
         parser.error("COFFEEFLOW_HTTP_TOKEN et COFFEEFLOW_IP sont requis")
     url = f"http://{address.rstrip('/')}"
-    output = args.output or CAPTURE_DIR / f"heating-{datetime.now():%Y%m%d-%H%M%S-%f}.json"
+    prefix = "heating" if args.mode == "heat" else "monitor-heating"
+    output = args.output or CAPTURE_DIR / f"{prefix}-{datetime.now():%Y%m%d-%H%M%S-%f}.json"
     client = lambda method, path, body: request_json(url, token, method, path, body)
     try:
-        capture = record_heating(output, client)
-    except OSError as error:
-        print(f"erreur d'écriture du relevé : {error}", file=sys.stderr)
+        capture = record_heating(output, client, mode=args.mode, monitor_time_s=args.monitor_time)
+    except (OSError, ValueError) as error:
+        print(f"erreur du relevé : {error}", file=sys.stderr)
         return 1
     print(f"relevé écrit dans {output} ({len(capture['samples'])} mesures, {capture['stop_reason']})")
     if capture["heating_enable_attempted"] and not capture["heating_disabled"]:
@@ -216,7 +237,7 @@ def main() -> int:
         return 1
     if capture["stop_reason"] == "interrupted":
         return 130
-    return 0 if capture["stop_reason"] == "target_stable" else 2
+    return 0 if capture["stop_reason"] in ("target_stable", "monitor_duration") else 2
 
 
 if __name__ == "__main__":

@@ -11,19 +11,31 @@ faibles consignes sur plusieurs périodes (1 % = 100 ms toutes les 10 s,
 0,6 % ≈ 100 ms toutes les 16,7 s en moyenne).
 
 La configuration NVS v6 contient `heating.brew_temperature_c` (90 °C par
-défaut, 80 à 100 °C par pas de 0,5 °C) et `heating.enabled` (`true` par
+défaut, 60 à 100 °C par pas de 0,5 °C) et `heating.enabled` (`true` par
 défaut). La cible est modifiable sur la quatrième page des réglages ; le
 commutateur n'est disponible que par `POST /config`. La purge reste possible
 quand il vaut `false`. L'infusion exige une mesure fraîche dans la bande
 consigne ±0,5 °C pendant trois secondes, et un module capteurs compatible.
+`firmware/tools/set_heating.py true` ou `false` modifie ce commutateur via
+`GET /config` puis `POST /config`, avec `COFFEEFLOW_HTTP_TOKEN` et
+`COFFEEFLOW_IP` dans l'environnement.
+
 Toute migration depuis une configuration v1–v5 persiste `heating.enabled=false`
 avant le démarrage des tâches ; une installation neuve conserve `true`.
 
-La loi actuelle est un réglage initial prudent : puissance plafonnée à 80 %,
+La loi actuelle est un réglage initial : puissance plafonnée à 100 %,
 anticipation sur la pente filtrée, intégrale bornée à proximité de la cible
 et compensation de 15 % pendant l'infusion. Au-dessus de 105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
+
+Depuis 0.3.1, l'écran diffuse un `LOG` CAN à la première erreur ADS1115, puis
+au plus toutes les 5 s si la même erreur persiste. `BOILER_ADC_NOT_FOUND`,
+`BOILER_ADC_I2C_ERROR`, `BOILER_ADC_CONVERSION_TIMEOUT` et
+`BOILER_NTC_INVALID_READING` distinguent les causes ; `BOILER_ADC_RECOVERED`
+indique le retour d'une mesure valide et la durée de l'interruption. Le
+décodeur `coffeetool` affiche l'adresse, l'étape I²C, le code ESP ou les valeurs
+ADC brutes selon le cas.
 
 Pour mesurer une montée depuis l'ambiante :
 

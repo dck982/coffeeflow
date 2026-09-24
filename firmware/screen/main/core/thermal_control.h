@@ -6,7 +6,7 @@
 
 namespace core::thermal {
 
-// Réglage initial prudent. Les gains et l'avance doivent être recalibrés sur
+// Réglage initial. Les gains et l'avance doivent être recalibrés sur
 // une capture de chauffe/refroidissement de la machine réelle.
 class Controller {
  public:
@@ -52,11 +52,9 @@ class Controller {
       integral_pct_ = std::clamp(integral_pct_ + 0.18f * error * dt_s, 0.0f, 35.0f);
     }
     if (error < -0.5f) integral_pct_ = 0;
-    float power = error > 15.0f && predicted_error > 10.0f
-                      ? 80.0f
-                      : 8.0f * predicted_error + integral_pct_;
+    float power = 8.0f * predicted_error + integral_pct_;
     if (brewing && error > -0.5f) power += 15.0f;
-    return {static_cast<uint16_t>(std::lround(std::clamp(power, 0.0f, 80.0f) * 10.0f)), ready};
+    return {static_cast<uint16_t>(std::lround(std::clamp(power, 0.0f, 100.0f) * 10.0f)), ready};
   }
 
   void reset() {

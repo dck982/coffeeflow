@@ -717,7 +717,7 @@ void on_status_pressure(const uint8_t* data, uint8_t len) {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
-void on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
+bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
   bool valid = read_ok && a0_raw >= 16000 && a0_raw < 32767 && a1_raw > 0 && a1_raw < a0_raw;
   float temperature_c = 0.0f;
   if (valid) {
@@ -742,6 +742,7 @@ void on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
     g_state.boiler_received_us = now;
   }
   portEXIT_CRITICAL(&g_state.lock);
+  return valid;
 }
 
 void on_status_flow(const uint8_t* data, uint8_t len) {

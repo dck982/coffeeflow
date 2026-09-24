@@ -4,9 +4,13 @@
 int main() {
   core::thermal::Controller controller;
   auto out = controller.step(1000, 20, 90, true, true, false);
-  assert(out.power_permille > 0 && !out.ready);
+  assert(out.power_permille == 1000 && !out.ready);
+  out = controller.step(1250, 20, 90, true, true, true);
+  assert(out.power_permille == 1000);  // la compensation infusion reste bornée
   out = controller.step(1500, 20, 90, true, false, false);
   assert(out.power_permille == 0 && !out.ready);
+  out = controller.step(1750, 86, 90, true, true, false);
+  assert(out.power_permille > 0 && out.power_permille < 1000);
   out = controller.step(2000, 90, 90, true, true, false);
   assert(!out.ready);
   for (uint64_t now = 2500; now <= 5500; now += 500)

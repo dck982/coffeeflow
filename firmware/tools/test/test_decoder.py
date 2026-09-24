@@ -26,6 +26,23 @@ def test_decode_log_uses_generated_code_names():
     assert "arg32=60000" in line
 
 
+def test_decode_boiler_adc_diagnostics():
+    def log(code, arg16=0, arg32=0):
+        frame = RawFrame(
+            can_id=encode_can_id(CanId(MessageType.LOG, Dest.BROADCAST, Node.SCREEN)),
+            data=LogPayload(code=code, severity=3, arg16=arg16, arg32=arg32).pack(),
+        )
+        return decode_frame(0.0, frame)
+
+    assert "dernier_esp_err=0x107" in log(40, arg32=0x107)
+    i2c = log(41, arg16=(3 << 8) | 0x48, arg32=0x107)
+    assert "BOILER_ADC_I2C_ERROR" in i2c and "statut A0" in i2c and "esp_err=0x107" in i2c
+    assert "canal=A1" in log(42, arg16=(1 << 8) | 0x48)
+    invalid = log(43, arg16=0x48, arg32=(26485 << 16) | 1050)
+    assert "A0_brut=26485" in invalid and "A1_brut=1050" in invalid
+    assert "interruption=1000ms" in log(44, arg16=0x48, arg32=1000)
+
+
 def test_decode_unknown_type_does_not_crash():
     frame = RawFrame(can_id=0x7FF, data=b"\xff" * 8)
     line = decode_frame(0.0, frame)

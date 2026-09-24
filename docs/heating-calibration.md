@@ -1,6 +1,6 @@
 # Mesure de la chauffe
 
-`firmware/tools/record_heating.py` active la chauffe, relève `/telemetry` toutes
+En mode `heat`, `firmware/tools/record_heating.py` active la chauffe, relève `/telemetry` toutes
 les 500 ms et écrit les mesures dans `captures/`. Il affiche la température et
 la puissance demandée toutes les 10 s. Il s'arrête après 30 s consécutives à
 moins de 1 °C de la consigne, ou au bout de 10 minutes, puis désactive la
@@ -8,7 +8,16 @@ chauffe. Depuis une machine froide en mode Wi-Fi :
 
 ```sh
 COFFEEFLOW_HTTP_TOKEN='…' COFFEEFLOW_IP='192.168.2.196' \
-  uv run firmware/tools/record_heating.py
+  uv run firmware/tools/record_heating.py --mode heat
+```
+
+En mode `monitor`, le script vérifie que `heating.enabled` vaut `true`, puis
+enregistre pendant la durée demandée sans modifier la configuration. La durée
+par défaut est de 60 s. Pour capturer 120 s autour de la consigne :
+
+```sh
+COFFEEFLOW_HTTP_TOKEN='…' COFFEEFLOW_IP='192.168.2.196' \
+  uv run firmware/tools/record_heating.py --mode monitor --monitor-time 120
 ```
 
 Pour produire un PNG à partir d'une capture JSON, tracer `elapsed_s` en X,

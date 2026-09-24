@@ -91,4 +91,9 @@ int main() {
   pwm.set_power(0, 0);
   pwm.set_power(100000, 1000);
   assert(pwm.tick(100000));  // pas de délai au premier démarrage
+
+  pwm.reset();
+  pwm.set_power(0, 1000);
+  for (int64_t t = 0; t <= 20000000; t += 100000)
+    assert(pwm.tick(t));  // 100 % reste ON à la frontière des fenêtres
 }

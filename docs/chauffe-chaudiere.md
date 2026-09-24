@@ -24,8 +24,14 @@ Toute migration depuis une configuration v1–v5 persiste `heating.enabled=false
 avant le démarrage des tâches ; une installation neuve conserve `true`.
 
 La loi actuelle est un réglage initial : puissance plafonnée à 100 %,
-anticipation sur la pente filtrée, intégrale bornée à proximité de la cible
-et compensation de 15 % pendant l'infusion. Au-dessus de 105 °C, sur mesure
+anticipation de 20 s sur la pente filtrée dans les deux sens, maintien nominal
+de 3,5 % à la consigne, et estimation bornée de la chaleur encore en transit à
+partir de la puissance au-dessus de 3,5 % demandée durant les 22 dernières
+secondes. La pente est filtrée sur 8 s et les variations de puissance non nulles
+sont lissées sur 5 s ; les coupures restent immédiates. L'intégrale utilise l'erreur prédite, pour ne pas
+accumuler une erreur déjà expliquée par cette chaleur. Une compensation de
+15 % s'ajoute pendant l'infusion. La puissance peut toujours retomber à zéro si la
+température prévue dépasse la cible. Au-dessus de 105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
 
@@ -36,6 +42,16 @@ au plus toutes les 5 s si la même erreur persiste. `BOILER_ADC_NOT_FOUND`,
 indique le retour d'une mesure valide et la durée de l'interruption. Le
 décodeur `coffeetool` affiche l'adresse, l'étape I²C, le code ESP ou les valeurs
 ADC brutes selon le cas.
+
+Depuis 0.3.5, une erreur de lecture I²C entraîne un nouvel essai après 200 ms,
+puis 400 ms, 800 ms et 1 s si elle persiste. Une lecture réussie remet ce délai
+à 200 ms pour la prochaine erreur. Le PGA ADS1115 reste à ±4,096 V pour A0
+et A1 ; le calcul de résistance utilise le rapport des deux codes bruts.
+
+La calibration 0.3.5 a essayé un offset de -18 °C ; de la vapeur est sortie
+pendant la purge. Depuis 0.3.6, l'offset est revenu à 0 °C et la coupure de
+chauffe à 105 °C de la température publiée est rétablie. Les constantes NTC
+restent provisoires en attendant une mesure à froid de la machine.
 
 Pour mesurer une montée depuis l'ambiante :
 

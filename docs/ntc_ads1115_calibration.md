@@ -128,6 +128,11 @@ T0 = 298.15 K
 Ces constantes devront être recalculées après la prochaine mesure
 stabilisée.
 
+**Essai firmware 0.3.5 :** un décalage de `-18 °C` a été essayé pour comparer
+la température en tasse ; de la vapeur est sortie pendant la purge. L'offset
+est revenu à `0 °C` en 0.3.6. Les mesures de résistance et les constantes
+ci-dessous n'ont pas été modifiées.
+
 ## Mesures de la NTC
 
 Mesures effectuées manuellement sur la sonde existante de la machine :

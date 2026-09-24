@@ -1,5 +1,6 @@
 #include "boiler_ntc.h"
 
+#include <algorithm>
 #include <cstdint>
 
 #include "board.h"
@@ -18,6 +19,8 @@ namespace {
 constexpr char kTag[] = "boiler_ntc";
 constexpr int kI2cTimeoutMs = 25;
 constexpr uint32_t kPairPeriodMs = 100;
+constexpr uint32_t kFirstErrorRetryMs = 200;
+constexpr uint32_t kMaxErrorRetryMs = 1000;
 constexpr int64_t kRepeatedDiagnosticUs = 5 * 1000 * 1000;
 i2c_master_dev_handle_t g_device = nullptr;
 uint8_t g_device_address = 0;
@@ -104,6 +107,7 @@ void task(void*) {
   Diagnostic last_diagnostic;
   int64_t last_diagnostic_us = 0;
   int64_t failure_started_us = 0;
+  uint32_t consecutive_i2c_errors = 0;
   for (;;) {
     int16_t a0 = 0;
     int16_t a1 = 0;
@@ -142,10 +146,15 @@ void task(void*) {
       failure_active = false;
     }
     if (ok) {
+      consecutive_i2c_errors = 0;
       vTaskDelayUntil(&next, pdMS_TO_TICKS(kPairPeriodMs));
     } else {
-      // Un ADS absent ne monopolise pas le bus du tactile et du CH422G.
-      vTaskDelay(pdMS_TO_TICKS(1000));
+      // Réessayer rapidement une erreur isolée sans saturer le bus si l'ADS
+      // reste absent : 200, 400, 800, puis 1000 ms entre tentatives.
+      const uint32_t retry_ms = consecutive_i2c_errors == 0 ? kFirstErrorRetryMs :
+          std::min(kMaxErrorRetryMs, kFirstErrorRetryMs << std::min(consecutive_i2c_errors, uint32_t{3}));
+      if (consecutive_i2c_errors < 4) ++consecutive_i2c_errors;
+      vTaskDelay(pdMS_TO_TICKS(retry_ms));
       next = xTaskGetTickCount();
     }
   }

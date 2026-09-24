@@ -21,5 +21,8 @@ inline constexpr float kBoilerNtcFixedOhm = 2193.0f;
 inline constexpr float kBoilerNtcR0Ohm = 27290.0f;
 inline constexpr float kBoilerNtcBetaK = 3728.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;
+// L'essai à -18 °C a produit de la vapeur ; retour à la courbe provisoire
+// sans décalage jusqu'à la mesure à froid de la machine.
+inline constexpr float kBoilerNtcTemperatureOffsetC = 0.0f;
 
 }  // namespace core::calibration_machine

@@ -85,10 +85,8 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
                        if sample.get("boiler_temperature_valid") and sample.get("boiler_temperature_c") is not None
                        else float("nan")
                        for sample in samples]
-        xdb401_temperature = [float(sample["xdb401_temperature_c"])
-                              if int(sample.get("flags", 0)) & 0x01 and sample.get("xdb401_temperature_c") is not None
-                              else float("nan")
-                              for sample in samples]
+        # La sonde XDB401 n'est pas celle de la chaudière et écrase son échelle.
+        xdb401_temperature = None
     else:
         temperature = values(samples, "temperature_c")
         xdb401_temperature = None

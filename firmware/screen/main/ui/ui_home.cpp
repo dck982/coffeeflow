@@ -620,7 +620,7 @@ bool valid(float *n) {
     return *n >= 6 && *n <= 12 &&
            std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
   case Edit::BrewTemperature:
-    return *n >= 60 && *n <= 100 &&
+    return *n >= core::kMinimumBrewTemperatureC && *n <= 100 &&
            std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
@@ -846,7 +846,7 @@ void tile_cb(lv_event_t *e) {
       show_choice(Choice::Preinfusion);
     else {
       Edit a[] = {Edit::FillingPressureTarget, Edit::None, Edit::FillingTime,
-                  Edit::PreTime, Edit::None, Edit::PrePressure};
+                  Edit::PreTime, Edit::BrewTemperature, Edit::PrePressure};
       if (a[i] != Edit::None) show_edit(a[i]);
     }
   } else if (page == 2) {
@@ -862,8 +862,6 @@ void tile_cb(lv_event_t *e) {
       show_confirm(Confirm::Forget);
     else if (i == 2)
       service_screen::restart_lcd();
-    else if (i == 4)
-      show_edit(Edit::BrewTemperature);
   }
 }
 const char *preinfusion_mode_text(core::PreinfusionMode mode, char *buffer, size_t size) {
@@ -921,12 +919,11 @@ void render_settings() {
     preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));
     std::snprintf(x[2], 40, "%u s", c.filling_time_s);
     std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
+    fmt(x[4], sizeof(x[4]), c.brew_temperature_c, " °C");
     fmt(x[5], sizeof(x[5]), c.preinfusion_pressure_bar, " bar");
     const char *n[] = {"cible pression rempl.", "critères pré-inf.", "durée remplissage",
-                       "échéance pré-inf.", "", "seuil pression pré-inf."};
+                       "échéance pré-inf.", "cible chaudière", "seuil pression pré-inf."};
     for (unsigned i = 0; i < 6; ++i) tile(i, n[i], x[i]);
-    hidden(v.tile[4], true);
-    hidden(v.tile_name[4], true);
   } else if (page == 2) {
     const char *m[] = {"aucune", "temps", "poids", "chute pression"};
     std::snprintf(x[0], 40, "%s", m[unsigned(c.rampdown_mode)]);
@@ -941,15 +938,13 @@ void render_settings() {
       tile(i, n[i], x[i]);
   } else {
     const char *n[] = {"réinitialiser réseau", "calibrations", "réinitialiser LCD",
-                       "veille", "cible chaudière", ""};
+                       "veille", "", ""};
     const char *val[] = {"effacer", "depuis /config", "redémarrer",
                          "automatique", "", ""};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], val[i],
            i == 0 ? Role::Destructive : Role::Secondary);
-    fmt(x[4], sizeof(x[4]), c.brew_temperature_c, " °C");
-    tile(4, n[4], x[4]);
-    for (unsigned i : {5u}) {
+    for (unsigned i : {4u, 5u}) {
       hidden(v.tile[i], true);
       hidden(v.tile_name[i], true);
     }

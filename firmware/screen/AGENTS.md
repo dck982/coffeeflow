@@ -1,5 +1,15 @@
 # Firmware écran
 
+## Compilation
+
+Depuis `firmware/screen`, activer l'environnement ESP-IDF 6.1 avant de
+compiler :
+
+```sh
+source ~/.espressif/tools/activate_idf_v6.1.sh
+idf.py build
+```
+
 ## Secrets locaux
 
 `main/secrets.h` est ignoré par Git. Ne jamais le lire, l'afficher, le

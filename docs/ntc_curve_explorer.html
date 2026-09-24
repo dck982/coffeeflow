@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Explorer la courbe NTC — CoffeeFlow</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f4f1; color: #1d2a30; }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 22px 56px; }
+    h1 { font-size: clamp(1.8rem, 3.4vw, 2.8rem); letter-spacing: -.035em; margin: 0 0 8px; }
+    h2 { font-size: 1.15rem; margin: 0 0 18px; }
+    p { line-height: 1.55; }
+    .eyebrow { margin: 0 0 10px; color: #32746d; font-size: .78rem; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+    .intro { max-width: 820px; color: #53636b; margin: 0 0 26px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(295px, .85fr); gap: 18px; align-items: start; }
+    .card { background: white; border: 1px solid #dce3df; border-radius: 17px; box-shadow: 0 8px 30px #17302a0b; padding: 22px; }
+    .chart-card { min-width: 0; }
+    .plot-wrap { border: 1px solid #e5eae7; border-radius: 12px; background: #fcfdfb; overflow: hidden; }
+    svg { display: block; width: 100%; height: auto; touch-action: none; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 21px; font-size: .84rem; color: #596a70; margin: 12px 0 0; }
+    .legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; border-radius: 2px; margin: 0 7px 4px 0; background: var(--line); }
+    .readout { margin-top: 15px; border-radius: 10px; background: #eef4f2; padding: 11px 14px; font-variant-numeric: tabular-nums; color: #24524d; min-height: 45px; }
+    .control { margin: 17px 0 24px; }
+    .control-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-weight: 650; }
+    output { color: #176d66; font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; margin: 13px 0 5px; accent-color: #087b71; cursor: pointer; }
+    input[type="range"]:disabled { opacity: .4; cursor: default; }
+    .ends { display: flex; justify-content: space-between; color: #7b898e; font-size: .75rem; }
+    .check { display: flex; gap: 10px; align-items: flex-start; line-height: 1.4; padding: 12px; background: #eff5f2; border-radius: 10px; font-size: .9rem; }
+    .check input { margin: 3px 0 0; accent-color: #087b71; }
+    .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 23px; }
+    button { border: 1px solid #bed4cc; background: white; color: #16645d; border-radius: 9px; padding: 9px 11px; font: inherit; font-size: .82rem; font-weight: 650; cursor: pointer; }
+    button:hover, button:focus-visible { background: #e8f4ee; outline-color: #087b71; }
+    .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 22px; }
+    .metric { background: #f5f7f4; border-radius: 10px; padding: 12px; }
+    .metric small { display: block; color: #65757a; margin-bottom: 5px; }
+    .metric strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+    .table-card, .note-card { margin-top: 18px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: right; padding: 10px 9px; border-bottom: 1px solid #e6ece9; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: #62757b; font-size: .8rem; font-weight: 650; }
+    td { font-size: .9rem; }
+    tr:last-child td { border-bottom: 0; }
+    tr.reference { background: #f4f9f6; font-weight: 650; }
+    .note-card { color: #526168; }
+    .note-card p { margin-bottom: 0; }
+    code { background: #edf1ed; border-radius: 4px; padding: 1px 4px; }
+    @media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { main { padding: 22px 12px 40px; } .card { padding: 15px; } .metrics { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">CoffeeFlow · calibration chaudière</p>
+    <h1>Explorer la courbe NTC</h1>
+    <p class="intro">Déplacez β et R<sub>25</sub> pour voir la température calculée à résistance identique. Le mode « ancrer 90 °C » ajuste automatiquement R<sub>25</sub> afin de conserver le point chaud affiché par le firmware actuel.</p>
+
+    <div class="layout">
+      <section class="card chart-card" aria-labelledby="chart-title">
+        <h2 id="chart-title">Température calculée selon la résistance</h2>
+        <div class="plot-wrap"><svg id="chart" viewBox="0 0 880 460" role="img" aria-label="Courbes de température NTC actuelle et modifiée selon la résistance"></svg></div>
+        <div class="legend">
+          <span style="--line:#718187">Firmware actuel</span>
+          <span style="--line:#087b71">Paramètres modifiés</span>
+          <span style="--line:#e09b3c">Repères de mesure</span>
+        </div>
+        <div id="readout" class="readout" aria-live="polite">Survolez le graphique pour comparer les deux températures à une résistance donnée.</div>
+      </section>
+
+      <section class="card" aria-labelledby="controls-title">
+        <h2 id="controls-title">Paramètres</h2>
+        <div class="control">
+          <div class="control-head"><label for="beta">β, pente de la courbe</label><output id="beta-value" for="beta"></output></div>
+          <input id="beta" type="range" min="2500" max="6000" step="1" value="3728">
+          <div class="ends"><span>2 500 K</span><span>6 000 K</span></div>
+        </div>
+        <div class="control">
+          <div class="control-head"><label for="r25">R<sub>25</sub>, résistance à 25 °C</label><output id="r25-value" for="r25"></output></div>
+          <input id="r25" type="range" min="10000" max="120000" step="10" value="27290">
+          <div class="ends"><span>10 kΩ</span><span>120 kΩ</span></div>
+        </div>
+        <label class="check"><input id="anchor" type="checkbox"><span>Conserver exactement le point affiché à <strong>90 °C</strong> (≈ 2,91 kΩ). R<sub>25</sub> suivra automatiquement β.</span></label>
+        <div class="presets">
+          <button type="button" id="reset">Valeurs actuelles</button>
+          <button type="button" id="example">Exemple froid + ancre 90 °C</button>
+          <button type="button" id="nominal47">47 kΩ / 4 700 K</button>
+          <button type="button" id="nominal50">50 kΩ / 4 800 K</button>
+        </div>
+        <div class="metrics">
+          <div class="metric"><small>Pour 42,1 kΩ</small><strong id="cold-result"></strong></div>
+          <div class="metric"><small>Pour ≈ 2,91 kΩ</small><strong id="hot-result"></strong></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card table-card" aria-labelledby="table-title">
+      <h2 id="table-title">Même résistance, autres paramètres</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Repère</th><th>NTC</th><th>Actuel</th><th>Modifié</th><th>Écart</th></tr></thead>
+          <tbody id="comparison"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card note-card" aria-labelledby="notes-title">
+      <h2 id="notes-title">Ce que représentent les repères</h2>
+      <p>Le point froid <strong>42,1 kΩ</strong> a été mesuré directement sur la sonde débranchée. Sa température réelle reste à confirmer après une nuit d'équilibre ; <strong>26,7 °C</strong> était une mesure IR de la chaudière et du raccord, pas de l'élément NTC lui-même. Le point chaud est celui que les constantes actuelles <em>affichent</em> à 90 °C. L'ancrer conserve ce comportement logiciel ; il ne prouve pas que la sonde ou l'eau du panier est exactement à 90 °C.</p>
+      <p>Le pont ADS1115 utilise la résistance fixe mesurée à <strong>2,193 kΩ</strong> : <code>R_NTC = 2193 × (A0/A1 − 1)</code>. Elle convertit les codes ADC en ohms ; elle ne change pas avec les curseurs. La conversion en température est <code>1/T = 1/298,15 + ln(R_NTC/R25)/β</code>, avec T en kelvins. Une vraie calibration devra vérifier la courbe et la coupure de chauffe avant usage à haute température.</p>
+      <p>Le préréglage 47 kΩ / 4 700 K correspond à une famille réelle de thermistances <a href="https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf">Panasonic</a> ; il ne permet pas d'identifier la sonde G1/8 de la machine. Le préréglage 50 kΩ / 4 800 K est une hypothèse à comparer aux mesures, sans identification de modèle.</p>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+    const CURRENT = { beta: 3728, r25: 27290 };
+    const T25 = 298.15;
+    const HOT_C = 90;
+    const COLD_R = 42100;
+    const HOT_R = resistanceAt(HOT_C, CURRENT);
+    const exampleBeta = Math.log(COLD_R / HOT_R) / (1 / (26.7 + 273.15) - 1 / (HOT_C + 273.15));
+    const betaInput = document.getElementById('beta');
+    const r25Input = document.getElementById('r25');
+    const anchorInput = document.getElementById('anchor');
+    const chart = document.getElementById('chart');
+    const format = (number, digits = 1) => new Intl.NumberFormat('fr-CH', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(number);
+    const model = () => ({ beta: Number(betaInput.value), r25: anchorInput.checked
+      ? anchoredR25(Number(betaInput.value)) : Number(r25Input.value) });
+
+    function temperatureAt(resistance, { beta, r25 }) {
+      return 1 / (1 / T25 + Math.log(resistance / r25) / beta) - 273.15;
+    }
+    function resistanceAt(celsius, { beta, r25 }) {
+      return r25 * Math.exp(beta * (1 / (celsius + 273.15) - 1 / T25));
+    }
+    function anchoredR25(beta) {
+      return HOT_R * Math.exp(beta * (1 / T25 - 1 / (HOT_C + 273.15)));
+    }
+
+    const W = 880, H = 460;
+    const plot = { left: 74, right: W - 28, top: 25, bottom: H - 59 };
+    const rMin = 2000, rMax = 60000, tMin = -10, tMax = 125;
+    const x = r => plot.left + (Math.log(r / rMin) / Math.log(rMax / rMin)) * (plot.right - plot.left);
+    const y = t => plot.bottom - ((t - tMin) / (tMax - tMin)) * (plot.bottom - plot.top);
+
+    function curvePath(params) {
+      const pieces = [];
+      for (let i = 0; i <= 320; i++) {
+        const resistance = rMin * Math.pow(rMax / rMin, i / 320);
+        pieces.push(`${i ? 'L' : 'M'}${x(resistance).toFixed(2)},${y(temperatureAt(resistance, params)).toFixed(2)}`);
+      }
+      return pieces.join(' ');
+    }
+    function drawChart(params) {
+      const xTicks = [2000, 3000, 5000, 10000, 20000, 40000, 60000];
+      const yTicks = [0, 25, 50, 75, 100, 125];
+      const gridX = xTicks.map(r => `<line x1="${x(r)}" x2="${x(r)}" y1="${plot.top}" y2="${plot.bottom}" stroke="#e6ece8"/><text x="${x(r)}" y="${plot.bottom + 23}" text-anchor="middle" fill="#66777d" font-size="13">${r / 1000}k</text>`).join('');
+      const gridY = yTicks.map(t => `<line x1="${plot.left}" x2="${plot.right}" y1="${y(t)}" y2="${y(t)}" stroke="#e6ece8"/><text x="${plot.left - 13}" y="${y(t) + 5}" text-anchor="end" fill="#66777d" font-size="13">${t}°</text>`).join('');
+      const markers = [
+        { r: COLD_R, label: '42,1 kΩ mesurés', dx: -6, anchor: 'end' },
+        { r: HOT_R, label: '≈ 2,91 kΩ', dx: 7, anchor: 'start' },
+      ].map(({ r, label, dx, anchor }) => `<line x1="${x(r)}" x2="${x(r)}" y1="${plot.top}" y2="${plot.bottom}" stroke="#e09b3c" stroke-width="1.5" stroke-dasharray="5 5"/><text x="${x(r) + dx}" y="${plot.top + 16}" text-anchor="${anchor}" fill="#9d6720" font-size="13" font-weight="650">${label}</text><circle cx="${x(r)}" cy="${y(temperatureAt(r, params))}" r="5" fill="#087b71" stroke="white" stroke-width="2"/>`).join('');
+      chart.innerHTML = `<defs><clipPath id="plot-clip"><rect x="${plot.left}" y="${plot.top}" width="${plot.right - plot.left}" height="${plot.bottom - plot.top}"/></clipPath></defs>${gridX}${gridY}<g clip-path="url(#plot-clip)"><path d="${curvePath(CURRENT)}" fill="none" stroke="#718187" stroke-width="3"/><path d="${curvePath(params)}" fill="none" stroke="#087b71" stroke-width="3.5"/></g>${markers}<text x="${(plot.left + plot.right) / 2}" y="${H - 13}" text-anchor="middle" fill="#41535b" font-size="14">Résistance NTC (kΩ, échelle logarithmique)</text><text transform="translate(22 ${(plot.top + plot.bottom) / 2}) rotate(-90)" text-anchor="middle" fill="#41535b" font-size="14">Température calculée (°C)</text>`;
+    }
+    function renderTable(params) {
+      const rows = [
+        { label: 'Mesure directe à froid', resistance: COLD_R, reference: true },
+        ...[50, 65, 80, 90, 100].map(t => ({ label: `Affichage actuel ${t} °C`, resistance: resistanceAt(t, CURRENT), reference: t === 90 })),
+      ];
+      document.getElementById('comparison').innerHTML = rows.map(({ label, resistance, reference }) => {
+        const oldT = temperatureAt(resistance, CURRENT);
+        const newT = temperatureAt(resistance, params);
+        const delta = newT - oldT;
+        return `<tr${reference ? ' class="reference"' : ''}><td>${label}</td><td>${format(resistance / 1000, 2)} kΩ</td><td>${format(oldT)} °C</td><td>${format(newT)} °C</td><td>${delta >= 0 ? '+' : ''}${format(delta)} °C</td></tr>`;
+      }).join('');
+    }
+    function render() {
+      if (anchorInput.checked) r25Input.value = String(Math.round(anchoredR25(Number(betaInput.value)) / 10) * 10);
+      r25Input.disabled = anchorInput.checked;
+      const params = model();
+      document.getElementById('beta-value').textContent = `${format(params.beta, 0)} K`;
+      document.getElementById('r25-value').textContent = `${format(params.r25 / 1000, 2)} kΩ`;
+      document.getElementById('cold-result').textContent = `${format(temperatureAt(COLD_R, params))} °C`;
+      document.getElementById('hot-result').textContent = `${format(temperatureAt(HOT_R, params))} °C`;
+      drawChart(params);
+      renderTable(params);
+    }
+
+    betaInput.addEventListener('input', render);
+    r25Input.addEventListener('input', render);
+    anchorInput.addEventListener('change', render);
+    document.getElementById('reset').addEventListener('click', () => {
+      anchorInput.checked = false;
+      betaInput.value = String(CURRENT.beta);
+      r25Input.value = String(CURRENT.r25);
+      render();
+    });
+    document.getElementById('example').addEventListener('click', () => {
+      anchorInput.checked = true;
+      betaInput.value = String(Math.round(exampleBeta / 10) * 10);
+      render();
+    });
+    for (const [id, beta, r25] of [['nominal47', 4700, 47000], ['nominal50', 4800, 50000]]) {
+      document.getElementById(id).addEventListener('click', () => {
+        anchorInput.checked = false;
+        betaInput.value = String(beta);
+        r25Input.value = String(r25);
+        render();
+      });
+    }
+    chart.addEventListener('pointermove', event => {
+      const box = chart.getBoundingClientRect();
+      const position = (event.clientX - box.left) / box.width * W;
+      if (position < plot.left || position > plot.right) return;
+      const resistance = rMin * Math.pow(rMax / rMin, (position - plot.left) / (plot.right - plot.left));
+      document.getElementById('readout').textContent = `${format(resistance / 1000, 2)} kΩ → actuel ${format(temperatureAt(resistance, CURRENT))} °C ; modifié ${format(temperatureAt(resistance, model()))} °C`;
+    });
+    chart.addEventListener('pointerleave', () => {
+      document.getElementById('readout').textContent = 'Survolez le graphique pour comparer les deux températures à une résistance donnée.';
+    });
+    render();
+  </script>
+</body>
+</html>

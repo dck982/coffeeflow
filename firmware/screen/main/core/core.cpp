@@ -326,6 +326,9 @@ void tick_thermal() {
       snapshot.cycle_state == CycleState::kPreinfusion ||
       snapshot.cycle_state == CycleState::kBrew ||
       snapshot.cycle_state == CycleState::kRampdown;
+  const auto mode = snapshot.cycle_state == CycleState::kPurge
+      ? thermal::Controller::Mode::kPurge
+      : brewing ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
   const bool can_heat = config.heating_enabled && !g_flash_active &&
       !snapshot.heating_requested && !snapshot.lockout && snapshot.sensors_alive &&
       snapshot.heating_power_capable && snapshot.heating_freshness == Freshness::kFresh;
@@ -334,7 +337,7 @@ void tick_thermal() {
       config.brew_temperature_c,
       snapshot.boiler_temperature_valid &&
           snapshot.boiler_temperature_freshness == Freshness::kFresh,
-      can_heat, brewing);
+      can_heat, mode);
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
   g_state.snapshot.brew_temperature_ready = output.ready;

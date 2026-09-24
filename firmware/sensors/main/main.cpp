@@ -989,7 +989,7 @@ void dispatch_frame(const twai_message_t& msg) {
       on_set_heating_power_received(msg.data, msg.data_length_code);
       break;
     case common::MessageType::kConfirmSensorsOta:
-      if (msg.data_length_code == 1 && msg.data[0] == common::kHeatingProtocolMinPatch &&
+      if (msg.data_length_code == 1 && msg.data[0] == common::kHeatingProtocolConfirmationToken &&
           g_ota_roundtrip_confirmed &&
           g_heating_period_ms != 0 && g_actuators_period_ms != 0 &&
           (!g_heater_on || (g_heating_power_mode && g_heating_deadline_us > now_us())) &&

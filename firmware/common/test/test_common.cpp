@@ -9,6 +9,7 @@
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/protocol.hpp"
+#include "common/version.hpp"
 #include "log_codes.hpp"
 
 namespace {
@@ -47,6 +48,14 @@ void test_can_id_priority_ordering() {
 void test_known_message_type() {
   CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kPing)));
   CHECK(!is_known_message_type(0x3F));  // valeur haute, jamais assignée
+}
+
+void test_heating_protocol_version() {
+  CHECK(!heating_protocol_supported(0, 2, 62));
+  CHECK(heating_protocol_supported(0, 2, 63));
+  CHECK(heating_protocol_supported(0, 2, 69));
+  CHECK(heating_protocol_supported(0, 3, 0));
+  CHECK(!heating_protocol_supported(1, 0, 0));
 }
 
 void test_set_payload_roundtrip() {
@@ -372,6 +381,7 @@ int main() {
   test_can_id_roundtrip();
   test_can_id_priority_ordering();
   test_known_message_type();
+  test_heating_protocol_version();
   test_set_payload_roundtrip();
   test_heating_protocol_is_independent_and_rejects_invalid_frames();
   test_pong_payload_roundtrip();

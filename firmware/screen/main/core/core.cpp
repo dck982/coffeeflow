@@ -543,14 +543,15 @@ void telemetry_task(void*) {
         ota_snapshot.heating_power_accepted_pct > 0 &&
         ota_snapshot.heating_lease_remaining_ms > 0;
     if (now - last_ota_confirm_us >= 1000 * 1000 &&
-        ota_snapshot.sensors_alive && ota_snapshot.sensors_version_major == common::kFirmwareVersionMajor &&
-        ota_snapshot.sensors_version_minor == common::kFirmwareVersionMinor &&
-        ota_snapshot.sensors_version_patch >= common::kHeatingProtocolMinPatch &&
+        ota_snapshot.sensors_alive &&
+        common::heating_protocol_supported(ota_snapshot.sensors_version_major,
+                                           ota_snapshot.sensors_version_minor,
+                                           ota_snapshot.sensors_version_patch) &&
         ota_snapshot.actuators_freshness == Freshness::kFresh &&
         ota_snapshot.heating_freshness == Freshness::kFresh &&
         !ota_snapshot.valve_open && ota_snapshot.pump_pct == 0 &&
         (!ota_snapshot.heater_on || controlled_heating)) {
-      const uint8_t version = common::kHeatingProtocolMinPatch;
+      const uint8_t version = common::kHeatingProtocolConfirmationToken;
       can_link::send_message(common::MessageType::kConfirmSensorsOta, common::Dest::kSensors, &version, 1);
       last_ota_confirm_us = now;
     }
@@ -817,9 +818,8 @@ void on_pong(const uint8_t* data, uint8_t len) {
   portENTER_CRITICAL(&g_state.lock);
   g_state.last_sensors_message_us = now;
   if (payload.uptime_s < g_state.snapshot.sensors_uptime_s ||
-      payload.version_major != common::kFirmwareVersionMajor ||
-      payload.version_minor != common::kFirmwareVersionMinor ||
-      payload.version_patch < common::kHeatingProtocolMinPatch) {
+      !common::heating_protocol_supported(payload.version_major, payload.version_minor,
+                                           payload.version_patch)) {
     g_state.heating_received_us = 0;
     g_state.snapshot.heating_capable = false;
     g_state.snapshot.heating_power_capable = false;

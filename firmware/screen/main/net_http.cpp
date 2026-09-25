@@ -198,86 +198,94 @@ cJSON* encode_config(const core::Config& config) {
 
 cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON* root = cJSON_CreateObject();
-  cJSON_AddNumberToObject(root, "pressure_bar", snapshot.pressure_bar);
   cJSON_AddNumberToObject(root, "uptime_ms", static_cast<double>(esp_timer_get_time() / 1000));
+  cJSON* sensors = cJSON_AddObjectToObject(root, "sensors");
+  cJSON* actuators = cJSON_AddObjectToObject(root, "actuators");
+  cJSON* cycle_state = cJSON_AddObjectToObject(root, "cycle");
+  cJSON* firmware = cJSON_AddObjectToObject(root, "firmware");
+  cJSON* screen = cJSON_AddObjectToObject(firmware, "screen");
+  cJSON* screen_ota = cJSON_AddObjectToObject(screen, "ota");
+  cJSON_AddNumberToObject(sensors, "pressure_bar", snapshot.pressure_bar);
   const core::Config config = core::get_config();
-  cJSON_AddBoolToObject(root, "heating_enabled", config.heating_enabled);
-  cJSON_AddNumberToObject(root, "brew_temperature_target_c", config.brew_temperature_c);
-  cJSON_AddBoolToObject(root, "brew_temperature_ready", snapshot.brew_temperature_ready);
-  cJSON_AddNumberToObject(root, "heating_power_pct", snapshot.heating_power_pct);
+  cJSON_AddBoolToObject(actuators, "heating_enabled", config.heating_enabled);
+  cJSON_AddNumberToObject(actuators, "brew_temperature_target_c", config.brew_temperature_c);
+  cJSON_AddBoolToObject(actuators, "brew_temperature_ready", snapshot.brew_temperature_ready);
+  cJSON_AddNumberToObject(actuators, "heating_power_pct", snapshot.heating_power_pct);
   if (snapshot.heating_freshness == core::Freshness::kFresh)
-    cJSON_AddNumberToObject(root, "heating_power_accepted_pct", snapshot.heating_power_accepted_pct);
-  else cJSON_AddNullToObject(root, "heating_power_accepted_pct");
+    cJSON_AddNumberToObject(actuators, "heating_power_accepted_pct", snapshot.heating_power_accepted_pct);
+  else cJSON_AddNullToObject(actuators, "heating_power_accepted_pct");
   if (snapshot.pressure_valid && snapshot.pressure_freshness == core::Freshness::kFresh)
-    cJSON_AddNumberToObject(root, "xdb401_temperature_c", snapshot.xdb401_temperature_c);
-  else cJSON_AddNullToObject(root, "xdb401_temperature_c");
+    cJSON_AddNumberToObject(sensors, "xdb401_temperature_c", snapshot.xdb401_temperature_c);
+  else cJSON_AddNullToObject(sensors, "xdb401_temperature_c");
   // Alias HTTP demandé pour la température affichée : même valeur et même
   // comportement null que boiler_temperature_c.
   if (snapshot.boiler_temperature_age_ms == UINT32_MAX) {
-    cJSON_AddNullToObject(root, "temperature_c");
-    cJSON_AddNullToObject(root, "boiler_temperature_c");
+    cJSON_AddNullToObject(sensors, "temperature_c");
+    cJSON_AddNullToObject(sensors, "boiler_temperature_c");
   } else {
-    cJSON_AddNumberToObject(root, "temperature_c", snapshot.boiler_temperature_c);
-    cJSON_AddNumberToObject(root, "boiler_temperature_c", snapshot.boiler_temperature_c);
+    cJSON_AddNumberToObject(sensors, "temperature_c", snapshot.boiler_temperature_c);
+    cJSON_AddNumberToObject(sensors, "boiler_temperature_c", snapshot.boiler_temperature_c);
   }
-  cJSON_AddBoolToObject(root, "boiler_temperature_valid", snapshot.boiler_temperature_valid);
-  cJSON_AddStringToObject(root, "boiler_temperature_freshness", freshness_text(snapshot.boiler_temperature_freshness));
-  add_age(root, "boiler_temperature_age_ms", snapshot.boiler_temperature_age_ms);
-  cJSON_AddNumberToObject(root, "boiler_ntc_a0_raw", snapshot.boiler_ntc_a0_raw);
-  cJSON_AddNumberToObject(root, "boiler_ntc_a1_raw", snapshot.boiler_ntc_a1_raw);
-  cJSON_AddNumberToObject(root, "flow_ml_s", snapshot.flow_ml_s);
-  cJSON_AddNumberToObject(root, "volume_ml", snapshot.volume_ml);
-  cJSON_AddNumberToObject(root, "pressure_raw", snapshot.pressure_raw);
-  cJSON_AddNumberToObject(root, "temperature_raw", snapshot.temperature_raw);
-  cJSON_AddNumberToObject(root, "xdb401_temperature_raw", snapshot.xdb401_temperature_raw);
-  cJSON_AddNumberToObject(root, "flow_pulse_count", snapshot.flow_pulse_count);
-  cJSON_AddBoolToObject(root, "pressure_valid", snapshot.pressure_valid);
-  cJSON_AddBoolToObject(root, "flow_valid", snapshot.flow_valid);
-  cJSON_AddStringToObject(root, "pressure_freshness", freshness_text(snapshot.pressure_freshness));
-  cJSON_AddStringToObject(root, "flow_freshness", freshness_text(snapshot.flow_freshness));
-  cJSON_AddStringToObject(root, "actuators_freshness", freshness_text(snapshot.actuators_freshness));
-  add_age(root, "pressure_age_ms", snapshot.pressure_age_ms);
-  add_age(root, "flow_age_ms", snapshot.flow_age_ms);
-  add_age(root, "actuators_age_ms", snapshot.actuators_age_ms);
-  add_age(root, "flow_last_edge_age_ms", snapshot.flow_last_edge_age_ms);
-  cJSON_AddBoolToObject(root, "sensors_alive", snapshot.sensors_alive);
-  cJSON_AddBoolToObject(root, "touch_ready", snapshot.touch_ready);
-  cJSON_AddNumberToObject(root, "touch_press_count", snapshot.touch_press_count);
-  cJSON_AddBoolToObject(root, "screen_ota_pending_verify", ota_local::pending_verify());
+  cJSON_AddBoolToObject(sensors, "boiler_temperature_valid", snapshot.boiler_temperature_valid);
+  cJSON_AddStringToObject(sensors, "boiler_temperature_freshness", freshness_text(snapshot.boiler_temperature_freshness));
+  add_age(sensors, "boiler_temperature_age_ms", snapshot.boiler_temperature_age_ms);
+  cJSON_AddNumberToObject(sensors, "boiler_ntc_a0_raw", snapshot.boiler_ntc_a0_raw);
+  cJSON_AddNumberToObject(sensors, "boiler_ntc_a1_raw", snapshot.boiler_ntc_a1_raw);
+  cJSON_AddNumberToObject(sensors, "flow_ml_s", snapshot.flow_ml_s);
+  cJSON_AddNumberToObject(sensors, "volume_ml", snapshot.volume_ml);
+  cJSON_AddNumberToObject(sensors, "pressure_raw", snapshot.pressure_raw);
+  cJSON_AddNumberToObject(sensors, "temperature_raw", snapshot.temperature_raw);
+  cJSON_AddNumberToObject(sensors, "xdb401_temperature_raw", snapshot.xdb401_temperature_raw);
+  cJSON_AddNumberToObject(sensors, "flow_pulse_count", snapshot.flow_pulse_count);
+  cJSON_AddBoolToObject(sensors, "pressure_valid", snapshot.pressure_valid);
+  cJSON_AddBoolToObject(sensors, "flow_valid", snapshot.flow_valid);
+  cJSON_AddStringToObject(sensors, "pressure_freshness", freshness_text(snapshot.pressure_freshness));
+  cJSON_AddStringToObject(sensors, "flow_freshness", freshness_text(snapshot.flow_freshness));
+  cJSON_AddStringToObject(actuators, "freshness", freshness_text(snapshot.actuators_freshness));
+  add_age(sensors, "pressure_age_ms", snapshot.pressure_age_ms);
+  add_age(sensors, "flow_age_ms", snapshot.flow_age_ms);
+  add_age(actuators, "age_ms", snapshot.actuators_age_ms);
+  add_age(sensors, "flow_last_edge_age_ms", snapshot.flow_last_edge_age_ms);
+  cJSON_AddBoolToObject(sensors, "alive", snapshot.sensors_alive);
+  cJSON* inputs = cJSON_AddObjectToObject(root, "inputs");
+  cJSON_AddBoolToObject(inputs, "touch_ready", snapshot.touch_ready);
+  cJSON_AddNumberToObject(inputs, "touch_press_count", snapshot.touch_press_count);
+  cJSON_AddBoolToObject(screen_ota, "pending_verify", ota_local::pending_verify());
   const esp_partition_t* staging = esp_partition_find_first(
       ESP_PARTITION_TYPE_DATA, static_cast<esp_partition_subtype_t>(0x40), "ota_staging");
-  cJSON_AddBoolToObject(root, "ota_staging_available", staging != nullptr);
-  if (staging != nullptr) cJSON_AddNumberToObject(root, "ota_staging_size", staging->size);
+  cJSON* staging_info = cJSON_AddObjectToObject(firmware, "ota_staging");
+  cJSON_AddBoolToObject(staging_info, "available", staging != nullptr);
+  if (staging != nullptr) cJSON_AddNumberToObject(staging_info, "size", staging->size);
   const esp_partition_t* running = esp_ota_get_running_partition();
   if (running != nullptr) {
-    cJSON_AddStringToObject(root, "screen_running_partition", running->label);
+    cJSON_AddStringToObject(screen_ota, "running_partition", running->label);
     esp_ota_img_states_t ota_state;
     if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK)
-      cJSON_AddStringToObject(root, "screen_ota_state", ota_state_text(ota_state));
-    else cJSON_AddStringToObject(root, "screen_ota_state", "unavailable");
+      cJSON_AddStringToObject(screen_ota, "state", ota_state_text(ota_state));
+    else cJSON_AddStringToObject(screen_ota, "state", "unavailable");
   }
-  cJSON_AddBoolToObject(root, "valve_open", snapshot.valve_open);
-  cJSON_AddNumberToObject(root, "dimmer_pct", snapshot.dimmer_pct);
-  cJSON_AddNumberToObject(root, "pump_pct", snapshot.pump_pct);
-  cJSON_AddBoolToObject(root, "heating_capable", snapshot.heating_capable);
-  cJSON_AddBoolToObject(root, "heating_power_capable", snapshot.heating_power_capable);
-  cJSON_AddBoolToObject(root, "heating_requested", snapshot.heating_requested);
-  cJSON_AddStringToObject(root, "heating_freshness", freshness_text(snapshot.heating_freshness));
-  add_age(root, "heating_age_ms", snapshot.heating_age_ms);
+  cJSON_AddBoolToObject(actuators, "valve_open", snapshot.valve_open);
+  cJSON_AddNumberToObject(actuators, "dimmer_pct", snapshot.dimmer_pct);
+  cJSON_AddNumberToObject(actuators, "pump_pct", snapshot.pump_pct);
+  cJSON_AddBoolToObject(actuators, "heating_capable", snapshot.heating_capable);
+  cJSON_AddBoolToObject(actuators, "heating_power_capable", snapshot.heating_power_capable);
+  cJSON_AddBoolToObject(actuators, "heating_requested", snapshot.heating_requested);
+  cJSON_AddStringToObject(actuators, "heating_freshness", freshness_text(snapshot.heating_freshness));
+  add_age(actuators, "heating_age_ms", snapshot.heating_age_ms);
   if (snapshot.heating_freshness == core::Freshness::kFresh)
-    cJSON_AddBoolToObject(root, "heater_on", snapshot.heater_on);
-  else cJSON_AddNullToObject(root, "heater_on");
-  cJSON_AddNumberToObject(root, "heating_lease_remaining_ms", snapshot.heating_lease_remaining_ms);
-  cJSON_AddBoolToObject(root, "dimmer_ready", snapshot.dimmer_ready);
-  cJSON_AddBoolToObject(root, "dimmer_valid", snapshot.dimmer_valid);
-  cJSON_AddBoolToObject(root, "dimmer_error_active", snapshot.dimmer_error_active);
-  cJSON_AddBoolToObject(root, "lockout", snapshot.lockout);
-  cJSON_AddNumberToObject(root, "lease_remaining_ms", snapshot.lease_remaining_ms);
-  cJSON_AddNumberToObject(root, "continuous_on_ms", snapshot.continuous_on_ms);
-  cJSON_AddNumberToObject(root, "weight_g", snapshot.weight_g);
-  cJSON_AddBoolToObject(root, "scale_connected", snapshot.scale_connected);
-  cJSON_AddBoolToObject(root, "scale_present", snapshot.scale_present);
-  add_age(root, "scale_age_ms", snapshot.scale_age_ms);
+    cJSON_AddBoolToObject(actuators, "heater_on", snapshot.heater_on);
+  else cJSON_AddNullToObject(actuators, "heater_on");
+  cJSON_AddNumberToObject(actuators, "heating_lease_remaining_ms", snapshot.heating_lease_remaining_ms);
+  cJSON_AddBoolToObject(actuators, "dimmer_ready", snapshot.dimmer_ready);
+  cJSON_AddBoolToObject(actuators, "dimmer_valid", snapshot.dimmer_valid);
+  cJSON_AddBoolToObject(actuators, "dimmer_error_active", snapshot.dimmer_error_active);
+  cJSON_AddBoolToObject(actuators, "lockout", snapshot.lockout);
+  cJSON_AddNumberToObject(actuators, "lease_remaining_ms", snapshot.lease_remaining_ms);
+  cJSON_AddNumberToObject(actuators, "continuous_on_ms", snapshot.continuous_on_ms);
+  cJSON_AddNumberToObject(sensors, "weight_g", snapshot.weight_g);
+  cJSON_AddBoolToObject(sensors, "scale_connected", snapshot.scale_connected);
+  cJSON_AddBoolToObject(sensors, "scale_present", snapshot.scale_present);
+  add_age(sensors, "scale_age_ms", snapshot.scale_age_ms);
   const char* cycle = "idle";
   switch (snapshot.cycle_state) {
     case core::CycleState::kFilling: cycle = "filling"; break;
@@ -288,11 +296,11 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
     case core::CycleState::kPurge: cycle = "purge"; break;
     case core::CycleState::kIdle: break;
   }
-  cJSON_AddStringToObject(root, "cycle", cycle);
-  cJSON_AddNumberToObject(root, "cycle_elapsed_ms", snapshot.cycle_elapsed_ms);
-  cJSON_AddBoolToObject(root, "cycle_weight_goal", snapshot.cycle_weight_goal);
-  cJSON_AddBoolToObject(root, "capture_cooldown", snapshot.capture_cooldown);
-  cJSON* last_shot = cJSON_AddObjectToObject(root, "last_shot");
+  cJSON_AddStringToObject(cycle_state, "state", cycle);
+  cJSON_AddNumberToObject(cycle_state, "elapsed_ms", snapshot.cycle_elapsed_ms);
+  cJSON_AddBoolToObject(cycle_state, "weight_goal", snapshot.cycle_weight_goal);
+  cJSON_AddBoolToObject(cycle_state, "capture_cooldown", snapshot.capture_cooldown);
+  cJSON* last_shot = cJSON_AddObjectToObject(cycle_state, "last_shot");
   cJSON_AddBoolToObject(last_shot, "available", snapshot.last_shot_available);
   if (snapshot.last_shot_available) {
     cJSON_AddNumberToObject(last_shot, "weight_g", snapshot.last_shot_weight_g);
@@ -301,7 +309,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
     if (snapshot.last_shot_unix_s != 0) cJSON_AddNumberToObject(last_shot, "unix_s", static_cast<double>(snapshot.last_shot_unix_s));
     else cJSON_AddNullToObject(last_shot, "unix_s");
   }
-  cJSON* flash = cJSON_AddObjectToObject(root, "flash");
+  cJSON* flash = cJSON_AddObjectToObject(firmware, "flash");
   cJSON_AddBoolToObject(flash, "active", snapshot.flash_active);
   cJSON_AddStringToObject(flash, "target", snapshot.flash_target == core::FlashTarget::kScreen ? "screen" : snapshot.flash_target == core::FlashTarget::kSensors ? "sensors" : "none");
   cJSON_AddNumberToObject(flash, "bytes_done", snapshot.flash_bytes_done);
@@ -331,20 +339,19 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
     cJSON_AddNullToObject(network, "wall_time_unix_s");
   }
 
-  cJSON* screen = cJSON_AddObjectToObject(root, "screen");
   cJSON_AddNumberToObject(screen, "version_major", snapshot.screen_version_major);
   cJSON_AddNumberToObject(screen, "version_minor", snapshot.screen_version_minor);
   cJSON_AddNumberToObject(screen, "version_patch", snapshot.screen_version_patch);
   cJSON_AddNumberToObject(screen, "uptime_s", snapshot.screen_uptime_s);
 
-  cJSON* sensors = cJSON_AddObjectToObject(root, "sensors");
-  cJSON_AddNumberToObject(sensors, "version_major", snapshot.sensors_version_major);
-  cJSON_AddNumberToObject(sensors, "version_minor", snapshot.sensors_version_minor);
-  cJSON_AddNumberToObject(sensors, "version_patch", snapshot.sensors_version_patch);
-  cJSON_AddNumberToObject(sensors, "uptime_s", snapshot.sensors_uptime_s);
-  cJSON_AddNumberToObject(sensors, "twai_rx_errors", snapshot.sensors_twai_rx_errors);
-  cJSON_AddNumberToObject(sensors, "twai_tx_errors", snapshot.sensors_twai_tx_errors);
-  cJSON_AddNumberToObject(sensors, "twai_bus_errors", snapshot.sensors_twai_bus_errors);
+  cJSON* sensors_firmware = cJSON_AddObjectToObject(firmware, "sensors");
+  cJSON_AddNumberToObject(sensors_firmware, "version_major", snapshot.sensors_version_major);
+  cJSON_AddNumberToObject(sensors_firmware, "version_minor", snapshot.sensors_version_minor);
+  cJSON_AddNumberToObject(sensors_firmware, "version_patch", snapshot.sensors_version_patch);
+  cJSON_AddNumberToObject(sensors_firmware, "uptime_s", snapshot.sensors_uptime_s);
+  cJSON_AddNumberToObject(sensors_firmware, "twai_rx_errors", snapshot.sensors_twai_rx_errors);
+  cJSON_AddNumberToObject(sensors_firmware, "twai_tx_errors", snapshot.sensors_twai_tx_errors);
+  cJSON_AddNumberToObject(sensors_firmware, "twai_bus_errors", snapshot.sensors_twai_bus_errors);
   return root;
 }
 

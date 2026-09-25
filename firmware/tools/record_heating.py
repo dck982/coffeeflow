@@ -79,9 +79,10 @@ def target_from_config(config: dict[str, Any]) -> tuple[int, float]:
 
 
 def valid_temperature(sample: dict[str, Any]) -> float | None:
-    temperature = sample.get("boiler_temperature_c")
-    if (sample.get("boiler_temperature_valid") is True and
-            sample.get("boiler_temperature_freshness") == "fresh" and
+    sensors = sample.get("sensors", {})
+    temperature = sensors.get("boiler_temperature_c")
+    if (sensors.get("boiler_temperature_valid") is True and
+            sensors.get("boiler_temperature_freshness") == "fresh" and
             not isinstance(temperature, bool) and isinstance(temperature, (int, float)) and
             math.isfinite(temperature)):
         return float(temperature)
@@ -158,7 +159,7 @@ def record_heating(output: Path,
             temperature = valid_temperature(telemetry)
             if received >= next_status:
                 current = f"{temperature:.1f} °C" if temperature is not None else "indisponible"
-                power = telemetry.get("heating_power_pct")
+                power = telemetry.get("actuators", {}).get("heating_power_pct")
                 requested = (f"{power:.1f} %" if isinstance(power, (int, float)) and
                              not isinstance(power, bool) and math.isfinite(power) else "indisponible")
                 print(f"{received - started:5.1f} s : chaudière {current} / cible {target_c:.1f} °C"

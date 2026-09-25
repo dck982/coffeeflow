@@ -26,11 +26,11 @@ Client = Callable[[str, str, dict[str, Any] | None], dict[str, Any]]
 
 
 def describe_telemetry(label: str, telemetry: dict[str, Any]) -> None:
-    temperature = telemetry.get("boiler_temperature_c")
+    temperature = telemetry.get("sensors", {}).get("boiler_temperature_c")
     temperature_text = f"{temperature:.2f} °C" if isinstance(temperature, (int, float)) else "indisponible"
-    power = telemetry.get("heating_power_pct")
+    power = telemetry.get("actuators", {}).get("heating_power_pct")
     power_text = f"{power:.1f} %" if isinstance(power, (int, float)) else "indisponible"
-    print(f"{label} : chaudière {temperature_text}, chauffe {power_text}, cycle {telemetry.get('cycle')}", flush=True)
+    print(f"{label} : chaudière {temperature_text}, chauffe {power_text}, cycle {telemetry.get('cycle', {}).get('state')}", flush=True)
 
 
 def purge(duration_s: float, client: Client, *, sleep: Callable[[float], None] = time.sleep) -> None:
@@ -46,8 +46,9 @@ def purge(duration_s: float, client: Client, *, sleep: Callable[[float], None] =
         raise ValueError(f"la durée doit être inférieure à purge.max_s ({max_s:g} s)")
 
     before = client("GET", "/telemetry", None)
-    if before.get("cycle") not in ("idle", "finished"):
-        raise RuntimeError(f"purge impossible : cycle actuel {before.get('cycle')!r}")
+    cycle = before.get("cycle", {}).get("state")
+    if cycle not in ("idle", "finished"):
+        raise RuntimeError(f"purge impossible : cycle actuel {cycle!r}")
     describe_telemetry("Avant", before)
 
     # Le POST peut être appliqué même si la réponse Wi-Fi se perd. Dans ce cas,

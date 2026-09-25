@@ -33,10 +33,10 @@ class CaptureTests(unittest.TestCase):
                 return {"heating": {"enabled": body["heating"]["enabled"]}}
             if fail_telemetry:
                 raise RuntimeError("réseau perdu")
-            return {"boiler_temperature_c": next(readings),
-                    "boiler_temperature_valid": True,
-                    "boiler_temperature_freshness": "fresh",
-                    "heating_power_pct": 37.5}
+            return {"sensors": {"boiler_temperature_c": next(readings),
+                                "boiler_temperature_valid": True,
+                                "boiler_temperature_freshness": "fresh"},
+                    "actuators": {"heating_power_pct": 37.5}}
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "heating.json"
@@ -92,8 +92,8 @@ class CaptureTests(unittest.TestCase):
             if method == "POST":
                 attempts += 1
                 raise RuntimeError("réseau perdu")
-            return {"boiler_temperature_c": 90, "boiler_temperature_valid": True,
-                    "boiler_temperature_freshness": "fresh"}
+            return {"sensors": {"boiler_temperature_c": 90, "boiler_temperature_valid": True,
+                                "boiler_temperature_freshness": "fresh"}}
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "heating.json"
@@ -111,8 +111,9 @@ class CaptureTests(unittest.TestCase):
             calls.append((method, path, body))
             if path == "/config":
                 return {"version": 6, "heating": {"enabled": True, "brew_temperature_c": 90}}
-            return {"boiler_temperature_c": 90, "boiler_temperature_valid": True,
-                    "boiler_temperature_freshness": "fresh", "heating_power_pct": 20}
+            return {"sensors": {"boiler_temperature_c": 90, "boiler_temperature_valid": True,
+                                "boiler_temperature_freshness": "fresh"},
+                    "actuators": {"heating_power_pct": 20}}
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "monitor.json"

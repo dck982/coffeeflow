@@ -998,7 +998,11 @@ esp_err_t firmware_confirm_handler(httpd_req_t* request) {
   if (!require_auth(request)) return ESP_OK;
   if (!ota_local::confirm_pending_verify())
     return send_error(request, "409 Conflict", "not_ready", nullptr);
-  return send_status_json(request, "200 OK", "{\"ok\":true,\"confirmed\":true}");
+  esp_err_t err = send_status_json(request, "200 OK", "{\"ok\":true,\"confirmed\":true,\"rebooting\":true}");
+  if (err == ESP_OK) {
+    xTaskCreatePinnedToCore(reboot_after_http_response, "http_reboot", 2048, nullptr, 4, nullptr, 0);
+  }
+  return err;
 }
 
 }  // namespace

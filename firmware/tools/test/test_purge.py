@@ -13,8 +13,8 @@ class PurgeTests(unittest.TestCase):
             if path == "/config":
                 return {"purge": {"max_s": 20}}
             if path == "/telemetry":
-                return {"cycle": {"state": "idle"}, "sensors": {"boiler_temperature_c": 90},
-                        "actuators": {"heating_power_pct": 0}}
+                return {"brew": {"state": "idle"}, "temperature": {"boiler": {"c": 90}},
+                        "heating": {"power_pct": 0}}
             return {"ok": True}
 
         purge(10, client, sleep=sleeps.append)
@@ -34,7 +34,7 @@ class PurgeTests(unittest.TestCase):
             if path == "/config":
                 return {"purge": {"max_s": 20}}
             if path == "/telemetry":
-                return {"cycle": {"state": "idle"}}
+                return {"brew": {"state": "idle"}}
             actions.append(body["action"])
             return {"ok": True}
 
@@ -52,7 +52,7 @@ class PurgeTests(unittest.TestCase):
             if path == "/config":
                 return {"purge": {"max_s": 20}}
             if path == "/telemetry":
-                return {"cycle": {"state": "idle"}}
+                return {"brew": {"state": "idle"}}
             actions.append(body["action"])
             if body["action"] == "purge_press":
                 raise RuntimeError("réponse Wi-Fi perdue")

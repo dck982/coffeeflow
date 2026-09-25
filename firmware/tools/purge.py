@@ -26,11 +26,11 @@ Client = Callable[[str, str, dict[str, Any] | None], dict[str, Any]]
 
 
 def describe_telemetry(label: str, telemetry: dict[str, Any]) -> None:
-    temperature = telemetry.get("sensors", {}).get("boiler_temperature_c")
+    temperature = telemetry.get("temperature", {}).get("boiler", {}).get("c")
     temperature_text = f"{temperature:.2f} °C" if isinstance(temperature, (int, float)) else "indisponible"
-    power = telemetry.get("actuators", {}).get("heating_power_pct")
+    power = telemetry.get("heating", {}).get("power_pct")
     power_text = f"{power:.1f} %" if isinstance(power, (int, float)) else "indisponible"
-    print(f"{label} : chaudière {temperature_text}, chauffe {power_text}, cycle {telemetry.get('cycle', {}).get('state')}", flush=True)
+    print(f"{label} : chaudière {temperature_text}, chauffe {power_text}, cycle {telemetry.get('brew', {}).get('state')}", flush=True)
 
 
 def purge(duration_s: float, client: Client, *, sleep: Callable[[float], None] = time.sleep) -> None:
@@ -46,7 +46,7 @@ def purge(duration_s: float, client: Client, *, sleep: Callable[[float], None] =
         raise ValueError(f"la durée doit être inférieure à purge.max_s ({max_s:g} s)")
 
     before = client("GET", "/telemetry", None)
-    cycle = before.get("cycle", {}).get("state")
+    cycle = before.get("brew", {}).get("state")
     if cycle not in ("idle", "finished"):
         raise RuntimeError(f"purge impossible : cycle actuel {cycle!r}")
     describe_telemetry("Avant", before)

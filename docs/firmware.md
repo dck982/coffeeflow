@@ -48,38 +48,40 @@ observer ; s'il ne bouge pas alors que l'eau traverse bien la turbine, le
 diagnostic porte sur le capteur, son câblage et son sens de montage, avant la
 calibration du facteur K.
 
-`GET /telemetry` (depuis 0.3.12) regroupe les champs par fonction :
+`GET /telemetry` (depuis 0.3.13) suit les fonctions de la machine :
 
 | Objet | Contenu |
 | --- | --- |
-| `sensors` | Mesures calibrées et brutes, validités, fraîcheur, âges, poids et présence des capteurs. Par exemple `sensors.boiler_temperature_c`, `sensors.pressure_bar`, `sensors.flow_ml_s`. |
-| `actuators` | Pompe, vanne, chauffe, dimmer, capacités, échos et baux. Par exemple `actuators.heating_power_pct`, `actuators.heater_on`. |
-| `cycle` | `state`, `elapsed_ms`, `weight_goal`, `capture_cooldown` et `last_shot`. |
-| `firmware` | Versions et temps de fonctionnement de `screen` et `sensors`, `screen.ota`, `ota_staging` et progression `flash`. |
+| `temperature.boiler` | Température chaudière `c`, validité, fraîcheur, âge et codes NTC `ntc_a0_raw` / `ntc_a1_raw`. |
+| `temperature.xdb401` | Température `c` et code `raw` du XDB401. `c` vaut `null` si la mesure de pression associée n'est pas fraîche et valide. |
+| `pressure` | Pression `bar`, mesure `raw`, validité, fraîcheur et âge. |
+| `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
+| `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
+| `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |
+| `firmware` | Versions et temps de fonctionnement de `screen` et `sensors`, présence CAN `sensors.alive`, `screen.ota`, `ota_staging` et progression `flash`. |
 | `network`, `inputs` | État réseau et écran tactile. |
 | `uptime_ms` | Temps de fonctionnement de l'écran en millisecondes. |
 
-Les noms des mesures et états conservent leur sens dans leur objet. Par exemple
-`temperature_c` est un alias de `boiler_temperature_c` **dans `sensors`** ;
-`temperature_raw` reste le code brut XDB401, également exposé comme
-`xdb401_temperature_raw`. `sensors.boiler_temperature_valid` indique la
-validité de la NTC ; une mesure absente est `null`. L'écran principal affiche
-uniquement cette température chaudière et un tiret si elle est absente ou
-périmée. Les anciens champs plats de `/telemetry` ne sont plus émis. Les
-captures JSON créées avec des versions antérieures gardent leur ancienne
-structure.
+`temperature.boiler.c` vaut `null` si aucune mesure n'a été reçue ; sa validité
+est indiquée par `temperature.boiler.valid`. L'écran principal affiche cette
+température chaudière et un tiret si elle est absente ou périmée. Les anciens
+champs plats, ainsi que les alias ambigus `temperature_c` et `temperature_raw`,
+ne sont plus émis. Les captures JSON créées avec des versions antérieures
+gardent leur ancienne structure.
 
 Exemple abrégé :
 
 ```json
 {
   "uptime_ms": 123456,
-  "sensors": {"boiler_temperature_c": 89.7, "boiler_temperature_valid": true},
-  "actuators": {"heating_power_pct": 37.5, "heater_on": true},
-  "cycle": {"state": "idle", "elapsed_ms": 0},
-  "firmware": {"screen": {"version_major": 0, "version_minor": 3, "version_patch": 12,
+  "temperature": {"boiler": {"c": 89.7, "valid": true}, "xdb401": {"c": 30.1}},
+  "pressure": {"bar": 0.0, "valid": true},
+  "brew": {"state": "idle", "pump_pct": 0, "valve_open": false},
+  "heating": {"power_pct": 37.5, "on": true},
+  "firmware": {"screen": {"version_major": 0, "version_minor": 3, "version_patch": 13,
                           "ota": {"pending_verify": false}},
-               "sensors": {"version_major": 0, "version_minor": 3, "version_patch": 12}}
+               "sensors": {"alive": true, "version_major": 0, "version_minor": 3,
+                           "version_patch": 13}}
 }
 ```
 
@@ -160,7 +162,7 @@ Le matériel est câblé pour deux chemins : **GPIO 3 / D2 / L2** du XIAO → **
 
 Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 5 s ; un renouvellement ne redémarre pas cette période. Sous 2 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
 
-`POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `actuators.heating_requested`, `actuators.heater_on` (`null` sans écho frais), `actuators.heating_freshness`, `actuators.heating_capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `actuators.dimmer_pct` reste un alias de `actuators.pump_pct` en télémétrie.
+`POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating.requested`, `heating.on` (`null` sans écho frais), `heating.freshness`, `heating.capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `brew.dimmer_pct` reste un alias de `brew.pump_pct` en télémétrie.
 
 Revue des noms dans le code actuel :
 
@@ -219,7 +221,7 @@ Mesure côté groupe, en amont de la vanne solénoïde.
 
 Dalle RGB 800 × 480, tactile GT911, 16 Mo de flash, 8 Mo de PSRAM, TJA1051T/3 intégré. CAN sur GPIO 15 TX / 16 RX. `CAN_SEL` est l'EXIO5 du CH422G et **doit être tenu haut**, sinon le transceiver n'est pas sélectionné (cette ligne est aussi USB_SEL, actif bas). Notes de bring-up CH422G / GT911 : `../tests/screen/hello_waveshare/`.
 
-Depuis v0.2.64, le reset du tactile maintient `TP_IRQ` (GPIO 4) à LOW pendant `TP_RST` pour fixer l'adresse I²C du GT911, comme dans l'exemple Waveshare. En cas d'échec à l'initialisation, `screen` essaie les deux adresses possibles puis réinitialise seulement le tactile et réessaie. La télémétrie publie `touch_ready` et `touch_press_count` : une pression physique doit incrémenter ce compteur avant de confirmer une nouvelle image. Après le flash OTA de la v0.2.64, le tactile a fonctionné dès le redémarrage et trois pressions ont été comptées.
+Depuis v0.2.64, le reset du tactile maintient `TP_IRQ` (GPIO 4) à LOW pendant `TP_RST` pour fixer l'adresse I²C du GT911, comme dans l'exemple Waveshare. En cas d'échec à l'initialisation, `screen` essaie les deux adresses possibles puis réinitialise seulement le tactile et réessaie. La télémétrie publie `inputs.touch_ready` et `inputs.touch_press_count` : une pression physique doit incrémenter ce compteur avant de confirmer une nouvelle image. Après le flash OTA de la v0.2.64, le tactile a fonctionné dès le redémarrage et trois pressions ont été comptées.
 
 Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 

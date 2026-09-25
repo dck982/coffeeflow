@@ -21,8 +21,8 @@ COFFEEFLOW_HTTP_TOKEN='…' COFFEEFLOW_IP='192.168.2.196' \
 ```
 
 Pour produire un PNG à partir d'une capture JSON, tracer `elapsed_s` en X,
-`telemetry.sensors.boiler_temperature_c` en Y gauche et
-`telemetry.actuators.heating_power_pct` en Y droit :
+`telemetry.temperature.boiler.c` en Y gauche et
+`telemetry.heating.power_pct` en Y droit :
 
 ```sh
 CAPTURE_PATH=captures/heating-20260923-230231-829984.json
@@ -36,8 +36,8 @@ import matplotlib.pyplot as plt
 capture = json.load(open(sys.argv[1]))
 samples = capture["samples"]
 time_s = [sample["elapsed_s"] for sample in samples]
-temperature = [sample["telemetry"]["sensors"].get("boiler_temperature_c") for sample in samples]
-power = [sample["telemetry"]["actuators"].get("heating_power_pct") for sample in samples]
+temperature = [sample["telemetry"]["temperature"]["boiler"].get("c") for sample in samples]
+power = [sample["telemetry"]["heating"].get("power_pct") for sample in samples]
 fig, left = plt.subplots(figsize=(12, 6))
 right = left.twinx()
 left.plot(time_s, temperature, color="tab:blue", label="Chaudière")

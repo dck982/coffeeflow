@@ -346,9 +346,9 @@ diagnostic détaillé figurent dans [la calibration NTC](ntc_ads1115_calibration
 Pour la validation à chaud, après stabilisation à 90 °C avec le firmware
 actuel (`47 kΩ / 3 950 K`), sauvegarder plusieurs réponses `GET /telemetry`
 **avant extinction**, sans purge immédiatement préalable. Vérifier
-`sensors.boiler_temperature_valid` et relever
-ensemble `sensors.boiler_temperature_c`, `sensors.boiler_ntc_a0_raw` et
-`sensors.boiler_ntc_a1_raw`. Les deux derniers champs sont des **codes ADS1115**,
+`temperature.boiler.valid` et relever
+ensemble `temperature.boiler.c`, `temperature.boiler.ntc_a0_raw` et
+`temperature.boiler.ntc_a1_raw`. Les deux derniers champs sont des **codes ADS1115**,
 pas des tensions en volts. Calculer, pour chaque paire de codes,
 `R_NTC = 2193 × (A0_raw/A1_raw − 1)` en ohms ; la cible de 90 °C du firmware
 actuel correspond à environ **4,38 kΩ**, pas à 5 kΩ. Éteindre ensuite la
@@ -374,9 +374,9 @@ remontage, laisser `heating.enabled=false` et la machine au repos toute la nuit.
 redémarrage, vérifier que la chauffe est toujours désactivée. Avant toute
 purge, relever la température ambiante près de la chaudière, celle de l'eau
 du réservoir avec le même thermomètre digital utilisé dans le panier, et
-sauvegarder `GET /telemetry`, notamment `sensors.boiler_temperature_c`,
-`sensors.boiler_ntc_a0_raw`, `sensors.boiler_ntc_a1_raw`, `sensors.xdb401_temperature_c`,
-`actuators.heating_enabled` et l'état de la chauffe. L'eau du réservoir peut différer
+sauvegarder `GET /telemetry`, notamment `temperature.boiler.c`,
+`temperature.boiler.ntc_a0_raw`, `temperature.boiler.ntc_a1_raw`, `temperature.xdb401.c`,
+`heating.enabled` et l'état de la chauffe. L'eau du réservoir peut différer
 de l'air ambiant. La mesure IR sur métal nu est sensible à l'émissivité ; la
 température de la pièce et l'équilibre nocturne sont les meilleurs repères
 pour la NTC installée.
@@ -420,10 +420,10 @@ le fichier.
 3. Envoyer `POST /config` avec
    `{"version":6,"heating":{"enabled":true}}`.
 4. Interroger `GET /telemetry` toutes les 500 ms. Enregistrer `uptime_ms`,
-   `sensors.boiler_temperature_c`, sa validité et son âge, `actuators.heating_power_pct`,
-   `actuators.heating_power_accepted_pct`, `actuators.heater_on` et
-   `actuators.brew_temperature_target_c`. Le client doit horodater lui aussi chaque
-   réponse. L'écho de puissance et `actuators.heater_on` viennent du module capteurs ;
+   `temperature.boiler.c`, sa validité et son âge, `heating.power_pct`,
+   `heating.accepted_power_pct`, `heating.on` et
+   `heating.target_c`. Le client doit horodater lui aussi chaque
+   réponse. L'écho de puissance et `heating.on` viennent du module capteurs ;
    une absence d'écho frais doit apparaître comme telle dans l'analyse.
 
 Un essai de chauffe et un essai d'infusion sont nécessaires avant de considérer

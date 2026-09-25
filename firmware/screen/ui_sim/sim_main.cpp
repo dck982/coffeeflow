@@ -133,6 +133,11 @@ int main(int argc, char **argv) {
   snapshot.weight_g = 18.2f;
   snapshot.dimmer_ready = true;
   snapshot.dimmer_valid = true;
+  if (std::strcmp(scenario, "wifi-mode") == 0) {
+    snapshot.radio_mode = core::RadioMode::kWifi;
+    snapshot.network_state = static_cast<uint8_t>(core::NetworkState::kStaConnected);
+    snapshot.ipv4_address = 192u | (168u << 8) | (2u << 16) | (50u << 24);
+  }
   if (std::strcmp(scenario, "brew") == 0) {
     snapshot.cycle_state = core::CycleState::kBrew;
     snapshot.cycle_weight_goal = true;

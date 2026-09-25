@@ -1081,6 +1081,9 @@ void fullscreen(bool on, const char *t, const char *b) {
     hidden(v.full, true);
     return;
   }
+  const bool wifi = std::strcmp(t, "Mode wifi") == 0;
+  lv_obj_set_y(v.full_title, wifi ? 96 : 154);
+  lv_obj_set_y(v.full_body, wifi ? 162 : 220);
   text(v.full_title, t);
   text(v.full_body, b);
   hidden(v.full, false);

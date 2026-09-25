@@ -17,4 +17,5 @@ Le format PPM est volontaire : il évite d'ajouter un encodeur PNG à LVGL.
 visuel. `build/snapshots/` est ignoré par Git avec les autres artefacts de
 build. Les scénarios disponibles sont l'accueil (défaut), `no-scale`, `settings`,
 `settings1`, `settings2`, `settings3`, `wifi-confirm`, `dim` et `standby`. Le simulateur ne
-remplace pas un essai tactile ou RGB sur la dalle.
+remplace pas un essai tactile ou RGB sur la dalle. Le scénario `wifi-mode`
+capture le plein écran du mode Wi-Fi.

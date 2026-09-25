@@ -8,7 +8,7 @@ namespace common {
 // À incrémenter à chaque image flashée, dans les deux projets.
 inline constexpr uint8_t kFirmwareVersionMajor = 0;
 inline constexpr uint8_t kFirmwareVersionMinor = 3;
-inline constexpr uint8_t kFirmwareVersionPatch = 10;
+inline constexpr uint8_t kFirmwareVersionPatch = 11;
 // Version minimale de l'interface chauffage, comparée sur les trois nombres.
 inline constexpr uint8_t kHeatingProtocolMinMajor = 0;
 inline constexpr uint8_t kHeatingProtocolMinMinor = 2;

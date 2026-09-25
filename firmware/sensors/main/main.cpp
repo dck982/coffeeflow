@@ -23,6 +23,7 @@
 #include "common/crc.hpp"
 #include "common/framing.hpp"
 #include "common/messages.hpp"
+#include "dimmer_zero_guard.h"
 #include "heating_pwm.h"
 #include "common/protocol.hpp"
 #include "common/version.hpp"
@@ -137,6 +138,7 @@ uint16_t g_heating_power_permille = 0;
 HeatingPwm g_heating_pwm;
 portMUX_TYPE g_heating_lock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t g_pump_pct = 0;
+DimmerZeroGuard g_dimmer_zero_guard;
 // Santé dimmer, mise à jour à chaque écriture (voir apply_dimmer()) : reflète
 // la dernière transaction I2C réelle, pas un état supposé.
 bool g_dimmer_present = false;      // dernière transaction I2C a abouti (adresse ack)
@@ -334,8 +336,8 @@ void on_dimmer_command_received(const uint8_t* data, size_t len) {
 // Écrit le niveau courant sur le DimmerLink puis relit sa santé (STATUS,
 // erreur si besoin, fréquence en informatif) — voir docs/firmware.md,
 // "Dimmer — pompe".
-void apply_dimmer() {
-  const uint8_t write_level[2] = {kDimmerRegLevel, g_pump_pct};
+bool apply_dimmer(uint8_t level) {
+  const uint8_t write_level[2] = {kDimmerRegLevel, level};
 
   xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
   esp_err_t err = i2c_master_transmit(g_dimmer_dev, write_level, sizeof(write_level), pdMS_TO_TICKS(100));
@@ -347,10 +349,15 @@ void apply_dimmer() {
     g_dimmer_present = false;
     g_dimmer_ready = false;
     g_dimmer_error_active = false;
-    return;
+    return false;
   }
 
   read_dimmer_health();
+  return true;
+}
+
+void tick_dimmer_zero_guard() {
+  g_dimmer_zero_guard.tick(now_us(), g_valve_open, [] { return apply_dimmer(0); });
 }
 
 // Lecture périodique à vide (sans écrire de niveau) — voir le commentaire de
@@ -460,7 +467,7 @@ void force_actuators_off() {
   g_pump_pct = 0;
   g_lease_deadline_us = 0;
   apply_valve();
-  apply_dimmer();
+  apply_dimmer(0);
 }
 
 void init_flow() {
@@ -658,7 +665,7 @@ void on_set_received(const uint8_t* data, size_t len) {
   g_valve_open = payload.pump_pct > 0;
   g_pump_pct = payload.pump_pct;
   apply_valve();
-  apply_dimmer();
+  apply_dimmer(g_valve_open ? g_pump_pct : 0);
   int64_t ttl_us = (payload.ttl_ms == 0 ? kLeaseDefaultUs : static_cast<int64_t>(payload.ttl_ms) * 1000);
   g_lease_deadline_us = now_us() + ttl_us;
   send_status_actuators();
@@ -1194,6 +1201,7 @@ void safety_task(void*) {
     tick_flow();
     tick_actuators();
     tick_heating();
+    tick_dimmer_zero_guard();
     tick_dimmer_health();
     vTaskDelay(pdMS_TO_TICKS(kTickPeriodUs / 1000));
   }

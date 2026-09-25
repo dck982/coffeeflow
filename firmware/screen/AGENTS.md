@@ -10,6 +10,14 @@ source ~/.espressif/tools/activate_idf_v6.1.sh
 idf.py build
 ```
 
+## Tests
+
+Depuis `firmware/screen`, lancer les tests hôte avec `sh` :
+
+```sh
+sh test/run_tests.sh
+```
+
 ## Secrets locaux
 
 `main/secrets.h` est ignoré par Git. Ne jamais le lire, l'afficher, le

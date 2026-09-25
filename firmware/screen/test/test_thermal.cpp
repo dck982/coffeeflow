@@ -18,10 +18,12 @@ int main() {
     out = controller.step(now, 90, 90, true, true, Mode::kIdle);
   assert(out.ready);
   out = controller.step(5750, 90.6f, 90, true, true, Mode::kIdle);
+  assert(out.ready);
+  out = controller.step(6000, 91.1f, 90, true, true, Mode::kIdle);
   assert(!out.ready);
-  out = controller.step(6000, 106, 90, true, true, Mode::kIdle);
+  out = controller.step(6250, 106, 90, true, true, Mode::kIdle);
   assert(out.power_permille == 0 && !out.ready);
-  out = controller.step(6250, 20, 90, false, true, Mode::kIdle);
+  out = controller.step(6500, 20, 90, false, true, Mode::kIdle);
   assert(out.power_permille == 0 && !out.ready);
 
   core::thermal::Controller fine;

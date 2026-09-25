@@ -1088,7 +1088,7 @@ ActionResult perform_action(const ActionCommand& command) {
           !snapshot.heating_power_capable || snapshot.heating_freshness != Freshness::kFresh ||
           !snapshot.boiler_temperature_valid ||
           snapshot.boiler_temperature_freshness != Freshness::kFresh ||
-          std::fabs(snapshot.boiler_temperature_c - config.brew_temperature_c) > 0.5f)
+          std::fabs(snapshot.boiler_temperature_c - config.brew_temperature_c) > kBrewTemperatureToleranceC)
         return action_result(ActionStatus::kUnavailable);
     }
     if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return action_result(ActionStatus::kDimmerNotReady);

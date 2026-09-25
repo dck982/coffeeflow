@@ -1461,7 +1461,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   bool boiler = s.boiler_temperature_valid && s.boiler_temperature_freshness == core::Freshness::kFresh;
   bool brew_temperature_ready = c.heating_enabled && boiler && s.brew_temperature_ready &&
       s.heating_power_capable && s.heating_freshness == core::Freshness::kFresh &&
-      std::fabs(s.boiler_temperature_c - c.brew_temperature_c) <= 0.5f;
+      std::fabs(s.boiler_temperature_c - c.brew_temperature_c) <= core::kBrewTemperatureToleranceC;
   if (press)
     fmt(t, sizeof(t), s.pressure_bar, " bar");
   else
@@ -1483,7 +1483,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   const lv_color_t temperature_color =
       !c.heating_enabled ? theme::kTextFaint
       : !boiler ? theme::kTextDim
-      : s.boiler_temperature_c > c.brew_temperature_c + 0.5f ? theme::kFault
+      : s.boiler_temperature_c > c.brew_temperature_c + core::kBrewTemperatureToleranceC ? theme::kFault
       : brew_temperature_ready ? theme::kSuccess
       : s.boiler_temperature_c >= c.brew_temperature_c - 5.0f ? theme::kThermalNear
       : theme::kThermal;

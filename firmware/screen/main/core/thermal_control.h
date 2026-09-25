@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "core/config.h"
+
 namespace core::thermal {
 
 // Réglage initial. Les gains et l'avance doivent être recalibrés sur
@@ -71,7 +73,7 @@ class Controller {
     }
 
     const float error = target_c - temperature_c;
-    if (std::fabs(error) <= 0.5f) {
+    if (std::fabs(error) <= kBrewTemperatureToleranceC) {
       if (ready_since_ms_ == 0) ready_since_ms_ = now_ms;
     } else {
       ready_since_ms_ = 0;

@@ -59,10 +59,13 @@ int main() {
   assert(out.power_permille < initial_power);
   assert(delayed.step(21250, 91.0f, 90, true, true, Mode::kIdle).power_permille == 0);
 
-  // Le mode infusion conserve son appoint sans attendre le filtre de sortie.
+  // Dès le remplissage, l'infusion anticipe la chute avant que la NTC baisse.
   core::thermal::Controller infusion;
   infusion.step(1000, 90.0f, 90, true, true, Mode::kIdle);
-  assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille >= 180);
+  assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille == 300);
+  core::thermal::Controller infusion_flow;
+  assert(infusion_flow.step(1000, 90, 90, true, true, Mode::kBrew, 4, true).power_permille == 400);
+  assert(infusion_flow.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 300);
 
   // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
   // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.
@@ -71,7 +74,7 @@ int main() {
   assert(flow_mid.step(1000, 90, 90, true, true, Mode::kPurge, 3, true).power_permille == 230);
   assert(flow_high.step(1000, 90, 90, true, true, Mode::kPurge, 4, true).power_permille == 280);
   assert(flow_high.step(1250, 90, 90, true, true, Mode::kPurge, 2, true).power_permille == 180);
-  assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 180);
+  assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 300);
   assert(flow_stale.step(1250, 90, 90, true, true, Mode::kIdle, 4, true).power_permille <= 350);
   core::thermal::Controller flow_early, flow_capped, flow_too_hot;
   assert(flow_early.step(1000, 91.8f, 90, true, true, Mode::kPurge, 4, true).power_permille == 100);

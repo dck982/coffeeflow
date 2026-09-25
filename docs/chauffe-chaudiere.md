@@ -35,7 +35,10 @@ sont lissées sur 5 s ; les coupures restent immédiates. L'intégrale utilise l
 accumuler une erreur déjà expliquée par cette chaleur. Pendant l'infusion et la
 purge, le mode écoulement applique au moins 18 % lorsque la température reste
 proche ou sous la cible, avec une puissance de base limitée à 35 %. Depuis
-0.3.14, un débit valide et frais ajoute **0 point à 2 ml/s ou moins**,
+0.3.15, le plancher est de **30 % pendant le remplissage, la pré-infusion et
+l'infusion**, dès l'entrée dans ce mode et sans attendre la baisse de la NTC.
+La purge conserve son plancher de 18 %.
+Depuis 0.3.14, un débit valide et frais ajoute **0 point à 2 ml/s ou moins**,
 **5 points à 3 ml/s** et **10 points à 4 ml/s ou plus**, avec interpolation
 linéaire. La commande totale peut ainsi atteindre **45 %** à haut débit.
 Le supplément est possible jusqu'à 2 °C au-dessus de la cible, mais jamais
@@ -57,6 +60,17 @@ l'écoulement, l'appoint de base est
 coupé quand la mesure dépasse la cible de 0,5 °C. Au-dessus de 105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
+
+La [capture d'infusion du 25 septembre](../captures/260925-182131.json) provient
+de la version 0.3.13 : elle ne permet pas de valider directement l'appoint de
+débit introduit en 0.3.14, ni la nouvelle courbe NTC livrée avec lui. Pendant
+ce café, la chauffe reste à 18 % jusqu'à une NTC de 87 °C environ ; elle dépasse
+20 % à 86,83 °C (9,65 s), atteint 35 % à 84,54 °C (11,55 s), et la NTC descend
+à 78,4 °C en fin de capture. Le nouveau plancher avance une commande de 30 %
+dès le remplissage, et environ 37 à 40 % à débit valide de 3,4 à 4 ml/s près
+de la consigne. La capture s'arrête 3,8 s après la pompe : elle ne mesure ni
+le rebond ni la température dans le panier. Vérifier les deux lors du prochain
+essai avant d'augmenter encore les puissances ou le plafond de reprise.
 
 Une purge commencée à 5 °C ou plus de la consigne, au-dessus ou en dessous,
 est traitée comme une purge de réglage thermique : aucune chauffe n'est

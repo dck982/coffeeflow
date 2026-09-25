@@ -27,6 +27,7 @@ class Controller {
   static constexpr float kSlopeFilterTimeConstantS = 8.0f;
   static constexpr float kHoldPowerPct = 3.5f;
   static constexpr float kFlowFeedforwardPct = 18.0f;
+  static constexpr float kBrewFeedforwardPct = 30.0f;
   static constexpr float kFlowPowerLimitPct = 35.0f;
   static constexpr float kFlowBonusStartMlS = 2.0f;
   static constexpr float kFlowBonusFullMlS = 4.0f;
@@ -124,7 +125,9 @@ class Controller {
     if (error < -0.5f) integral_pct_ = 0;
     float power = kHoldPowerPct + 8.0f * predicted_error + integral_pct_;
     if (flowing) {
-      if (error > -0.5f) power = std::max(power, kFlowFeedforwardPct);
+      if (error > -0.5f)
+        power = std::max(power, mode == Mode::kBrew ? kBrewFeedforwardPct
+                                                   : kFlowFeedforwardPct);
       power = std::min(power, kFlowPowerLimitPct);
     } else if (recovering) {
       power = std::min(power, kRecoveryPowerLimitPct);

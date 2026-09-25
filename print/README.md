@@ -8,7 +8,7 @@ Cinq boîtiers autour de la machine :
 - **`boitier_dc`** — XIAO ESP32-S3 + Grove Shield, M5Stack Unit CAN Bus, Wago 5 V ; intérieur, zone froide entre le module PID et le cadran manomètre
 - **`boitier_ac`** — dimmer 4 A DimmerLink et M5Stack Unit SSR ; accolé au DC
 - **`boitier_pid`** — HW-399 et Wago 5 V / GND pour commander le SSR de chaudière fourni avec la machine
-- **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3", LDO AMS1117, ADS1115 et sonde NTC chaudière
+- **UI** — `screen_wedge` + `screen_base`, façade, écran Waveshare 4,3", ADS1115 et sonde NTC chaudière ; l'emplacement prévu pour le LDO AMS1117 est inutilisé depuis le raccordement du pont NTC au port Sensor AD
 
 `boitier_dc` et `boitier_ac` sont **côte à côte et reliés par un couvercle commun** (`couvercle_acdc`) ; l'assemblage des deux bacs est `ensemble_boitiers`.
 

@@ -1,0 +1,256 @@
+Fiche Technique
+UNI EN ISO 9001 - UNI EN ISO 14001
+Registered Quality and Environment Management System Company
+
+LOXEAL 53-14
+Description
+Adhésif anaérobie de force moyenne pour l'étanchéité des raccords filetés hydrauliques et pneumatiques jusqu'à ¾" et des petits
+tuyaux. Pour remplacer les rubans P.T.F.E. lors de l'étanchéité des gaz, de l'eau, du GPL, des hydrocarbures, des huiles et autres
+produits chimiques. Homologué pour le gaz selon la norme européenne EN 751-1 (DIN-DVGW NG-5146AU0038).
+Hautement résistant à la chaleur, à la corrosion, aux chocs et aux vibrations.
+Caractéristiques physiques
+Composition :
+anaerobic methacrylate
+Couleur :
+brune
+Viscosité (+25°C - mPa s) :
+430 - 630
+Poids spécifique (+25°C - g/ml) :
+1,05
+Fluorescent :
+sous la lumière UV
+Point de flamme :
+> +100°C
+Durée de conservation :
+1 jaar in ongeopende verpakking
+Remplir les lacunes :
+M20 ¾” - 0,15 mm
+
+Vitesse de polymérisation v substrat
+Le graphique ci-dessous montre l'évolution de la force de
+desserrage du produit (avec le temps) sur des écrous/boulons
+en acier M10 x 20 par rapport à différents substrats.
+Testé conformément à la norme ISO 10964 à +25°C.
+
+Durcissement
+La vitesse de durcissement dépend de la distance de
+montage, des surfaces des matériaux et de la température.
+La résistance fonctionnelle est généralement atteinte en 1 à 3
+heures et la polymérisation complète prend 24 à 36 heures.
+En cas de surfaces passives et/ou de basse température, un
+durcissement rapide peut être obtenu en utilisant l'activateur
+Loxeal 11. Propriétés de durcissement (typique)
+Boulon M10 x 20 Zn - grade 8.8 - écrou h = 0.8 d à +25°C
+Temps de négociation :
+10 - 20 minutes
+Temps de polymérisation fonctionnelle :
+1 - 3 hours
+Temps de polymérisation complète :
+3 - 6 hours
+Force de cisaillement (ISO 10123) :
+8 - 12 N/mm²
+Verrouillage (ISO 10964)
+12 - 18 N m
+- point de rupture :
+10 - 20 N m
+- prévalent :
+Temperatuur bereik:
+-55°C/+150°C
+
+Taux de guérison v écart
+Le graphique ci-dessous montre la résistance au cisaillement
+du produit (en %) à différents écarts contrôlés croissants.
+Axes/colliers en acier, testés conformément à la norme ISO
+10123 à + 25°C.
+
+Résistance aux influences environnementales
+Résistance à la chaleur
+Le graphique ci-dessous montre la résistance mécanique en
+fonction de la température.
+ISO 10964 - boulon M10 x 20 Zn - qualité 8.8 - écrou h = 0.8
+d à +25°C - couple de serrage 5 N m
+
+ST5314e/7
+
+09/16
+
+LOXEAL Benelux Distributor - Industrieterrein Kolmen B-1149, 3570 Alken - Tel.: +32 11 480 800 - Fax: +32 11 480 809 - Loxeal.be
+
+Pag. 1/3
+
+Vitesse de polymérisation en fonction de la température
+Le graphique suivant montre la résistance à la rupture du
+produit (en %) à différentes températures.
+Écrous/boulons en acier M10 x 20, testés selon la norme ISO
+10964
+
+FICHE TECHNIQUE LOXEAL 53-14 09/16
+Résistance chimique
+
+Maturation dans les conditions ci-dessous après 24 heures
+de polymérisation à la température indiquée.
+Resistance
+Resistance
+Substance
+°C Resistance
+apres 100 h
+
+apres 500 h
+
+apres 1000 h
+
+excellent
+excellent
+excellent
+excellent
+
+excellent
+excellent
+excellent
+excellent
+
+excellent
+
+excellent
+
+Huile moteur
+
+125
+
+Essence
+Eau/glycool
+50%
+Huile de frein
+
+25
+87
+
+excellent
+excellent
+excellent
+excellent
+
+25
+
+excellent
+
+Huile transmission
+
+* Pour toute information sur la résistance à d'autres produits
+chimiques, veuillez contacter le département technique de
+Loxeal.
+Mode d'emploi
+
+Taux de guérison v activateur
+La polymérisation peut être retardée par la nature du substrat,
+les grands espaces ; la vitesse de polymérisation peut être
+améliorée en appliquant un activateur approprié sur le(s)
+substrat(s). Le graphique suivant montre la résistance à la
+rupture du produit (en %) et l'évolution de la vitesse de
+durcissement en utilisant notre activateur 11 par rapport à
+celui sans activateur. Écrous/boulons en zinc M10 x 20, testés
+selon la norme ISO 10964 à une température de + 25°C.
+
+Les joints de filetage Loxeal sont des résines anaérobies qui
+durcissent lorsqu'elles sont coincées entre deux surfaces
+métalliques en l'absence d'air (par exemple, un raccord
+fileté). Quelques recommandations pour obtenir de meilleurs
+résultats :
+- Nettoyez le filetage avec Loxeal Cleaner 10 et laissez-le
+sécher avant de l'assembler (l'eau, l'huile ou la saleté
+empêchent la pleine adhésion du mastic sur les pièces filetées).
+- Appliquer une quantité suffisante de produit sur toute la
+circonférence entre le premier et le second filetage du mâle
+pour remplir toute la surface filetée.
+- Pour les produits à viscosité plus élevée, appliquez également
+une petite quantité sur le filetage intérieur pour assurer un bon
+remplissage du joint fileté pendant l'assemblage.
+- Pendant le processus de serrage manuel, tournez de temps
+en temps d'avant en arrière pour ajuster la répartition du produit
+sur le fil.
+- Une fois le serrage terminé, scellez les connexions avec le
+couple habituel, en fonction du temps de durcissement
+spécifique du produit. Le temps de durcissement (mentionné cidessus à la page 1/3) dépend du type de support et se réfère
+aux conditions d'utilisation suivantes :
+(a) les raccords en acier, en carbone ou en fonte
+(b) Température ambiante à 25°C
+c) Jeu dans des tolérances spécifiques
+La réduction de la durée du traitement correspond à ce qui suit :
+
+Vieillissement à la chaleur
+Le graphique ci-dessous montre le comportement de la
+résistance en fonction de la température/du temps.
+Écrous/boulons en zinc M10 x 20 - (précontrainte de 5 N m,
+durcie 7 jours à +25°C) - vieillie à la température indiquée et
+testée à +25°C selon ISO 10964.
+
+- Raccords en laiton ou en bronze
+- Températures d'été
+- Petits écarts
+- L'allongement de la durée du traitement correspond à ce qui
+suit :
+- Raccords en acier inoxydable ou passivés (chrome, etc.)
+- Températures hivernales (des températures proches de 0°C
+peuvent empêcher le durcissement)
+- Grands écarts
+- Si les conditions ci-dessus se présentent, nous recommandons
+l'utilisation de Loxeal Activator 11.
+Démontage et nettoyage
+Utilisez des outils conventionnels pour démonter les pièces. Si
+possible, le démontage est facilité en chauffant les pièces à
++150°C/+250°C et en les démontant à chaud.
+Enlever mécaniquement le produit durci et compléter le
+nettoyage avec de l'acétone.
+ST5314e/7
+
+09/16
+
+LOXEAL Benelux Distributor - Industrieterrein Kolmen B-1149, 3570 Alken - Tel.: +32 11 480 800 - Fax: +32 11 480 809 - Loxeal.be
+
+Pag. 2/3
+
+FICHE TECHNIQUE LOXEAL 53-14 09/16
+Avertissements
+Cet adhésif n'est pas approuvé pour une utilisation avec de
+l'oxygène pur ou gazeux.
+Il ne convient pas pour les applications sur les plastiques.
+Le produit liquide peut corroder les peintures et les
+élastomères. Si le produit entre en contact, même
+accidentellement, avec certains thermoplastiques, des fissures
+de contrainte peuvent apparaître dans les plastiques.
+Stockage
+Stockez le produit dans un endroit frais et sec, à une
+température ne dépassant pas +25°C. Pour éviter toute
+contamination, ne pas remplir l'emballage avec du produit
+usagé. Pour de plus amples informations sur les applications,
+le stockage et la manipulation, veuillez contacter le
+département technique de Loxeal.
+Sécurité et manipulation
+Consultez la fiche de données de sécurité avant de l'utiliser.
+Note
+Les données contenues dans ce document, obtenues dans les
+laboratoires de Loxeal, sont données à titre indicatif ; si des
+données spécifiques sont requises, veuillez contacter le
+département technique de Loxeal. Loxeal garantit une qualité
+constante des produits livrés selon ses propres spécifications.
+Loxeal ne peut assumer la responsabilité des résultats
+obtenus par d'autres, dont les méthodes ne sont pas sous le
+contrôle de Loxeal. Il incombe à l'utilisateur de déterminer si
+chaque produit mentionné dans le présent document convient
+à ses besoins. Loxeal décline toute garantie, expresse ou
+implicite, y compris les garanties de qualité marchande ou
+d'adéquation à un usage particulier, découlant de la vente ou
+de l'utilisation des produits Loxeal. Loxeal décline
+spécifiquement toute responsabilité pour les dommages
+consécutifs ou accidentels de toute sorte, y compris les pertes
+de profits.
+
+ST5314e/7
+
+09/16
+
+Pag. 3/3
+
+LOXEAL Benelux Distributor - Industrieterrein Kolmen B-1149, 3570 Alken - Tel.: +32 11 480 800 - Fax: +32 11 480 809 - Loxeal.be
+
+

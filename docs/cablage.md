@@ -110,7 +110,7 @@ départs partent de là, en **0,25 mm² rouge (5 V) / noir (GND)** :
 | 1 | **Écran Waveshare** | bornier adaptateur **USB-C** |
 | 2 | **`boitier_dc`** | Wago du compartiment **sud-ouest** |
 
-Le 5 V / GND est aussi distribué au **`boitier_pid`** (Wago de distribution pour le HW-399 et la commande du SSR chaudière). Dans le boîtier **screen**, le 5 V alimente également un **LDO AMS1117** équipé d'un connecteur XH, dédié au 3,3 V du pont NTC. Le PCB Waveshare ne présente pas de reprise 3,3 V facilement accessible sur une pastille ou un connecteur séparé.
+Le 5 V / GND est aussi distribué au **`boitier_pid`** (Wago de distribution pour le HW-399 et la commande du SSR chaudière). Le pont NTC du boîtier **screen** est alimenté par le **3V3 et le GND du port Sensor AD du Waveshare**. Le LDO AMS1117 ajouté auparavant pour ce pont a été retiré après la correction de sa référence de masse.
 
 ### Distribution dans `boitier_dc`
 
@@ -288,11 +288,11 @@ Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid`
 
 ### Sonde NTC et ADS1115 dans le boîtier de l'écran
 
-La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Un **AMS1117** distinct, avec connecteur XH, transforme le 5 V de l'alimentation en 3,3 V stabilisé pour le **pont NTC**. Ce 3,3 V va à **A0** de l'ADS1115 et, via une **Wago**, à une borne de la NTC. Le retour de la NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers **GND**. Les masses sont communes.
+La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Le **3V3 du port Sensor AD** rejoint la Wago NTC2, qui dessert une patte de la NTC et **A0** de l'ADS1115. L'autre patte rejoint la Wago NTC1, qui dessert **A1** et la résistance fixe mesurée de **2,193 kΩ**. L'autre extrémité de cette résistance retourne au **GND du port Sensor AD**, proche de la référence GND de l'ADS1115. Le GPIO/AD du port Sensor n'est pas utilisé.
 
-Les deux rails 3,3 V ont des sources différentes ; leurs tensions ont été vérifiées sur la machine. La valeur ponctuelle mesurée en sortie du LDO n'est pas une constante de calcul : l'ADS1115 lit **A0 et A1**, puis le firmware utilise leur **rapport** pour obtenir la résistance NTC. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
+Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
-Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 n'est pas encore intégrée au firmware `screen`.
+Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 est intégrée au firmware `screen` et publiée par `GET /telemetry`.
 
 ### Câble du dimmer (L4)
 
@@ -313,7 +313,7 @@ aucune commande.
 | **Wago 221** (412 / 415 / 423) | toutes les dérivations, 230 V et 5 V |
 | **Grove** | XIAO ↔ périphériques |
 | **JST SM** | jonctions débrochables : XDB401 (4 p.), Digmesa (3 p.), CAN (2 p.) |
-| **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal ; HW-399 : entrée 2 pôles (GND, IN4) et sortie 3 pôles (GND, VCC, OUT4) ; connecteur du LDO AMS1117 |
+| **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal ; HW-399 : entrée 2 pôles (GND, IN4) et sortie 3 pôles (GND, VCC, OUT4) |
 | **JST PH 2.0** | entrée CAN du Waveshare |
 | **VH3.96** | côté Digmesa |
 | **Bornier à vis 2,54 mm** | pastilles VCC/GND/RX/TX du CAN Pal ; pastilles 5 V/GND du Grove Shield |

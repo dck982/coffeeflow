@@ -8,50 +8,41 @@ relié à un ESP32-S3-WROOM.
 
 L'alimentation principale est en 5 V. L'ESP32 du Waveshare est alimenté par
 sa carte ; le breakout ADS1115 reçoit **3,3 V du connecteur I2C du Waveshare**.
-Un LDO AMS1117 dédié fournit un autre rail 3,3 V pour le pont de mesure de
-la NTC. Les masses sont communes.
+Le pont NTC reçoit le **3V3 et le GND du port Sensor AD du même écran**.
+Le LDO AMS1117 dédié au pont dans le montage initial a été retiré.
 
 La plage utile est principalement \~80--100 °C en mode café et jusqu'à
 \~120--130 °C en mode vapeur.
 
 ## Schéma de montage
 
-Le rail 3,3 V issu de l'AMS1117 est mesuré par A0 afin de rendre le
-calcul de résistance ratiométrique. A1 mesure le point milieu du pont
-NTC.
+Le rail 3,3 V du port Sensor AD est mesuré par A0 afin de rendre le
+calcul de résistance ratiométrique. A1 mesure le point milieu du pont NTC.
 
 ``` text
-                         +---------------- ESP32-S3-WROOM
-                         |
-5 V ---------------------+
-                         |
-                         +---- AMS1117 ----+---- A0 ADS1115
-                                          |
-                                      LDO 3.3 V
-                                          |
-                                         NTC
-                                          |
-                                          +---- A1 ADS1115
-                                          |
-                                      R = 2.193 kΩ
-                                          |
-GND --------------------------------------+---- GND commun
+Waveshare Sensor AD 3V3 ----+---- A0 ADS1115
+                            |
+                           NTC
+                            |
+                            +---- A1 ADS1115
+                            |
+                        R = 2.193 kΩ
+                            |
+Waveshare Sensor AD GND ----+---- GND proche de l'ADS1115
+
+Waveshare I2C 3V3 / GND ---------- alimentation ADS1115
 ```
 
 Notes :
 
--   `A0` mesure la tension réelle de sortie du LDO.
+-   `A0` mesure la tension réelle du 3V3 qui alimente le pont.
 -   `A1` mesure la tension au point milieu NTC / résistance fixe.
 -   La résistance fixe nominale est 2,2 kΩ ; sa valeur mesurée est
     **2,193 kΩ**.
--   La sortie du LDO AMS1117 mesurée au multimètre est **3,316 V**.
--   Le LDO du pont et le VDD de l'ADS1115 sont deux rails distincts ; leurs
-    tensions ont été vérifiées sur la machine. La valeur **3,316 V** est un
-    relevé de diagnostic, pas une constante nécessaire au calcul : celui-ci
-    utilise le rapport des mesures A0 et A1.
--   `LDO_V = 3.316 V` est conservé comme valeur de référence/diagnostic
-    ; le calcul normal doit utiliser A0.
--   Toutes les masses doivent être communes.
+-   Le GPIO/AD du port Sensor n'est pas utilisé.
+-   Le bas de la résistance fixe et le GND de l'ADS1115 doivent avoir une
+    référence de potentiel proche. Un simple raccordement électrique entre
+    deux GND éloignés ne garantit pas l'absence de chute de tension sous charge.
 -   Pour mesurer directement \~3,3 V sur A0, configurer l'ADS1115 avec
     une plage compatible, typiquement **±4,096 V**.
 
@@ -60,19 +51,19 @@ Notes :
 Avec :
 
 -   `R_FIXED = 2193 Ω`
--   `V_LDO = tension mesurée sur A0`
+-   `V_SUPPLY = tension mesurée sur A0`
 -   `V_DIV = tension mesurée sur A1`
 
 le pont est :
 
 ``` text
-V_LDO -> NTC -> V_DIV -> R_FIXED -> GND
+V_SUPPLY -> NTC -> V_DIV -> R_FIXED -> GND
 ```
 
 La résistance de la NTC est donc :
 
 ``` text
-R_NTC = R_FIXED * (V_LDO / V_DIV - 1)
+R_NTC = R_FIXED * (V_SUPPLY / V_DIV - 1)
 ```
 
 Si A0 et A1 sont lus avec exactement le même réglage PGA de l'ADS1115,
@@ -84,6 +75,25 @@ R_NTC = 2193 * (ADC_A0 / ADC_A1 - 1)
 
 Cela rend la mesure pratiquement indépendante de la valeur absolue du
 3,3 V et de la précision absolue de la référence interne de l'ADS1115.
+
+### Correction du retour GND et vérification à froid
+
+Le montage initial utilisait un LDO AMS1117 pour le pont et retournait le
+bas de la résistance fixe au Wago GND de l'alimentation 5 V. Le GND de
+l'ADS1115, amené par le port I2C du Waveshare, se trouvait **10–13 mV** au-dessus
+de ce Wago sous tension. Le point milieu mesurait environ **0,143 V** par
+rapport au GND de l'alimentation, mais environ **0,133 V** par rapport au GND
+de l'ADS1115 ; ce dernier lisait donc correctement sa propre tension A1,
+tout en surestimant la résistance de la NTC à cause de la référence GND du pont.
+
+Le pont utilise maintenant **3V3 et GND du port Sensor AD** du Waveshare, sans
+le LDO. Après modification, un relevé `/telemetry` à froid donne
+`boiler_ntc_a0_raw = 26305`, `boiler_ntc_a1_raw = 1151`, soit **3,288125 V**
+sur A0, **0,143875 V** sur A1 et **47,926 kΩ** calculés. La NTC débranchée
+et mesurée au multimètre juste après était à **47,9 kΩ** : l'écart est
+d'environ **26 Ω**, soit **0,05 %**. Cette concordance valide la lecture
+de résistance du montage corrigé à ce point froid ; elle ne valide pas à
+elle seule la courbe résistance/température à chaud.
 
 ## Conversion résistance -\> température
 

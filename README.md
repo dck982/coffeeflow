@@ -28,7 +28,7 @@ Deux retours capteurs, sur le module interne :
 - **Pression** sur la plomberie, en amont de la vanne (I2C 3,3 V)
 - **Débit** en amont de la pompe, côté basse pression (le capteur ne tient que 3 bar)
 
-La **température de la chaudière** vient de la sonde NTC vissée en G1/8 dans la chaudière. Son câble rejoint le boîtier de l'écran, proche de la sonde, où un ADS1115 la mesure via un pont alimenté en 3,3 V par un AMS1117. Voir [la calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
+La **température de la chaudière** vient de la sonde NTC vissée en G1/8 dans la chaudière. Son câble rejoint le boîtier de l'écran, proche de la sonde, où un ADS1115 la mesure via un pont alimenté par le **3V3 et le GND du port Sensor AD du Waveshare**. Voir [la calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
 
 Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. La pesée du drip tray par cellule de charge est **abandonnée pour l'instant** (peser quelques grammes sur un plateau d'un kilo) — pièces et cotes conservées dans `print/parts/*_pesage*` et `docs/driptray.md`.
 
@@ -85,7 +85,7 @@ L'Atom Echo S3R de l'ancienne architecture est spécifié à **40 °C**. Le XIAO
 | **DC** | `boitier_dc` | intérieur, **zone froide** entre le module PID et le cadran manomètre | XIAO + Grove Shield, Adafruit CAN Pal, Wago 5 V |
 | **AC** | `boitier_ac` | accolé au DC | Dimmer 4 A DimmerLink, M5Stack Unit SSR |
 | **PID** | `boitier_pid`, `couvercle_pid` | compartiment technique, près du contrôleur PID d'origine | HW-399, connecteurs XH et Wago de distribution 5 V / GND ; commande du SSR chaudière |
-| **UI** | `screen_base`, `screen_wedge` | façade de la machine | Écran Waveshare 4,3", AMS1117, ADS1115 et raccordement NTC |
+| **UI** | `screen_base`, `screen_wedge` | façade de la machine | Écran Waveshare 4,3", ADS1115 et raccordement NTC ; emplacement AMS1117 inutilisé |
 
 Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qui est commun aux deux (`couvercle_acdc`, assemblage `ensemble_boitiers`).
 
@@ -102,7 +102,7 @@ Les boîtiers **AC et DC sont côte à côte et reliés par leur couvercle**, qu
 | SSR vanne | **M5Stack Unit SSR** (2 A), commande 3,3–5 V, zero-crossing MOC3043M | `docs/datasheets/m5stack-unit-ssr.md` |
 | SSR chaudière | **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine ; en série entre la phase de l'interrupteur principal et la résistance, suivie de la protection thermique puis du neutre ; commande DC +/− via HW-399, FASTON mâles 4,8 mm | [Câblage](docs/cablage.md#ssr-de-chaudière-fourni-avec-la-machine) |
 | Interface SSR chaudière | **HW-399 4-channel Optocoupler**, voie IN4 / OUT4, logé dans `boitier_pid` | `docs/cablage.md` |
-| Température chaudière | Sonde **NTC G1/8**, AMS1117 3,3 V et breakout **ADS1115 16 bits** sur l'I2C de l'écran | [Calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md) |
+| Température chaudière | Sonde **NTC G1/8**, pont sur le port Sensor AD et breakout **ADS1115 16 bits** sur l'I2C de l'écran | [Calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md) |
 | Pression | **Yufavor XDB401**, I2C, filetage **G1/8** | `docs/datasheets/xidibei_xdb401.pdf` |
 | Débit | **Digmesa FHKSC 932-9525-B**, buse **1,00 mm** | `docs/datasheets/flowmeter-digmesa.pdf`, `docs/debitmetres.md` |
 | Alimentation | **RECOM RAC05-05SK/277/W** — 5 W, 5 V / 1 A, encapsulée, 85–305 VAC, version fils | `docs/datasheets/RAC05-K_277.pdf` |
@@ -172,7 +172,7 @@ L'alim **RECOM RAC05-05SK/277/W** vit dans `boitier_ps` et alimente **tout** : l
 - Deux autres fils rouge / noir vont à `boitier_dc`, dans les deux Wago du **compartiment sud-ouest** : **3 poles à gauche = 5 V**, **2 poles à droite = GND**.
 - De ces bornes partent (a) le 5 V / GND du **XIAO**, par le bornier soudé aux pastilles du Shield, et (b) le 5 V vers la **Wago 3 poles du compartiment nord-ouest**.
 - La Wago nord-ouest distribue le 5 V au **SSR** (fil du câble Grove dont le VCC a été coupé à ras côté XIAO, dénudé et repris ici) et au **Digmesa** (fil rouge du câble JST SM).
-- Le `boitier_pid` reçoit aussi le **5 V / GND** pour les Wago et la sortie du HW-399 qui commande le SSR chaudière. Dans le boîtier de l'écran, le 5 V alimente l'**AMS1117** dédié au pont NTC.
+- Le `boitier_pid` reçoit aussi le **5 V / GND** pour les Wago et la sortie du HW-399 qui commande le SSR chaudière. Le pont NTC du boîtier de l'écran utilise le **3V3 / GND du port Sensor AD du Waveshare**.
 
 ### Le câble du Digmesa
 
@@ -189,7 +189,7 @@ Côté capteur, le câble est en **VH3.96** : rouge = VCC, noir = GND, jaune = s
 
 ### Température chaudière — NTC G1/8
 
-La sonde rejoint directement le boîtier de l'écran, voisin de la chaudière. Le 5 V est abaissé à 3,3 V par un AMS1117 muni d'un connecteur XH. Une Wago distribue ce 3,3 V à la NTC et à l'entrée **A0** de l'ADS1115 ; le retour NTC va à **A1** et à une résistance mesurée de **2,193 kΩ** vers GND. L'ADS1115 16 bits est sur le port I2C du Waveshare. A0 permet de mesurer la tension réelle d'alimentation du pont. Schéma et paramètres de conversion : [calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
+La sonde rejoint directement le boîtier de l'écran, voisin de la chaudière. Le **3V3 du port Sensor AD du Waveshare** rejoint la Wago NTC2, la NTC et l'entrée **A0** de l'ADS1115 ; le retour NTC rejoint la Wago NTC1, **A1** et une résistance mesurée de **2,193 kΩ** vers le **GND du même port Sensor AD**. L'ADS1115 16 bits est sur le port I2C du Waveshare. A0 permet de mesurer la tension réelle d'alimentation du pont. Le LDO AMS1117 du montage initial a été retiré après la correction de la référence de masse. Schéma et paramètres de conversion : [calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
 
 ### Pression — Yufavor XDB401
 

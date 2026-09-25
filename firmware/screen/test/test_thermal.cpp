@@ -64,6 +64,20 @@ int main() {
   infusion.step(1000, 90.0f, 90, true, true, Mode::kIdle);
   assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille >= 180);
 
+  // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
+  // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.
+  core::thermal::Controller flow_low, flow_mid, flow_high, flow_stale;
+  assert(flow_low.step(1000, 90, 90, true, true, Mode::kPurge, 2, true).power_permille == 180);
+  assert(flow_mid.step(1000, 90, 90, true, true, Mode::kPurge, 3, true).power_permille == 230);
+  assert(flow_high.step(1000, 90, 90, true, true, Mode::kPurge, 4, true).power_permille == 280);
+  assert(flow_high.step(1250, 90, 90, true, true, Mode::kPurge, 2, true).power_permille == 180);
+  assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 180);
+  assert(flow_stale.step(1250, 90, 90, true, true, Mode::kIdle, 4, true).power_permille <= 350);
+  core::thermal::Controller flow_early, flow_capped, flow_too_hot;
+  assert(flow_early.step(1000, 91.8f, 90, true, true, Mode::kPurge, 4, true).power_permille == 100);
+  assert(flow_capped.step(1000, 85.1f, 90, true, true, Mode::kPurge, 4, true).power_permille == 450);
+  assert(flow_too_hot.step(1000, 92.1f, 90, true, true, Mode::kPurge, 4, true).power_permille == 0);
+
   // La baisse mesurée après une purge n'est pas extrapolée sur 20 secondes :
   // l'appoint et la reprise restent bornés même si la NTC chute fortement.
   core::thermal::Controller purge;

@@ -117,12 +117,12 @@ Pour obtenir directement la température en °C :
 T_C = 1 / (1/T0 + ln(R_NTC/R0)/B) - 273.15
 ```
 
-### Paramètres compilés depuis le firmware 0.3.9
+### Paramètres compilés de 0.3.9 jusqu'à l'essai du 25 septembre 2026
 
 Les mesures directes de la sonde démontée, détaillées dans
 [`chauffe-chaudiere.md`](chauffe-chaudiere.md#mesures-directes-de-la-sonde-démontée),
 ont été ajustées par un modèle Beta (`R25 ≈ 47,2 kΩ`, `B ≈ 3 922 K`). Le
-firmware utilise des valeurs nominales proches de cet ajustement :
+firmware utilisait des valeurs nominales proches de cet ajustement :
 
 ``` text
 R0 = 47000 Ω
@@ -141,6 +141,11 @@ gains de chauffe devront être validés sur la machine.
 Le firmware 0.3.8 compilait l'ajustement direct `47 200 Ω / 3 922 K`. À
 résistance identique, les valeurs nominales de 0.3.9 indiquent environ
 0,7 °C de moins vers 90 °C et 1,2 °C de moins vers 130 °C.
+
+L'[essai du 25 septembre 2026](chauffe-chaudiere.md)
+conserve `R25 = 47 kΩ` mais porte `Beta` à **4 630 K** pour rapprocher la
+cible café de l'affichage Gicar. Les valeurs ci-dessus décrivent la version
+0.3.9 et les captures prises avant cet essai.
 
 ### Paramètres historiques jusqu'au firmware 0.3.7
 

@@ -621,7 +621,7 @@ bool valid(float *n) {
     return *n >= 6 && *n <= 12 &&
            std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
   case Edit::BrewTemperature:
-    return *n >= core::kMinimumBrewTemperatureC && *n <= 100 &&
+    return *n >= core::kMinimumBrewTemperatureC && *n <= core::kMaximumBrewTemperatureC &&
            std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;

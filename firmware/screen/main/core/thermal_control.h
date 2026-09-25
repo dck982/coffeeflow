@@ -28,12 +28,17 @@ class Controller {
   static constexpr float kHoldPowerPct = 3.5f;
   static constexpr float kFlowFeedforwardPct = 18.0f;
   static constexpr float kFlowPowerLimitPct = 35.0f;
+  static constexpr float kFlowBonusStartMlS = 2.0f;
+  static constexpr float kFlowBonusFullMlS = 4.0f;
+  static constexpr float kFlowBonusMaxPct = 10.0f;
+  static constexpr float kFlowBonusAboveTargetBandC = 2.0f;
   static constexpr float kPurgeCompensationBandC = 5.0f;
   static constexpr float kRecoveryPowerLimitPct = 35.0f;
   static constexpr uint64_t kRecoveryDurationMs = 30000;
 
   Output step(uint64_t now_ms, float temperature_c, float target_c,
-              bool valid, bool enabled, Mode mode) {
+              bool valid, bool enabled, Mode mode,
+              float flow_ml_s = 0.0f, bool flow_valid = false) {
     if (!valid || !enabled || !std::isfinite(temperature_c) ||
         !std::isfinite(target_c) || temperature_c > 105.0f) {
       reset();
@@ -73,6 +78,14 @@ class Controller {
     }
 
     const float error = target_c - temperature_c;
+    // L'appoint suit le débit pendant le remplissage et disparaît dès que
+    // celui-ci baisse. Ne pas utiliser une mesure absente ou périmée.
+    const float flow_bonus_pct = flowing && flow_valid && std::isfinite(flow_ml_s) &&
+                                 error > -kFlowBonusAboveTargetBandC
+        ? std::clamp((flow_ml_s - kFlowBonusStartMlS) /
+                         (kFlowBonusFullMlS - kFlowBonusStartMlS), 0.0f, 1.0f) *
+              kFlowBonusMaxPct
+        : 0.0f;
     if (std::fabs(error) <= kBrewTemperatureToleranceC) {
       if (ready_since_ms_ == 0) ready_since_ms_ = now_ms;
     } else {
@@ -122,24 +135,26 @@ class Controller {
     // La commande effectivement envoyée alimente l'estimation d'inertie.
     if (power <= 0.0f) {
       filtered_power_pct_ = 0.0f;
-      record_command(now_ms, 0.0f);
-      return {0, ready};
-    }
-    const float limited_power = std::clamp(power, 0.0f, 100.0f);
-    if (!has_filtered_power_) {
-      filtered_power_pct_ = limited_power;
-      has_filtered_power_ = true;
-    } else if (flowing && limited_power > filtered_power_pct_) {
-      // Apply the modest flow feedforward without output-filter delay.
-      filtered_power_pct_ = limited_power;
-    } else if (dt_s > 0.0f) {
-      const float alpha = dt_s / (kPowerFilterTimeConstantS + dt_s);
-      filtered_power_pct_ += alpha * (limited_power - filtered_power_pct_);
+    } else {
+      const float limited_power = std::clamp(power, 0.0f, 100.0f);
+      if (!has_filtered_power_) {
+        filtered_power_pct_ = limited_power;
+        has_filtered_power_ = true;
+      } else if (flowing && limited_power > filtered_power_pct_) {
+        // Apply the modest flow feedforward without output-filter delay.
+        filtered_power_pct_ = limited_power;
+      } else if (dt_s > 0.0f) {
+        const float alpha = dt_s / (kPowerFilterTimeConstantS + dt_s);
+        filtered_power_pct_ += alpha * (limited_power - filtered_power_pct_);
+      }
     }
     if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_, kFlowPowerLimitPct);
     if (recovering) filtered_power_pct_ = std::min(filtered_power_pct_, kRecoveryPowerLimitPct);
+    // Ajouter le supplément après le filtre : la baisse du débit le retire
+    // immédiatement, sans attendre la constante de temps de 5 s.
+    const float commanded_power_pct = filtered_power_pct_ + flow_bonus_pct;
     const uint16_t power_permille = static_cast<uint16_t>(
-        std::lround(std::clamp(filtered_power_pct_, 0.0f, 100.0f) * 10.0f));
+        std::lround(std::clamp(commanded_power_pct, 0.0f, 100.0f) * 10.0f));
     record_command(now_ms, power_permille / 10.0f);
     return {power_permille, ready};
   }

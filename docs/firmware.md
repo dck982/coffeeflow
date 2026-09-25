@@ -78,7 +78,7 @@ Exemple abrégé :
   "pressure": {"bar": 0.0, "valid": true},
   "brew": {"state": "idle", "pump_pct": 0, "valve_open": false},
   "heating": {"power_pct": 37.5, "on": true},
-  "firmware": {"screen": {"version_major": 0, "version_minor": 3, "version_patch": 13,
+  "firmware": {"screen": {"version_major": 0, "version_minor": 3, "version_patch": 14,
                           "ota": {"pending_verify": false}},
                "sensors": {"alive": true, "version_major": 0, "version_minor": 3,
                            "version_patch": 13}}

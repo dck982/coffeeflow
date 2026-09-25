@@ -345,7 +345,7 @@ const char* validate(const Config& c) {
   if (!valid_step(c.target_weight_g, 10, 100, .5f)) return "brew.target_weight_g";
   if (c.target_time_s < 5 || c.target_time_s > 60) return "brew.target_time_s";
   if (!valid_step(c.target_pressure_bar, 6, 12, .1f)) return "brew.target_pressure_bar";
-  if (!valid_step(c.brew_temperature_c, kMinimumBrewTemperatureC, 100, .5f)) return "heating.brew_temperature_c";
+  if (!valid_step(c.brew_temperature_c, kMinimumBrewTemperatureC, kMaximumBrewTemperatureC, .5f)) return "heating.brew_temperature_c";
   if (c.filling_time_s < 1 || c.filling_time_s > 10) return "filling.time_s";
   if (!valid_step(c.filling_pressure_target_bar, .1f, 1.0f, .1f)) return "filling.pressure_target_bar";
   if (c.filling_pump_pct < 20 || c.filling_pump_pct > 100 || c.filling_pump_pct % 5) return "filling.pump_pct";
@@ -459,7 +459,11 @@ void config_init() {
   if (migrated) selected.heating_enabled = false;
   const bool normalized_brew_pump = selected.brew_pump_pct < kMinimumBrewPumpPct;
   if (normalized_brew_pump) selected.brew_pump_pct = kMinimumBrewPumpPct;
-  if ((migrated || (found && normalized_brew_pump)) && !persist(selected)) {
+  // Un essai temporaire a autorisé 110 °C avec le même schéma NVS. Ramener
+  // une éventuelle consigne sauvegardée dans la plage rétablie au démarrage.
+  const bool normalized_brew_temperature = selected.brew_temperature_c > kMaximumBrewTemperatureC;
+  if (normalized_brew_temperature) selected.brew_temperature_c = kMaximumBrewTemperatureC;
+  if ((migrated || (found && (normalized_brew_pump || normalized_brew_temperature))) && !persist(selected)) {
     ESP_LOGE(kTag, "cannot persist migrated or normalized configuration");
   }
   if (!found) { selected = Config{}; selected.revision = 1; if (!persist(selected)) ESP_LOGE(kTag, "cannot persist defaults"); }

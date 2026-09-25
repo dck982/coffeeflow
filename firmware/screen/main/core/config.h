@@ -8,6 +8,7 @@ namespace core {
 
 inline constexpr uint16_t kConfigSchemaVersion = 6;
 inline constexpr float kMinimumBrewTemperatureC = 50.0f;
+inline constexpr float kMaximumBrewTemperatureC = 100.0f;
 inline constexpr float kBrewTemperatureToleranceC = 1.0f;
 // Sous cette puissance, la pompe ne maintient plus une pression d'infusion
 // sûre. Cette borne est distincte des puissances de remplissage et de purge.

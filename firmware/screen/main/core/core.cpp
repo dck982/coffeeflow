@@ -337,7 +337,10 @@ void tick_thermal() {
       config.brew_temperature_c,
       snapshot.boiler_temperature_valid &&
           snapshot.boiler_temperature_freshness == Freshness::kFresh,
-      can_heat, mode);
+      can_heat, mode, snapshot.flow_ml_s,
+      snapshot.flow_valid && snapshot.flow_freshness == Freshness::kFresh &&
+          snapshot.flow_last_edge_age_ms <= 500 &&
+          snapshot.actuators_freshness == Freshness::kFresh && snapshot.pump_pct > 0);
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
   g_state.snapshot.brew_temperature_ready = output.ready;

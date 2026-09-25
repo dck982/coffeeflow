@@ -1,4 +1,5 @@
 #include "core/core.h"
+#include "ota_local.h"
 #include "service_screen.h"
 
 int64_t g_sim_time_us = 0;
@@ -23,3 +24,7 @@ ActionResult perform_action(const ActionCommand&) { return {}; }
 namespace service_screen {
 bool restart_lcd() { return true; }
 }  // namespace service_screen
+
+namespace ota_local {
+bool pending_verify() { return false; }
+}  // namespace ota_local

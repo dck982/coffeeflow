@@ -1,6 +1,7 @@
 #include "ui_home.h"
 #include "common/version.hpp"
 #include "core/core.h"
+#include "ota_local.h"
 #include "service_screen.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
@@ -1454,7 +1455,7 @@ void create(lv_obj_t *p) {
 }
 
 void refresh(const core::Snapshot &s, bool boot) {
-  char t[128];
+  char t[192];
   scale = s.scale_present;
   auto c = core::get_config();
   bool press = s.pressure_valid && present(s.pressure_freshness);
@@ -1600,8 +1601,12 @@ void refresh(const core::Snapshot &s, bool boot) {
   }
   if (s.boot_time_syncing)
     fullscreen(true, "synchronisation heure", "connexion wifi...");
-  else if (s.flash_active)
-    fullscreen(true, "mise à jour", "ne pas couper la machine");
+  else if (s.flash_active) {
+    const char *target = s.flash_target == core::FlashTarget::kScreen ? "écran" :
+                         s.flash_target == core::FlashTarget::kSensors ? "capteurs" : "firmware";
+    std::snprintf(t, sizeof(t), "mise à jour · %s\nne pas couper la machine", target);
+    fullscreen(true, "mise à jour", t);
+  }
   else if (s.radio_mode == core::RadioMode::kWifi) {
     const core::HFCaptureInfo capture = core::get_hf_capture_info();
     char recording[64];
@@ -1615,20 +1620,30 @@ void refresh(const core::Snapshot &s, bool boot) {
       std::snprintf(recording, sizeof(recording), "aucun enregistrement disponible");
     }
     if (s.radio_transition)
-      std::snprintf(t, sizeof(t), "activation du réseau\n%s", recording);
+      std::snprintf(t, sizeof(t), "activation du réseau\n%s\nversion écran · %u.%u.%u", recording,
+                    s.screen_version_major, s.screen_version_minor, s.screen_version_patch);
     else if (s.ipv4_address)
-      std::snprintf(t, sizeof(t), "adresse ip · %u.%u.%u.%u\n%s",
+      std::snprintf(t, sizeof(t), "adresse ip · %u.%u.%u.%u\n%s\nversion écran · %u.%u.%u",
                     static_cast<unsigned>(s.ipv4_address & 255),
                     static_cast<unsigned>((s.ipv4_address >> 8) & 255),
                     static_cast<unsigned>((s.ipv4_address >> 16) & 255),
-                    static_cast<unsigned>((s.ipv4_address >> 24) & 255), recording);
+                    static_cast<unsigned>((s.ipv4_address >> 24) & 255), recording,
+                    s.screen_version_major, s.screen_version_minor, s.screen_version_patch);
     else
-      std::snprintf(t, sizeof(t), "configuration wifi ou association en cours\n%s", recording);
+      std::snprintf(t, sizeof(t), "configuration wifi ou association en cours\n%s\nversion écran · %u.%u.%u",
+                    recording, s.screen_version_major, s.screen_version_minor,
+                    s.screen_version_patch);
+    if (ota_local::pending_verify()) {
+      std::snprintf(t, sizeof(t), "veuillez confirmer le firmware v%u.%u.%u\nPOST /firmware/confirm",
+                    s.screen_version_major, s.screen_version_minor,
+                    s.screen_version_patch);
+    }
     fullscreen(true, "Mode wifi", t);
   } else if (boot)
     fullscreen(true, "coffeeflow", "démarrage");
   else
     fullscreen(false, "", "");
+  hidden(v.wifi_exit, s.flash_active || s.radio_mode != core::RadioMode::kWifi);
   idle(s);
 }
 

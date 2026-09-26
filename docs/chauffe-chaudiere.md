@@ -46,20 +46,22 @@ secondes. La pente est filtrée sur 8 s et les variations de puissance non nulle
 sont lissées sur 5 s ; les coupures restent immédiates. L'intégrale utilise l'erreur prédite, pour ne pas
 accumuler une erreur déjà expliquée par cette chaleur. Pendant l'infusion et la
 purge, le mode écoulement applique au moins 18 % lorsque la température reste
-proche ou sous la cible, avec une puissance de base limitée à 35 %. Depuis
-0.3.15, le plancher est de **30 % pendant le remplissage, la pré-infusion et
-l'infusion**, dès l'entrée dans ce mode et sans attendre la baisse de la NTC.
-La purge conserve son plancher de 18 %.
+proche ou sous la cible. Depuis la version écran **0.3.17**, pendant le
+remplissage, la pré-infusion et l'infusion,
+le plancher est de **45 %** tant que la NTC reste à moins de 1 °C au-dessus de
+la cible ; la puissance de base peut monter à **60 %** si la température baisse.
+La purge conserve son plancher de 18 % et sa limite de base de 35 %.
 Depuis 0.3.14, un débit valide et frais ajoute **0 point à 2 ml/s ou moins**,
 **5 points à 3 ml/s** et **10 points à 4 ml/s ou plus**, avec interpolation
-linéaire. La commande totale peut ainsi atteindre **45 %** à haut débit.
+linéaire. La commande totale peut ainsi atteindre **70 %** pendant l'infusion
+et **45 %** pendant une purge à haut débit.
 Le supplément est possible jusqu'à 2 °C au-dessus de la cible, mais jamais
 au-delà ; il se retire immédiatement quand le débit baisse. Il exige une
 mesure de débit fraîche, une impulsion récente (500 ms au plus) et la pompe
 confirmée en marche. Sinon, la loi de base s'applique. Le débitmètre est en amont de
 la pompe : lors d'une recirculation par l'OPV, sa mesure peut dépasser le
-débit réellement sorti au groupe. Ces 10 points sont un premier réglage à
-calibrer sur un vrai café, en suivant aussi le rebond après écoulement.
+débit réellement sorti au groupe. Ces réglages sont à calibrer sur un vrai
+café, en suivant aussi le rebond après écoulement.
 Le mode écoulement ne prolonge pas la
 pente négative de la NTC sur les 20 s de prédiction. Durant les 30 s suivant
 l'arrêt de l'écoulement, la reprise reste plafonnée à 35 %, la pente négative
@@ -69,7 +71,8 @@ plus grand effet entre la pente montante et la chaleur en transit, car ces
 deux estimations se recouvrent partiellement. En reprise, la chauffe peut être
 coupée dès que la prédiction passe au-dessus de la cible ; pendant
 l'écoulement, l'appoint de base est
-coupé quand la mesure dépasse la cible de 0,5 °C. Au-dessus de 105 °C, sur mesure
+coupé quand la mesure dépasse la cible de 1 °C en infusion ou de 0,5 °C en
+purge. Au-dessus de 105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
 
@@ -81,8 +84,17 @@ ce café, la chauffe reste à 18 % jusqu'à une NTC de 87 °C environ ; elle dé
 à 78,4 °C en fin de capture. Le nouveau plancher avance une commande de 30 %
 dès le remplissage, et environ 37 à 40 % à débit valide de 3,4 à 4 ml/s près
 de la consigne. La capture s'arrête 3,8 s après la pompe : elle ne mesure ni
-le rebond ni la température dans le panier. Vérifier les deux lors du prochain
-essai avant d'augmenter encore les puissances ou le plafond de reprise.
+le rebond ni la température dans le panier.
+
+La [capture du 26 septembre](../captures/260926-073127.json), réalisée avant
+le relèvement du plafond, commence à 90,62 °C pour une consigne de 90 °C.
+La puissance reste à 10 % au début parce que le plancher de 30 % ne s'appliquait
+qu'à 90,5 °C ou moins : seul le supplément de débit agissait. Ensuite, la
+commande atteint 41,6 % au maximum, sous la limite de 35 % de base et 10 points
+de débit, tandis que la NTC descend à 78,05 °C vers 20,35 s. La capture finit
+environ 4 s après l'arrêt de la pompe ; elle ne donne pas le pic thermique
+ultérieur. Le nouveau plancher et le plafond d'infusion doivent être vérifiés
+sur un café comparable avec au moins 60 s de télémétrie après l'arrêt.
 
 Une purge commencée à 5 °C ou plus de la consigne, au-dessus ou en dessous,
 est traitée comme une purge de réglage thermique : aucune chauffe n'est

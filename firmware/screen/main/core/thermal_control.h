@@ -27,8 +27,10 @@ class Controller {
   static constexpr float kSlopeFilterTimeConstantS = 8.0f;
   static constexpr float kHoldPowerPct = 3.5f;
   static constexpr float kFlowFeedforwardPct = 18.0f;
-  static constexpr float kBrewFeedforwardPct = 30.0f;
+  static constexpr float kBrewFeedforwardPct = 45.0f;
   static constexpr float kFlowPowerLimitPct = 35.0f;
+  static constexpr float kBrewPowerLimitPct = 60.0f;
+  static constexpr float kBrewFeedforwardAboveTargetBandC = 1.0f;
   static constexpr float kFlowBonusStartMlS = 2.0f;
   static constexpr float kFlowBonusFullMlS = 4.0f;
   static constexpr float kFlowBonusMaxPct = 10.0f;
@@ -128,10 +130,11 @@ class Controller {
     if (error < -0.5f) integral_pct_ = 0;
     float power = kHoldPowerPct + 8.0f * predicted_error + integral_pct_;
     if (flowing) {
-      if (error > -0.5f)
+      if (error > (mode == Mode::kBrew ? -kBrewFeedforwardAboveTargetBandC : -0.5f))
         power = std::max(power, mode == Mode::kBrew ? kBrewFeedforwardPct
                                                    : kFlowFeedforwardPct);
-      power = std::min(power, kFlowPowerLimitPct);
+      power = std::min(power, mode == Mode::kBrew ? kBrewPowerLimitPct
+                                                  : kFlowPowerLimitPct);
     } else if (recovering) {
       power = std::min(power, kRecoveryPowerLimitPct);
     }
@@ -154,7 +157,8 @@ class Controller {
         filtered_power_pct_ += alpha * (limited_power - filtered_power_pct_);
       }
     }
-    if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_, kFlowPowerLimitPct);
+    if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_,
+        mode == Mode::kBrew ? kBrewPowerLimitPct : kFlowPowerLimitPct);
     if (recovering) filtered_power_pct_ = std::min(filtered_power_pct_, kRecoveryPowerLimitPct);
     // Ajouter le supplément après le filtre : la baisse du débit le retire
     // immédiatement, sans attendre la constante de temps de 5 s.

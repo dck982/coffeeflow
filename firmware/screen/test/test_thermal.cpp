@@ -14,7 +14,7 @@ int main() {
   auto out = controller.step(1000, 20, 90, true, true, Mode::kIdle);
   assert(out.power_permille == 1000 && !out.ready);
   out = controller.step(1250, 20, 90, true, true, Mode::kBrew);
-  assert(out.power_permille == 350);  // l'appoint infusion reste borné
+  assert(out.power_permille == 600);  // l'appoint infusion reste borné
   out = controller.step(1500, 20, 90, true, false, Mode::kIdle);
   assert(out.power_permille == 0 && !out.ready);
   out = controller.step(1750, 86, 90, true, true, Mode::kIdle);
@@ -69,10 +69,16 @@ int main() {
   // Dès le remplissage, l'infusion anticipe la chute avant que la NTC baisse.
   core::thermal::Controller infusion;
   infusion.step(1000, 90.0f, 90, true, true, Mode::kIdle);
-  assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille == 300);
+  assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille == 450);
   core::thermal::Controller infusion_flow;
-  assert(infusion_flow.step(1000, 90, 90, true, true, Mode::kBrew, 4, true).power_permille == 400);
-  assert(infusion_flow.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 300);
+  assert(infusion_flow.step(1000, 90, 90, true, true, Mode::kBrew, 4, true).power_permille == 550);
+  assert(infusion_flow.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 450);
+  core::thermal::Controller infusion_warm, infusion_cold;
+  assert(infusion_warm.step(1000, 90.62f, 90, true, true, Mode::kBrew, 4, true).power_permille == 550);
+  assert(infusion_cold.step(1000, 78, 90, true, true, Mode::kBrew, 4, true).power_permille == 700);
+  assert(infusion_cold.step(1250, 78, 90, true, true, Mode::kIdle).power_permille <= 350);
+  core::thermal::Controller infusion_hot;
+  assert(infusion_hot.step(1000, 91.1f, 90, true, true, Mode::kBrew, 4, true).power_permille == 100);
 
   // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
   // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.
@@ -81,7 +87,7 @@ int main() {
   assert(flow_mid.step(1000, 90, 90, true, true, Mode::kPurge, 3, true).power_permille == 230);
   assert(flow_high.step(1000, 90, 90, true, true, Mode::kPurge, 4, true).power_permille == 280);
   assert(flow_high.step(1250, 90, 90, true, true, Mode::kPurge, 2, true).power_permille == 180);
-  assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 300);
+  assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 450);
   assert(flow_stale.step(1250, 90, 90, true, true, Mode::kIdle, 4, true).power_permille <= 350);
   core::thermal::Controller flow_early, flow_capped, flow_too_hot;
   assert(flow_early.step(1000, 91.8f, 90, true, true, Mode::kPurge, 4, true).power_permille == 100);

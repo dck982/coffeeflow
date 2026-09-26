@@ -1,5 +1,17 @@
 # Régulation de la chaudière
 
+Depuis la version écran **0.3.16**, la conversion NTC utilise **47 kΩ / 3 950 K**
+pour estimer la température locale de la sonde, puis soustrait **14 °C** pour
+la température utilisateur, proche de l'affichage Gicar dans la plage café.
+Une consigne utilisateur de **90 °C** vise ainsi **104 °C estimés à la sonde**.
+L'écran, la régulation, les captures HF et `temperature.boiler.c` dans
+`GET /telemetry` restent dans le domaine utilisateur. La télémétrie ajoute
+`temperature.boiler.sensor_c` et `heating.target_sensor_c` pour le domaine de
+la sonde ; `heating.target_c` reste la consigne utilisateur. Le calcul de la
+sonde et l'offset demeurent indicatifs : une correspondance avec l'affichage
+Gicar ne mesure pas la température de l'eau au groupe. La coupure de chauffe
+à **105 °C utilisateur** représente désormais **119 °C estimés à la sonde**.
+
 L'écran lit la NTC chaudière et calcule la puissance demandée. Le module
 capteurs transforme cette puissance en temps de marche du SSR sur une période
 fixe de 5 s. L'écran renouvelle un bail de 1500 ms toutes les 500 ms : la

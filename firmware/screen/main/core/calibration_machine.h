@@ -15,14 +15,20 @@ inline constexpr float kFlowPulsesPerLiter = 3450.0f;
 // n'a été établi avec le manomètre filmé.
 inline constexpr float kPressureFullScaleBar = 16.0f;
 inline constexpr float kPressureOffsetBar = 0.0f;
-// Pont NTC chaudière : R25 mesuré proche de 47 kΩ. Beta 4630 K est un essai
-// pour rapprocher la zone café de l'affichage Gicar, pas une mesure directe
-// stabilisée de la sonde chaude (docs/chauffe-chaudiere.md).
+// Pont NTC chaudière : courbe locale indicative de la sonde démontée.
+// L'affichage Gicar est proche de cette courbe moins 14 °C en zone café
+// (docs/chauffe-chaudiere.md). L'offset concerne la consigne utilisateur,
+// pas la conversion physique de la NTC.
 inline constexpr float kBoilerNtcFixedOhm = 2193.0f;
 inline constexpr float kBoilerNtcR0Ohm = 47000.0f;
-inline constexpr float kBoilerNtcBetaK = 4630.0f;
+inline constexpr float kBoilerNtcBetaK = 3950.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;
-// L'écart avec l'ancien affichage Gicar n'est pas compensé par un offset.
-inline constexpr float kBoilerNtcTemperatureOffsetC = 0.0f;
+inline constexpr float kBoilerNtcTemperatureOffsetC = -14.0f;
+inline constexpr float boiler_user_temperature_c(float sensor_c) {
+  return sensor_c + kBoilerNtcTemperatureOffsetC;
+}
+inline constexpr float boiler_sensor_temperature_c(float user_c) {
+  return user_c - kBoilerNtcTemperatureOffsetC;
+}
 
 }  // namespace core::calibration_machine

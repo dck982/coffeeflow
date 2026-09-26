@@ -215,6 +215,8 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   const core::Config config = core::get_config();
   cJSON_AddBoolToObject(heating, "enabled", config.heating_enabled);
   cJSON_AddNumberToObject(heating, "target_c", config.brew_temperature_c);
+  cJSON_AddNumberToObject(heating, "target_sensor_c",
+                          core::calibration_machine::boiler_sensor_temperature_c(config.brew_temperature_c));
   cJSON_AddBoolToObject(heating, "ready", snapshot.brew_temperature_ready);
   cJSON_AddNumberToObject(heating, "power_pct", snapshot.heating_power_pct);
   if (snapshot.heating_freshness == core::Freshness::kFresh)
@@ -225,8 +227,10 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   else cJSON_AddNullToObject(xdb401, "c");
   if (snapshot.boiler_temperature_age_ms == UINT32_MAX) {
     cJSON_AddNullToObject(boiler, "c");
+    cJSON_AddNullToObject(boiler, "sensor_c");
   } else {
     cJSON_AddNumberToObject(boiler, "c", snapshot.boiler_temperature_c);
+    cJSON_AddNumberToObject(boiler, "sensor_c", snapshot.boiler_sensor_temperature_c);
   }
   cJSON_AddBoolToObject(boiler, "valid", snapshot.boiler_temperature_valid);
   cJSON_AddStringToObject(boiler, "freshness", freshness_text(snapshot.boiler_temperature_freshness));

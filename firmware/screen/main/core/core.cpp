@@ -733,7 +733,7 @@ bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
                             std::log(resistance / calibration_machine::kBoilerNtcR0Ohm) /
                                 calibration_machine::kBoilerNtcBetaK;
     const float unadjusted_temperature_c = 1.0f / inverse_k - 273.15f;
-    temperature_c = unadjusted_temperature_c + calibration_machine::kBoilerNtcTemperatureOffsetC;
+    temperature_c = calibration_machine::boiler_user_temperature_c(unadjusted_temperature_c);
     valid = std::isfinite(resistance) && std::isfinite(unadjusted_temperature_c) &&
             resistance > 0.0f && unadjusted_temperature_c >= -10.0f &&
             unadjusted_temperature_c <= 160.0f;
@@ -747,6 +747,8 @@ bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
   }
   if (valid) {
     g_state.snapshot.boiler_temperature_c = temperature_c;
+    g_state.snapshot.boiler_sensor_temperature_c =
+        calibration_machine::boiler_sensor_temperature_c(temperature_c);
     g_state.boiler_received_us = now;
   }
   portEXIT_CRITICAL(&g_state.lock);

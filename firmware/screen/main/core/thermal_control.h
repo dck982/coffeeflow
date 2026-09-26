@@ -36,12 +36,15 @@ class Controller {
   static constexpr float kPurgeCompensationBandC = 5.0f;
   static constexpr float kRecoveryPowerLimitPct = 35.0f;
   static constexpr uint64_t kRecoveryDurationMs = 30000;
+  // L'entrée est dans le domaine utilisateur : 105 °C ici = 119 °C à la
+  // sonde avec l'offset de -14 °C appliqué lors de la lecture NTC.
+  static constexpr float kMaximumBoilerUserTemperatureC = 105.0f;
 
   Output step(uint64_t now_ms, float temperature_c, float target_c,
               bool valid, bool enabled, Mode mode,
               float flow_ml_s = 0.0f, bool flow_valid = false) {
     if (!valid || !enabled || !std::isfinite(temperature_c) ||
-        !std::isfinite(target_c) || temperature_c > 105.0f) {
+        !std::isfinite(target_c) || temperature_c > kMaximumBoilerUserTemperatureC) {
       reset();
       return {0, false};
     }

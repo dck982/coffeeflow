@@ -22,6 +22,7 @@
 
 #include <cstdint>
 
+#include "core/calibration_machine.h"
 #include "core/config.h"
 #include "core/events.h"
 
@@ -39,7 +40,8 @@ struct Snapshot {
   float pressure_bar = 0.0f;
   float temperature_c = 0.0f;  // ancien champ interne XDB401 ; alias HTTP = chaudière
   float xdb401_temperature_c = 0.0f;
-  float boiler_temperature_c = 0.0f;
+  float boiler_temperature_c = 0.0f;  // domaine utilisateur, sonde moins 14 °C
+  float boiler_sensor_temperature_c = 0.0f;  // estimation locale, sans offset
   int16_t boiler_ntc_a0_raw = 0;
   int16_t boiler_ntc_a1_raw = 0;
   bool boiler_temperature_valid = false;

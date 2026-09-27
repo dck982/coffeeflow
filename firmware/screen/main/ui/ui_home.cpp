@@ -1302,7 +1302,7 @@ void create(lv_obj_t *p) {
       navbar(v.settings, "réglages", &ignore, back_settings, false, true);
   for (unsigned i = 0; i < 4; ++i) {
     char number[2] = {static_cast<char>('1' + i), '\0'};
-    v.tab[i] = button(settings_bar, 536 + static_cast<int>(i) * 64, 20, 56, 48,
+    v.tab[i] = button(settings_bar, 536 + static_cast<int>(i) * 64, 12, 56, 64,
                       number);
     lv_obj_add_event_cb(v.tab[i], select_settings_page, LV_EVENT_CLICKED,
                         reinterpret_cast<void *>(uintptr_t(i)));

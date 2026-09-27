@@ -30,7 +30,7 @@ constexpr int64_t kDimmerCalibrationResetDelayS = 10;
 constexpr int kTopbarGap = 12;
 // ui_font_28 a une hauteur de ligne légèrement supérieure à 32 px : ces deux
 // pixels empêchent le parent Flex de rogner les descendantes (notamment le g).
-constexpr int kTopbarHeight = 34;
+constexpr int kTopbarHeight = 52;
 enum class Role : uint8_t { Secondary, Primary, Destructive, Disabled };
 enum class Edit : uint8_t {
   None,
@@ -54,13 +54,14 @@ enum class Edit : uint8_t {
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
 enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
-  lv_obj_t *pressure{}, *temperature{}, *weight{}, *weight_group{}, *weight_content{}, *diagnostic{},
+  lv_obj_t *pressure{}, *temperature{}, *heat_track[4]{}, *heat_fill[4]{},
+      *weight{}, *weight_group{}, *weight_content{}, *diagnostic{},
       *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
       *purge{}, *settings_button{}, *cycle{}, *phase{}, *hero{},
       *hero_time{}, *hero_divider{},
-      *cycle_detail{}, *progress{}, *stop{}, *settings{}, *index{}, *prev{},
-      *next{}, *tile[6]{}, *tile_name[6]{}, *tile_value[6]{}, *diag{},
+      *cycle_detail{}, *progress{}, *stop{}, *settings{}, *tab[4]{},
+      *tile[6]{}, *tile_name[6]{}, *tile_value[6]{}, *diag{},
       *diag_val[9]{}, *diag_state[9]{}, *dot[9]{}, *keypad{}, *key_title{},
       *key_value{}, *key_unit{}, *key_error{}, *key_ok{}, *key_comma{},
       *choice{}, *choice_title{}, *choice_button[4]{}, *confirm{},
@@ -759,17 +760,9 @@ void show_edit(Edit e) {
   key_render();
 }
 void show_target(lv_event_t *) { show_edit(scale ? Edit::Weight : Edit::Time); }
-void prev(lv_event_t *) {
-  if (page) {
-    --page;
-    render_settings();
-  }
-}
-void next(lv_event_t *) {
-  if (page < 3) {
-    ++page;
-    render_settings();
-  }
+void select_settings_page(lv_event_t *e) {
+  page = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(lv_event_get_user_data(e)));
+  render_settings();
 }
 void show_settings(lv_event_t *) {
   page = 0;
@@ -895,16 +888,14 @@ void tile(unsigned i, const char *n, const char *val,
 }
 void render_settings() {
   auto c = core::get_config();
-  char x[6][40]{}, idx[8];
-  std::snprintf(idx, sizeof(idx), "%u/4", page + 1);
-  text(v.index, idx);
-  // Les flèches qui n'ont pas de destination ne doivent pas apparaître :
-  // affichées mais désactivées, elles pouvaient conserver un rendu "pressed"
-  // lors de l'entrée dans les réglages.
-  hidden(v.prev, page == 0);
-  hidden(v.next, page == 3);
-  lv_obj_remove_state(v.prev, LV_STATE_PRESSED);
-  lv_obj_remove_state(v.next, LV_STATE_PRESSED);
+  char x[6][40]{};
+  for (unsigned i = 0; i < 4; ++i) {
+    lv_obj_t *label = lv_obj_get_child(v.tab[i], 0);
+    const bool selected = i == page;
+    lv_obj_set_style_bg_color(v.tab[i], selected ? theme::kSurfaceAccent : theme::kSurface, 0);
+    lv_obj_set_style_text_color(label, selected ? theme::kAccent : theme::kText, 0);
+    lv_obj_remove_state(v.tab[i], LV_STATE_PRESSED);
+  }
   for (unsigned i = 0; i < 6; ++i) {
     hidden(v.tile[i], false);
     hidden(v.tile_name[i], false);
@@ -1213,10 +1204,27 @@ void create(lv_obj_t *p) {
   spacer(sensors, kTopbarGap);
   topbar_rule(sensors);
   spacer(sensors, kTopbarGap);
-  dyn(sensors, &v.temperature, "-", theme::kFontStatus, theme::kTextDim, 0, 0);
+  lv_obj_t *temperature_column = topbar_group(sensors, 110);
+  lv_obj_set_flex_flow(temperature_column, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(temperature_column, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER);
+  dyn(temperature_column, &v.temperature, "-", theme::kFontStatus,
+      theme::kTextDim, 0, 0);
   lv_obj_set_width(v.temperature, 110);
   lv_label_set_long_mode(v.temperature, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(v.temperature, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_obj_t *heat_bar = lv_obj_create(temperature_column);
+  lv_obj_remove_style_all(heat_bar);
+  lv_obj_set_size(heat_bar, 110, 6);
+  lv_obj_set_flex_flow(heat_bar, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(heat_bar, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(heat_bar, 2, 0);
+  lv_obj_remove_flag(heat_bar, LV_OBJ_FLAG_SCROLLABLE);
+  for (unsigned i = 0; i < 4; ++i) {
+    v.heat_track[i] = box(heat_bar, 0, 0, 26, 6, theme::kBgRaised, 2);
+    v.heat_fill[i] = box(v.heat_track[i], 0, 0, 0, 6, theme::kThermal, 2);
+  }
   // L'icône de diagnostic et l'heure ouvrent les diagnostics.
   for (lv_obj_t *status : {v.diagnostic, v.clock}) {
     lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
@@ -1294,18 +1302,12 @@ void create(lv_obj_t *p) {
   base(v.settings);
   lv_obj_t *settings_bar =
       navbar(v.settings, "réglages", &ignore, back_settings, false, true);
-  dyn(settings_bar, &v.index, "1/4", theme::kFontButton, theme::kText, 0, 0);
-  lv_obj_align(v.index, LV_ALIGN_LEFT_MID, 504, 0);
-  v.prev = button(settings_bar, 0, 0, 80, 80, "");
-  v.next = button(settings_bar, 0, 0, 80, 80, "");
-  lv_obj_align(v.prev, LV_ALIGN_LEFT_MID, 592, 0);
-  lv_obj_align(v.next, LV_ALIGN_LEFT_MID, 688, 0);
-  lv_obj_t *prev_icon = icon_container(v.prev, Icon::Left, theme::kText);
-  lv_obj_t *next_icon = icon_container(v.next, Icon::Right, theme::kText);
-  lv_obj_center(prev_icon);
-  lv_obj_center(next_icon);
-  lv_obj_add_event_cb(v.prev, prev, LV_EVENT_CLICKED, nullptr);
-  lv_obj_add_event_cb(v.next, next, LV_EVENT_CLICKED, nullptr);
+  for (unsigned i = 0; i < 4; ++i) {
+    char number[2] = {static_cast<char>('1' + i), '\0'};
+    v.tab[i] = button(settings_bar, 536 + static_cast<int>(i) * 64, 12, 56, 64, number);
+    lv_obj_add_event_cb(v.tab[i], select_settings_page, LV_EVENT_CLICKED,
+                        reinterpret_cast<void *>(uintptr_t(i)));
+  }
   for (unsigned i = 0; i < 6; ++i) {
     int x = i % 2 ? 408 : 32, y = 104 + (i / 2) * 104;
     v.tile[i] = button(v.settings, x, y, 360, 88, "");
@@ -1501,6 +1503,22 @@ void refresh(const core::Snapshot &s, bool boot) {
   lv_obj_set_style_text_opa(v.temperature,
                             LV_OPA_COVER,
                             0);
+  const bool heat_available = s.heating_power_capable &&
+                              s.heating_freshness == core::Freshness::kFresh;
+  const float heat_pct = heat_available
+                             ? std::clamp(s.heating_power_pct, 0.0f, 100.0f)
+                             : 0.0f;
+  const lv_color_t heat_colors[] = {theme::kThermal, theme::kSuccess,
+                                    theme::kRampFull, theme::kAccent};
+  for (unsigned i = 0; i < 4; ++i) {
+    const float quarter = std::clamp(heat_pct - 25.0f * i, 0.0f, 25.0f);
+    lv_obj_set_width(v.heat_fill[i],
+                     static_cast<int>(std::lround(quarter * 26.0f / 25.0f)));
+    lv_obj_set_style_bg_color(v.heat_fill[i], heat_colors[i], 0);
+    lv_obj_set_style_bg_color(
+        v.heat_track[i], heat_available ? theme::kSurfaceHigh : theme::kBgRaised,
+        0);
+  }
   if (scale) {
     fmt(t, sizeof(t), s.weight_g, " g");
     text(v.weight, t);

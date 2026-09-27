@@ -28,6 +28,7 @@ constexpr int64_t kDimmerCalibrationResetDelayS = 10;
 // Espacement horizontal uniforme du bandeau ; le réduire condense toutes ses
 // cellules sans modifier les largeurs réservées aux textes et aux icônes.
 constexpr int kTopbarGap = 12;
+constexpr int kHeatBarWidth = 100;
 // ui_font_28 a une hauteur de ligne légèrement supérieure à 32 px : ces deux
 // pixels empêchent le parent Flex de rogner les descendantes (notamment le g).
 constexpr int kTopbarHeight = 52;
@@ -399,6 +400,7 @@ lv_obj_t *navbar(lv_obj_t *p, const char *title, lv_obj_t **out,
                  void (*back)(lv_event_t *), bool accept = false,
                  bool wifi = false) {
   lv_obj_t *bar = box(p, 0, 0, 800, 88, theme::kBgRaised, 0);
+  lv_obj_set_style_pad_all(bar, 0, 0);
   lv_obj_t *b = button(bar, 0, 0, 80, 80, "", Role::Secondary);
   lv_obj_align(b, LV_ALIGN_LEFT_MID, 16, 0);
   lv_obj_set_style_bg_color(b, theme::kBgRaised, 0);
@@ -1216,9 +1218,10 @@ void create(lv_obj_t *p) {
   lv_obj_set_style_text_align(v.temperature, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_t *heat_bar = lv_obj_create(temperature_column);
   lv_obj_remove_style_all(heat_bar);
-  lv_obj_set_size(heat_bar, 104, 4);
+  lv_obj_set_size(heat_bar, kHeatBarWidth, 4);
   lv_obj_remove_flag(heat_bar, LV_OBJ_FLAG_SCROLLABLE);
-  v.heat_track = box(heat_bar, 0, 0, 104, 4, theme::kBgRaised, 2);
+  v.heat_track =
+      box(heat_bar, 0, 0, kHeatBarWidth, 4, theme::kBgRaised, 2);
   v.heat_fill = box(heat_bar, 0, 0, 0, 4, theme::kTextFaint, 2);
   // L'icône de diagnostic et l'heure ouvrent les diagnostics.
   for (lv_obj_t *status : {v.diagnostic, v.clock}) {
@@ -1508,8 +1511,9 @@ void refresh(const core::Snapshot &s, bool boot) {
                                     theme::kThermalNear, theme::kSuccess};
   const unsigned heat_quarter =
       std::min(static_cast<unsigned>(heat_pct / 25.0f), 3u);
-  lv_obj_set_width(v.heat_fill,
-                   static_cast<int>(std::lround(heat_pct * 104.0f / 100.0f)));
+  lv_obj_set_width(
+      v.heat_fill,
+      static_cast<int>(std::lround(heat_pct * kHeatBarWidth / 100.0f)));
   lv_obj_set_style_bg_color(v.heat_fill, heat_colors[heat_quarter], 0);
   lv_obj_set_style_bg_color(
       v.heat_track, heat_available ? theme::kSurfaceHigh : theme::kBgRaised, 0);

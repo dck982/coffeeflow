@@ -5,7 +5,7 @@
 
 namespace core::machine {
 
-enum class State : uint8_t { kIdle, kFilling, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
+enum class State : uint8_t { kIdle, kThermalPreheat, kFilling, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
 enum class StopReason : uint8_t { kNone, kTargetTime, kTargetWeight, kManual, kScaleLost, kPurgeReleased, kPurgeTimeout };
 enum class PreinfusionMode : uint8_t {
   kNone = 0,
@@ -31,6 +31,7 @@ struct Config {
   float target_weight_g;
   uint16_t target_time_s;
   float target_pressure_bar;
+  float brew_preheat_time_s;
   uint16_t filling_time_s;
   float filling_pressure_target_bar;
   uint8_t filling_pump_pct;
@@ -66,7 +67,7 @@ class Machine {
 
   State state() const { return state_; }
   StopReason stop_reason() const { return stop_reason_; }
-  bool active() const { return state_ == State::kFilling || state_ == State::kPreinfusion || state_ == State::kBrew || state_ == State::kRampdown || state_ == State::kPurge; }
+  bool active() const { return state_ == State::kThermalPreheat || state_ == State::kFilling || state_ == State::kPreinfusion || state_ == State::kBrew || state_ == State::kRampdown || state_ == State::kPurge; }
   bool weight_goal() const { return weight_goal_; }
   float starting_weight_g() const { return starting_weight_g_; }
   uint32_t elapsed_ms(uint64_t now_ms) const;

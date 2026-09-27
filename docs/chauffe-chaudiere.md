@@ -31,9 +31,11 @@ moins de 100 ms de chauffe avec le tick actuel ; un accumulateur répartit les
 faibles consignes sur plusieurs périodes (1 % = 100 ms toutes les 10 s,
 0,6 % ≈ 100 ms toutes les 16,7 s en moyenne).
 
-La configuration NVS v6 contient `heating.brew_temperature_c` (90 °C par
+La configuration NVS v7 contient `heating.brew_temperature_c` (90 °C par
 défaut, 50 à 100 °C par pas de 0,5 °C) et `heating.enabled` (`true` par
-défaut). La cible est modifiable sur la deuxième page des réglages ; le
+défaut). Elle ajoute `heating.brew_preheat_time_s` (2,5 s par défaut, 0 à
+5 s par pas de 0,5 s), modifiable dans la quatrième page existante des
+réglages ; 0 désactive l'essai. La cible est modifiable sur la deuxième page ; le
 commutateur n'est disponible que par `POST /config`. La purge reste possible
 quand il vaut `false`. L'infusion exige une mesure fraîche dans la bande
 consigne ±0,5 °C pendant trois secondes, et un module capteurs compatible.
@@ -46,6 +48,14 @@ le firmware et ne garantit pas 50 °C réels dans la chaudière.
 
 Toute migration depuis une configuration v1–v5 persiste `heating.enabled=false`
 avant le démarrage des tâches ; une installation neuve conserve `true`.
+Une migration v6 conserve ce choix et initialise la précharge à 2,5 s.
+
+Avant le remplissage, une précharge expérimentale garde la pompe arrêtée et
+commande jusqu'à 100 % de chauffe pendant la durée configurée. Elle est coupée
+si la NTC est déjà à plus de 0,5 °C au-dessus de la cible. Cette phase ne compte
+pas dans le chrono hydraulique et apparaît comme `thermal_preheat` dans la
+capture HF. Les captures d'infusion conservent ensuite 30 s de récupération ;
+les purges et commandes de banc conservent 5 s.
 
 La loi actuelle est un réglage initial : puissance plafonnée à 100 % au repos,
 anticipation de 20 s sur la pente filtrée dans les deux sens, maintien nominal
@@ -735,10 +745,10 @@ coupe ensuite la chauffe et écrit un JSON dans `captures/`. Il lit
 le fichier.
 
 1. Envoyer `POST /config` avec
-   `{"version":6,"heating":{"enabled":false}}`, puis laisser refroidir.
+   `{"version":7,"heating":{"enabled":false}}`, puis laisser refroidir.
 2. Allumer la machine et activer le Wi-Fi. La valeur `false` reste persistée.
 3. Envoyer `POST /config` avec
-   `{"version":6,"heating":{"enabled":true}}`.
+   `{"version":7,"heating":{"enabled":true}}`.
 4. Interroger `GET /telemetry` toutes les 500 ms. Enregistrer `uptime_ms`,
    `temperature.boiler.c`, sa validité et son âge, `heating.power_pct`,
    `heating.accepted_power_pct`, `heating.on` et

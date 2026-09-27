@@ -14,7 +14,7 @@ namespace core::thermal {
 // une capture de chauffe/refroidissement de la machine réelle.
 class Controller {
  public:
-  enum class Mode { kIdle, kBrew, kPurge };
+  enum class Mode { kIdle, kThermalPreheat, kBrew, kPurge };
   struct Output { uint16_t power_permille; bool ready; };
   static constexpr float kPredictionHorizonS = 20.0f;
   static constexpr float kRecoveryPredictionHorizonS = 10.0f;
@@ -28,6 +28,7 @@ class Controller {
   static constexpr float kHoldPowerPct = 3.5f;
   static constexpr float kFlowFeedforwardPct = 18.0f;
   static constexpr float kBrewFeedforwardPct = 45.0f;
+  static constexpr float kBrewPreheatPowerPct = 100.0f;
   static constexpr float kFlowPowerLimitPct = 35.0f;
   static constexpr float kBrewPowerLimitPct = 60.0f;
   static constexpr float kBrewFeedforwardAboveTargetBandC = 1.0f;
@@ -60,7 +61,8 @@ class Controller {
       last_temperature_c_ = temperature_c;
       last_ms_ = now_ms;
     }
-    const bool flowing = mode != Mode::kIdle;
+    const bool preheating = mode == Mode::kThermalPreheat;
+    const bool flowing = mode == Mode::kBrew || mode == Mode::kPurge;
     if (flowing != was_flowing_) {
       // The temperature slope during water exchange does not predict the
       // boiler's slope once the flow stops (or starts).
@@ -73,7 +75,9 @@ class Controller {
           std::fabs(temperature_c - target_c) >= kPurgeCompensationBandC;
       was_flowing_ = flowing;
     }
-    const bool recovering = !flowing && now_ms < recovery_until_ms_;
+    // Une nouvelle précharge est une phase active à part entière : elle ne
+    // doit pas hériter du plafond de récupération du cycle précédent.
+    const bool recovering = !flowing && !preheating && now_ms < recovery_until_ms_;
     const float dt_s = std::min(static_cast<float>(now_ms - last_ms_) / 1000.0f, 1.0f);
     if (dt_s > 0) {
       const float measured_slope = (temperature_c - last_temperature_c_) / dt_s;
@@ -129,7 +133,12 @@ class Controller {
     }
     if (error < -0.5f) integral_pct_ = 0;
     float power = kHoldPowerPct + 8.0f * predicted_error + integral_pct_;
-    if (flowing) {
+    if (preheating) {
+      // Une seule variable expérimentale est exposée : la durée. La puissance
+      // reste fixe, mais la précharge est supprimée si la NTC dépasse déjà la
+      // cible de 0,5 °C.
+      power = error > -0.5f ? kBrewPreheatPowerPct : 0.0f;
+    } else if (flowing) {
       if (error > (mode == Mode::kBrew ? -kBrewFeedforwardAboveTargetBandC : -0.5f))
         power = std::max(power, mode == Mode::kBrew ? kBrewFeedforwardPct
                                                    : kFlowFeedforwardPct);
@@ -149,7 +158,7 @@ class Controller {
       if (!has_filtered_power_) {
         filtered_power_pct_ = limited_power;
         has_filtered_power_ = true;
-      } else if (flowing && limited_power > filtered_power_pct_) {
+      } else if ((flowing || preheating) && limited_power > filtered_power_pct_) {
         // Apply the modest flow feedforward without output-filter delay.
         filtered_power_pct_ = limited_power;
       } else if (dt_s > 0.0f) {

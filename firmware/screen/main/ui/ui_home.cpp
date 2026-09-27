@@ -39,6 +39,7 @@ enum class Edit : uint8_t {
   Time,
   BrewPressure,
   BrewTemperature,
+  BrewPreheatTime,
   FillingTime,
   FillingPressureTarget,
   FillingPump,
@@ -441,6 +442,7 @@ KeypadMode keypad_mode_for(Edit e) {
   case Edit::Weight:
   case Edit::BrewPressure:
   case Edit::BrewTemperature:
+  case Edit::BrewPreheatTime:
   case Edit::PrePressure:
   case Edit::FillingPressureTarget:
   case Edit::RampTime:
@@ -481,6 +483,10 @@ void set_title(Edit e) {
   case Edit::BrewTemperature:
     t = "cible chaudière";
     u = "°C";
+    break;
+  case Edit::BrewPreheatTime:
+    t = "précharge chauffe";
+    u = "s";
     break;
   case Edit::FillingTime:
     t = "durée remplissage";
@@ -555,6 +561,10 @@ void initial(Edit e) {
     break;
   case Edit::BrewTemperature:
     n = c.brew_temperature_c;
+    decimals = 1;
+    break;
+  case Edit::BrewPreheatTime:
+    n = c.brew_preheat_time_s;
     decimals = 1;
     break;
   case Edit::FillingTime:
@@ -632,6 +642,9 @@ bool valid(float *n) {
   case Edit::BrewTemperature:
     return *n >= core::kMinimumBrewTemperatureC && *n <= core::kMaximumBrewTemperatureC &&
            std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
+  case Edit::BrewPreheatTime:
+    return *n >= 0 && *n <= 5 &&
+           std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
   case Edit::FillingPressureTarget:
@@ -707,6 +720,9 @@ void key_accept(lv_event_t *) {
     break;
   case Edit::BrewTemperature:
     c.brew_temperature_c = n;
+    break;
+  case Edit::BrewPreheatTime:
+    c.brew_preheat_time_s = n;
     break;
   case Edit::FillingTime:
     c.filling_time_s = n;
@@ -864,6 +880,8 @@ void tile_cb(lv_event_t *e) {
       show_confirm(Confirm::Forget);
     else if (i == 2)
       service_screen::restart_lcd();
+    else if (i == 4)
+      show_edit(Edit::BrewPreheatTime);
   }
 }
 const char *preinfusion_mode_text(core::PreinfusionMode mode, char *buffer, size_t size) {
@@ -937,14 +955,15 @@ void render_settings() {
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
   } else {
+    fmt(x[4], sizeof(x[4]), c.brew_preheat_time_s, " s");
     const char *n[] = {"réinitialiser réseau", "calibrations", "réinitialiser LCD",
-                       "veille", "", ""};
+                       "veille", "précharge chauffe", ""};
     const char *val[] = {"effacer", "depuis /config", "redémarrer",
-                         "automatique", "", ""};
+                         "automatique", x[4], ""};
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], val[i],
            i == 0 ? Role::Destructive : Role::Secondary);
-    for (unsigned i : {4u, 5u}) {
+    for (unsigned i : {5u}) {
       hidden(v.tile[i], true);
       hidden(v.tile_name[i], true);
     }
@@ -974,7 +993,8 @@ void stop(lv_event_t *) {
                             : core::Action::kStopBrew});
 }
 bool active(const core::Snapshot &s) {
-  return s.cycle_state == core::CycleState::kFilling ||
+  return s.cycle_state == core::CycleState::kThermalPreheat ||
+         s.cycle_state == core::CycleState::kFilling ||
          s.cycle_state == core::CycleState::kPreinfusion ||
          s.cycle_state == core::CycleState::kBrew ||
          s.cycle_state == core::CycleState::kRampdown ||
@@ -1023,13 +1043,17 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
     return;
   }
   text(v.phase, s.cycle_state == core::CycleState::kPurge ? "purge"
+                : s.cycle_state == core::CycleState::kThermalPreheat
+                    ? "précharge thermique"
                 : s.cycle_state == core::CycleState::kFilling
                     ? "remplissage"
                 : s.cycle_state == core::CycleState::kPreinfusion
                     ? "pré-infusion"
                 : s.cycle_state == core::CycleState::kRampdown ? "rampe"
                                                                : "infusion");
-  color(v.phase, s.cycle_state == core::CycleState::kPreinfusion
+  color(v.phase, s.cycle_state == core::CycleState::kThermalPreheat
+                     ? theme::kThermal
+                     : s.cycle_state == core::CycleState::kPreinfusion
                      ? theme::kRampLow
                      : theme::kAccent);
   const bool show_weight_and_time =
@@ -1061,14 +1085,19 @@ void cycle(const core::Snapshot &s, const core::Config &c) {
   lv_obj_set_width(v.progress, int(420 * std::clamp(progress(s, c), 0.f, 1.f)));
   lv_obj_set_style_bg_color(
       v.progress,
-      s.cycle_state == core::CycleState::kPreinfusion ? theme::kRampLow
+      s.cycle_state == core::CycleState::kThermalPreheat ? theme::kThermal
+      : s.cycle_state == core::CycleState::kPreinfusion ? theme::kRampLow
       : s.cycle_state == core::CycleState::kRampdown  ? theme::kRampFull
                                                       : theme::kAccent,
       0);
-  color(v.hero, s.cycle_state == core::CycleState::kPreinfusion
+  color(v.hero, s.cycle_state == core::CycleState::kThermalPreheat
+                    ? theme::kThermal
+                    : s.cycle_state == core::CycleState::kPreinfusion
                     ? theme::kRampLow
                     : theme::kAccent);
-  color(v.hero_time, s.cycle_state == core::CycleState::kPreinfusion
+  color(v.hero_time, s.cycle_state == core::CycleState::kThermalPreheat
+                         ? theme::kThermal
+                         : s.cycle_state == core::CycleState::kPreinfusion
                          ? theme::kRampLow
                          : theme::kAccent);
   text(lv_obj_get_child(v.stop, 0), "arrêter");

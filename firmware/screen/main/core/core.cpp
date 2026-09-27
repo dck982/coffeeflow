@@ -32,8 +32,11 @@ constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
 constexpr uint16_t kHFCapturePeriodMs = 100;
 constexpr uint16_t kBoilerPairPeriodMs = 100;
-constexpr uint16_t kHFCaptureCapacity = 768;
-constexpr int64_t kHFCaptureCooldownUs = 5 * 1000 * 1000;
+// 102,4 s couvrent le réglage temporel maximal de 60 s, 5 s de précharge et
+// les 30 s de récupération conservées après une infusion.
+constexpr uint16_t kHFCaptureCapacity = 1024;
+constexpr int64_t kHFBrewCaptureCooldownUs = 30 * 1000 * 1000;
+constexpr int64_t kHFOtherCaptureCooldownUs = 5 * 1000 * 1000;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
 constexpr Periods periods_for(TelemetryProfile profile) {
@@ -164,6 +167,7 @@ void send_request(common::MessageType target, uint16_t period_ms) {
 
 HFSampleMode sample_mode(machine::State state) {
   switch (state) {
+    case machine::State::kThermalPreheat: return HFSampleMode::kThermalPreheat;
     case machine::State::kFilling: return HFSampleMode::kFilling;
     case machine::State::kPreinfusion: return HFSampleMode::kPreinfusion;
     case machine::State::kBrew: return HFSampleMode::kInfusion;
@@ -213,6 +217,19 @@ bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
 void note_hf_capture_stop_request() {
   portENTER_CRITICAL(&g_state.lock);
   if (g_state.hf_capture.active) g_state.hf_capture.pump_pct_commanded = 0;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void finish_hf_capture_without_pump(int64_t now) {
+  portENTER_CRITICAL(&g_state.lock);
+  HFCapture& capture = g_state.hf_capture;
+  if (capture.active && !capture.cooldown && !capture.actuator_seen_on) {
+    capture.cooldown = true;
+    capture.cooldown_ends_at_us = now + (capture.origin == HFCaptureOrigin::kBrew
+                                             ? kHFBrewCaptureCooldownUs
+                                             : kHFOtherCaptureCooldownUs);
+    g_state.snapshot.capture_cooldown = true;
+  }
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -326,7 +343,9 @@ void tick_thermal() {
       snapshot.cycle_state == CycleState::kPreinfusion ||
       snapshot.cycle_state == CycleState::kBrew ||
       snapshot.cycle_state == CycleState::kRampdown;
-  const auto mode = snapshot.cycle_state == CycleState::kPurge
+  const auto mode = snapshot.cycle_state == CycleState::kThermalPreheat
+      ? thermal::Controller::Mode::kThermalPreheat
+      : snapshot.cycle_state == CycleState::kPurge
       ? thermal::Controller::Mode::kPurge
       : brewing ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
   const bool can_heat = config.heating_enabled && !g_flash_active &&
@@ -388,6 +407,7 @@ uint16_t config_field_arg(const char* field) {
       {"heating.enabled", 28},
       {"heating.brew_temperature_c", 29},
       {"heating", 30},
+      {"heating.brew_preheat_time_s", 31},
   };
   for (const Entry& entry : kFields) {
     if (std::strcmp(entry.name, field) == 0) return entry.id;
@@ -412,7 +432,8 @@ const char* action_reason(ActionStatus status) {
 ActionResult action_result(ActionStatus status) { return {status, action_reason(status)}; }
 
 machine::Config machine_config(const Config& c) {
-  return {c.target_weight_g, c.target_time_s, c.target_pressure_bar, c.filling_time_s,
+  return {c.target_weight_g, c.target_time_s, c.target_pressure_bar, c.brew_preheat_time_s,
+          c.filling_time_s,
           c.filling_pressure_target_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
@@ -442,6 +463,7 @@ machine::Input machine_input(const Snapshot& s, int64_t now) {
 CycleState cycle_state(machine::State state) {
   switch (state) {
     case machine::State::kIdle: return CycleState::kIdle;
+    case machine::State::kThermalPreheat: return CycleState::kThermalPreheat;
     case machine::State::kFilling: return CycleState::kFilling;
     case machine::State::kPreinfusion: return CycleState::kPreinfusion;
     case machine::State::kBrew: return CycleState::kBrew;
@@ -632,7 +654,9 @@ void set_telemetry_profile(TelemetryProfile profile) {
 }
 
 bool begin_flash(FlashTarget target, uint32_t total) {
-  if (target == FlashTarget::kNone || total == 0 || g_flash_active || get_snapshot().cycle_state == CycleState::kFilling ||
+  if (target == FlashTarget::kNone || total == 0 || g_flash_active ||
+      get_snapshot().cycle_state == CycleState::kThermalPreheat ||
+      get_snapshot().cycle_state == CycleState::kFilling ||
       get_snapshot().cycle_state == CycleState::kPreinfusion ||
       get_snapshot().cycle_state == CycleState::kBrew || get_snapshot().cycle_state == CycleState::kRampdown ||
       get_snapshot().cycle_state == CycleState::kPurge || get_snapshot().capture_cooldown) return false;
@@ -799,7 +823,10 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   if (g_state.hf_capture.active && !g_state.hf_capture.cooldown &&
       g_state.hf_capture.actuator_seen_on && payload.pump_pct == 0) {
     g_state.hf_capture.cooldown = true;
-    g_state.hf_capture.cooldown_ends_at_us = now + kHFCaptureCooldownUs;
+    const int64_t cooldown_us = g_state.hf_capture.origin == HFCaptureOrigin::kBrew
+                                    ? kHFBrewCaptureCooldownUs
+                                    : kHFOtherCaptureCooldownUs;
+    g_state.hf_capture.cooldown_ends_at_us = now + cooldown_us;
     g_state.snapshot.capture_cooldown = true;
   }
   profile = capture_profile_locked();
@@ -905,7 +932,8 @@ void set_boot_time_syncing(bool syncing) {
 
 bool request_radio_mode(RadioMode mode) {
   const CycleState cycle = get_snapshot().cycle_state;
-  if (cycle == CycleState::kFilling || cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||
+  if (cycle == CycleState::kThermalPreheat || cycle == CycleState::kFilling ||
+      cycle == CycleState::kPreinfusion || cycle == CycleState::kBrew ||
       cycle == CycleState::kRampdown || cycle == CycleState::kPurge ||
       get_snapshot().capture_cooldown || g_flash_active) return false;
   portENTER_CRITICAL(&g_state.lock);
@@ -943,7 +971,8 @@ void register_forget_network_callback(ForgetNetworkCallback callback) { g_forget
 void forget_network() { if (g_forget_network_callback != nullptr) g_forget_network_callback(); }
 
 ConfigResult put_config(const Config& candidate) {
-  if (get_snapshot().cycle_state == CycleState::kFilling || get_snapshot().cycle_state == CycleState::kPreinfusion ||
+  if (get_snapshot().cycle_state == CycleState::kThermalPreheat ||
+      get_snapshot().cycle_state == CycleState::kFilling || get_snapshot().cycle_state == CycleState::kPreinfusion ||
       get_snapshot().cycle_state == CycleState::kBrew ||
       get_snapshot().cycle_state == CycleState::kRampdown || get_snapshot().cycle_state == CycleState::kPurge) return {ConfigStatus::kBusy, "cycle"};
   for (int attempt = 0; attempt < 2; ++attempt) {
@@ -1043,7 +1072,8 @@ ActionResult perform_action(const ActionCommand& command) {
   }
   if (command.action == Action::kResetSensors) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
-    if (snapshot.cycle_state == CycleState::kFilling ||
+    if (snapshot.cycle_state == CycleState::kThermalPreheat ||
+        snapshot.cycle_state == CycleState::kFilling ||
         snapshot.cycle_state == CycleState::kPreinfusion ||
         snapshot.cycle_state == CycleState::kBrew ||
         snapshot.cycle_state == CycleState::kRampdown ||
@@ -1055,7 +1085,8 @@ ActionResult perform_action(const ActionCommand& command) {
   }
   if (command.action == Action::kResetDimmer || command.action == Action::kRecalibrateDimmer) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
-    if (snapshot.cycle_state == CycleState::kFilling ||
+    if (snapshot.cycle_state == CycleState::kThermalPreheat ||
+        snapshot.cycle_state == CycleState::kFilling ||
         snapshot.cycle_state == CycleState::kPreinfusion ||
         snapshot.cycle_state == CycleState::kBrew ||
         snapshot.cycle_state == CycleState::kRampdown ||
@@ -1070,8 +1101,10 @@ ActionResult perform_action(const ActionCommand& command) {
     return action_result(ActionStatus::kOk);
   }
   if (command.action == Action::kStopBrew) {
+    const bool stopped_during_preheat = snapshot.cycle_state == CycleState::kThermalPreheat;
     portENTER_CRITICAL(&g_state.lock); bool ok = g_state.machine.stop(static_cast<uint64_t>(now_us() / 1000)); if (ok) defer_completed_shot_locked(); update_cycle_snapshot_locked(now_us()); g_state.cycle_set_on = false; portEXIT_CRITICAL(&g_state.lock);
     if (ok) send_set(0, 0);
+    if (ok && stopped_during_preheat) finish_hf_capture_without_pump(now_us());
     if (ok) can_link::send_log(common::LogCode::kBrewStopped, common::LogSeverity::kInfo,
                                static_cast<uint16_t>(machine::StopReason::kManual));
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kNoCycle);
@@ -1107,6 +1140,10 @@ ActionResult perform_action(const ActionCommand& command) {
     }
     update_cycle_snapshot_locked(now_us());
     portEXIT_CRITICAL(&g_state.lock);
+    if (ok && command.action == Action::kStartBrew) {
+      begin_hf_capture(HFCaptureOrigin::kBrew, 0, now_us());
+      set_telemetry_profile(TelemetryProfile::kActive);
+    }
     if (ok) can_link::send_log(command.action == Action::kStartBrew ? common::LogCode::kBrewStarted : common::LogCode::kPurgeStarted,
                                common::LogSeverity::kInfo);
     return action_result(ok ? ActionStatus::kOk : ActionStatus::kCycleActive);
@@ -1116,7 +1153,8 @@ ActionResult perform_action(const ActionCommand& command) {
   snapshot = get_snapshot();
   if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
   if (snapshot.lockout) return action_result(ActionStatus::kLocked);
-  if (snapshot.cycle_state == CycleState::kFilling || snapshot.cycle_state == CycleState::kPreinfusion ||
+  if (snapshot.cycle_state == CycleState::kThermalPreheat ||
+      snapshot.cycle_state == CycleState::kFilling || snapshot.cycle_state == CycleState::kPreinfusion ||
       snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown ||
       snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
   send_set(command.brew.pump_pct, command.brew.ttl_ms);

@@ -388,9 +388,9 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 6,
+  "version": 7,
   "brew": { "target_weight_g": 36.0, "target_time_s": 28, "target_pressure_bar": 9.0, "pump_pct": 100 },
-  "heating": { "enabled": true, "brew_temperature_c": 90.0 },
+  "heating": { "enabled": true, "brew_temperature_c": 90.0, "brew_preheat_time_s": 2.5 },
   "filling": { "time_s": 3, "pressure_target_bar": 0.3, "pump_pct": 100 },
   "preinfusion": { "time": true, "pressure": false, "weight": false, "time_s": 4, "pressure_bar": 1.5, "pump_pct": 30 },
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },

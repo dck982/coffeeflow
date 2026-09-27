@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PHASE_STYLE = {
+    "thermal_preheat": ("précharge thermique", "#4a9bb5"),
     "filling": ("remplissage", "#8c6bb1"),
     "preinfusion": ("pré-infusion", "#6baed6"),
     "infusion": ("infusion", "#fdae6b"),
@@ -63,7 +64,11 @@ def weight_flow_g_s(times: list[float], weight_g: list[float], window_s: float) 
         while right < len(times) and times[right] <= time_s + half_window_s:
             right += 1
         right_index = right - 1
-        if left < index < right_index:
+        # Une mesure de poids masquée (NaN) invalide toute la fenêtre. Cela
+        # évite de relier artificiellement les deux côtés d'un retrait de tasse.
+        window_is_valid = all(math.isfinite(weight_g[position])
+                              for position in range(left, right))
+        if left < index < right_index and window_is_valid:
             elapsed_s = times[right_index] - times[left]
             if elapsed_s > 0:
                 flow[index] = (weight_g[right_index] - weight_g[left]) / elapsed_s
@@ -111,12 +116,35 @@ def pressure_fmt(sample: dict[str, Any], digits: int = 2) -> str:
 
 
 def has_weight(samples: list[dict[str, Any]]) -> bool:
-    return any(valid(sample, "scale") and math.isfinite(number(sample.get("weight_g"))) for sample in samples)
+    return any(valid(sample, "scale") and number(sample.get("weight_g")) >= 0
+               for sample in samples)
+
+
+def report_weight_series(samples: list[dict[str, Any]]) -> list[float]:
+    """Masque les poids négatifs et la suite d'un cooldown perturbé."""
+    result: list[float] = []
+    cooldown_disturbed = False
+    for sample in samples:
+        value = number(sample.get("weight_g"))
+        if sample.get("mode") == "cooldown" and value < 0:
+            cooldown_disturbed = True
+        if (not valid(sample, "scale") or value < 0 or
+                (sample.get("mode") == "cooldown" and cooldown_disturbed)):
+            result.append(float("nan"))
+        else:
+            result.append(value)
+    return result
 
 
 def cup_flow_series(samples: list[dict[str, Any]], window_s: float) -> list[float]:
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
-    weights = [number(sample.get("weight_g")) for sample in samples]
+    # Le débit tasse n'est défini que pendant le cycle hydraulique. Les poids
+    # négatifs signalent notamment une tasse retirée et sont exclus du rapport,
+    # sans modifier la capture brute.
+    weights = [number(sample.get("weight_g"))
+               if valid(sample, "scale") and sample.get("mode") != "cooldown" and
+               number(sample.get("weight_g")) >= 0 else float("nan")
+               for sample in samples]
     if not has_weight(samples):
         return [float("nan")] * len(samples)
     return weight_flow_g_s(times, weights, window_s)
@@ -238,13 +266,17 @@ def phase_table(samples: list[dict[str, Any]], duration_s: float) -> str:
                            if valid(sample, "pressure")]
         pressure_values = [value for value in pressure_values if math.isfinite(value)]
         max_pressure = max(pressure_values) if pressure_values else float("nan")
+        weight_cell = ("ignoré pendant le cooldown"
+                       if mode == "cooldown"
+                       else f"{fmt(first.get('weight_g'), 1)} → {fmt(last.get('weight_g'), 1)} g"
+                            f"<br><small>Δ {fmt(delta(first, last, 'weight_g'), 1)} g</small>")
         rows.append(f"""
           <tr class="{'cooldown' if mode == 'cooldown' else ''}">
             <th scope="row">{html.escape(mode_label(mode))}</th>
             <td>{start_s:.2f}–{end_s:.2f} s</td>
             <td>{end_s - start_s:.2f} s</td>
             <td>{pressure_fmt(first)} → {pressure_fmt(last)} bar<br><small>max. valide {fmt(max_pressure)} bar</small></td>
-            <td>{fmt(first.get('weight_g'), 1)} → {fmt(last.get('weight_g'), 1)} g<br><small>Δ {fmt(delta(first, last, 'weight_g'), 1)} g</small></td>
+            <td>{weight_cell}</td>
             <td>{fmt(first.get('volume_ml'), 1)} → {fmt(last.get('volume_ml'), 1)} ml<br><small>Δ {fmt(delta(first, last, 'volume_ml'), 1)} ml</small></td>
             <td>{fmt(first.get('boiler_temperature_c', first.get('temperature_c')))} → {fmt(last.get('boiler_temperature_c', last.get('temperature_c')))} °C</td>
           </tr>""")
@@ -330,8 +362,8 @@ def textual_reading(samples: list[dict[str, Any]], duration_s: float,
             f"à {fmt(sample.get('weight_g'), 1)} g et {fmt(sample.get('volume_ml'), 1)} ml."
         )
     sentences.append(
-        f"Pendant la récupération post-arrêt, le poids se stabilise à {fmt(samples[-1].get('weight_g'), 1)} g "
-        f"et le volume à {fmt(samples[-1].get('volume_ml'), 1)} ml."
+        "Pendant la récupération post-arrêt, les variations de poids ne sont pas interprétées ; "
+        f"le volume atteint {fmt(samples[-1].get('volume_ml'), 1)} ml."
     )
     return " ".join(sentences)
 
@@ -341,14 +373,17 @@ def metric_card(label: str, value: str, detail: str) -> str:
             f'<strong>{html.escape(value)}</strong><small>{html.escape(detail)}</small></div>')
 
 
-def validity_table(samples: list[dict[str, Any]], duration_s: float) -> str:
-    scoped_samples = [sample for sample in samples if number(sample.get("t_ms")) / 1000 <= duration_s]
+def validity_table(samples: list[dict[str, Any]], duration_s: float,
+                   start_s: float = 0.0) -> str:
+    scoped_samples = [sample for sample in samples
+                      if start_s <= number(sample.get("t_ms")) / 1000 <= duration_s]
+    interval_s = max(0.0, duration_s - start_s)
     rows = []
     for signal, (_bit, label) in VALIDITY_FLAGS.items():
         valid_count = sum(valid(sample, signal) for sample in scoped_samples)
-        ranges = invalid_ranges(samples, signal, duration_s)
+        ranges = invalid_ranges(scoped_samples, signal, duration_s)
         invalid_s = sum(end_s - start_s for start_s, end_s in ranges)
-        coverage = 100 * max(0.0, duration_s - invalid_s) / duration_s if duration_s > 0 else 0.0
+        coverage = 100 * max(0.0, interval_s - invalid_s) / interval_s if interval_s > 0 else 0.0
         longest = max((end_s - start_s for start_s, end_s in ranges), default=0.0)
         rows.append(f"""
           <tr class="{'signal-warning' if ranges else ''}">
@@ -359,8 +394,11 @@ def validity_table(samples: list[dict[str, Any]], duration_s: float) -> str:
     return "\n".join(rows)
 
 
-def invalid_pressure_details(samples: list[dict[str, Any]], duration_s: float) -> str:
-    ranges = invalid_ranges(samples, "pressure", duration_s)
+def invalid_pressure_details(samples: list[dict[str, Any]], duration_s: float,
+                             start_s: float = 0.0) -> str:
+    scoped_samples = [sample for sample in samples
+                      if number(sample.get("t_ms")) / 1000 >= start_s]
+    ranges = invalid_ranges(scoped_samples, "pressure", duration_s)
     if not ranges:
         return "<p>Aucune plage de pression invalide.</p>"
     items = "".join(f"<li>{start_s:.2f}–{end_s:.2f} s ({end_s - start_s:.2f} s)</li>"
@@ -373,6 +411,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     duration_s = capture_duration_s(capture)
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
     cup_flows = cup_flow_series(samples, weight_flow_window_s)
+    report_weights = report_weight_series(samples)
     temperatures = [
         number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
         if valid(sample, "boiler") else float("nan")
@@ -440,7 +479,8 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "customdata": [max_temperature_drop], "type": "scatter", "mode": "markers",
          "marker": {"color": "#d62728", "size": 10, "symbol": "diamond"}, "yaxis": "y4",
          "hovertemplate": "minimum %{y:.2f} °C<br>baisse %{customdata:.2f} °C<extra></extra>"},
-        {"name": "poids", "x": times, "y": series("weight_g", lambda s: valid(s, "scale")), "type": "scatter",
+        {"name": "poids", "x": times, "y": finite_series(report_weights),
+         "type": "scatter",
          "mode": "lines", "line": {"color": "#9467bd", "width": 2.5}, "yaxis": "y7",
          "hovertemplate": "%{y:.1f} g<extra></extra>"},
         {"name": "volume depuis début", "x": times, "y": series("volume_ml"), "type": "scatter",
@@ -537,6 +577,13 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     stop_index = first_pump_stop(samples)
     stop_sample = samples[stop_index] if stop_index is not None else samples[-1]
     stop_s = number(stop_sample.get("t_ms")) / 1000
+    hydraulic_start_index = next(
+        (index for index, sample in enumerate(samples)
+         if sample.get("mode") != "thermal_preheat"),
+        0,
+    )
+    hydraulic_start_s = number(samples[hydraulic_start_index].get("t_ms")) / 1000
+    hydraulic_duration_s = max(0.0, stop_s - hydraulic_start_s)
     origin = ORIGIN_LABELS.get(str(capture.get("origin", "")), str(capture.get("origin", "capture")))
     pressure_max = extrema(samples, "pressure_bar", signal="pressure")
     filling_flow_candidates = [
@@ -551,28 +598,33 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     cup_flow_candidates = [flow for time_s, flow in zip(elapsed_s, cup_flows)
                            if time_s <= stop_s and math.isfinite(flow)]
     cup_flow_max = max(cup_flow_candidates, default=float("nan"))
-    final_weight_g = weights_g[-1]
-    cup_flow_average = ((final_weight_g - weights_g[0]) / stop_s
-                        if stop_s > 0 and math.isfinite(final_weight_g) and math.isfinite(weights_g[0])
+    stop_weight_g = number(stop_sample.get("weight_g"))
+    cup_flow_average = ((stop_weight_g - weights_g[hydraulic_start_index]) / hydraulic_duration_s
+                        if hydraulic_duration_s > 0 and math.isfinite(stop_weight_g)
+                        and math.isfinite(weights_g[hydraulic_start_index])
                         else float("nan"))
     temp_values = [number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
                    for sample in samples if valid(sample, "boiler")]
     temp_values = [value for value in temp_values if math.isfinite(value)]
     temp_drop = temp_values[0] - min(temp_values) if temp_values else float("nan")
     phase_names = [mode_label(item[4]) for item in phase_ranges(samples, duration_s)]
-    pressure_invalid_s = invalid_duration_s(samples, "pressure", stop_s)
-    pressure_invalid_pct = 100 * pressure_invalid_s / stop_s if stop_s > 0 else 0.0
+    hydraulic_samples = samples[hydraulic_start_index:]
+    pressure_invalid_s = invalid_duration_s(hydraulic_samples, "pressure", stop_s)
+    pressure_invalid_pct = (100 * pressure_invalid_s / hydraulic_duration_s
+                            if hydraulic_duration_s > 0 else 0.0)
     active_phase_names = [name for name in phase_names if name != mode_label("cooldown")]
     cooldown_s = max(0.0, duration_s - stop_s)
     summary = (
-        f"Cette {origin} parcourt {' → '.join(active_phase_names)} et s’arrête après {stop_s:.2f} s. "
-        f"Le poids est de {fmt(stop_sample.get('weight_g'), 1)} g au stop puis se stabilise à "
-        f"{fmt(samples[-1].get('weight_g'), 1)} g. La pression est invalide pendant {pressure_invalid_s:.2f} s "
+        f"Cette {origin} parcourt {' → '.join(active_phase_names)} et s’arrête après {stop_s:.2f} s "
+        f"({hydraulic_duration_s:.2f} s depuis le démarrage de la pompe). "
+        f"Le poids est de {fmt(stop_weight_g, 1)} g au stop ; les variations pendant la récupération "
+        f"ne sont pas utilisées. La pression est invalide pendant {pressure_invalid_s:.2f} s "
         f"({pressure_invalid_pct:.1f} % du temps d’infusion)."
     )
     hero_cards = [
-        metric_card("Temps total", f"{stop_s:.2f} s", "start → stop, toutes phases"),
-        metric_card("Poids final", f"{fmt(final_weight_g, 1)} g", f"{fmt(stop_sample.get('weight_g'), 1)} g au stop"),
+        metric_card("Temps total", f"{stop_s:.2f} s",
+                    f"dont {hydraulic_duration_s:.2f} s pompe démarrée"),
+        metric_card("Poids au stop", f"{fmt(stop_weight_g, 1)} g", "cooldown exclu"),
         metric_card("Débit tasse", f"{fmt(cup_flow_average)} / {fmt(cup_flow_max)} g/s",
                     f"moyen / maximum avant stop, lissé sur {weight_flow_window_s:g} s"),
     ]
@@ -635,7 +687,7 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
 <body><main>
   <header>
     <h1>Rapport d’{html.escape(origin)} CoffeeFlow</h1>
-    <div class="meta"><span>{html.escape(date_text)}</span><span>infusion {stop_s:.2f} s</span><span>récupération technique {cooldown_s:.2f} s</span></div>
+    <div class="meta"><span>{html.escape(date_text)}</span><span>cycle {stop_s:.2f} s · hydraulique {hydraulic_duration_s:.2f} s</span><span>récupération technique {cooldown_s:.2f} s</span></div>
     <p class="lede">{html.escape(summary)}</p>
     <div class="metrics hero-metrics">{''.join(hero_cards)}</div>
     <div class="metrics">{''.join(diagnostic_cards)}</div>
@@ -676,11 +728,11 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     <p>{html.escape(quality)}</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Signal</th><th>Échantillons valides</th><th>Temps valide</th><th>Interruptions</th><th>Temps invalide</th><th>Plus longue</th></tr></thead>
-      <tbody>{validity_table(samples, stop_s)}</tbody>
+      <tbody>{validity_table(samples, stop_s, hydraulic_start_s)}</tbody>
     </table></div>
-    {invalid_pressure_details(samples, stop_s)}
+    {invalid_pressure_details(samples, stop_s, hydraulic_start_s)}
     <h2>Provenance</h2>
-    <p><small>Source : <code>{escaped_source}</code> · schéma <code>{html.escape(str(capture.get('schema', 'inconnu')))}</code>. La capture brute dure {duration_s:.2f} s, dont {cooldown_s:.2f} s après le stop. Le débit tasse moyen vaut (poids final − poids initial) / temps start→stop. Son maximum et la courbe de débit balance utilisent une dérivée centrée sur {weight_flow_window_s:g} s ; le maximum est recherché jusqu’au stop.</small></p>
+    <p><small>Source : <code>{escaped_source}</code> · schéma <code>{html.escape(str(capture.get('schema', 'inconnu')))}</code>. La capture brute dure {duration_s:.2f} s, dont {cooldown_s:.2f} s après le stop. Le débit tasse exclut la précharge thermique, le cooldown et tout poids négatif ; son calcul ne modifie pas le JSON brut. Sa courbe utilise une dérivée centrée sur {weight_flow_window_s:g} s et son maximum est recherché jusqu’au stop.</small></p>
   </section>
 </main></body></html>
 """

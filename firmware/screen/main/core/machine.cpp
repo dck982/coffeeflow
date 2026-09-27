@@ -28,7 +28,8 @@ constexpr float kBrewPressureKiPctPerBarSecond = 3.0f;
 bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
   if (active()) return false;
   config_ = config;
-  started_ms_ = phase_started_ms_ = now_ms;
+  phase_started_ms_ = now_ms;
+  started_ms_ = config_.brew_preheat_time_s > 0.0f ? 0 : now_ms;
   finished_ms_ = 0;
   starting_weight_g_ = input.weight_g;
   preinfusion_start_weight_g_ = input.weight_g;
@@ -43,7 +44,7 @@ bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
         ~static_cast<uint8_t>(PreinfusionMode::kWeight));
   }
   stop_reason_ = StopReason::kNone;
-  state_ = State::kFilling;
+  state_ = config_.brew_preheat_time_s > 0.0f ? State::kThermalPreheat : State::kFilling;
   return true;
 }
 
@@ -116,6 +117,16 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     else return {config_.purge_pump_pct, kLeaseMs};
   }
   if (!active()) return {0, 0};
+
+  if (state_ == State::kThermalPreheat) {
+    const uint64_t duration_ms = static_cast<uint64_t>(config_.brew_preheat_time_s * 1000.0f);
+    if (now_ms - phase_started_ms_ < duration_ms) return {0, kLeaseMs};
+    state_ = State::kFilling;
+    started_ms_ = phase_started_ms_ = now_ms;
+    starting_weight_g_ = input.weight_g;
+    preinfusion_start_weight_g_ = input.weight_g;
+    preinfusion_pressure_start_bar_ = input.pressure_bar;
+  }
 
   if (weight_goal_) {
     const float delta = input.weight_g - starting_weight_g_;

@@ -80,6 +80,17 @@ int main() {
   core::thermal::Controller infusion_hot;
   assert(infusion_hot.step(1000, 91.1f, 90, true, true, Mode::kBrew, 4, true).power_permille == 100);
 
+  // La précharge applique immédiatement sa puissance fixe sans débit. Elle
+  // est coupée si la NTC est déjà à plus de 0,5 °C au-dessus de la cible.
+  core::thermal::Controller preheat, preheat_hot;
+  assert(preheat.step(1000, 90, 90, true, true, Mode::kThermalPreheat).power_permille == 1000);
+  assert(preheat_hot.step(1000, 90.6f, 90, true, true, Mode::kThermalPreheat).power_permille == 0);
+  core::thermal::Controller preheat_after_flow;
+  preheat_after_flow.step(1000, 90, 90, true, true, Mode::kBrew);
+  preheat_after_flow.step(1250, 90, 90, true, true, Mode::kIdle);
+  assert(preheat_after_flow.step(1500, 90, 90, true, true,
+                                 Mode::kThermalPreheat).power_permille == 1000);
+
   // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
   // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.
   core::thermal::Controller flow_low, flow_mid, flow_high, flow_stale;

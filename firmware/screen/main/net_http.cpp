@@ -167,6 +167,7 @@ cJSON* encode_config(const core::Config& config) {
   cJSON* heating = cJSON_AddObjectToObject(root, "heating");
   cJSON_AddBoolToObject(heating, "enabled", config.heating_enabled);
   add_config_decimal(heating, "brew_temperature_c", config.brew_temperature_c);
+  add_config_decimal(heating, "brew_preheat_time_s", config.brew_preheat_time_s);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
   add_config_decimal(filling, "pressure_target_bar", config.filling_pressure_target_bar);
@@ -294,6 +295,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   const char* cycle = "idle";
   switch (snapshot.cycle_state) {
     case core::CycleState::kFilling: cycle = "filling"; break;
+    case core::CycleState::kThermalPreheat: cycle = "thermal_preheat"; break;
     case core::CycleState::kPreinfusion: cycle = "preinfusion"; break;
     case core::CycleState::kBrew: cycle = "brew"; break;
     case core::CycleState::kRampdown: cycle = "rampdown"; break;
@@ -468,6 +470,8 @@ bool apply_heating_key(const char* key, cJSON* value, core::Config* config, cons
   }
   if (std::strcmp(key, "brew_temperature_c") == 0)
     return overlay_number_float(value, "heating.brew_temperature_c", &config->brew_temperature_c, error_field);
+  if (std::strcmp(key, "brew_preheat_time_s") == 0)
+    return overlay_number_float(value, "heating.brew_preheat_time_s", &config->brew_preheat_time_s, error_field);
   *error_field = join_field("heating", key);
   return false;
 }
@@ -678,6 +682,7 @@ const char* hf_sample_mode_text(core::HFSampleMode mode) {
     case core::HFSampleMode::kRampDown: return "ramp_down";
     case core::HFSampleMode::kCooldown: return "cooldown";
     case core::HFSampleMode::kFilling: return "filling";
+    case core::HFSampleMode::kThermalPreheat: return "thermal_preheat";
   }
   return "purge";
 }

@@ -12,14 +12,28 @@ using core::machine::State;
 using core::machine::StopReason;
 
 Config config() {
-  return {36, 28, 9.0f, 1, .3f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
+  return {36, 28, 9.0f, 0.0f, 1, .3f, 100, PreinfusionMode::kTime, 4, 1.5f, 30, RampdownMode::kNone,
           3, 4, 1, 100, 100, 20};
 }
 
 int main() {
-  Machine machine;
+  Machine thermal_preheat;
   Input input{0, false, 0};
   Config c = config();
+  c.brew_preheat_time_s = 2.5f;
+  assert(thermal_preheat.start(1000, c, input));
+  assert(thermal_preheat.state() == State::kThermalPreheat);
+  assert(thermal_preheat.tick(3499, input).dimmer == 0);
+  assert(thermal_preheat.elapsed_ms(3499) == 0);
+  assert(thermal_preheat.tick(3500, input).dimmer == 100);
+  assert(thermal_preheat.state() == State::kFilling);
+  assert(thermal_preheat.elapsed_ms(3500) == 0);
+  assert(thermal_preheat.tick(4499, input).dimmer == 100);
+  assert(thermal_preheat.tick(4500, input).dimmer == 30);
+
+  Machine machine;
+  input = {0, false, 0};
+  c = config();
   assert(machine.start(1000, c, input));
   assert(machine.state() == State::kFilling);
   assert(machine.tick(1999, input).dimmer == 100);

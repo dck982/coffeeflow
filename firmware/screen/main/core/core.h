@@ -32,7 +32,7 @@ namespace core {
 enum class Freshness : uint8_t { kFresh, kStale, kMissing };
 enum class FlashTarget : uint8_t { kNone, kScreen, kSensors };
 enum class RadioMode : uint8_t { kOff, kMachine, kWifi };
-enum class CycleState : uint8_t { kIdle, kFilling, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
+enum class CycleState : uint8_t { kIdle, kThermalPreheat, kFilling, kPreinfusion, kBrew, kRampdown, kFinished, kPurge };
 
 // Instantané étendu de ui_model_t (ui.md), pris sous verrou puis complété sur
 // une copie. Aucun consommateur ne lit l'état interne champ par champ.
@@ -137,7 +137,7 @@ struct Snapshot {
 // soit sa porte d'entrée. Elle reste en RAM volatile jusqu'à la session
 // suivante et n'est exportable qu'une fois l'arrêt confirmé par les capteurs.
 enum class HFCaptureOrigin : uint8_t { kSetActuators, kBrew, kPurge };
-enum class HFSampleMode : uint8_t { kPurge, kPreinfusion, kInfusion, kRampDown, kCooldown, kFilling };
+enum class HFSampleMode : uint8_t { kPurge, kPreinfusion, kInfusion, kRampDown, kCooldown, kFilling, kThermalPreheat };
 enum class HFCaptureStatus : uint8_t { kUnavailable, kActive, kComplete };
 
 struct HFSample {

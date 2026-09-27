@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 
 
 PHASE_STYLE = {
+    "thermal_preheat": ("précharge thermique", "#4a9bb5"),
     "filling": ("remplissage", "#8c6bb1"),
     "preinfusion": ("pré-infusion", "#6baed6"),
     "infusion": ("infusion", "#fdae6b"),

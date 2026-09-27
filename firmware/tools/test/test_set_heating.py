@@ -11,18 +11,18 @@ class SetHeatingTests(unittest.TestCase):
             def client(method, path, body):
                 calls.append((method, path, body))
                 if method == "GET":
-                    return {"version": 6}
+                    return {"version": 7}
                 return {"heating": {"enabled": body["heating"]["enabled"]}}
 
             set_heating(enabled, client)
             self.assertEqual(calls, [
                 ("GET", "/config", None),
-                ("POST", "/config", {"version": 6, "heating": {"enabled": enabled}}),
+                ("POST", "/config", {"version": 7, "heating": {"enabled": enabled}}),
             ])
 
     def test_rejects_unconfirmed_change(self):
         def client(method, path, body):
-            return {"version": 6} if method == "GET" else {"heating": {"enabled": False}}
+            return {"version": 7} if method == "GET" else {"heating": {"enabled": False}}
 
         with self.assertRaisesRegex(RuntimeError, "non confirmé"):
             set_heating(True, client)

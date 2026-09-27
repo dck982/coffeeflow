@@ -28,7 +28,7 @@ class CaptureTests(unittest.TestCase):
         def client(method, path, body):
             calls.append((method, path, body))
             if path == "/config" and method == "GET":
-                return {"version": 6, "heating": {"enabled": False, "brew_temperature_c": 90}}
+                return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
             if path == "/config":
                 return {"heating": {"enabled": body["heating"]["enabled"]}}
             if fail_telemetry:
@@ -84,7 +84,7 @@ class CaptureTests(unittest.TestCase):
         def client(method, path, body):
             nonlocal attempts
             if method == "GET" and path == "/config":
-                return {"version": 6, "heating": {"enabled": False, "brew_temperature_c": 90}}
+                return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
             if method == "POST" and body["heating"]["enabled"] is True:
                 return {"heating": {"enabled": True}}
             if method == "POST":
@@ -107,7 +107,7 @@ class CaptureTests(unittest.TestCase):
         def client(method, path, body):
             calls.append((method, path, body))
             if path == "/config":
-                return {"version": 6, "heating": {"enabled": True, "brew_temperature_c": 90}}
+                return {"version": 7, "heating": {"enabled": True, "brew_temperature_c": 90}}
             return {"temperature": {"boiler": {"c": 90, "valid": True, "freshness": "fresh"}},
                     "heating": {"power_pct": 20}}
 
@@ -129,7 +129,7 @@ class CaptureTests(unittest.TestCase):
 
         def client(method, path, body):
             calls.append((method, path, body))
-            return {"version": 6, "heating": {"enabled": False, "brew_temperature_c": 90}}
+            return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
 
         with tempfile.TemporaryDirectory() as directory:
             result = record_heating(Path(directory) / "monitor.json", client, mode="monitor")

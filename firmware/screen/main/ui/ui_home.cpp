@@ -54,7 +54,7 @@ enum class Edit : uint8_t {
 enum class Choice : uint8_t { None, Preinfusion, Rampdown };
 enum class KeypadMode : uint8_t { Integer, Decimal };
 struct View {
-  lv_obj_t *pressure{}, *temperature{}, *heat_track[4]{}, *heat_fill[4]{},
+  lv_obj_t *pressure{}, *temperature{}, *heat_track{}, *heat_fill{},
       *weight{}, *weight_group{}, *weight_content{}, *diagnostic{},
       *clock{}, *target{},
       *detail{}, *warning{}, *minus{}, *plus{}, *tap{}, *brew_button{}, *brew{},
@@ -1208,6 +1208,7 @@ void create(lv_obj_t *p) {
   lv_obj_set_flex_flow(temperature_column, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(temperature_column, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_row(temperature_column, 1, 0);
   dyn(temperature_column, &v.temperature, "-", theme::kFontStatus,
       theme::kTextDim, 0, 0);
   lv_obj_set_width(v.temperature, 110);
@@ -1215,16 +1216,10 @@ void create(lv_obj_t *p) {
   lv_obj_set_style_text_align(v.temperature, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_t *heat_bar = lv_obj_create(temperature_column);
   lv_obj_remove_style_all(heat_bar);
-  lv_obj_set_size(heat_bar, 110, 6);
-  lv_obj_set_flex_flow(heat_bar, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(heat_bar, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(heat_bar, 2, 0);
+  lv_obj_set_size(heat_bar, 104, 4);
   lv_obj_remove_flag(heat_bar, LV_OBJ_FLAG_SCROLLABLE);
-  for (unsigned i = 0; i < 4; ++i) {
-    v.heat_track[i] = box(heat_bar, 0, 0, 26, 6, theme::kBgRaised, 2);
-    v.heat_fill[i] = box(v.heat_track[i], 0, 0, 0, 6, theme::kThermal, 2);
-  }
+  v.heat_track = box(heat_bar, 0, 0, 104, 4, theme::kBgRaised, 2);
+  v.heat_fill = box(heat_bar, 0, 0, 0, 4, theme::kTextFaint, 2);
   // L'icône de diagnostic et l'heure ouvrent les diagnostics.
   for (lv_obj_t *status : {v.diagnostic, v.clock}) {
     lv_obj_add_flag(status, LV_OBJ_FLAG_CLICKABLE);
@@ -1304,7 +1299,8 @@ void create(lv_obj_t *p) {
       navbar(v.settings, "réglages", &ignore, back_settings, false, true);
   for (unsigned i = 0; i < 4; ++i) {
     char number[2] = {static_cast<char>('1' + i), '\0'};
-    v.tab[i] = button(settings_bar, 536 + static_cast<int>(i) * 64, 12, 56, 64, number);
+    v.tab[i] = button(settings_bar, 536 + static_cast<int>(i) * 64, 20, 56, 48,
+                      number);
     lv_obj_add_event_cb(v.tab[i], select_settings_page, LV_EVENT_CLICKED,
                         reinterpret_cast<void *>(uintptr_t(i)));
   }
@@ -1508,17 +1504,15 @@ void refresh(const core::Snapshot &s, bool boot) {
   const float heat_pct = heat_available
                              ? std::clamp(s.heating_power_pct, 0.0f, 100.0f)
                              : 0.0f;
-  const lv_color_t heat_colors[] = {theme::kThermal, theme::kSuccess,
-                                    theme::kRampFull, theme::kAccent};
-  for (unsigned i = 0; i < 4; ++i) {
-    const float quarter = std::clamp(heat_pct - 25.0f * i, 0.0f, 25.0f);
-    lv_obj_set_width(v.heat_fill[i],
-                     static_cast<int>(std::lround(quarter * 26.0f / 25.0f)));
-    lv_obj_set_style_bg_color(v.heat_fill[i], heat_colors[i], 0);
-    lv_obj_set_style_bg_color(
-        v.heat_track[i], heat_available ? theme::kSurfaceHigh : theme::kBgRaised,
-        0);
-  }
+  const lv_color_t heat_colors[] = {theme::kTextFaint, theme::kTextDim,
+                                    theme::kThermalNear, theme::kSuccess};
+  const unsigned heat_quarter =
+      std::min(static_cast<unsigned>(heat_pct / 25.0f), 3u);
+  lv_obj_set_width(v.heat_fill,
+                   static_cast<int>(std::lround(heat_pct * 104.0f / 100.0f)));
+  lv_obj_set_style_bg_color(v.heat_fill, heat_colors[heat_quarter], 0);
+  lv_obj_set_style_bg_color(
+      v.heat_track, heat_available ? theme::kSurfaceHigh : theme::kBgRaised, 0);
   if (scale) {
     fmt(t, sizeof(t), s.weight_g, " g");
     text(v.weight, t);

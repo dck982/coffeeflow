@@ -58,3 +58,29 @@ modifié pour ce premier travail sur l'infusion.
 
 **Statut :** observations et hypothèses uniquement ; aucune modification de
 la loi d'infusion n'est faite dans ce document.
+
+## Capture du 27 septembre et rampe de pompe
+
+La capture [`260927-105814`](../captures/260927-105814.json), réalisée à une
+consigne de 87 °C avec l'ancien offset de −14 °C, commence par un remplissage
+à 75 %, puis une pré-infusion à 60 %. La température reste presque stable au
+début : elle vaut 86,53 °C à l'entrée en pré-infusion, atteint 86,62 °C au
+maximum, puis commence à baisser avant la transition. À 7,35 s, l'infusion
+commande brutalement 100 % ; la température passe de 85,97 °C à un minimum de
+80,30 °C vers 15,4 s, avant de remonter. La boucle de pression réduit ensuite
+la pompe autour de 67–71 % pour tenir environ 9 bar.
+
+À partir de la version **0.3.18**, le passage pré-infusion → infusion ne saute
+plus directement à la puissance maximale. La commande augmente par pas de
+**5 points** et adapte leur période pour effectuer la montée en environ 2,5 s,
+avant que la régulation de pression ne prenne la main. Le cas observé
+60 → 100 % produit donc 60, 65, 70, …, 100 % sur environ 2,5 s. Une infusion
+sans phase de pré-infusion conserve le passage direct à sa puissance cible.
+Si la pression entre dans la bande d'activation du régulateur avant la fin,
+la rampe s'arrête et la boucle prend la main depuis la commande courante.
+
+Cette rampe teste l'hypothèse qu'une arrivée d'eau progressive réduit le choc
+thermique. Elle n'anticipe pas encore la chauffe : la prochaine capture devra
+comparer la température minimale, le temps d'établissement des 9 bar et le
+débit en tasse. Une montée trop douce pourrait retarder ou empêcher la cible
+de pression avec une galette très résistante.

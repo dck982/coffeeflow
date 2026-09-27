@@ -200,6 +200,13 @@ pour tout le bus. Retirer le capteur de pression laisse les lignes sans tirage e
 muet (sauf câble très court, sur les pull-ups internes de l'ESP32). Ne pas ajouter un second
 4,7 kΩ côté MCU tant que le XDB401 est là.
 
+Lors du remplacement prévu du XDB401 I2C par sa version analogique, ajouter au niveau du
+XIAO **une résistance de 4,7 kΩ entre SDA et 3,3 V et une autre entre SCL et 3,3 V**. Deux
+résistances CMS 0603/0805 soudées sur les pastilles du shield ou un petit réseau de deux
+résistances à point commun 3,3 V prennent très peu de place ; il n'est pas nécessaire
+d'ajouter un module. Les pull-ups internes de l'ESP32 ne constituent pas un remplacement
+robuste.
+
 ### Câble du XDB401 (R1)
 
 Câble **Grove à clip** de quelques centimètres, sur lequel est serti un **JST SM 4 poles**.
@@ -293,6 +300,37 @@ La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boît
 Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
 Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 est intégrée au firmware `screen` et publiée par `GET /telemetry`.
+
+Une future **PT1000 iOVEO 012EF02202** remplacera la NTC dans le même raccord
+G 1/8 de chaudière. Sa partie immergée en inox mesure 9 × 5,5 mm et sa sortie
+comporte deux fils silicone de 20 à 25 cm. Le câblage restera donc un pont à
+deux fils vers A1. Sur seulement 40 à 50 cm aller-retour, la résistance des
+conducteurs devrait produire une erreur de quelques centièmes de degré ; une
+mesure sonde montée suffira à vérifier qu'aucune compensation n'est nécessaire.
+La résistance fixe actuelle de 2,193 kΩ sera remplacée par une **4,7 kΩ** de
+précision, dont la valeur réelle sera mesurée et utilisée dans le firmware.
+Le courant dans la PT1000 sera ainsi voisin de 0,54 mA vers 100 °C, contre
+0,92 mA avec le pont actuel.
+
+### Évolution prévue : XDB401 analogique sur l'ADS1115
+
+Une version du XDB401 à sortie **0,4–2,4 V**, alimentée en **3,3 V**, pourra utiliser
+l'entrée **A2** du même ADS1115. A0 restera la mesure du 3,3 V, A1 celle du pont de
+température et A3 restera libre. La plage unipolaire 0,4–2,4 V est compatible avec
+l'alimentation 3,3 V de l'ADS1115 et avec son réglage actuel à ±4,096 V. À ce gain, un
+code vaut 125 µV. La pièce commandée couvre **0–12 bar** sur 2,0 V, soit une résolution
+brute d'environ **0,00075 bar (0,75 mbar) par code**, avant bruit et calibration.
+
+La sonde n'étant pas encore reçue, mesurer avant adaptation du firmware sa tension à
+pression nulle et à une pression connue. Vérifier aussi si sa sortie est ratiométrique à
+sa tension d'alimentation : dans ce cas, A0 permettra de compenser les variations du 3,3 V.
+Relier la masse de la sonde à celle de l'ADS1115 et acheminer sortie et masse ensemble ;
+un petit filtre RC au plus près de A2 pourra être ajouté si les captures montrent du bruit.
+
+Ce montage raccourcit le trajet analogique et supprime le XDB401 I2C ainsi que ses attentes
+de conversion sur le bus du XIAO. Le dimmer reste toutefois en I2C et nécessite alors les
+deux pull-ups de 4,7 kΩ décrites plus haut. Le câblage actuel avec le XDB401 I2C reste la
+référence jusqu'à la réception et à la caractérisation de la nouvelle pièce.
 
 ### Câble du dimmer (L4)
 

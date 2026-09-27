@@ -1,16 +1,25 @@
 # Régulation de la chaudière
 
-Depuis la version écran **0.3.16**, la conversion NTC utilise **47 kΩ / 3 950 K**
-pour estimer la température locale de la sonde, puis soustrait **14 °C** pour
-la température utilisateur, proche de l'affichage Gicar dans la plage café.
-Une consigne utilisateur de **90 °C** vise ainsi **104 °C estimés à la sonde**.
+Depuis la version écran **0.3.18**, la conversion NTC utilise **47 kΩ / 3 950 K**
+pour estimer la température locale de la sonde, puis soustrait **10 °C** pour
+la température utilisateur. Les essais de flashing du 27 septembre donnent
+un crépitement perceptible à partir de 94 °C affichés ; avec 967,7 hPa de
+pression atmosphérique brute et une ébullition calculée à 98,72 °C, cette
+consigne correspond à environ 104 °C à la sonde et 98 à 98,5 °C en sortie.
+Une consigne utilisateur de **90 °C** vise ainsi **100 °C estimés à la sonde**.
 L'écran, la régulation, les captures HF et `temperature.boiler.c` dans
 `GET /telemetry` restent dans le domaine utilisateur. La télémétrie ajoute
 `temperature.boiler.sensor_c` et `heating.target_sensor_c` pour le domaine de
 la sonde ; `heating.target_c` reste la consigne utilisateur. Le calcul de la
 sonde et l'offset demeurent indicatifs : une correspondance avec l'affichage
 Gicar ne mesure pas la température de l'eau au groupe. La coupure de chauffe
-à **105 °C utilisateur** représente désormais **119 °C estimés à la sonde**.
+à **105 °C utilisateur** représente désormais **115 °C estimés à la sonde**.
+
+Le café jugé bon à 87 °C avec l'ancien offset de −14 °C visait environ 101 °C
+à la sonde. Son équivalent physique avec l'offset de −10 °C est donc une
+consigne utilisateur de **91 °C**. Une configuration NVS existante à 87 °C
+n'est pas migrée automatiquement : sa valeur affichée reste 87 °C et sa cible
+physique baisse de 4 °C.
 
 L'écran lit la NTC chaudière et calcule la puissance demandée. Le module
 capteurs transforme cette puissance en temps de marche du SSR sur une période
@@ -75,6 +84,13 @@ coupé quand la mesure dépasse la cible de 1 °C en infusion ou de 0,5 °C en
 purge. Au-dessus de 105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
+
+Depuis **0.3.18**, la transition de la pré-infusion vers l'infusion augmente
+la pompe par pas de 5 points et adapte leur période pour terminer en environ
+2,5 s. La boucle de pression attend la fin de cette montée avant de
+prendre la main, sauf si la pression entre plus tôt dans sa bande d'activation.
+Dans ce cas, elle reprend la commande courante sans saut et empêche la rampe
+de pousser inutilement une galette déjà proche de la pression cible.
 
 La [capture d'infusion du 25 septembre](../captures/260925-182131.json) provient
 de la version 0.3.13 : elle ne permet pas de valider directement l'appoint de
@@ -733,3 +749,59 @@ le fichier.
 Un essai de chauffe et un essai d'infusion sont nécessaires avant de considérer
 les gains calibrés. Le mode vapeur reste à ajouter : il devra sélectionner une
 cible propre, bloquer l'infusion et garder la purge disponible.
+
+## Remplacement prévu par une PT1000
+
+La NTC installée est physiquement assez grande et les captures du 27 septembre
+sont compatibles avec une constante thermique de l'ordre de **7 à 10 s**. La
+température affichée est donc une mesure retardée : le début et le minimum de
+la chute réelle peuvent précéder nettement ceux de la courbe NTC. Depuis la
+version 0.3.18, une capture HF de purge conserve 20 s après l'arrêt de la pompe
+pour mieux observer cette traîne.
+
+Le remplacement prévu est une **PT1000 iOVEO 012EF02202**, filetée **G 1/8**,
+avec une partie immergée en acier inoxydable de **9 mm de long et 5,5 mm de
+diamètre**, deux fils silicone et aucun troisième ou quatrième fil de
+compensation. L'immersion directe et la faible longueur devraient réduire le
+retard par rapport à la NTC actuelle. La constante de temps dépendra encore de
+la construction interne, de l'épaisseur de la gaine et de la circulation d'eau
+autour de la sonde ; le type PT1000 ne garantit pas à lui seul une réponse
+rapide.
+
+Une PT1000 IEC 60751 nominale vaut environ 1,347 kΩ à 90 °C, 1,385 kΩ à
+100 °C et 1,400 kΩ à 104 °C. Le pont existant fonctionnerait avec sa résistance
+basse de 2,193 kΩ, mais celle-ci sera remplacée par une **4,7 kΩ** pour limiter
+l'autoéchauffement. Sous 3,3 V et à 100 °C, le courant passera d'environ
+0,92 mA à **0,54 mA** et la dissipation dans la sonde d'environ 1,2 mW à
+**0,41 mW**. A1 sera proche de 2,55 V, dans la plage ±4,096 V actuelle de
+l'ADS1115.
+
+Le choix retenu pour le premier montage est de **conserver l'ADS1115** plutôt
+que d'ajouter un MAX31865. Avec le PGA ±4,096 V, un pas ADC vaut 125 µV ; le
+pont de 4,7 kΩ fournira environ 1,6 mV/°C autour de 100 °C, soit près de
+13 pas ADC par degré avant filtrage. Cette résolution, environ 0,08 °C par pas,
+est suffisante pour la régulation et meilleure que les autres incertitudes du
+montage. Les contrôles de validité bruts existants acceptent aussi les tensions
+prévues.
+
+La valeur réelle de la résistance fixe devra être mesurée au multimètre et
+reportée dans <code>kBoilerNtcFixedOhm</code>. Une résistance métal de précision,
+stable en température, évitera que le pont lui-même dérive avec l'échauffement
+du boîtier.
+
+Le MAX31865 reste une possibilité si la détection matérielle des fils ouverts
+ou en court-circuit devient prioritaire. Il accepte une PT1000 et les montages
+deux, trois ou quatre fils, mais le mode deux fils ne retire pas la résistance
+des conducteurs. Il ajouterait ici une carte et une liaison SPI sans corriger
+la principale incertitude du capteur choisi.
+
+Avec deux fils, leur résistance s'ajoute à celle de l'élément. Autour de
+100 °C, la pente est proche de 3,8 Ω/°C : 1 Ω de résistance aller-retour crée
+environ 0,26 °C d'erreur. Ici, les fils ne feront que 20 à 25 cm, soit environ
+40 à 50 cm aller-retour. Avec une section courante de fil de sonde, leur
+résistance devrait rester de l'ordre de quelques centièmes à un dixième d'ohm,
+donc quelques centièmes de degré seulement. Les contacts peuvent peser autant
+que le cuivre ; une mesure sonde montée permettra de confirmer que la correction
+est négligeable. Le firmware devra remplacer le modèle Beta par la loi
+Callendar–Van Dusen. Avant ce changement, relever les codes ADS1115 à froid et
+à chaud, puis comparer le retard des deux sondes sur une purge identique.

@@ -17,11 +17,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+
+
+PHASE_STYLE = {
+    "filling": ("remplissage", "#8c6bb1"),
+    "preinfusion": ("pré-infusion", "#6baed6"),
+    "infusion": ("infusion", "#fdae6b"),
+    "ramp_down": ("descente", "#74c476"),
+    "cooldown": ("récupération", "#bdbdbd"),
+    "purge": ("purge", "#fb6a4a"),
+}
 
 
 def validate_capture(payload: Any) -> dict[str, Any]:
@@ -72,6 +83,23 @@ def derivative(values_: list[float], times: list[float], sample_distance: int = 
     return result
 
 
+def phase_spans(samples: list[dict[str, Any]], times: list[float], end_s: float) -> list[tuple[float, float, str]]:
+    """Regroupe les modes consécutifs en intervalles pour le fond du graphe."""
+    if not samples or "mode" not in samples[0]:
+        return []
+    spans: list[tuple[float, float, str]] = []
+    start_s = times[0]
+    mode = str(samples[0].get("mode", ""))
+    for index in range(1, len(samples)):
+        next_mode = str(samples[index].get("mode", ""))
+        if next_mode != mode:
+            spans.append((start_s, times[index], mode))
+            start_s = times[index]
+            mode = next_mode
+    spans.append((start_s, max(end_s, times[-1]), mode))
+    return spans
+
+
 def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
          flow_derivative_samples: int = 0) -> plt.Figure:
     samples: list[dict[str, Any]] = capture["samples"]
@@ -90,6 +118,9 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
     else:
         temperature = values(samples, "temperature_c")
         xdb401_temperature = None
+    initial_temperature = next((value for value in temperature if math.isfinite(value)), float("nan"))
+    temperature_drop = [initial_temperature - value if math.isfinite(value) else float("nan")
+                        for value in temperature]
     flow, volume, weight = values(samples, "flow_ml_s"), values(samples, "volume_ml"), values(samples, "weight_g")
     balance_flow = weight_flow_g_s(elapsed_s, weight, weight_flow_window_s)
     if flow_derivative_samples>0:
@@ -98,9 +129,18 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
         flow_derivative = None
     commanded, reported = values(samples, "pump_pct_commanded"), values(samples, "pump_pct_reported")
 
-    figure, axes = plt.subplots(4, 1, figsize=(13, 10), sharex=True, layout="constrained")
+    figure, axes = plt.subplots(5, 1, figsize=(13, 12), sharex=True, layout="constrained")
     duration_s = (int(capture["ended_at_us"]) - int(capture["started_at_us"])) / 1_000_000.0
     figure.suptitle(f"CoffeeFlow · {capture['origin']} · {duration_s:.1f} s · {capture['sample_count']} échantillons")
+
+    for start_s, end_s, mode in phase_spans(samples, elapsed_s, duration_s):
+        label, color = PHASE_STYLE.get(mode, (mode, "#d9d9d9"))
+        for axis in axes:
+            axis.axvspan(start_s, end_s, color=color, alpha=0.11, linewidth=0, zorder=0)
+        if end_s - start_s >= 0.6:
+            axes[0].text((start_s + end_s) / 2.0, 0.98, label,
+                         transform=axes[0].get_xaxis_transform(),
+                         ha="center", va="top", fontsize=8, color="#555555")
 
     axes[0].plot(elapsed_s, pressure, color="tab:red", label="pression")
     axes[0].set_ylabel("bar")
@@ -141,13 +181,25 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
         heating_axis.legend(loc="upper right")
     axes[2].legend(loc="upper left")
     axes[2].set_ylabel("température (°C)")
-    axes[3].plot(elapsed_s, weight, color="tab:purple", label="poids")
-    axes[3].set_ylabel("poids (g)")
-    volume_axis = axes[3].twinx()
+
+    axes[3].plot(elapsed_s, temperature_drop, color="tab:red", label="baisse NTC = T₀ − T")
+    axes[3].fill_between(elapsed_s, 0, temperature_drop,
+                         where=[value >= 0 for value in temperature_drop],
+                         color="tab:red", alpha=0.18, interpolate=True)
+    axes[3].fill_between(elapsed_s, 0, temperature_drop,
+                         where=[value < 0 for value in temperature_drop],
+                         color="tab:blue", alpha=0.12, interpolate=True)
+    axes[3].axhline(0, color="#777777", linewidth=0.8)
+    axes[3].set_ylabel("baisse depuis T₀ (°C)")
+    axes[3].legend(loc="upper left")
+
+    axes[4].plot(elapsed_s, weight, color="tab:purple", label="poids")
+    axes[4].set_ylabel("poids (g)")
+    volume_axis = axes[4].twinx()
     volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume depuis début")
     volume_axis.set_ylabel("volume (ml)")
-    axes[3].set_xlabel("temps depuis SET dimmer>0 (s)")
-    axes[3].legend(loc="upper left")
+    axes[4].set_xlabel("temps depuis SET dimmer>0 (s)")
+    axes[4].legend(loc="upper left")
     volume_axis.legend(loc="upper right")
     for axis in axes:
         axis.grid(True, alpha=0.25)

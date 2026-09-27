@@ -1,5 +1,24 @@
 # Calibration NTC chaudière via ADS1115
 
+> Remplacement prévu : PT1000 iOVEO 012EF02202, G 1/8, immersion inox
+> 9 × 5,5 mm, deux fils silicone. Le montage ADS1115 peut être réutilisé, mais
+> la conversion Beta décrite dans ce document devra être remplacée par une loi
+> Callendar–Van Dusen. Avec 20 à 25 cm de câble, la résistance des deux fils
+> devrait être négligeable ; elle sera simplement vérifiée à la calibration.
+
+Le montage conservera l'ADS1115, mais remplacera la résistance fixe mesurée de
+2,193 kΩ par une **4,7 kΩ** de précision. Autour de 100 °C, la sensibilité
+calculée restera d'environ 1,6 mV/°C, soit près de 13 codes par degré avec le
+PGA ±4,096 V. Le courant de mesure sera ramené d'environ 0,92 à 0,54 mA et la
+dissipation dans la PT1000 d'environ 1,2 à 0,41 mW. Un MAX31865 n'est pas
+nécessaire à cette résolution. Sur la longueur prévue, une compensation des
+fils n'apporterait qu'un gain négligeable. Il reste intéressant uniquement si ses diagnostics
+RTD dédiés justifient une carte et une liaison SPI supplémentaires.
+
+La valeur exacte de la nouvelle résistance devra être mesurée puis utilisée
+dans la formule ratiométrique et dans <code>kBoilerNtcFixedOhm</code> ; le firmware
+doit rester réglé sur 2,193 kΩ tant que le remplacement physique n'est pas fait.
+
 ## Contexte
 
 L'objectif est de mesurer la température de la chaudière d'une machine à

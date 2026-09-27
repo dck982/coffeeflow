@@ -16,14 +16,14 @@ inline constexpr float kFlowPulsesPerLiter = 3450.0f;
 inline constexpr float kPressureFullScaleBar = 16.0f;
 inline constexpr float kPressureOffsetBar = 0.0f;
 // Pont NTC chaudière : courbe locale indicative de la sonde démontée.
-// L'affichage Gicar est proche de cette courbe moins 14 °C en zone café
-// (docs/chauffe-chaudiere.md). L'offset concerne la consigne utilisateur,
-// pas la conversion physique de la NTC.
+// Les essais de flashing du 2026-09-27 placent 94 °C utilisateur près de
+// 104 °C à la sonde et 98 à 98,5 °C en sortie de groupe. L'offset concerne
+// la consigne utilisateur, pas la conversion physique de la NTC.
 inline constexpr float kBoilerNtcFixedOhm = 2193.0f;
 inline constexpr float kBoilerNtcR0Ohm = 47000.0f;
 inline constexpr float kBoilerNtcBetaK = 3950.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;
-inline constexpr float kBoilerNtcTemperatureOffsetC = -14.0f;
+inline constexpr float kBoilerNtcTemperatureOffsetC = -10.0f;
 inline constexpr float boiler_user_temperature_c(float sensor_c) {
   return sensor_c + kBoilerNtcTemperatureOffsetC;
 }

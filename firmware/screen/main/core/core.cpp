@@ -34,6 +34,10 @@ constexpr uint16_t kHFCapturePeriodMs = 100;
 constexpr uint16_t kBoilerPairPeriodMs = 100;
 constexpr uint16_t kHFCaptureCapacity = 768;
 constexpr int64_t kHFCaptureCooldownUs = 4 * 1000 * 1000;
+// La NTC installée semble avoir une constante thermique de 7 à 10 s. Les
+// purges de calibration gardent donc une traîne plus longue pour capturer le
+// minimum retardé ; les infusions conservent leur délai court côté produit.
+constexpr int64_t kHFPurgeCaptureCooldownUs = 20 * 1000 * 1000;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
 constexpr Periods periods_for(TelemetryProfile profile) {
@@ -799,7 +803,10 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   if (g_state.hf_capture.active && !g_state.hf_capture.cooldown &&
       g_state.hf_capture.actuator_seen_on && payload.pump_pct == 0) {
     g_state.hf_capture.cooldown = true;
-    g_state.hf_capture.cooldown_ends_at_us = now + kHFCaptureCooldownUs;
+    const int64_t cooldown_us = g_state.hf_capture.origin == HFCaptureOrigin::kPurge
+                                    ? kHFPurgeCaptureCooldownUs
+                                    : kHFCaptureCooldownUs;
+    g_state.hf_capture.cooldown_ends_at_us = now + cooldown_us;
     g_state.snapshot.capture_cooldown = true;
   }
   profile = capture_profile_locked();

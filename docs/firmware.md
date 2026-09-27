@@ -150,6 +150,12 @@ l'investigation ; il n'est plus utilisé côté capteurs.
 
 **I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
 
+**Migration envisagée.** Le remplacement du XDB401 I2C par une version analogique impose
+de monter sur le XIAO deux pull-ups de **4,7 kΩ vers 3,3 V**, une sur SDA et une sur SCL.
+Deux résistances CMS sur le shield ou un petit réseau double suffisent. Le dimmer devient
+alors le seul périphérique de ce bus ; les pull-ups internes de l'ESP32 ne doivent pas être
+utilisées comme solution permanente.
+
 **Le mutex I2C ne couvre pas l'attente de conversion du XDB401.** Déclencher, relâcher le mutex, attendre ~50 ms, reprendre, lire. Sinon une rampe dimmer à 10 Hz se prend 50 ms de latence pour rien.
 
 ### SSR — vanne solénoïde
@@ -214,6 +220,21 @@ Avec l'OPV réglée à 11 bar pour un fonctionnement à 9 bar, **elle ne s'ouvre
 Même bus I2C. Déclencher une conversion (`0x30` / `0x0A`), attendre ~50 ms, lire 5 octets à partir de `0x06` : pression 24 bits, température 16 bits. Ces 5 octets partent **tels quels** sur le CAN. La pleine échelle est une propriété de la pièce (le script de banc suppose 10 bar, à confirmer sur l'exemplaire monté) et c'est une calibration : elle vit côté écran.
 
 Mesure côté groupe, en amont de la vanne solénoïde.
+
+Une évolution prévue remplace cette pièce par un XDB401 **0–12 bar**, alimenté en 3,3 V
+et donnant **0,4–2,4 V**, raccordé à **A2 de l'ADS1115** côté écran. A0 restera la
+référence du 3,3 V, A1 la température chaudière et A3 restera libre. Une troisième
+conversion ADS1115 tient largement dans la période d'acquisition de 100 ms ; une pression
+à 10 Hz reste également adaptée à la boucle actuelle, exécutée toutes les 200 ms.
+
+Cette migration déplacera l'acquisition de pression vers `screen`. La boucle de pression et
+les captures HF pourront consommer directement cette mesure locale, mais la télémétrie et
+la notion de fraîcheur devront cesser de dépendre de `STATUS_PRESSURE` envoyé par le XIAO.
+Le champ brut devra aussi être redéfini, car il contient actuellement le code signé 24 bits
+du XDB401 I2C. La température interne fournie par ce dernier disparaîtra. Aucun de ces
+changements logiciels ne doit précéder la mesure de la tension réelle à 0 bar et à une
+pression connue sur la pièce reçue ; cette caractérisation déterminera pente, offset et
+éventuelle compensation ratiométrique par A0.
 
 ---
 

@@ -11,6 +11,10 @@ constexpr uint16_t kLeaseMs = 500;
 constexpr float kScaleBackwardsG = 5.0f;
 constexpr uint64_t kFillingPressureGuardMs = 1000;
 constexpr uint64_t kBrewPressureControlPeriodMs = 200;
+// Transition hydraulique douce après la pré-infusion. La période des pas est
+// adaptée à l'écart afin que la montée complète dure environ 2,5 s.
+constexpr uint8_t kBrewRampStepPct = 5;
+constexpr uint64_t kBrewRampDurationMs = 2500;
 // Au-delà, une indisponibilité prolongée ne doit pas provoquer un rattrapage
 // d'intégrale brutal quand la pression réapparaît.
 constexpr uint64_t kBrewPressureMaxIntegrationPeriodMs = 400;
@@ -83,12 +87,24 @@ void Machine::finish(StopReason reason, uint64_t now_ms) {
   stop_reason_ = reason;
 }
 
-void Machine::enter_brew(uint64_t now_ms) {
+void Machine::enter_brew(uint64_t now_ms, bool ramp_from_preinfusion) {
   state_ = State::kBrew;
   phase_started_ms_ = now_ms;
-  brew_pump_pct_ = config_.brew_pump_pct < core::kMinimumBrewPumpPct
-                       ? core::kMinimumBrewPumpPct
-                       : config_.brew_pump_pct;
+  const uint8_t target_pct = config_.brew_pump_pct < core::kMinimumBrewPumpPct
+                                 ? core::kMinimumBrewPumpPct
+                                 : config_.brew_pump_pct;
+  brew_ramp_start_pct_ = ramp_from_preinfusion
+                             ? std::min(config_.preinfusion_pump_pct, target_pct)
+                             : target_pct;
+  brew_pump_pct_ = brew_ramp_start_pct_;
+  brew_ramp_active_ = brew_pump_pct_ < target_pct;
+  if (brew_ramp_active_) {
+    const uint8_t difference_pct = target_pct - brew_ramp_start_pct_;
+    const uint8_t step_count = (difference_pct + kBrewRampStepPct - 1) / kBrewRampStepPct;
+    brew_ramp_step_period_ms_ = static_cast<uint16_t>(kBrewRampDurationMs / step_count);
+  } else {
+    brew_ramp_step_period_ms_ = 0;
+  }
   brew_pressure_control_active_ = false;
   brew_pressure_integral_pct_ = static_cast<float>(brew_pump_pct_);
   last_brew_pressure_control_ms_ = now_ms;
@@ -134,7 +150,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     if (effective_preinfusion_mode_ == PreinfusionMode::kNone ||
         (effective_preinfusion_mode_ == PreinfusionMode::kTime &&
          config_.preinfusion_time_s == 0)) {
-      enter_brew(now_ms);
+      enter_brew(now_ms, false);
     } else {
       state_ = State::kPreinfusion;
       phase_started_ms_ = now_ms;
@@ -154,7 +170,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
       done = true;
     }
     if (!done) return {config_.preinfusion_pump_pct, kLeaseMs};
-    enter_brew(now_ms);
+    enter_brew(now_ms, true);
   }
   if (state_ == State::kBrew) {
     bool ramp = config_.rampdown_mode == RampdownMode::kTime &&
@@ -165,7 +181,32 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
       phase_started_ms_ = now_ms;
     }
   }
-  if (state_ == State::kBrew &&
+  if (state_ == State::kBrew && brew_ramp_active_) {
+    const uint8_t target_pct = config_.brew_pump_pct < core::kMinimumBrewPumpPct
+                                   ? core::kMinimumBrewPumpPct
+                                   : config_.brew_pump_pct;
+    const uint64_t completed_steps = (now_ms - phase_started_ms_) / brew_ramp_step_period_ms_;
+    const uint64_t requested_pct = static_cast<uint64_t>(brew_ramp_start_pct_) +
+                                   completed_steps * kBrewRampStepPct;
+    brew_pump_pct_ = static_cast<uint8_t>(std::min<uint64_t>(requested_pct, target_pct));
+    const float pressure_error_bar = config_.target_pressure_bar - input.pressure_bar;
+    const float minimum_bumpless_command_pct = static_cast<float>(core::kMinimumBrewPumpPct) +
+        kBrewPressureKpPctPerBar * pressure_error_bar;
+    const bool pressure_control_ready = input.pressure_valid &&
+        input.pressure_bar >= config_.target_pressure_bar - kBrewPressureActivationMarginBar &&
+        static_cast<float>(brew_pump_pct_) >= minimum_bumpless_command_pct;
+    if (pressure_control_ready) {
+      // Une galette restrictive peut approcher la cible avant la fin de la
+      // rampe. Laisser alors le PI prendre la main depuis la commande courante
+      // évite de poursuivre mécaniquement jusqu'au plafond.
+      brew_ramp_active_ = false;
+    } else if (brew_pump_pct_ >= target_pct) {
+      brew_ramp_active_ = false;
+      brew_pressure_integral_pct_ = static_cast<float>(brew_pump_pct_);
+      last_brew_pressure_control_ms_ = now_ms;
+    }
+  }
+  if (state_ == State::kBrew && !brew_ramp_active_ &&
       now_ms - last_brew_pressure_control_ms_ >= kBrewPressureControlPeriodMs) {
     if (input.pressure_valid) {
       // Cette date n'avance que lorsqu'une commande PI est réellement

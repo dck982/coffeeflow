@@ -75,7 +75,7 @@ class Machine {
   }
 
  private:
-  void enter_brew(uint64_t now_ms);
+  void enter_brew(uint64_t now_ms, bool ramp_from_preinfusion);
   void finish(StopReason reason, uint64_t now_ms);
   State state_ = State::kIdle;
   StopReason stop_reason_ = StopReason::kNone;
@@ -90,6 +90,9 @@ class Machine {
   float preinfusion_start_weight_g_ = 0.0f;
   bool preinfusion_scale_armed_ = false;
   uint8_t brew_pump_pct_ = 0;
+  uint8_t brew_ramp_start_pct_ = 0;
+  uint16_t brew_ramp_step_period_ms_ = 0;
+  bool brew_ramp_active_ = false;
   bool brew_pressure_control_active_ = false;
   float brew_pressure_integral_pct_ = 0.0f;
   uint64_t last_brew_pressure_control_ms_ = 0;

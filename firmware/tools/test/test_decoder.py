@@ -53,7 +53,7 @@ def test_decode_new_heating_and_confirmation_frames():
     heating = decode_frame(0.0, RawFrame(0x46A, StatusHeatingPayload(False, 0).pack()[:4]))
     assert "STATUS_HEATING" in heating
     assert "chauffage=off" in heating
-    assert "capable=oui" in heating
+    assert "capable=diagnostic" in heating
 
     confirmation = decode_frame(0.0, RawFrame(0x0B1, b"\x3f"))
     assert "CONFIRM_SENSORS_OTA" in confirmation

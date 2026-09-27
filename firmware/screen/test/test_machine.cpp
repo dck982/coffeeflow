@@ -26,7 +26,7 @@ int main() {
   assert(machine.tick(2000, input).dimmer == 30);
   assert(machine.state() == State::kPreinfusion);
   assert(machine.tick(5999, input).dimmer == 30);
-  assert(machine.tick(6000, input).dimmer == 100);
+  assert(machine.tick(6000, input).dimmer == 30);  // début de rampe depuis la pré-infusion
   assert(machine.state() == State::kBrew);
   assert(machine.tick(28999, input).dimmer == 100);
   assert(machine.tick(29000, input).dimmer == 0);
@@ -115,7 +115,7 @@ int main() {
   assert(pressure.start(1000, c, input));
   assert(pressure.tick(2000, input).dimmer == 30);
   input.pressure_bar = 1.5f;
-  assert(pressure.tick(2100, input).dimmer == 100);
+  assert(pressure.tick(2100, input).dimmer == 30);  // début de rampe vers le débit cible
   assert(pressure.state() == State::kBrew);
 
   Machine first_drop;
@@ -126,7 +126,7 @@ int main() {
   input.weight_g = 10.09f;
   assert(first_drop.tick(2100, input).dimmer == 30);
   input.weight_g = 10.1f;
-  assert(first_drop.tick(2200, input).dimmer == 100);
+  assert(first_drop.tick(2200, input).dimmer == 30);  // début de rampe après la première goutte
   assert(first_drop.state() == State::kBrew);
 
   Machine missing_scale;
@@ -142,7 +142,7 @@ int main() {
   assert(combined.start(1000, c, input));
   assert(combined.tick(2000, input).dimmer == 30);
   input.pressure_bar = 1.5f;
-  assert(combined.tick(2100, input).dimmer == 100);
+  assert(combined.tick(2100, input).dimmer == 30);  // début de rampe après condition de pré-infusion
   assert(combined.state() == State::kBrew);
 
   c = config();

@@ -335,7 +335,13 @@ void topbar_rule(lv_obj_t *p) {
   lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
 }
 void fmt(char *out, size_t n, float f, const char *s) {
-  std::snprintf(out, n, "%.1f%s", static_cast<double>(f), s);
+  // Format the magnitude separately so the sign is always the ASCII '-'.
+  // This keeps LVGL text independent of locale or Unicode minus characters.
+  const bool negative = std::signbit(f);
+  const int written = std::snprintf(out, n, "%s%.1f%s", negative ? "-" : "",
+                                    static_cast<double>(std::fabs(f)), s);
+  if (written < 0 || static_cast<size_t>(written) >= n)
+    return;
   for (char *p = out; *p; ++p)
     if (*p == '.')
       *p = ',';

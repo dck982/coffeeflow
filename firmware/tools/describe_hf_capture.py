@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PHASE_STYLE = {
-    "thermal_preheat": ("précharge thermique", "#4a9bb5"),
+    "thermal_preheat": ("chauffe", "#4a9bb5"),
     "filling": ("remplissage", "#8c6bb1"),
     "preinfusion": ("pré-infusion", "#6baed6"),
     "infusion": ("infusion", "#fdae6b"),
@@ -136,15 +136,20 @@ def report_weight_series(samples: list[dict[str, Any]]) -> list[float]:
     return result
 
 
-def cup_flow_series(samples: list[dict[str, Any]], window_s: float) -> list[float]:
+def cup_flow_series(samples: list[dict[str, Any]], window_s: float,
+                    cooldown_window_s: float = 0.0) -> list[float]:
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
+    stop_index = first_pump_stop(samples) if cooldown_window_s > 0 else None
+    stop_s = times[stop_index] if stop_index is not None else float("inf")
     # Le débit tasse n'est défini que pendant le cycle hydraulique. Les poids
     # négatifs signalent notamment une tasse retirée et sont exclus du rapport,
     # sans modifier la capture brute.
     weights = [number(sample.get("weight_g"))
-               if valid(sample, "scale") and sample.get("mode") != "cooldown" and
-               number(sample.get("weight_g")) >= 0 else float("nan")
-               for sample in samples]
+               if valid(sample, "scale") and number(sample.get("weight_g")) >= 0 and
+               (sample.get("mode") != "cooldown" or
+                (times[index] <= stop_s + cooldown_window_s and times[index] >= stop_s))
+               else float("nan")
+               for index, sample in enumerate(samples)]
     if not has_weight(samples):
         return [float("nan")] * len(samples)
     return weight_flow_g_s(times, weights, window_s)
@@ -410,7 +415,11 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     samples: list[dict[str, Any]] = capture["samples"]
     duration_s = capture_duration_s(capture)
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
-    cup_flows = cup_flow_series(samples, weight_flow_window_s)
+    stop_index = first_pump_stop(samples)
+    stop_s = times[stop_index] if stop_index is not None else duration_s
+    cup_flows = cup_flow_series(samples, weight_flow_window_s, cooldown_window_s=2.0)
+    cup_flows = [flow if time_s <= stop_s else float("nan")
+                 for time_s, flow in zip(times, cup_flows)]
     report_weights = report_weight_series(samples)
     temperatures = [
         number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
@@ -473,7 +482,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "mode": "lines", "line": {"color": "#ff7f0e", "width": 2}, "yaxis": "y4",
          "hovertemplate": "%{y:.2f} °C<extra></extra>"},
         {"name": "chauffage demandé", "x": times, "y": series("heating_power_pct"), "type": "scatter",
-         "mode": "lines", "line": {"color": "#d62728", "dash": "dash", "shape": "hv"}, "yaxis": "y5",
+         "mode": "lines", "line": {"color": "#d62728", "shape": "hv"}, "yaxis": "y5",
          "hovertemplate": "%{y:.0f} %<extra></extra>"},
         {"name": "baisse thermique maximale", "x": [times[min_temperature_index]], "y": [min_temperature],
          "customdata": [max_temperature_drop], "type": "scatter", "mode": "markers",
@@ -504,11 +513,14 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
         time_s = times[index]
         shapes.append({"type": "line", "xref": "x", "yref": "paper", "x0": time_s, "x1": time_s,
                        "y0": 0, "y1": 1, "line": {"color": "#667078", "width": 1, "dash": "dot"}})
-    temperature_drop_shape_index = len(shapes) + 1
+    temperature_drop_shape_index = len(shapes) + 2
     shapes.extend([
         {"type": "line", "xref": "x", "yref": "y4", "x0": 0, "x1": duration_s,
          "y0": initial_temperature, "y1": initial_temperature,
          "line": {"color": "#777", "width": 1, "dash": "dash"}},
+        {"type": "line", "xref": "x", "yref": "y4", "x0": 0, "x1": duration_s,
+         "y0": min_temperature, "y1": min_temperature,
+         "line": {"color": "#d62728", "width": 1, "dash": "dot"}},
         {"type": "line", "xref": "x", "yref": "y4", "x0": times[min_temperature_index],
          "x1": times[min_temperature_index], "y0": min_temperature, "y1": initial_temperature,
          "line": {"color": "#d62728", "width": 2, "dash": "dot"}},
@@ -516,14 +528,20 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     annotations.append({"xref": "x", "yref": "y4", "x": duration_s, "y": initial_temperature,
                         "text": f"T₀ {initial_temperature:.2f} °C", "showarrow": False,
                         "xanchor": "right", "yanchor": "bottom", "font": {"size": 10, "color": "#666"}})
+    drop_annotation_index = len(annotations)
+    annotations.append({"xref": "x", "yref": "y4", "x": times[min_temperature_index],
+                        "y": min_temperature + max_temperature_drop * 0.8,
+                        "text": f"−{max_temperature_drop:.2f} °C", "showarrow": False,
+                        "xanchor": "left", "xshift": 5,
+                        "font": {"size": 10, "color": "#d62728"}})
     panel_titles = [("Pression et pompe", 1.045), ("Débit tasse", 0.755), ("Température", 0.505),
                     ("Poids et volume", 0.235)]
     annotations.extend({"xref": "paper", "yref": "paper", "x": 0, "y": y, "text": f"<b>{title}</b>",
                         "showarrow": False, "xanchor": "left"} for title, y in panel_titles)
     layout = {
-        "height": 920, "margin": {"l": 70, "r": 70, "t": 95, "b": 60},
+        "height": 920, "margin": {"l": 70, "r": 70, "t": 145, "b": 60},
         "paper_bgcolor": "#fff", "plot_bgcolor": "#fff", "hovermode": "x unified",
-        "legend": {"orientation": "h", "y": 1.09, "x": 0}, "shapes": shapes, "annotations": annotations,
+        "legend": {"orientation": "h", "y": 1.20, "x": 0}, "shapes": shapes, "annotations": annotations,
         "xaxis": {"title": "temps depuis le start (s)", "range": [0, duration_s], "showspikes": True,
                   "spikemode": "across", "spikesnap": "cursor", "gridcolor": "#e8ebed"},
         "yaxis": {"title": "bar", "domain": [0.78, 1], "gridcolor": "#e8ebed", "zeroline": False},
@@ -537,6 +555,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     payload = json.dumps({"traces": traces, "layout": layout,
                           "controls": {"temperatureTrace": 5, "dropTrace": 7,
                                        "dropShape": temperature_drop_shape_index,
+                                       "dropAnnotation": drop_annotation_index,
                                        "dropTime": times[min_temperature_index]}}, ensure_ascii=False,
                          separators=(",", ":")).replace("</", "<\\/")
     return f"""<div class="plot-controls">
@@ -562,6 +581,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     const shapeUpdate = {{}};
     shapeUpdate[`shapes[${{plot.controls.dropShape}}].x0`] = plot.controls.dropTime - delay;
     shapeUpdate[`shapes[${{plot.controls.dropShape}}].x1`] = plot.controls.dropTime - delay;
+    shapeUpdate[`annotations[${{plot.controls.dropAnnotation}}].x`] = plot.controls.dropTime - delay;
     Plotly.relayout(plotDiv, shapeUpdate);
   }});
 </script>"""

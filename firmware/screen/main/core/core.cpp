@@ -33,9 +33,9 @@ constexpr uint32_t kScalePresentMs = 2000;
 constexpr uint16_t kHFCapturePeriodMs = 100;
 constexpr uint16_t kBoilerPairPeriodMs = 100;
 // 115,2 s couvrent le réglage temporel maximal de 60 s, 15 s de précharge et
-// les 20 s de récupération conservées après une infusion.
+// les 30 s de récupération conservées après une infusion.
 constexpr uint16_t kHFCaptureCapacity = 1152;
-constexpr int64_t kHFBrewCaptureCooldownUs = 20 * 1000 * 1000;
+constexpr int64_t kHFBrewCaptureCooldownUs = 30 * 1000 * 1000;
 constexpr int64_t kHFOtherCaptureCooldownUs = 5 * 1000 * 1000;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };

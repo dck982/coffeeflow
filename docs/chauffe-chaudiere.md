@@ -1,325 +1,337 @@
 # Régulation de la chaudière
 
-Depuis la version écran **0.3.18**, la conversion NTC utilise **47 kΩ / 3 950 K**
-pour estimer la température locale de la sonde, puis soustrait **10 °C** pour
-la température utilisateur. Les essais de flashing du 27 septembre donnent
-un crépitement perceptible à partir de 94 °C affichés ; avec 967,7 hPa de
-pression atmosphérique brute et une ébullition calculée à 98,72 °C, cette
+Ce document décrit d'abord **l'état actuel** (version écran **0.3.27**) :
+machine, mesure, configuration et loi de chauffe. Viennent ensuite les
+**points à considérer**, le **prochain essai**, puis le **journal des
+essais**, qui conserve les mesures et le raisonnement ayant conduit aux
+réglages actuels. Les procédures de mesure et le remplacement prévu de la
+sonde terminent le document.
+
+Les fichiers `captures/` cités sont locaux et ignorés par Git.
+
+## Machine et ordres de grandeur
+
+La machine est une **Profitec GO** : chaudière de **400 ml**, résistance de
+**1 200 W**. Quelques ordres de grandeur utiles pour lire les captures :
+
+| Grandeur | Valeur |
+| --- | --- |
+| 1 % de commande pendant 1 s | 12 J |
+| Capacité thermique de l'eau de la chaudière | ≈ 1,67 kJ/K (400 g × 4,18), plus le métal |
+| Montée maximale à 100 %, sans pertes ni écoulement | ≤ 0,72 °C/s, soit ≤ 0,0072 °C par %·s |
+| Eau du réservoir | ≈ température de la pièce, 24–25 °C (estimation, non mesurée) |
+| Remplacer 10 ml d'eau à 90 °C par de l'eau à 24,5 °C | ≈ −1,6 °C une fois mélangé |
+| Chauffer 1 ml/s d'eau de 24,5 à 95 °C | ≈ 295 W, soit ≈ 25 % |
+
+Le remplissage et la pré-infusion admettent environ 30 ml en 9 s : sans
+chauffe, la chaudière perdrait environ 5 °C une fois l'eau mélangée.
+Maintenir la température demanderait environ **88 %** à 3,6 ml/s, contre
+**29 à 34 %** à 1,2–1,4 ml/s pendant l'infusion.
+
+## Chaîne de commande
+
+L'écran lit la NTC chaudière et calcule la puissance demandée, avec une
+résolution de 0,1 %. Le module capteurs transforme cette puissance en temps de
+marche du SSR sur une fenêtre fixe de **1 s**. L'écran renouvelle un bail de
+**1 500 ms** toutes les 500 ms : une perte de l'écran ou du CAN coupe le
+chauffage à l'expiration du bail. Une fenêtre isolée ne peut produire moins de
+100 ms de chauffe ; un accumulateur répartit les faibles consignes sur
+plusieurs fenêtres (1 % = 100 ms toutes les 10 s, 0,6 % ≈ 100 ms toutes les
+16,7 s en moyenne).
+
+Les pourcentages des captures sont les **consignes demandées** par l'écran,
+pas une mesure électrique de la puissance dissipée. Le champ `heater_on` des
+captures HF donne l'état réel du SSR.
+
+## Mesure de température
+
+### Conversion actuelle
+
+Le pont NTC utilise une résistance fixe mesurée de **2 193 Ω** entre A1 et
+GND, alimentée par le 3V3 du port Sensor AD du Waveshare. La résistance de la
+NTC vaut `R_NTC = 2193 × (A0_raw/A1_raw − 1)` en ohms ; `A0_raw` et `A1_raw`
+sont des codes ADS1115, pas des volts. Le PGA reste à ±4,096 V sur A0 et A1.
+
+Depuis **0.3.18**, la conversion utilise **47 kΩ / 3 950 K** pour estimer la
+température locale de la sonde, puis soustrait **10 °C** pour obtenir la
+**température utilisateur**. Les constantes sont dans
+`firmware/screen/main/core/calibration_machine.h`.
+
+| Domaine | Utilisation | Exemple |
+| --- | --- | --- |
+| Utilisateur | écran, consigne, régulation, captures HF, `temperature.boiler.c`, `heating.target_c` | 90 °C |
+| Sonde | `temperature.boiler.sensor_c`, `heating.target_sensor_c` | 100 °C ≈ 3,28 kΩ |
+
+La coupure de chauffe à **105 °C utilisateur** représente **115 °C estimés à
+la sonde**.
+
+Ce réglage vient des essais de *flashing* du 27 septembre : un crépitement
+devient perceptible à partir de **94 °C affichés**. Avec 967,7 hPa de
+pression atmosphérique brute, l'ébullition est calculée à 98,72 °C ; cette
 consigne correspond à environ 104 °C à la sonde et 98 à 98,5 °C en sortie.
-Une consigne utilisateur de **90 °C** vise ainsi **100 °C estimés à la sonde**.
-L'écran, la régulation, les captures HF et `temperature.boiler.c` dans
-`GET /telemetry` restent dans le domaine utilisateur. La télémétrie ajoute
-`temperature.boiler.sensor_c` et `heating.target_sensor_c` pour le domaine de
-la sonde ; `heating.target_c` reste la consigne utilisateur. Le calcul de la
-sonde et l'offset demeurent indicatifs : une correspondance avec l'affichage
-Gicar ne mesure pas la température de l'eau au groupe. La coupure de chauffe
-à **105 °C utilisateur** représente désormais **115 °C estimés à la sonde**.
+La conversion sonde et l'offset restent indicatifs : ils ne mesurent pas la
+température de l'eau au groupe.
 
-Le café jugé bon à 87 °C avec l'ancien offset de −14 °C visait environ 101 °C
-à la sonde. Son équivalent physique avec l'offset de −10 °C est donc une
-consigne utilisateur de **91 °C**. Une configuration NVS existante à 87 °C
-n'est pas migrée automatiquement : sa valeur affichée reste 87 °C et sa cible
-physique baisse de 4 °C.
+Le café jugé bon à 87 °C avec l'ancien offset de −14 °C visait environ
+101 °C à la sonde ; son équivalent avec l'offset de −10 °C est une consigne
+de **91 °C**. Une consigne NVS existante n'est pas migrée : une valeur de
+87 °C reste affichée 87 °C et sa cible physique baisse de 4 °C.
 
-L'écran lit la NTC chaudière et calcule la puissance demandée. Le module
-capteurs transforme cette puissance en temps de marche du SSR sur une période
-fixe de 1 s. L'écran renouvelle un bail de 1500 ms toutes les 500 ms : la
-chauffe initiale peut durer plusieurs minutes, mais une perte de l'écran ou
-du CAN coupe le chauffage à l'expiration du bail.
-La consigne a une résolution de 0,1 %. Une période isolée ne peut produire
-moins de 100 ms de chauffe avec le tick actuel ; un accumulateur répartit les
-faibles consignes sur plusieurs périodes (1 % = 100 ms toutes les 10 s,
-0,6 % ≈ 100 ms toutes les 16,7 s en moyenne).
+### Historique des courbes
 
-La configuration NVS v7 contient `heating.brew_temperature_c` (90 °C par
-défaut, 50 à 100 °C par pas de 0,5 °C) et `heating.enabled` (`true` par
-défaut). Elle ajoute `heating.brew_preheat_time_s` (2,5 s par défaut, 0 à
-15 s par pas de 0,5 s), modifiable dans la quatrième page existante des
-réglages ; 0 désactive l'essai. La cible est modifiable sur la deuxième page ; le
-commutateur n'est disponible que par `POST /config`. La purge reste possible
-quand il vaut `false`. L'infusion exige une mesure fraîche dans la bande
-consigne ±0,5 °C pendant trois secondes, et un module capteurs compatible.
-La borne basse à 50 °C permet les essais de calibration à température modérée.
-Tant que la courbe NTC reste provisoire, cette consigne est celle calculée par
-le firmware et ne garantit pas 50 °C réels dans la chaudière.
-`firmware/tools/set_heating.py true` ou `false` modifie ce commutateur via
-`GET /config` puis `POST /config`, avec `COFFEEFLOW_HTTP_TOKEN` et
-`COFFEEFLOW_IP` dans l'environnement.
+| Version écran | Courbe | Offset | Origine |
+| --- | --- | ---: | --- |
+| ≤ 0.3.7 | 27,29 kΩ / 3 728 K | 0 | points résistance/affichage Gicar (0.3.5 : essai à −18 °C, vapeur en purge) |
+| 0.3.8 | 47,2 kΩ / 3 922 K | 0 | ajustement des mesures directes de la sonde |
+| 0.3.9–0.3.13 | 47 kΩ / 3 950 K | 0 | valeurs nominales proches |
+| 0.3.14–0.3.15 | 47 kΩ / 4 630 K | 0 | rejoindre Gicar près de 90 °C |
+| 0.3.16–0.3.17 | 47 kΩ / 3 950 K | −14 °C | courbe sonde, affichage proche de Gicar |
+| depuis 0.3.18 | 47 kΩ / 3 950 K | −10 °C | *flashing* du 27 septembre |
 
-Toute migration depuis une configuration v1–v5 persiste `heating.enabled=false`
-avant le démarrage des tâches ; une installation neuve conserve `true`.
-Une migration v6 conserve ce choix et initialise la précharge à 2,5 s.
-
-Avant le remplissage, une précharge expérimentale garde la pompe arrêtée et
-commande jusqu'à 100 % de chauffe pendant la durée configurée. Elle est coupée
-si la NTC est déjà à plus de 0,5 °C au-dessus de la cible. Cette phase ne compte
-pas dans le chrono hydraulique et apparaît comme `thermal_preheat` dans la
-capture HF. Les captures d'infusion conservent ensuite 30 s de récupération ;
-les purges et commandes de banc conservent 5 s.
-
-La décision prise après les premières mesures du 28 septembre a été de porter cette
-précharge à **10 s** pour l'essai suivant. La borne de configuration est
-portée à 15 s afin d'accepter cette valeur et de conserver une marge
-expérimentale. Le but est que la réponse thermique de la NTC
-commence au voisinage du démarrage hydraulique, plutôt que plusieurs secondes
-après celui-ci. Pour isoler cet effet, la loi de puissance pendant l'écoulement
-est restée inchangée lors de ce premier essai à 10 s. Les résultats et la
-prochaine durée à essayer figurent ci-dessous.
-
-La loi actuelle est un réglage initial : puissance plafonnée à 100 % au repos,
-anticipation de 20 s sur la pente filtrée dans les deux sens, maintien nominal
-de 3,5 % à la consigne, et estimation bornée de la chaleur encore en transit à
-partir de la puissance au-dessus de 3,5 % demandée durant les 22 dernières
-secondes. La pente est filtrée sur 8 s et les variations de puissance non nulles
-sont lissées sur 5 s ; les coupures restent immédiates. L'intégrale utilise l'erreur prédite, pour ne pas
-accumuler une erreur déjà expliquée par cette chaleur. Depuis la version écran
-**0.3.17**, pendant le
-remplissage, la pré-infusion et l'infusion,
-le plancher est de **45 %** tant que la NTC reste à moins de 1 °C au-dessus de
-la cible ; la puissance de base peut monter à **60 %** si la température baisse.
-La purge conserve sa limite de base de 35 %.
-Depuis la version écran **0.3.26**, une purge lancée près de la consigne
-applique un plancher de **18 %** jusqu'à la consigne, puis le réduit
-linéairement à **0 %** entre la consigne et **consigne + 2 °C**. À +0,5 °C, il
-vaut ainsi 13,5 % ; à +1 °C, 9 %. Ce plancher suit directement la température,
-sans délai dû au filtre de puissance de 5 s. Une purge lancée à 5 °C ou plus
-de la consigne reste sans chauffe pendant toute sa durée.
-Depuis 0.3.14, un débit valide et frais ajoute **0 point à 2 ml/s ou moins**,
-**5 points à 3 ml/s** et **10 points à 4 ml/s ou plus**, avec interpolation
-linéaire. La commande totale peut ainsi atteindre **70 %** pendant l'infusion
-et **45 %** pendant une purge à haut débit.
-En infusion, ce supplément reste entier jusqu'à 2 °C au-dessus de la cible,
-puis disparaît. Depuis **0.3.26**, en purge, il décroît linéairement entre la
-consigne et consigne + 2 °C, comme le plancher de 18 %. Il se retire
-immédiatement quand le débit baisse. Il exige une
-mesure de débit fraîche, une impulsion récente (500 ms au plus) et la pompe
-confirmée en marche. Sinon, la loi de base s'applique. Le débitmètre est en amont de
-la pompe : lors d'une recirculation par l'OPV, sa mesure peut dépasser le
-débit réellement sorti au groupe. Ces réglages sont à calibrer sur un vrai
-café, en suivant aussi le rebond après écoulement.
-Le mode écoulement ne prolonge pas la
-pente négative de la NTC sur les 20 s de prédiction. Durant les 30 s suivant
-l'arrêt de l'écoulement, la reprise reste plafonnée à 35 %, la pente négative
-n'est pas extrapolée et l'intégrale est suspendue ; la chaleur déjà commandée
-reste prise en compte. La prédiction de reprise utilise 10 s et retient le
-plus grand effet entre la pente montante et la chaleur en transit, car ces
-deux estimations se recouvrent partiellement. En reprise, la chauffe peut être
-coupée dès que la prédiction passe au-dessus de la cible ; pendant
-l'infusion, le plancher de 45 % disparaît quand la mesure dépasse la cible de
-1 °C. En purge, la compensation progressive s'annule à +2 °C. Au-dessus de
-105 °C, sur mesure
-invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
-coefficients doivent être ajustés avec des mesures sur la machine réelle.
-
-Depuis **0.3.18**, la transition de la pré-infusion vers l'infusion augmente
-la pompe par pas de 5 points et adapte leur période pour terminer en environ
-2,5 s. La boucle de pression attend la fin de cette montée avant de
-prendre la main, sauf si la pression entre plus tôt dans sa bande d'activation.
-Dans ce cas, elle reprend la commande courante sans saut et empêche la rampe
-de pousser inutilement une galette déjà proche de la pression cible.
-
-La [capture d'infusion du 25 septembre](../captures/260925-182131.json) provient
-de la version 0.3.13 : elle ne permet pas de valider directement l'appoint de
-débit introduit en 0.3.14, ni la nouvelle courbe NTC livrée avec lui. Pendant
-ce café, la chauffe reste à 18 % jusqu'à une NTC de 87 °C environ ; elle dépasse
-20 % à 86,83 °C (9,65 s), atteint 35 % à 84,54 °C (11,55 s), et la NTC descend
-à 78,4 °C en fin de capture. Le nouveau plancher avance une commande de 30 %
-dès le remplissage, et environ 37 à 40 % à débit valide de 3,4 à 4 ml/s près
-de la consigne. La capture s'arrête 3,8 s après la pompe : elle ne mesure ni
-le rebond ni la température dans le panier.
-
-La [capture du 26 septembre](../captures/260926-073127.json), réalisée avant
-le relèvement du plafond, commence à 90,62 °C pour une consigne de 90 °C.
-La puissance reste à 10 % au début parce que le plancher de 30 % ne s'appliquait
-qu'à 90,5 °C ou moins : seul le supplément de débit agissait. Ensuite, la
-commande atteint 41,6 % au maximum, sous la limite de 35 % de base et 10 points
-de débit, tandis que la NTC descend à 78,05 °C vers 20,35 s. La capture finit
-environ 4 s après l'arrêt de la pompe ; elle ne donne pas le pic thermique
-ultérieur. Le nouveau plancher et le plafond d'infusion doivent être vérifiés
-sur un café comparable avec au moins 60 s de télémétrie après l'arrêt.
-
-Une purge commencée à 5 °C ou plus de la consigne, au-dessus ou en dessous,
-est traitée comme une purge de réglage thermique : aucune chauffe n'est
-commandée jusqu'à son arrêt, même si la NTC traverse la consigne. La reprise
-du contrôleur après la purge reste active si la température descend sous la
-consigne.
-
-Sur la purge de 8 s du 24 septembre 2026 à consigne 90 °C, la télémétrie
-ancienne loi montre une chute de la NTC jusqu'à 80,9 °C environ 15 s après
-le début, suivie d'une commande maximale de 93,9 % vers 23 s et d'un pic à
-96,6 °C vers 50 s. La température ponctuelle dans le panier était 86,7 °C.
-Le nouveau plafonnement vise à réduire ce rebond ; son effet sur la machine
-est visible dans l'essai suivant : pour une purge de 8 s à consigne 90 °C,
-la puissance ne dépasse pas 35 %, la NTC atteint 79,4 °C au minimum puis
-88,2 °C au maximum sur les 90 s enregistrées, et la température mesurée
-immédiatement dans le panier est de 88,4 °C. Le départ était à 90,6 °C,
-contre 89,7 °C lors de l'essai précédent, et le volume a aussi changé
-(environ 33 ml contre 31 ml) : la comparaison n'isole pas l'effet du logiciel.
-Le raccourcissement de la prédiction de reprise a été ajouté après cette
-capture et reste à vérifier sur la machine.
-
-### Mesures du 28 septembre 2026 — délai de réaction thermique
-
-La [capture d'infusion](../captures/260928-083730.json) avec une précharge
-réglée à 5 s commence à 90,54 °C. Comme la mesure est initialement juste
-au-dessus de la bande autorisant la précharge, la commande atteint réellement
-100 % vers 0,9 s et y reste jusqu'à environ 4,9 s. La pompe démarre vers 5 s.
-La NTC descend jusqu'à 82,32 °C à 22,61 s, soit une baisse maximale de
-8,22 °C, puis remonte pendant la fin de l'écoulement et la récupération. Ce
-minimum tardif ne mesure pas à lui seul le délai de la sonde : pendant
-l'infusion, la NTC combine l'arrivée d'eau froide, le brassage et la chaleur
-de la résistance.
-
-Deux essais sans écoulement séparent mieux ces phénomènes. Dans la
-[montée commencée près de 53 °C](../captures/monitor-heating-20260928-094947-505812.json),
-le SSR passe réellement à ON à 22,637 s et la NTC atteint son minimum à
-30,619 s, soit **7,982 s** plus tard. Dans la
-[montée commencée près de 80 °C](../captures/monitor-heating-20260928-095631-275212.json),
-le SSR passe à ON à 13,121 s et le minimum arrive à 21,101 s, soit
-**7,980 s** plus tard. Dans les deux cas, la hausse dépasse clairement le bruit
-de mesure environ 9,5 à 10 s après l'activation.
-
-La concordance des deux essais à des températures différentes conduit à
-retenir **8 s comme constante thermique effective de la NTC installée** pour
-la régulation. La mesure porte encore sur l'ensemble résistance, eau et sonde ;
-l'attribution à la NTC est donc une hypothèse physique de travail plutôt qu'une
-caractérisation isolée du composant.
-
-Cette constante de 8 s doit être distinguée de la longue traîne de chaleur.
-Lors du second essai, la commande tombe à zéro à 32,063 s, alors que la NTC
-vaut 83,14 °C. Elle continue de monter jusqu'à 91,99 °C à 54,585 s : la chaleur
-déjà injectée reste visible pendant **22,52 s** et ajoute encore 8,85 °C après
-la coupure. La fenêtre de 22 s utilisée pour estimer la chaleur en transit
-décrit donc cette inertie prolongée ; elle ne représente pas le délai avant le
-premier effet de la chauffe.
-
-Avec ce nouveau repère, la précharge de la première capture d'infusion devait commencer
-à agir vers 9 à 11 s, et la chauffe appliquée au démarrage de la pompe vers
-13 à 15 s. La pente de refroidissement diminue effectivement dans cette zone,
-mais l'arrivée d'eau froide masque encore la hausse jusqu'au minimum de
-22,61 s. L'essai à **10 s** devait placer le début de la réponse thermique
-autour du démarrage de la pompe.
-
-### Infusion du 28 septembre 2026 à 13 h 01 — précharge de 10 s
-
-La [capture brute](../captures/260928-130104.json) et son
-[graphique](../captures/260928-130104.html) montrent une commande de précharge
-à 100 % pendant presque toute la phase de 10 s. La NTC part de **89,97 °C** et
-atteint **87,83 °C** au minimum : le déficit maximal par rapport au départ
-est de **2,14 °C**, contre 8,22 °C lors de l'essai précédent à 5 s. La
-comparaison entre ces deux cafés ne contrôle pas toutes les conditions
-hydrauliques et thermiques. Surtout, la NTC passe par un pic de **92,45 °C**
-avant son minimum : l'amplitude pic–creux est donc de **4,62 °C**. La faible
-perte par rapport au départ masque cette excursion.
-
-Le bruit de montée en pression caractéristique de la chauffe forte a été
-entendu environ **4 à 5 s** après son démarrage. C'est un indice du délai de
-transfert de chaleur dans la machine, sans isoler celui de la résistance ou
-de la NTC. En décalant uniquement la courbe de température de **5 s vers la
-gauche** pour lire les phases hydrauliques, son sommet se situe près du début
-du remplissage. Ce décalage est une hypothèse de lecture de cette infusion ;
-les **8 s** estimées dans les essais sans écoulement restent la mesure de
-référence pour ces essais.
-
-Avec cette lecture à 5 s, la température gagne plus de **2,5 °C** pendant les
-quatre dernières secondes de précharge, puis perd environ **3 °C** pendant le
-remplissage. Elle se stabilise vers **89,5 °C** en pré-infusion. Au début de
-l'infusion, elle descend ensuite d'environ **1,6 °C** depuis ce palier jusqu'au
-minimum de 87,83 °C, puis remonte à mesure que le débit baisse. Ce profil
-suggère que la précharge de 10 s fournit trop de chaleur avant le remplissage,
-alors que la puissance disponible pendant le remplissage ne compense pas
-immédiatement l'arrivée d'eau froide. La pré-infusion limite la baisse avant
-la montée en pression.
-
-La commande de chauffe tombe brièvement à **0 % pendant la pré-infusion**, au
-moment du pic ; elle est déjà revenue vers 50 % au début de l'infusion et se
-situe ensuite entre **45 et 53 %**. Une précharge moins longue pourrait éviter
-cette coupure et modifier le creux suivant, mais la capture ne montre pas une
-chauffe à 0 % pendant l'infusion. Avec le décalage de 5 s, la température
-repasse au-dessus de la consigne vers la fin de l'infusion. En récupération,
-elle atteint **93,00 °C**, soit environ **3 °C au-dessus de la consigne**, à la
-fin de la capture et monte encore légèrement : son maximum ultérieur n'est
-pas connu.
-
-**Prochain essai : réduire seulement la durée de précharge de 10 à 6 s.** Le
-but est de faire coïncider le début du remplissage avec le début de la hausse
-thermique estimée, puis d'observer si le pic initial, le creux pendant
-l'infusion et le rebond diminuent. Garder les autres réglages identiques
-permettra d'attribuer plus clairement les différences à cette durée. Selon
-la pente observée pendant le remplissage, ajuster ensuite la puissance ou la
-durée de précharge ; le rebond après l'infusion sera à traiter une fois ce
-comportement établi. Une capture assez longue pour mesurer le maximum de
-récupération reste nécessaire.
+### Diagnostics ADS1115
 
 Depuis 0.3.1, l'écran diffuse un `LOG` CAN à la première erreur ADS1115, puis
 au plus toutes les 5 s si la même erreur persiste. `BOILER_ADC_NOT_FOUND`,
 `BOILER_ADC_I2C_ERROR`, `BOILER_ADC_CONVERSION_TIMEOUT` et
 `BOILER_NTC_INVALID_READING` distinguent les causes ; `BOILER_ADC_RECOVERED`
 indique le retour d'une mesure valide et la durée de l'interruption. Le
-décodeur `coffeetool` affiche l'adresse, l'étape I²C, le code ESP ou les valeurs
-ADC brutes selon le cas.
+décodeur `coffeetool` affiche l'adresse, l'étape I²C, le code ESP ou les
+valeurs ADC brutes selon le cas.
 
 Depuis 0.3.5, une erreur de lecture I²C entraîne un nouvel essai après 200 ms,
-puis 400 ms, 800 ms et 1 s si elle persiste. Une lecture réussie remet ce délai
-à 200 ms pour la prochaine erreur. Le PGA ADS1115 reste à ±4,096 V pour A0
-et A1 ; le calcul de résistance utilise le rapport des deux codes bruts.
+puis 400 ms, 800 ms et 1 s si elle persiste. Une lecture réussie remet ce
+délai à 200 ms.
 
-La calibration 0.3.5 a essayé un offset de -18 °C ; de la vapeur est sortie
-pendant la purge. Depuis 0.3.6, l'offset est revenu à 0 °C et la coupure de
-chauffe à 105 °C de la température publiée est rétablie. En 0.3.8, les
-constantes NTC ont été remplacées par l'ajustement des mesures directes de la
-sonde ; en 0.3.9, elles ont été arrondies à des valeurs nominales proches.
-La nouvelle conversion demande une validation sur la machine.
+## Configuration
 
-## État des essais du 24 septembre 2026 — reprise de la calibration
+La configuration NVS v7 contient :
 
-La sonde chaudière est la [Profitec P6036](https://links.imagerelay.com/cdn/2615/ql/423575fef2a046eb97c8b5af763d79b5/Pro-600-Parts-Diagram.pdf),
-référencée comme NTC 1/8″ dans la nomenclature du fabricant. Sa courbe
-résistance/température n'est pas indiquée dans cette nomenclature. Les
-marquages lus sur le métal de la sonde installée sont `1408504` et `16/18` ;
-leur signification n'a pas été confirmée et ne donne pas de valeur de `R25`
-ou de `Beta`. Lors de ces essais, la sonde n'avait pas encore été démontée. La résistance fixe du pont, entre
-A1 et GND, a été mesurée à **2,193 kΩ** ; la résistance de la NTC débranchée,
-mesurée directement sur ses deux fils, était **42,1 kΩ** lors des essais à
-froid. Les anciennes constantes compilées jusqu'en 0.3.7 étaient
-`R25 = 27 290 Ω`, `Beta = 3 728 K`, sans offset. Avec elles, 42,1 kΩ donnent
-environ 15 °C.
-Avant la dépose de la sonde, deux hypothèses nominales envisagées étaient
-`R25 = 47 kΩ, Beta = 4 700 K` et `R25 = 50 kΩ, Beta = 4 800 K` ; seule la
-première correspond à une combinaison trouvée dans un
-[catalogue Panasonic](https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf),
-et ce composant n'identifie pas la sonde montée dans la chaudière. La mesure
-directe ultérieure près de 25 °C est décrite plus bas.
+| Clé | Défaut | Plage | Réglage |
+| --- | --- | --- | --- |
+| `heating.brew_temperature_c` | 90 °C | 50 à 100 °C, pas de 0,5 °C | deuxième page des réglages |
+| `heating.brew_preheat_time_s` | 2,5 s | 0 à 15 s, pas de 0,5 s ; 0 désactive | quatrième page des réglages |
+| `heating.enabled` | `true` | — | `POST /config` uniquement |
 
-Une troisième hypothèse envisagée était **`R25 = 47 kΩ` avec `Beta = 4 400–4 450 K`**.
-Le modèle Beta donne alors environ **3,35–3,25 kΩ à 90 °C**. Le PID d'origine
-porte l'inscription **`NTC 3K3`**. Elle pourrait désigner une résistance fixe
-de **3,3 kΩ** dans son pont diviseur, choisie proche de la résistance de la
-NTC vers 90 °C pour améliorer la sensibilité dans la plage café. Le marquage
-seul ne confirme toutefois ni le schéma du PID ni les caractéristiques de la
-sonde. Cette hypothèse ne coïncide pas exactement avec les **2,89 kΩ** mesurés
-après l'affichage de 90 °C sur le PID ; cet affichage n'est pas une référence
-indépendante de température. Le pont ADS1115 ajouté à la machine possède,
-quant à lui, une résistance fixe mesurée de **2,193 kΩ**.
+La borne basse à 50 °C sert aux essais de calibration ; elle ne garantit pas
+50 °C réels dans la chaudière. `firmware/tools/set_heating.py true` ou `false`
+modifie `heating.enabled` via `GET /config` puis `POST /config`, avec
+`COFFEEFLOW_HTTP_TOKEN` et `COFFEEFLOW_IP` dans l'environnement. La purge
+reste possible quand la chauffe est désactivée.
 
-Comparer les courbes dans
-[l'explorateur NTC](ntc_curve_explorer.html).
-Les anciens couples résistance/température de
-[`ntc_ads1115_calibration.md`](ntc_ads1115_calibration.md) utilisent la
-température entière indiquée par le PID d'origine, lue avant coupure puis
-débranchement de la sonde : ce n'est pas une mesure indépendante de la
-température réelle de la NTC.
+Toute migration depuis une configuration v1–v5 persiste
+`heating.enabled=false` avant le démarrage des tâches ; une installation neuve
+conserve `true`. Une migration v6 conserve ce choix et initialise la
+précharge à 2,5 s. Une consigne supérieure à 100 °C restée en NVS est ramenée
+à 100 °C au démarrage.
 
-En particulier, **2,89 kΩ est la résistance mesurée au multimètre** après
-lecture de 90 °C sur le Gicar, extinction de la machine et débranchement de
-la NTC ; le relevé ne précise pas depuis combien de temps l'affichage était
-stabilisé. Le léger refroidissement pendant la manipulation peut augmenter
-la résistance mesurée. **2,91 kΩ** est la valeur *calculée* à 90 °C avec les
-anciennes constantes du firmware (`27 290 Ω / 3 728 K`), et **2,92 kΩ** celle
-de l'ajustement de la courbe d'affichage Gicar ci-dessous. Ces deux calculs
-ne sont pas des mesures supplémentaires de la sonde.
+L'infusion exige un module capteurs compatible et une mesure fraîche dans la
+bande **consigne ±1 °C** pendant **3 s** (`kBrewTemperatureToleranceC`).
 
-### Essai de résistances sur le PID Gicar d'origine
+## Loi de régulation actuelle
+
+Le code est dans `firmware/screen/main/core/thermal_control.h`. Les
+coefficients sont des réglages initiaux, à ajuster sur la machine.
+
+### Base commune
+
+La commande de base vaut
+`3,5 % + 8 × erreur prédite + intégrale`, avec :
+
+- **maintien** nominal de **3,5 %** à la consigne ;
+- **pente** de la NTC filtrée sur **8 s**, extrapolée sur **20 s** dans les deux
+  sens au repos ;
+- **chaleur en transit** : la commande au-dessus de 3,5 % demandée durant les
+  **22 dernières secondes**, multipliée par **0,007 °C par %·s**, bornée à
+  **1,5 °C** (6 °C en récupération) ;
+- **intégrale** de gain 0,18 %/(°C·s), bornée à 0–35 %, calculée sur
+  l'erreur prédite, suspendue pendant l'écoulement, la récupération et hors
+  de ±8 °C, remise à zéro au-delà de +0,5 °C ;
+- **filtre de sortie** de 5 s sur les baisses ; une commande nulle coupe
+  immédiatement. Pendant la précharge et l'écoulement, les hausses sont
+  appliquées sans délai.
+
+Au-dessus de **105 °C**, sur mesure invalide ou si la chauffe est
+désactivée, la commande tombe à zéro et le contrôleur est réinitialisé. Un
+changement de consigne le réinitialise aussi.
+
+### Par phase
+
+| Phase | Commande |
+| --- | --- |
+| Repos | base commune, jusqu'à 100 % |
+| Précharge (`thermal_preheat`) | **100 %** pompe arrêtée pendant `brew_preheat_time_s`, sauf si la NTC dépasse la consigne de plus de 0,5 °C ; hors chrono hydraulique |
+| Remplissage, pré-infusion, infusion | base commune plafonnée à **60 %**, avec un **plancher de 45 %** tant que la NTC est à moins de +1 °C ; plus l'appoint de débit, soit **70 %** au maximum |
+| Purge près de la consigne | base commune plafonnée à **35 %** ; appoint de **18 %** jusqu'à la consigne, réduit linéairement à 0 à consigne + 2 °C (13,5 % à +0,5 °C, 9 % à +1 °C) ; plus l'appoint de débit, soit **45 %** au maximum |
+| Purge lancée à ≥ 5 °C de la consigne | **0 %** jusqu'à la fin de la purge, même si la NTC traverse la consigne (purge de réglage thermique) |
+| Récupération (30 s après l'écoulement) | base commune plafonnée à **35 %**, pente négative ignorée, intégrale suspendue ; prédiction sur 10 s, retenant le **plus grand** effet entre pente montante et chaleur en transit |
+
+**Appoint de débit** (depuis 0.3.14) : 0 point à 2 ml/s ou moins, 5 points à
+3 ml/s, 10 points à 4 ml/s ou plus, avec interpolation linéaire. Il exige
+une mesure de débit fraîche, une impulsion de 500 ms au plus et la pompe
+confirmée en marche. En infusion, il reste entier jusqu'à consigne + 2 °C,
+puis disparaît ; en purge, il décroît comme l'appoint de 18 %. Le débitmètre
+est en amont de la pompe : lors d'une recirculation par l'OPV, il peut
+surestimer le débit sorti au groupe.
+
+Pendant l'écoulement, la pente négative de la NTC n'est pas extrapolée. Au
+début et à la fin de l'écoulement, la pente et l'intégrale sont remises à
+zéro.
+
+La transition de la pré-infusion vers l'infusion (depuis 0.3.18) augmente la
+pompe par pas de 5 points en environ 2,5 s. La boucle de pression attend la
+fin de cette montée, sauf si la pression entre plus tôt dans sa bande
+d'activation : elle reprend alors la commande courante sans saut.
+
+### Captures
+
+Depuis **0.3.27**, une capture HF d'infusion conserve **30 s** après l'arrêt
+de la pompe (20 s en 0.3.25–0.3.26) ; une purge ou une commande de banc,
+**5 s**. La précharge y apparaît comme `thermal_preheat`. À 13 h 01, la NTC
+plafonnait déjà vers 20 s après l'arrêt (+0,09 °C sur les 2 dernières
+secondes) : 30 s devraient couvrir le maximum du rebond. Pour une purge,
+lancer `record_heating.py --mode monitor` juste après si ce maximum compte.
+
+## Points à considérer
+
+### Incohérences du code
+
+1. **Le plancher d'infusion court-circuite l'anticipation.** Pendant
+   l'écoulement, `power = max(power, 45 %)` s'applique tant que la *mesure*
+   reste sous consigne + 1 °C. Le commentaire « Un dépassement prédit coupe
+   immédiatement » est donc faux en infusion : seule la mesure coupe, avec
+   environ 8 s de retard. À 13 h 01, la chauffe est restée à 45 % pendant
+   toute la remontée de l'infusion, puis la NTC a gagné 3,8 °C après l'arrêt
+   de la pompe, commande à zéro.
+2. **La précharge est invisible pour la prédiction.** Hors récupération, la
+   chaleur en transit est bornée à **1,5 °C**. Dix secondes à 100 %
+   représentent pourtant 965 %·s au-dessus du maintien, soit environ 7 à
+   9 °C selon le gain retenu.
+3. **Le gain thermique est sous-estimé.** Le code utilise
+   **0,007 °C par %·s**. Les deux montées sans écoulement du 28 septembre
+   donnent **0,0086** (1 459 %·s, +12,6 °C du minimum au maximum) et
+   **0,0090** (4 021 %·s, +36 °C), avant correction des pertes. Ces valeurs
+   dépassent aussi la limite physique de **0,0072** calculée pour 1 200 W et
+   400 ml d'eau, sans même compter le métal : voir la piste 6.
+4. **Le commentaire sur le délai est obsolète.** Il décrit une réponse
+   commande→température d'environ 22 s. Les mesures du 28 septembre
+   distinguent un **retard d'environ 8 s** avant le retournement de la NTC et
+   une **traîne d'environ 22 s** après la coupure. La fenêtre de 22 s décrit
+   la traîne, pas le délai.
+5. **La transition précharge → remplissage passe par le filtre de sortie.**
+   Pendant la précharge, la commande filtrée vaut 100 %. En début de
+   remplissage, elle est plafonnée à 60 % puis décroît vers 45 % avec la
+   constante de 5 s (60 % à 10,1 s, 57,8 % à 11,0 s à 13 h 01). Ce
+   comportement n'est pas voulu explicitement : il dépend du plafond, du
+   filtre et de la durée de précharge.
+6. **Les seuils du plancher et de l'appoint de débit diffèrent.** Le plancher
+   disparaît à consigne + 1 °C, l'appoint de débit à consigne + 2 °C. Entre
+   les deux, il ne reste que l'appoint : 8,3 % à 14 s dans la capture de
+   13 h 01, alors que la NTC montait.
+7. **La précharge n'est pas figée au départ.** La condition « NTC à moins de
+   +0,5 °C de la consigne » est réévaluée à chaque pas. Avec 8 s de retard,
+   elle ne coupe qu'une précharge déjà commencée au-dessus de la consigne ;
+   c'est acceptable, mais ce n'est pas une décision prise au départ.
+8. **L'appoint de débit est inversé par rapport au besoin.** Il est nul sous
+   2 ml/s, ne vaut que 10 points au maximum, et la majeure partie de la
+   commande vient d'un plancher fixe. À 13 h 01, la commande valait environ
+   60 % pendant le remplissage à 3,6 ml/s et **45 %** pendant l'infusion à
+   1,2–1,5 ml/s. Le besoin estimé est de 88 % et de 29–37 % : on chauffe
+   trop peu au remplissage et trop pendant l'infusion.
+
+L'ancienne version de ce document annonçait aussi une bande « prête » de
+±0,5 °C ; le code utilise ±1 °C.
+
+### Pistes à explorer
+
+1. **Appoint proportionnel au débit.** Remplacer le plancher fixe et
+   l'appoint en escalier par
+   `P = débit × 4,18 × (T_chaudière − T_eau) / 1 200 W`. Avec une eau à
+   la température de la pièce (24–25 °C) et une chaudière vers 95 °C réels,
+   cela donne environ 88 % à 3,6 ml/s, 34 % à 1,4 ml/s et 29 % à 1,2 ml/s.
+   Le débitmètre étant en amont, une recirculation par l'OPV surestimerait
+   l'appoint. La température d'eau du réservoir n'est pas mesurée : une
+   constante suffit probablement, le capteur XDB401 mesurant son propre
+   boîtier.
+2. **Dimensionner la précharge comme un budget d'énergie.** Le remplissage de
+   13 h 01 admet environ 30 ml avant l'infusion, soit ≈ 8,8 kJ à apporter,
+   l'équivalent de **7,4 s à 100 %**. La précharge pourrait alors se
+   calculer à partir du volume attendu au remplissage, plutôt que d'être
+   une durée fixe.
+3. **Anticiper la fin de l'infusion.** Le rebond vient de la chaleur fournie
+   pendant les ~20 dernières secondes d'écoulement. Quand la fin est
+   prévisible (poids ou volume cible), réduire la commande environ 8 s avant
+   l'arrêt prévu.
+4. **Recaler le modèle de chaleur en transit.** Prendre un gain voisin de
+   0,009 °C par %·s, compter la précharge dans l'estimation pendant
+   l'écoulement, et vérifier la fenêtre de 22 s sur les deux montées du
+   28 septembre.
+5. **Simuler avant de flasher.** Ajuster un modèle simple (retard de 8 s,
+   premier ordre, mélange de l'eau admise) sur les montées sans écoulement et
+   les infusions, puis rejouer les lois candidates hors ligne, comme
+   `replay_brew_pi.py` le fait pour la pression.
+6. **Comprendre pourquoi la NTC monte plus vite que la physique.** Mesurer
+   la tension secteur et la résistance à froid de l'élément (≈ 44 Ω attendus
+   pour 1 200 W à 230 V). Autres hypothèses : une stratification autour de
+   la sonde sans écoulement, ou un Beta trop faible, qui dilate les écarts de
+   température : vers 3,3 kΩ, il faudrait un Beta d'au moins 4 500 K environ
+   pour ramener le gain sous la limite physique, ce qui contredirait les
+   mesures directes de la sonde. Une mesure indépendante de la température de la chaudière
+   départagerait ces hypothèses.
+7. **Remplacer la sonde par une PT1000.** Voir la
+   [dernière section](#remplacement-prévu-par-une-pt1000).
+
+## Prochain essai : précharge de 6 s
+
+Réduire **seulement** `heating.brew_preheat_time_s` de 10 à **6 s** et garder
+la même consigne, la même mouture et la même recette. Le but est de faire
+coïncider le début du remplissage avec le début de la hausse thermique, sans
+pic qui fasse disparaître le plancher de 45 %.
+
+Au premier ordre, 4 s de précharge en moins retirent 4,8 kJ, soit environ
+2,5 à 3,5 °C sur l'état final selon la capacité thermique retenue. La loi
+peut toutefois compenser une partie de cet écart pendant le remplissage.
+
+À comparer avec la capture de 13 h 01 :
+
+| Indicateur | 13 h 01 (10 s) |
+| --- | ---: |
+| Pic avant infusion | 92,45 °C |
+| Chauffe réduite pendant remplissage et pré-infusion | ≤ 8 % de 13,5 à 18 s, dont 0 % de 14,5 à 17 s |
+| Minimum pendant l'infusion | 87,83 °C |
+| Commande pendant l'infusion | 45 % presque constant |
+| NTC 20 s après l'arrêt de la pompe | 93,00 °C, presque stabilisée |
+| Énergie injectée sur la capture | 26,1 kJ |
+
+Flasher d'abord la version **0.3.27**, dont la capture de 30 s après
+l'infusion doit contenir le maximum du rebond.
+
+## Journal des essais
+
+### Calibration de la sonde NTC
+
+#### Sonde installée et hypothèses initiales (24 septembre)
+
+La sonde chaudière est la
+[Profitec P6036](https://links.imagerelay.com/cdn/2615/ql/423575fef2a046eb97c8b5af763d79b5/Pro-600-Parts-Diagram.pdf),
+référencée comme NTC 1/8″. Sa courbe n'est pas publiée ; les marquages
+`1408504` et `16/18` n'ont pas été interprétés. À froid, la NTC débranchée
+mesurait **42,1 kΩ**, ce que les constantes de l'époque (`27 290 Ω / 3 728 K`)
+convertissaient en environ 15 °C, alors que la pièce était à 24,8 °C et le
+métal de la chaudière à 26,7 °C au thermomètre IR après trois heures d'arrêt.
+
+Hypothèses nominales envisagées avant la dépose : `47 kΩ / 4 700 K`
+(combinaison d'un
+[catalogue Panasonic](https://industrial.panasonic.com/cdbs/www-data/pdf/AUA0000/AUA0000C10.pdf)),
+`50 kΩ / 4 800 K`, puis `47 kΩ / 4 400–4 450 K`. Le PID d'origine porte
+l'inscription **`NTC 3K3`**, qui pourrait désigner une résistance fixe de
+3,3 kΩ dans son pont ; ni le schéma ni la sonde ne le confirment. Son module
+d'alimentation `prim BV 202 0154` (6 V / 0,5 VA), un STMicro L4941BV et un
+condensateur ont été repérés près de l'entrée NTC.
+
+**2,89 kΩ** est la résistance mesurée au multimètre après lecture de 90 °C sur
+le Gicar, extinction et débranchement, sans durée de stabilisation connue.
+
+#### Essai de résistances sur le PID Gicar d'origine
 
 Des résistances mesurées ont été branchées à la place de la NTC sur l'entrée
 du PID Gicar alimenté séparément ; son affichage est arrondi au degré :
@@ -336,46 +348,21 @@ du PID Gicar alimenté séparément ; son affichage est arrondi au degré :
 | 2,196 kΩ | 101 °C |
 | 0,989 kΩ | 132 °C |
 
-Un ajustement indicatif du modèle Beta à ces neuf points donne environ
-**`R25 = 27,2 kΩ` et `Beta = 3 710 K`** pour la *courbe d'affichage du PID*.
-La valeur calculée pour 42 kΩ est alors environ **15 °C**, et la résistance
-correspondant à 90 °C affichés environ **2,92 kΩ**. Ces résultats rejoignent
-les constantes provisoires du firmware (`27,29 kΩ / 3 728 K`) parce que
-celles-ci ont été déduites de mesures dont la température provenait déjà de
-l'affichage du PID : cet accord ne valide pas la température réelle de la
-chaudière. Les écarts des points du tableau à une courbe Beta unique restent
-de l'ordre du degré ; ils ne montrent pas de rupture de courbe particulière
-à basse température.
+Un ajustement Beta donne environ **`R25 = 27,2 kΩ` et `Beta = 3 710 K`** pour
+la *courbe d'affichage du PID* : 42 kΩ y valent environ 15 °C, et 90 °C
+affichés correspondent à **2,92 kΩ**. L'accord avec les anciennes constantes
+du firmware vient de ce que celles-ci avaient été déduites de l'affichage du
+PID ; il ne valide pas la température réelle. Les écarts à une courbe Beta
+unique restent de l'ordre du degré, sans rupture à basse température. Le PID
+affiche `UP` pendant la montée en température, ce qui masque son écart à
+froid.
 
-Avec l'hypothèse physique **`47 kΩ / 4 425 K`**, 42 kΩ correspondraient à
-environ **27,3 °C**, cohérents avec la mesure à froid proche de 27–28 °C ;
-mais le PID afficherait environ **15 °C** pour cette résistance. À 90 °C
-réels, cette hypothèse prévoit environ **3,3 kΩ**, que la courbe Gicar
-afficherait vers **86 °C**. L'ancienne mesure de 2,89 kΩ prise lorsque le PID
-affichait 90 °C donnerait, avec cette hypothèse, environ **94 °C réels**.
-Cette interprétation antérieure est remise en cause par les mesures directes
-ci-dessous : `Beta ≈ 3 900–3 950 K` leur correspond mieux. Le PID affiche `UP`
-pendant la montée en température et masque ainsi son écart à froid. Pour
-vérifier l'écart à chaud, il faut une température indépendante au voisinage
-de la NTC, stabilisée et associée à sa résistance ; la température du panier
-ne mesure pas celle de la sonde.
+#### Mesures directes de la sonde démontée
 
-Le PID est alimenté par le secteur 230 V et porte un module d'alimentation
-`prim BV 202 0154` marqué 6 V / 0,5 VA. Un STMicro L4941BV et un condensateur
-ont été repérés près de la piste de l'entrée NTC. Ces observations ne
-permettent pas encore d'identifier la résistance fixe du pont ni de
-confirmer ce que signifie l'inscription `NTC 3K3`.
-
-### Mesures directes de la sonde démontée
-
-La NTC a ensuite été démontée et mesurée à plusieurs températures. Les points
-chauds ont été pris pendant un refroidissement et sont moins stables ; le
-point à 24,7 °C utilise un autre thermomètre, avant immersion.
-La sonde NTC répond plus lentement que le thermomètre digital. Le minimum de
-résistance a été attendu alors que la température de l'eau baissait déjà de
-0,1 à 0,2 °C/s : le chiffre du thermomètre à cet instant n'est donc pas
-nécessairement la température de l'élément NTC. Cette inertie explique une
-partie de la dispersion des points chauds et limite la précision de `Beta`.
+La NTC a été démontée et mesurée à plusieurs températures. Les points chauds
+ont été pris pendant un refroidissement de 0,1 à 0,2 °C/s ; la sonde répond
+plus lentement que le thermomètre digital, ce qui explique une partie de la
+dispersion. Le point à 24,7 °C utilise un autre thermomètre, avant immersion.
 
 | Température relevée | Résistance NTC |
 | ---: | ---: |
@@ -393,440 +380,263 @@ partie de la dispersion des points chauds et limite la précision de `Beta`.
 | 91,0–91,3 °C | 4,31 kΩ |
 
 Le point stabilisé près de 25 °C soutient fortement une **NTC nominale
-47 kΩ**. Un ajustement Beta indicatif des douze points, en prenant le milieu
-des intervalles de température, donne **`R25 ≈ 47,2 kΩ` et
-`Beta ≈ 3 920 K`**. Sans les deux derniers points chauds, l'ajustement
-donnait `47,3 kΩ / 3 944 K` : l'ordre de grandeur est stable. La dispersion
-à chaud empêche d'en faire une calibration définitive : les points à 77,7 et
-78 °C diffèrent déjà de 10 % en résistance ; les deux nouveaux points vers
-90 °C impliquent séparément `Beta ≈ 3 860 K` et `Beta ≈ 3 940 K` lorsqu'ils
-sont ancrés à 47,6 kΩ vers 25 °C. En particulier,
-l'ancienne hypothèse `47 kΩ / 4 425 K` ne décrit pas ces mesures chaudes :
-elle prévoit environ 3,8 kΩ à 86,2 °C, contre 4,95 kΩ mesurés.
+47 kΩ**. L'ajustement des douze points donne **`R25 ≈ 47,2 kΩ` et
+`Beta ≈ 3 920 K`** (`47,3 kΩ / 3 944 K` sans les deux derniers points). Avec
+`R25 = 47 kΩ` fixé, les trois points chauds impliquent séparément des Beta
+d'environ **3 940**, **3 840** et **3 920 K**. L'hypothèse `47 kΩ / 4 425 K`
+est exclue : elle prévoit 3,8 kΩ à 86,2 °C contre 4,95 kΩ mesurés. Un Beta de
+4 050 K attribuerait aux trois points chauds 84,2, 85,7 et 88,6 °C, soit 2 à
+4 °C de moins que le bain ; le sens de cet écart ne peut être établi pendant
+un refroidissement.
 
-En fixant la valeur **nominale** `R25 = 47 kΩ`, les points à 4,95 kΩ
-(86,2 °C), 4,73 kΩ (89,5–89,8 °C) et 4,31 kΩ (91,0–91,3 °C)
-impliquent séparément des Beta d'environ **3 940 K**, **3 840 K** et
-**3 920 K**. Un Beta de **4 050 K** attribuerait à ces résistances environ
-**84,2 °C**, **85,7 °C** et **88,6 °C** : les températures relevées dans le
-bain devraient alors surestimer celles de la NTC d'environ 2 à 4 °C. Un
-point de mesure pris pendant le refroidissement ne permet pas d'établir à
-lui seul le sens de cet écart : l'inertie de la NTC, l'emplacement des deux
-instruments et les gradients dans l'eau interviennent. `47 kΩ` désigne une
-valeur nominale ; la mesure stabilisée près de 25 °C était de 47,6 kΩ.
-Les valeurs de Beta proposées pour des NTC ne suivent pas un pas universel,
-et le Beta annoncé dépend des températures de référence choisies.
+Pour les douze résistances, la courbe Gicar affiche **11,7 à 16,0 °C de
+moins** que la température relevée, **13,6 °C en moyenne**. Ce décalage
+presque constant pourrait être volontaire, pour afficher une température
+d'infusion plutôt que la température locale de la chaudière ; aucune
+documentation Gicar ne le confirme. Selon l'ajustement de la sonde, 90 °C
+affichés par Gicar correspondent à environ **105 °C locaux**, et les
+2,89 kΩ mesurés à environ 104,5 °C avec 3 950 K (102 °C avec 4 050 K). Pour
+que 2,89 kΩ représentent 90 °C avec `R25 = 47 kΩ`, il faudrait un Beta
+d'environ 4 646 K.
 
-Pour chacune des douze résistances, la courbe ajustée du PID Gicar donne une
-température affichée inférieure de **11,7 à 16,0 °C** à la température
-relevée sur la sonde, soit **13,6 °C en moyenne**. Ce décalage presque
-constant pourrait être volontaire : un afficheur de machine à café peut
-viser la température d'infusion plutôt que la température locale de la
-chaudière. Cela reste une interprétation, sans documentation Gicar ni mesure
-indépendante dans l'eau au point d'extraction. Avec l'ajustement indicatif de
-la sonde, la résistance vers 90 °C locaux serait environ **4,49 kΩ** ; le
-Gicar afficherait alors environ **75 °C**. Inversement, ses 90 °C affichés
-correspondraient à environ **105 °C locaux** selon cet ajustement extrapolé.
-Les deux relevés voisins de 90 °C soutiennent cette plage, mais leur écart
-montre qu'un bain à température presque constante serait nécessaire avant
-d'en faire une calibration précise de chauffe. Les mesures actuelles suffisent
-à identifier l'ordre de grandeur et ne justifient pas de retarder le
-remontage de la sonde.
+Les courbes sont comparables dans [l'explorateur NTC](ntc_curve_explorer.html).
+Les anciens couples de
+[`ntc_ads1115_calibration.md`](ntc_ads1115_calibration.md) utilisent la
+température affichée par le PID : ce n'est pas une mesure indépendante.
 
-Avec `47 kΩ / 3 950 K`, les **2,89 kΩ mesurés** correspondraient à environ
-**104,5 °C** à la sonde ; avec `47 kΩ / 4 050 K`, à environ **102 °C**.
-Pour que 2,89 kΩ représentent 90 °C avec `R25 = 47 kΩ`, il faudrait
-un Beta d'environ **4 646 K**. Cette valeur s'écarte de l'ajustement des
-mesures directes à chaud, mais celles-ci ont été prises pendant un
-refroidissement rapide et ne constituent pas une référence précise à 90 °C.
+#### Sensibilité du pont
 
-Jusqu'en 0.3.7, le firmware (`27,29 kΩ / 3 728 K`) suivait presque exactement
-la courbe d'affichage Gicar. Le firmware 0.3.8 utilisait l'ajustement mesuré
-`47,2 kΩ / 3 922 K` ; de 0.3.9 jusqu'à l'essai du 25 septembre, il utilisait
-**`47 kΩ / 3 950 K`** pour estimer la température **locale de la sonde**.
-La consigne enregistrée restait inchangée ; à 90 °C, elle correspondait alors
-à environ 4,38 kΩ, contre 2,92 kΩ avant 0.3.8. Ce changement réduit la
-température visée par la chaudière pour une même consigne numérique. Une
-nouvelle validation de la chauffe et de la température d'infusion est
-nécessaire.
+Vers 90 °C locaux, la sonde vaut environ 4,5 kΩ. Une résistance fixe de
+4,7 kΩ donnerait 24,5 mV/°C contre **21,7 mV/°C** avec les 2,193 kΩ actuels,
+soit 196 contre **173 codes par degré** : un gain de 13 % en sensibilité, pas
+en justesse, négligeable devant l'incertitude de la courbe. Le montage n'a
+pas été modifié pour cela.
 
-Avec la courbe indicative de la sonde, sa résistance vers **90 °C locaux**
-est d'environ **4,5 kΩ**. Une résistance fixe de **4,7 kΩ** aurait donc placé
-le pont ADS1115 près de sa sensibilité maximale à cette température. Le
-pont actuel mesure **2,193 kΩ** ; à 90 °C, le modèle donne environ **21,7 mV/°C**
-sur A1 contre **24,5 mV/°C** avec 4,7 kΩ, à alimentation 3,3 V identique :
-un gain d'environ **13 %** de sensibilité, pas de justesse absolue. Avec le
-PGA ADS1115 à ±4,096 V (125 µV par code), cela représente environ **173**
-contre **196 codes par degré**, soit un pas théorique de **0,0058** contre
-**0,0051 °C par code**. Cette différence est minime devant l'incertitude
-actuelle de la courbe et de la température réelle de la sonde ; elle ne
-justifie pas à elle seule de modifier le montage.
-La résistance **3,3 kΩ** évoquée par le marquage du Gicar reste une hypothèse
-sur son propre circuit ; elle serait proche de l'optimum vers 100 °C locaux
-avec cette sonde. Sa présence réelle sur la carte n'a pas été vérifiée.
+#### Chaîne de mesure ADS1115 et multimètre
 
-Après trois heures d'arrêt, la pièce était à **24,8 °C** près de la machine,
-la plaque supérieure de la chaudière et l'écrou du raccord à **26,7 °C** au
-thermomètre IR, tandis que le firmware 0.3.7 affichait environ **13–15 °C**.
-Les températures d'eau mesurées en tasse après purges, de 28,50 à 26,69 °C,
-ne sont pas des mesures au contact de la NTC mais confortent l'existence d'un
-écart à froid. Captures :
-[`143100`](../captures/260924-143100.json),
+Le montage initial alimentait le pont par un LDO AMS1117 et retournait la
+résistance fixe au Wago GND de l'alimentation 5 V. Le GND de l'ADS1115 se
+trouvait **10–13 mV** au-dessus de ce Wago : une NTC proche de 50 kΩ était lue
+à plus de 52 kΩ. Le pont utilise désormais **3V3 et GND du port Sensor AD du
+Waveshare**, sans LDO. La première capture après correction (`t5.json`,
+locale) donne `A0_raw = 26305`, `A1_raw = 1151`, soit **47,926 kΩ** calculés,
+contre **47,9 kΩ** au multimètre immédiatement après : écart de 0,05 %. La
+lecture de résistance est validée à ce point froid. Le détail figure dans
+[la calibration NTC](ntc_ads1115_calibration.md).
+
+#### Mesures au panier avec l'ancienne courbe (24 septembre)
+
+Les températures d'eau mesurées en tasse après purges à froid, de 28,50 à
+26,69 °C, confortent l'écart à froid de l'ancienne courbe
+([`143100`](../captures/260924-143100.json),
 [`143456`](../captures/260924-143456.json),
 [`143921`](../captures/260924-143921.json),
-[`145454`](../captures/260924-145454.json).
+[`145454`](../captures/260924-145454.json)).
 
-À température café, les mesures dans le panier après purge donnent **81,6 °C**
-pour une consigne de 80 °C ([capture](../captures/260924-162535.json)) et
-**86,7 puis 88,4 °C** pour une consigne de 90 °C
-([avant mode écoulement](../captures/260924-164051.json),
-[après](../captures/260924-165337.json)). Il semble donc possible de faire
-un café autour de 90 °C avec le firmware 0.3.7, à quelques degrés près dans
-ces conditions ; la température du panier n'est pas identique à celle de la
-NTC. À consigne 65 °C, deux purges ont donné **72,6 puis 69,6 °C** dans le
-panier malgré une NTC proche de 65 °C avant chaque purge
+Avec le firmware 0.3.7, à température café, les mesures dans le panier après
+purge donnent **81,6 °C** pour une consigne de 80 °C
+([capture](../captures/260924-162535.json)) et **86,7 puis 88,4 °C** pour
+90 °C ([avant mode écoulement](../captures/260924-164051.json),
+[après](../captures/260924-165337.json)). À consigne 65 °C, deux purges
+donnent **72,6 puis 69,6 °C**
 ([première](../captures/260924-170809.json),
-[seconde](../captures/260924-171142.json)). Une purge intermédiaire a eu lieu
-et le panier a été vidé deux fois entre ces mesures : sa chaleur résiduelle
-n'explique pas seule la baisse. Le groupe et le circuit d'eau ont pu se
-refroidir ; ces points ne permettent pas encore de modifier la courbe NTC.
+[seconde](../captures/260924-171142.json)). Aucune vapeur n'a été constatée à
+90 °C affichés par Gicar. Relevés longs :
+[`163749`](../captures/monitor-heating-20260924-163749-565936.json),
+[`165225`](../captures/monitor-heating-20260924-165225-542907.json) (90 °C),
+[`170713`](../captures/monitor-heating-20260924-170713-740281.json),
+[`171044`](../captures/monitor-heating-20260924-171044-990745.json) (65 °C).
 
-Les valeurs dans le panier ont été relevées **après purge**, avec l'ancien
-firmware proche de la courbe Gicar : elles ne mesurent pas simultanément la
-température de l'eau stagnante à la NTC et celle de l'eau en écoulement au
-groupe. Elles ne permettent pas d'attribuer l'écart estimé entre chaudière et
-panier au seul groupe, ni de conclure que Gicar a calibré son affichage pour
-la température d'infusion. Aucune vapeur n'a été constatée à 90 °C affichés
-par Gicar ; cela contraint la température de l'eau **à la sortie à l'air
-libre**, sans exclure à lui seul une eau plus chaude sous pression dans la
-chaudière. De la vapeur était en revanche sortie pendant la purge avec
-l'offset de −18 °C essayé en 0.3.5.
+Ces mesures après purge ne séparent ni la température de l'eau stagnante à
+la NTC ni celle de l'eau au groupe.
 
-Les relevés longs des purges à 90 °C sont
-[`163749`](../captures/monitor-heating-20260924-163749-565936.json) et
-[`165225`](../captures/monitor-heating-20260924-165225-542907.json) ; les
-relevés à 65 °C sont
-[`170713`](../captures/monitor-heating-20260924-170713-740281.json) et
-[`171044`](../captures/monitor-heating-20260924-171044-990745.json).
-Ces fichiers `captures/` sont locaux et ignorés par Git.
+#### Écart à haute consigne (25 septembre, courbe 3 950 K sans offset)
 
-### Essais du 25 septembre 2026 — écart à haute consigne
+Après stabilisation, le panier était proche de la consigne entre **50 et
+70 °C**, mais vers **75 °C** pour une consigne de **90 °C**. Garder
+`R25 = 47 kΩ` et expliquer 75 °C par la courbe demanderait un Beta d'environ
+4 923 K, qui contredirait l'accord à 60–70 °C et les mesures directes ; un
+offset uniforme abîmerait aussi la plage 50–70 °C. Ce calcul suppose que le
+panier après purge donne la température de la NTC au repos, ce qui n'est pas
+vérifié.
 
-Après stabilisation et plusieurs purges dans le panier de simulation, les
-mesures rapportées dans le panier sont proches de la consigne entre **50 et
-70 °C**, mais d'environ **75 °C** pour une consigne de **90 °C**. La limite de
-consigne a été portée **temporairement et localement à 110 °C** pour un essai :
-l'écoulement était principalement liquide, avec un **panache de vapeur ou de
-brume visible au-dessus de l'eau dans la tasse** après la purge ; le panier
-indiquait environ **88 °C** vers la fin de celle-ci. Un tel panache n'est
-généralement pas observé lors des essais à consigne 90 °C. Cette différence
-est un indice que l'eau sortie à consigne 110 °C est plus chaude, notamment
-au début de la purge, que celle sortie à 90 °C. Elle ne donne pas à elle seule
-sa température exacte : de l'eau chaude peut s'évaporer puis former une brume
-visible par condensation dans l'air sans bouillir dans la tasse, et la mesure
-du panier mélange l'eau sortie à différents moments. Cette limite
-expérimentale ne constitue pas un mode vapeur validé. Les modifications
-temporaires de la limite de consigne et de la coupure de chauffe ont été
-retirées en 0.3.14 : la consigne maximale est de nouveau **100 °C** et la
-chauffe est coupée au-dessus de **105 °C** calculés. Une éventuelle consigne
-de 110 °C restée en NVS après l'essai est ramenée à 100 °C au démarrage.
+La limite de consigne a été portée **temporairement à 110 °C**. La
+[purge](../captures/260925-145404.json) part de **109,1 °C** NTC et descend à
+**93,8 °C** en fin d'enregistrement (16,35 s) ; l'eau est principalement
+liquide, avec un panache visible au-dessus de la tasse, et le panier indique
+environ **88 °C**. En mode purge, la chauffe montait de 18 % à 35 % vers
+7,5 s. La [capture de surveillance](../captures/monitor-heating-20260925-144616-533930.json)
+confirme une NTC proche de 111 °C avant la purge. Cette limite a été retirée
+en 0.3.14 ; elle ne constitue pas un mode vapeur validé.
 
-La [capture de la purge à 110 °C](../captures/260925-145404.json) donne une
-NTC calculée de **109,1 °C** au début, encore **109,3 °C** vers 3,9 s, puis
-**97,1 °C** vers 11,9 s et **93,8 °C** à la fin de l'enregistrement (16,35 s).
-Les codes A0/A1 passent de **26301/12165** à **26301/9437**, soit environ
-**2,55 à 3,92 kΩ** avec la résistance fixe de 2 193 Ω. L'écart entre le panier
-et la NTC dépend donc du moment choisi dans cette purge ; la mesure manuelle
-de 88 °C n'est pas horodatée dans le fichier. La
-[capture de surveillance](../captures/monitor-heating-20260925-144616-533930.json)
-confirme une cible de 110 °C et une NTC calculée proche de 111 °C en fin de
-surveillance, avant la purge.
+Avec le panier de simulation limité à 1,2 ml/s (valeur annoncée), deux purges
+depuis 109 °C ont été comparées :
 
-Le mode **purge** de la régulation était actif pendant cet essai (`mode: purge`
-dans la capture). Il commande **18 %** de chauffe dès le début du débit, puis
-monte progressivement à son plafond de **35 %** vers 7,5 s ; il y reste
-jusqu'à l'arrêt de la pompe vers 12,5 s. Le débit est voisin de **3,9–4,0 ml/s**
-et la NTC commence à baisser nettement vers 4 s. La mesure continue ensuite
-de descendre après l'arrêt, ce qui met en évidence le délai entre la commande
-du SSR et l'effet visible à la sonde. Les pourcentages de la capture sont les
-**consignes demandées** par l'écran, pas une mesure électrique de la puissance
-effectivement dissipée par la résistance.
-
-À titre d'ordre de grandeur, porter **4 ml/s** d'eau de **25 à 110 °C** demande
-environ **1,42 kW** (`4 g/s × 4,18 J/(g·K) × 85 K`), avant les pertes et
-sans tenir compte de l'énergie déjà stockée dans la chaudière. À **1,2 ml/s**,
-le même calcul donne environ **0,43 kW**. La puissance nominale et surtout la
-puissance effectivement reçue par la résistance pendant cette purge ne sont
-pas établies par le fichier. Augmenter seulement le plafond logiciel à 100 %
-ne garantit donc pas une température constante : la réponse observée est
-retardée, et une forte commande tardive peut produire un rebond après la
-purge, comme dans l'essai antérieur à 90 °C. La chute pendant l'écoulement
-doit être caractérisée avant d'utiliser les mesures du panier pour calibrer
-la NTC ou d'ajuster les gains du contrôleur.
-
-Le modèle Beta 0.3.9 est `R25 = 47 kΩ, Beta = 3 950 K`, ancré par la mesure
-directe à froid et les points de la sonde démontée vers 74–91 °C. Avec
-`R25 = 47 kΩ`, **Beta = 4 500 K** fait effectivement *croiser* la courbe
-d'affichage Gicar vers **103 °C**, à environ **2,05 kΩ**. Au point où Gicar
-affiche 90 °C (environ 2,92 kΩ), cette courbe indiquerait encore **92,2 °C** ;
-à la résistance que le firmware 0.3.9 appelle 90 °C (environ 4,39 kΩ),
-elle indiquerait **80,6 °C**, contre environ **76,1 °C** pour Gicar. Elle
-déplacerait aussi les points actuels de 60 et 70 °C vers **55,3 et 63,8 °C**.
-Un croisement ponctuel avec Gicar ne réconcilie donc pas simultanément les
-mesures du panier sur toute la plage. Si l'on
-**supposait** que les 75 °C du panier à consigne 90 °C sont la température
-réelle de cette même NTC au repos, garder `R25 = 47 kΩ` demanderait un Beta
-d'environ **4 923 K**. Cette courbe ferait toutefois lire environ **52,4 °C**
-à la résistance actuellement associée à 60 °C, et **60,1 °C** à celle associée
-à 70 °C. Elle contredit donc l'accord observé à ces consignes et les mesures
-directes de la sonde. Une courbe Beta ajustée pour conserver exactement le
-point de 60 °C tout en ramenant celui de 90 à 75 °C demanderait environ
-**7 574 K** et **169 kΩ à 25 °C**, également incompatibles avec les **47,6 kΩ**
-mesurés près de 25 °C. Un offset uniforme abîmerait lui aussi la plage
-50–70 °C. Ce calcul suppose toutefois que la température mesurée dans le
-panier après purge soit celle de la NTC au repos ; cette hypothèse n'est pas
-vérifiée et ne permet pas de rejeter un essai de calibration proche de Gicar.
-
-La chute pendant l'écoulement peut combiner l'arrivée d'eau froide dans la
-chaudière, le trajet jusqu'au groupe et la réponse du thermomètre et du panier.
-La bonne correspondance à basse température ne suffit pas à exclure un effet
-plus fort en haut de plage. À pression atmosphérique, une eau liquide mesurée
-à 88 °C dans le panier ne permet pas de conclure que l'eau était à 88 °C dans
-la chaudière avant ouverture de la vanne ; elle ne prouve pas non plus que
-la sonde y lisait juste. Pour départager ces causes, relever pour chaque
-consigne la NTC et les codes A0/A1 **juste avant** la purge, puis une
-température d'eau **pendant** un écoulement reproductible avec une sonde
-rapide placée au plus près de la sortie, dans un montage et un débit identiques.
-Mesurer séparément la température de la chaudière près du raccord NTC après
-stabilisation fournirait le point de contrôle indépendant indispensable pour
-modifier `R25` ou `Beta`. Le point d'apparition de vapeur à la sortie ne
-constitue pas, à lui seul, une calibration précise de la NTC : la pression,
-la détente et les pertes pendant l'écoulement interviennent aussi.
-
-Un [second essai](../captures/260925-151230.json) a utilisé le panier de
-simulation vendu pour limiter le débit à **1,2 ml/s une fois rempli**. Cette
-valeur est une caractéristique annoncée du panier, pas une mesure du débit
-sortant pendant l'essai. Le départ
-est comparable à **109,1 °C**. Au début, le panier **se remplit** : le
-débitmètre amont indique encore près de **4 ml/s** et la pression reste sous
-1 bar pendant environ 5 s. La pression atteint **6,4 bar vers 12 s**, puis
-environ **9,7 bar vers 14–16 s** ; le débitmètre indique alors environ
-**2,7–3,4 ml/s**. Il compte l'eau admise dans le circuit, y compris le
-remplissage initial, et ne mesure pas directement le débit qui sort du panier.
-La restriction annoncée de **1,2 ml/s à la sortie** ne peut donc pas
-être vérifiée avec cette seule capture ; aucun volume recueilli à la sortie
-n'y est horodaté. La pompe s'arrête vers **16,25 s**, si bien que le régime
-près de 9 bar ne dure qu'environ **3–4 s**.
-
-| Depuis le début | Panier précédent, faible pression | Panier limité, pression montante |
+| Depuis le début | Panier précédent, faible pression | [Panier limité](../captures/260925-151230.json), pression montante |
 | ---: | ---: | ---: |
-| 8 s | NTC ≈ 104,2 °C ; pression ≈ 0,6 bar | NTC ≈ 105,2 °C ; pression ≈ 1,7 bar |
-| 12 s | NTC ≈ 97,0 °C ; pression ≈ 1 bar | NTC ≈ 99,9 °C ; pression ≈ 6,4 bar |
+| 8 s | NTC ≈ 104,2 °C ; ≈ 0,6 bar | NTC ≈ 105,2 °C ; ≈ 1,7 bar |
+| 12 s | NTC ≈ 97,0 °C ; ≈ 1 bar | NTC ≈ 99,9 °C ; ≈ 6,4 bar |
 | Arrêt de la pompe | 96,3 °C à 12,5 s | 97,0 °C à 16,25 s |
 | Fin de capture | 93,8 °C à 16,35 s | 96,8 °C à 20,1 s |
 
-La restriction réduit donc **modestement le creux aux mêmes instants**, mais
-la NTC perd encore environ **12 °C** pendant et juste après la purge plus
-longue. Le panier était à **89 °C**, mesuré **2–3 s après l'arrêt** : à cet
-instant, la NTC était proche de **96,8 °C**, soit environ **8 °C d'écart**.
-Les 89 °C sont proches des 88 °C du premier essai, mais ni la durée ni le
-volume ni la pression ne sont identiques. Cette seconde capture ne valide pas
-encore une purge complète à débit de sortie stable de 1,2 ml/s, et s'arrête
-avant que le rebond thermique éventuel soit visible.
+Le panier limité était à **89 °C** 2–3 s après l'arrêt, contre une NTC à
+96,8 °C. Une [troisième purge](../captures/260925-151508.json), sans vider le
+panier, atteint 9,6 bar dès 5 s ; à volume compté voisin de **35 ml**, la NTC
+vaut 103,7 et 103,4 °C dans les deux purges limitées. **La chute suit donc
+surtout le volume d'eau froide admis**, pas la pression. Les 87 °C mesurés
+après la troisième purge incluent l'eau refroidie de la précédente.
 
-Une [troisième purge](../captures/260925-151508.json) a été faite **sans vider
-le panier**, après retour de la NTC à **109,2 °C**. La pression atteint cette
-fois environ **9,6 bar dès 5 s**, mais la NTC descend encore à **103,2 °C**
-en fin d'enregistrement, soit **6,1 °C** sous le départ. La pompe s'arrête
-vers **10,25 s** ; le débitmètre a alors compté environ **33,3 ml** et
-environ **35,1 ml** au terme de la capture. À volume compté voisin de **35 ml**,
-les deux purges avec le panier limité donnent presque la même NTC : environ
-**103,7 °C** dans la deuxième et **103,4 °C** dans la troisième, malgré une
-pression atteinte beaucoup plus tôt dans la troisième. La chute suit donc
-fortement la quantité d'eau froide admise, même quand le panier est déjà
-rempli ; la restriction ne la supprime pas. Le débitmètre amont n'établit pas
-à lui seul le volume réellement sorti du panier.
+Ordre de grandeur : porter 4 ml/s de 25 à 110 °C demande environ 1,42 kW,
+davantage que la résistance ; à 1,2 ml/s, environ 0,43 kW.
 
-La température de **87 °C** relevée dans le panier après cette troisième
-purge inclut l'eau restée de la purge précédente, qui avait refroidi. Elle
-ne représente pas la température de l'eau fraîche à la sortie et ne doit pas
-servir à modifier `Beta`. Pour mesurer celle-ci, il faudrait isoler l'eau
-sortante pendant l'écoulement. Le grand volume du panier rend cette mesure
-peu pratique et sa température après purge difficile à interpréter.
+#### Courbe d'essai 47 kΩ / 4 630 K (0.3.14–0.3.15)
 
-Une compensation par le chauffage pourrait réduire une partie de la chute,
-mais le mode purge des captures plafonnait à **35 %** et l'effet thermique de
-la résistance arrive avec retard. Les trois captures ne montrent ni la
-puissance électrique réellement délivrée ni le rebond au-delà des quelques
-secondes enregistrées après l'arrêt. Elles ne permettent donc pas de fixer
-un nouveau plafond de puissance sûr et efficace. Pour régler ce mode, il
-faudrait au minimum suivre une purge et les **60 s qui suivent**, avec la
-puissance acceptée par le module capteurs ; il faut comparer le minimum
-pendant l'écoulement et le maximum après.
-
-### Courbe d'essai du 25 septembre — 47 kΩ / 4 630 K
-
-Les **neuf couples résistance/affichage Gicar** ci-dessus mesurent directement
-et de façon reproductible la conversion du PID d'origine ; l'arrondi de son
-écran au degré en limite la précision. Les mesures directes de la sonde chaude
-ont été prises pendant le refroidissement, avec un retard thermique, et
-sont moins fiables pour fixer sa courbe à haute température. L'hypothèse de
-travail est que le réglage Gicar dans la plage café correspond aussi à une
-calibration utile de la machine pour l'infusion. Cette dernière proposition
-reste à vérifier par une extraction, car les résistances fixes ne mesurent
-pas la température de l'eau au groupe.
-
-Une **valeur Beta unique n'est qu'une approximation** de la relation
-résistance/température d'une NTC ; le Beta calculé dépend des deux températures
-de référence. Pour une plage plus large ou une meilleure précision, les
-fabricants utilisent des tables ou une loi de Steinhart–Hart
+L'hypothèse de travail était que la conversion Gicar dans la plage café
+correspondait à une calibration utile pour l'infusion. `47 kΩ / 4 630 K`
+place 90 °C à **2,917 kΩ**, presque les 2,924 kΩ de la courbe Gicar, tout en
+donnant 27,1 °C pour 42,1 kΩ. À résistance inchangée, les anciens points de
+60 et 70 °C deviennent 54,4 et 62,6 °C. Une valeur Beta unique n'est qu'une
+approximation ; pour une plage plus large, les fabricants utilisent des
+tables ou une loi de Steinhart–Hart
 ([Vishay](https://www.vishay.com/docs/33001/seltherm.pdf),
 [Analog Devices](https://www.analog.com/en/resources/analog-dialogue/articles/thermistor-temperature-sensing-system-part-1.html)).
-Il n'y a toutefois **pas de contradiction entre 47 kΩ à 25 °C et Gicar près
-de 90 °C** : `47 kΩ / 4 630 K` donne presque la même résistance que le point
-Gicar à 90 °C. La courbe Gicar peut convertir cette sonde pour un affichage
-utile à l'infusion sans représenter fidèlement sa température locale à froid.
 
-Pour un **essai à consigne 90 °C**, le firmware conserve `R25 = 47 kΩ` et
-prend **`Beta = 4 630 K`**, sans offset. La cible correspond alors à environ
-**2,917 kΩ**, presque les **2,924 kΩ** attribués à 90 °C par la courbe Gicar
-(environ **90,1 °C Gicar** pour 2,917 kΩ). À **42,1 kΩ**, la nouvelle formule
-donne environ **27,1 °C**, cohérent avec la mesure à froid. Ce Beta rejoint
-donc Gicar **près de 90 °C** et conserve un point froid plausible ; il ne
-reproduit pas toute sa courbe. Auparavant, la cible 90 °C à 3 950 K
-correspondait à environ **4,39 kΩ**. Les captures précédentes ont toutes été
-faites avec cette ancienne courbe et ne préjugent pas du résultat du nouvel
-essai. À résistance inchangée, les points que l'ancienne courbe appelait
-**60 et 70 °C** deviendraient environ **54,4 et 62,6 °C** avec ce Beta : la
-bonne correspondance observée à basse température doit donc être réévaluée
-après l'essai à 90 °C.
+Le [premier essai](../captures/260925-152754.json), panier chaud mais vide,
+donne **90 °C dans le panier** pour une consigne de 90 °C. La NTC part de
+91,86 °C, la pompe s'arrête vers 10,5 s après environ 40 ml comptés, avec une
+NTC à 85,6 °C, puis 83,4 °C 3,9 s plus tard. La
+[purge suivante](../captures/260925-153350.json) part de 90,06 °C et donne
+**87,8 °C** dans le panier.
 
-Pour les essais à 90 °C, relever la NTC et les codes A0/A1 stabilisés juste
-avant la purge, puis la température d'infusion dans des conditions aussi
-reproductibles que possible. Comme la conversion publiée sert aussi à la
-coupure de chauffe, toute exploration de consignes plus hautes demande une
-nouvelle vérification de cette limite avec la courbe d'essai.
-
-Le [premier essai après flash](../captures/260925-152754.json) a donné
-**90 °C dans le panier après la purge**. Le panier était
-**chaud mais vide** au départ : cette mesure ne mélange donc pas l'eau neuve
-avec de l'eau restée de l'essai précédent. La capture démarre avec une NTC
-calculée à **91,86 °C** et `A0/A1 = 26302/11708`, soit environ **2,734 kΩ** ;
-la cible 90 °C de la nouvelle courbe est à **2,917 kΩ**. La chauffe demandée
-reste à zéro pendant les six premières secondes, puis atteint **18 %** lorsque
-la NTC descend vers **90,4 °C**. La pompe s'arrête vers **10,5 s**, après
-environ **40 ml comptés par le débitmètre** ; la NTC est alors à **85,6 °C**,
-puis descend à **83,4 °C** à la fin de la capture, 3,9 s plus tard. La
-température finale de la NTC ne représente pas celle de l'eau déjà recueillie
-dans le panier : celui-ci reçoit d'abord une eau plus chaude pendant que la
-chaudière se renouvelle et se refroidit.
-
-La correspondance **consigne 90 °C → panier 90 °C** est un résultat pratique
-favorable à cette courbe pour cette procédure. Un seul essai, avec un panier
-déjà chaud et une NTC légèrement au-dessus de la consigne au départ, ne
-détermine pas encore sa répétabilité ni la température de l'eau pendant une
-extraction continue. La chute NTC d'environ **8,4 °C** demeure un problème
-distinct de la conversion résistance/température.
-
-Sur les incréments de volume de cette capture, la moyenne pondérée de la
-**température NTC chaudière** est
-`Σ[ΔV × (T_avant + T_après)/2] / ΣΔV` : **90,11 °C pour 40,0 ml** jusqu'à
-l'arrêt de la pompe à 10,5 s. En incluant les **1,16 ml** encore comptés
-ensuite, elle vaut **89,97 °C pour 41,16 ml**. Les premiers **6,96 ml**
-portent une moyenne NTC d'environ **91,82 °C** ; les **13,62 ml** comptés
-entre 7 s et l'arrêt, environ **87,69 °C**. L'eau recueillie mélange donc
-des portions plus chaudes et plus froides, ce qui explique que la température
-du panier puisse être proche de **90 °C** alors que la NTC termine nettement
-plus bas. Le débitmètre est en amont et la NTC mesure la chaudière : cette
-moyenne est une estimation fondée sur les deux capteurs, pas une mesure
-directe et horodatée de la température à la sortie du panier.
-
-Pour refaire ce calcul sur une capture HF v2 :
+La moyenne de la NTC pondérée par les incréments de volume,
+`Σ[ΔV × (T_avant + T_après)/2] / ΣΔV`, vaut **90,11 °C sur 40,0 ml** pour le
+premier essai et **88,55 °C sur 42,61 ml** pour le second (88,77 °C à 40 ml).
+La baisse au panier (2,2 °C) suit celle de la moyenne pondérée (1,56 °C). Le
+débitmètre est en amont : c'est une estimation, pas une mesure à la sortie.
 
 ```sh
 uv run firmware/tools/analyze_hf_capture.py captures/260925-152754.json
 ```
 
-Le script affiche la moyenne jusqu'à l'arrêt de la pompe et celle de la
-capture entière. Il signale les échantillons perdus et refuse les segments
-où le volume augmente alors que la lecture NTC est invalide.
+Le script affiche la moyenne jusqu'à l'arrêt de la pompe et sur la capture
+entière, signale les échantillons perdus et refuse les segments où le volume
+augmente alors que la NTC est invalide.
 
-La [purge suivante](../captures/260925-153350.json), avec la même courbe
-`47 kΩ / 4 630 K`, a donné **87,8 °C dans le panier** après purge. La NTC
-démarrait à **90,06 °C**, contre **91,86 °C** lors de l'essai précédent. Le
-script calcule **88,55 °C sur 42,61 ml** jusqu'à l'arrêt de la pompe à
-11,15 s, puis **88,36 °C sur 44,64 ml** sur toute la capture. À volume amont
-égal de **40 ml**, les moyennes pondérées sont **88,77 °C** pour ce nouvel
-essai et **90,11 °C** pour le précédent. La baisse mesurée dans le panier
-(**2,2 °C**) va dans le même sens que la baisse de la moyenne pondérée
-(**1,56 °C** jusqu'à l'arrêt), notamment parce que la chaudière était moins
-chaude au départ. L'état thermique initial exact du panier et le délai de
-mesure après purge ne sont pas enregistrés ; les **0,75 °C** entre la moyenne
-pondérée et la mesure du panier ne permettent pas d'inférer une correction
-fixe de la courbe NTC.
+### Dynamique thermique
 
-### Comparaison directe de la résistance ADS1115 et du multimètre
+#### Purges à 90 °C (24 septembre)
 
-À froid, le montage initial alimentait le pont NTC par un LDO AMS1117 et
-retournait sa résistance fixe au Wago GND de l'alimentation 5 V. Le GND de
-l'ADS1115 se trouvait **10–13 mV** au-dessus de ce Wago : pour une même entrée
-A1, le multimètre lisait environ 0,143 V par rapport au GND de l'alimentation,
-contre environ 0,133 V par rapport au GND de l'ADS. La résistance NTC débranchée
-était proche de 50 kΩ, tandis que les codes ADC conduisaient à plus de 52 kΩ.
-Le pont utilise désormais **3V3 et GND du port Sensor AD du Waveshare** ; le
-LDO a été retiré. La première capture après correction (`t5.json`, locale)
-donne `A0_raw = 26305` et `A1_raw = 1151`, soit **3,288125 V** et
-**0,143875 V**, et **47,926 kΩ** calculés. La NTC débranchée immédiatement
-après mesurait **47,9 kΩ** au multimètre : écart d'environ **26 Ω (0,05 %)**.
-La lecture de résistance est ainsi validée à ce point froid ; la courbe
-résistance/température reste à vérifier à chaud. Le câblage corrigé et le
-diagnostic détaillé figurent dans [la calibration NTC](ntc_ads1115_calibration.md).
+Sur une purge de 8 s avec l'ancienne loi, la NTC descend à 80,9 °C environ
+15 s après le début ; la commande atteint 93,9 % vers 23 s et la NTC culmine à
+**96,6 °C** vers 50 s. Le panier indique 86,7 °C. Avec le plafond de 35 % en
+récupération, la même purge donne un minimum de 79,4 °C, un maximum de
+**88,2 °C** sur 90 s et 88,4 °C dans le panier. Le départ (90,6 contre
+89,7 °C) et le volume (33 contre 31 ml) diffèrent : la comparaison n'isole
+pas l'effet du logiciel.
 
-Pour la validation à chaud, après stabilisation à 90 °C avec le firmware
-d'essai (`47 kΩ / 4 630 K`), sauvegarder plusieurs réponses `GET /telemetry`
-**avant extinction**, sans purge immédiatement préalable. Vérifier
-`temperature.boiler.valid` et relever
-ensemble `temperature.boiler.c`, `temperature.boiler.ntc_a0_raw` et
-`temperature.boiler.ntc_a1_raw`. Les deux derniers champs sont des **codes ADS1115**,
-pas des tensions en volts. Calculer, pour chaque paire de codes,
-`R_NTC = 2193 × (A0_raw/A1_raw − 1)` en ohms ; la cible de 90 °C du firmware
-d'essai correspond à environ **2,917 kΩ**. Éteindre ensuite la
-machine, débrancher la sonde et mesurer rapidement sa résistance au
-multimètre. Une légère hausse est attendue avec le refroidissement. La
-comparaison vérifie la chaîne de lecture ADC et le calcul de résistance ;
-elle ne valide pas encore la conversion résistance/température.
+#### Infusions des 25 et 26 septembre
 
-Si la courbe 0.3.9 (`47 kΩ / 3 950 K`) est réinstallée et stabilisée elle
-aussi à 90 °C dans les mêmes conditions, elle vise environ **4,39 kΩ**.
-Refaire alors les deux relevés permettrait de confirmer que les deux réglages
-stabilisent la chaudière à des résistances réellement différentes. Pour
-étudier l'écart jusqu'au panier, relever séparément la température du groupe
-et du porte-filtre après plusieurs minutes de chauffe au repos, puis mesurer
-la température de l'eau **pendant l'écoulement** avec un dispositif adapté
-au débit d'une infusion ; la température du métal au repos ne remplace pas
-cette dernière mesure.
+La [capture du 25 septembre](../captures/260925-182131.json) (0.3.13, sans
+appoint de débit) montre une chauffe à 18 % jusqu'à une NTC de 87 °C environ,
+35 % à 84,54 °C (11,55 s), et une NTC à 78,4 °C en fin de capture, 3,8 s
+après la pompe.
 
-### Vérification à froid après remontage
+La [capture du 26 septembre](../captures/260926-073127.json) (courbe 4 630 K)
+commence à 90,62 °C. La puissance reste à 10 % au début, car le plancher de
+l'époque (30 %) ne s'appliquait qu'à 90,5 °C ou moins ; elle atteint 41,6 %
+au maximum, et la NTC descend à 78,05 °C vers 20,35 s. Le plancher de 45 %
+et le plafond de 60 % ont été introduits ensuite, en 0.3.17.
 
-La sonde démontée est maintenant caractérisée près de 25 °C. Après son
-remontage, laisser `heating.enabled=false` et la machine au repos toute la nuit. Au
+#### Retard de la NTC (28 septembre)
+
+Deux montées sans écoulement donnent le même retard entre la mise en marche
+réelle du SSR et le minimum de la NTC :
+
+| Capture | SSR ON | Minimum NTC | Retard |
+| --- | ---: | ---: | ---: |
+| [Depuis 53 °C](../captures/monitor-heating-20260928-094947-505812.json) | 22,637 s | 30,619 s | **7,982 s** |
+| [Depuis 80 °C](../captures/monitor-heating-20260928-095631-275212.json) | 13,121 s | 21,101 s | **7,980 s** |
+
+La hausse dépasse le bruit 9,5 à 10 s après l'activation. La régulation
+retient **8 s comme constante thermique effective de la NTC installée** ;
+cette mesure porte sur l'ensemble résistance, eau et sonde.
+
+Ce retard est distinct de la **traîne** : dans le second essai, la commande
+tombe à zéro à 32,063 s avec une NTC à 83,14 °C, qui monte encore jusqu'à
+**91,99 °C à 54,585 s**, soit 8,85 °C de plus pendant 22,52 s. Rapportée à
+l'énergie injectée, la hausse vaut **0,0086 °C par %·s** dans cet essai et
+**0,0090** dans le premier (voir les points à considérer).
+
+#### Infusion de 8 h 37 (28 septembre) — précharge de 5 s
+
+La [capture](../captures/260928-083730.json) commence à 90,54 °C. La commande
+atteint 100 % vers 0,9 s et y reste jusqu'à environ 4,9 s ; la pompe démarre
+vers 5 s. La NTC descend jusqu'à **82,32 °C à 22,61 s** (−8,22 °C). Avec le
+retard de 8 s, la précharge commence à agir vers 9 à 11 s, et la chauffe du
+remplissage vers 13 à 15 s ; l'arrivée d'eau froide masque encore la hausse
+jusqu'au minimum. Décision : essayer **10 s**, en laissant la loi pendant
+l'écoulement inchangée.
+
+#### Infusion de 13 h 01 (28 septembre) — précharge de 10 s
+
+[Capture brute](../captures/260928-130104.json) et
+[graphique](../captures/260928-130104.html). Chronologie en temps brut de la
+capture :
+
+| Temps | Phase | NTC | Commande | Débit amont |
+| ---: | --- | ---: | ---: | ---: |
+| 0–10 s | précharge | 89,97 → 89,63 °C | 100 % | 0 |
+| 10,1 s | remplissage | 89,68 °C | 60 %, puis décroît vers 45 % (+ appoint) | 0 → 3,6 ml/s |
+| 13,5–14,5 s | remplissage | 91,6 → 92,2 °C | ≈ 8 % : plancher retiré à +1 °C, appoint de débit seul | 3,6 ml/s |
+| 14,5–17 s | fin du remplissage, pré-infusion (14,8 s) | pic **92,45 °C** à 15,6 s | **0 %** | 3,6 ml/s |
+| 18 s | pré-infusion | 90,7 °C | 55 % (plancher de retour) | 3,8 ml/s |
+| 18,8–38,5 s | infusion | minimum **87,83 °C** vers 30 s, puis 89,2 °C | 49–53 %, puis **45 %** dès 24 s | 3,5 → 1,2–1,5 ml/s |
+| 38,5–58,3 s | récupération | 89,2 → **93,00 °C**, encore en hausse | 0 % | 0 |
+
+Le déficit maximal par rapport au départ n'est que de 2,14 °C, contre 8,22 °C
+à 8 h 37, mais l'amplitude pic–creux est de **4,62 °C**. Le bruit de montée
+en pression caractéristique de la chauffe forte a été entendu 4 à 5 s après
+son démarrage ; en décalant la température de 5 s vers la gauche, son pic se
+situe près du début du remplissage.
+
+Lecture : la chaleur de la précharge arrive au début du remplissage et fait
+dépasser consigne + 1 °C ; le plancher disparaît et la commande reste à 8 %
+au plus de 13,5 à 18 s. Ce trou revient sur la sonde environ 8 s plus tard et
+contribue au creux du début de l'infusion. Pendant l'infusion, les 45 %
+(540 W) dépassent le besoin à 1,2–1,5 ml/s (≈ 350–440 W) : la NTC remonte,
+puis la chaleur encore en transit à l'arrêt de la pompe produit le rebond.
+
+Bilan énergétique : **26,1 kJ** injectés sur la capture (11,8 kJ en
+précharge, 2,4 kJ en remplissage, 0,8 kJ en pré-infusion, 11,0 kJ en
+infusion). La NTC finit 3 °C au-dessus de son départ, soit environ 4 à 6 kJ
+de trop dans la chaudière, l'équivalent de 4 à 5 s à 100 %.
+
+## Procédures de mesure
+
+### Vérification de la conversion à chaud
+
+Après stabilisation à la consigne, sauvegarder plusieurs réponses
+`GET /telemetry` **avant extinction**, sans purge juste avant. Vérifier
+`temperature.boiler.valid` et relever ensemble `temperature.boiler.c`,
+`temperature.boiler.sensor_c`, `temperature.boiler.ntc_a0_raw` et
+`temperature.boiler.ntc_a1_raw`. Avec la courbe actuelle, une consigne de
+90 °C correspond à environ **3,28 kΩ**. Éteindre ensuite, débrancher la sonde
+et mesurer rapidement sa résistance au multimètre ; une légère hausse est
+attendue avec le refroidissement. Cette comparaison vérifie la chaîne ADC,
+pas la conversion résistance/température : il faut pour cela une température
+indépendante, stabilisée, au voisinage de la NTC.
+
+Pour l'écart jusqu'au panier, mesurer la température de l'eau **pendant
+l'écoulement** avec une sonde rapide placée au plus près de la sortie, à
+débit et montage identiques ; la température du métal au repos ou du panier
+après purge ne la remplace pas.
+
+### Vérification à froid
+
+Laisser `heating.enabled=false` et la machine au repos toute la nuit. Au
 redémarrage, vérifier que la chauffe est toujours désactivée. Avant toute
-purge, relever la température ambiante près de la chaudière, celle de l'eau
-du réservoir avec le même thermomètre digital utilisé dans le panier, et
-sauvegarder `GET /telemetry`, notamment `temperature.boiler.c`,
-`temperature.boiler.ntc_a0_raw`, `temperature.boiler.ntc_a1_raw`, `temperature.xdb401.c`,
-`heating.enabled` et l'état de la chauffe. L'eau du réservoir peut différer
-de l'air ambiant. La mesure IR sur métal nu est sensible à l'émissivité ; la
-température de la pièce et l'équilibre nocturne sont les meilleurs repères
-pour la NTC installée.
-
-Faire ensuite **deux purges identiques de 8 s**, avec le même panier et le
-thermomètre digital immédiatement après chaque purge, en vidant le panier
-entre les deux. Noter la température de l'eau du réservoir, la température
-dans le panier, la durée, le volume et toute différence de procédure.
-`firmware/tools/purge.py 8` lit la télémétrie avant et après mais n'enregistre
-que les valeurs affichées dans le terminal ; sauvegarder séparément la
-télémétrie brute avant la première purge et les captures haute fréquence :
+purge, relever la température ambiante près de la chaudière et celle de l'eau
+du réservoir, puis sauvegarder la télémétrie :
 
 ```sh
 curl -fsS -H "Authorization: Bearer ${COFFEEFLOW_HTTP_TOKEN}" \
@@ -835,93 +645,64 @@ uv run firmware/tools/purge.py 8
 uv run firmware/tools/download_hf_capture.py
 ```
 
-Répéter les deux dernières commandes pour la seconde purge et renommer les
-captures si nécessaire. `record_heating.py --mode monitor` requiert
-`heating.enabled=true` et ne convient donc pas à cet essai. Le calcul de
-résistance à partir de la télémétrie est
-`R_NTC = 2193 × (A0/A1 − 1)` en ohms ; comparer ce résultat à la mesure
-directe antérieure de 42,1 kΩ. Avec la courbe compilée depuis 0.3.9, cette
-résistance donne environ 27,5 °C ; comparer à la température stabilisée de la
-machine, puis contrôler la conversion à chaud et la coupure de chauffe.
-[Explorateur interactif des courbes](ntc_curve_explorer.html) :
-il montre la sensibilité de chaque paramètre sans modifier le firmware.
+Faire deux purges identiques de 8 s, en mesurant le panier immédiatement
+après chacune et en le vidant entre les deux. `purge.py` n'enregistre que les
+valeurs affichées dans le terminal. `record_heating.py --mode monitor`
+requiert `heating.enabled=true` et ne convient pas à cet essai. Comparer
+`temperature.boiler.sensor_c` à la température stabilisée de la machine
+(42,1 kΩ ≈ 27,5 °C à la sonde).
 
-Pour mesurer une montée depuis l'ambiante :
+### Montée depuis l'ambiante
 
-Le script `firmware/tools/record_heating.py` automatise les étapes 3 et 4,
-coupe ensuite la chauffe et écrit un JSON dans `captures/`. Il lit
-`COFFEEFLOW_HTTP_TOKEN` et `COFFEEFLOW_IP` ; `--output` permet de choisir
-le fichier.
+`firmware/tools/record_heating.py` automatise les étapes 3 et 4 ci-dessous,
+coupe ensuite la chauffe et écrit un JSON dans `captures/` (`--output` pour
+choisir le fichier). Il lit `COFFEEFLOW_HTTP_TOKEN` et `COFFEEFLOW_IP`.
 
-1. Envoyer `POST /config` avec
-   `{"version":7,"heating":{"enabled":false}}`, puis laisser refroidir.
+1. Envoyer `POST /config` avec `{"version":7,"heating":{"enabled":false}}`,
+   puis laisser refroidir.
 2. Allumer la machine et activer le Wi-Fi. La valeur `false` reste persistée.
-3. Envoyer `POST /config` avec
-   `{"version":7,"heating":{"enabled":true}}`.
-4. Interroger `GET /telemetry` toutes les 500 ms. Enregistrer `uptime_ms`,
+3. Envoyer `POST /config` avec `{"version":7,"heating":{"enabled":true}}`.
+4. Interroger `GET /telemetry` toutes les 500 ms et enregistrer `uptime_ms`,
    `temperature.boiler.c`, sa validité et son âge, `heating.power_pct`,
-   `heating.accepted_power_pct`, `heating.on` et
-   `heating.target_c`. Le client doit horodater lui aussi chaque
-   réponse. L'écho de puissance et `heating.on` viennent du module capteurs ;
-   une absence d'écho frais doit apparaître comme telle dans l'analyse.
+   `heating.accepted_power_pct`, `heating.on` et `heating.target_c`, avec un
+   horodatage client. L'écho de puissance et `heating.on` viennent du module
+   capteurs ; une absence d'écho frais doit apparaître dans l'analyse.
 
-Un essai de chauffe et un essai d'infusion sont nécessaires avant de considérer
-les gains calibrés. Le mode vapeur reste à ajouter : il devra sélectionner une
-cible propre, bloquer l'infusion et garder la purge disponible.
+Le mode vapeur reste à ajouter : il devra sélectionner une cible propre,
+bloquer l'infusion et garder la purge disponible.
 
 ## Remplacement prévu par une PT1000
 
-La NTC installée est physiquement assez grande. Les deux montées sans
-écoulement du 28 septembre donnent le même délai de retournement à 2 ms près ;
-la constante thermique effective retenue pour la régulation est **8 s**. La
-température affichée est donc une mesure retardée : le début et le minimum de
-la chute réelle peuvent précéder nettement ceux de la courbe NTC. Depuis la
-version 0.3.18, une capture HF de purge conserve 20 s après l'arrêt de la pompe
-pour mieux observer cette traîne.
+La NTC installée est physiquement assez grande et retarde la mesure d'environ
+8 s : le début et le minimum de la chute réelle peuvent précéder nettement
+ceux de la courbe NTC.
 
-Le remplacement prévu est une **PT1000 iOVEO 012EF02202**, filetée **G 1/8**,
-avec une partie immergée en acier inoxydable de **9 mm de long et 5,5 mm de
-diamètre**, deux fils silicone et aucun troisième ou quatrième fil de
-compensation. L'immersion directe et la faible longueur devraient réduire le
-retard par rapport à la NTC actuelle. La constante de temps dépendra encore de
-la construction interne, de l'épaisseur de la gaine et de la circulation d'eau
-autour de la sonde ; le type PT1000 ne garantit pas à lui seul une réponse
-rapide.
+Le remplacement prévu est une **PT1000 iOVEO 012EF02202**, filetée
+**G 1/8**, avec une partie immergée en acier inoxydable de **9 mm de long et
+5,5 mm de diamètre**, deux fils silicone. L'immersion directe et la faible
+longueur devraient réduire le retard ; la constante de temps dépendra encore
+de la construction interne, de la gaine et de la circulation d'eau.
 
 Une PT1000 IEC 60751 nominale vaut environ 1,347 kΩ à 90 °C, 1,385 kΩ à
-100 °C et 1,400 kΩ à 104 °C. Le pont existant fonctionnerait avec sa résistance
-basse de 2,193 kΩ, mais celle-ci sera remplacée par une **4,7 kΩ** pour limiter
-l'autoéchauffement. Sous 3,3 V et à 100 °C, le courant passera d'environ
-0,92 mA à **0,54 mA** et la dissipation dans la sonde d'environ 1,2 mW à
-**0,41 mW**. A1 sera proche de 2,55 V, dans la plage ±4,096 V actuelle de
-l'ADS1115.
+100 °C et 1,400 kΩ à 104 °C. La résistance basse du pont sera remplacée par
+une **4,7 kΩ** pour limiter l'autoéchauffement : sous 3,3 V et à 100 °C, le
+courant passera d'environ 0,92 mA à **0,54 mA** et la dissipation dans la
+sonde d'environ 1,2 mW à **0,41 mW**. A1 sera proche de 2,55 V.
 
-Le choix retenu pour le premier montage est de **conserver l'ADS1115** plutôt
-que d'ajouter un MAX31865. Avec le PGA ±4,096 V, un pas ADC vaut 125 µV ; le
-pont de 4,7 kΩ fournira environ 1,6 mV/°C autour de 100 °C, soit près de
-13 pas ADC par degré avant filtrage. Cette résolution, environ 0,08 °C par pas,
-est suffisante pour la régulation et meilleure que les autres incertitudes du
-montage. Les contrôles de validité bruts existants acceptent aussi les tensions
-prévues.
-
-La valeur réelle de la résistance fixe devra être mesurée au multimètre et
-reportée dans <code>kBoilerNtcFixedOhm</code>. Une résistance métal de précision,
-stable en température, évitera que le pont lui-même dérive avec l'échauffement
-du boîtier.
+Le premier montage **conserve l'ADS1115** plutôt que d'ajouter un MAX31865.
+Avec le PGA ±4,096 V (125 µV par pas), le pont fournira environ 1,6 mV/°C
+autour de 100 °C, soit près de 13 pas par degré (≈ 0,08 °C par pas), ce qui
+suffit à la régulation. Les contrôles de validité bruts acceptent les
+tensions prévues. La valeur réelle de la résistance fixe devra être mesurée
+et reportée dans `kBoilerNtcFixedOhm` ; une résistance métal de précision
+évitera la dérive du pont avec l'échauffement du boîtier.
 
 Le MAX31865 reste une possibilité si la détection matérielle des fils ouverts
-ou en court-circuit devient prioritaire. Il accepte une PT1000 et les montages
-deux, trois ou quatre fils, mais le mode deux fils ne retire pas la résistance
-des conducteurs. Il ajouterait ici une carte et une liaison SPI sans corriger
-la principale incertitude du capteur choisi.
-
-Avec deux fils, leur résistance s'ajoute à celle de l'élément. Autour de
-100 °C, la pente est proche de 3,8 Ω/°C : 1 Ω de résistance aller-retour crée
-environ 0,26 °C d'erreur. Ici, les fils ne feront que 20 à 25 cm, soit environ
-40 à 50 cm aller-retour. Avec une section courante de fil de sonde, leur
-résistance devrait rester de l'ordre de quelques centièmes à un dixième d'ohm,
-donc quelques centièmes de degré seulement. Les contacts peuvent peser autant
-que le cuivre ; une mesure sonde montée permettra de confirmer que la correction
-est négligeable. Le firmware devra remplacer le modèle Beta par la loi
-Callendar–Van Dusen. Avant ce changement, relever les codes ADS1115 à froid et
-à chaud, puis comparer le retard des deux sondes sur une purge identique.
+ou en court-circuit devient prioritaire ; son mode deux fils ne retire pas la
+résistance des conducteurs. Autour de 100 °C, la pente est proche de
+3,8 Ω/°C : 1 Ω aller-retour crée environ 0,26 °C d'erreur. Les 40 à 50 cm de
+fil aller-retour représentent quelques centièmes à un dixième d'ohm, donc
+quelques centièmes de degré ; les contacts peuvent peser autant. Le firmware
+devra remplacer le modèle Beta par la loi Callendar–Van Dusen. Avant ce
+changement, relever les codes ADS1115 à froid et à chaud, puis comparer le
+retard des deux sondes sur une purge identique.

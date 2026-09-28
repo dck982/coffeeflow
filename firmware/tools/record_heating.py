@@ -112,8 +112,6 @@ def record_heating(output: Path,
         config = client("GET", "/config", None)
         _version, target_c = target_from_config(config)
         capture["target_c"] = target_c
-        if not confirmed_heating(config, True):
-            raise RuntimeError("GET /config: heating.enabled doit être true pour surveiller la chauffe")
 
         started = clock()
         deadline = started + monitor_time_s

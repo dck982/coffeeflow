@@ -19,123 +19,80 @@ class Clock:
         self.now += seconds
 
 
-class CaptureTests(unittest.TestCase):
-    def run_capture(self, temperatures, *, fail_telemetry=False, max_duration_s=2):
+class MonitorTests(unittest.TestCase):
+    def run_monitor(self, *, enabled, monitor_time_s=2, fail_telemetry=False):
         calls = []
         clock = Clock()
-        readings = iter(temperatures)
 
         def client(method, path, body):
             calls.append((method, path, body))
-            if path == "/config" and method == "GET":
-                return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
             if path == "/config":
-                return {"heating": {"enabled": body["heating"]["enabled"]}}
+                return {"version": 7, "heating": {
+                    "enabled": enabled, "brew_temperature_c": 90}}
             if fail_telemetry:
                 raise RuntimeError("réseau perdu")
-            return {"temperature": {"boiler": {"c": next(readings), "valid": True, "freshness": "fresh"}},
-                    "heating": {"power_pct": 37.5}}
+            return {
+                "temperature": {"boiler": {
+                    "c": 90, "valid": True, "freshness": "fresh"}},
+                "heating": {"power_pct": 37.5},
+            }
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "heating.json"
-            result = record_heating(output, client, clock=clock.monotonic,
-                                    sleep=clock.sleep, max_duration_s=max_duration_s)
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = record_heating(
+                    output, client, monitor_time_s=monitor_time_s,
+                    clock=clock.monotonic, sleep=clock.sleep)
             self.assertEqual(json.loads(output.read_text()), result)
         return result, calls
 
-    def test_stops_after_thirty_seconds_in_band_and_disables_heating(self):
-        result, calls = self.run_capture([20, 89.5] + [90] * 70, max_duration_s=40)
-        self.assertEqual(result["stop_reason"], "target_stable")
-        self.assertEqual(len(result["samples"]), 62)
-        self.assertEqual(result["samples"][-1]["elapsed_s"], 30.5)
-        self.assertEqual(calls[-1][2]["heating"]["enabled"], False)
-        self.assertTrue(result["heating_disabled"])
+    def test_records_for_full_duration_without_changing_heating(self):
+        result, calls = self.run_monitor(enabled=True, monitor_time_s=2)
+        self.assertEqual(result["mode"], "monitor")
+        self.assertEqual(result["stop_reason"], "monitor_duration")
+        self.assertEqual(result["max_duration_s"], 2)
+        self.assertEqual(result["target_c"], 90)
+        self.assertEqual(len(result["samples"]), 4)
+        self.assertEqual(calls[0], ("GET", "/config", None))
+        self.assertFalse(any(method == "POST" for method, _, _ in calls))
 
-    def test_excursion_resets_stability_timer(self):
-        result, _ = self.run_capture([89.5] * 20 + [91] + [90] * 70, max_duration_s=45)
-        self.assertEqual(result["stop_reason"], "target_stable")
-        self.assertEqual(result["samples"][-1]["elapsed_s"], 40.5)
-
-    def test_timeout_still_disables_heating(self):
-        result, calls = self.run_capture([20] * 10, max_duration_s=1)
-        self.assertEqual(result["stop_reason"], "timeout")
-        self.assertEqual(len(result["samples"]), 2)
-        self.assertEqual(calls[-1][2]["heating"]["enabled"], False)
+    def test_records_while_heating_is_disabled(self):
+        result, calls = self.run_monitor(enabled=False, monitor_time_s=2)
+        self.assertEqual(result["stop_reason"], "monitor_duration")
+        self.assertEqual(len(result["samples"]), 4)
+        self.assertEqual(calls[0], ("GET", "/config", None))
+        self.assertFalse(any(method == "POST" for method, _, _ in calls))
 
     def test_displays_temperature_every_ten_seconds(self):
+        clock = Clock()
+
+        def client(method, path, body):
+            if path == "/config":
+                return {"version": 7, "heating": {
+                    "enabled": False, "brew_temperature_c": 90}}
+            return {"temperature": {"boiler": {
+                "c": 20, "valid": True, "freshness": "fresh"}},
+                "heating": {"power_pct": 37.5}}
+
         output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            self.run_capture([20] * 30, max_duration_s=11)
+        with tempfile.TemporaryDirectory() as directory:
+            with contextlib.redirect_stdout(output):
+                record_heating(
+                    Path(directory) / "heating.json", client,
+                    monitor_time_s=11, clock=clock.monotonic, sleep=clock.sleep)
         lines = output.getvalue().splitlines()
         self.assertEqual(len(lines), 2)
         self.assertIn("0.0 s : chaudière 20.0 °C / cible 90.0 °C / puissance demandée 37.5 %", lines[0])
         self.assertIn("10.0 s : chaudière 20.0 °C / cible 90.0 °C / puissance demandée 37.5 %", lines[1])
 
-    def test_telemetry_error_keeps_partial_file_and_disables(self):
-        result, calls = self.run_capture([], fail_telemetry=True)
+    def test_telemetry_error_keeps_partial_file(self):
+        result, calls = self.run_monitor(
+            enabled=False, monitor_time_s=2, fail_telemetry=True)
         self.assertEqual(result["stop_reason"], "error")
-        self.assertTrue(result["heating_disabled"])
-        self.assertEqual(calls[-1][2]["heating"]["enabled"], False)
-
-    def test_disable_failure_is_recorded_after_three_attempts(self):
-        attempts = 0
-        clock = Clock()
-
-        def client(method, path, body):
-            nonlocal attempts
-            if method == "GET" and path == "/config":
-                return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
-            if method == "POST" and body["heating"]["enabled"] is True:
-                return {"heating": {"enabled": True}}
-            if method == "POST":
-                attempts += 1
-                raise RuntimeError("réseau perdu")
-            return {"temperature": {"boiler": {"c": 90, "valid": True, "freshness": "fresh"}}}
-
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "heating.json"
-            result = record_heating(output, client, clock=clock.monotonic, sleep=clock.sleep)
-            self.assertEqual(json.loads(output.read_text()), result)
-        self.assertEqual(attempts, 3)
-        self.assertFalse(result["heating_disabled"])
-        self.assertEqual(result["disable_error"], "réseau perdu")
-
-    def test_monitor_records_full_duration_without_changing_heating(self):
-        calls = []
-        clock = Clock()
-
-        def client(method, path, body):
-            calls.append((method, path, body))
-            if path == "/config":
-                return {"version": 7, "heating": {"enabled": True, "brew_temperature_c": 90}}
-            return {"temperature": {"boiler": {"c": 90, "valid": True, "freshness": "fresh"}},
-                    "heating": {"power_pct": 20}}
-
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "monitor.json"
-            with contextlib.redirect_stdout(io.StringIO()):
-                result = record_heating(output, client, mode="monitor", monitor_time_s=120,
-                                        clock=clock.monotonic, sleep=clock.sleep)
-            self.assertEqual(json.loads(output.read_text()), result)
-        self.assertEqual(result["mode"], "monitor")
-        self.assertEqual(result["stop_reason"], "monitor_duration")
-        self.assertEqual(result["max_duration_s"], 120)
-        self.assertEqual(len(result["samples"]), 240)
-        self.assertEqual(calls[0][:2], ("GET", "/config"))
-        self.assertFalse(any(method == "POST" for method, _, _ in calls))
-
-    def test_monitor_requires_enabled_heating_without_post(self):
-        calls = []
-
-        def client(method, path, body):
-            calls.append((method, path, body))
-            return {"version": 7, "heating": {"enabled": False, "brew_temperature_c": 90}}
-
-        with tempfile.TemporaryDirectory() as directory:
-            result = record_heating(Path(directory) / "monitor.json", client, mode="monitor")
-        self.assertEqual(result["stop_reason"], "error")
-        self.assertIn("heating.enabled doit être true", result["error"])
-        self.assertEqual(calls, [("GET", "/config", None)])
+        self.assertEqual(result["samples"], [])
+        self.assertEqual(result["error"], "réseau perdu")
+        self.assertEqual(calls, [
+            ("GET", "/config", None), ("GET", "/telemetry", None)])
 
 
 if __name__ == "__main__":

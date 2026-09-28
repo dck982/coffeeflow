@@ -23,10 +23,11 @@ def sim_puck(width=40.0, depth=30.0, height=20.0, wall=2.0, draft=False):
     probe_r = 1.0
     body -= Pos(probe_cx,probe_cy-puck_dz/2-probe_r,0) * Rot(45,0,0) * Cylinder(probe_r,puck_dz*2, align=(Align.CENTER,Align.MIN,Align.CENTER))
 
-    joint_outer_d = 9.0
-    joint_inner_d = 7.0
+    joint_outer_d = 9.1
+    joint_inner_d = 6.45
     joint_dz = 1.0
-    joint_cutter = Cylinder(joint_outer_d/2,joint_dz)-Cylinder(joint_inner_d/2,joint_dz)
+    cmin = (Align.CENTER,Align.CENTER,Align.MIN)
+    joint_cutter = Cylinder(joint_outer_d/2,joint_dz,align=cmin)-Cylinder(joint_inner_d/2,joint_dz,align=cmin)
     body -= Pos(probe_cx,probe_cy,bb.min.Z)*joint_cutter
     
     if draft:

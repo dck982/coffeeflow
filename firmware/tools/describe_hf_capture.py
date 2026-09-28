@@ -474,6 +474,26 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
                 None,
             ])
 
+    heating_values = series("heating_power_pct")
+    heating_off: list[float | None] = []
+    heating_on: list[float | None] = []
+    heating_states = [heater_state(sample) is True for sample in samples]
+    for index, (state_on, value) in enumerate(zip(heating_states, heating_values)):
+        # Recouvrir le point de transition dans les deux traces évite le fin
+        # espace laissé par le rendu des extrémités de lignes par Plotly.
+        overlaps_other_state = (
+            (index > 0 and heating_states[index - 1] != state_on)
+            or (index + 1 < len(heating_states) and heating_states[index + 1] != state_on)
+        )
+        if state_on:
+            heating_off.append(value if overlaps_other_state else None)
+            heating_on.append(value)
+        else:
+            # Les états SSR absents (anciennes captures) restent lisibles en
+            # rouge, comme le chauffage demandé était affiché jusque-là.
+            heating_off.append(value)
+            heating_on.append(value if overlaps_other_state else None)
+
     traces = [
         {"name": "pression valide", "x": times, "y": series("pressure_bar", lambda s: valid(s, "pressure")),
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 2}, "yaxis": "y",
@@ -495,8 +515,11 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
         {"name": "température chaudière", "x": times, "y": finite_series(temperatures), "type": "scatter",
          "mode": "lines", "line": {"color": "#ff7f0e", "width": 2}, "yaxis": "y4",
          "hovertemplate": "%{y:.2f} °C<extra></extra>"},
-        {"name": "chauffage demandé", "x": times, "y": series("heating_power_pct"), "type": "scatter",
+        {"name": "chauffage demandé", "x": times, "y": heating_off, "type": "scatter",
          "mode": "lines", "line": {"color": "#d62728", "shape": "hv"}, "yaxis": "y5",
+         "hovertemplate": "%{y:.0f} %<extra></extra>"},
+        {"name": "SSR chaudière actif", "x": times, "y": heating_on, "type": "scatter",
+         "mode": "lines", "line": {"color": "#9467bd", "shape": "hv"}, "yaxis": "y5",
          "hovertemplate": "%{y:.0f} %<extra></extra>"},
         {"name": "baisse thermique maximale", "x": [times[min_temperature_index]], "y": [min_temperature],
          "customdata": [max_temperature_drop], "type": "scatter", "mode": "markers",
@@ -513,16 +536,6 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 1.5, "dash": "dash"},
          "yaxis": "y", "hoverinfo": "skip", "legendrank": 2},
     ]
-    if any(heater_state(sample) is not None for sample in samples):
-        traces.append(
-            {"name": "SSR chaudière actif", "x": times,
-             "y": [100 if heater_state(sample) is True else
-                   0 if heater_state(sample) is False else None for sample in samples],
-             "type": "scatter", "mode": "lines",
-             "line": {"color": "#8c2d04", "width": 1.5, "shape": "hv"},
-             "opacity": 0.7, "yaxis": "y5",
-             "hovertemplate": "%{y:.0f} %<extra>SSR</extra>"},
-        )
     shapes = []
     annotations = []
     for start, _end, start_s, end_s, mode in phase_ranges(samples, duration_s):

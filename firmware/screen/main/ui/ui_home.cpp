@@ -33,6 +33,13 @@ constexpr int kHeatBarWidth = 100;
 // pixels empêchent le parent Flex de rogner les descendantes (notamment le g).
 constexpr int kTopbarHeight = 52;
 enum class Role : uint8_t { Secondary, Primary, Destructive, Disabled };
+enum class DiagnosticState : uint8_t { Disabled, Valid, Warn, Error };
+struct DiagnosticTile {
+  lv_obj_t *dot{};
+  lv_obj_t *title{};
+  lv_obj_t *value{};
+  lv_obj_t *detail{};
+};
 enum class Edit : uint8_t {
   None,
   Weight,
@@ -64,13 +71,16 @@ struct View {
       *hero_time{}, *hero_divider{},
       *cycle_detail{}, *progress{}, *stop{}, *settings{}, *tab[4]{},
       *tile[6]{}, *tile_name[6]{}, *tile_value[6]{}, *diag{},
-      *diag_val[9]{}, *diag_state[9]{}, *dot[9]{}, *keypad{}, *key_title{},
+      *diag_version_value{}, *diag_version_detail{}, *keypad{}, *key_title{},
       *key_value{}, *key_unit{}, *key_error{}, *key_ok{}, *key_comma{},
       *choice{}, *choice_title{}, *choice_button[4]{}, *confirm{},
       *confirm_title{}, *confirm_body{}, *full{}, *full_title{}, *full_body{},
       *wifi_exit{}, *dimmer_menu{}, *dimmer_menu_title{}, *dimmer_menu_body{},
       *dimmer_reset{}, *dimmer_recalibrate{}, *dimmer_close{}, *dim{},
+      *heating_menu{}, *heating_menu_title{}, *heating_menu_body{},
+      *heating_enable{}, *heating_disable{}, *heating_close{},
       *standby{}, *standby_title{}, *standby_body{};
+  DiagnosticTile diag_tile[9]{};
 } v;
 constexpr size_t N = 96, L = 128;
 struct Bind {
@@ -187,6 +197,65 @@ lv_obj_t *box(lv_obj_t *p, int x, int y, int w, int h, lv_color_t c,
   lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(o, r, 0);
   return o;
+}
+lv_color_t diagnostic_color(DiagnosticState state) {
+  switch (state) {
+    case DiagnosticState::Valid: return theme::kSuccess;
+    case DiagnosticState::Warn: return theme::kAccent;
+    case DiagnosticState::Error: return theme::kFault;
+    case DiagnosticState::Disabled: return theme::kTextFaint;
+  }
+  return theme::kTextFaint;
+}
+DiagnosticTile diagnostic_tile(lv_obj_t *parent, int x, int y,
+                               const char *title) {
+  DiagnosticTile tile;
+  tile.dot = box(parent, x, y + 4, 10, 10, theme::kTextFaint, 5);
+  lab(parent, &tile.title, title, theme::kFontLabel, theme::kTextDim, x + 18,
+      y);
+  dyn(parent, &tile.value, "-", theme::kFontButton, theme::kText, x, y + 28);
+  dyn(parent, &tile.detail, "", theme::kFontLabel, theme::kTextFaint, x,
+      y + 62);
+  return tile;
+}
+void diagnostic_tile_set(DiagnosticTile &tile, DiagnosticState state,
+                         const char *value, const char *detail) {
+  lv_obj_set_style_bg_color(tile.dot, diagnostic_color(state), 0);
+  text(tile.value, value);
+  text(tile.detail, detail);
+}
+DiagnosticState diagnostic_measure_state(bool valid, core::Freshness freshness) {
+  if (!valid || freshness == core::Freshness::kMissing)
+    return DiagnosticState::Error;
+  return freshness == core::Freshness::kStale ? DiagnosticState::Warn
+                                               : DiagnosticState::Valid;
+}
+const char *diagnostic_measure_detail(DiagnosticState state) {
+  return state == DiagnosticState::Valid ? "valide"
+       : state == DiagnosticState::Warn ? "périmé"
+                                         : "absent";
+}
+void format_error_count(char *out, size_t size, uint64_t value) {
+  if (value < 1000) {
+    std::snprintf(out, size, "%llu erreur%s",
+                  static_cast<unsigned long long>(value), value == 1 ? "" : "s");
+  } else if (value < 10000) {
+    const uint64_t tenths = (value + 50) / 100;
+    std::snprintf(out, size, "%llu,%llu K erreurs",
+                  static_cast<unsigned long long>(tenths / 10),
+                  static_cast<unsigned long long>(tenths % 10));
+  } else if (value < 1000000) {
+    std::snprintf(out, size, "%llu K erreurs",
+                  static_cast<unsigned long long>((value + 500) / 1000));
+  } else if (value < 10000000) {
+    const uint64_t tenths = (value + 50000) / 100000;
+    std::snprintf(out, size, "%llu,%llu M erreurs",
+                  static_cast<unsigned long long>(tenths / 10),
+                  static_cast<unsigned long long>(tenths % 10));
+  } else {
+    std::snprintf(out, size, "%llu M erreurs",
+                  static_cast<unsigned long long>((value + 500000) / 1000000));
+  }
 }
 enum class Icon { Cup, Drop, Sliders, Left, Right, Back, Wifi };
 void stroke_path(lv_obj_t *parent, const lv_point_precise_t *points,
@@ -356,6 +425,7 @@ void close_all() {
   hidden(v.keypad, true);
   hidden(v.choice, true);
   hidden(v.dimmer_menu, true);
+  hidden(v.heating_menu, true);
 }
 void show_diagnostics(lv_event_t *) {
   close_all();
@@ -384,6 +454,30 @@ void run_dimmer_action(lv_event_t *event) {
 void show_dimmer_menu(lv_event_t *) {
   text(v.dimmer_menu_body, "la pompe est arrêtée avant la commande");
   hidden(v.dimmer_menu, false);
+}
+void close_heating_menu(lv_event_t *) { hidden(v.heating_menu, true); }
+void run_heating_config(lv_event_t *event) {
+  const bool enabled = reinterpret_cast<uintptr_t>(lv_event_get_user_data(event)) != 0;
+  auto config = core::get_config();
+  config.heating_enabled = enabled;
+  const core::ConfigResult result = core::put_config(config);
+  if (result.status == core::ConfigStatus::kOk) {
+    hidden(v.heating_menu, true);
+    return;
+  }
+  text(v.heating_menu_body,
+       result.status == core::ConfigStatus::kBusy
+           ? "modification refusée pendant un cycle"
+           : "configuration refusée");
+}
+void show_heating_menu(lv_event_t *) {
+  const bool enabled = core::get_config().heating_enabled;
+  text(v.heating_menu_body,
+       enabled ? "chauffage actuellement activé"
+               : "chauffage actuellement désactivé");
+  disable(v.heating_enable, enabled);
+  disable(v.heating_disable, !enabled);
+  hidden(v.heating_menu, false);
 }
 void back_key(lv_event_t *) {
   editing = Edit::None;
@@ -1353,17 +1447,19 @@ void create(lv_obj_t *p) {
   base(v.diag);
   navbar(v.diag, "diagnostic", &ignore, back_diag);
   const char *names[] = {"pression", "chaudière", "débit",
-                         "pompe",    "vanne",       "balance",
-                         "bus can",  "réseau",      "versions"};
+                         "pompe",    "vanne",       "chauffage",
+                         "bus can",  "balance",     "versions"};
   for (unsigned i = 0; i < 9; ++i) {
     int x = 32 + (i % 3) * 248, y = 104 + (i / 3) * 112;
-    v.dot[i] = box(v.diag, x, y + 4, 10, 10, theme::kTextFaint, 5);
-    lab(v.diag, &ignore, names[i], theme::kFontLabel, theme::kTextDim, x + 18,
-        y);
-    dyn(v.diag, &v.diag_val[i], "-", theme::kFontButton, theme::kText, x,
-        y + 28);
-    dyn(v.diag, &v.diag_state[i], "", theme::kFontLabel, theme::kTextFaint, x,
-        y + 62);
+    v.diag_tile[i] = diagnostic_tile(v.diag, x, y, names[i]);
+    if (i == 8) {
+      // La case versions est la seule à porter deux couples valeur/détail.
+      lv_obj_set_width(v.diag_tile[i].value, 112);
+      dyn(v.diag, &v.diag_version_value, "-", theme::kFontButton, theme::kText,
+          x + 120, y + 28);
+      dyn(v.diag, &v.diag_version_detail, "sensors", theme::kFontLabel,
+          theme::kTextFaint, x + 120, y + 62);
+    }
     if (i == 3) {
       lv_obj_t *pump_tile = lv_obj_create(v.diag);
       lv_obj_remove_style_all(pump_tile);
@@ -1371,6 +1467,15 @@ void create(lv_obj_t *p) {
       lv_obj_set_pos(pump_tile, x, y);
       lv_obj_add_flag(pump_tile, LV_OBJ_FLAG_CLICKABLE);
       lv_obj_add_event_cb(pump_tile, show_dimmer_menu, LV_EVENT_CLICKED, nullptr);
+    }
+    if (i == 5) {
+      lv_obj_t *heating_tile = lv_obj_create(v.diag);
+      lv_obj_remove_style_all(heating_tile);
+      lv_obj_set_size(heating_tile, 240, 96);
+      lv_obj_set_pos(heating_tile, x, y);
+      lv_obj_add_flag(heating_tile, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_add_event_cb(heating_tile, show_heating_menu, LV_EVENT_CLICKED,
+                          nullptr);
     }
     if (i % 3 != 2)
       rule(v.diag, x + 240, y, 1, 96);
@@ -1471,6 +1576,24 @@ void create(lv_obj_t *p) {
                       reinterpret_cast<void *>(static_cast<uintptr_t>(core::Action::kRecalibrateDimmer)));
   lv_obj_add_event_cb(v.dimmer_close, close_dimmer_menu, LV_EVENT_CLICKED, nullptr);
   hidden(v.dimmer_menu, true);
+  v.heating_menu = lv_obj_create(p);
+  base(v.heating_menu);
+  dyn(v.heating_menu, &v.heating_menu_title, "chauffage",
+      theme::kFontSecondary, theme::kAccent, 32, 64);
+  dyn(v.heating_menu, &v.heating_menu_body, "", theme::kFontLabel,
+      theme::kTextDim, 32, 126);
+  v.heating_enable = button(v.heating_menu, 32, 208, 352, 88, "activer",
+                            Role::Primary);
+  v.heating_disable =
+      button(v.heating_menu, 416, 208, 352, 88, "désactiver");
+  v.heating_close = button(v.heating_menu, 224, 328, 352, 88, "fermer");
+  lv_obj_add_event_cb(v.heating_enable, run_heating_config, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(uintptr_t(1)));
+  lv_obj_add_event_cb(v.heating_disable, run_heating_config, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(uintptr_t(0)));
+  lv_obj_add_event_cb(v.heating_close, close_heating_menu, LV_EVENT_CLICKED,
+                      nullptr);
+  hidden(v.heating_menu, true);
   v.dim = lv_obj_create(p);
   lv_obj_set_size(v.dim, 800, 480);
   lv_obj_set_pos(v.dim, 0, 0);
@@ -1601,57 +1724,95 @@ void refresh(const core::Snapshot &s, bool boot) {
   disable(v.plus, scale ? c.target_weight_g >= 100 : c.target_time_s >= 60);
   cycle(s, c);
   if (!lv_obj_has_flag(v.diag, LV_OBJ_FLAG_HIDDEN)) {
-    bool flow = s.flow_valid && present(s.flow_freshness),
-         states[] = {press,
-                     boiler,
-                     flow,
-                     s.dimmer_valid,
-                     s.valve_open,
-                     scale,
-                     s.sensors_alive,
-                     s.radio_mode == core::RadioMode::kWifi && s.ipv4_address,
-                     true};
-    for (unsigned i = 0; i < 9; ++i) {
-      lv_obj_set_style_bg_color(v.dot[i],
-                                (i == 3 && s.dimmer_error_active) ||
-                                        (i == 6 && !s.sensors_alive)
-                                    ? theme::kFault
-                                : states[i] ? theme::kAccent
-                                            : theme::kTextFaint,
-                                0);
-      text(v.diag_state[i], states[i] ? "valide" : "absent");
-    }
-    if (press) {
+    const DiagnosticState pressure_state =
+        diagnostic_measure_state(s.pressure_valid, s.pressure_freshness);
+    if (pressure_state != DiagnosticState::Error) {
       fmt(t, sizeof(t), s.pressure_bar, " bar");
-      text(v.diag_val[0], t);
     } else {
-      text(v.diag_val[0], "-");
+      std::snprintf(t, sizeof(t), "-");
     }
-    if (boiler) {
+    diagnostic_tile_set(v.diag_tile[0], pressure_state, t,
+                        diagnostic_measure_detail(pressure_state));
+
+    const DiagnosticState boiler_state = diagnostic_measure_state(
+        s.boiler_temperature_valid, s.boiler_temperature_freshness);
+    if (boiler_state != DiagnosticState::Error) {
       fmt(t, sizeof(t), s.boiler_temperature_c, "°");
-      text(v.diag_val[1], t);
     } else {
-      text(v.diag_val[1], "-");
+      std::snprintf(t, sizeof(t), "-");
     }
-    if (flow)
+    diagnostic_tile_set(v.diag_tile[1], boiler_state, t,
+                        diagnostic_measure_detail(boiler_state));
+
+    const DiagnosticState flow_state =
+        diagnostic_measure_state(s.flow_valid, s.flow_freshness);
+    if (flow_state != DiagnosticState::Error)
       fmt(t, sizeof(t), s.flow_ml_s, " ml/s");
     else
       std::snprintf(t, sizeof(t), "-");
-    text(v.diag_val[2], t);
+    diagnostic_tile_set(v.diag_tile[2], flow_state, t,
+                        diagnostic_measure_detail(flow_state));
+
+    const DiagnosticState pump_state =
+        s.dimmer_error_active ? DiagnosticState::Error
+        : !s.sensors_alive || !s.dimmer_valid ? DiagnosticState::Error
+        : !s.dimmer_ready ? DiagnosticState::Warn
+                          : DiagnosticState::Valid;
     std::snprintf(t, sizeof(t), "%u %%", s.dimmer_pct);
-    text(v.diag_val[3], t);
-    text(v.diag_val[4], s.valve_open ? "ouverte" : "fermée");
-    if (scale)
-      fmt(t, sizeof(t), s.weight_g, " g");
+    diagnostic_tile_set(v.diag_tile[3], pump_state, t,
+                        s.dimmer_error_active ? "erreur"
+                        : pump_state == DiagnosticState::Valid ? "valide"
+                        : pump_state == DiagnosticState::Warn ? "calibration"
+                                                              : "absent");
+
+    const DiagnosticState valve_state = diagnostic_measure_state(
+        s.sensors_alive, s.actuators_freshness);
+    diagnostic_tile_set(v.diag_tile[4], valve_state,
+                        s.valve_open ? "ouverte" : "fermée",
+                        diagnostic_measure_detail(valve_state));
+
+    const DiagnosticState heating_state = !c.heating_enabled
+        ? DiagnosticState::Disabled
+        : diagnostic_measure_state(s.sensors_alive && s.heating_power_capable,
+                                   s.heating_freshness);
+    if (c.heating_enabled)
+      fmt(t, sizeof(t), s.heating_power_accepted_pct, " %");
     else
+      std::snprintf(t, sizeof(t), "OFF");
+    diagnostic_tile_set(v.diag_tile[5], heating_state, t,
+                        heating_state == DiagnosticState::Disabled
+                            ? "désactivé"
+                            : diagnostic_measure_detail(heating_state));
+
+    const uint64_t can_errors =
+        static_cast<uint64_t>(s.sensors_twai_rx_errors) +
+        static_cast<uint64_t>(s.sensors_twai_tx_errors) +
+        static_cast<uint64_t>(s.sensors_twai_bus_errors);
+    format_error_count(t, sizeof(t), can_errors);
+    diagnostic_tile_set(v.diag_tile[6],
+                        s.sensors_alive ? DiagnosticState::Valid
+                                        : DiagnosticState::Error,
+                        s.sensors_alive ? "OK" : "ERREUR", t);
+
+    if (scale) {
+      fmt(t, sizeof(t), s.weight_g, " g");
+    } else {
       std::snprintf(t, sizeof(t), "-");
-    text(v.diag_val[5], t);
-    text(v.diag_val[6], s.sensors_alive ? "ok" : "perdu");
-    text(v.diag_val[7],
-         s.radio_mode == core::RadioMode::kWifi ? "wifi" : "machine");
+    }
+    diagnostic_tile_set(v.diag_tile[7],
+                        scale ? DiagnosticState::Valid : DiagnosticState::Error,
+                        t, scale ? "présente" : "absente");
+
     std::snprintf(t, sizeof(t), "%u.%u.%u", s.screen_version_major,
                   s.screen_version_minor, s.screen_version_patch);
-    text(v.diag_val[8], t);
+    diagnostic_tile_set(v.diag_tile[8],
+                        s.sensors_alive ? DiagnosticState::Valid
+                                        : DiagnosticState::Warn,
+                        t, "screen");
+    std::snprintf(t, sizeof(t), "%u.%u.%u", s.sensors_version_major,
+                  s.sensors_version_minor, s.sensors_version_patch);
+    text(v.diag_version_value, t);
+    text(v.diag_version_detail, "sensors");
   }
   if (s.boot_time_syncing)
     fullscreen(true, "synchronisation heure", "connexion wifi...");
@@ -1718,9 +1879,16 @@ void snapshot_scenario(const char *scenario) {
     show_edit(Edit::Weight);
   } else if (std::strcmp(scenario, "keypad-time") == 0) {
     show_edit(Edit::Time);
-  } else if (std::strcmp(scenario, "diagnostic") == 0) {
+  } else if (std::strcmp(scenario, "diagnostic") == 0 ||
+             std::strcmp(scenario, "diagnostic-errors") == 0 ||
+             std::strcmp(scenario, "diagnostic-states") == 0) {
     close_all();
     hidden(v.diag, false);
+  } else if (std::strcmp(scenario, "heating-menu-on") == 0 ||
+             std::strcmp(scenario, "heating-menu-off") == 0) {
+    close_all();
+    hidden(v.diag, false);
+    show_heating_menu(nullptr);
   } else if (std::strcmp(scenario, "wifi-confirm") == 0) {
     page = 3;
     render_settings();

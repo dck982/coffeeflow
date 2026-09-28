@@ -129,6 +129,7 @@ int main(int argc, char **argv) {
   snapshot.heating_power_capable = true;
   snapshot.heating_freshness = core::Freshness::kFresh;
   snapshot.heating_power_pct = 62.5f;
+  snapshot.heating_power_accepted_pct = 62.5f;
   snapshot.scale_present = std::strcmp(scenario, "keypad-time") != 0 &&
                            std::strcmp(scenario, "no-scale") != 0;
   snapshot.scale_connected = snapshot.scale_present;
@@ -136,6 +137,43 @@ int main(int argc, char **argv) {
   snapshot.weight_g = 18.2f;
   snapshot.dimmer_ready = true;
   snapshot.dimmer_valid = true;
+  snapshot.flow_valid = true;
+  snapshot.flow_freshness = core::Freshness::kFresh;
+  snapshot.flow_ml_s = 2.1f;
+  snapshot.actuators_freshness = core::Freshness::kFresh;
+  snapshot.dimmer_pct = 72;
+  snapshot.screen_version_major = 0;
+  snapshot.screen_version_minor = 2;
+  snapshot.screen_version_patch = 3;
+  snapshot.sensors_version_major = 0;
+  snapshot.sensors_version_minor = 1;
+  snapshot.sensors_version_patch = 7;
+  snapshot.sensors_twai_rx_errors = 2;
+  snapshot.sensors_twai_tx_errors = 1;
+  snapshot.sensors_twai_bus_errors = 1231;
+  if (std::strcmp(scenario, "diagnostic-errors") == 0) {
+    snapshot.pressure_valid = false;
+    snapshot.boiler_temperature_valid = false;
+    snapshot.flow_valid = false;
+    snapshot.dimmer_valid = false;
+    snapshot.actuators_freshness = core::Freshness::kMissing;
+    snapshot.heating_freshness = core::Freshness::kMissing;
+    snapshot.scale_present = false;
+    snapshot.sensors_alive = false;
+    snapshot.sensors_twai_rx_errors = UINT16_MAX;
+    snapshot.sensors_twai_tx_errors = UINT16_MAX;
+    snapshot.sensors_twai_bus_errors = UINT32_MAX;
+  }
+  if (std::strcmp(scenario, "diagnostic-states") == 0) {
+    snapshot.pressure_freshness = core::Freshness::kStale;
+    snapshot.dimmer_ready = false;
+  }
+  if (std::strcmp(scenario, "diagnostic-states") == 0 ||
+      std::strcmp(scenario, "heating-menu-off") == 0) {
+    core::Config config = core::get_config();
+    config.heating_enabled = false;
+    core::put_config(config);
+  }
   if (std::strcmp(scenario, "wifi-mode") == 0) {
     snapshot.radio_mode = core::RadioMode::kWifi;
     snapshot.network_state = static_cast<uint8_t>(core::NetworkState::kStaConnected);

@@ -559,30 +559,38 @@ vraiment mes capteurs ? ». La cible tactile fait 88 px de haut, centrée sur le
 bandeau et débordant sous le filet — la seule cible de l'UI qui déborde d'une
 zone.
 
-Une grille en lecture seule de 3 × 3 cellules : étiquette et pastille en haut,
+Une grille diagnostic de 3 × 3 cellules : étiquette et pastille en haut,
 valeur instantanée au centre, état brut en dessous. La grille exploite le ratio
 large sans prétendre que neuf lignes de 72 px pourraient tenir sous la barre
-haute. Les cellules restent sur `bg`, séparées par les seuls filets de 1 px :
-ce ne sont pas des boutons. Pas de graphique, pas de possibilité d'agir sur
-quoi que ce soit.
+haute. Les cellules restent sur `bg`, séparées par les seuls filets de 1 px.
+Les cases pompe et chauffage ouvrent chacune leur écran de service ; les sept
+autres ne sont pas interactives. Aucun graphique n'est affiché.
 
-| Ligne | Valeur affichée | À droite |
+| Case | Valeur affichée | Détail |
 | --- | --- | --- |
-| Pression | `9,1 bar` | brut `pressure_raw`, `valide` / `absent` (bit0) |
-| Température | `92,4°` | brut `temperature_raw` |
-| Débit | `2,1 ml/s` | impulsions cumulées, âge de la dernière |
-| Pompe | `100 %` | `prêt` / `calibration` / `erreur` (bits 1-2) |
-| Vanne | `ouverte` / `fermée` | bail restant, marche continue |
-| Balance | `36,2 g` | `connectée` / `absente`, âge de la dernière pesée |
-| Bus CAN | `ok` / `perdu` | compteurs d'erreur TWAI, dernier code `LOG` |
-| Réseau | mode radio | `machine · BLE` / `wifi · AP` / `wifi · <adresse IP>` / `wifi · absent` |
-| Versions | `écran 0,2,3` | `capteurs 0,1,7`, uptime des deux |
+| Pression | `9,1 bar` | `valide` / `périmé` / `absent` |
+| Chaudière | `92,4°` | `valide` / `absent` |
+| Débit | `2,1 ml/s` | `valide` / `périmé` / `absent` |
+| Pompe | `100 %` | `valide` / `calibration` / `erreur` / `absent` |
+| Vanne | `ouverte` / `fermée` | `valide` / `périmé` / `absent` |
+| Chauffage | `62,5 %` ou `OFF` | `valide` / `désactivé` / `absent` |
+| Bus CAN | `OK` / `ERREUR` | total compact des erreurs TWAI (`K`, `M`) |
+| Balance | `36,2 g` | `présente` / `absente` |
+| Versions | versions écran et capteurs | noms `screen` et `sensors` sous leur version |
 
-**Les valeurs brutes sont affichées telles quelles**, sans calibration : c'est
-la seule page de l'interface qui montre ce que le bus transporte réellement.
-C'est ce qui permet de diagnostiquer une sonde débranchée depuis la façade,
-sans sortir le Mac ni ouvrir la machine — et c'est le pendant à l'écran de ce
-que `coffeetool monitor` donne sur le Mac.
+Chaque case standard expose une pastille d'état, un titre, une valeur et un
+détail. La pastille est grise si la fonction est désactivée, verte si elle est
+valide, ambre pour un avertissement et rouge pour une erreur. La case versions
+est la seule exception : elle partage son contenu en deux couples valeur/détail.
+
+Un appui sur chauffage ouvre un écran avec les actions `activer` et
+`désactiver`. Elles modifient `heating.enabled` par `core::put_config()` ;
+l'action correspondant à l'état courant est désactivée. Un appui sur pompe
+conserve l'écran de service DimmerLink (reset et calibration).
+
+Les valeurs sont celles du dernier instantané cohérent fourni par le cœur. La
+pastille et le détail distinguent une valeur courante, périmée ou absente afin
+de diagnostiquer une sonde débranchée directement depuis la façade.
 
 Tant qu'elle est ouverte, les périodes `REQSTATUS` passent à celles de
 l'infusion (100 ms) pour que les valeurs vivent. **Inaccessible pendant une
@@ -1006,11 +1014,11 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `lbl.dimmer_cal` | `dimmer en calibration — vérifier le secteur` |
 | `lbl.mains_unstable` | `secteur instable` |
 | `diag.title` | `diagnostic` |
-| `diag.rows` | `pression` · `température` · `débit` · `pompe` · `vanne` · `balance` · `bus can` · `réseau` · `versions` |
-| `diag.valid` / `diag.absent` | `valide` / `absent` |
+| `diag.rows` | `pression` · `chaudière` · `débit` · `pompe` · `vanne` · `chauffage` · `bus can` · `balance` · `versions` |
+| `diag.valid` / `diag.warn` / `diag.absent` | `valide` / `périmé` / `absent` |
 | `diag.valve` | `ouverte` / `fermée` |
-| `diag.scale` | `connectée` / `absente` |
-| `diag.net` | `machine · ble` / `wifi · connecté` / `wifi · absent` |
+| `diag.scale` | `présente` / `absente` |
+| `diag.can` | `OK` / `ERREUR`, nombre compact d'erreurs |
 | `wifi.title` | `wifi mode` |
 | `wifi.ap` / `wifi.offline` | `configuration wifi` / `réseau non associé` |
 | `full.boot.title` | `coffeeflow` |

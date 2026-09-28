@@ -32,9 +32,9 @@ constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
 constexpr uint16_t kHFCapturePeriodMs = 100;
 constexpr uint16_t kBoilerPairPeriodMs = 100;
-// 102,4 s couvrent le réglage temporel maximal de 60 s, 5 s de précharge et
+// 115,2 s couvrent le réglage temporel maximal de 60 s, 15 s de précharge et
 // les 30 s de récupération conservées après une infusion.
-constexpr uint16_t kHFCaptureCapacity = 1024;
+constexpr uint16_t kHFCaptureCapacity = 1152;
 constexpr int64_t kHFBrewCaptureCooldownUs = 30 * 1000 * 1000;
 constexpr int64_t kHFOtherCaptureCooldownUs = 5 * 1000 * 1000;
 

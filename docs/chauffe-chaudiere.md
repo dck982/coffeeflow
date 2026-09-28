@@ -34,7 +34,7 @@ faibles consignes sur plusieurs périodes (1 % = 100 ms toutes les 10 s,
 La configuration NVS v7 contient `heating.brew_temperature_c` (90 °C par
 défaut, 50 à 100 °C par pas de 0,5 °C) et `heating.enabled` (`true` par
 défaut). Elle ajoute `heating.brew_preheat_time_s` (2,5 s par défaut, 0 à
-5 s par pas de 0,5 s), modifiable dans la quatrième page existante des
+15 s par pas de 0,5 s), modifiable dans la quatrième page existante des
 réglages ; 0 désactive l'essai. La cible est modifiable sur la deuxième page ; le
 commutateur n'est disponible que par `POST /config`. La purge reste possible
 quand il vaut `false`. L'infusion exige une mesure fraîche dans la bande
@@ -56,6 +56,14 @@ si la NTC est déjà à plus de 0,5 °C au-dessus de la cible. Cette phase ne co
 pas dans le chrono hydraulique et apparaît comme `thermal_preheat` dans la
 capture HF. Les captures d'infusion conservent ensuite 30 s de récupération ;
 les purges et commandes de banc conservent 5 s.
+
+La décision prise après les mesures du 28 septembre est de porter cette
+précharge à **10 s** pour le prochain essai. La borne de configuration est
+portée à 15 s afin d'accepter cette valeur et de conserver une marge
+expérimentale. Le but est que la réponse thermique de la NTC
+commence au voisinage du démarrage hydraulique, plutôt que plusieurs secondes
+après celui-ci. Pour isoler cet effet, la loi de puissance pendant l'écoulement
+reste inchangée lors de ce premier essai à 10 s.
 
 La loi actuelle est un réglage initial : puissance plafonnée à 100 % au repos,
 anticipation de 20 s sur la pente filtrée dans les deux sens, maintien nominal
@@ -141,6 +149,49 @@ contre 89,7 °C lors de l'essai précédent, et le volume a aussi changé
 (environ 33 ml contre 31 ml) : la comparaison n'isole pas l'effet du logiciel.
 Le raccourcissement de la prédiction de reprise a été ajouté après cette
 capture et reste à vérifier sur la machine.
+
+### Mesures du 28 septembre 2026 — délai de réaction thermique
+
+La [capture d'infusion](../captures/260928-083730.json) avec une précharge
+réglée à 5 s commence à 90,54 °C. Comme la mesure est initialement juste
+au-dessus de la bande autorisant la précharge, la commande atteint réellement
+100 % vers 0,9 s et y reste jusqu'à environ 4,9 s. La pompe démarre vers 5 s.
+La NTC descend jusqu'à 82,32 °C à 22,61 s, soit une baisse maximale de
+8,22 °C, puis remonte pendant la fin de l'écoulement et la récupération. Ce
+minimum tardif ne mesure pas à lui seul le délai de la sonde : pendant
+l'infusion, la NTC combine l'arrivée d'eau froide, le brassage et la chaleur
+de la résistance.
+
+Deux essais sans écoulement séparent mieux ces phénomènes. Dans la
+[montée commencée près de 53 °C](../captures/monitor-heating-20260928-094947-505812.json),
+le SSR passe réellement à ON à 22,637 s et la NTC atteint son minimum à
+30,619 s, soit **7,982 s** plus tard. Dans la
+[montée commencée près de 80 °C](../captures/monitor-heating-20260928-095631-275212.json),
+le SSR passe à ON à 13,121 s et le minimum arrive à 21,101 s, soit
+**7,980 s** plus tard. Dans les deux cas, la hausse dépasse clairement le bruit
+de mesure environ 9,5 à 10 s après l'activation.
+
+La concordance des deux essais à des températures différentes conduit à
+retenir **8 s comme constante thermique effective de la NTC installée** pour
+la régulation. La mesure porte encore sur l'ensemble résistance, eau et sonde ;
+l'attribution à la NTC est donc une hypothèse physique de travail plutôt qu'une
+caractérisation isolée du composant.
+
+Cette constante de 8 s doit être distinguée de la longue traîne de chaleur.
+Lors du second essai, la commande tombe à zéro à 32,063 s, alors que la NTC
+vaut 83,14 °C. Elle continue de monter jusqu'à 91,99 °C à 54,585 s : la chaleur
+déjà injectée reste visible pendant **22,52 s** et ajoute encore 8,85 °C après
+la coupure. La fenêtre de 22 s utilisée pour estimer la chaleur en transit
+décrit donc cette inertie prolongée ; elle ne représente pas le délai avant le
+premier effet de la chauffe.
+
+Avec ce nouveau repère, la précharge de la capture d'infusion devait commencer
+à agir vers 9 à 11 s, et la chauffe appliquée au démarrage de la pompe vers
+13 à 15 s. La pente de refroidissement diminue effectivement dans cette zone,
+mais l'arrivée d'eau froide masque encore la hausse jusqu'au minimum de
+22,61 s. Une précharge de **10 s** doit placer le début de la réponse thermique
+autour du démarrage de la pompe. La récupération d'au moins 30 s reste
+indispensable pour mesurer le rebond après l'écoulement.
 
 Depuis 0.3.1, l'écran diffuse un `LOG` CAN à la première erreur ADS1115, puis
 au plus toutes les 5 s si la même erreur persiste. `BOILER_ADC_NOT_FOUND`,
@@ -762,8 +813,9 @@ cible propre, bloquer l'infusion et garder la purge disponible.
 
 ## Remplacement prévu par une PT1000
 
-La NTC installée est physiquement assez grande et les captures du 27 septembre
-sont compatibles avec une constante thermique de l'ordre de **7 à 10 s**. La
+La NTC installée est physiquement assez grande. Les deux montées sans
+écoulement du 28 septembre donnent le même délai de retournement à 2 ms près ;
+la constante thermique effective retenue pour la régulation est **8 s**. La
 température affichée est donc une mesure retardée : le début et le minimum de
 la chute réelle peuvent précéder nettement ceux de la courbe NTC. Depuis la
 version 0.3.18, une capture HF de purge conserve 20 s après l'arrêt de la pompe

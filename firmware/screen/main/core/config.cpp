@@ -412,7 +412,8 @@ const char* validate(const Config& c) {
   if (c.target_time_s < 5 || c.target_time_s > 60) return "brew.target_time_s";
   if (!valid_step(c.target_pressure_bar, 6, 12, .1f)) return "brew.target_pressure_bar";
   if (!valid_step(c.brew_temperature_c, kMinimumBrewTemperatureC, kMaximumBrewTemperatureC, .5f)) return "heating.brew_temperature_c";
-  if (!valid_step(c.brew_preheat_time_s, 0, 5, .5f)) return "heating.brew_preheat_time_s";
+  if (!valid_step(c.brew_preheat_time_s, 0, kMaximumBrewPreheatTimeS, .5f))
+    return "heating.brew_preheat_time_s";
   if (c.filling_time_s < 1 || c.filling_time_s > 10) return "filling.time_s";
   if (!valid_step(c.filling_pressure_target_bar, .1f, 1.0f, .1f)) return "filling.pressure_target_bar";
   if (c.filling_pump_pct < 20 || c.filling_pump_pct > 100 || c.filling_pump_pct % 5) return "filling.pump_pct";

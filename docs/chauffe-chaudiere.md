@@ -23,7 +23,7 @@ physique baisse de 4 °C.
 
 L'écran lit la NTC chaudière et calcule la puissance demandée. Le module
 capteurs transforme cette puissance en temps de marche du SSR sur une période
-fixe de 5 s. L'écran renouvelle un bail de 1500 ms toutes les 500 ms : la
+fixe de 1 s. L'écran renouvelle un bail de 1500 ms toutes les 500 ms : la
 chauffe initiale peut durer plusieurs minutes, mais une perte de l'écran ou
 du CAN coupe le chauffage à l'expiration du bail.
 La consigne a une résolution de 0,1 %. Une période isolée ne peut produire

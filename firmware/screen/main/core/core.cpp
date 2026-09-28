@@ -299,7 +299,8 @@ void tick_hf_capture() {
                                            ? 0x04 : 0) |
                                       (snapshot.boiler_temperature_valid &&
                                        freshness(g_state.boiler_received_us, kBoilerPairPeriodMs, now) == Freshness::kFresh
-                                           ? 0x08 : 0));
+                                           ? 0x08 : 0) |
+                                      (snapshot.heater_on ? 0x10 : 0));
   portEXIT_CRITICAL(&g_state.lock);
 }
 

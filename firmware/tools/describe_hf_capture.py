@@ -115,6 +115,19 @@ def pressure_fmt(sample: dict[str, Any], digits: int = 2) -> str:
     return fmt(sample.get("pressure_bar"), digits) if valid(sample, "pressure") else "invalide"
 
 
+def heater_state(sample: dict[str, Any]) -> bool | None:
+    if isinstance(sample.get("heater_on"), bool):
+        return sample["heater_on"]
+    # Les nouvelles captures du schéma v2 dupliquent l'état dans le bit 4.
+    # Ne pas interpréter ce bit absent dans les anciennes captures comme OFF.
+    return None
+
+
+def heater_fmt(sample: dict[str, Any]) -> str:
+    state = heater_state(sample)
+    return "ON" if state is True else "OFF" if state is False else "—"
+
+
 def has_weight(samples: list[dict[str, Any]]) -> bool:
     return any(valid(sample, "scale") and number(sample.get("weight_g")) >= 0
                for sample in samples)
@@ -338,6 +351,7 @@ def key_points_table(samples: list[dict[str, Any]], weight_flow_window_s: float)
             <td>{temperature(index)}</td>
             <td>{pump}</td>
             <td>{value(index, 'heating_power_pct', 0, '%')}</td>
+            <td>{heater_fmt(sample)}</td>
           </tr>""")
     return "\n".join(rows)
 
@@ -499,6 +513,16 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 1.5, "dash": "dash"},
          "yaxis": "y", "hoverinfo": "skip", "legendrank": 2},
     ]
+    if any(heater_state(sample) is not None for sample in samples):
+        traces.append(
+            {"name": "SSR chaudière actif", "x": times,
+             "y": [100 if heater_state(sample) is True else
+                   0 if heater_state(sample) is False else None for sample in samples],
+             "type": "scatter", "mode": "lines",
+             "line": {"color": "#8c2d04", "width": 1.5, "shape": "hv"},
+             "opacity": 0.7, "yaxis": "y5",
+             "hovertemplate": "%{y:.0f} %<extra>SSR</extra>"},
+        )
     shapes = []
     annotations = []
     for start, _end, start_s, end_s, mode in phase_ranges(samples, duration_s):
@@ -738,7 +762,7 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     <h2 id="points-title">Valeurs aux points clés</h2>
     <p>Pour chaque transition, les cellules donnent « dernière valeur avant → première valeur après ». Le temps est celui du premier échantillon portant le nouveau mode. Le repère à 1 s utilise l’échantillon temporellement le plus proche.</p>
     <div class="table-wrap"><table>
-      <thead><tr><th>Événement</th><th>Temps</th><th>Mode</th><th>Pression</th><th>Débit tasse</th><th>Volume</th><th>Poids</th><th>Température</th><th>Pompe dem./rapp.</th><th>Chauffage</th></tr></thead>
+      <thead><tr><th>Événement</th><th>Temps</th><th>Mode</th><th>Pression</th><th>Débit tasse</th><th>Volume</th><th>Poids</th><th>Température</th><th>Pompe dem./rapp.</th><th>Chauffage demandé</th><th>SSR</th></tr></thead>
       <tbody>{key_points_table(samples, weight_flow_window_s)}</tbody>
     </table></div>
   </section>

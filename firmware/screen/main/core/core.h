@@ -159,7 +159,8 @@ struct HFSample {
   uint8_t pump_pct_commanded = 0;
   uint8_t pump_pct_reported = 0;
   HFSampleMode mode = HFSampleMode::kPurge;
-  uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente, bit3 chaudière valide/fraîche
+  uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente,
+                      // bit3 chaudière valide/fraîche, bit4 SSR chaudière actif
 };
 
 struct HFCaptureInfo {

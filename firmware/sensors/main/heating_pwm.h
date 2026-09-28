@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <cstdint>
 
-// Répartit les faibles consignes sur plusieurs fenêtres de 5 s. La sortie
-// minimale est une impulsion de 100 ms, soit 2 % d'une fenêtre ; l'accumulateur
+// Répartit les faibles consignes sur plusieurs fenêtres de 1 s. La sortie
+// minimale est une impulsion de 100 ms, soit 10 % d'une fenêtre ; l'accumulateur
 // conserve le crédit des fenêtres sans impulsion (1 % = 100 ms / 10 s).
 class HeatingPwm {
  public:
-  static constexpr int64_t kPeriodUs = 5 * 1000 * 1000;
+  static constexpr int64_t kPeriodUs = 1000 * 1000;
   static constexpr int64_t kQuantumUs = 100 * 1000;
 
   void reset() { *this = HeatingPwm{}; }

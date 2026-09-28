@@ -36,6 +36,7 @@ class Controller {
   static constexpr float kFlowBonusFullMlS = 4.0f;
   static constexpr float kFlowBonusMaxPct = 10.0f;
   static constexpr float kFlowBonusAboveTargetBandC = 2.0f;
+  static constexpr float kPurgeFeedforwardAboveTargetBandC = 2.0f;
   static constexpr float kPurgeCompensationBandC = 5.0f;
   static constexpr float kRecoveryPowerLimitPct = 35.0f;
   static constexpr uint64_t kRecoveryDurationMs = 30000;
@@ -88,13 +89,18 @@ class Controller {
     }
 
     const float error = target_c - temperature_c;
+    // En purge, réduire progressivement les appoints entre la consigne et
+    // consigne + 2 °C, sans couper net dès le premier dépassement.
+    const float purge_taper = mode == Mode::kPurge
+        ? std::clamp(1.0f + error / kPurgeFeedforwardAboveTargetBandC, 0.0f, 1.0f)
+        : 1.0f;
     // L'appoint suit le débit pendant le remplissage et disparaît dès que
     // celui-ci baisse. Ne pas utiliser une mesure absente ou périmée.
     const float flow_bonus_pct = flowing && flow_valid && std::isfinite(flow_ml_s) &&
                                  error > -kFlowBonusAboveTargetBandC
         ? std::clamp((flow_ml_s - kFlowBonusStartMlS) /
                          (kFlowBonusFullMlS - kFlowBonusStartMlS), 0.0f, 1.0f) *
-              kFlowBonusMaxPct
+              kFlowBonusMaxPct * purge_taper
         : 0.0f;
     if (std::fabs(error) <= kBrewTemperatureToleranceC) {
       if (ready_since_ms_ == 0) ready_since_ms_ = now_ms;
@@ -139,9 +145,8 @@ class Controller {
       // cible de 0,5 °C.
       power = error > -0.5f ? kBrewPreheatPowerPct : 0.0f;
     } else if (flowing) {
-      if (error > (mode == Mode::kBrew ? -kBrewFeedforwardAboveTargetBandC : -0.5f))
-        power = std::max(power, mode == Mode::kBrew ? kBrewFeedforwardPct
-                                                   : kFlowFeedforwardPct);
+      if (mode == Mode::kBrew && error > -kBrewFeedforwardAboveTargetBandC)
+        power = std::max(power, kBrewFeedforwardPct);
       power = std::min(power, mode == Mode::kBrew ? kBrewPowerLimitPct
                                                   : kFlowPowerLimitPct);
     } else if (recovering) {
@@ -169,9 +174,12 @@ class Controller {
     if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_,
         mode == Mode::kBrew ? kBrewPowerLimitPct : kFlowPowerLimitPct);
     if (recovering) filtered_power_pct_ = std::min(filtered_power_pct_, kRecoveryPowerLimitPct);
-    // Ajouter le supplément après le filtre : la baisse du débit le retire
-    // immédiatement, sans attendre la constante de temps de 5 s.
-    const float commanded_power_pct = filtered_power_pct_ + flow_bonus_pct;
+    // Les appoints de purge et de débit suivent directement leurs conditions
+    // courantes : le filtre de 5 s ne doit pas prolonger leur réduction.
+    const float purge_feedforward_pct = mode == Mode::kPurge
+        ? kFlowFeedforwardPct * purge_taper : 0.0f;
+    const float commanded_power_pct =
+        std::max(filtered_power_pct_, purge_feedforward_pct) + flow_bonus_pct;
     const uint16_t power_permille = static_cast<uint16_t>(
         std::lround(std::clamp(commanded_power_pct, 0.0f, 100.0f) * 10.0f));
     record_command(now_ms, power_permille / 10.0f);

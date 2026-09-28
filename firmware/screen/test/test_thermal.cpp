@@ -100,9 +100,20 @@ int main() {
   assert(flow_high.step(1250, 90, 90, true, true, Mode::kPurge, 2, true).power_permille == 180);
   assert(flow_stale.step(1000, 90, 90, true, true, Mode::kBrew, 4, false).power_permille == 450);
   assert(flow_stale.step(1250, 90, 90, true, true, Mode::kIdle, 4, true).power_permille <= 350);
-  core::thermal::Controller flow_early, flow_capped, flow_too_hot;
-  assert(flow_early.step(1000, 91.8f, 90, true, true, Mode::kPurge, 4, true).power_permille == 100);
+  // Le plancher et l'appoint de débit de la purge décroissent ensemble : une
+  // NTC légèrement au-dessus de la cible ne coupe plus la chauffe d'un coup.
+  core::thermal::Controller purge_half, purge_one, purge_late, purge_no_flow;
+  assert(purge_half.step(1000, 90.5f, 90, true, true, Mode::kPurge, 4, true).power_permille == 210);
+  assert(purge_one.step(1000, 91.0f, 90, true, true, Mode::kPurge, 4, true).power_permille == 140);
+  assert(purge_late.step(1000, 91.8f, 90, true, true, Mode::kPurge, 4, true).power_permille == 28);
+  assert(purge_no_flow.step(1000, 91.0f, 90, true, true, Mode::kPurge, 4, false).power_permille == 90);
+  core::thermal::Controller purge_rising;
+  assert(purge_rising.step(1000, 90.0f, 90, true, true, Mode::kPurge, 4, true).power_permille == 280);
+  assert(purge_rising.step(1250, 90.5f, 90, true, true, Mode::kPurge, 4, true).power_permille == 210);
+  assert(purge_rising.step(1500, 92.0f, 90, true, true, Mode::kPurge, 4, true).power_permille == 0);
+  core::thermal::Controller flow_capped, flow_too_hot, flow_at_limit;
   assert(flow_capped.step(1000, 85.1f, 90, true, true, Mode::kPurge, 4, true).power_permille == 450);
+  assert(flow_at_limit.step(1000, 92.0f, 90, true, true, Mode::kPurge, 4, true).power_permille == 0);
   assert(flow_too_hot.step(1000, 92.1f, 90, true, true, Mode::kPurge, 4, true).power_permille == 0);
 
   // La baisse mesurée après une purge n'est pas extrapolée sur 20 secondes :

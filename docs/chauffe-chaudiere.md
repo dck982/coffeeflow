@@ -57,13 +57,14 @@ pas dans le chrono hydraulique et apparaît comme `thermal_preheat` dans la
 capture HF. Les captures d'infusion conservent ensuite 30 s de récupération ;
 les purges et commandes de banc conservent 5 s.
 
-La décision prise après les mesures du 28 septembre est de porter cette
-précharge à **10 s** pour le prochain essai. La borne de configuration est
+La décision prise après les premières mesures du 28 septembre a été de porter cette
+précharge à **10 s** pour l'essai suivant. La borne de configuration est
 portée à 15 s afin d'accepter cette valeur et de conserver une marge
 expérimentale. Le but est que la réponse thermique de la NTC
 commence au voisinage du démarrage hydraulique, plutôt que plusieurs secondes
 après celui-ci. Pour isoler cet effet, la loi de puissance pendant l'écoulement
-reste inchangée lors de ce premier essai à 10 s.
+est restée inchangée lors de ce premier essai à 10 s. Les résultats et la
+prochaine durée à essayer figurent ci-dessous.
 
 La loi actuelle est un réglage initial : puissance plafonnée à 100 % au repos,
 anticipation de 20 s sur la pente filtrée dans les deux sens, maintien nominal
@@ -71,19 +72,26 @@ de 3,5 % à la consigne, et estimation bornée de la chaleur encore en transit �
 partir de la puissance au-dessus de 3,5 % demandée durant les 22 dernières
 secondes. La pente est filtrée sur 8 s et les variations de puissance non nulles
 sont lissées sur 5 s ; les coupures restent immédiates. L'intégrale utilise l'erreur prédite, pour ne pas
-accumuler une erreur déjà expliquée par cette chaleur. Pendant l'infusion et la
-purge, le mode écoulement applique au moins 18 % lorsque la température reste
-proche ou sous la cible. Depuis la version écran **0.3.17**, pendant le
+accumuler une erreur déjà expliquée par cette chaleur. Depuis la version écran
+**0.3.17**, pendant le
 remplissage, la pré-infusion et l'infusion,
 le plancher est de **45 %** tant que la NTC reste à moins de 1 °C au-dessus de
 la cible ; la puissance de base peut monter à **60 %** si la température baisse.
-La purge conserve son plancher de 18 % et sa limite de base de 35 %.
+La purge conserve sa limite de base de 35 %.
+Depuis la version écran **0.3.26**, une purge lancée près de la consigne
+applique un plancher de **18 %** jusqu'à la consigne, puis le réduit
+linéairement à **0 %** entre la consigne et **consigne + 2 °C**. À +0,5 °C, il
+vaut ainsi 13,5 % ; à +1 °C, 9 %. Ce plancher suit directement la température,
+sans délai dû au filtre de puissance de 5 s. Une purge lancée à 5 °C ou plus
+de la consigne reste sans chauffe pendant toute sa durée.
 Depuis 0.3.14, un débit valide et frais ajoute **0 point à 2 ml/s ou moins**,
 **5 points à 3 ml/s** et **10 points à 4 ml/s ou plus**, avec interpolation
 linéaire. La commande totale peut ainsi atteindre **70 %** pendant l'infusion
 et **45 %** pendant une purge à haut débit.
-Le supplément est possible jusqu'à 2 °C au-dessus de la cible, mais jamais
-au-delà ; il se retire immédiatement quand le débit baisse. Il exige une
+En infusion, ce supplément reste entier jusqu'à 2 °C au-dessus de la cible,
+puis disparaît. Depuis **0.3.26**, en purge, il décroît linéairement entre la
+consigne et consigne + 2 °C, comme le plancher de 18 %. Il se retire
+immédiatement quand le débit baisse. Il exige une
 mesure de débit fraîche, une impulsion récente (500 ms au plus) et la pompe
 confirmée en marche. Sinon, la loi de base s'applique. Le débitmètre est en amont de
 la pompe : lors d'une recirculation par l'OPV, sa mesure peut dépasser le
@@ -97,9 +105,9 @@ reste prise en compte. La prédiction de reprise utilise 10 s et retient le
 plus grand effet entre la pente montante et la chaleur en transit, car ces
 deux estimations se recouvrent partiellement. En reprise, la chauffe peut être
 coupée dès que la prédiction passe au-dessus de la cible ; pendant
-l'écoulement, l'appoint de base est
-coupé quand la mesure dépasse la cible de 1 °C en infusion ou de 0,5 °C en
-purge. Au-dessus de 105 °C, sur mesure
+l'infusion, le plancher de 45 % disparaît quand la mesure dépasse la cible de
+1 °C. En purge, la compensation progressive s'annule à +2 °C. Au-dessus de
+105 °C, sur mesure
 invalide ou si la chauffe est désactivée, la consigne tombe à zéro. Ces
 coefficients doivent être ajustés avec des mesures sur la machine réelle.
 
@@ -185,13 +193,63 @@ la coupure. La fenêtre de 22 s utilisée pour estimer la chaleur en transit
 décrit donc cette inertie prolongée ; elle ne représente pas le délai avant le
 premier effet de la chauffe.
 
-Avec ce nouveau repère, la précharge de la capture d'infusion devait commencer
+Avec ce nouveau repère, la précharge de la première capture d'infusion devait commencer
 à agir vers 9 à 11 s, et la chauffe appliquée au démarrage de la pompe vers
 13 à 15 s. La pente de refroidissement diminue effectivement dans cette zone,
 mais l'arrivée d'eau froide masque encore la hausse jusqu'au minimum de
-22,61 s. Une précharge de **10 s** doit placer le début de la réponse thermique
-autour du démarrage de la pompe. La récupération d'au moins 30 s reste
-indispensable pour mesurer le rebond après l'écoulement.
+22,61 s. L'essai à **10 s** devait placer le début de la réponse thermique
+autour du démarrage de la pompe.
+
+### Infusion du 28 septembre 2026 à 13 h 01 — précharge de 10 s
+
+La [capture brute](../captures/260928-130104.json) et son
+[graphique](../captures/260928-130104.html) montrent une commande de précharge
+à 100 % pendant presque toute la phase de 10 s. La NTC part de **89,97 °C** et
+atteint **87,83 °C** au minimum : le déficit maximal par rapport au départ
+est de **2,14 °C**, contre 8,22 °C lors de l'essai précédent à 5 s. La
+comparaison entre ces deux cafés ne contrôle pas toutes les conditions
+hydrauliques et thermiques. Surtout, la NTC passe par un pic de **92,45 °C**
+avant son minimum : l'amplitude pic–creux est donc de **4,62 °C**. La faible
+perte par rapport au départ masque cette excursion.
+
+Le bruit de montée en pression caractéristique de la chauffe forte a été
+entendu environ **4 à 5 s** après son démarrage. C'est un indice du délai de
+transfert de chaleur dans la machine, sans isoler celui de la résistance ou
+de la NTC. En décalant uniquement la courbe de température de **5 s vers la
+gauche** pour lire les phases hydrauliques, son sommet se situe près du début
+du remplissage. Ce décalage est une hypothèse de lecture de cette infusion ;
+les **8 s** estimées dans les essais sans écoulement restent la mesure de
+référence pour ces essais.
+
+Avec cette lecture à 5 s, la température gagne plus de **2,5 °C** pendant les
+quatre dernières secondes de précharge, puis perd environ **3 °C** pendant le
+remplissage. Elle se stabilise vers **89,5 °C** en pré-infusion. Au début de
+l'infusion, elle descend ensuite d'environ **1,6 °C** depuis ce palier jusqu'au
+minimum de 87,83 °C, puis remonte à mesure que le débit baisse. Ce profil
+suggère que la précharge de 10 s fournit trop de chaleur avant le remplissage,
+alors que la puissance disponible pendant le remplissage ne compense pas
+immédiatement l'arrivée d'eau froide. La pré-infusion limite la baisse avant
+la montée en pression.
+
+La commande de chauffe tombe brièvement à **0 % pendant la pré-infusion**, au
+moment du pic ; elle est déjà revenue vers 50 % au début de l'infusion et se
+situe ensuite entre **45 et 53 %**. Une précharge moins longue pourrait éviter
+cette coupure et modifier le creux suivant, mais la capture ne montre pas une
+chauffe à 0 % pendant l'infusion. Avec le décalage de 5 s, la température
+repasse au-dessus de la consigne vers la fin de l'infusion. En récupération,
+elle atteint **93,00 °C**, soit environ **3 °C au-dessus de la consigne**, à la
+fin de la capture et monte encore légèrement : son maximum ultérieur n'est
+pas connu.
+
+**Prochain essai : réduire seulement la durée de précharge de 10 à 6 s.** Le
+but est de faire coïncider le début du remplissage avec le début de la hausse
+thermique estimée, puis d'observer si le pic initial, le creux pendant
+l'infusion et le rebond diminuent. Garder les autres réglages identiques
+permettra d'attribuer plus clairement les différences à cette durée. Selon
+la pente observée pendant le remplissage, ajuster ensuite la puissance ou la
+durée de précharge ; le rebond après l'infusion sera à traiter une fois ce
+comportement établi. Une capture assez longue pour mesurer le maximum de
+récupération reste nécessaire.
 
 Depuis 0.3.1, l'écran diffuse un `LOG` CAN à la première erreur ADS1115, puis
 au plus toutes les 5 s si la même erreur persiste. `BOILER_ADC_NOT_FOUND`,

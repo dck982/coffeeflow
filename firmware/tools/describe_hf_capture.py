@@ -552,6 +552,9 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     annotations.append({"xref": "x", "yref": "y4", "x": duration_s, "y": initial_temperature,
                         "text": f"T₀ {initial_temperature:.2f} °C", "showarrow": False,
                         "xanchor": "right", "yanchor": "bottom", "font": {"size": 10, "color": "#666"}})
+    annotations.append({"xref": "x", "yref": "y4", "x": duration_s, "y": min_temperature,
+                        "text": f"Tmin {min_temperature:.2f} °C", "showarrow": False,
+                        "xanchor": "right", "yanchor": "bottom", "font": {"size": 10, "color": "#d62728"}})
     drop_annotation_index = len(annotations)
     annotations.append({"xref": "x", "yref": "y4", "x": times[min_temperature_index],
                         "y": min_temperature + max_temperature_drop * 0.8,

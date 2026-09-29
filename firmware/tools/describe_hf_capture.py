@@ -592,8 +592,10 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
         "yaxis7": {"title": "poids (g)", "domain": [0, 0.23], "gridcolor": "#e8ebed", "zeroline": False},
         "yaxis8": {"title": "volume (ml)", "overlaying": "y7", "side": "right"},
     }
+    trace_indices = {trace["name"]: index for index, trace in enumerate(traces)}
     payload = json.dumps({"traces": traces, "layout": layout,
-                          "controls": {"temperatureTrace": 5, "dropTrace": 7,
+                          "controls": {"temperatureTrace": trace_indices["température chaudière"],
+                                       "dropTrace": trace_indices["baisse thermique maximale"],
                                        "dropShape": temperature_drop_shape_index,
                                        "dropAnnotation": drop_annotation_index,
                                        "dropTime": times[min_temperature_index]}}, ensure_ascii=False,

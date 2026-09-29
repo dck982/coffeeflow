@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <limits>
 
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
@@ -81,6 +82,7 @@ struct State {
   int64_t heating_received_us = 0;
   int64_t heating_deadline_us = 0;
   thermal::Controller thermal_controller;
+  thermal::BrewEndEstimator brew_end_estimator;
   int64_t last_heating_power_send_us = 0;
   int64_t last_thermal_step_us = 0;
   uint16_t last_heating_power_sent = 0;
@@ -349,6 +351,26 @@ void tick_thermal() {
       : snapshot.cycle_state == CycleState::kPurge
       ? thermal::Controller::Mode::kPurge
       : brewing ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
+  // Temps restant avant l'arrêt de la pompe, seulement pendant l'infusion :
+  // au poids cible avec la balance, sinon au temps cible. Inconnu (NaN) en
+  // remplissage, en pré-infusion ou si la balance disparaît.
+  float brew_remaining_s = std::numeric_limits<float>::quiet_NaN();
+  const bool infusing = snapshot.cycle_state == CycleState::kBrew ||
+      snapshot.cycle_state == CycleState::kRampdown;
+  if (!infusing) {
+    g_state.brew_end_estimator.reset();
+  } else {
+    portENTER_CRITICAL(&g_state.lock);
+    const float stop_weight_g = g_state.machine.stop_weight_g();
+    const float stop_time_s = g_state.machine.target_time_s();
+    portEXIT_CRITICAL(&g_state.lock);
+    if (!snapshot.cycle_weight_goal)
+      brew_remaining_s = thermal::BrewEndEstimator::by_time(snapshot.cycle_elapsed_ms, stop_time_s);
+    else if (snapshot.scale_present)
+      brew_remaining_s = g_state.brew_end_estimator.by_weight(
+          static_cast<uint64_t>(now / 1000), snapshot.weight_g - snapshot.cycle_start_weight_g,
+          stop_weight_g);
+  }
   const bool can_heat = config.heating_enabled && !g_flash_active &&
       !snapshot.heating_requested && !snapshot.lockout && snapshot.sensors_alive &&
       snapshot.heating_power_capable && snapshot.heating_freshness == Freshness::kFresh;
@@ -360,7 +382,8 @@ void tick_thermal() {
       can_heat, mode, snapshot.flow_ml_s,
       snapshot.flow_valid && snapshot.flow_freshness == Freshness::kFresh &&
           snapshot.flow_last_edge_age_ms <= 500 &&
-          snapshot.actuators_freshness == Freshness::kFresh && snapshot.pump_pct > 0);
+          snapshot.actuators_freshness == Freshness::kFresh && snapshot.pump_pct > 0,
+      brew_remaining_s);
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
   g_state.snapshot.brew_temperature_ready = output.ready;

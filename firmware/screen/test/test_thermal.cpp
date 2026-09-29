@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include "core/calibration_machine.h"
 #include "core/thermal_control.h"
 
@@ -14,7 +15,7 @@ int main() {
   auto out = controller.step(1000, 20, 90, true, true, Mode::kIdle);
   assert(out.power_permille == 1000 && !out.ready);
   out = controller.step(1250, 20, 90, true, true, Mode::kBrew);
-  assert(out.power_permille == 600);  // l'appoint infusion reste borné
+  assert(out.power_permille == 450);  // sans débit mesuré : repli de l'infusion
   out = controller.step(1500, 20, 90, true, false, Mode::kIdle);
   assert(out.power_permille == 0 && !out.ready);
   out = controller.step(1750, 86, 90, true, true, Mode::kIdle);
@@ -66,30 +67,70 @@ int main() {
   assert(out.power_permille < initial_power);
   assert(delayed.step(21250, 91.0f, 90, true, true, Mode::kIdle).power_permille == 0);
 
-  // Dès le remplissage, l'infusion anticipe la chute avant que la NTC baisse.
+  // Infusion : la commande compense l'eau admise (3,5 % + 24,56 % par ml/s,
+  // bornée à 90 %), sans filtre et sans dépendre de la NTC.
   core::thermal::Controller infusion;
   infusion.step(1000, 90.0f, 90, true, true, Mode::kIdle);
   assert(infusion.step(1250, 90.0f, 90, true, true, Mode::kBrew).power_permille == 450);
   core::thermal::Controller infusion_flow;
-  assert(infusion_flow.step(1000, 90, 90, true, true, Mode::kBrew, 4, true).power_permille == 550);
-  assert(infusion_flow.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 450);
-  core::thermal::Controller infusion_warm, infusion_cold;
-  assert(infusion_warm.step(1000, 90.62f, 90, true, true, Mode::kBrew, 4, true).power_permille == 550);
-  assert(infusion_cold.step(1000, 78, 90, true, true, Mode::kBrew, 4, true).power_permille == 700);
+  assert(infusion_flow.step(1000, 90, 90, true, true, Mode::kBrew, 3.6f, true).power_permille == 900);
+  assert(infusion_flow.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+  assert(infusion_flow.step(1500, 90, 90, true, true, Mode::kBrew, 1.4f, true).power_permille == 379);
+  // Un pic de précharge ne retire pas l'appoint : seule la sécurité à
+  // consigne + 4 °C coupe (trou de chauffe du 28 septembre à 13 h 01).
+  core::thermal::Controller infusion_warm, infusion_hot, infusion_cold;
+  assert(infusion_warm.step(1000, 93.9f, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+  assert(infusion_hot.step(1000, 94.1f, 90, true, true, Mode::kBrew, 2, true).power_permille == 0);
+  assert(infusion_cold.step(1000, 78, 90, true, true, Mode::kBrew, 4, true).power_permille == 900);
   assert(infusion_cold.step(1250, 78, 90, true, true, Mode::kIdle).power_permille <= 350);
-  core::thermal::Controller infusion_hot;
-  assert(infusion_hot.step(1000, 91.1f, 90, true, true, Mode::kBrew, 4, true).power_permille == 100);
+
+  // Fin prévue à 11 s ou moins : la chauffe est coupée jusqu'à l'arrêt de la
+  // pompe, même si l'estimation remonte ou devient inconnue.
+  core::thermal::Controller infusion_end;
+  infusion_end.step(1000, 90, 90, true, true, Mode::kIdle);
+  assert(infusion_end.step(1250, 90, 90, true, true, Mode::kBrew, 2, true, 20.0f).power_permille == 526);
+  assert(infusion_end.step(1500, 90, 90, true, true, Mode::kBrew, 2, true, 11.0f).power_permille == 0);
+  assert(infusion_end.step(1750, 90, 90, true, true, Mode::kBrew, 2, true, 14.0f).power_permille == 0);
+  assert(infusion_end.step(2000, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 0);
+  infusion_end.step(2250, 90, 90, true, true, Mode::kIdle);
+  assert(infusion_end.step(2500, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+
+  // La loi d'infusion n'hérite pas de l'état du régulateur de repos : une
+  // intégrale accumulée au repos ne change pas la commande d'infusion.
+  core::thermal::Controller idle_then_brew;
+  for (uint64_t now = 1000; now <= 20000; now += 250)
+    idle_then_brew.step(now, 87.0f, 90, true, true, Mode::kIdle);
+  assert(idle_then_brew.step(20250, 87.0f, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+
+  // Temps restant avant l'arrêt : au temps, direct ; au poids, sur le débit
+  // en tasse des 2 dernières secondes, une fois 3 g atteints.
+  using core::thermal::BrewEndEstimator;
+  assert(std::fabs(BrewEndEstimator::by_time(17000, 28.0f) - 11.0f) < 1e-4f);
+  BrewEndEstimator end;
+  float remaining = 0.0f;
+  for (uint64_t now = 0; now <= 1750; now += 250) {
+    remaining = end.by_weight(now, 1.5f * static_cast<float>(now) / 1000.0f, 21.0f);
+    assert(std::isnan(remaining));
+  }
+  remaining = end.by_weight(2000, 3.0f, 21.0f);
+  assert(std::fabs(remaining - 12.0f) < 1e-3f);
+  remaining = end.by_weight(2250, 3.375f, 21.0f);
+  assert(std::fabs(remaining - 11.75f) < 1e-3f);
+  BrewEndEstimator stalled;
+  for (uint64_t now = 0; now <= 2000; now += 250)
+    remaining = stalled.by_weight(now, 5.0f + 0.2f * static_cast<float>(now) / 1000.0f, 21.0f);
+  assert(std::isnan(remaining));
 
   // La précharge applique immédiatement sa puissance fixe sans débit. Elle
   // est coupée si la NTC est déjà à plus de 0,5 °C au-dessus de la cible.
   core::thermal::Controller preheat, preheat_hot;
-  assert(preheat.step(1000, 90, 90, true, true, Mode::kThermalPreheat).power_permille == 1000);
+  assert(preheat.step(1000, 90, 90, true, true, Mode::kThermalPreheat).power_permille == 900);
   assert(preheat_hot.step(1000, 90.6f, 90, true, true, Mode::kThermalPreheat).power_permille == 0);
   core::thermal::Controller preheat_after_flow;
   preheat_after_flow.step(1000, 90, 90, true, true, Mode::kBrew);
   preheat_after_flow.step(1250, 90, 90, true, true, Mode::kIdle);
   assert(preheat_after_flow.step(1500, 90, 90, true, true,
-                                 Mode::kThermalPreheat).power_permille == 1000);
+                                 Mode::kThermalPreheat).power_permille == 900);
 
   // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
   // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.

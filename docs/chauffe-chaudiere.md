@@ -1,6 +1,6 @@
 # Régulation de la chaudière
 
-Ce document décrit d'abord **l'état actuel** (version écran **0.3.27**) :
+Ce document décrit d'abord **l'état actuel** (version écran **0.3.28**) :
 machine, mesure, configuration et loi de chauffe. Viennent ensuite les
 **points à considérer**, le **prochain essai**, puis le **journal des
 essais**, qui conserve les mesures et le raisonnement ayant conduit aux
@@ -129,10 +129,22 @@ bande **consigne ±1 °C** pendant **3 s** (`kBrewTemperatureToleranceC`).
 
 ## Loi de régulation actuelle
 
-Le code est dans `firmware/screen/main/core/thermal_control.h`. Les
-coefficients sont des réglages initiaux, à ajuster sur la machine.
+Deux lois séparées, depuis **0.3.28** :
 
-### Base commune
+- le **régulateur de repos** (`firmware/screen/main/core/thermal_control.h`,
+  classe `Controller`) : repos, purge et récupération ;
+- la **loi d'infusion** (`firmware/screen/main/core/brew_heating.h`, classes
+  `BrewHeating` et `BrewEndEstimator`) : précharge, remplissage,
+  pré-infusion et infusion.
+
+Pendant l'infusion, `Controller` délègue la commande à `BrewHeating`. Il
+n'applique alors ni sa prédiction, ni son intégrale, ni son filtre de sortie,
+et remet son intégrale à zéro. Il enregistre seulement la commande, qui sert
+à estimer la chaleur en transit pendant la récupération. Régler la
+stabilisation au repos ne change donc pas l'infusion. Les coefficients du
+régulateur de repos sont des réglages initiaux, à ajuster sur la machine.
+
+### Base commune du régulateur de repos
 
 La commande de base vaut
 `3,5 % + 8 × erreur prédite + intégrale`, avec :
@@ -147,8 +159,7 @@ La commande de base vaut
   l'erreur prédite, suspendue pendant l'écoulement, la récupération et hors
   de ±8 °C, remise à zéro au-delà de +0,5 °C ;
 - **filtre de sortie** de 5 s sur les baisses ; une commande nulle coupe
-  immédiatement. Pendant la précharge et l'écoulement, les hausses sont
-  appliquées sans délai.
+  immédiatement. Pendant une purge, les hausses sont appliquées sans délai.
 
 Au-dessus de **105 °C**, sur mesure invalide ou si la chauffe est
 désactivée, la commande tombe à zéro et le contrôleur est réinitialisé. Un
@@ -159,23 +170,30 @@ changement de consigne le réinitialise aussi.
 | Phase | Commande |
 | --- | --- |
 | Repos | base commune, jusqu'à 100 % |
-| Précharge (`thermal_preheat`) | **100 %** pompe arrêtée pendant `brew_preheat_time_s`, sauf si la NTC dépasse la consigne de plus de 0,5 °C ; hors chrono hydraulique |
-| Remplissage, pré-infusion, infusion | base commune plafonnée à **60 %**, avec un **plancher de 45 %** tant que la NTC est à moins de +1 °C ; plus l'appoint de débit, soit **70 %** au maximum |
+| Précharge (`thermal_preheat`) | loi d'infusion : **90 %** pompe arrêtée pendant `brew_preheat_time_s`, sauf si la NTC dépasse la consigne de 0,5 °C ou plus ; hors chrono hydraulique |
+| Remplissage, pré-infusion, infusion | loi d'infusion : `min(90 %, 3,5 % + 24,56 % × débit en ml/s)`, voir [chauffe-infusion.md](chauffe-infusion.md) |
 | Purge près de la consigne | base commune plafonnée à **35 %** ; appoint de **18 %** jusqu'à la consigne, réduit linéairement à 0 à consigne + 2 °C (13,5 % à +0,5 °C, 9 % à +1 °C) ; plus l'appoint de débit, soit **45 %** au maximum |
 | Purge lancée à ≥ 5 °C de la consigne | **0 %** jusqu'à la fin de la purge, même si la NTC traverse la consigne (purge de réglage thermique) |
 | Récupération (30 s après l'écoulement) | base commune plafonnée à **35 %**, pente négative ignorée, intégrale suspendue ; prédiction sur 10 s, retenant le **plus grand** effet entre pente montante et chaleur en transit |
 
-**Appoint de débit** (depuis 0.3.14) : 0 point à 2 ml/s ou moins, 5 points à
-3 ml/s, 10 points à 4 ml/s ou plus, avec interpolation linéaire. Il exige
-une mesure de débit fraîche, une impulsion de 500 ms au plus et la pompe
-confirmée en marche. En infusion, il reste entier jusqu'à consigne + 2 °C,
-puis disparaît ; en purge, il décroît comme l'appoint de 18 %. Le débitmètre
-est en amont de la pompe : lors d'une recirculation par l'OPV, il peut
-surestimer le débit sorti au groupe.
+**Appoint de débit de la purge** (depuis 0.3.14, purge seule depuis
+0.3.28) : 0 point à 2 ml/s ou moins, 5 points à 3 ml/s, 10 points à 4 ml/s ou
+plus, avec interpolation linéaire. Il décroît comme l'appoint de 18 %. Il
+exige une mesure de débit fraîche, une impulsion de 500 ms au plus et la
+pompe confirmée en marche. Le débitmètre est en amont de la pompe : lors
+d'une recirculation par l'OPV, il peut surestimer le débit sorti au groupe.
 
 Pendant l'écoulement, la pente négative de la NTC n'est pas extrapolée. Au
 début et à la fin de l'écoulement, la pente et l'intégrale sont remises à
 zéro.
+
+### Loi d'infusion
+
+Décrite dans [chauffe-infusion.md](chauffe-infusion.md) : appoint
+proportionnel au débit, précharge à 90 %, coupure de fin, simulation et
+réglages.
+
+### Pompe à l'entrée de l'infusion
 
 La transition de la pré-infusion vers l'infusion (depuis 0.3.18) augmente la
 pompe par pas de 5 points en environ 2,5 s. La boucle de pression attend la
@@ -191,9 +209,24 @@ plafonnait déjà vers 20 s après l'arrêt (+0,09 °C sur les 2 dernières
 secondes) : 30 s devraient couvrir le maximum du rebond. Pour une purge,
 lancer `record_heating.py --mode monitor` juste après si ce maximum compte.
 
+**30 s sont conservées ; 25 s suffiraient de justesse.** À 7 h 40, la NTC
+est à 0,06 °C de son maximum dès 20 s après l'arrêt de la pompe. Le modèle
+de [simulation](#simulation-de-la-piste-1-29-septembre) place le maximum à
+24,4–24,6 s après l'arrêt pour les deux infusions, et la montée sans
+écoulement du 28 septembre à 22,5 s après la coupure. 25 s ne laisseraient
+donc que 0 à 2,5 s de marge, et une loi qui chauffe jusqu'à l'arrêt de la
+pompe repousse ce maximum. Les 30 s couvrent aussi toute la phase de
+récupération (`kRecoveryDurationMs`). Elles ne coûtent rien en mémoire :
+environ 460 échantillons sur 1 152.
+
 ## Points à considérer
 
 ### Incohérences du code
+
+Les points 1, 5, 6 et 8 décrivent la loi d'infusion jusqu'à 0.3.27. Ils sont
+résolus en 0.3.28 par la [loi d'infusion](chauffe-infusion.md) séparée ; le
+point 2 ne concerne plus que la récupération. Ils sont conservés pour
+l'historique.
 
 1. **Le plancher d'infusion court-circuite l'anticipation.** Pendant
    l'écoulement, `power = max(power, 45 %)` s'applique tant que la *mesure*
@@ -251,24 +284,29 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
    Le débitmètre étant en amont, une recirculation par l'OPV surestimerait
    l'appoint. La température d'eau du réservoir n'est pas mesurée : une
    constante suffit probablement, le capteur XDB401 mesurant son propre
-   boîtier.
+   boîtier. **Simulé le 29 septembre** : l'appoint seul équilibre l'énergie,
+   mais pas le creux de la NTC, car l'eau froide atteint la sonde avant la
+   chaleur. Voir la [simulation](#simulation-de-la-piste-1-29-septembre).
 2. **Dimensionner la précharge comme un budget d'énergie.** Le remplissage de
    13 h 01 admet environ 30 ml avant l'infusion, soit ≈ 8,8 kJ à apporter,
    l'équivalent de **7,4 s à 100 %**. La précharge pourrait alors se
    calculer à partir du volume attendu au remplissage, plutôt que d'être
-   une durée fixe.
+   une durée fixe. **Partiellement contredit à 7 h 40** : le budget a été
+   respecté à 0,6 kJ près et la NTC a quand même perdu 4,6 °C. La précharge
+   sert surtout à **devancer** l'eau froide, pas à équilibrer le bilan.
 3. **Anticiper la fin de l'infusion.** Le rebond vient de la chaleur fournie
    pendant les ~20 dernières secondes d'écoulement. Quand la fin est
    prévisible (poids ou volume cible), réduire la commande environ 8 s avant
-   l'arrêt prévu.
+   l'arrêt prévu. La simulation confirme : couper 8 à 11 s avant l'arrêt
+   retire 1,7 à 3,7 °C au rebond sans toucher au minimum.
 4. **Recaler le modèle de chaleur en transit.** Prendre un gain voisin de
    0,009 °C par %·s, compter la précharge dans l'estimation pendant
    l'écoulement, et vérifier la fenêtre de 22 s sur les deux montées du
    28 septembre.
-5. **Simuler avant de flasher.** Ajuster un modèle simple (retard de 8 s,
-   premier ordre, mélange de l'eau admise) sur les montées sans écoulement et
-   les infusions, puis rejouer les lois candidates hors ligne, comme
-   `replay_brew_pi.py` le fait pour la pression.
+5. **Simuler avant de flasher.** Fait avec
+   `firmware/tools/simulate_boiler.py` : voir la
+   [simulation](#simulation-de-la-piste-1-29-septembre). Le modèle reste à
+   recaler à chaque capture qui enregistre l'état du SSR.
 6. **Comprendre pourquoi la NTC monte plus vite que la physique.** Mesurer
    la tension secteur et la résistance à froid de l'élément (≈ 44 Ω attendus
    pour 1 200 W à 230 V). Autres hypothèses : une stratification autour de
@@ -280,30 +318,37 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
 7. **Remplacer la sonde par une PT1000.** Voir la
    [dernière section](#remplacement-prévu-par-une-pt1000).
 
-## Prochain essai : précharge de 6 s
+## Prochain essai : loi d'infusion 0.3.28, précharge de 10 s
 
-Réduire **seulement** `heating.brew_preheat_time_s` de 10 à **6 s** et garder
-la même consigne, la même mouture et la même recette. Le but est de faire
-coïncider le début du remplissage avec le début de la hausse thermique, sans
-pic qui fasse disparaître le plancher de 45 %.
+L'essai de précharge de 6 s est fait ([7 h 40](#infusion-de-7-h-40-29-septembre--précharge-de-6-s)).
+Flasher **0.3.28** ([loi d'infusion](chauffe-infusion.md)) et régler
+`heating.brew_preheat_time_s` à **10 s**. Garder la consigne et la recette ;
+noter la mouture, car le débit d'infusion change à la fois le besoin
+(38 % à 1,4 ml/s, 53 % à 2 ml/s) et le moment de la coupure de fin.
 
-Au premier ordre, 4 s de précharge en moins retirent 4,8 kJ, soit environ
-2,5 à 3,5 °C sur l'état final selon la capacité thermique retenue. La loi
-peut toutefois compenser une partie de cet écart pendant le remplissage.
+À vérifier sur la capture, avec les valeurs attendues d'après la simulation
+sur l'hydraulique de 13 h 01 et de 7 h 40 :
 
-À comparer avec la capture de 13 h 01 :
+| Point | Attendu |
+| --- | --- |
+| Précharge | 90 % pendant 10 s, pompe arrêtée |
+| Pic avant l'infusion | ≈ 91,3–91,4 °C simulés ; le modèle sous-estime ce pic d'environ 1 °C, donc ≈ 92,5 °C plausibles |
+| Commande pendant le fort débit | ≈ 90 %, **sans trou** même au pic (seule la sécurité à consigne + 4 °C coupe) |
+| Premier instant du remplissage | débit mesuré ≈ 0 pendant ≈ 1 s : commande vers 5 % (45 % tant qu'aucune impulsion récente). Normal, et inclus dans la simulation |
+| Commande en infusion | 3,5 % + 24,56 % × débit : ≈ 38 % à 1,4 ml/s, ≈ 53 % à 2 ml/s |
+| Passages à 45 % pendant l'écoulement | aucun attendu ; sinon, débit non mesuré (mesure périmée, impulsion > 500 ms ou pompe non confirmée) |
+| Minimum de la NTC | **89,3–89,6 °C** (±1 °C), contre 87,83 °C à 13 h 01 et 86,07 °C à 7 h 40 |
+| Coupure de fin | commande à 0 % environ **11 s avant l'arrêt de la pompe**. Au poids, pas avant 3 g en tasse ; relever l'écart à arrêt − 11 s. Le débit en tasse et le poids d'arrêt ne sont pas dans la capture : les recalculer depuis `weight_g` |
+| 30 s après l'arrêt | **91,5–93,4 °C** |
 
-| Indicateur | 13 h 01 (10 s) |
-| --- | ---: |
-| Pic avant infusion | 92,45 °C |
-| Chauffe réduite pendant remplissage et pré-infusion | ≤ 8 % de 13,5 à 18 s, dont 0 % de 14,5 à 17 s |
-| Minimum pendant l'infusion | 87,83 °C |
-| Commande pendant l'infusion | 45 % presque constant |
-| NTC 20 s après l'arrêt de la pompe | 93,00 °C, presque stabilisée |
-| Énergie injectée sur la capture | 26,1 kJ |
+Noter aussi la mouture, le poids et la durée de l'infusion : un débit
+différent de 1,4–2 ml/s déplace à la fois le besoin et la coupure. Pour
+l'analyse, rejouer la capture avec
+`uv run firmware/tools/simulate_boiler.py --capture captures/<capture>.json`
+et comparer la NTC mesurée au modèle.
 
-Flasher d'abord la version **0.3.27**, dont la capture de 30 s après
-l'infusion doit contenir le maximum du rebond.
+Les variantes simulées et leurs résultats sont dans
+[chauffe-infusion.md](chauffe-infusion.md#simulation).
 
 ## Journal des essais
 
@@ -577,6 +622,11 @@ remplissage vers 13 à 15 s ; l'arrivée d'eau froide masque encore la hausse
 jusqu'au minimum. Décision : essayer **10 s**, en laissant la loi pendant
 l'écoulement inchangée.
 
+Cette capture précède le passage de la fenêtre du SSR de 5 s à 1 s (09 h 13) :
+l'état du SSR n'y est pas enregistré, et le bilan énergétique ne ferme pas
+(environ 3,6 kJ de moins que les captures suivantes). Elle est exclue de la
+[simulation](#simulation-de-la-piste-1-29-septembre).
+
 #### Infusion de 13 h 01 (28 septembre) — précharge de 10 s
 
 [Capture brute](../captures/260928-130104.json) et
@@ -610,6 +660,102 @@ Bilan énergétique : **26,1 kJ** injectés sur la capture (11,8 kJ en
 précharge, 2,4 kJ en remplissage, 0,8 kJ en pré-infusion, 11,0 kJ en
 infusion). La NTC finit 3 °C au-dessus de son départ, soit environ 4 à 6 kJ
 de trop dans la chaudière, l'équivalent de 4 à 5 s à 100 %.
+
+#### Infusion de 7 h 40 (29 septembre) — précharge de 6 s
+
+[Capture brute](../captures/260929-074002.json) et
+[graphique](../captures/260929-074002.html), version 0.3.27. Seule la durée de
+précharge change par rapport à 13 h 01, mais le débit d'infusion aussi : pour
+le même volume (68 ml) et le même poids (22,6 g), l'infusion dure 14,4 s au
+lieu de 19,7 s, à **2,0 ml/s** en régime au lieu de 1,4 ml/s. La mouture ou
+le tassage ont varié.
+
+| Indicateur | 13 h 01 (10 s) | 7 h 40 (6 s) |
+| --- | ---: | ---: |
+| Pic avant infusion | 92,45 °C | **90,69 °C** à 12,1 s |
+| Commande de 13,5 à 18 s | ≤ 8 %, dont 0 % | 53 à 64 % |
+| Minimum | 87,83 °C | **86,07 °C** à 23,6 s |
+| Amplitude pic–creux | 4,62 °C | **4,62 °C** |
+| 20 s après l'arrêt de la pompe | 93,00 °C | 90,82 °C |
+| 30 s après l'arrêt | — | 90,88 °C (+0,95 °C sur le départ) |
+| Énergie SSR sur la capture | 26,1 kJ | 21,3 kJ |
+
+Le but de l'essai est atteint : la NTC ne dépasse jamais consigne + 1 °C et
+le plancher de 45 % n'est jamais retiré. L'amplitude pic–creux ne change
+pourtant pas.
+
+Commande et besoin par phase (besoin = maintien + débit amont × 4,18 ×
+70,5 K) :
+
+| Phase | Débit | Commande moyenne | Besoin moyen | Déficit |
+| --- | ---: | ---: | ---: | ---: |
+| Remplissage, 6,1–11,4 s | 3,6 ml/s | 61 % | 92 % | 1,9 kJ |
+| Pré-infusion, 11,4–15,5 s | 3,5 ml/s | 57 % | 88 % | 1,5 kJ |
+| Montée en pression, 15,5–20,5 s | 3,3 ml/s | 53 % | 80 % | 1,6 kJ |
+| Infusion en régime, 20,5–29,9 s | 2,0 ml/s | 45,5 % | 52,5 % | 0,8 kJ |
+| **Total** | | | | **5,9 kJ** |
+
+À 13 h 01, le déficit était de 6,7 kJ jusqu'à la montée en pression, suivi
+d'un **excédent** de 1,2 kJ en infusion (45 % contre 38 % nécessaires à
+1,4 ml/s). À 7 h 40, l'appoint de débit est nul à 2 ml/s et le plancher de
+45 % se retrouve **sous** le besoin (point à considérer 8).
+
+Lecture :
+
+- **La température finale suit le bilan « précharge − déficit ».** 6,5 kJ de
+  précharge contre 5,9 kJ de déficit laissent +0,6 kJ, soit +0,95 °C mesurés.
+  À 13 h 01, environ +4 kJ donnaient +3 °C.
+- **Le creux ne vient pas d'un manque d'énergie totale** : le bilan cumulé
+  reste positif pendant toute la capture. Il vient d'un décalage : la NTC
+  commence à baisser **5 s** après le début du débit (7,2 → 12,2 s ; environ
+  4 s à 13 h 01), mais ne réagit à la chauffe qu'après **8,2 s** (SSR à
+  0,7 s, hausse visible à 8,9 s). La chaleur fournie pendant l'écoulement
+  arrive trop tard pour compenser l'eau froide.
+
+#### Simulation de la piste 1 (29 septembre)
+
+`firmware/tools/simulate_boiler.py` ajuste un modèle linéaire de la NTC sur
+les infusions de 13 h 01 et de 7 h 40 et sur la
+[montée depuis 80 °C](../captures/monitor-heating-20260928-095631-275212.json),
+puis rejoue des lois candidates sur l'hydraulique des deux infusions
+(débit, durées de phase, récupération à 0 %) :
+
+```sh
+uv run firmware/tools/simulate_boiler.py          # paramètres enregistrés
+uv run firmware/tools/simulate_boiler.py --fit    # réajuster
+```
+
+Le modèle superpose deux chemins, chacun avec un retard pur suivi de trois
+premiers ordres, plus une part locale qui se mélange en 4,7 s :
+
+| Chemin | Retard pur | Constante × 3 | Délai moyen |
+| --- | ---: | ---: | ---: |
+| Chauffe → NTC | 3,95 s | 4,56 s | ≈ 17,6 s |
+| Eau admise → NTC | 2,0 s | 1,47 s | ≈ 6,4 s |
+
+La capacité effective vaut **1,47 kJ/K**, soit 0,0082 °C par %·s ; les
+pertes ajustées sont presque nulles sur une minute. L'écart RMS est de
+0,46 à 0,48 °C sur chacun des trois enregistrements. En validation croisée
+(une infusion retirée de l'ajustement), le minimum est prévu à **±1 °C**
+près (88,87 contre 87,84 °C ; 85,75 contre 86,08 °C). Le modèle sous-estime
+le pic de 13 h 01 (91,5 contre 92,45 °C).
+
+Résultats, sur l'hydraulique de 13 h 01 et de 7 h 40 : voir le tableau du
+[prochain essai](#prochain-essai--appoint-proportionnel-au-débit). En
+résumé :
+
+- l'appoint proportionnel au débit, **sans précharge**, laisse la NTC
+  descendre à **82,4–82,5 °C** : l'énergie est juste (89,5–89,6 °C 30 s
+  après l'arrêt), mais le froid arrive environ 11 s avant la chaleur ;
+- chaque seconde de précharge à 90 % relève le minimum d'environ **0,7 °C**
+  et l'état final d'environ **0,7 °C** ;
+- couper la chauffe *c* secondes avant l'arrêt de la pompe baisse l'état
+  final sans modifier le minimum, tant que la coupure reste dans
+  l'infusion en régime ;
+- la commande « besoin du débit **11 s à l'avance** », irréalisable
+  telle quelle, borne ce qu'on peut attendre : minimum 88,6–88,7 °C, état
+  final 89,4–89,5 °C, 20 kJ. Une précharge de 8 à 10 s suivie d'une coupure
+  11 s avant l'arrêt en est l'approximation réalisable.
 
 ## Procédures de mesure
 

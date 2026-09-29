@@ -5,11 +5,16 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
+#include "core/brew_heating.h"
 #include "core/config.h"
 
 namespace core::thermal {
 
+// Régulateur de repos, de purge et de récupération. Pendant la précharge et
+// l'écoulement d'une infusion, il délègue la commande à `BrewHeating`
+// (brew_heating.h) et ne fait que tenir à jour son propre état.
 // Réglage initial. Les gains et l'avance doivent être recalibrés sur
 // une capture de chauffe/refroidissement de la machine réelle.
 class Controller {
@@ -27,11 +32,7 @@ class Controller {
   static constexpr float kSlopeFilterTimeConstantS = 8.0f;
   static constexpr float kHoldPowerPct = 3.5f;
   static constexpr float kFlowFeedforwardPct = 18.0f;
-  static constexpr float kBrewFeedforwardPct = 45.0f;
-  static constexpr float kBrewPreheatPowerPct = 100.0f;
   static constexpr float kFlowPowerLimitPct = 35.0f;
-  static constexpr float kBrewPowerLimitPct = 60.0f;
-  static constexpr float kBrewFeedforwardAboveTargetBandC = 1.0f;
   static constexpr float kFlowBonusStartMlS = 2.0f;
   static constexpr float kFlowBonusFullMlS = 4.0f;
   static constexpr float kFlowBonusMaxPct = 10.0f;
@@ -46,7 +47,8 @@ class Controller {
 
   Output step(uint64_t now_ms, float temperature_c, float target_c,
               bool valid, bool enabled, Mode mode,
-              float flow_ml_s = 0.0f, bool flow_valid = false) {
+              float flow_ml_s = 0.0f, bool flow_valid = false,
+              float brew_remaining_s = std::numeric_limits<float>::quiet_NaN()) {
     if (!valid || !enabled || !std::isfinite(temperature_c) ||
         !std::isfinite(target_c) || temperature_c > kMaximumBoilerUserTemperatureC) {
       reset();
@@ -71,6 +73,7 @@ class Controller {
       integral_pct_ = 0;
       last_temperature_c_ = temperature_c;
       last_ms_ = now_ms;
+      brew_.reset();
       if (!flowing) recovery_until_ms_ = now_ms + kRecoveryDurationMs;
       else uncompensated_purge_ = mode == Mode::kPurge &&
           std::fabs(temperature_c - target_c) >= kPurgeCompensationBandC;
@@ -94,9 +97,9 @@ class Controller {
     const float purge_taper = mode == Mode::kPurge
         ? std::clamp(1.0f + error / kPurgeFeedforwardAboveTargetBandC, 0.0f, 1.0f)
         : 1.0f;
-    // L'appoint suit le débit pendant le remplissage et disparaît dès que
-    // celui-ci baisse. Ne pas utiliser une mesure absente ou périmée.
-    const float flow_bonus_pct = flowing && flow_valid && std::isfinite(flow_ml_s) &&
+    // En purge, l'appoint suit le débit et disparaît dès que celui-ci baisse.
+    // Ne pas utiliser une mesure absente ou périmée.
+    const float flow_bonus_pct = mode == Mode::kPurge && flow_valid && std::isfinite(flow_ml_s) &&
                                  error > -kFlowBonusAboveTargetBandC
         ? std::clamp((flow_ml_s - kFlowBonusStartMlS) /
                          (kFlowBonusFullMlS - kFlowBonusStartMlS), 0.0f, 1.0f) *
@@ -108,6 +111,22 @@ class Controller {
       ready_since_ms_ = 0;
     }
     const bool ready = ready_since_ms_ != 0 && now_ms - ready_since_ms_ >= 3000;
+
+    if (preheating || mode == Mode::kBrew) {
+      // Loi d'infusion séparée : ni la prédiction, ni l'intégrale, ni le
+      // filtre de sortie du régulateur de repos n'interviennent. La commande
+      // est enregistrée pour l'estimation de chaleur en transit de la reprise.
+      const float power = preheating
+          ? BrewHeating::preheat_pct(temperature_c, target_c)
+          : brew_.flow_pct(temperature_c, target_c, flow_ml_s, flow_valid, brew_remaining_s);
+      filtered_power_pct_ = power;
+      has_filtered_power_ = true;
+      integral_pct_ = 0.0f;
+      const uint16_t power_permille = static_cast<uint16_t>(
+          std::lround(std::clamp(power, 0.0f, 100.0f) * 10.0f));
+      record_command(now_ms, power_permille / 10.0f);
+      return {power_permille, ready};
+    }
 
     // Latch the decision at purge start: a purge far from setpoint may be
     // intended to cool the boiler, even if the NTC crosses the setpoint.
@@ -139,16 +158,8 @@ class Controller {
     }
     if (error < -0.5f) integral_pct_ = 0;
     float power = kHoldPowerPct + 8.0f * predicted_error + integral_pct_;
-    if (preheating) {
-      // Une seule variable expérimentale est exposée : la durée. La puissance
-      // reste fixe, mais la précharge est supprimée si la NTC dépasse déjà la
-      // cible de 0,5 °C.
-      power = error > -0.5f ? kBrewPreheatPowerPct : 0.0f;
-    } else if (flowing) {
-      if (mode == Mode::kBrew && error > -kBrewFeedforwardAboveTargetBandC)
-        power = std::max(power, kBrewFeedforwardPct);
-      power = std::min(power, mode == Mode::kBrew ? kBrewPowerLimitPct
-                                                  : kFlowPowerLimitPct);
+    if (flowing) {
+      power = std::min(power, kFlowPowerLimitPct);
     } else if (recovering) {
       power = std::min(power, kRecoveryPowerLimitPct);
     }
@@ -163,7 +174,7 @@ class Controller {
       if (!has_filtered_power_) {
         filtered_power_pct_ = limited_power;
         has_filtered_power_ = true;
-      } else if ((flowing || preheating) && limited_power > filtered_power_pct_) {
+      } else if (flowing && limited_power > filtered_power_pct_) {
         // Apply the modest flow feedforward without output-filter delay.
         filtered_power_pct_ = limited_power;
       } else if (dt_s > 0.0f) {
@@ -171,8 +182,7 @@ class Controller {
         filtered_power_pct_ += alpha * (limited_power - filtered_power_pct_);
       }
     }
-    if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_,
-        mode == Mode::kBrew ? kBrewPowerLimitPct : kFlowPowerLimitPct);
+    if (flowing) filtered_power_pct_ = std::min(filtered_power_pct_, kFlowPowerLimitPct);
     if (recovering) filtered_power_pct_ = std::min(filtered_power_pct_, kRecoveryPowerLimitPct);
     // Les appoints de purge et de débit suivent directement leurs conditions
     // courantes : le filtre de 5 s ne doit pas prolonger leur réduction.
@@ -195,6 +205,7 @@ class Controller {
     has_filtered_power_ = false;
     was_flowing_ = false;
     uncompensated_purge_ = false;
+    brew_.reset();
     recovery_until_ms_ = 0;
     clear_command_history();
   }
@@ -262,6 +273,7 @@ class Controller {
   bool has_filtered_power_ = false;
   bool was_flowing_ = false;
   bool uncompensated_purge_ = false;
+  BrewHeating brew_;
   uint64_t recovery_until_ms_ = 0;
   std::array<CommandSample, kCommandHistoryCapacity> command_history_{};
   size_t command_history_count_ = 0;

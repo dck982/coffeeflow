@@ -70,6 +70,13 @@ class Machine {
   bool active() const { return state_ == State::kThermalPreheat || state_ == State::kFilling || state_ == State::kPreinfusion || state_ == State::kBrew || state_ == State::kRampdown || state_ == State::kPurge; }
   bool weight_goal() const { return weight_goal_; }
   float starting_weight_g() const { return starting_weight_g_; }
+  // Poids en tasse, compté depuis le début du cycle, qui arrête la pompe.
+  float stop_weight_g() const {
+    return config_.rampdown_mode == RampdownMode::kWeight
+        ? config_.target_weight_g
+        : config_.target_weight_g - config_.rampdown_lead_weight_g;
+  }
+  uint16_t target_time_s() const { return config_.target_time_s; }
   uint32_t elapsed_ms(uint64_t now_ms) const;
   uint32_t phase_elapsed_ms(uint64_t now_ms) const {
     return phase_started_ms_ == 0 || now_ms < phase_started_ms_ ? 0 : static_cast<uint32_t>(now_ms - phase_started_ms_);

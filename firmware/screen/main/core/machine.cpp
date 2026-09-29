@@ -139,7 +139,7 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
       state_ = State::kRampdown;
       phase_started_ms_ = now_ms;
     }
-    if (delta >= (config_.rampdown_mode == RampdownMode::kWeight ? config_.target_weight_g : ramp_start)) {
+    if (delta >= stop_weight_g()) {
       finish(StopReason::kTargetWeight, now_ms);
       return {0, 0};
     }

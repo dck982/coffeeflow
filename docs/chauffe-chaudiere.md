@@ -1,6 +1,6 @@
 # Régulation de la chaudière
 
-Ce document décrit d'abord **l'état actuel** (version écran **0.3.28**) :
+Ce document décrit d'abord **l'état actuel** (version écran **0.3.29**) :
 machine, mesure, configuration et loi de chauffe. Viennent ensuite les
 **points à considérer**, le **prochain essai**, puis le **journal des
 essais**, qui conserve les mesures et le raisonnement ayant conduit aux
@@ -129,37 +129,34 @@ bande **consigne ±1 °C** pendant **3 s** (`kBrewTemperatureToleranceC`).
 
 ## Loi de régulation actuelle
 
-Deux lois séparées, depuis **0.3.28** :
+Trois lois, toutes appelées par `Controller::step()`
+(`firmware/screen/main/core/thermal_control.h`) :
 
-- le **régulateur de repos** (`firmware/screen/main/core/thermal_control.h`,
-  classe `Controller`) : repos, purge et récupération ;
-- la **loi d'infusion** (`firmware/screen/main/core/brew_heating.h`, classes
-  `BrewHeating` et `BrewEndEstimator`) : précharge, remplissage,
-  pré-infusion et infusion.
+| Situation | Loi | Document |
+| --- | --- | --- |
+| Repos | prédicteur de retard (depuis **0.3.29**) | [chauffe-repos.md](chauffe-repos.md) |
+| Précharge, remplissage, pré-infusion, infusion | loi d'infusion, `brew_heating.h` (depuis **0.3.28**) | [chauffe-infusion.md](chauffe-infusion.md) |
+| Purge, récupération | base commune ci-dessous | ce document |
 
-Pendant l'infusion, `Controller` délègue la commande à `BrewHeating`. Il
-n'applique alors ni sa prédiction, ni son intégrale, ni son filtre de sortie,
-et remet son intégrale à zéro. Il enregistre seulement la commande, qui sert
-à estimer la chaleur en transit pendant la récupération. Régler la
-stabilisation au repos ne change donc pas l'infusion. Les coefficients du
-régulateur de repos sont des réglages initiaux, à ajuster sur la machine.
+Les trois lois partagent seulement l'historique de commande : la
+récupération s'en sert pour estimer la chaleur en transit après une
+infusion ou une purge. Régler l'une ne change pas les autres.
 
-### Base commune du régulateur de repos
+### Base commune de la purge et de la récupération
 
-La commande de base vaut
-`3,5 % + 8 × erreur prédite + intégrale`, avec :
+La commande de base vaut `3,5 % + 8 × erreur prédite`, avec :
 
 - **maintien** nominal de **3,5 %** à la consigne ;
-- **pente** de la NTC filtrée sur **8 s**, extrapolée sur **20 s** dans les deux
-  sens au repos ;
+- **pente** de la NTC filtrée sur **8 s**, extrapolée sur **20 s** (10 s en
+  récupération) seulement si elle est positive ;
 - **chaleur en transit** : la commande au-dessus de 3,5 % demandée durant les
   **22 dernières secondes**, multipliée par **0,007 °C par %·s**, bornée à
   **1,5 °C** (6 °C en récupération) ;
-- **intégrale** de gain 0,18 %/(°C·s), bornée à 0–35 %, calculée sur
-  l'erreur prédite, suspendue pendant l'écoulement, la récupération et hors
-  de ±8 °C, remise à zéro au-delà de +0,5 °C ;
 - **filtre de sortie** de 5 s sur les baisses ; une commande nulle coupe
   immédiatement. Pendant une purge, les hausses sont appliquées sans délai.
+
+L'intégrale de l'ancien régulateur n'agissait qu'au repos ; elle a été
+retirée de cette base en 0.3.29.
 
 Au-dessus de **105 °C**, sur mesure invalide ou si la chauffe est
 désactivée, la commande tombe à zéro et le contrôleur est réinitialisé. Un
@@ -169,12 +166,12 @@ changement de consigne le réinitialise aussi.
 
 | Phase | Commande |
 | --- | --- |
-| Repos | base commune, jusqu'à 100 % |
+| Repos | prédicteur de retard, jusqu'à 100 %, voir [chauffe-repos.md](chauffe-repos.md) |
 | Précharge (`thermal_preheat`) | loi d'infusion : **90 %** pompe arrêtée pendant `brew_preheat_time_s`, sauf si la NTC dépasse la consigne de 0,5 °C ou plus ; hors chrono hydraulique |
 | Remplissage, pré-infusion, infusion | loi d'infusion : `min(90 %, 3,5 % + 24,56 % × débit en ml/s)`, voir [chauffe-infusion.md](chauffe-infusion.md) |
 | Purge près de la consigne | base commune plafonnée à **35 %** ; appoint de **18 %** jusqu'à la consigne, réduit linéairement à 0 à consigne + 2 °C (13,5 % à +0,5 °C, 9 % à +1 °C) ; plus l'appoint de débit, soit **45 %** au maximum |
 | Purge lancée à ≥ 5 °C de la consigne | **0 %** jusqu'à la fin de la purge, même si la NTC traverse la consigne (purge de réglage thermique) |
-| Récupération (30 s après l'écoulement) | base commune plafonnée à **35 %**, pente négative ignorée, intégrale suspendue ; prédiction sur 10 s, retenant le **plus grand** effet entre pente montante et chaleur en transit |
+| Récupération (30 s après l'écoulement) | base commune plafonnée à **35 %**, pente négative ignorée ; prédiction sur 10 s, retenant le **plus grand** effet entre pente montante et chaleur en transit |
 
 **Appoint de débit de la purge** (depuis 0.3.14, purge seule depuis
 0.3.28) : 0 point à 2 ml/s ou moins, 5 points à 3 ml/s, 10 points à 4 ml/s ou
@@ -183,9 +180,7 @@ exige une mesure de débit fraîche, une impulsion de 500 ms au plus et la
 pompe confirmée en marche. Le débitmètre est en amont de la pompe : lors
 d'une recirculation par l'OPV, il peut surestimer le débit sorti au groupe.
 
-Pendant l'écoulement, la pente négative de la NTC n'est pas extrapolée. Au
-début et à la fin de l'écoulement, la pente et l'intégrale sont remises à
-zéro.
+Au début et à la fin de l'écoulement, la pente est remise à zéro.
 
 ### Loi d'infusion
 
@@ -318,10 +313,17 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
 7. **Remplacer la sonde par une PT1000.** Voir la
    [dernière section](#remplacement-prévu-par-une-pt1000).
 
-## Prochain essai : loi d'infusion 0.3.28, précharge de 10 s
+## Prochain essai : 0.3.29, précharge de 10 s
 
 L'essai de précharge de 6 s est fait ([7 h 40](#infusion-de-7-h-40-29-septembre--précharge-de-6-s)).
-Flasher **0.3.28** ([loi d'infusion](chauffe-infusion.md)) et régler
+**0.3.29** contient la [loi d'infusion](chauffe-infusion.md) (0.3.28) et le
+[prédicteur de retard au repos](chauffe-repos.md). Avant l'infusion, laisser
+la machine se stabiliser et relever si possible 3 min de surveillance au
+repos : points à vérifier dans [chauffe-repos.md](chauffe-repos.md#à-vérifier-sur-la-prochaine-capture).
+Le départ de l'infusion devrait être plus proche de la consigne qu'avec le
+cycle de 89,7–91,3 °C de 0.3.27.
+
+Pour l'infusion, régler
 `heating.brew_preheat_time_s` à **10 s**. Garder la consigne et la recette ;
 noter la mouture, car le débit d'infusion change à la fois le besoin
 (38 % à 1,4 ml/s, 53 % à 2 ml/s) et le moment de la coupure de fin.

@@ -34,32 +34,36 @@ int main() {
   out = controller.step(6500, 20, 90, false, true, Mode::kIdle);
   assert(out.power_permille == 0 && !out.ready);
 
+  // Repos : pertes 0,45 W/K au-dessus de 24,5 °C (2,45 % à 90 °C), plus
+  // 6 % par °C d'erreur prédite.
   core::thermal::Controller fine;
-  assert(fine.step(1000, 89.925f, 90, true, true, Mode::kIdle).power_permille == 41);
+  assert(fine.step(1000, 89.925f, 90, true, true, Mode::kIdle).power_permille == 29);
   fine.reset();
-  assert(fine.step(1000, 89.875f, 90, true, true, Mode::kIdle).power_permille == 45);
+  assert(fine.step(1000, 89.875f, 90, true, true, Mode::kIdle).power_permille == 32);
+  core::thermal::Controller above;
+  assert(above.step(1000, 90.5f, 90, true, true, Mode::kIdle).power_permille == 0);
 
-  // Une température stable à la cible garde une impulsion de maintien.
+  // Une température stable à la cible garde une commande proche des pertes.
   core::thermal::Controller hold;
-  for (uint64_t now = 1000; now <= 30000; now += 250)
-    assert(hold.step(now, 90, 90, true, true, Mode::kIdle).power_permille == 35);
+  for (uint64_t now = 1000; now <= 60000; now += 250) {
+    out = hold.step(now, 90, 90, true, true, Mode::kIdle);
+    assert(out.power_permille >= 23 && out.power_permille <= 26);
+  }
 
-  // La descente déclenche la chauffe avant le passage sous la consigne.
-  core::thermal::Controller cooling;
-  cooling.step(1000, 90.6f, 90, true, true, Mode::kIdle);
-  out = cooling.step(2000, 90.5f, 90, true, true, Mode::kIdle);
-  assert(out.power_permille > 0);
-
-  // Pendant une montée rapide, la chaleur résiduelle reste prioritaire :
-  // le terme de maintien ne force pas le chauffage.
-  core::thermal::Controller rising;
-  rising.step(1000, 89.5f, 90, true, true, Mode::kIdle);
-  rising.step(2000, 89.7f, 90, true, true, Mode::kIdle);
-  out = rising.step(3000, 89.9f, 90, true, true, Mode::kIdle);
-  assert(out.power_permille == 0);
+  // Chaleur commandée mais pas encore visible : une NTC arrivée à la
+  // consigne ne relance pas la chauffe au-delà des pertes. Une fois le
+  // retard de 23,5 s écoulé, la commande revient vers le maintien.
+  core::thermal::Controller pending;
+  for (uint64_t now = 1000; now <= 11000; now += 250)
+    pending.step(now, 89.0f, 90, true, true, Mode::kIdle);
+  out = pending.step(11250, 90.0f, 90, true, true, Mode::kIdle);
+  assert(out.power_permille < 25);
+  for (uint64_t now = 11500; now <= 45000; now += 250)
+    out = pending.step(now, 90.0f, 90, true, true, Mode::kIdle);
+  assert(out.power_permille >= 15 && out.power_permille <= 30);
 
   // Une erreur persistante ne doit pas faire augmenter la puissance pendant
-  // que l'effet des commandes des 22 dernières secondes est encore attendu.
+  // que l'effet des commandes des 23,5 dernières secondes est encore attendu.
   core::thermal::Controller delayed;
   const uint16_t initial_power = delayed.step(1000, 89.0f, 90, true, true, Mode::kIdle).power_permille;
   for (uint64_t now = 1250; now <= 21000; now += 250)

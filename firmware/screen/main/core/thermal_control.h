@@ -15,17 +15,31 @@ namespace core::thermal {
 // Régulateur de repos, de purge et de récupération. Pendant la précharge et
 // l'écoulement d'une infusion, il délègue la commande à `BrewHeating`
 // (brew_heating.h) et ne fait que tenir à jour son propre état.
-// Réglage initial. Les gains et l'avance doivent être recalibrés sur
-// une capture de chauffe/refroidissement de la machine réelle.
+//
+// Au repos, un prédicteur de retard (voir docs/chauffe-repos.md) ; en purge
+// et en récupération, l'ancienne prédiction par la pente et la chaleur en
+// transit, à recalibrer sur capture.
 class Controller {
  public:
   enum class Mode { kIdle, kThermalPreheat, kBrew, kPurge };
   struct Output { uint16_t power_permille; bool ready; };
+
+  // Repos. Modèle ajusté sur les captures de repos du 29 septembre : retard
+  // pur de 23,5 s entre commande et NTC, 1,28 kJ/K, pertes de 0,45 W/K.
+  static constexpr float kIdleDelayS = 23.5f;
+  static constexpr float kIdleHeatGainCPerPctSecond = 12.0f / 1280.0f;
+  static constexpr float kIdleLossPctPerK = 0.45f / 12.0f;
+  static constexpr float kAmbientC = 24.5f;
+  static constexpr float kIdleProportionalPctPerC = 6.0f;
+  static constexpr float kIdleIntegralPctPerCSecond = 0.05f;
+  // L'intégrale corrige l'erreur du modèle de pertes : elle peut être négative.
+  static constexpr float kIdleIntegralMinPct = -10.0f;
+  static constexpr float kIdleIntegralMaxPct = 35.0f;
+  static constexpr float kIdleIntegralBandC = 8.0f;
+
+  // Purge et récupération.
   static constexpr float kPredictionHorizonS = 20.0f;
   static constexpr float kRecoveryPredictionHorizonS = 10.0f;
-  // The measured command-to-temperature response is about 22 s on the
-  // current machine. Recent commands therefore contribute heat that is not
-  // visible in the temperature slope yet.
   static constexpr float kCommandTransitWindowS = 22.0f;
   static constexpr float kCommandHeatGainCPerPctSecond = 0.007f;
   static constexpr float kPowerFilterTimeConstantS = 5.0f;
@@ -58,7 +72,6 @@ class Controller {
     target_c_ = target_c;
     if (last_ms_ == 0 || now_ms <= last_ms_ || now_ms - last_ms_ > 2000) {
       slope_c_per_s_ = 0;
-      integral_pct_ = 0;
       ready_since_ms_ = 0;
       clear_command_history();
       last_temperature_c_ = temperature_c;
@@ -70,7 +83,6 @@ class Controller {
       // The temperature slope during water exchange does not predict the
       // boiler's slope once the flow stops (or starts).
       slope_c_per_s_ = 0;
-      integral_pct_ = 0;
       last_temperature_c_ = temperature_c;
       last_ms_ = now_ms;
       brew_.reset();
@@ -121,29 +133,59 @@ class Controller {
           : brew_.flow_pct(temperature_c, target_c, flow_ml_s, flow_valid, brew_remaining_s);
       filtered_power_pct_ = power;
       has_filtered_power_ = true;
-      integral_pct_ = 0.0f;
       const uint16_t power_permille = static_cast<uint16_t>(
           std::lround(std::clamp(power, 0.0f, 100.0f) * 10.0f));
       record_command(now_ms, power_permille / 10.0f);
       return {power_permille, ready};
     }
 
+    if (!flowing && !recovering) {
+      // Repos : prédicteur de retard. La chaleur commandée pendant les
+      // `kIdleDelayS` dernières secondes n'est pas encore visible à la NTC ;
+      // elle est ajoutée à la mesure au lieu d'extrapoler la pente, qui
+      // reflète des commandes passées. La récupération dure plus longtemps que
+      // ce retard : l'historique vu ici ne contient jamais d'écoulement.
+      const float loss_pct = idle_loss_pct(temperature_c);
+      const float pending_c = command_pct_seconds(now_ms, kIdleDelayS, loss_pct, false) *
+                              kIdleHeatGainCPerPctSecond;
+      const float predicted_error = target_c - (temperature_c + pending_c);
+      const float unclamped_pct =
+          loss_pct + kIdleProportionalPctPerC * predicted_error + idle_integral_pct_;
+      // Anti-emballement : ne pas intégrer dans le sens d'une sortie saturée.
+      const bool saturated = (unclamped_pct >= 100.0f && predicted_error > 0.0f) ||
+                             (unclamped_pct <= 0.0f && predicted_error < 0.0f);
+      if (std::fabs(error) < kIdleIntegralBandC && dt_s > 0.0f && !saturated)
+        idle_integral_pct_ = std::clamp(
+            idle_integral_pct_ + kIdleIntegralPctPerCSecond * predicted_error * dt_s,
+            kIdleIntegralMinPct, kIdleIntegralMaxPct);
+      const float power = std::clamp(
+          loss_pct + kIdleProportionalPctPerC * predicted_error + idle_integral_pct_,
+          0.0f, 100.0f);
+      // Le filtre de la purge et de la récupération repart de cette commande ;
+      // une commande nulle le laisse s'initialiser au premier pas suivant.
+      filtered_power_pct_ = power;
+      if (power > 0.0f) has_filtered_power_ = true;
+      const uint16_t power_permille = static_cast<uint16_t>(std::lround(power * 10.0f));
+      record_command(now_ms, power_permille / 10.0f);
+      return {power_permille, ready};
+    }
+
+    // Purge et récupération : prédiction par la pente et la chaleur en transit.
     // Latch the decision at purge start: a purge far from setpoint may be
     // intended to cool the boiler, even if the NTC crosses the setpoint.
     if (mode == Mode::kPurge && uncompensated_purge_) {
       filtered_power_pct_ = 0.0f;
-      integral_pct_ = 0.0f;
       record_command(now_ms, 0.0f);
       return {0, ready};
     }
 
-    // Anticiper la chaleur encore en route, mais aussi la baisse avant que
-    // la mesure ne passe sous la cible. Le terme de maintien donne de petites
-    // impulsions au SSR quand la température est stable à la consigne ; la
-    // prédiction peut toujours ramener la puissance à zéro si elle monte.
-    const float transit_heat_c = recent_command_heat_c(now_ms, recovering ? 6.0f : 1.5f);
-    const float predictive_slope = (flowing || recovering)
-        ? std::max(0.0f, slope_c_per_s_) : slope_c_per_s_;
+    // Anticiper la chaleur encore en route. Pendant l'écoulement et la
+    // récupération, une pente négative n'est pas extrapolée.
+    const float transit_heat_c = std::min(
+        recovering ? 6.0f : 1.5f,
+        command_pct_seconds(now_ms, kCommandTransitWindowS, kHoldPowerPct, true) *
+            kCommandHeatGainCPerPctSecond);
+    const float predictive_slope = std::max(0.0f, slope_c_per_s_);
     const float horizon_s = recovering ? kRecoveryPredictionHorizonS : kPredictionHorizonS;
     // During recovery the rising slope already contains some of the heat
     // from recent commands. Adding both terms would count it twice.
@@ -152,12 +194,7 @@ class Controller {
         : predictive_slope * horizon_s + transit_heat_c;
     const float predicted_c = temperature_c + predicted_rise_c;
     const float predicted_error = target_c - predicted_c;
-    if (!flowing && !recovering && std::fabs(error) < 8.0f && dt_s > 0) {
-      // Ne pas accumuler l'erreur déjà expliquée par la chaleur en transit.
-      integral_pct_ = std::clamp(integral_pct_ + 0.18f * predicted_error * dt_s, 0.0f, 35.0f);
-    }
-    if (error < -0.5f) integral_pct_ = 0;
-    float power = kHoldPowerPct + 8.0f * predicted_error + integral_pct_;
+    float power = kHoldPowerPct + 8.0f * predicted_error;
     if (flowing) {
       power = std::min(power, kFlowPowerLimitPct);
     } else if (recovering) {
@@ -199,7 +236,7 @@ class Controller {
   void reset() {
     last_ms_ = 0;
     ready_since_ms_ = 0;
-    integral_pct_ = 0;
+    idle_integral_pct_ = 0;
     slope_c_per_s_ = 0;
     filtered_power_pct_ = 0;
     has_filtered_power_ = false;
@@ -216,7 +253,12 @@ class Controller {
     float power_pct = 0.0f;
   };
 
-  static constexpr size_t kCommandHistoryCapacity = 96;
+  // 32 s à un pas de 250 ms : couvre le retard du repos et la fenêtre de 22 s.
+  static constexpr size_t kCommandHistoryCapacity = 128;
+
+  static float idle_loss_pct(float temperature_c) {
+    return std::max(0.0f, kIdleLossPctPerK * (temperature_c - kAmbientC));
+  }
 
   void clear_command_history() {
     command_history_count_ = 0;
@@ -229,45 +271,40 @@ class Controller {
     if (command_history_count_ < kCommandHistoryCapacity) ++command_history_count_;
   }
 
-  float recent_command_heat_c(uint64_t now_ms, float limit_c) const {
+  // Somme, sur les `window_s` dernières secondes, de la commande moins
+  // `offset_pct`, en %·s. `positive_only` ignore les commandes sous l'offset.
+  // Chaque commande vaut jusqu'à la suivante ; la dernière, jusqu'à `now_ms`.
+  float command_pct_seconds(uint64_t now_ms, float window_s, float offset_pct,
+                            bool positive_only) const {
     if (command_history_count_ == 0) return 0.0f;
-    const uint64_t window_ms = static_cast<uint64_t>(kCommandTransitWindowS * 1000.0f);
+    const uint64_t window_ms = static_cast<uint64_t>(window_s * 1000.0f);
     const uint64_t cutoff_ms = now_ms > window_ms ? now_ms - window_ms : 0;
+    const auto excess = [&](float power_pct) {
+      const float value = power_pct - offset_pct;
+      return positive_only ? std::max(0.0f, value) : value;
+    };
     float pct_seconds = 0.0f;
-    uint64_t previous_ms = 0;
-    float previous_power = 0.0f;
-    bool have_previous = false;
     const size_t oldest = (command_history_next_ + kCommandHistoryCapacity -
                            command_history_count_) % kCommandHistoryCapacity;
     for (size_t i = 0; i < command_history_count_; ++i) {
       const CommandSample& sample = command_history_[(oldest + i) % kCommandHistoryCapacity];
-      if (have_previous && sample.at_ms > previous_ms) {
-        const uint64_t start_ms = std::max(previous_ms, cutoff_ms);
-        const uint64_t end_ms = std::min(sample.at_ms, now_ms);
-        if (end_ms > start_ms)
-          pct_seconds += std::max(0.0f, previous_power - kHoldPowerPct) *
-                         static_cast<float>(end_ms - start_ms) / 1000.0f;
-      }
-      previous_ms = sample.at_ms;
-      previous_power = sample.power_pct;
-      have_previous = true;
+      const uint64_t end_ms = i + 1 < command_history_count_
+          ? command_history_[(oldest + i + 1) % kCommandHistoryCapacity].at_ms
+          : now_ms;
+      const uint64_t start_ms = std::max(sample.at_ms, cutoff_ms);
+      const uint64_t clipped_end_ms = std::min(end_ms, now_ms);
+      if (clipped_end_ms > start_ms)
+        pct_seconds += excess(sample.power_pct) *
+                       static_cast<float>(clipped_end_ms - start_ms) / 1000.0f;
     }
-    if (have_previous && now_ms > previous_ms) {
-      const uint64_t start_ms = std::max(previous_ms, cutoff_ms);
-      if (now_ms > start_ms)
-        pct_seconds += std::max(0.0f, previous_power - kHoldPowerPct) *
-                       static_cast<float>(now_ms - start_ms) / 1000.0f;
-    }
-    // Au-delà de 22 s, la réponse devient visible dans la pente mesurée.
-    // La borne évite qu'une longue chauffe à 100 % domine la régulation fine.
-    return std::min(limit_c, pct_seconds * kCommandHeatGainCPerPctSecond);
+    return pct_seconds;
   }
 
   uint64_t last_ms_ = 0;
   uint64_t ready_since_ms_ = 0;
   float last_temperature_c_ = 0;
   float slope_c_per_s_ = 0;
-  float integral_pct_ = 0;
+  float idle_integral_pct_ = 0;
   float target_c_ = 0;
   float filtered_power_pct_ = 0;
   bool has_filtered_power_ = false;

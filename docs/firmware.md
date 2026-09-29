@@ -153,8 +153,10 @@ l'investigation ; il n'est plus utilisé côté capteurs.
 **I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
 
 **Migration envisagée.** Le remplacement du XDB401 I2C par une version analogique impose
-de monter sur le XIAO deux pull-ups de **4,7 kΩ vers 3,3 V**, une sur SDA et une sur SCL.
-Deux résistances CMS sur le shield ou un petit réseau double suffisent. Le dimmer devient
+de monter sur le XIAO deux pull-ups de **4,7 kΩ vers 3,3 V**, une sur SDA et une sur SCL,
+dans un petit connecteur Grove branché sur le shield (pas de soudure sur les pastilles : la
+pastille 3,3 V est déjà prise ; voir `docs/cablage.md`). Il doit être branché avant de
+retirer le XDB401, sinon le dimmer devient muet. Le dimmer devient
 alors le seul périphérique de ce bus ; les pull-ups internes de l'ESP32 ne doivent pas être
 utilisées comme solution permanente.
 

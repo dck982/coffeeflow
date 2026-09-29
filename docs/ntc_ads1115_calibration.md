@@ -94,6 +94,11 @@ R_NTC = 2193 * (ADC_A0 / ADC_A1 - 1)
 
 Cela rend la mesure pratiquement indépendante de la valeur absolue du
 3,3 V et de la précision absolue de la référence interne de l'ADS1115.
+L'erreur de gain de l'ADS1115 s'annule dans le rapport ; restent la valeur
+de `R_FIXED`, qui entre en facteur direct dans la résistance calculée, et le
+GND de retour de la résistance. Une erreur de 0,1 % sur `R_FIXED` vaut environ
+0,3 °C avec la PT1000 : utiliser une résistance à 0,1 %, pas le multimètre,
+dont l'incertitude est plus grande que celle de la résistance.
 
 ### Correction du retour GND et vérification à froid
 
@@ -264,6 +269,49 @@ Une régression définitive devra comparer au minimum :
 1.  le modèle Beta ;
 2.  éventuellement une courbe Steinhart-Hart si elle améliore
     significativement les résidus sur la plage 25--130 °C.
+
+## Étalonnage de la sonde en bains, avant installation
+
+À faire avec le vrai montage `screen` (même ADS1115, même 4,7 kΩ, mêmes canaux
+et même PGA, sonde au bout de rallonges sur le port Sensor AD), pas avec un
+montage proto dont le retour GND serait différent. Enregistrer les **codes bruts**
+`ntc_a0_raw` / `ntc_a1_raw`, pas seulement la température : le rapport
+`a0/a1 − 1` vaut `R_sonde / R_fixe` et permet de recalculer l'étalonnage si
+`R_fixe` change.
+
+```sh
+COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/record_probe.py
+```
+
+`record_probe.py` interroge `/telemetry` à 2 Hz jusqu'à Ctrl-C et écrit
+`captures/probe-<date>.json`. Plonger la sonde dans les bains pendant
+l'enregistrement, puis retrouver les plateaux sur un tracé des codes. Écarter les
+échantillons répétés grâce à `age_ms`.
+
+| Bain | Rôle | Remarques |
+|---|---|---|
+| Glace pilée et un peu d'eau | point d'ajustement à 0 °C | remuer, sonde entièrement immergée sans toucher le fond |
+| Eau bouillante | point d'ajustement | le point d'ébullition dépend de la pression locale absolue (environ −1 °C par 300 m) ; en pleine eau, sans toucher le fond |
+| Eau à température ambiante, deux thermomètres | validation, pas ajustement | peu informatif sur la pente |
+
+Pas de point vers 60 °C : l'eau refroidit en continu et la température n'est
+jamais stable. Ne pas immerger la sortie des fils silicone si elle n'est pas
+scellée.
+
+Si `R_fixe` change ensuite (carte ADS1115 dédiée), refaire au moins le point à
+0 °C sur la carte finie : une erreur sur `R_fixe` est un défaut de gain que ce
+seul point corrige au premier ordre.
+
+## Carte ADS1115 prévue
+
+Une carte dédiée alimentée par le seul câble I2C du Waveshare : ADS1115, 100 nF de
+découplage, **4,7 kΩ à 0,1 %** entre A1 et GND, `A0` relié à `I2C_VCC`, XH 4 pôles
+pour l'I2C et XH 2 pôles pour la sonde. Le pont est alors alimenté par `I2C_VCC`
+et non plus par le port Sensor AD ; le firmware et le calcul ratiométrique ne
+changent pas. Le GND de la résistance et celui de l'ADS1115 sont communs par
+construction. **Aucune pull-up I2C** : le connecteur du Waveshare en a déjà
+(voir `docs/cablage.md`). Un XH 3 pôles (`A2`, 3V3, GND) peut être prévu pour le
+XDB401 analogique.
 
 ## Validation sur la machine
 

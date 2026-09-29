@@ -201,11 +201,16 @@ muet (sauf câble très court, sur les pull-ups internes de l'ESP32). Ne pas ajo
 4,7 kΩ côté MCU tant que le XDB401 est là.
 
 Lors du remplacement prévu du XDB401 I2C par sa version analogique, ajouter au niveau du
-XIAO **une résistance de 4,7 kΩ entre SDA et 3,3 V et une autre entre SCL et 3,3 V**. Deux
-résistances CMS 0603/0805 soudées sur les pastilles du shield ou un petit réseau de deux
-résistances à point commun 3,3 V prennent très peu de place ; il n'est pas nécessaire
-d'ajouter un module. Les pull-ups internes de l'ESP32 ne constituent pas un remplacement
-robuste.
+XIAO **une résistance de 4,7 kΩ entre SDA et 3,3 V et une autre entre SCL et 3,3 V**. Les
+pull-ups internes de l'ESP32 ne constituent pas un remplacement robuste.
+
+Souder ces résistances sur les pastilles du shield est écarté : la pastille 3,3 V est déjà
+utilisée. Un réseau de deux résistances à point commun exigerait une plaque de prototypage.
+Les résistances iront donc dans un **petit connecteur Grove à quatre broches** (SDA → 4,7 kΩ
+→ 3,3 V, SCL → 4,7 kΩ → 3,3 V) branché sur une prise I2C du shield, par exemple celle du
+XDB401 (R1) une fois libérée. Ce module doit être en place **dès que le XDB401 est débranché** :
+sans lui, le dimmer ne répond plus, sans autre symptôme. Ne jamais le laisser branché en
+même temps que le XDB401 I2C, dont les pull-ups seraient alors doublées.
 
 ### Câble du XDB401 (R1)
 
@@ -299,6 +304,14 @@ La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boît
 
 Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
+Sur le Waveshare, le connecteur I2C (H7) est séparé de l'ESP32-S3 par un translateur de
+niveau à MOSFET (NDC7002N). Côté connecteur, **deux 4,7 kΩ tirent SDA et SCL vers `I2C_VCC`**,
+et deux autres côté ESP32 vers le 3V3 ; le bus du connecteur est donc déjà tiré, et l'ADS1115
+n'a pas besoin de pull-ups. `I2C_VCC` est fixé par le cavalier H8 sur **3V3 (défaut)** ou 5 V ;
+le montage suppose 3V3. Le port Sensor AD (J6) est câblé 3V3 / GND / AD, directement au rail
+de la carte. Les deux ports sont supposés sur le même rail et le même plan de masse (ils sont
+voisins sur la carte) ; ce n'est pas vérifié sur le schéma.
+
 Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 est intégrée au firmware `screen` et publiée par `GET /telemetry`.
 
 Une future **PT1000 iOVEO 012EF02202** remplacera la NTC dans le même raccord
@@ -320,6 +333,12 @@ température et A3 restera libre. La plage unipolaire 0,4–2,4 V est compatible
 l'alimentation 3,3 V de l'ADS1115 et avec son réglage actuel à ±4,096 V. À ce gain, un
 code vaut 125 µV. La pièce commandée couvre **0–12 bar** sur 2,0 V, soit une résolution
 brute d'environ **0,00075 bar (0,75 mbar) par code**, avant bruit et calibration.
+
+La référence de la pièce commandée est « 3.3V OUT 0.4-2.4V, 0-1,2 MPa, G1/8 » : elle
+s'alimente bien en 3,3 V. D'autres annonces de la même famille XDB401 0,4–2,4 V indiquent
+5–12 V ; ne pas les confondre. **Aucune résistance n'est nécessaire** entre la sortie et A2 :
+l'entrée de l'ADS1115 est de haute impédance. Seul le filtre RC optionnel ci-dessous peut
+s'ajouter.
 
 La sonde n'étant pas encore reçue, mesurer avant adaptation du firmware sa tension à
 pression nulle et à une pression connue. Vérifier aussi si sa sortie est ratiométrique à

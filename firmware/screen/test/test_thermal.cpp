@@ -136,6 +136,37 @@ int main() {
   assert(preheat_after_flow.step(1500, 90, 90, true, true,
                                  Mode::kThermalPreheat).power_permille == 900);
 
+  // Nouvelle période SSR : une seule fois au début de la précharge, puis une
+  // fois au début de l'écoulement, sur la première commande non nulle.
+  core::thermal::Controller window;
+  assert(!window.step(1000, 89.9f, 90, true, true, Mode::kIdle).restart_window);
+  auto restart = window.step(1250, 89.9f, 90, true, true, Mode::kThermalPreheat);
+  assert(restart.power_permille == 900 && restart.restart_window);
+  assert(!window.step(1500, 89.9f, 90, true, true, Mode::kThermalPreheat).restart_window);
+  assert(!window.step(1750, 89.9f, 90, true, true, Mode::kThermalPreheat).restart_window);
+  restart = window.step(2000, 89.9f, 90, true, true, Mode::kBrew);
+  assert(restart.power_permille == 450 && restart.restart_window);
+  assert(!window.step(2250, 89.9f, 90, true, true, Mode::kBrew, 3.5f, true).restart_window);
+  assert(!window.step(2500, 89.9f, 90, true, true, Mode::kBrew, 1.5f, true).restart_window);
+  assert(!window.step(2750, 90.0f, 90, true, true, Mode::kIdle).restart_window);
+  // Cycle suivant : le flag revient.
+  assert(window.step(3000, 89.9f, 90, true, true, Mode::kThermalPreheat).restart_window);
+
+  // Précharge supprimée (NTC trop chaude) : pas de flag tant que la commande
+  // est nulle ; il part avec la première commande non nulle de la phase.
+  core::thermal::Controller window_hot;
+  restart = window_hot.step(1000, 90.6f, 90, true, true, Mode::kThermalPreheat);
+  assert(restart.power_permille == 0 && !restart.restart_window);
+  assert(window_hot.step(1250, 90.4f, 90, true, true, Mode::kThermalPreheat).restart_window);
+  // Sans précharge, le premier paquet de l'écoulement porte le flag.
+  core::thermal::Controller window_no_preheat;
+  window_no_preheat.step(1000, 89.9f, 90, true, true, Mode::kIdle);
+  assert(window_no_preheat.step(1250, 89.9f, 90, true, true, Mode::kBrew).restart_window);
+  // La purge n'en porte jamais.
+  core::thermal::Controller window_purge;
+  for (uint64_t now = 1000; now <= 3000; now += 250)
+    assert(!window_purge.step(now, 89.0f, 90, true, true, Mode::kPurge, 3.5f, true).restart_window);
+
   // L'appoint de débit est linéaire entre 2 et 4 ml/s et se retire dès que
   // le débit baisse. Il reste limité au mode écoulement et aux mesures fraîches.
   core::thermal::Controller flow_low, flow_mid, flow_high, flow_stale;

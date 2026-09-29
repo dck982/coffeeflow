@@ -75,6 +75,11 @@ utilisateur, 0 à 15 s, 0 désactive). La précharge est supprimée si la NTC
 dépasse déjà la consigne de 0,5 °C ou plus ; cette condition est réévaluée à
 chaque pas.
 
+Depuis 0.3.30, la première commande non nulle de la précharge, puis celle
+de l'écoulement, demandent au module capteurs une fenêtre SSR neuve : la
+chauffe part aussitôt, au lieu d'attendre jusqu'à 1 s la fin de la fenêtre
+de repos en cours.
+
 ### Écoulement
 
 Pendant le remplissage, la pré-infusion et l'infusion :
@@ -145,7 +150,7 @@ début de l'infusion, pendant la montée en pression.
 
 | Réglage | Emplacement | Valeur |
 | --- | --- | --- |
-| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; 10 s visés |
+| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; 8 s au prochain essai |
 | Puissance de précharge | `BrewHeating::kPreheatPowerPct` | 90 % |
 | Bande de suppression de la précharge | `BrewHeating::kPreheatAboveTargetBandC` | +0,5 °C |
 | Maintien | `BrewHeating::kHoldPowerPct` | 3,5 % |
@@ -213,6 +218,16 @@ La récupération est simulée à 0 %, comme dans les captures de référence. L
 modèle doit être recalé à chaque nouvelle capture qui enregistre l'état du
 SSR.
 
+**Premier essai de la loi, 29 septembre à 14 h 24 (précharge de 10 s).**
+Pic de 92,53 °C, minimum de 90,49 °C pendant l'écoulement, 90,86 °C 30 s
+après l'arrêt, moyenne NTC pondérée par le volume de **91,46 °C** pour une
+consigne de 90 °C : plus de creux, mais un dépassement. Détail dans le
+[journal](chauffe-chaudiere.md#infusion-de-14-h-24-29-septembre--précharge-de-10-s).
+Les « 10 s » n'ont fourni qu'environ 8,7 s réelles : le SSR a attendu 1 s
+la fenêtre suivante. Chaque seconde de précharge vaut environ 0,55 °C sur
+la moyenne pondérée. Depuis 0.3.30, la précharge part avec une fenêtre SSR
+neuve ; le prochain essai règle **8 s**.
+
 ## Limites connues
 
 - **La NTC n'est pas l'eau au groupe.** Tout ce qui précède optimise la
@@ -225,6 +240,15 @@ SSR.
   passés) : la commande y tombe vers 5 %, après la précharge. Les
   simulations incluent ce retard, puisqu'elles utilisent le débit mesuré.
 - **Température de l'eau admise** : constante, non mesurée.
+- **Énergie fournie inférieure à la commande.** Le module capteurs ne
+  rallume pas le SSR dans une fenêtre de 1 s où il s'est déjà éteint. À
+  14 h 24, il a fourni 21,5 kJ pour 23,8 kJ demandés, dont 1 s perdue au
+  départ de la précharge ; cette perte varie de 0 à 1 s selon la phase de la
+  fenêtre. Depuis 0.3.30, l'écran demande une fenêtre neuve au premier
+  paquet de la précharge et de l'écoulement (flag `restart_window`) ; les
+  hausses en cours d'écoulement attendent encore la fenêtre suivante. Le
+  simulateur utilise la commande et surestimait l'état final de 14 h 24
+  (93,2 contre 90,86 °C).
 - **Peu d'essais réels** : deux cafés par jour. Un panier de simulation, dont
   le headspace doit reproduire le temps de remplissage réel, permettra des
   essais plus fréquents.
@@ -237,5 +261,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | --- | ---: | --- |
 | `260928-130104.json` | 10 s | ajustement ; trou de chauffe dû au plancher conditionnel |
 | `260929-074002.json` | 6 s | ajustement ; bilan équilibré, creux inchangé |
+| `260929-142427.json` | 10 s | premier essai de la loi 0.3.28 ; pas de creux, dépassement de +1,46 °C en moyenne ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

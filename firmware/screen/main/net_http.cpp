@@ -275,6 +275,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddNumberToObject(brew, "pump_pct", snapshot.pump_pct);
   cJSON_AddBoolToObject(heating, "capable", snapshot.heating_capable);
   cJSON_AddBoolToObject(heating, "power_capable", snapshot.heating_power_capable);
+  cJSON_AddBoolToObject(heating, "window_restart_capable", snapshot.heating_window_restart_capable);
   cJSON_AddBoolToObject(heating, "requested", snapshot.heating_requested);
   cJSON_AddStringToObject(heating, "freshness", freshness_text(snapshot.heating_freshness));
   add_age(heating, "age_ms", snapshot.heating_age_ms);

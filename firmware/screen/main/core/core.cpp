@@ -329,11 +329,11 @@ void send_heating(bool on, uint16_t duration_ms) {
   can_link::send_message(common::MessageType::kSetHeating, common::Dest::kSensors, frame.data(), 3);
 }
 
-void send_heating_power(uint16_t power_permille) {
-  common::SetHeatingPowerPayload command{power_permille, 1500};
+void send_heating_power(uint16_t power_permille, bool restart_window) {
+  common::SetHeatingPowerPayload command{power_permille, 1500, restart_window};
   const common::Frame frame = command.pack();
   can_link::send_message(common::MessageType::kSetHeatingPower, common::Dest::kSensors,
-                         frame.data(), 4);
+                         frame.data(), static_cast<uint8_t>(command.length()));
 }
 
 void tick_thermal() {
@@ -388,10 +388,14 @@ void tick_thermal() {
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
   g_state.snapshot.brew_temperature_ready = output.ready;
   portEXIT_CRITICAL(&g_state.lock);
-  if ((output.power_permille != g_state.last_heating_power_sent ||
+  // Le flag de nouvelle période n'est envoyé qu'à un module qui l'annonce :
+  // un module plus ancien rejetterait la trame de 5 octets. Perdu, il laisse
+  // seulement le comportement antérieur (attente de la période suivante).
+  const bool restart_window = output.restart_window && snapshot.heating_window_restart_capable;
+  if ((output.power_permille != g_state.last_heating_power_sent || restart_window ||
        (output.power_permille > 0 && now - g_state.last_heating_power_send_us >= 500 * 1000)) &&
       snapshot.sensors_alive && snapshot.heating_power_capable) {
-    send_heating_power(output.power_permille);
+    send_heating_power(output.power_permille, restart_window);
     g_state.last_heating_power_sent = output.power_permille;
     g_state.last_heating_power_send_us = now;
   }
@@ -867,6 +871,7 @@ void on_status_heating(const uint8_t* data, uint8_t len) {
   g_state.heating_received_us = now;
   g_state.snapshot.heating_capable = true;
   g_state.snapshot.heating_power_capable = payload.fine_power_capable;
+  g_state.snapshot.heating_window_restart_capable = payload.window_restart_capable;
   g_state.snapshot.heater_on = payload.heater_on;
   g_state.snapshot.heating_power_accepted_pct = payload.power_permille / 10.0f;
   g_state.snapshot.heating_lease_remaining_ms = payload.lease_remaining_ms;
@@ -885,6 +890,7 @@ void on_pong(const uint8_t* data, uint8_t len) {
     g_state.heating_received_us = 0;
     g_state.snapshot.heating_capable = false;
     g_state.snapshot.heating_power_capable = false;
+    g_state.snapshot.heating_window_restart_capable = false;
     g_state.snapshot.heater_on = false;
     g_state.snapshot.heating_power_accepted_pct = 0;
     g_state.snapshot.heating_lease_remaining_ms = 0;
@@ -1014,7 +1020,7 @@ ConfigResult put_config(const Config& candidate) {
         }
         portEXIT_CRITICAL(&g_state.lock);
         if (!candidate.heating_enabled) {
-          send_heating_power(0);
+          send_heating_power(0, false);
           send_heating(false, 0);
         }
       }

@@ -97,4 +97,61 @@ int main() {
   pwm.set_power(0, 1000);
   for (int64_t t = 0; t <= 20000000; t += 100000)
     assert(pwm.tick(t));  // 100 % reste ON à la frontière des fenêtres
+
+  // Nouvelle période à la demande : la hausse reçue après l'impulsion de repos
+  // part aussitôt, sans attendre la fin de la période en cours.
+  pwm.reset();
+  pwm.set_power(0, 30);  // repos, 3 %
+  on_ticks = 0;
+  for (int64_t t = 0; t < 10000000; t += 100000)
+    if (pwm.tick(t)) ++on_ticks;
+  assert(on_ticks == 3);
+  pwm.tick(10000000);  // période en cours depuis 10 s
+  assert(!pwm.tick(10300000));
+  pwm.restart(10300000, 900);
+  on_ticks = 0;
+  for (int64_t t = 10300000; t < 11300000; t += 100000)
+    if (pwm.tick(t)) ++on_ticks;
+  assert(on_ticks == 9);  // 900 ms dans la nouvelle période, dès 10,3 s
+  assert(!pwm.tick(11200000));
+  assert(pwm.tick(11300000));  // la période suivante part de 11,3 s
+
+  // Comparaison : la même hausse sans nouvelle période attend jusqu'à 11 s.
+  pwm.reset();
+  pwm.set_power(0, 30);
+  for (int64_t t = 0; t <= 10000000; t += 100000) pwm.tick(t);
+  pwm.tick(10300000);
+  pwm.set_power(10300000, 900);
+  assert(!pwm.tick(10300000));
+  assert(!pwm.tick(10900000));
+  assert(pwm.tick(11000000));
+
+  // Une nouvelle période pendant une impulsion la prolonge sans coupure.
+  pwm.reset();
+  pwm.set_power(0, 200);
+  assert(pwm.tick(0));
+  pwm.restart(100000, 900);
+  for (int64_t t = 100000; t < 1000000; t += 100000)
+    assert(pwm.tick(t));
+  assert(!pwm.tick(1000000));
+
+  // Reçue deux fois de suite, elle ne cumule pas les périodes.
+  pwm.reset();
+  pwm.set_power(0, 30);
+  pwm.tick(0);
+  pwm.restart(300000, 500);
+  pwm.restart(350000, 500);
+  on_ticks = 0;
+  for (int64_t t = 350000; t < 1350000; t += 50000)
+    if (pwm.tick(t)) ++on_ticks;
+  assert(on_ticks == 10);  // 500 ms, pas 1 s
+
+  // Avec une consigne nulle, elle se comporte comme `set_power`.
+  pwm.reset();
+  pwm.set_power(0, 1000);
+  assert(pwm.tick(0));
+  pwm.restart(200000, 0);
+  assert(!pwm.tick(200000));
+  pwm.restart(300000, 1000);
+  assert(pwm.tick(300000));  // une consigne non nulle rouvre une période
 }

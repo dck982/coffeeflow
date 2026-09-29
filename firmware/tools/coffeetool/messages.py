@@ -58,9 +58,10 @@ class SetHeatingPayload:
 class SetHeatingPowerPayload:
     power_permille: int = 0
     lease_ms: int = 1500
+    restart_window: bool = False  # 5e octet, bit 0 (0.3.30)
 
     def pack(self) -> bytes:
-        return struct.pack("<HH4x", self.power_permille, self.lease_ms)
+        return struct.pack("<HHB3x", self.power_permille, self.lease_ms, 1 if self.restart_window else 0)
 
     @staticmethod
     def unpack(data: bytes) -> "SetHeatingPowerPayload":
@@ -71,7 +72,10 @@ class SetHeatingPowerPayload:
         power_permille, lease_ms = struct.unpack("<HH", data[:4])
         if power_permille > 1000:
             raise ValueError("SET_HEATING_POWER: puissance invalide")
-        return SetHeatingPowerPayload(power_permille, lease_ms)
+        flags = data[4] if len(data) >= 5 else 0
+        if flags & ~1:
+            raise ValueError("SET_HEATING_POWER: flag inconnu")
+        return SetHeatingPowerPayload(power_permille, lease_ms, bool(flags & 1))
 
 
 @dataclass
@@ -206,9 +210,11 @@ class StatusHeatingPayload:
     power_capable: bool = False
     fine_power_capable: bool = False
     power_permille: int = 0
+    window_restart_capable: bool = False
 
     def pack(self) -> bytes:
-        flags = (1 if self.capable else 0) | (2 if self.power_capable else 0) | (4 if self.fine_power_capable else 0)
+        flags = ((1 if self.capable else 0) | (2 if self.power_capable else 0) |
+                 (4 if self.fine_power_capable else 0) | (8 if self.window_restart_capable else 0))
         return struct.pack("<BHBBB2x", 1 if self.heater_on else 0, self.lease_remaining_ms,
                            flags, self.power_permille // 10, self.power_permille % 10)
 
@@ -221,7 +227,8 @@ class StatusHeatingPayload:
         fine_power_capable = power_capable and bool(data[3] & 4) and len(data) >= 6
         return StatusHeatingPayload(bool(data[0]), struct.unpack("<H", data[1:3])[0],
                                     True, power_capable, fine_power_capable,
-                                    data[4] * 10 + (data[5] if fine_power_capable else 0) if power_capable else 0)
+                                    data[4] * 10 + (data[5] if fine_power_capable else 0) if power_capable else 0,
+                                    fine_power_capable and bool(data[3] & 8))
 
 
 @dataclass

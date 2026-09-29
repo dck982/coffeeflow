@@ -60,6 +60,23 @@ class HeatingPwm {
     }
   }
 
+  // Ouvre une nouvelle période à `now_us` avec cette consigne, au lieu
+  // d'attendre la fin de la période en cours. Demandé par l'écran au début
+  // d'une chauffe forte (précharge, remplissage) : sans cela, une hausse reçue
+  // après l'impulsion de repos attend jusqu'à 1 s. Le crédit repart d'un
+  // demi-quantum, comme au premier démarrage.
+  void restart(int64_t now_us, uint16_t permille) {
+    if (permille == 0 || permille > 1000) { set_power(now_us, permille); return; }
+    active_ = true;
+    power_permille_ = permille;
+    window_start_us_ = now_us;
+    window_closed_ = false;
+    output_on_ = false;
+    evaluated_ = false;
+    credit_us_ = kQuantumUs / 2;
+    allocate_window();
+  }
+
   bool tick(int64_t now_us) {
     if (!active_) return false;
     advance_window(now_us);

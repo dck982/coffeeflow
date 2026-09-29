@@ -22,7 +22,11 @@ namespace core::thermal {
 class Controller {
  public:
   enum class Mode { kIdle, kThermalPreheat, kBrew, kPurge };
-  struct Output { uint16_t power_permille; bool ready; };
+  // `restart_window` : première commande non nulle de la précharge ou de
+  // l'écoulement d'une infusion. Le module capteurs ouvre alors une nouvelle
+  // période SSR au lieu d'attendre la fin de la période de repos en cours
+  // (jusqu'à 1 s perdue, voir docs/chauffe-chaudiere.md, point 9).
+  struct Output { uint16_t power_permille; bool ready; bool restart_window = false; };
 
   // Repos. Modèle ajusté sur les captures de repos du 29 septembre : retard
   // pur de 23,5 s entre commande et NTC, 1,28 kJ/K, pertes de 0,45 W/K.
@@ -136,8 +140,14 @@ class Controller {
       const uint16_t power_permille = static_cast<uint16_t>(
           std::lround(std::clamp(power, 0.0f, 100.0f) * 10.0f));
       record_command(now_ms, power_permille / 10.0f);
-      return {power_permille, ready};
+      // Une seule fois par phase : répété à chaque trame, le flag relancerait
+      // la période toutes les 500 ms et chaufferait en continu.
+      const WindowPhase phase = preheating ? WindowPhase::kPreheat : WindowPhase::kFlow;
+      const bool restart_window = power_permille > 0 && restarted_phase_ != phase;
+      if (restart_window) restarted_phase_ = phase;
+      return {power_permille, ready, restart_window};
     }
+    restarted_phase_ = WindowPhase::kNone;
 
     if (!flowing && !recovering) {
       // Repos : prédicteur de retard. La chaleur commandée pendant les
@@ -243,11 +253,14 @@ class Controller {
     was_flowing_ = false;
     uncompensated_purge_ = false;
     brew_.reset();
+    restarted_phase_ = WindowPhase::kNone;
     recovery_until_ms_ = 0;
     clear_command_history();
   }
 
  private:
+  enum class WindowPhase : uint8_t { kNone, kPreheat, kFlow };
+
   struct CommandSample {
     uint64_t at_ms = 0;
     float power_pct = 0.0f;
@@ -311,6 +324,7 @@ class Controller {
   bool was_flowing_ = false;
   bool uncompensated_purge_ = false;
   BrewHeating brew_;
+  WindowPhase restarted_phase_ = WindowPhase::kNone;
   uint64_t recovery_until_ms_ = 0;
   std::array<CommandSample, kCommandHistoryCapacity> command_history_{};
   size_t command_history_count_ = 0;

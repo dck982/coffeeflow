@@ -455,6 +455,7 @@ void send_status_heating() {
   payload.lease_remaining_ms = static_cast<uint16_t>(remaining);
   payload.power_capable = true;
   payload.fine_power_capable = true;
+  payload.window_restart_capable = true;
   payload.power_permille = g_heating_power_mode ? g_heating_power_permille : 0;
   portEXIT_CRITICAL(&g_heating_lock);
   const common::Frame frame = payload.pack();
@@ -723,7 +724,10 @@ void on_set_heating_power_received(const uint8_t* data, size_t len) {
   } else if (!s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
              (g_heating_power_mode || !g_heater_on)) {
     const int64_t now = now_us();
-    g_heating_pwm.set_power(now, payload.power_permille);
+    if (payload.restart_window)
+      g_heating_pwm.restart(now, payload.power_permille);
+    else
+      g_heating_pwm.set_power(now, payload.power_permille);
     g_heating_power_mode = true;
     g_heating_power_permille = payload.power_permille;
     g_heating_deadline_us = now + static_cast<int64_t>(payload.lease_ms) * 1000;

@@ -85,7 +85,8 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
 
     if message_type is MessageType.SET_HEATING_POWER:
         p = payload
-        return f"puissance_chaudiere={p.power_permille / 10:.1f}% bail={p.lease_ms}ms"
+        restart = " nouvelle_periode" if p.restart_window else ""
+        return f"puissance_chaudiere={p.power_permille / 10:.1f}% bail={p.lease_ms}ms{restart}"
 
     if message_type is MessageType.CONFIRM_SENSORS_OTA:
         return f"version_protocole_chauffage={payload.protocol_patch}"
@@ -113,7 +114,8 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
     if message_type is MessageType.STATUS_HEATING:
         p = payload
         return (f"chauffage={'on' if p.heater_on else 'off'} bail_restant={p.lease_remaining_ms}ms "
-                f"puissance={p.power_permille / 10:.1f}% capable={'fin' if p.fine_power_capable else 'diagnostic'}")
+                f"puissance={p.power_permille / 10:.1f}% capable={'fin' if p.fine_power_capable else 'diagnostic'}"
+                f"{' nouvelle_periode' if p.window_restart_capable else ''}")
 
     if message_type is MessageType.FLASH_CTRL:
         p = payload

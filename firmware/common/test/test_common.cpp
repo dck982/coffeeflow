@@ -100,9 +100,21 @@ void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
   invalid[0] = 0xE9;
   invalid[1] = 0x03;
   CHECK(!SetHeatingPowerPayload::unpack(invalid.data(), 4, &decoded_power));
+  CHECK(power.length() == 4 && !decoded_power.restart_window);
+  SetHeatingPowerPayload restart{900, 1500, true};
+  const Frame restart_frame = restart.pack();
+  CHECK(restart.length() == 5 && restart_frame[4] == 1);
+  CHECK(SetHeatingPowerPayload::unpack(restart_frame.data(), 5, &decoded_power));
+  CHECK(decoded_power.power_permille == 900 && decoded_power.restart_window);
+  CHECK(SetHeatingPowerPayload::unpack(restart_frame.data(), 4, &decoded_power));
+  CHECK(!decoded_power.restart_window);
+  invalid = restart_frame;
+  invalid[4] = 0x02;  // bit inconnu
+  CHECK(!SetHeatingPowerPayload::unpack(invalid.data(), 5, &decoded_power));
+  CHECK(!SetHeatingPowerPayload::unpack(restart_frame.data(), 6, &decoded_power));
   const uint8_t legacy_power[] = {1, 0xDC, 0x05};
   CHECK(SetHeatingPowerPayload::unpack(legacy_power, 3, &decoded_power));
-  CHECK(decoded_power.power_permille == 10);
+  CHECK(decoded_power.power_permille == 10 && !decoded_power.restart_window);
 
   StatusHeatingPayload status{};
   status.heater_on = true;
@@ -119,6 +131,15 @@ void test_heating_protocol_is_independent_and_rejects_invalid_frames() {
   CHECK(StatusHeatingPayload::unpack(power_echo.data(), 6, &decoded_status));
   CHECK(decoded_status.power_capable && decoded_status.fine_power_capable &&
         decoded_status.power_permille == 6);
+  CHECK(!decoded_status.window_restart_capable);
+  status.window_restart_capable = true;
+  const Frame restart_echo = status.pack();
+  CHECK(StatusHeatingPayload::unpack(restart_echo.data(), 6, &decoded_status));
+  CHECK(decoded_status.window_restart_capable && decoded_status.power_permille == 6);
+  invalid = restart_echo;
+  invalid[3] = 1 | 8;  // sans résolution 0,1 %, la capacité est ignorée
+  CHECK(StatusHeatingPayload::unpack(invalid.data(), 4, &decoded_status));
+  CHECK(!decoded_status.window_restart_capable);
   CHECK(!StatusHeatingPayload::unpack(echo.data(), 3, &decoded_status));
   invalid = echo;
   invalid[3] = 0;

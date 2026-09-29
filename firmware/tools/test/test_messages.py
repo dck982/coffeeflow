@@ -29,6 +29,11 @@ def test_heating_payloads_roundtrip():
     power = SetHeatingPowerPayload(6, 1500)
     assert SetHeatingPowerPayload.unpack(power.pack()[:4]) == power
     assert SetHeatingPowerPayload.unpack(bytes((1, 0xDC, 0x05))).power_permille == 10
+    restart = SetHeatingPowerPayload(900, 1500, True)
+    assert SetHeatingPowerPayload.unpack(restart.pack()[:5]) == restart
+    assert not SetHeatingPowerPayload.unpack(restart.pack()[:4]).restart_window
+    status_restart = StatusHeatingPayload(False, 0, True, True, True, 900, True)
+    assert StatusHeatingPayload.unpack(status_restart.pack()[:6]) == status_restart
     status = StatusHeatingPayload(True, 350)
     assert StatusHeatingPayload.unpack(status.pack()) == status
     power_status = StatusHeatingPayload(True, 1000, True, True, True, 6)

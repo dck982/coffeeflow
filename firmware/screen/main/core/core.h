@@ -65,6 +65,7 @@ struct Snapshot {
   uint8_t pump_pct = 0;
   bool heating_capable = false;
   bool heating_power_capable = false;
+  bool heating_window_restart_capable = false;  // sensors accepte le flag de nouvelle période
   bool heater_on = false;
   float heating_power_pct = 0;  // consigne calculée par screen, pas de 0,1 %
   float heating_power_accepted_pct = 0;  // dernier écho sensors

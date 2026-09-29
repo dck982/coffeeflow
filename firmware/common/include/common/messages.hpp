@@ -76,24 +76,36 @@ struct SetHeatingPayload {
 };
 
 // Régulation continue : le bail est renouvelé même lorsque la puissance est nulle.
+// `restart_window` (5e octet, bit 0) ouvre une nouvelle période PWM à la
+// réception, au lieu d'attendre la fin de la période en cours. L'écran ne
+// l'envoie, en DLC 5, qu'à un module qui annonce `window_restart_capable` ;
+// sinon la trame reste en DLC 4.
 struct SetHeatingPowerPayload {
+  static constexpr uint8_t kFlagRestartWindow = 0x01;
+
   uint16_t power_permille = 0;  // 0..1000 = 0,0..100,0 %
   uint16_t lease_ms = 0;
+  bool restart_window = false;
   Frame pack() const {
     Frame f{};
     put_u16(&f[0], power_permille);
     put_u16(&f[2], lease_ms);
+    f[4] = restart_window ? kFlagRestartWindow : 0;
     return f;
   }
+  size_t length() const { return restart_window ? 5 : 4; }
   static bool unpack(const uint8_t* in, size_t len, SetHeatingPowerPayload* out) {
     if (len == 3 && in[0] <= 100) {  // écran v0.2.68
       out->power_permille = static_cast<uint16_t>(in[0]) * 10;
       out->lease_ms = get_u16(&in[1]);
+      out->restart_window = false;
       return true;
     }
-    if (len != 4 || get_u16(in) > 1000) return false;
+    if ((len != 4 && len != 5) || get_u16(in) > 1000) return false;
+    if (len == 5 && (in[4] & ~kFlagRestartWindow) != 0) return false;
     out->power_permille = get_u16(in);
     out->lease_ms = get_u16(&in[2]);
+    out->restart_window = len == 5 && (in[4] & kFlagRestartWindow) != 0;
     return true;
   }
 };
@@ -103,12 +115,14 @@ struct StatusHeatingPayload {
   uint16_t lease_remaining_ms = 0;
   bool power_capable = false;
   bool fine_power_capable = false;
+  bool window_restart_capable = false;  // accepte `SetHeatingPowerPayload::restart_window`
   uint16_t power_permille = 0;
   Frame pack() const {
     Frame f{};
     f[0] = heater_on ? 1 : 0;
     put_u16(&f[1], lease_remaining_ms);
-    f[3] = 1 | (power_capable ? 2 : 0) | (fine_power_capable ? 4 : 0);
+    f[3] = 1 | (power_capable ? 2 : 0) | (fine_power_capable ? 4 : 0) |
+           (window_restart_capable ? 8 : 0);
     f[4] = static_cast<uint8_t>(power_permille / 10);
     f[5] = static_cast<uint8_t>(power_permille % 10);
     return f;
@@ -121,6 +135,7 @@ struct StatusHeatingPayload {
     if (out->power_capable && in[4] > 100) return false;
     if ((in[3] & 4) != 0 && (len < 6 || in[5] > 9 || (in[4] == 100 && in[5] != 0))) return false;
     out->fine_power_capable = (in[3] & 4) != 0 && out->power_capable;
+    out->window_restart_capable = (in[3] & 8) != 0 && out->fine_power_capable;
     out->power_permille = out->power_capable
         ? static_cast<uint16_t>(in[4] * 10 + (out->fine_power_capable ? in[5] : 0)) : 0;
     return true;

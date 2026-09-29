@@ -36,10 +36,10 @@ class ProbeTests(unittest.TestCase):
             self.assertEqual(json.loads(output.read_text()), result)
         return result
 
-    def test_records_raw_codes_at_two_hertz(self):
-        result = self.run_probe(lambda m, p, b: telemetry(), duration_s=2)
+    def test_records_raw_codes_at_five_hertz(self):
+        result = self.run_probe(lambda m, p, b: telemetry(), duration_s=1.9)
         self.assertEqual(result["stop_reason"], "duration")
-        self.assertEqual(len(result["samples"]), 4)
+        self.assertEqual(len(result["samples"]), 10)
         first = result["samples"][0]
         self.assertEqual((first["a0_raw"], first["a1_raw"]), (26305, 1151))
         self.assertEqual(first["age_ms"], 120)

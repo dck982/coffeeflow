@@ -283,7 +283,7 @@ montage proto dont le retour GND serait différent. Enregistrer les **codes brut
 COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/record_probe.py
 ```
 
-`record_probe.py` interroge `/telemetry` à 2 Hz jusqu'à Ctrl-C et écrit
+`record_probe.py` interroge `/telemetry` à 5 Hz jusqu'à Ctrl-C et écrit
 `captures/probe-<date>.json`. Plonger la sonde dans les bains pendant
 l'enregistrement, puis retrouver les plateaux sur un tracé des codes. Écarter les
 échantillons répétés grâce à `age_ms`.
@@ -301,6 +301,95 @@ scellée.
 Si `R_fixe` change ensuite (carte ADS1115 dédiée), refaire au moins le point à
 0 °C sur la carte finie : une erreur sur `R_fixe` est un défaut de gain que ce
 seul point corrige au premier ordre.
+
+### Essai PT1000 sur banc (29 septembre 2026)
+
+Sonde hors de la machine, sur le pont de l'écran : PT1000 entre le 3V3 du port
+Sensor AD et A1, une 4,7 kΩ (tolérance non marquée) entre A1 et GND, PGA
+±4,096 V. Le firmware restait réglé pour la NTC : il marquait la température
+`missing`, parce que la loi Beta donne environ 179 °C pour 1,1 kΩ, au-delà de
+la limite de 160 °C. Seuls les codes bruts ont servi. Conversion :
+Callendar–Van Dusen IEC 60751, `R = R_fixe × (a0/a1 − 1)`.
+
+| Capture `captures/probe-20260929-…` | Condition | Référence | Lecture (R_fixe = 4676 Ω) |
+|---|---|---|---|
+| `204302-235101` | air calme, 60 s | Netatmo 25,4 °C | 25,4 °C (A1 ≈ 21303) |
+| `204855-502215` | eau du robinet, pointe seule | thermomètre 22,9 °C | 23,2 °C (A1 ≈ 21330) |
+| `210506-779353` | glace pilée remuée, pointe seule | 0 °C (thermomètre −0,1 °C) | A1/A0 = 0,82376–0,82389 |
+| `212531-670526` | ébullition, 966,1 hPa | 98,68 °C (thermomètre 100,1 °C) | 98,25–98,43 °C |
+
+**R_fixe = 4676 Ω**, déduite du point de glace par
+`R_fixe = 1000 × r / (1 − r)`, avec `r = A1/A0`. On a retenu le plateau le plus
+bas, car la conduction par le corps ne peut que faire lire trop haut. Supposer
+le bain à −0,1 °C donnerait 4672 Ω, soit 0,06 °C à 100 °C. Le multimètre
+indique 4,68 kΩ, ce qui est cohérent, mais sa résolution ne suffit pas pour
+étalonner : 10 Ω valent environ 0,8 °C à 100 °C. Avec la valeur nominale de
+4700 Ω, toutes les lectures étaient trop hautes d'environ 1,5 °C.
+
+**Point d'ébullition : −0,3 °C**, dans la tolérance de la classe B (±0,8 °C à
+100 °C). La pente est donc validée sans autre correction entre 0 et 100 °C.
+L'écart-type par échantillon atteint 1,1 à 1,5 °C dans l'eau bouillante, à
+cause des bulles et de la turbulence, contre environ 0,2 °C en bain calme.
+Le thermomètre de cuisine lit environ +1,4 °C trop haut à l'ébullition et
+reste juste à 0 °C : les points fixes servent de référence, pas lui.
+
+**Bruit à 5 Hz, bain calme :** environ 2,5 codes d'écart-type sur A1, soit
+environ 0,2 °C, contre 0,8 code sur A0. Il vient donc du côté de la sonde :
+captation par les fils libres ou mouvements d'air. Une moyenne sur 1 s
+suffit.
+
+**Temps de réponse.** Les durées sont mesurées depuis le début du geste
+d'immersion, qui est compris dedans, pointe inox seule immergée et bain
+agité à la main.
+
+| Échelon | t63 | t90 |
+|---|---|---|
+| 24 °C → glace, corps à l'ambiante | ≈ 2 s | ≈ 5 s, puis traîne d'environ 40 s sur les 3 derniers °C |
+| ≈ 7 °C → glace, corps encore froid | — | ≈ 8 s jusqu'au plateau |
+| 24 °C → ébullition | 3,2 s | 6,7 s |
+| 66 à 75 °C → ébullition, trois replongées | 2,3–2,4 s | 4,8–5,6 s |
+
+La traîne vient du filetage resté à l'air ambiant, qui conduit la chaleur
+vers la pointe. Sur la chaudière, le filetage est serré métal contre métal
+et suit la température de la paroi, pas celle de l'eau : cette traîne de banc
+n'y existe pas sous cette forme. En revanche, une paroi plus froide que l'eau
+biaiserait la mesure vers le bas.
+
+**Pièges constatés pendant l'essai :**
+
+- Une sonde mouillée sortie du bain reste proche de la température de l'eau,
+  parce que l'eau s'évapore à sa surface. Pour observer la reprise, il faut
+  la sécher.
+- Ajouter de l'eau à un bain de glace qui n'a plus assez de glace le fait
+  remonter à 2–5 °C. Ce palier n'est plus un point de référence.
+
+**Comparaison avec la NTC, décision en attente.** Chaque démontage de la sonde
+sur la chaudière impose de vider la chaudière et de refaire le joint. On ne
+monte donc aucune sonde à titre d'essai : on choisit sur banc, puis on monte
+une seule fois. Au prochain démontage, prévu pour remplacer le Loxeal 53-14
+par du 58-11 alimentaire, la NTC passe sur le même banc avec sa 2,193 kΩ. Le
+firmware n'a pas besoin de changer, puisque les codes bruts suffisent. Dans la
+glace, A1 descend vers 360 codes (≈ 158 kΩ) avec environ 18 codes/°C.
+
+Le protocole est identique à celui de la PT1000 : même repère d'immersion
+(pointe seule), sonde sèche stabilisée 2 min à l'air avant chaque échelon,
+agitation similaire, au moins 90 s par bain, et une capture par bain. On
+enregistre deux échelons, ambiante → glace et ambiante → ébullition, plus au
+moins trois replongées depuis environ 70 °C, qui sont les échelons les plus
+propres. On compare t63 et t90.
+
+Les modèles des captures d'infusion bornent la constante propre de la NTC à
+quelques secondes : le chemin eau admise → NTC ne dure que 6,4 s en moyenne,
+hydraulique comprise. Les retards de régulation de 17,6 s en infusion et de
+23,5 s au repos viennent surtout de la chaudière, pas de la sonde. Si la NTC
+répond en moins d'environ 3 s, la PT1000 plus courte n'apporte que quelques
+pourcents de retard en moins, pour le risque qu'elle touche moins bien l'eau.
+Si la NTC répond en 8 s ou plus, le remplacement se justifie.
+
+Si la PT1000 est retenue, le firmware doit passer à `R_fixe = 4676 Ω` et à
+la loi Callendar–Van Dusen, qui s'inverse directement pour T ≥ 0 °C. Il faut
+aussi retirer le décalage NTC de −10 °C
+(`kBoilerNtcTemperatureOffsetC`) et le remesurer sonde montée.
 
 ## Carte ADS1115 prévue
 

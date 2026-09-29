@@ -7,7 +7,7 @@
 Exemple : COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=192.168.2.196 \
     uv run firmware/tools/record_probe.py
 
-Interroge /telemetry à 2 Hz jusqu'à Ctrl-C (ou --duration). Plonger la sonde
+Interroge /telemetry à 5 Hz jusqu'à Ctrl-C (ou --duration). Plonger la sonde
 dans les bains pendant l'enregistrement ; retrouver ensuite les plateaux sur
 un tracé de a0_raw / a1_raw. Le rapport a0/a1 − 1 vaut R_sonde / R_fixe.
 
@@ -31,7 +31,7 @@ from record_heating import request_json
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_DIR = PROJECT_ROOT / "captures"
-POLL_INTERVAL_S = 0.5
+POLL_INTERVAL_S = 0.2
 STATUS_INTERVAL_S = 2.0
 
 

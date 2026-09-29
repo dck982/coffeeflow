@@ -999,9 +999,13 @@ bloquer l'infusion et garder la purge disponible.
 
 ## Remplacement prévu par une PT1000
 
-La NTC installée est physiquement assez grande et retarde la mesure d'environ
-8 s : le début et le minimum de la chute réelle peuvent précéder nettement
-ceux de la courbe NTC.
+La NTC installée est physiquement assez grande. On lui attribuait un retard de
+mesure d'environ 8 s, mais les captures ne séparent pas son temps de réponse
+propre du transport de l'eau et de la chaleur dans la chaudière. Le chemin eau
+admise → NTC ne dure que 6,4 s en moyenne, transport compris. Sur banc, la
+PT1000 répond avec t63 ≈ 2,3 s et t90 ≈ 5–6 s. La NTC passera par le même banc
+avant qu'on choisisse la sonde à monter : voir
+[l'essai du 29 septembre](ntc_ads1115_calibration.md#essai-pt1000-sur-banc-29-septembre-2026).
 
 Le remplacement prévu est une **PT1000 iOVEO 012EF02202**, filetée
 **G 1/8**, avec une partie immergée en acier inoxydable de **9 mm de long et

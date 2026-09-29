@@ -396,6 +396,32 @@ Si ce n'est pas déjà fait, relever 3 min de surveillance au repos avant
 l'infusion : points à vérifier dans
 [chauffe-repos.md](chauffe-repos.md#à-vérifier-sur-la-prochaine-capture).
 
+**À vérifier d'abord : la nouvelle fenêtre SSR (0.3.30).** Sans ces trois
+points, les températures ne se comparent pas à 14 h 24. Les calculs se font
+sur `samples` de la capture HF (pas de 100 ms), avec `heating_power_pct`,
+`heater_on` et `mode`. `heater_on` est l'écho du module capteurs : on tolère
+un échantillon de retard, soit **0,2 s** au plus.
+
+1. **Départ de la précharge.** Entre le premier échantillon
+   `thermal_preheat` à 90 % et le premier `heater_on` vrai : **≤ 0,2 s**,
+   contre 1,0 s à 14 h 24 (0,31 → 1,31 s).
+2. **Début du remplissage.** Entre le premier échantillon `filling` et le
+   premier `heater_on` vrai qui suit : **≤ 0,2 s**, SSR allumé dès la
+   première commande de l'écoulement (≈ 45 %, débit pas encore mesuré). Si
+   le SSR était déjà allumé à cet instant, relever la durée de marche dans
+   la seconde qui suit : ≈ 0,4–0,5 s attendues pour 45 %.
+3. **Énergie de la précharge.** Somme de `1200 W × dt × heater_on` rapportée
+   à la somme de `12 J × heating_power_pct × dt` sur les échantillons
+   `thermal_preheat` : **≥ 95 %**, contre 90 % à 14 h 24 (9,42 kJ pour
+   10,49 kJ). Faire le même rapport sur toute la capture (90 % à 14 h 24) :
+   les hausses en cours d'écoulement attendent encore la fenêtre suivante,
+   un écart résiduel y reste normal.
+
+Si l'un de ces points échoue, vérifier d'abord
+`heating.window_restart_capable: true` dans `/telemetry`, puis la présence
+du flag dans une trace `coffeetool` (`nouvelle_periode` sur
+`SET_HEATING_POWER`).
+
 Valeurs attendues, à mouture égale : mesures de 14 h 24 décalées de 0,7 s
 de précharge réelle en moins (8 s contre 8,7 s), à raison de 0,55 °C par
 seconde sur la moyenne et de 0,7 °C sur le pic et le minimum.

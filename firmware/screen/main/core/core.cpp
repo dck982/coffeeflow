@@ -16,6 +16,7 @@
 #include "net_wifi.h"
 #include "core/calibration_machine.h"
 #include "core/machine.h"
+#include "core/sample_schedule.h"
 #include "core/thermal_control.h"
 #include "common/messages.hpp"
 #include "common/version.hpp"
@@ -32,6 +33,8 @@ constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
 constexpr uint16_t kHFCapturePeriodMs = 100;
+constexpr SampleSchedule kHFCaptureSchedule{static_cast<int64_t>(kHFCapturePeriodMs) * 1000,
+                                            static_cast<int64_t>(kTelemetryTickMs) * 1000 / 2};
 constexpr uint16_t kBoilerPairPeriodMs = 100;
 // 115,2 s couvrent le réglage temporel maximal de 60 s, 15 s de précharge et
 // les 30 s de récupération conservées après une infusion.
@@ -259,11 +262,11 @@ void tick_hf_capture() {
     set_telemetry_profile(profile);
     return;
   }
-  if (now < capture.next_sample_us) {
+  if (!kHFCaptureSchedule.due(now, capture.next_sample_us)) {
     portEXIT_CRITICAL(&g_state.lock);
     return;
   }
-  capture.next_sample_us = now + static_cast<int64_t>(kHFCapturePeriodMs) * 1000;
+  capture.next_sample_us = kHFCaptureSchedule.next(now, capture.next_sample_us);
   if (capture.count == kHFCaptureCapacity) {
     capture.dropped_samples++;
     portEXIT_CRITICAL(&g_state.lock);

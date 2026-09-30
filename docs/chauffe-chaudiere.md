@@ -1,6 +1,6 @@
 # Régulation de la chaudière
 
-Ce document décrit d'abord **l'état actuel** (version **0.3.30**) :
+Ce document décrit d'abord **l'état actuel** (version **0.3.31**) :
 machine, mesure, configuration et loi de chauffe. Viennent ensuite les
 **points à considérer**, le **prochain essai**, puis le **journal des
 essais**, qui conserve les mesures et le raisonnement ayant conduit aux
@@ -295,24 +295,25 @@ l'historique.
    le départ de la précharge et de l'écoulement (flag `restart_window`, voir
    la [chaîne de commande](#chaîne-de-commande)).
 
-10. **La capture HF échantillonne à ~130 ms, pas à 100 ms.** Les captures
+10. **La capture HF échantillonnait à ~130 ms, pas à 100 ms.** Les captures
     annoncent `sample_period_ms: 100`. À 14 h 25 le 30 septembre, les
     écarts entre échantillons valent **100 ms** (187 fois) ou **150 ms**
     (257 fois), sans échantillon perdu : ≈ 130 ms en moyenne, 149 ms en
     médiane. Même répartition à 14 h 24 le 29 septembre et à 9 h 43 le
     30 septembre. Cause dans `tick_hf_capture()` (`core.cpp`) : l'échéance
-    suivante est posée à `now + 100 ms`. Or la boucle de télémétrie tourne
+    suivante était posée à `now + 100 ms`. Or la boucle de télémétrie tourne
     à 50 ms (`vTaskDelay` de 5 ticks à 100 Hz), réveillée sur les frontières
     de tick, et `now` est lu après un travail de durée variable (requêtes
     CAN, `tick_machine`, `tick_thermal`). Deux tours plus tard, si ce travail
-    a été un peu plus court, `now` tombe juste avant
-    l'échéance : l'échantillon attend un tour de plus, soit 150 ms.
-    Correctif évident : avancer l'échéance d'une période
-    (`next_sample_us += 100 ms`, en recalant si le retard dépasse une
-    période) et accepter l'échantillon un demi-tour avant l'échéance. Les
-    analyses interpolent sur `t_ms` et ne sont pas faussées. La capacité de
-    1 152 échantillons couvre ≈ 150 s au lieu de 115 s. La tolérance d'un
-    échantillon (0,2 s) des contrôles du SSR reste suffisante. Non corrigé.
+    a été un peu plus court, `now` tombait juste avant l'échéance :
+    l'échantillon attendait un tour de plus, soit 150 ms. Les analyses
+    interpolent sur `t_ms` et n'étaient pas faussées. **Résolu en 0.3.31**
+    (`core/sample_schedule.h`) : l'échéance avance d'une période sur la
+    grille de départ, un échantillon est accepté jusqu'à un demi-tour de
+    boucle (25 ms) avant son échéance, et la grille repart de maintenant si
+    le retard atteint une période moins cette avance. Attendu : des écarts
+    de 100 ms à quelques millisecondes près ; 1 152 échantillons couvrent
+    115 s.
 
 L'ancienne version de ce document annonçait aussi une bande « prête » de
 ±0,5 °C ; le code utilise ±1 °C.
@@ -391,8 +392,10 @@ L'essai de 5,5 s est fait
 de la consigne (voir [chauffe-infusion.md](chauffe-infusion.md#objectif)).
 Café jugé bon, creux jugé acceptable.
 
-Garder `heating.brew_preheat_time_s` à **5,5 s**, la consigne, la recette et
-la mouture de 14 h 25. Les prochaines infusions mesurent la répétabilité ; en
+Flasher l'écran en **0.3.31** (échantillonnage de la capture HF, point à
+considérer 10) ; le module capteurs peut rester en 0.3.30, son code ne
+change pas. Garder `heating.brew_preheat_time_s` à **5,5 s**, la consigne,
+la recette et la mouture de 14 h 25. Les prochaines infusions mesurent la répétabilité ; en
 noter la mouture, le poids et la durée.
 
 | Point | Attendu | 14 h 25 |
@@ -414,6 +417,10 @@ dira si la moyenne de la NTC en tasse est bien celle de l'eau au panier.
 Si ce n'est pas déjà fait, relever 3 min de surveillance au repos avant
 l'infusion : points à vérifier dans
 [chauffe-repos.md](chauffe-repos.md#à-vérifier-sur-la-prochaine-capture).
+
+Vérifier d'abord l'échantillonnage 0.3.31 : les écarts entre `t_ms`
+successifs de `samples` doivent valoir 100 ms à ±5 ms, hors éventuels
+recalages isolés (0.3.30 : 100 ou 150 ms).
 
 Pour l'analyse :
 

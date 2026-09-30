@@ -93,10 +93,10 @@ garantir un `purge_release` en sortie d'erreur. L'outil prévu est
 `firmware/tools/calibration_purge.py`; il ne tente pas de lire le poids en
 Wi-Fi et attend sa saisie après l'essai.
 
-`GET /hf-capture` exporte la dernière session d'actionneur terminée, à 10 Hz
-nominaux (≈ 130 ms réels en moyenne, voir le
-[point à considérer 10](chauffe-chaudiere.md#incohérences-du-code)),
-sous forme JSON. Le buffer est remis à zéro au premier `SET dimmer>0` d'une
+`GET /hf-capture` exporte la dernière session d'actionneur terminée, à 10 Hz,
+sous forme JSON. Jusqu'à 0.3.30, les échantillons étaient espacés de 100 ou
+150 ms (≈ 130 ms en moyenne, voir le
+[point à considérer 10](chauffe-chaudiere.md#incohérences-du-code)). Le buffer est remis à zéro au premier `SET dimmer>0` d'une
 nouvelle session, y compris une commande brute `set_actuators`. Il conserve la
 consigne et le niveau dimmer rapporté, la puissance de chauffe demandée,
 l'état réel rapporté du SSR chaudière, les phases, les valeurs brutes XDB401 /

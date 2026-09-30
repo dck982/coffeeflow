@@ -26,6 +26,47 @@ consigne) ne change donc pas l'infusion, et inversement. Seul point de
 contact : la récupération, gérée par le régulateur de repos, démarre avec
 l'historique de commande laissé par l'infusion.
 
+## Objectif
+
+L'utilisateur lit la consigne comme **la température moyenne de l'eau au
+groupe pendant l'infusion**. L'offset de −10 °C entre la sonde et la
+température utilisateur (voir
+[chauffe-chaudiere.md](chauffe-chaudiere.md#conversion-actuelle)) va dans ce
+sens : environ 100 °C à la sonde pour 90 °C au groupe.
+
+Tant qu'aucune mesure au panier n'existe, le critère est la **NTC en
+température utilisateur, moyenne pondérée par la tasse** : chaque gramme
+arrivé en tasse avant l'arrêt de la pompe compte avec la NTC du même
+instant. Elle doit valoir la consigne. `analyze_hf_capture.py` la calcule
+(poids en maximum courant, poids invalides ou négatifs ignorés).
+
+| Choix | Raison |
+| --- | --- |
+| Pondération par la tasse plutôt que par le volume amont | seuls ≈ 21 g des ≈ 65 ml admis arrivent en tasse ; le reste remplit l'espace au-dessus de la galette et la mouille pendant le remplissage |
+| NTC du même instant, sans décalage | le temps de passage chaudière → tasse n'est pas mesuré ; un décalage fixe se discutera avec la mesure au panier |
+| Jusqu'à l'arrêt de la pompe | après, la tasse peut être retirée et le poids n'est plus exploitable |
+| Creux et bosse sans critère propre | seule la moyenne est promise ; le minimum reste suivi, pour ne pas échanger un dépassement contre un creux profond |
+
+Hypothèse non vérifiée : l'offset de −10 °C vient des essais de *flashing*
+au repos. Rien ne dit qu'il tient pendant l'écoulement, avec l'inertie du
+groupe. Un panier de mesure de type Scace, en préparation, mesurera l'eau
+dans le panier. Il remplacera la NTC comme critère et permettra de recaler
+l'offset.
+
+Écart au critère, consigne de 90 °C :
+
+| Infusion | Précharge | Tasse | Volume amont |
+| --- | ---: | ---: | ---: |
+| 29/09, 7 h 40 | 6 s | 87,20 °C | 88,81 °C |
+| 28/09, 13 h 01 | 10 s (trou de chauffe) | 88,72 °C | 89,98 °C |
+| 29/09, 14 h 24 | ≈ 8,7 s réelles | 91,30 °C | 91,46 °C |
+| 30/09, 9 h 43 | 8 s | **92,55 °C** | 92,00 °C |
+
+Les réglages et les recettes ont changé d'une infusion à l'autre ; la
+dispersion de 5,3 °C ne mesure donc pas seulement la loi. En simulation, à
+précharge égale, l'hydraulique seule des quatre captures donne 2,1 °C
+d'écart (voir [Simulation](#simulation)).
+
 ## Constats qui fondent la loi
 
 Machine : Profitec GO, chaudière de 400 ml, résistance de 1 200 W. 1 % de
@@ -150,7 +191,7 @@ début de l'infusion, pendant la montée en pression.
 
 | Réglage | Emplacement | Valeur |
 | --- | --- | --- |
-| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; 8 s au prochain essai |
+| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; 5,5 s au prochain essai (8 s le 30 septembre) |
 | Puissance de précharge | `BrewHeating::kPreheatPowerPct` | 90 % |
 | Bande de suppression de la précharge | `BrewHeating::kPreheatAboveTargetBandC` | +0,5 °C |
 | Maintien | `BrewHeating::kHoldPowerPct` | 3,5 % |
@@ -226,13 +267,65 @@ consigne de 90 °C : plus de creux, mais un dépassement. Détail dans le
 Les « 10 s » n'ont fourni qu'environ 8,7 s réelles : le SSR a attendu 1 s
 la fenêtre suivante. Chaque seconde de précharge vaut environ 0,55 °C sur
 la moyenne pondérée. Depuis 0.3.30, la précharge part avec une fenêtre SSR
-neuve ; le prochain essai règle **8 s**.
+neuve ; l'essai suivant règle **8 s**.
+
+**Deuxième essai, 30 septembre à 9 h 43 (précharge de 8 s, 0.3.30).** La
+fenêtre SSR neuve fonctionne : le SSR fournit 8,52 kJ pour 8,53 kJ
+commandés pendant la précharge. Le remplissage est couvert (minimum de
+90,17 °C pendant l'écoulement), mais la moyenne en tasse monte à
+**92,55 °C**, et la NTC à **94,8 °C** à l'arrêt de la pompe, chauffe coupée
+depuis 10,5 s. Détail dans le
+[journal](chauffe-chaudiere.md#infusion-de-9-h-43-30-septembre--précharge-de-8-s).
+
+Cause : **l'eau du remplissage est chauffée deux fois.** La précharge couvre
+l'eau froide du remplissage à l'avance. L'appoint au débit la chauffe une
+seconde fois en temps réel : ≈ 12 kJ à 75–90 % entre 9,4 et 20,5 s. Avec le
+délai de 17,6 s, cette chaleur atteint la sonde entre ~27 et 38 s, quand le
+débit n'est plus que de 1,3–1,9 ml/s. La coupure de fin ne retire que
+l'appoint des 10,5 dernières secondes (≈ 4,6 kJ), alors que la précharge
+apporte 8,5 kJ. L'excédent de ≈ 3,9 kJ vaut ≈ +2,7 °C, à peu près l'état
+final mesuré (+2,7 °C 30 s après l'arrêt). Plus l'infusion est longue et
+lente, plus cette chaleur tombe en tasse plutôt qu'après l'arrêt de la
+pompe.
+
+**Remboursement de la précharge (simulé, non implémenté).** L'appoint est
+retenu jusqu'à ce que l'énergie retenue égale celle de la précharge ; la
+coupure de fin s'y ajoute sans compter dans ce remboursement. Moyenne en
+tasse simulée sur l'hydraulique des quatre captures (13 h 01, 7 h 40,
+14 h 24, 9 h 43), paramètres enregistrés :
+
+| Loi | Précharge | Tasse | Écart entre captures | Minimum | 30 s après l'arrêt |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| actuelle, coupure 11 s | 8 s | 88,5–90,6 °C | 2,10 °C | 87,9–89,1 °C | 90,0–92,7 °C |
+| remboursée dès le début de l'infusion | 10 s | 89,6–90,8 °C | **1,23 °C** | 88,2–89,2 °C | 88,5–89,6 °C |
+| remboursée quand le débit passe sous 2,5 ml/s | 8 s | 88,5–90,4 °C | 1,88 °C | 87,9–89,1 °C | 90,0–92,0 °C |
+
+À moyenne comparable, le remboursement dès l'infusion garde les mêmes
+minima. Il réduit l'écart entre captures de 2,1 à 1,2 °C et ramène l'état
+final sous la consigne. Attendre la fin du fort débit (sous 2,5 ou
+2,0 ml/s) laisse trop peu de temps pour rembourser avant l'arrêt. Chaque
+seconde de précharge vaut ≈ 0,72 °C sur la moyenne en tasse, quelle que soit
+la loi.
+
+**Limite de ce résultat : l'erreur du modèle sur la moyenne en tasse est du
+même ordre que ces écarts.** Rejoué avec la commande réelle, il prévoit
+90,63 °C à 9 h 43 (mesuré 92,51 °C). Réajusté sur les quatre infusions avec
+l'état du SSR, il laisse +1,3 °C à 13 h 01 et −1,3 °C à 9 h 43 ; en
+validation croisée, l'erreur atteint ±1,9 °C. Un facteur manque au modèle
+linéaire ; il n'est pas identifié. Le réajustement n'a pas été retenu. Le
+réglage de précharge part donc de la mesure, et le remboursement reste à
+confirmer sur des infusions réelles.
 
 ## Limites connues
 
 - **La NTC n'est pas l'eau au groupe.** Tout ce qui précède optimise la
-  courbe de la sonde. Une sonde rapide à la sortie du groupe, pendant
-  l'écoulement, dirait si le creux de la NTC est aussi celui de la tasse.
+  courbe de la sonde. Le panier de mesure en préparation dira si le creux
+  de la NTC est aussi celui de la tasse, et si l'offset de −10 °C tient
+  pendant l'écoulement (voir [Objectif](#objectif)).
+- **Double chauffe de l'eau du remplissage.** La précharge et l'appoint au
+  débit la chauffent toutes les deux ; la coupure de fin n'en retire qu'une
+  partie. Voir le
+  [remboursement de la précharge](#simulation), simulé mais non implémenté.
 - **Le débitmètre est en amont de la pompe.** Une recirculation par l'OPV
   gonflerait le débit mesuré, donc la commande.
 - **Premier instant du remplissage.** Le débit mesuré reste proche de 0 pendant
@@ -262,5 +355,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `260928-130104.json` | 10 s | ajustement ; trou de chauffe dû au plancher conditionnel |
 | `260929-074002.json` | 6 s | ajustement ; bilan équilibré, creux inchangé |
 | `260929-142427.json` | 10 s | premier essai de la loi 0.3.28 ; pas de creux, dépassement de +1,46 °C en moyenne ; hors ajustement |
+| `260930-094308.json` | 8 s | premier essai de la 0.3.30 (fenêtre SSR neuve) ; mouture trop fine ; +2,55 °C en tasse, double chauffe du remplissage ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

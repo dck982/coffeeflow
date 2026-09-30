@@ -26,6 +26,10 @@ Exemples :
     uv run firmware/tools/simulate_boiler.py
     uv run firmware/tools/simulate_boiler.py --fit
     uv run firmware/tools/simulate_boiler.py --capture captures/260929-074002.json
+
+La colonne « tasse » est la NTC moyenne pondérée par les grammes arrivés en
+tasse (critère de la consigne), avec la balance de la capture décalée comme
+la précharge simulée.
 """
 
 from __future__ import annotations
@@ -60,7 +64,26 @@ def load_hf(path: Path) -> dict:
         "vol": np.interp(grid, t, [s["volume_ml"] for s in samples]),
         "flow": np.array([samples[i]["flow_ml_s"] for i in idx]),
         "mode": [samples[i]["mode"] for i in idx],
+        "ssr": np.array([100.0 if samples[i]["heater_on"] else 0.0 for i in idx]),
+        "cup": cup_increments(t, grid, samples),
     }
+
+
+def cup_increments(t: np.ndarray, grid: np.ndarray, samples: list[dict]) -> np.ndarray:
+    """Grammes arrivés en tasse à chaque pas, jusqu'à l'arrêt de la pompe.
+
+    Le poids est pris en maximum courant (la balance oscille) ; après l'arrêt,
+    la tasse peut être retirée et le poids n'est plus exploitable.
+    """
+    stop = max(i for i, s in enumerate(samples) if s["mode"] in FLOWING)
+    weight = np.maximum.accumulate([max(0.0, s["weight_g"]) for s in samples[: stop + 1]])
+    w = np.interp(grid, t[: stop + 1], weight, right=weight[-1])
+    return np.diff(w, prepend=0.0)
+
+
+def cup_mean(T: np.ndarray, cup: np.ndarray) -> float:
+    """NTC moyenne pondérée par les grammes arrivés en tasse au même instant."""
+    return float(np.sum(T * cup) / np.sum(cup))
 
 
 def load_monitor(path: Path) -> dict:
@@ -76,6 +99,8 @@ def load_monitor(path: Path) -> dict:
         "vol": np.zeros_like(grid),
         "flow": np.zeros_like(grid),
         "mode": ["idle"] * len(grid),
+        "ssr": np.array([power[i] for i in idx], dtype=float),
+        "cup": np.zeros_like(grid),
     }
 
 
@@ -105,8 +130,8 @@ def model(p: np.ndarray, cap: dict, cmd: np.ndarray, water_ml_s: np.ndarray) -> 
     return t0 + x + loss * t + (initial_slope - loss) * 20 * (1 - np.exp(-t / 20))
 
 
-def replay(p: np.ndarray, cap: dict) -> np.ndarray:
-    return model(p, cap, cap["cmd"], np.gradient(cap["vol"], DT).clip(0))
+def replay(p: np.ndarray, cap: dict, heat: str = "cmd") -> np.ndarray:
+    return model(p, cap, cap[heat], np.gradient(cap["vol"], DT).clip(0))
 
 
 def rms(p: np.ndarray, cap: dict) -> float:
@@ -130,12 +155,18 @@ def need_pct(flow_ml_s: float, cap_pct: float) -> float:
     return min(cap_pct, HOLD_PCT + flow_ml_s * 4.18 * WATER_DELTA_K / 12)
 
 
-def scenario(p, cap, preheat_s, preheat_pct, cap_pct, cut_s=0.0, lead_s=None):
+def scenario(p, cap, preheat_s, preheat_pct, cap_pct, cut_s=0.0, lead_s=None,
+             repay=None, repay_flow_ml_s=2.5):
     """Précharge puis appoint proportionnel au débit mesuré.
 
     ``cut_s`` coupe la chauffe ``cut_s`` secondes avant l'arrêt de la pompe.
     ``lead_s`` (oracle) commande le besoin du débit ``lead_s`` s plus tard ;
     la précharge est alors ce besoin anticipé.
+
+    ``repay`` retient l'appoint jusqu'à avoir retenu l'énergie de la
+    précharge : ``"infusion"`` dès le début de l'infusion, ``"regime"`` dès
+    que le débit amont passe sous ``repay_flow_ml_s`` pendant l'infusion.
+    L'énergie retirée par la coupure de fin ne compte pas.
     """
     i0 = next(i for i, m in enumerate(cap["mode"]) if m != "thermal_preheat")
     water = np.gradient(cap["vol"], DT).clip(0)[i0:]
@@ -145,9 +176,16 @@ def scenario(p, cap, preheat_s, preheat_pct, cap_pct, cut_s=0.0, lead_s=None):
     stop = max(i for i, m in enumerate(modes) if m == "infusion")
     cmd = np.zeros(len(water))
     if lead_s is None:
+        debt_kj = preheat_s * preheat_pct * 12 / 1000 if repay else 0.0
+        repaying = False
         for j in range(len(water)):
             if flowing[j] and j <= stop - int(cut_s / DT):
                 cmd[j] = need_pct(flow[j], cap_pct)
+            if modes[j] == "infusion" and (repay == "infusion" or flow[j] < repay_flow_ml_s):
+                repaying = repaying or repay is not None
+            if repaying and debt_kj > 0:
+                debt_kj -= cmd[j] * 12 * DT / 1000
+                cmd[j] = 0.0
         n0 = int(round(preheat_s / DT))
         pre = np.full(n0, preheat_pct)
     else:
@@ -158,10 +196,11 @@ def scenario(p, cap, preheat_s, preheat_pct, cap_pct, cut_s=0.0, lead_s=None):
     cmd = np.r_[pre, cmd]
     water = np.r_[np.zeros(n0), water]
     modes = ["preheat"] * n0 + modes
-    return summarize(model(p, cap, cmd, water), modes, cmd, n0)
+    cup = np.r_[np.zeros(n0), cap["cup"][i0:]]
+    return summarize(model(p, cap, cmd, water), modes, cmd, n0, cup)
 
 
-def summarize(T, modes, cmd, n0):
+def summarize(T, modes, cmd, n0, cup):
     infusion = [i for i, m in enumerate(modes) if m == "infusion"]
     stop = infusion[-1]
     end = min(len(T) - 1, stop + int(30 / DT))
@@ -170,6 +209,7 @@ def summarize(T, modes, cmd, n0):
         "min": float(T[:end].min()),
         "end": float(T[end]),
         "energy_kj": float(np.sum(cmd) * 12 * DT / 1000),
+        "cup": cup_mean(T, cup),
     }
 
 
@@ -205,20 +245,28 @@ def main() -> None:
         m = replay(p, cap)
         i_inf = cap["mode"].index("infusion")
         print(f"\n== {cap['name']} — départ {cap['T'][0]:.2f} °C")
-        print(f"{'':48} {'pic':>6} {'min':>6} {'+30 s':>6} {'kJ':>5}")
-        print(f"{'mesure':48} {cap['T'][:i_inf].max():6.2f} {cap['T'].min():6.2f}")
-        print(f"{'modèle, commande réelle':48} {m[:i_inf].max():6.2f} {m.min():6.2f}")
+        print(f"{'':54} {'pic':>6} {'min':>6} {'+30 s':>6} {'kJ':>5} {'tasse':>6}")
+        print(f"{'mesure':54} {cap['T'][:i_inf].max():6.2f} {cap['T'].min():6.2f} {'':6} {'':5} "
+              f"{cup_mean(cap['T'], cap['cup']):6.2f}")
+        print(f"{'modèle, commande réelle':54} {m[:i_inf].max():6.2f} {m.min():6.2f} {'':6} {'':5} "
+              f"{cup_mean(m, cap['cup']):6.2f}")
         rows = [(f"précharge {s:g} s à 90 %, débit ≤ 90 %", dict(preheat_s=s, preheat_pct=90, cap_pct=90))
                 for s in (0, 3, 6, 8, 10)]
         rows += [("précharge 3 s à 90 %, débit ≤ 100 %", dict(preheat_s=3, preheat_pct=90, cap_pct=100)),
                  ("précharge 3 s à 90 %, débit ≤ 70 %", dict(preheat_s=3, preheat_pct=90, cap_pct=70))]
         rows += [(f"précharge {s:g} s à 90 %, débit ≤ 90 %, coupe {c:g} s", dict(preheat_s=s, preheat_pct=90, cap_pct=90, cut_s=c))
                  for s, c in ((3, 8), (6, 8), (8, 8), (8, 11), (10, 11))]
+        rows += [(f"précharge {s:g} s, remboursée dès l'infusion, coupe 11 s",
+                  dict(preheat_s=s, preheat_pct=90, cap_pct=90, cut_s=11, repay="infusion"))
+                 for s in (8, 10, 12)]
+        rows += [(f"précharge {s:g} s, remboursée sous 2,5 ml/s, coupe 11 s",
+                  dict(preheat_s=s, preheat_pct=90, cap_pct=90, cut_s=11, repay="regime"))
+                 for s in (8, 10)]
         rows += [(f"oracle : besoin avancé de {l:g} s", dict(preheat_s=0, preheat_pct=0, cap_pct=90, lead_s=l))
                  for l in (8, 11)]
         for label, kw in rows:
             r = scenario(p, cap, **kw)
-            print(f"{label:48} {r['peak']:6.2f} {r['min']:6.2f} {r['end']:6.2f} {r['energy_kj']:5.1f}")
+            print(f"{label:54} {r['peak']:6.2f} {r['min']:6.2f} {r['end']:6.2f} {r['energy_kj']:5.1f} {r['cup']:6.2f}")
         peak_s, within_s = rebound_timing(p, cap)
         print(f"rebond : maximum {peak_s:.1f} s après la pompe, à 0,1 °C près dès {within_s:.1f} s")
 

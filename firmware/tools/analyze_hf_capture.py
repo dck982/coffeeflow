@@ -2,7 +2,11 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Calcule la température NTC moyenne pondérée par le volume d'une capture HF.
+"""Calcule la température NTC moyenne d'une capture HF, pondérée par la tasse et par le volume.
+
+La moyenne pondérée par la tasse est le critère de la consigne
+(docs/chauffe-infusion.md#objectif) : chaque gramme arrivé en tasse avant
+l'arrêt de la pompe compte avec la NTC du même instant.
 
 Exemple : uv run firmware/tools/analyze_hf_capture.py captures/260925-152754.json
 """
@@ -56,6 +60,43 @@ def volume_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -
     return volume_ml, temperature_volume / volume_ml
 
 
+SCALE_VALID = 0x04
+
+
+def cup_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -> tuple[float, float] | None:
+    """Moyenne NTC pondérée par les grammes arrivés en tasse jusqu'à ``end_index``.
+
+    Le poids est pris en maximum courant : la balance oscille de quelques
+    dixièmes de gramme et une baisse n'est pas de l'eau qui remonte. Les
+    poids invalides ou négatifs sont ignorés. ``None`` sans balance.
+    """
+    cup_g = 0.0
+    temperature_cup = 0.0
+    top_g: float | None = None
+    top_temperature = 0.0
+    for index in range(end_index + 1):
+        sample = samples[index]
+        weight = sample.get("weight_g")
+        if not (int(sample.get("flags", 0)) & SCALE_VALID) or isinstance(weight, bool) \
+                or not isinstance(weight, (int, float)) or not math.isfinite(weight) or weight < 0:
+            continue
+        if sample.get("boiler_temperature_valid") is not True:
+            continue
+        temperature = finite_number(sample.get("boiler_temperature_c"), "boiler_temperature_c", index)
+        if top_g is None:
+            top_g, top_temperature = float(weight), temperature
+            continue
+        if weight > top_g:
+            delta = weight - top_g
+            temperature_cup += delta * (top_temperature + temperature) / 2
+            cup_g += delta
+            top_g = float(weight)
+        top_temperature = temperature
+    if cup_g <= 0:
+        return None
+    return cup_g, temperature_cup / cup_g
+
+
 def analyze(capture: dict[str, Any]) -> tuple[tuple[float, float, float] | None, tuple[float, float]]:
     if capture.get("schema") != "coffeeflow.hf_capture.v2":
         raise ValueError("capture HF v2 requise")
@@ -88,13 +129,19 @@ def main() -> int:
     print(f"Capture : {args.capture}")
     if during_pump is not None:
         stop_s, volume_ml, average_c = during_pump
-        print(f"Jusqu'à l'arrêt de la pompe ({stop_s:.2f} s) : {average_c:.2f} °C sur {volume_ml:.2f} ml")
+        cup = cup_weighted_temperature(capture["samples"], pump_stop_index(capture["samples"]))
+        if cup is not None:
+            cup_g, cup_c = cup
+            print(f"Pondérée par la tasse, jusqu'à l'arrêt de la pompe : {cup_c:.2f} °C sur {cup_g:.1f} g")
+        else:
+            print("Pondérée par la tasse : pas de balance dans la capture")
+        print(f"Pondérée par le volume, jusqu'à l'arrêt de la pompe ({stop_s:.2f} s) : {average_c:.2f} °C sur {volume_ml:.2f} ml")
     else:
         print("Arrêt de la pompe absent : moyenne pendant toute la capture seulement")
-    print(f"Capture entière : {full_average_c:.2f} °C sur {full_volume_ml:.2f} ml")
+    print(f"Pondérée par le volume, capture entière : {full_average_c:.2f} °C sur {full_volume_ml:.2f} ml")
     if capture.get("dropped_samples", 0):
         print(f"Attention : {capture['dropped_samples']} échantillon(s) perdu(s) ; interpolation sur les intervalles manquants")
-    print("Méthode : somme[Δvolume × moyenne des deux températures NTC] / somme[Δvolume]")
+    print("Méthode : somme[Δ × moyenne des deux températures NTC] / somme[Δ], Δ en grammes (maximum courant) ou en ml")
     print("La NTC est dans la chaudière et le débitmètre en amont ; ce n'est pas une mesure directe à la sortie.")
     return 0
 

@@ -295,6 +295,25 @@ l'historique.
    le départ de la précharge et de l'écoulement (flag `restart_window`, voir
    la [chaîne de commande](#chaîne-de-commande)).
 
+10. **La capture HF échantillonne à ~130 ms, pas à 100 ms.** Les captures
+    annoncent `sample_period_ms: 100`. À 14 h 25 le 30 septembre, les
+    écarts entre échantillons valent **100 ms** (187 fois) ou **150 ms**
+    (257 fois), sans échantillon perdu : ≈ 130 ms en moyenne, 149 ms en
+    médiane. Même répartition à 14 h 24 le 29 septembre et à 9 h 43 le
+    30 septembre. Cause dans `tick_hf_capture()` (`core.cpp`) : l'échéance
+    suivante est posée à `now + 100 ms`. Or la boucle de télémétrie tourne
+    à 50 ms (`vTaskDelay` de 5 ticks à 100 Hz), réveillée sur les frontières
+    de tick, et `now` est lu après un travail de durée variable (requêtes
+    CAN, `tick_machine`, `tick_thermal`). Deux tours plus tard, si ce travail
+    a été un peu plus court, `now` tombe juste avant
+    l'échéance : l'échantillon attend un tour de plus, soit 150 ms.
+    Correctif évident : avancer l'échéance d'une période
+    (`next_sample_us += 100 ms`, en recalant si le retard dépasse une
+    période) et accepter l'échantillon un demi-tour avant l'échéance. Les
+    analyses interpolent sur `t_ms` et ne sont pas faussées. La capacité de
+    1 152 échantillons couvre ≈ 150 s au lieu de 115 s. La tolérance d'un
+    échantillon (0,2 s) des contrôles du SSR reste suffisante. Non corrigé.
+
 L'ancienne version de ce document annonçait aussi une bande « prête » de
 ±0,5 °C ; le code utilise ±1 °C.
 
@@ -364,42 +383,30 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
    la fenêtre étant déjà recalée par la précharge ; il sert quand la
    précharge est nulle ou supprimée.
 
-## Prochain essai : précharge de 5,5 s, mouture plus grosse
+## Prochain essai : précharge de 5,5 s, confirmation
 
-L'essai de 8 s avec la 0.3.30 est fait
-([9 h 43](#infusion-de-9-h-43-30-septembre--précharge-de-8-s)) : la
-fenêtre SSR neuve fonctionne et le remplissage est couvert. En revanche, la
-moyenne en tasse atteint **92,55 °C** pour une consigne de 90 °C. Or la
-consigne promet la température moyenne au groupe pendant l'infusion, et son
-critère est la NTC pondérée par la tasse (voir
-[chauffe-infusion.md](chauffe-infusion.md#objectif)).
+L'essai de 5,5 s est fait
+([14 h 25](#infusion-de-14-h-25-30-septembre--précharge-de-55-s)) :
+**89,60 °C** de moyenne en tasse pour une consigne de 90 °C, soit le critère
+de la consigne (voir [chauffe-infusion.md](chauffe-infusion.md#objectif)).
+Café jugé bon, creux jugé acceptable.
 
-Régler `heating.brew_preheat_time_s` à **5,5 s**, sans changer le firmware.
-Grossir la mouture comme prévu (débit plus élevé, infusion plus courte de
-2 à 3 s). Garder la consigne et la recette ; noter la mouture, le poids et
-la durée de l'infusion.
+Garder `heating.brew_preheat_time_s` à **5,5 s**, la consigne, la recette et
+la mouture de 14 h 25. Les prochaines infusions mesurent la répétabilité ; en
+noter la mouture, le poids et la durée.
 
-D'où viennent les 5,5 s : il faut retirer 2,55 °C à la mesure de 9 h 43. En
-simulation, chaque seconde de précharge vaut ≈ 0,72 °C sur la moyenne en
-tasse. Rejouée avec l'hydraulique plus rapide de 14 h 24, la même loi donne
-0,7 °C de moins qu'avec celle de 9 h 43, et on attribue cet écart à la
-mouture plus grosse. Reste 1,85 °C, soit 2,6 s de précharge en moins :
-5,4 s, arrondis au pas de 0,5 s. L'effet de la mouture est estimé, pas
-mesuré. Si la mouture ne change pas, attendre ≈ 90,7 °C.
-
-| Point | Attendu | 9 h 43 (8 s) |
+| Point | Attendu | 14 h 25 |
 | --- | --- | --- |
-| Moyenne NTC pondérée par la tasse (`analyze_hf_capture.py`) | **≈ 90 °C** (±1 °C) | 92,55 °C |
-| Pic avant l'infusion | ≈ 90,5 °C | 92,31 °C |
-| Minimum pendant l'écoulement | ≈ **88,0–88,5 °C** | 90,17 °C |
-| Coupure de fin | ≈ 11 s avant l'arrêt de la pompe | 10,5 s |
-| 30 s après l'arrêt | ≈ 90,5–91 °C | 92,84 °C |
+| Moyenne NTC pondérée par la tasse (`analyze_hf_capture.py`) | 89,6 °C ±0,7 °C | 89,60 °C |
+| Minimum pendant l'écoulement | ≈ 88,8 °C | 88,84 °C |
+| 30 s après l'arrêt | ≈ 89 °C | 89,03 °C |
 
-Le creux revient ; c'est le prix d'une moyenne à la consigne avec la loi
-actuelle. S'il dépasse ≈ 2 °C sous la consigne alors que la moyenne est
-juste, c'est un argument pour le
-[remboursement de la précharge](chauffe-infusion.md#simulation) : à moyenne
-égale, il garde une précharge plus longue.
+La tolérance de ±0,7 °C correspond à ±1 s de précharge (0,72 °C par seconde
+en simulation). Une moyenne hors de cette fourchette, à mouture égale,
+montrerait que la précharge fixe ne suffit pas d'une infusion à l'autre.
+Ce serait alors un argument pour le
+[remboursement de la précharge](chauffe-infusion.md#simulation), qui réduit
+en simulation l'écart entre captures de 2,1 à 1,2 °C.
 
 Le panier de mesure de type Scace, en préparation pour dans quelques jours,
 dira si la moyenne de la NTC en tasse est bien celle de l'eau au panier.
@@ -981,6 +988,64 @@ Décision : la consigne vise la moyenne au groupe, avec la moyenne pondérée
 par la tasse comme critère (voir
 [chauffe-infusion.md](chauffe-infusion.md#objectif)). Précharge de
 **5,5 s** au prochain essai.
+
+#### Infusion de 14 h 25 (30 septembre) — précharge de 5,5 s
+
+[Capture brute](../captures/260930-142555.json) et
+[graphique](../captures/260930-142555.html). Firmware 0.3.30 inchangé ;
+précharge réglée à 5,5 s et mouture grossie. Consigne 90 °C, départ à
+89,99 °C. 61,4 ml comptés, 22,5 g en tasse ; pompe en marche 21,7 s,
+infusion de 14,4 s, 1,5–2,8 ml/s en régime. Café jugé bon, baisse de
+température jugée acceptable.
+
+| Temps | Phase | NTC | Commande | Débit amont |
+| ---: | --- | ---: | ---: | ---: |
+| 0,15–5,5 s | précharge | 89,99–90,02 °C | 90 % (SSR dès 0,15 s) | 0 |
+| 5,5–6,5 s | début du remplissage | 90,0 °C | 45 %, puis 90 % dès 5,9 s | premières impulsions lues à 10–71 ml/s |
+| 6,5–9,55 s | remplissage | → 90,3 °C | 86–90 % | 3,4–3,6 ml/s |
+| 9,55–12,85 s | pré-infusion | pic **90,36 °C** à 9,9 s | 70–90 % | 2,7–4,0 ml/s |
+| 12,85–17,1 s | début de l'infusion, montée en pression | 90,1 → 89,85 → 90,14 °C | 80–90 % | 3,3–3,7 ml/s |
+| 17,1 s | coupure de fin, 10,2 s avant l'arrêt, 5,8 g en tasse | 90,14 °C | **0 %** | 3,4 ml/s (8 bar à 18,1 s) |
+| 17,1–27,25 s | infusion | minimum **88,84 °C** à 22,0 s, puis 89,65 °C à l'arrêt | 0 % | 1,5–2,8 ml/s |
+| 27,25–57,25 s | récupération | minimum **88,65 °C** à 32,9 s → **89,03 °C** 30 s après l'arrêt | 0 %, puis ≤ 8,3 % dès 36,9 s | 0 |
+
+| Indicateur | Prévu | Mesuré |
+| --- | --- | --- |
+| Moyenne NTC pondérée par la tasse | ≈ 90 °C (±1 °C) | **89,60 °C** |
+| Moyenne NTC pondérée par le volume | — | 89,88 °C |
+| Pic avant l'infusion | ≈ 90,5 °C | 90,36 °C |
+| Minimum pendant l'écoulement | ≈ 88,0–88,5 °C | 88,84 °C |
+| Coupure de fin | ≈ 11 s avant l'arrêt | 10,2 s |
+| 30 s après l'arrêt | ≈ 90,5–91 °C | 89,03 °C |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 5,78 kJ | 5,52 kJ |
+| Remplissage | 4,15 kJ | 4,38 kJ |
+| Pré-infusion | 3,37 kJ | 3,00 kJ |
+| Infusion | 4,48 kJ | 4,56 kJ |
+| **Total jusqu'à l'arrêt** | **17,8 kJ** | **17,5 kJ** |
+
+Lecture :
+
+- **Le critère est tenu** : −0,40 °C sur la moyenne en tasse, dans la
+  fourchette prévue. Le creux (−1,16 °C pendant l'écoulement) est jugé
+  acceptable au goût.
+- **La bosse de fin a presque disparu** (+0,8 °C entre le minimum et
+  l'arrêt, contre +4,0 °C à 9 h 43). L'infusion est plus courte et le débit
+  plus élevé : la chaleur du fort débit atteint la sonde en grande partie
+  après l'arrêt de la pompe, sans aller en tasse.
+- **L'état final est 1,5 °C sous la prévision.** La coupure, tombée pendant
+  la montée en pression, a retiré l'appoint d'un débit encore fort. La
+  récupération a démarré de 88,65 °C.
+- **Pas de trou de commande au début du remplissage, par hasard.** À 9 h 43,
+  le débit restait proche de 0 pendant ≈ 1 s et la commande tombait vers
+  5 %. Ici, les premières impulsions après le silence sont lues à 10–71 ml/s :
+  la commande passe au plafond de 90 % dès 5,9 s. La
+  [limite connue](chauffe-infusion.md#limites-connues) du premier instant
+  du remplissage dépend donc de la phase des premières impulsions.
+
+Décision : garder **5,5 s** de précharge.
 
 ## Procédures de mesure
 

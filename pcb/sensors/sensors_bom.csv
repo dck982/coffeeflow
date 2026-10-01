@@ -1,0 +1,49 @@
+Reference,Value,Footprint,DNP,LCSC,MPN,Description,Sheet
+J1,POWER / 5V RECOM,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,0,,JST B2B-XH-A,"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",1
+U2,AMS1117-3.3,Package_TO_SOT_SMD:SOT-223-3_TabPin2,0,,AMS1117-3.3,"1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223",1
+C1,4.7uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 4.7uF X7R >=10V,Unpolarized capacitor,1
+C2,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1
+C3,22uF tantalum / 10V,Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B,0,,"22uF 10V solid tantalum, case B",Polarized capacitor,1
+R1,270,Resistor_SMD:R_0603_1608Metric,0,,Generic 270 1% 0603,Resistor,1
+U1,ESP32-S3-MINI-1U-N8,RF_Module:ESP32-S2-MINI-1U,0,,ESP32-S3-MINI-1U-N8,"RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna",1
+C4,10uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 10uF X7R >=10V,Unpolarized capacitor,1
+C5,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1
+R2,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
+C6,1uF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 1uF X7R >=10V,Unpolarized capacitor,1
+R3,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
+R23,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
+R24,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
+SW1,BOOT,Button_Switch_SMD:SW_SPST_TL3342,0,,E-Switch TL3342F160QG,"Push button switch, generic, two pins",1
+SW2,RESET,Button_Switch_SMD:SW_SPST_TL3342,0,,E-Switch TL3342F160QG,"Push button switch, generic, two pins",1
+J2,USB-C FLASH,Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal,0,,GCT USB4105-GF-A,USB 2.0-only 16P Type-C Receptacle connector,1
+R4,5.1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 5.1k 1% 0603,Resistor,1
+R5,5.1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 5.1k 1% 0603,Resistor,1
+R6,22,Resistor_SMD:R_0603_1608Metric,0,,Generic 22 1% 0603,Resistor,1
+R7,22,Resistor_SMD:R_0603_1608Metric,0,,Generic 22 1% 0603,Resistor,1
+D1,TPD2E2U06DCKR,Package_TO_SOT_SMD:SOT-323_SC-70,0,,TPD2E2U06DCKR,"Dual-Channel High-Speed ESD Protection, SC-70",1
+U4,TJA1051T/3,Package_SO:SOIC-8_3.9x4.9mm_P1.27mm,0,,"TJA1051T/3,118","High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8",2
+J3,CAN BUS,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,0,,JST B2B-XH-A,"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+C8,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
+C9,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
+R11,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
+JP1,CAN TERM,Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical,0,,2.54mm 2-pin header + removable shunt,"Jumper, 2-pole, open",2
+R12,120 / 0.25W,Resistor_SMD:R_1206_3216Metric,0,,Generic 120 / 0.25W 1% 1206,Resistor,2
+J4,DIMMER / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+J5,XDB401 / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+R13,4.7k,Resistor_SMD:R_0603_1608Metric,0,,Generic 4.7k 1% 0603,Resistor,2
+R14,4.7k,Resistor_SMD:R_0603_1608Metric,0,,Generic 4.7k 1% 0603,Resistor,2
+U5,TMP102AIDRLR,Package_TO_SOT_SMD:SOT-563,0,,TMP102AIDRLR,"Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563",2
+C10,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
+C11,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
+J6,DIGMESA / FLOW,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,0,,JST B3B-XH-A,"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+R15,1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 1k 1% 0603,Resistor,2
+C12,10nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 10nF X7R >=10V,Unpolarized capacitor,2
+C13,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
+J7,M5STACK VALVE SSR,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,0,,JST B3B-XH-A,"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+R17,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
+Q3,2N7002,Package_TO_SOT_SMD:SOT-23,0,,2N7002,"0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23",2
+R19,100k,Resistor_SMD:R_0603_1608Metric,0,,Generic 100k 1% 0603,Resistor,2
+Q2,AO3401A,Package_TO_SOT_SMD:SOT-23,0,,AO3401A,"-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23",2
+R21,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
+R22,1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 1k 1% 0603,Resistor,2
+J8,BOILER SSR / 5V OUT,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,0,,JST B2B-XH-A,"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",2

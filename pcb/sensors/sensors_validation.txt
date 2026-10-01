@@ -1,6 +1,6 @@
 Sensors schematic validation — KiCad 10.0.6, 2026-10-01
 PASS: ERC, 0 errors / 0 warnings; no exclusions added.
-PASS: 48 components, matching schematic and preliminary BOM.
+PASS: 47 components, matching schematic and preliminary BOM.
 PASS: All symbol pin numbers exactly match assigned footprint pad numbers.
 PASS: MCU supply and all 24 GND pads; boot/reset and flash voltage straps.
 PASS: Native USB polarity, both Type-C orientations, independent CC pull-downs.
@@ -8,7 +8,7 @@ PASS: USB VBUS tied to +5V, external J1 input and AMS1117 input.
 PASS: Direct USB data pair via 22-ohm resistors and ESD protection.
 PASS: USB switch/detection components absent; C1 input bulk 4.7uF.
 PASS: I2C GPIO5/6, two Grove pin maps, 3.3V pull-ups, TMP102 address 0x48.
-PASS: CAN GPIO7/8, TJA1051T/3 VCC/VIO/S, switchable 120-ohm termination.
+PASS: CAN GPIO7/8, TJA1051T/3 VCC/VIO/S, permanent 120-ohm termination.
 PASS: Digmesa 5V supply, GPIO4 signal, 1k pull-up to 3.3V, 10nF to GND.
 PASS: Valve GPIO9, 5V supply, 3.3V signal and off-state pull-down.
 PASS: Boiler GPIO10 active-high, direct Q3 gate sink, P-MOS high-side topology.

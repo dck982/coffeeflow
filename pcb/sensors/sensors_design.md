@@ -126,9 +126,9 @@ the twisted CAN_H/CAN_L pair; both nodes share the same supply.
 
 U4 is **TJA1051T/3**, not the non-/3 variant: pin 3 gets 5 V, pin 5 VIO gets
 3.3 V. C8/C9 decouple both supplies. Pin 8 S/SLNT is grounded for normal mode;
-R11 pulls TXD high during ESP32 reset to keep the bus recessive. JP1 inserts
-R12, 120 Ω / 0.25 W, across CAN_H/CAN_L when its shunt is fitted. Fit it at a
-bus end only, with a total of two terminations along the bus.
+R11 pulls TXD high during ESP32 reset to keep the bus recessive.
+R12, 120 Ω / 0.25 W, is permanently connected across CAN_H/CAN_L.
+This board is a bus-end node, with a total of two terminations along the bus.
 
 J4/J5 and TMP102 share the 3.3 V I2C bus. R13/R14 are ordinary **4.7 kΩ, 1%**
 pull-ups, always fitted. With the digital XDB401's existing 4.7 kΩ pull-ups,

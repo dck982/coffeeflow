@@ -26,7 +26,6 @@ J3,CAN BUS,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,0,,JST B2B-XH-A,"
 C8,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
 C9,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
 R11,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
-JP1,CAN TERM,Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical,0,,2.54mm 2-pin header + removable shunt,"Jumper, 2-pole, open",2
 R12,120 / 0.25W,Resistor_SMD:R_1206_3216Metric,0,,Generic 120 / 0.25W 1% 1206,Resistor,2
 J4,DIMMER / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2
 J5,XDB401 / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2

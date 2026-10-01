@@ -178,9 +178,8 @@ q.part('Interface_CAN_LIN:TJA1051T-3','U4','TJA1051T/3',85,55,{'1':'CAN_TX','2':
 conn(q,'J3','CAN BUS',155,50,['CAN_L','CAN_H'],2)
 c(q,'C8','100nF',40,92,'+5V','GND');c(q,'C9','100nF',80,92,'+3V3','GND')
 r(q,'R11','10k',120,92,'+3V3','CAN_TX')
-q.part('Jumper:Jumper_2_Open','JP1','CAN TERM',182,50,{'1':'CAN_H','2':'CAN_TERM'},'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical',mpn='2.54mm 2-pin header + removable shunt')
-r(q,'R12','120 / 0.25W',182,86,'CAN_TERM','CAN_L')
-q.text('S/SLNT hard-wired low. R11 keeps TX recessive during reset.\nFit JP1 shunt only at a bus end (120 ohms at each end).\nJ3 has no GND pin: power GND must run alongside CAN pair.',18,112)
+r(q,'R12','120 / 0.25W',182,86,'CAN_H','CAN_L')
+q.text('S/SLNT hard-wired low. R11 keeps TX recessive during reset.\nR12 permanently terminates this bus-end node (120 ohms).\nJ3 has no GND pin: power GND must run alongside CAN pair.',18,112)
 
 q.text('5. SHARED I2C - 3.3V, Grove/HY2.0 cable order',230,15,1.7)
 conn(q,'J4','DIMMER / GROVE',378,45,['I2C_SCL','I2C_SDA','+3V3','GND'],4,True)

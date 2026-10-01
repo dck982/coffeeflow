@@ -1,1 +1,9 @@
 kicad-python
+
+# Generated files and local history for all PCB projects.
+.history/
+manufacturing/
+__pycache__/
+~*.lck
+fp-info-cache
+*-backups/

@@ -313,7 +313,8 @@ l'historique.
     boucle (25 ms) avant son échéance, et la grille repart de maintenant si
     le retard atteint une période moins cette avance. Attendu : des écarts
     de 100 ms à quelques millisecondes près ; 1 152 échantillons couvrent
-    115 s.
+    115 s. **Vérifié** à 8 h 29 le 1er octobre : les 548 écarts valent
+    98 à 102 ms.
 
 L'ancienne version de ce document annonçait aussi une bande « prête » de
 ±0,5 °C ; le code utilise ±1 °C.
@@ -386,23 +387,27 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
 
 ## Prochain essai : précharge de 5,5 s, confirmation
 
-L'essai de 5,5 s est fait
-([14 h 25](#infusion-de-14-h-25-30-septembre--précharge-de-55-s)) :
-**89,60 °C** de moyenne en tasse pour une consigne de 90 °C, soit le critère
-de la consigne (voir [chauffe-infusion.md](chauffe-infusion.md#objectif)).
-Café jugé bon, creux jugé acceptable.
+Deux essais de 5,5 s sont faits. À
+[14 h 25](#infusion-de-14-h-25-30-septembre--précharge-de-55-s), **89,60 °C**
+de moyenne en tasse pour une consigne de 90 °C, soit le critère de la
+consigne (voir [chauffe-infusion.md](chauffe-infusion.md#objectif)) ; café
+jugé bon, creux jugé acceptable. À
+[8 h 29](#infusion-de-8-h-29-1er-octobre--précharge-de-55-s), **88,39 °C**,
+hors de la fourchette, avec une mouture un peu moins fine et un porte-filtre
+moins chauffé que d'habitude : l'essai ne compte pas comme « à mouture
+égale ». Rien n'est changé.
 
-Flasher l'écran en **0.3.31** (échantillonnage de la capture HF, point à
-considérer 10) ; le module capteurs peut rester en 0.3.30, son code ne
-change pas. Garder `heating.brew_preheat_time_s` à **5,5 s**, la consigne,
-la recette et la mouture de 14 h 25. Les prochaines infusions mesurent la répétabilité ; en
-noter la mouture, le poids et la durée.
+L'écran est en **0.3.31** (échantillonnage vérifié, point à considérer 10) ;
+le module capteurs reste en 0.3.30. Garder `heating.brew_preheat_time_s` à
+**5,5 s**, la consigne et la recette. Les prochaines infusions mesurent la
+répétabilité ; en noter la mouture, le poids, la durée et la chauffe du
+porte-filtre.
 
-| Point | Attendu | 14 h 25 |
-| --- | --- | --- |
-| Moyenne NTC pondérée par la tasse (`analyze_hf_capture.py`) | 89,6 °C ±0,7 °C | 89,60 °C |
-| Minimum pendant l'écoulement | ≈ 88,8 °C | 88,84 °C |
-| 30 s après l'arrêt | ≈ 89 °C | 89,03 °C |
+| Point | Attendu | 14 h 25 | 8 h 29 |
+| --- | --- | --- | --- |
+| Moyenne NTC pondérée par la tasse (`analyze_hf_capture.py`) | 89,6 °C ±0,7 °C | 89,60 °C | 88,39 °C |
+| Minimum pendant l'écoulement | ≈ 88,8 °C | 88,84 °C | 87,03 °C |
+| 30 s après l'arrêt | ≈ 89 °C | 89,03 °C | 87,76 °C |
 
 La tolérance de ±0,7 °C correspond à ±1 s de précharge (0,72 °C par seconde
 en simulation). Une moyenne hors de cette fourchette, à mouture égale,
@@ -417,10 +422,6 @@ dira si la moyenne de la NTC en tasse est bien celle de l'eau au panier.
 Si ce n'est pas déjà fait, relever 3 min de surveillance au repos avant
 l'infusion : points à vérifier dans
 [chauffe-repos.md](chauffe-repos.md#à-vérifier-sur-la-prochaine-capture).
-
-Vérifier d'abord l'échantillonnage 0.3.31 : les écarts entre `t_ms`
-successifs de `samples` doivent valoir 100 ms à ±5 ms, hors éventuels
-recalages isolés (0.3.30 : 100 ou 150 ms).
 
 Pour l'analyse :
 
@@ -1053,6 +1054,74 @@ Lecture :
   du remplissage dépend donc de la phase des premières impulsions.
 
 Décision : garder **5,5 s** de précharge.
+
+#### Infusion de 8 h 29 (1er octobre) — précharge de 5,5 s
+
+[Capture brute](../captures/261001-082959.json) et
+[graphique](../captures/261001-082959.html). Écran en 0.3.31, module
+capteurs en 0.3.30 ; précharge de 5,5 s. Mouture un peu moins fine qu'à
+14 h 25, porte-filtre moins chauffé que d'habitude. Consigne 90 °C, départ à
+89,95 °C. 56,8 ml comptés et 21,5 g en tasse à l'arrêt de la pompe (22,5 g
+ensuite) ; pompe en marche 19,3 s, infusion de 13,7 s, 1,9–2,5 ml/s en
+régime.
+
+| Temps | Phase | NTC | Commande | Débit amont |
+| ---: | --- | ---: | ---: | ---: |
+| 0,12–5,5 s | précharge | 89,92–89,97 °C | 90 % (SSR dès 0,12 s) | 0 |
+| 5,5–6,7 s | début du remplissage | 89,9 °C | 45 %, puis **5 %** de 6,1 à 6,7 s ; SSR éteint de 6,1 à 6,8 s | 0,06 ml/s lus, 2,3 ml passés |
+| 6,7–9,9 s | remplissage | → 90,47 °C | 89–90 % | 3,5 ml/s |
+| 9,9–11,2 s | pré-infusion, premières gouttes après ≈ 4 ml | → 90,70 °C | 84–90 % | 3,3–3,6 ml/s |
+| 11,2–15,7 s | début de l'infusion, montée en pression | pic **90,71 °C** à 11,6 s, puis 89,23 °C | 80–90 % | 3,1–3,9 ml/s |
+| 15,7 s | coupure de fin, 9,2 s avant l'arrêt, 5,6 g en tasse | 89,23 °C | **0 %** | 3,5 ml/s (3,5 bar ; 8 bar à 17,6 s) |
+| 15,7–24,9 s | infusion | minimum **87,03 °C** à 21,8 s, puis 87,20 °C à l'arrêt | 0 % | 3,5 → 1,9–2,5 ml/s |
+| 24,9–54,9 s | récupération | minimum **86,66 °C** à 30,8 s → **87,76 °C** 30 s après l'arrêt | 0 %, puis ≤ 17,2 % dès 31,7 s | 0 |
+
+| Indicateur | Prévu | Mesuré |
+| --- | --- | --- |
+| Moyenne NTC pondérée par la tasse | 89,6 °C ±0,7 °C | **88,39 °C** |
+| Moyenne NTC pondérée par le volume | — | 89,25 °C |
+| Pic avant l'infusion | — | 90,71 °C |
+| Minimum pendant l'écoulement | ≈ 88,8 °C | 87,03 °C |
+| Coupure de fin | ≈ 11 s avant l'arrêt | 9,2 s |
+| 30 s après l'arrêt | ≈ 89 °C | 87,76 °C |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 5,84 kJ | 6,12 kJ |
+| Remplissage | 3,98 kJ | 4,08 kJ |
+| Pré-infusion | 1,36 kJ | 1,32 kJ |
+| Infusion | 4,77 kJ | 4,92 kJ |
+| **Total jusqu'à l'arrêt** | **16,0 kJ** | **16,4 kJ** |
+
+Lecture :
+
+- **Hors de la fourchette** : −1,61 °C sur la moyenne en tasse, 1,21 °C
+  sous 14 h 25 aux mêmes réglages. La mouture et la chauffe du porte-filtre
+  ayant changé, l'essai ne tranche pas la répétabilité de la précharge
+  fixe.
+- **Rondelle plus rapide, comme attendu avec une mouture moins fine.** Les
+  premières gouttes arrivent après ≈ 4 ml de pré-infusion (≈ 11 ml à
+  14 h 25), la pré-infusion ne dure que 1,3 s (3,3 s) et la pression monte
+  plus tôt. La coupure tombe donc en pleine montée en pression, avec encore
+  3,5 ml/s, et le creux descend à 2,97 °C sous la consigne (1,16 °C à
+  14 h 25). Aucune bosse de fin : la NTC baisse encore 6 s après l'arrêt.
+- **Le modèle ne sépare pas les deux infusions.** Rejoué avec la commande
+  réelle (`simulate_boiler.py`), il prévoit 87,71 °C en tasse à 8 h 29 et
+  87,81 °C à 14 h 25, pour 88,39 et 89,60 °C mesurés. Il prévoit bien le
+  minimum de 8 h 29 (86,81 contre 86,66 °C), mais l'écart entre les deux
+  infusions ne vient ni de l'hydraulique ni de la commande telles qu'il les
+  représente : c'est le facteur manquant déjà relevé dans
+  [chauffe-infusion.md](chauffe-infusion.md#simulation). Le porte-filtre
+  moins chauffé refroidit l'eau en tasse, mais n'agit pas directement sur
+  la NTC ; le panier de mesure le verra.
+- **Trou de commande au début du remplissage**, comme à 9 h 43 : le débit
+  lu reste à 0,06 ml/s pendant ≈ 0,9 s et le SSR s'éteint 0,7 s, soit
+  ≈ 0,8 kJ manquants (≈ 0,5 °C sur la moyenne en tasse). Voir la
+  [limite connue](chauffe-infusion.md#limites-connues).
+- **Récupération lente** : la commande ne dépasse pas 17,2 % et la NTC
+  reste 2,2 °C sous la consigne 30 s après l'arrêt.
+
+Décision : consigner sans rien changer ; garder **5,5 s** de précharge.
 
 ## Procédures de mesure
 

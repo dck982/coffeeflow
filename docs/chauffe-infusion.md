@@ -62,6 +62,7 @@ l'offset.
 | 29/09, 14 h 24 | ≈ 8,7 s réelles | 91,30 °C | 91,46 °C |
 | 30/09, 9 h 43 | 8 s | **92,55 °C** | 92,00 °C |
 | 30/09, 14 h 25 | 5,5 s, mouture grossie | **89,60 °C** | 89,88 °C |
+| 01/10, 8 h 29 | 5,5 s, mouture un peu moins fine, porte-filtre moins chauffé | **88,39 °C** | 89,25 °C |
 
 Les réglages et les recettes ont changé d'une infusion à l'autre ; la
 dispersion de 5,35 °C ne mesure donc pas seulement la loi. En simulation, à
@@ -298,6 +299,17 @@ pompe : la bosse de fin tombe à +0,8 °C. Détail dans le
 [journal](chauffe-chaudiere.md#infusion-de-14-h-25-30-septembre--précharge-de-55-s).
 La précharge de 5,5 s est retenue.
 
+**Quatrième essai, 1er octobre à 8 h 29 (précharge de 5,5 s, mouture un
+peu moins fine, porte-filtre moins chauffé).** Moyenne en tasse de
+**88,39 °C**, minimum de 87,03 °C pendant l'écoulement, 87,76 °C 30 s après
+l'arrêt. La rondelle plus rapide amène la pression plus tôt ; la coupure de
+fin tombe pendant la montée en pression, avec encore 3,5 ml/s. Rejoué avec
+la commande réelle, le modèle prévoit la même moyenne en tasse qu'à
+14 h 25 (87,71 contre 87,81 °C) : l'écart mesuré de 1,21 °C relève du
+facteur manquant décrit plus bas. Mouture et porte-filtre ayant changé,
+l'essai ne tranche pas la répétabilité ; rien n'est changé. Détail dans le
+[journal](chauffe-chaudiere.md#infusion-de-8-h-29-1er-octobre--précharge-de-55-s).
+
 **Remboursement de la précharge (simulé, non implémenté).** L'appoint est
 retenu jusqu'à ce que l'énergie retenue égale celle de la précharge ; la
 coupure de fin s'y ajoute sans compter dans ce remboursement. Moyenne en
@@ -370,5 +382,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `260929-142427.json` | 10 s | premier essai de la loi 0.3.28 ; pas de creux, dépassement de +1,46 °C en moyenne ; hors ajustement |
 | `260930-094308.json` | 8 s | premier essai de la 0.3.30 (fenêtre SSR neuve) ; mouture trop fine ; +2,55 °C en tasse, double chauffe du remplissage ; hors ajustement |
 | `260930-142555.json` | 5,5 s | mouture grossie ; −0,40 °C en tasse, réglage retenu ; hors ajustement |
+| `261001-082959.json` | 5,5 s | mouture un peu moins fine, porte-filtre moins chauffé ; −1,61 °C en tasse, coupure pendant la montée en pression ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

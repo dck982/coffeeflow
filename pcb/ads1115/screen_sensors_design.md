@@ -61,7 +61,7 @@ because U2 provides enclosure temperature.
 
 ## PCB layout
 
-The reworked board is approximately 32.5 × 29 mm, with four 3.2 mm M3 mounting
+The reworked board is 30 × 30 mm, with four 3.2 mm M3 mounting
 holes. Components are on the top side; the underside is free of components.
 J1 is at the north edge, J2 west, J3 south, and U2 near the east edge.
 
@@ -98,15 +98,13 @@ Confirm current JLCPCB stock, exact MPN/footprint correspondence and through-hol
 assembly availability before ordering. Final assembly BOM, placement file and
 manufacturing outputs must be generated from the reviewed design.
 
-KiCad 10 supports PCB IPC operations but has no schematic-editing IPC API.
-The schematic generator writes native symbols, wires and labels using installed
-libraries. Matching labels are electrically connected.
+The KiCad schematic and manually reworked PCB are the design sources of truth.
+The initial Python generation/routing helpers and intermediate review backup
+were removed after the manual rework. Matching schematic labels are electrically
+connected.
 
-Do not run `build_sensor_schematic.py`, `build_sensor_pcb.py` or
-`route_sensor_pcb.py` casually: they overwrite generated design files and can
-replace manual changes. The schematic generator has been updated for the new
-capacitor references and J1 pinout. The PCB build/router helpers are historical
-and are not the source of truth for the manually reworked board.
+KiCad may create `.history/` for automatic local snapshots; it is excluded from
+Git. These snapshots can be managed through KiCad's File > Local History menu.
 
 References:
 - `../../docs/ntc_ads1115_calibration.md`, `../../docs/cablage.md`.

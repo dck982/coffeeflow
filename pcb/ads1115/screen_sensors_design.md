@@ -34,10 +34,10 @@ against the Waveshare supply capacity once the pressure sensor arrives.
 - R1 is 4.7 kΩ, 0.1%, from the boiler divider midpoint to GND. The NTC or
   PT1000 probe connects between 3V3 and that midpoint. The same fixed resistor
   supports either probe; use the corresponding firmware conversion/calibration.
-- R3 is 1 kΩ, 0.1%, in series between the pressure sensor output and A2.
+- R3 is 1 kΩ, 1%, in series between the pressure sensor output and A2.
   Together with C3 it forms a provisional input low-pass filter, with nominal
   cutoff about 1.59 kHz and time constant 100 µs for low sensor source impedance.
-  It provides modest current limiting, not complete input protection. Confirm
+  It provides modest current limiting, not complete input protection. R3 is UNI-ROYAL 0603WAF1001T5E, JLCPCB C21190 (basic). Confirm
   sensor output loading and assembled measurement accuracy when testing.
 - U2 SHT40-AD1B-R3: address 0x44, measures enclosure humidity and temperature.
   Leave its heater off during normal sampling. Keep the sensing opening free
@@ -68,7 +68,9 @@ Nominal current is approximately 0.6 mA for a 2 V forward voltage. Brightness
 and actual current depend on the LED forward voltage at this low current.
 The LED indicates incoming power only, not working I2C communication.
 Place the indicator near J1 and away from U2 when updating the PCB.
-D1/R4 are added to the schematic/BOM and still require PCB placement/routing.
+The LED and R4 are placed and routed on the PCB. The PCB LED reference is
+POWER; the schematic and source BOM retain D1. The manufacturing exporter
+explicitly maps D1 to POWER for the assembly files.
 
 Sources: [D1](https://jlcpcb.com/partdetail/KT-0603R/C2286),
 [R4](https://jlcpcb.com/partdetail/0603WAF2201T5E/C4190).
@@ -107,7 +109,7 @@ sensor arrives. No voltage divider or amplifier is included.
 
 ## Assembly and maintenance
 
-The BOM prefers basic parts where possible, with 0.1% measurement resistors taking priority; R4 uses 1%.
+The BOM prefers basic parts where possible, with R1 retained at 0.1% precision; R3 and R4 use basic 1% parts.
 Confirm current JLCPCB stock, exact MPN/footprint correspondence and through-hole
 assembly availability before ordering. Final assembly BOM, placement file and
 manufacturing outputs must be generated from the reviewed design.
@@ -124,3 +126,22 @@ References:
 - `../../docs/ntc_ads1115_calibration.md`, `../../docs/cablage.md`.
 - [ADS1115 datasheet](https://www.ti.com/lit/ds/symlink/ads1115.pdf).
 - [SHT4x datasheet](https://sensirion.com/resource/datasheet/sht4x).
+
+## Manufacturing exports
+
+Run `python3 generate_manufacturing.py` (or `uv run generate_manufacturing.py`)
+from this directory after saving changes. Python requires no extra dependencies;
+KiCad 10's `kicad-cli` must be installed. The script discovers the macOS app or
+the executable on PATH; `--kicad-cli` overrides its location.
+
+Generated files are in ignored `manufacturing/`: Gerbers, separate plated and
+non-plated drill files, JLCPCB BOM and placement CSVs, DRC report, source hashes,
+fabrication-only ZIP and a combined `screen_sensors_jlcpcb.zip`. The source BOM
+is `screen_sensors_draft_bom.csv`; its values, footprints and LCSC numbers must
+match the saved PCB. Physical DRC findings and unexpected schematic parity
+differences stop the export. The known D1/POWER reference mismatch is reported.
+
+Connector placement uses the transformed midpoint of each JST XH pin row,
+so moving or rotating a connector does not require updating hardcoded positions.
+U1 has a +270° JLCPCB model rotation correction. Review connector alignment and
+chip/LED polarity in JLCPCB's assembly preview after each new upload.

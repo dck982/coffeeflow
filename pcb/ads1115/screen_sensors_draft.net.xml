@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/ads1115/screen_sensors_draft.kicad_sch</source>
-    <date>2026-10-01T15:59:43</date>
+    <date>2026-10-01T17:08:27</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -326,20 +326,20 @@
       </units>
     </comp>
     <comp ref="R3">
-      <value>1k 0.1%</value>
+      <value>1k</value>
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <fields>
         <field name="Note">Provisional RF filter; can assemble 0R instead</field>
-        <field name="MPN">PTFR0603B1K00N9</field>
-        <field name="LCSC">C394536</field>
+        <field name="MPN">0603WAF1001T5E</field>
+        <field name="LCSC">C21190</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description"/>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <property name="Note" value="Provisional RF filter; can assemble 0R instead"/>
-      <property name="MPN" value="PTFR0603B1K00N9"/>
-      <property name="LCSC" value="C394536"/>
+      <property name="MPN" value="0603WAF1001T5E"/>
+      <property name="LCSC" value="C21190"/>
       <property name="Sheetname" value="screen_sensors_draft"/>
       <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>

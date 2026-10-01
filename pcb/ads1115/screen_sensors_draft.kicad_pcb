@@ -213,7 +213,7 @@
 				)
 			)
 		)
-		(property "Value" "1k 0.1%"
+		(property "Value" "1k"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -259,7 +259,7 @@
 				)
 			)
 		)
-		(property "MPN" "PTFR0603B1K00N9"
+		(property "MPN" "0603WAF1001T5E"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -271,7 +271,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C394536"
+		(property "LCSC" "C21190"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)

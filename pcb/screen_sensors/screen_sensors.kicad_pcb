@@ -298,7 +298,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/02f51ca6-23a2-4178-a113-a8145767ecdd")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -496,7 +496,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/58faacf3-e33b-4843-90cd-6a3cf574d1c4")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -622,7 +622,7 @@
 			(size 0.875 0.95)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "Net-(D1-A)")
+			(net "Net-(POWER-A)")
 			(pinfunction "A_2")
 			(pintype "passive")
 			(uuid "c435a982-fbdf-4162-a01a-e0ef3cf5944c")
@@ -742,7 +742,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/70020b27-4f5f-4e81-afc6-8a1799e19252")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1185,7 +1185,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3fb07265-f64f-477c-b383-f0eeede6a6d5")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1380,7 +1380,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/3eff6027-ffeb-443d-9cad-2080363bf41d")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1726,7 +1726,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/14189cf7-681b-4c2e-910a-25151df25f6f")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1921,7 +1921,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c85d02db-22af-4a16-a7c7-4fe4b9f7fb6a")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2116,7 +2116,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a1a4244f-6d48-4605-b5d9-a5879bf924a9")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2420,7 +2420,7 @@
 		(property ki_fp_filters "TSSOP*3x3mm*P0.5mm*")
 		(path "/fd086712-2e1b-49f4-9161-09490a71151d")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2847,7 +2847,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/cff19e72-32af-40cb-99f3-bb80c2b05929")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3272,7 +3272,7 @@
 		(property ki_fp_filters "Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*")
 		(path "/1f9d71fe-ca00-4567-b5be-3722b3388a4a")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3598,7 +3598,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e4bd25f5-4208-44fb-a9ab-b15fd4cb9cce")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3793,7 +3793,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0398d556-6d48-4c7a-814a-7115ef6f48f4")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3991,7 +3991,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a752ab05-370e-464f-bb83-59e686594fbd")
 		(sheetname "/")
-		(sheetfile "screen_sensors_draft.kicad_sch")
+		(sheetfile "screen_sensors.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4067,7 +4067,7 @@
 			(size 0.8 0.95)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "Net-(D1-A)")
+			(net "Net-(POWER-A)")
 			(pintype "passive")
 			(uuid "43ceb49e-30fc-4f14-a4ee-bb6256a27f6a")
 		)
@@ -5006,7 +5006,7 @@
 		(end 106.7875 111)
 		(width 0.2)
 		(layer "F.Cu")
-		(net "Net-(D1-A)")
+		(net "Net-(POWER-A)")
 		(uuid "dc132678-17f2-4ccb-ba39-82786cdb92b9")
 	)
 	(zone

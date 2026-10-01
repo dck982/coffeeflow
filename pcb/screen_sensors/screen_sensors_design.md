@@ -1,8 +1,8 @@
 # CoffeeFlow screen sensor board
 
-The connected schematic is `screen_sensors_draft.kicad_sch`; the manually
-reworked layout is `screen_sensors_draft.kicad_pcb`. The schematic PDF and
-netlist are generated review copies. `screen_sensors_draft_bom.csv` lists
+The connected schematic is `screen_sensors.kicad_sch`; the manually
+reworked layout is `screen_sensors.kicad_pcb`. The schematic PDF and
+netlist are generated review copies. `screen_sensors_bom.csv` lists
 component sourcing information; assembly exports still need final preparation.
 
 ## Connectors and supply
@@ -61,18 +61,17 @@ because U2 provides enclosure temperature.
 
 ## Power indicator
 
-D1 is a red 0603 LED, Hubei KENTO KT-0603R (JLCPCB C2286, basic part).
+POWER is a red 0603 LED, Hubei KENTO KT-0603R (JLCPCB C2286, basic part).
 R4 is 2.2 kΩ, 1%, UNI-ROYAL 0603WAF2201T5E (C4190, basic part).
-The branch is `3V3 → R4 → D1 anode (pin 2) → cathode (pin 1) → GND`.
+The branch is `3V3 → R4 → POWER anode (pin 2) → cathode (pin 1) → GND`.
 Nominal current is approximately 0.6 mA for a 2 V forward voltage. Brightness
 and actual current depend on the LED forward voltage at this low current.
 The LED indicates incoming power only, not working I2C communication.
 Place the indicator near J1 and away from U2 when updating the PCB.
-The LED and R4 are placed and routed on the PCB. The PCB LED reference is
-POWER; the schematic and source BOM retain D1. The manufacturing exporter
-explicitly maps D1 to POWER for the assembly files.
+The LED and R4 are placed and routed on the PCB. The LED reference is
+POWER in the PCB, schematic and source BOM.
 
-Sources: [D1](https://jlcpcb.com/partdetail/KT-0603R/C2286),
+Sources: [POWER](https://jlcpcb.com/partdetail/KT-0603R/C2286),
 [R4](https://jlcpcb.com/partdetail/0603WAF2201T5E/C4190).
 
 ## PCB layout
@@ -129,17 +128,20 @@ References:
 
 ## Manufacturing exports
 
-Run `python3 generate_manufacturing.py` (or `uv run generate_manufacturing.py`)
+Run `uv run ../generate_manufacturing.py .` (or `python3 ../generate_manufacturing.py .`)
 from this directory after saving changes. Python requires no extra dependencies;
 KiCad 10's `kicad-cli` must be installed. The script discovers the macOS app or
-the executable on PATH; `--kicad-cli` overrides its location.
+the executable on PATH; `--kicad-cli` overrides its location. Project-specific
+connector centres and rotation corrections
+are defined in `customize-manufacturing.py`, loaded automatically by the shared
+exporter in `pcb/`.
 
 Generated files are in ignored `manufacturing/`: Gerbers, separate plated and
 non-plated drill files, JLCPCB BOM and placement CSVs, DRC report, source hashes,
 fabrication-only ZIP and a combined `screen_sensors_jlcpcb.zip`. The source BOM
-is `screen_sensors_draft_bom.csv`; its values, footprints and LCSC numbers must
-match the saved PCB. Physical DRC findings and unexpected schematic parity
-differences stop the export. The known D1/POWER reference mismatch is reported.
+is `screen_sensors_bom.csv`; its values, footprints and LCSC numbers must
+match the saved PCB. Physical DRC findings and schematic parity
+differences stop the export.
 
 Connector placement uses the transformed midpoint of each JST XH pin row,
 so moving or rotating a connector does not require updating hardcoded positions.

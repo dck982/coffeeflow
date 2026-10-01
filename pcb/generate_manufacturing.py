@@ -1,51 +1,50 @@
 #!/usr/bin/env python3
 """Generate JLCPCB files from the saved board. Requires KiCad 10's kicad-cli.
 
-Run: python3 generate_manufacturing.py
+Run: uv run generate_manufacturing.py path/to/project
+Supports two-layer rectangular boards with top-side assembly.
+Requires <board>_bom.csv with Reference, Value, Footprint, DNP, and LCSC columns.
+Optional project-local customize-manufacturing.py supplies settings and hooks.
 No Python dependencies. Does not modify the source PCB or schematic.
 """
 import argparse
 import csv
 import hashlib
 import json
-import math
+import importlib.util
 import re
 import shutil
 import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
-ROOT = Path(__file__).resolve().parent
-BOARD = ROOT / "screen_sensors_draft.kicad_pcb"
-# The PCB's LED reference is POWER; the schematic/source BOM still calls it D1.
-REFERENCE_ALIASES = {"D1": "POWER"}
-# JLCPCB model correction, relative to the saved KiCad footprint rotation.
-ROTATION_OFFSETS = {"U1": 270.0}
 README = """# JLCPCB manufacturing files
 
-Generated from the saved screen_sensors_draft.kicad_pcb.
-Regenerate with `python3 generate_manufacturing.py` after saving design changes.
+Generated from the saved {board}.
+Regenerate with `uv run ../generate_manufacturing.py .` from the project directory.
 See export_manifest.json for source hashes, board dimensions and placement rules.
 
-Upload screen_sensors_jlcpcb.zip (fabrication + BOM + placement). If the PCB
+Upload {name}_jlcpcb.zip (fabrication + BOM + placement). If the PCB
 uploader does not process the assembly files, upload bom.csv and positions.csv
-separately at the assembly step. screen_sensors_gerbers.zip is fabrication only.
-Choose top-side assembly, including through-hole assembly for J1, J2 and J3.
-Suggested board options: two layers, 1.6 mm FR-4, 1 oz copper, green/white.
-
-JST XH connector centres use pin-row midpoints, not footprint pin-one origins
-or housing centres. U1 has a 270-degree JLCPCB rotation offset. Coordinates
-are absolute millimetres with negative Y, matching the fabrication outputs.
+separately at the assembly step. {name}_gerbers.zip is fabrication only.
+Coordinates are absolute millimetres with negative Y, matching fabrication outputs.
 Verify all placement/polarity in the JLCPCB preview after every upload.
 
-J1 pin order is 3V3, GND, SCL, SDA; cross SDA/SCL in the custom cable.
-R1 is 0.1%; R3 and R4 are basic 1% parts. Verify matched parts and stock.
-SHT40 U2 requires no board washing; keep its sensing opening uncontaminated.
-The LED is POWER on the PCB but D1 in the schematic; the exporter maps this
-reference explicitly. Its two known schematic-parity warnings are retained in
-drc.json. Other parity differences or physical DRC findings stop the export.
+{notes}
 """
+
+
+def load_customization(root):
+    """Load optional project-local Python settings and hooks."""
+    path = root / "customize-manufacturing.py"
+    if not path.is_file():
+        return SimpleNamespace()
+    spec = importlib.util.spec_from_file_location("manufacturing_customization", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def parse_sexpr(source):
@@ -89,9 +88,37 @@ def sha(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("project", type=Path, nargs="?", default=Path.cwd(),
+                        help="Project directory containing one PCB, or a .kicad_pcb file (default: cwd)")
     parser.add_argument("--kicad-cli", help="Path to KiCad's kicad-cli executable")
-    parser.add_argument("--output", type=Path, default=ROOT / "manufacturing")
+    parser.add_argument("--output", type=Path, help="Output directory (default: project/manufacturing)")
     args = parser.parse_args()
+    project = args.project.resolve()
+    if project.is_dir():
+        boards = sorted(project.glob("*.kicad_pcb"))
+        if len(boards) != 1:
+            parser.error("Project directory must contain exactly one PCB; pass a .kicad_pcb file explicitly")
+        board = boards[0]
+    elif project.is_file() and project.suffix == ".kicad_pcb":
+        board = project
+    else:
+        parser.error(f"Not a project directory or PCB file: {project}")
+    root, name = board.parent, board.stem
+    schematic = board.with_suffix(".kicad_sch")
+    source_bom = root / f"{name}_bom.csv"
+    for path in (schematic, source_bom):
+        if not path.is_file():
+            parser.error(f"Required source file missing: {path}")
+    args.output = (args.output or root / "manufacturing").resolve()
+    # Replacing outputs must never remove the source project or one of its parents.
+    if args.output == root or args.output in root.parents or args.output == root / "gerbers":
+        parser.error("Output must be separate from the source project directory")
+    custom = load_customization(root)
+    reference_aliases = getattr(custom, "REFERENCE_ALIASES", {})
+    rotation_offsets = getattr(custom, "ROTATION_OFFSETS", {})
+    placement_revision = getattr(custom, "PLACEMENT_REVISION", "Saved KiCad footprint origins and rotations")
+    customize_placement = getattr(custom, "customize_placement", lambda ref, fp, x, y, angle: (x, y, angle))
+    allow_parity = getattr(custom, "allow_schematic_parity", lambda item: False)
     cli = args.kicad_cli or shutil.which("kicad-cli")
     if not cli:
         mac_cli = Path("/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli")
@@ -100,9 +127,13 @@ def main():
         parser.error("Install KiCad 10 or supply --kicad-cli")
 
     def run(*arguments):
-        subprocess.run([cli, *map(str, arguments)], check=True, cwd=ROOT)
+        subprocess.run([cli, *map(str, arguments)], check=True, cwd=root)
 
-    tree = parse_sexpr(BOARD.read_text())
+    tree = parse_sexpr(board.read_text())
+    copper_layers = [layer for layer in first(tree, "layers")[1:]
+                     if isinstance(layer, list) and str(layer[1]).endswith(".Cu")]
+    if len(copper_layers) != 2:
+        raise ValueError("Exporter currently supports two-layer boards")
     footprints = {}
     for fp in children(tree, "footprint"):
         properties = {p[1]: p[2] for p in children(fp, "property")}
@@ -110,13 +141,13 @@ def main():
         if ref in footprints:
             raise ValueError(f"Duplicate PCB reference: {ref}")
         footprints[ref] = (fp, properties)
-    with (ROOT / "screen_sensors_draft_bom.csv").open(newline="") as stream:
+    with source_bom.open(newline="") as stream:
         source_rows = list(csv.DictReader(stream))
     bom, positions, fitted = [], [], set()
     for row in source_rows:
         if row["DNP"].lower() == "true":
             continue
-        ref = REFERENCE_ALIASES.get(row["Reference"], row["Reference"])
+        ref = reference_aliases.get(row["Reference"], row["Reference"])
         if ref in fitted:
             raise ValueError(f"Duplicate BOM reference: {ref}")
         fp, props = footprints[ref]
@@ -132,17 +163,8 @@ def main():
         at = first(fp, "at")
         x, y = map(float, at[1:3])
         angle = float(at[3]) if len(at) > 3 else 0.0
-        if fp[1].startswith("Connector_JST:JST_XH_"):
-            pads = children(fp, "pad")
-            if not pads or any(p[2] != "thru_hole" for p in pads):
-                raise ValueError(f"{ref}: unexpected XH pad type")
-            pad_positions = [list(map(float, first(p, "at")[1:3])) for p in pads]
-            cx = sum(p[0] for p in pad_positions) / len(pad_positions)
-            cy = sum(p[1] for p in pad_positions) / len(pad_positions)
-            radians = math.radians(angle)
-            x += cx * math.cos(radians) + cy * math.sin(radians)
-            y += -cx * math.sin(radians) + cy * math.cos(radians)
-        rotation = (angle + ROTATION_OFFSETS.get(ref, 0)) % 360
+        x, y, angle = customize_placement(ref, fp, x, y, angle)
+        rotation = (angle + rotation_offsets.get(ref, 0)) % 360
         bom.append([row["Value"], ref, fp[1].split(":", 1)[-1], row["LCSC"]])
         positions.append([ref, f"{x:.6f}", f"{-y:.6f}", f"{rotation:.6f}", "Top"])
         fitted.add(ref)
@@ -164,7 +186,9 @@ def main():
     elif len(outline) != 1 or outline[0][0] != "gr_rect":
         raise ValueError("Expected a rectangular outline; update dimension handling")
     size = [max(p[i] for p in points) - min(p[i] for p in points) for i in (0, 1)]
-    source_paths = [BOARD, ROOT / "screen_sensors_draft.kicad_sch", ROOT / "screen_sensors_draft_bom.csv"]
+    source_paths = [board, schematic, source_bom]
+    if (root / "customize-manufacturing.py").is_file():
+        source_paths.append(root / "customize-manufacturing.py")
     source_hashes = {p.name: sha(p) for p in source_paths}
 
     with tempfile.TemporaryDirectory(prefix="coffeeflow-manufacturing-") as temporary:
@@ -172,39 +196,38 @@ def main():
         gerbers = stage / "gerbers"
         gerbers.mkdir()
         run("pcb", "drc", "--refill-zones", "--schematic-parity", "--severity-all",
-            "--format", "json", "--output", stage / "drc.json", BOARD)
+            "--format", "json", "--output", stage / "drc.json", board)
         drc = json.loads((stage / "drc.json").read_text())
         if drc["violations"] or drc["unconnected_items"]:
             raise ValueError("Physical DRC findings; fix the PCB before exporting")
         for item in drc["schematic_parity"]:
-            known_missing = item["type"] == "missing_footprint" and item["description"] == "Missing footprint D1 (RED / POWER)"
-            known_extra = item["type"] == "extra_footprint" and [i["description"] for i in item["items"]] == ["Footprint POWER"]
-            if not (known_missing or known_extra):
+            if not allow_parity(item):
                 raise ValueError(f"Unexpected schematic parity finding: {item['description']}")
         run("pcb", "export", "gerbers", "--layers",
             "F.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,F.Paste,Edge.Cuts",
-            "--check-zones", "--subtract-soldermask", "--output", str(gerbers) + "/", BOARD)
+            "--check-zones", "--subtract-soldermask", "--output", str(gerbers) + "/", board)
         run("pcb", "export", "drill", "--format", "excellon", "--drill-origin", "absolute",
             "--excellon-zeros-format", "decimal", "--excellon-units", "mm",
             "--excellon-oval-format", "alternate", "--excellon-separate-th",
-            "--output", str(gerbers) + "/", BOARD)
+            "--output", str(gerbers) + "/", board)
         write_csv(stage / "bom.csv", ["Comment", "Designator", "Footprint", "LCSC Part #"], bom)
         write_csv(stage / "positions.csv", ["Designator", "Mid X", "Mid Y", "Rotation", "Layer"], sorted(positions))
-        (stage / "README.md").write_text(README)
+        (stage / "README.md").write_text(README.format(board=board.name, name=name,
+                                                    notes=getattr(custom, "README_NOTES", "")))
         if source_hashes != {p.name: sha(p) for p in source_paths}:
             raise ValueError("Source changed during export; save and rerun")
         files = sorted(gerbers.iterdir())
         if len(files) != 11:
             raise ValueError(f"Expected 11 fabrication files, found {len(files)}")
-        manifest = {"source_board": BOARD.name, "board_sha256": source_hashes[BOARD.name],
+        manifest = {"source_board": board.name, "board_sha256": source_hashes[board.name],
                     "source_sha256": source_hashes, "size_mm": size, "components": len(fitted),
                     "files": {p.name: sha(p) for p in files},
                     "assembly_files": {name: sha(stage / name) for name in ("bom.csv", "positions.csv")},
-                    "placement_revision": "JST XH pin-row midpoints; U1 relative rotation offset +270 degrees",
+                    "placement_revision": placement_revision,
                     "kicad_version": subprocess.check_output([cli, "version"], text=True).strip()}
         (stage / "export_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        for name, extras in (("screen_sensors_gerbers.zip", []),
-                             ("screen_sensors_jlcpcb.zip", [stage / n for n in ("bom.csv", "positions.csv", "README.md")])):
+        for name, extras in ((f"{name}_gerbers.zip", []),
+                             (f"{name}_jlcpcb.zip", [stage / n for n in ("bom.csv", "positions.csv", "README.md")])):
             with zipfile.ZipFile(stage / name, "w", zipfile.ZIP_DEFLATED) as archive:
                 for path in files + extras:
                     archive.write(path, path.name)

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <export version="E">
   <design>
-    <source>/Users/davidclerc/Projects/coffeeflow/pcb/ads1115/screen_sensors_draft.kicad_sch</source>
-    <date>2026-10-01T17:08:27</date>
+    <source>/Users/davidclerc/Projects/coffeeflow/pcb/screen_sensors/screen_sensors.kicad_sch</source>
+    <date>2026-10-01T18:36:06</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -10,7 +10,7 @@
         <company/>
         <rev/>
         <date/>
-        <source>screen_sensors_draft.kicad_sch</source>
+        <source>screen_sensors.kicad_sch</source>
         <comment number="1" value=""/>
         <comment number="2" value=""/>
         <comment number="3" value=""/>
@@ -39,8 +39,8 @@
       <property name="MPN" value="CC0603KRX7R9BB104"/>
       <property name="LCSC" value="C14663"/>
       <property name="Note" value="At U1 VDD"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
       <property name="ki_fp_filters" value="C_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -69,8 +69,8 @@
       <property name="MPN" value="CL10A475KO8NNNC"/>
       <property name="LCSC" value="C19666"/>
       <property name="Note" value="Board bulk, X5R 16V"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
       <property name="ki_fp_filters" value="C_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -99,8 +99,8 @@
       <property name="LCSC" value="C14663"/>
       <property name="Note" value="Input filter at ADC; 1k/100nF fc~1.59kHz"/>
       <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
       <property name="ki_fp_filters" value="C_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -129,8 +129,8 @@
       <property name="LCSC" value="C14663"/>
       <property name="Note" value="At pressure connector supply"/>
       <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
       <property name="ki_fp_filters" value="C_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -159,42 +159,12 @@
       <property name="LCSC" value="C14663"/>
       <property name="Note" value="At U2 VDD"/>
       <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
       <property name="ki_fp_filters" value="C_*"/>
       <sheetpath names="/" tstamps="/"/>
       <tstamps>e4bd25f5-4208-44fb-a9ab-b15fd4cb9cce</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="D1">
-      <value>RED / POWER</value>
-      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
-      <fields>
-        <field name="MPN">KT-0603R</field>
-        <field name="LCSC">C2286</field>
-        <field name="Note">JLCPCB basic; red power indicator; approximately 0.6mA; pin 1 cathode to GND</field>
-        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="LED" description="Light emitting diode"/>
-      <property name="MPN" value="KT-0603R"/>
-      <property name="LCSC" value="C2286"/>
-      <property name="Note" value="JLCPCB basic; red power indicator; approximately 0.6mA; pin 1 cathode to GND"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="LED diode"/>
-      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>58faacf3-e33b-4843-90cd-6a3cf574d1c4</tstamps>
       <units>
         <unit name="A">
           <pins>
@@ -219,8 +189,8 @@
       <property name="MPN" value="B4B-XH-A(LF)(SN)"/>
       <property name="LCSC" value="C144395"/>
       <property name="Note" value="Pin 1 VCC/3V3, 2 GND, 3 SCL, 4 SDA; cross SDA/SCL in Waveshare cable"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
       <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -249,8 +219,8 @@
       <libsource lib="Connector_Generic" part="Conn_01x02" description="Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
       <property name="MPN" value="B2B-XH-A-R(LF)(SN)"/>
       <property name="LCSC" value="C495685"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
       <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -279,8 +249,8 @@
       <property name="MPN" value="B3B-XH-A(LF)(SN)"/>
       <property name="LCSC" value="C144394"/>
       <property name="Note" value="Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
       <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -291,6 +261,36 @@
             <pin num="1"/>
             <pin num="2"/>
             <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="POWER">
+      <value>RED / POWER</value>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
+      <fields>
+        <field name="MPN">KT-0603R</field>
+        <field name="LCSC">C2286</field>
+        <field name="Note">JLCPCB basic; red power indicator; approximately 0.6mA; pin 1 cathode to GND</field>
+        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="LED" description="Light emitting diode"/>
+      <property name="MPN" value="KT-0603R"/>
+      <property name="LCSC" value="C2286"/>
+      <property name="Note" value="JLCPCB basic; red power indicator; approximately 0.6mA; pin 1 cathode to GND"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
+      <property name="ki_keywords" value="LED diode"/>
+      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>58faacf3-e33b-4843-90cd-6a3cf574d1c4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
           </pins>
         </unit>
       </units>
@@ -310,8 +310,8 @@
       <property name="MPN" value="PTFR0603B4K70N9"/>
       <property name="LCSC" value="C394547"/>
       <property name="Note" value="Precision / low TCR; calibrate new assembly"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
       <property name="ki_fp_filters" value="R_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -340,8 +340,8 @@
       <property name="Note" value="Provisional RF filter; can assemble 0R instead"/>
       <property name="MPN" value="0603WAF1001T5E"/>
       <property name="LCSC" value="C21190"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
       <property name="ki_fp_filters" value="R_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -370,8 +370,8 @@
       <property name="MPN" value="0603WAF2201T5E"/>
       <property name="LCSC" value="C4190"/>
       <property name="Note" value="JLCPCB basic; 1%; power LED current limiting"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
       <property name="ki_fp_filters" value="R_*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -401,8 +401,8 @@
       <property name="MPN" value="ADS1115IDGSR"/>
       <property name="LCSC" value="C37593"/>
       <property name="Note" value="ADDR=GND; PGA +/-4.096V; A0 measures divider supply"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="16 bit 4 channel I2C ADC"/>
       <property name="ki_fp_filters" value="TSSOP*3x3mm*P0.5mm*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -440,8 +440,8 @@
       <property name="MPN" value="SHT40-AD1B-R3"/>
       <property name="LCSC" value="C2848306"/>
       <property name="Note" value="Top-side SMT reflow with ADS1115; no board wash; address 0x44"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
+      <property name="Sheetname" value="screen_sensors"/>
+      <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="Sensirion environment environmental measurement digital SHT40 SHT41 SHT45"/>
       <property name="ki_fp_filters" value="Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*"/>
       <sheetpath names="/" tstamps="/"/>
@@ -653,9 +653,9 @@
       <node ref="C3" pin="2" pintype="passive"/>
       <node ref="C4" pin="2" pintype="passive"/>
       <node ref="C5" pin="2" pintype="passive"/>
-      <node ref="D1" pin="1" pinfunction="K_1" pintype="passive"/>
       <node ref="J1" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="J3" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="POWER" pin="1" pinfunction="K_1" pintype="passive"/>
       <node ref="R1" pin="2" pintype="passive"/>
       <node ref="U1" pin="1" pinfunction="ADDR_1" pintype="input"/>
       <node ref="U1" pin="3" pinfunction="GND_3" pintype="power_in"/>
@@ -680,8 +680,8 @@
       <node ref="U1" pin="9" pinfunction="SDA_9" pintype="bidirectional"/>
       <node ref="U2" pin="1" pinfunction="SDA_1" pintype="bidirectional"/>
     </net>
-    <net code="8" name="Net-(D1-A)" class="Default">
-      <node ref="D1" pin="2" pinfunction="A_2" pintype="passive"/>
+    <net code="8" name="Net-(POWER-A)" class="Default">
+      <node ref="POWER" pin="2" pinfunction="A_2" pintype="passive"/>
       <node ref="R4" pin="2" pintype="passive"/>
     </net>
     <net code="9" name="unconnected-(U1-AIN3-Pad7)" class="Default">

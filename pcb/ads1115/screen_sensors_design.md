@@ -59,6 +59,20 @@ pressure measurement. The boiler input has no added series resistor or filter
 capacitor. The local NTC connector and its associated passives were removed
 because U2 provides enclosure temperature.
 
+## Power indicator
+
+D1 is a red 0603 LED, Hubei KENTO KT-0603R (JLCPCB C2286, basic part).
+R4 is 2.2 kΩ, 1%, UNI-ROYAL 0603WAF2201T5E (C4190, basic part).
+The branch is `3V3 → R4 → D1 anode (pin 2) → cathode (pin 1) → GND`.
+Nominal current is approximately 0.6 mA for a 2 V forward voltage. Brightness
+and actual current depend on the LED forward voltage at this low current.
+The LED indicates incoming power only, not working I2C communication.
+Place the indicator near J1 and away from U2 when updating the PCB.
+D1/R4 are added to the schematic/BOM and still require PCB placement/routing.
+
+Sources: [D1](https://jlcpcb.com/partdetail/KT-0603R/C2286),
+[R4](https://jlcpcb.com/partdetail/0603WAF2201T5E/C4190).
+
 ## PCB layout
 
 The reworked board is 30 × 30 mm, with four 3.2 mm M3 mounting
@@ -93,7 +107,7 @@ sensor arrives. No voltage divider or amplifier is included.
 
 ## Assembly and maintenance
 
-The BOM prefers basic parts where possible, with 0.1% resistors taking priority.
+The BOM prefers basic parts where possible, with 0.1% measurement resistors taking priority; R4 uses 1%.
 Confirm current JLCPCB stock, exact MPN/footprint correspondence and through-hole
 assembly availability before ordering. Final assembly BOM, placement file and
 manufacturing outputs must be generated from the reviewed design.

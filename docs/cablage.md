@@ -25,9 +25,11 @@ d'**annuler la surface de boucle** : aller et retour strictement contigus.
 - **230 V** : chaque paire phase-neutre est maintenue par de la **gaine thermo** sur toute
   sa longueur. Pas besoin de torsader.
 - **CAN** : **paire torsadée** CANH / CANL.
-- **XDB401** : la gaine porte une fine feuille de blindage, **sans continuité avec le GND**.
-  La relier à la masse **uniquement côté ESP32** ; côté sonde, coupée et isolée — jamais les
-  deux, ça ferait une boucle.
+- **XDB401** : la gaine porte une fine feuille de blindage, **sans continuité avec le GND**
+  et sans fil de drain : elle ne peut pas être reliée à la masse et reste flottante. Un
+  blindage flottant ne protège presque pas du couplage capacitif ; il le relaie et ajoute de
+  la capacité aux lignes. Les erreurs I2C fréquentes de R1 s'expliquent ainsi, voir
+  [Interférences sur la mesure de pression](#interférences-sur-la-mesure-de-pression).
 
 ---
 
@@ -197,8 +199,17 @@ phase 2 resté silencieux sur le bus faute de cette traduction.
 **L4 est une copie de R1** : le dimmer et le capteur de pression partagent le même bus I2C.
 Le dimmer n'a **pas de pull-up** ; ce sont les **4,7 kΩ du XDB401** qui tiennent SDA et SCL
 pour tout le bus. Retirer le capteur de pression laisse les lignes sans tirage et le dimmer
-muet (sauf câble très court, sur les pull-ups internes de l'ESP32). Ne pas ajouter un second
-4,7 kΩ côté MCU tant que le XDB401 est là.
+muet (sauf câble très court, sur les pull-ups internes de l'ESP32).
+
+Ces pull-ups sont au bout des ~30 cm de câble, côté sonde. Pour le niveau statique, leur
+position est indifférente. Le temps de montée reste dans la norme : 4,7 kΩ avec ~100 pF
+(câble blindé, câbles Grove, dimmer) donnent ~0,4 µs, sous la limite de 1 µs à 100 kHz
+(`scl_speed_hz = 100000` dans `firmware/sensors`). **Doubler les pull-ups est permis**, et
+même favorable contre le bruit, car une ligne tirée plus fort résiste mieux aux injections.
+La limite est le courant qu'un composant doit absorber pour tenir la ligne basse : 3 mA en
+mode standard, soit une résistance équivalente d'au moins **1,1 kΩ** sous 3,3 V. Deux 4,7 kΩ
+en parallèle font 2,35 kΩ, soit 1,4 mA ; une 2,2 kΩ en parallèle des 4,7 kΩ du XDB401 fait
+1,5 kΩ, soit 2,2 mA. Les deux sont acceptables.
 
 Lors du remplacement prévu du XDB401 I2C par sa version analogique, ajouter au niveau du
 XIAO **une résistance de 4,7 kΩ entre SDA et 3,3 V et une autre entre SCL et 3,3 V**. Les
@@ -209,8 +220,8 @@ utilisée. Un réseau de deux résistances à point commun exigerait une plaque 
 Les résistances iront donc dans un **petit connecteur Grove à quatre broches** (SDA → 4,7 kΩ
 → 3,3 V, SCL → 4,7 kΩ → 3,3 V) branché sur une prise I2C du shield, par exemple celle du
 XDB401 (R1) une fois libérée. Ce module doit être en place **dès que le XDB401 est débranché** :
-sans lui, le dimmer ne répond plus, sans autre symptôme. Ne jamais le laisser branché en
-même temps que le XDB401 I2C, dont les pull-ups seraient alors doublées.
+sans lui, le dimmer ne répond plus, sans autre symptôme. Le laisser branché en même temps
+que le XDB401 I2C est sans danger (2,35 kΩ, voir plus haut).
 
 ### Câble du XDB401 (R1)
 
@@ -340,16 +351,121 @@ s'alimente bien en 3,3 V. D'autres annonces de la même famille XDB401 0,4–2,4
 l'entrée de l'ADS1115 est de haute impédance. Seul le filtre RC optionnel ci-dessous peut
 s'ajouter.
 
-La sonde n'étant pas encore reçue, mesurer avant adaptation du firmware sa tension à
-pression nulle et à une pression connue. Vérifier aussi si sa sortie est ratiométrique à
-sa tension d'alimentation : dans ce cas, A0 permettra de compenser les variations du 3,3 V.
-Relier la masse de la sonde à celle de l'ADS1115 et acheminer sortie et masse ensemble ;
-un petit filtre RC au plus près de A2 pourra être ajouté si les captures montrent du bruit.
+Relier la masse de la sonde au GND du même port que l'ADS1115, et acheminer la sortie et la
+masse ensemble, torsadées si possible et à l'écart du 230 V. Un petit filtre RC au plus près
+de A2 pourra être ajouté si les captures montrent du bruit.
 
 Ce montage raccourcit le trajet analogique et supprime le XDB401 I2C ainsi que ses attentes
 de conversion sur le bus du XIAO. Le dimmer reste toutefois en I2C et nécessite alors les
-deux pull-ups de 4,7 kΩ décrites plus haut. Le câblage actuel avec le XDB401 I2C reste la
-référence jusqu'à la réception et à la caractérisation de la nouvelle pièce.
+deux pull-ups de 4,7 kΩ décrites plus haut. La mesure se fait aussi là où tourne la
+régulation (`core` sur l'écran), sans passer par le CAN. Le câblage actuel avec le XDB401 I2C
+reste la référence jusqu'à la réception et à la caractérisation de la nouvelle pièce.
+
+#### Calibration de la version analogique
+
+Les deux versions du XDB401 sortent **calibrées d'usine**. Elles partagent la cellule
+céramique et la puce de conditionnement ; seule la sortie diffère. La fiche du fabricant
+(xidibei.com, XDB401) annonce, en % de la pleine échelle (PE) :
+
+| Caractéristique | Valeur | Pour la pièce 0–12 bar |
+| --- | --- | --- |
+| Précision (non-linéarité comprise) | 1 % PE | ±0,12 bar |
+| Dérive thermique, zéro et sensibilité | ≤ 0,03 % PE/°C | ±0,13 bar pour +35 °C |
+| Plage de température compensée | −20 à 80 °C | |
+| Temps de réponse | ≤ 4 ms | |
+| Surpression admissible | 150 % PE | 18 bar |
+| Pression d'éclatement | 300 % PE | 36 bar |
+
+La conversion est donc une **droite fixe** : 0,4 V à 0 bar, 2,4 V à 12 bar, soit
+6 bar/V. La surpression de 18 bar couvre l'OPV (~10 bar) et la pompe vibrante en filtre
+aveugle (~15 bar). Au-delà de 12 bar, la mesure est écrêtée ; la régulation n'en a pas besoin.
+
+Seules les erreurs **ajoutées entre la sonde et l'ADS1115** restent à traiter :
+
+| Source | Ordre de grandeur | Traitement |
+| --- | --- | --- |
+| Gain de l'ADS1115 | ≤ 0,15 %, ≤ 0,014 bar à 9 bar | négligé |
+| Écart de masse sonde ↔ ADS1115 | 10 mV = 0,06 bar (écart déjà mesuré sur l'ancien pont NTC) | masse prise sur le port de l'ADS1115, puis réglage du zéro |
+| Sortie ratiométrique au 3,3 V | ±3 % sur le 3,3 V → jusqu'à ±0,36 bar à 12 bar | test ci-dessous, puis correction par A0 si nécessaire |
+| Dérive thermique du zéro | ~0,1 bar entre froid et chaud | réglage du zéro à chaud |
+
+Générer une pression connue au banc n'est pas faisable (raccord 1/8" et source de pression
+nécessaires). La caractérisation se fait donc ainsi :
+
+1. **Test ratiométrique, au banc, sans pression.** Alimenter la sonde sous 3,0 V puis sous
+   3,3 V et relever la sortie. Si elle passe d'environ 0,40 V à environ 0,36 V, la sortie suit
+   l'alimentation : la conversion se fait alors sur le rapport A2/A0. Si elle reste à 0,40 V,
+   elle ne dépend pas de l'alimentation : A0 n'intervient pas.
+2. **Zéro, sur la machine.** Lire la sonde machine chaude, circuit dépressurisé. L'écart
+   à 0,4 V devient l'offset ; il absorbe le zéro d'usine, l'écart de masse et la dérive à
+   chaud.
+3. **Pente.** Départ sur la pente d'usine (6 bar/V), puis alignement sur le XDB401 I2C au
+   plateau de l'OPV, décrit ci-dessous.
+
+#### Point de comparaison : plateau de l'OPV en panier aveugle
+
+**But : continuité, pas exactitude.** Les consignes de pression et les captures existantes
+ont été établies avec le XDB401 I2C. La sonde analogique doit rendre **la même valeur
+numérique** au même point, même si cette valeur s'écarte de la pression vraie.
+
+Le tarage de l'OPV (~10 bar) ne bouge pas entre les deux sondes. Une **purge à 100 % avec
+panier aveugle** monte jusqu'à l'ouverture de l'OPV et y forme un plateau, le même avant et
+après le remplacement.
+
+- **Avant le démontage du XDB401 I2C** : machine chaude, plusieurs purges à 100 % en panier
+  aveugle. Relever pour chacune la lecture à pression atmosphérique juste avant, et le
+  plateau. Noter aussi la valeur lue sur le manomètre à aiguille, pour mémoire seulement.
+  Retenir la moyenne des **plateau − zéro**, et l'écart entre les purges comme
+  répétabilité. Conversion actuelle : pleine échelle 16 bar, offset 0
+  (`firmware/screen/main/core/calibration_machine.h`).
+- **Après le montage de la version analogique** : mêmes purges, mêmes conditions (commande
+  pompe, consigne chaudière, OPV non touchée). Relever la tension au zéro et au plateau.
+- **Alignement.** Le zéro reste celui mesuré à pression atmosphérique. La pente est fixée
+  pour que le plateau donne la valeur de la sonde I2C :
+  pente = (plateau − zéro)<sub>I2C</sub> / (V<sub>plateau</sub> − V<sub>zéro</sub>), en bar/V.
+- **Contrôle avant d'aligner.** Les deux sondes sont annoncées à 1 % PE (±0,16 bar et
+  ±0,12 bar). La pente d'usine doit donc donner au plateau la valeur de la sonde I2C à
+  **0,3 bar** près, plus la dispersion entre purges. Au-delà, chercher d'abord un défaut de
+  chaîne (zéro, test ratiométrique, masse) avant d'aligner : l'alignement masquerait le
+  défaut au plateau et le laisserait ailleurs sur la plage.
+
+Consigner ici les valeurs relevées : zéro et plateau I2C, manomètre, tensions de la sonde
+analogique et pente retenue.
+
+La température interne fournie par le XDB401 I2C disparaît avec lui. C'est la température
+du corps de la sonde, utilisée par sa puce pour compenser la pression ; elle ne mesure pas
+l'eau et ne sert pas à la régulation.
+
+### Interférences sur la mesure de pression
+
+**Constat.** Le câble I2C du XDB401 (R1) fait ~30 cm. Il passe près des câbles 230 V du SSR
+de chaudière, et son blindage ne peut pas être relié à la masse. Des erreurs I2C
+(`I2C_ERROR`, `XDB401_TIMEOUT`) y apparaissent régulièrement.
+
+**Mécanisme.** L'I2C est asymétrique et à drain ouvert : l'état haut n'est tenu que par une
+pull-up de 4,7 kΩ. Les fronts rapides voisins s'y injectent par couplage capacitif : la
+commutation du SSR, la découpe de phase du dimmer et la pompe, qui est une charge inductive.
+Le champ magnétique 50 Hz du courant de chaudière compte peu. Le blindage flottant ne
+protège presque pas. Une injection donne un NACK, un octet faux ou une ligne SDA bloquée. Le
+bus est **partagé avec le dimmer** : une ligne bloquée prive aussi la pompe de commande.
+
+Trois options :
+
+| | A — analogique sur l'ADS1115 de l'écran | B — I2C sur le connecteur du Waveshare | C — I2C actuel amélioré |
+| --- | --- | --- | --- |
+| Montage | sortie 0,4–2,4 V sur A2, câble plus court | XDB401 I2C sur H7, câble plus court | inchangé |
+| Nature du signal | tension pilotée par la sonde (faible impédance) | lignes tenues par pull-ups | lignes tenues par pull-ups |
+| Pull-ups | dimmer : module 4,7 kΩ ajouté sur le XIAO | 4,7 kΩ Waveshare ∥ 4,7 kΩ sonde = 2,35 kΩ | 2,2 kΩ côté XIAO ∥ 4,7 kΩ sonde = 1,5 kΩ |
+| Effet d'un parasite | un échantillon faussé, filtré par l'ADS1115, un RC ou un médian | transaction perdue ou bus bloqué | transaction perdue ou bus bloqué |
+| Bus exposé au câble | aucun : l'ADS1115 est dans le boîtier | bus de l'écran : CH422G, GT911 tactile, ADS1115 (NTC chaudière) | bus du XIAO : dimmer |
+| Gamme, précision | 0–12 bar, ±0,12 bar | 0–16 bar, ±0,16 bar | 0–16 bar, ±0,16 bar |
+| Température de la sonde | perdue | conservée | conservée |
+| Trajet jusqu'à la régulation | direct | direct | par le CAN |
+| Pièce ou travail | sonde commandée, firmware screen, module pull-ups | adresse 0x7F à vérifier par scan du bus, firmware screen | pull-ups, routage, firmware sensors |
+
+Mesures communes aux trois options : croiser les câbles 230 V à 90° plutôt que de les
+longer, et garder chaque signal contre sa masse. Pour B et C, côté firmware : récupération
+du bus (9 impulsions SCL) et nouvel essai après une erreur.
 
 ### Câble du dimmer (L4)
 

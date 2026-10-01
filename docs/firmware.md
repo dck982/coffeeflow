@@ -223,7 +223,7 @@ Avec l'OPV réglée à 11 bar pour un fonctionnement à 9 bar, **elle ne s'ouvre
 
 ### XDB401 — pression et température
 
-Même bus I2C. Déclencher une conversion (`0x30` / `0x0A`), attendre ~50 ms, lire 5 octets à partir de `0x06` : pression 24 bits, température 16 bits. Ces 5 octets partent **tels quels** sur le CAN. La pleine échelle est une propriété de la pièce (le script de banc suppose 10 bar, à confirmer sur l'exemplaire monté) et c'est une calibration : elle vit côté écran.
+Même bus I2C. Déclencher une conversion (`0x30` / `0x0A`), attendre ~50 ms, lire 5 octets à partir de `0x06` : pression 24 bits, température 16 bits. Ces 5 octets partent **tels quels** sur le CAN. La pleine échelle est une propriété de la pièce et c'est une calibration : elle vit côté écran (`kPressureFullScaleBar = 16` dans `screen/main/core/calibration_machine.h`, cohérent avec les purges du 2026-09-17 ; le script de banc `tests/test_xdb401.py` suppose encore 10 bar). La température est celle du corps de la sonde, mesurée par sa puce pour compenser la pression ; elle ne mesure pas l'eau.
 
 Mesure côté groupe, en amont de la vanne solénoïde.
 
@@ -237,10 +237,17 @@ Cette migration déplacera l'acquisition de pression vers `screen`. La boucle de
 les captures HF pourront consommer directement cette mesure locale, mais la télémétrie et
 la notion de fraîcheur devront cesser de dépendre de `STATUS_PRESSURE` envoyé par le XIAO.
 Le champ brut devra aussi être redéfini, car il contient actuellement le code signé 24 bits
-du XDB401 I2C. La température interne fournie par ce dernier disparaîtra. Aucun de ces
-changements logiciels ne doit précéder la mesure de la tension réelle à 0 bar et à une
-pression connue sur la pièce reçue ; cette caractérisation déterminera pente, offset et
-éventuelle compensation ratiométrique par A0.
+du XDB401 I2C. La température interne fournie par ce dernier disparaîtra.
+
+La sonde analogique est calibrée d'usine : la conversion part de la droite nominale
+0,4 V → 0 bar, 2,4 V → 12 bar (6 bar/V). Aucune pression connue ne peut être générée au
+banc ; la caractérisation suit [cablage.md — Calibration de la version analogique](cablage.md#calibration-de-la-version-analogique).
+Elle fixe le mode de conversion avant tout changement logiciel : test ratiométrique (A2 seul,
+ou rapport A2/A0), puis offset mesuré à pression atmosphérique, machine chaude. La pente est
+ensuite alignée pour que la sonde analogique rende la même valeur que le XDB401 I2C au
+plateau de l'OPV (purge à 100 %, panier aveugle) : les consignes et captures existantes
+restent ainsi comparables. Ce relevé de référence doit être fait **avant** de débrancher la
+sonde actuelle.
 
 ---
 

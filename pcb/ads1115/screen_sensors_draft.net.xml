@@ -1,608 +1,1533 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<export version="E">
-  <design>
-    <source>/Users/davidclerc/Projects/coffeeflow/pcb/ads1115/screen_sensors_draft.kicad_sch</source>
-    <date>2026-10-01T10:28:19</date>
-    <tool>Eeschema 10.0.6</tool>
-    <sheet number="1" name="/" tstamps="/">
-      <title_block>
-        <title/>
-        <company/>
-        <rev/>
-        <date/>
-        <source>screen_sensors_draft.kicad_sch</source>
-        <comment number="1" value=""/>
-        <comment number="2" value=""/>
-        <comment number="3" value=""/>
-        <comment number="4" value=""/>
-        <comment number="5" value=""/>
-        <comment number="6" value=""/>
-        <comment number="7" value=""/>
-        <comment number="8" value=""/>
-        <comment number="9" value=""/>
-      </title_block>
-    </sheet>
-  </design>
-  <components>
-    <comp ref="C1">
-      <value>100nF</value>
-      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
-      <fields>
-        <field name="MPN">CC0603KRX7R9BB104</field>
-        <field name="LCSC">C14663</field>
-        <field name="Note">At U1 VDD</field>
-        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="LCSC" value="C14663"/>
-      <property name="Note" value="At U1 VDD"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="cap capacitor"/>
-      <property name="ki_fp_filters" value="C_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>14189cf7-681b-4c2e-910a-25151df25f6f</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="C2">
-      <value>4.7uF</value>
-      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
-      <fields>
-        <field name="MPN">CL10A475KO8NNNC</field>
-        <field name="LCSC">C19666</field>
-        <field name="Note">Board bulk, X5R 16V</field>
-        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="CL10A475KO8NNNC"/>
-      <property name="LCSC" value="C19666"/>
-      <property name="Note" value="Board bulk, X5R 16V"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="cap capacitor"/>
-      <property name="ki_fp_filters" value="C_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>0398d556-6d48-4c7a-814a-7115ef6f48f4</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="C4">
-      <value>100nF</value>
-      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
-      <fields>
-        <field name="LCSC">C14663</field>
-        <field name="Note">Input filter at ADC; 1k/100nF fc~1.59kHz</field>
-        <field name="MPN">CC0603KRX7R9BB104</field>
-        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="LCSC" value="C14663"/>
-      <property name="Note" value="Input filter at ADC; 1k/100nF fc~1.59kHz"/>
-      <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="cap capacitor"/>
-      <property name="ki_fp_filters" value="C_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>3fb07265-f64f-477c-b383-f0eeede6a6d5</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="C5">
-      <value>100nF</value>
-      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
-      <fields>
-        <field name="LCSC">C14663</field>
-        <field name="Note">At pressure connector supply</field>
-        <field name="MPN">CC0603KRX7R9BB104</field>
-        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="LCSC" value="C14663"/>
-      <property name="Note" value="At pressure connector supply"/>
-      <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="cap capacitor"/>
-      <property name="ki_fp_filters" value="C_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>c85d02db-22af-4a16-a7c7-4fe4b9f7fb6a</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="C6">
-      <value>100nF</value>
-      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
-      <fields>
-        <field name="LCSC">C14663</field>
-        <field name="Note">At U2 VDD</field>
-        <field name="MPN">CC0603KRX7R9BB104</field>
-        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="LCSC" value="C14663"/>
-      <property name="Note" value="At U2 VDD"/>
-      <property name="MPN" value="CC0603KRX7R9BB104"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="cap capacitor"/>
-      <property name="ki_fp_filters" value="C_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>e4bd25f5-4208-44fb-a9ab-b15fd4cb9cce</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="J1">
-      <value>WAVESHARE_I2C</value>
-      <footprint>Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical</footprint>
-      <fields>
-        <field name="MPN">B4B-XH-A(LF)(SN)</field>
-        <field name="LCSC">C144395</field>
-        <field name="Note">Pin 1 VCC/3V3, 2 GND, 3 SDA, 4 SCL; matches Waveshare order</field>
-        <field name="Footprint">Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Connector_Generic" part="Conn_01x04" description="Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="B4B-XH-A(LF)(SN)"/>
-      <property name="LCSC" value="C144395"/>
-      <property name="Note" value="Pin 1 VCC/3V3, 2 GND, 3 SDA, 4 SCL; matches Waveshare order"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="connector"/>
-      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>3eff6027-ffeb-443d-9cad-2080363bf41d</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-            <pin num="3"/>
-            <pin num="4"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="J2">
-      <value>BOILER_PROBE</value>
-      <footprint>Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</footprint>
-      <fields>
-        <field name="MPN">B2B-XH-A-R(LF)(SN)</field>
-        <field name="LCSC">C495685</field>
-        <field name="Footprint">Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Connector_Generic" part="Conn_01x02" description="Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="B2B-XH-A-R(LF)(SN)"/>
-      <property name="LCSC" value="C495685"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="connector"/>
-      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>cff19e72-32af-40cb-99f3-bb80c2b05929</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="J3">
-      <value>XDB401_ANALOG</value>
-      <footprint>Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</footprint>
-      <fields>
-        <field name="MPN">B3B-XH-A(LF)(SN)</field>
-        <field name="LCSC">C144394</field>
-        <field name="Note">Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors</field>
-        <field name="Footprint">Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Connector_Generic" part="Conn_01x03" description="Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="B3B-XH-A(LF)(SN)"/>
-      <property name="LCSC" value="C144394"/>
-      <property name="Note" value="Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="connector"/>
-      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>70020b27-4f5f-4e81-afc6-8a1799e19252</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-            <pin num="3"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="R1">
-      <value>4.7k 0.1%</value>
-      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
-      <fields>
-        <field name="MPN">PTFR0603B4K70N9</field>
-        <field name="LCSC">C394547</field>
-        <field name="Note">Precision / low TCR; calibrate new assembly</field>
-        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="PTFR0603B4K70N9"/>
-      <property name="LCSC" value="C394547"/>
-      <property name="Note" value="Precision / low TCR; calibrate new assembly"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="R res resistor"/>
-      <property name="ki_fp_filters" value="R_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>a1a4244f-6d48-4605-b5d9-a5879bf924a9</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="R3">
-      <value>1k 0.1%</value>
-      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
-      <fields>
-        <field name="Note">Provisional RF filter; can assemble 0R instead</field>
-        <field name="MPN">PTFR0603B1K00N9</field>
-        <field name="LCSC">C394536</field>
-        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
-        <field name="Datasheet"/>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="Note" value="Provisional RF filter; can assemble 0R instead"/>
-      <property name="MPN" value="PTFR0603B1K00N9"/>
-      <property name="LCSC" value="C394536"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="R res resistor"/>
-      <property name="ki_fp_filters" value="R_*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>02f51ca6-23a2-4178-a113-a8145767ecdd</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="U1">
-      <value>ADS1115IDGSR</value>
-      <footprint>Package_SO:TSSOP-10_3x3mm_P0.5mm</footprint>
-      <datasheet>http://www.ti.com/lit/ds/symlink/ads1113.pdf</datasheet>
-      <fields>
-        <field name="MPN">ADS1115IDGSR</field>
-        <field name="LCSC">C37593</field>
-        <field name="Note">ADDR=GND; PGA +/-4.096V; A0 measures divider supply</field>
-        <field name="Footprint">Package_SO:TSSOP-10_3x3mm_P0.5mm</field>
-        <field name="Datasheet">http://www.ti.com/lit/ds/symlink/ads1113.pdf</field>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Analog_ADC" part="ADS1115IDGS" description="Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10"/>
-      <property name="MPN" value="ADS1115IDGSR"/>
-      <property name="LCSC" value="C37593"/>
-      <property name="Note" value="ADDR=GND; PGA +/-4.096V; A0 measures divider supply"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="16 bit 4 channel I2C ADC"/>
-      <property name="ki_fp_filters" value="TSSOP*3x3mm*P0.5mm*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>fd086712-2e1b-49f4-9161-09490a71151d</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="4"/>
-            <pin num="5"/>
-            <pin num="6"/>
-            <pin num="7"/>
-            <pin num="8"/>
-            <pin num="3"/>
-            <pin num="2"/>
-            <pin num="10"/>
-            <pin num="9"/>
-            <pin num="1"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-    <comp ref="U2">
-      <value>SHT40-AD1B</value>
-      <footprint>Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad</footprint>
-      <datasheet>https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</datasheet>
-      <fields>
-        <field name="MPN">SHT40-AD1B-R3</field>
-        <field name="LCSC">C2848306</field>
-        <field name="Note">Top-side SMT reflow with ADS1115; no board wash; address 0x44</field>
-        <field name="Footprint">Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad</field>
-        <field name="Datasheet">https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</field>
-        <field name="Description"/>
-      </fields>
-      <libsource lib="Sensor_Humidity" part="SHT4x" description="Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4"/>
-      <property name="MPN" value="SHT40-AD1B-R3"/>
-      <property name="LCSC" value="C2848306"/>
-      <property name="Note" value="Top-side SMT reflow with ADS1115; no board wash; address 0x44"/>
-      <property name="Sheetname" value="screen_sensors_draft"/>
-      <property name="Sheetfile" value="screen_sensors_draft.kicad_sch"/>
-      <property name="ki_keywords" value="Sensirion environment environmental measurement digital SHT40 SHT41 SHT45"/>
-      <property name="ki_fp_filters" value="Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*"/>
-      <sheetpath names="/" tstamps="/"/>
-      <tstamps>1f9d71fe-ca00-4567-b5be-3722b3388a4a</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="2"/>
-            <pin num="1"/>
-            <pin num="3"/>
-            <pin num="4"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
-  </components>
-  <libparts>
-    <libpart lib="Analog_ADC" part="ADS1115IDGS">
-      <description>Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10</description>
-      <docs>http://www.ti.com/lit/ds/symlink/ads1113.pdf</docs>
-      <footprints>
-        <fp>TSSOP*3x3mm*P0.5mm*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">U</field>
-        <field name="Value">ADS1115IDGS</field>
-        <field name="Footprint">Package_SO:TSSOP-10_3x3mm_P0.5mm</field>
-        <field name="Datasheet">http://www.ti.com/lit/ds/symlink/ads1113.pdf</field>
-        <field name="Description">Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10</field>
-      </fields>
-      <pins>
-        <pin num="1" name="ADDR" type="input"/>
-        <pin num="2" name="ALERT/RDY" type="output"/>
-        <pin num="3" name="GND" type="power_in"/>
-        <pin num="4" name="AIN0" type="input"/>
-        <pin num="5" name="AIN1" type="input"/>
-        <pin num="6" name="AIN2" type="input"/>
-        <pin num="7" name="AIN3" type="input"/>
-        <pin num="8" name="VDD" type="power_in"/>
-        <pin num="9" name="SDA" type="bidirectional"/>
-        <pin num="10" name="SCL" type="input"/>
-      </pins>
-    </libpart>
-    <libpart lib="Connector_Generic" part="Conn_01x02">
-      <description>Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
-      <footprints>
-        <fp>Connector*:*_1x??_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">J</field>
-        <field name="Value">Conn_01x02</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
-      </fields>
-      <pins>
-        <pin num="1" name="Pin_1" type="passive"/>
-        <pin num="2" name="Pin_2" type="passive"/>
-      </pins>
-    </libpart>
-    <libpart lib="Connector_Generic" part="Conn_01x03">
-      <description>Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
-      <footprints>
-        <fp>Connector*:*_1x??_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">J</field>
-        <field name="Value">Conn_01x03</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
-      </fields>
-      <pins>
-        <pin num="1" name="Pin_1" type="passive"/>
-        <pin num="2" name="Pin_2" type="passive"/>
-        <pin num="3" name="Pin_3" type="passive"/>
-      </pins>
-    </libpart>
-    <libpart lib="Connector_Generic" part="Conn_01x04">
-      <description>Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
-      <footprints>
-        <fp>Connector*:*_1x??_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">J</field>
-        <field name="Value">Conn_01x04</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
-      </fields>
-      <pins>
-        <pin num="1" name="Pin_1" type="passive"/>
-        <pin num="2" name="Pin_2" type="passive"/>
-        <pin num="3" name="Pin_3" type="passive"/>
-        <pin num="4" name="Pin_4" type="passive"/>
-      </pins>
-    </libpart>
-    <libpart lib="Device" part="C">
-      <description>Unpolarized capacitor</description>
-      <footprints>
-        <fp>C_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">C</field>
-        <field name="Value">C</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Unpolarized capacitor</field>
-      </fields>
-      <pins>
-        <pin num="1" name="" type="passive"/>
-        <pin num="2" name="" type="passive"/>
-      </pins>
-    </libpart>
-    <libpart lib="Device" part="R">
-      <description>Resistor</description>
-      <footprints>
-        <fp>R_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">R</field>
-        <field name="Value">R</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Resistor</field>
-      </fields>
-      <pins>
-        <pin num="1" name="" type="passive"/>
-        <pin num="2" name="" type="passive"/>
-      </pins>
-    </libpart>
-    <libpart lib="Sensor_Humidity" part="SHT4x">
-      <description>Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4</description>
-      <docs>https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</docs>
-      <footprints>
-        <fp>Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">U</field>
-        <field name="Value">SHT4x</field>
-        <field name="Footprint">Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad</field>
-        <field name="Datasheet">https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</field>
-        <field name="Description">Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4</field>
-      </fields>
-      <pins>
-        <pin num="1" name="SDA" type="bidirectional"/>
-        <pin num="2" name="SCL" type="input"/>
-        <pin num="3" name="VDD" type="power_in"/>
-        <pin num="4" name="VSS" type="power_in"/>
-      </pins>
-    </libpart>
-  </libparts>
-  <libraries>
-    <library logical="Analog_ADC">
-      <uri>${KICAD10_SYMBOL_DIR}/Analog_ADC.kicad_sym</uri>
-    </library>
-    <library logical="Connector_Generic">
-      <uri>${KICAD10_SYMBOL_DIR}/Connector_Generic.kicad_sym</uri>
-    </library>
-    <library logical="Device">
-      <uri>${KICAD10_SYMBOL_DIR}/Device.kicad_sym</uri>
-    </library>
-    <library logical="Sensor_Humidity">
-      <uri>${KICAD10_SYMBOL_DIR}/Sensor_Humidity.kicad_sym</uri>
-    </library>
-  </libraries>
-  <nets>
-    <net code="1" name="/3V3" class="Default">
-      <node ref="C1" pin="1" pintype="passive"/>
-      <node ref="C2" pin="1" pintype="passive"/>
-      <node ref="C5" pin="1" pintype="passive"/>
-      <node ref="C6" pin="1" pintype="passive"/>
-      <node ref="J1" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
-      <node ref="J2" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
-      <node ref="J3" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
-      <node ref="U1" pin="4" pinfunction="AIN0_4" pintype="input"/>
-      <node ref="U1" pin="8" pinfunction="VDD_8" pintype="power_in"/>
-      <node ref="U2" pin="3" pinfunction="VDD_3" pintype="power_in"/>
-    </net>
-    <net code="2" name="/BOILER_ADC" class="Default">
-      <node ref="J2" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
-      <node ref="R1" pin="1" pintype="passive"/>
-      <node ref="U1" pin="5" pinfunction="AIN1_5" pintype="input"/>
-    </net>
-    <net code="3" name="/GND" class="Default">
-      <node ref="C1" pin="2" pintype="passive"/>
-      <node ref="C2" pin="2" pintype="passive"/>
-      <node ref="C4" pin="2" pintype="passive"/>
-      <node ref="C5" pin="2" pintype="passive"/>
-      <node ref="C6" pin="2" pintype="passive"/>
-      <node ref="J1" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
-      <node ref="J3" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
-      <node ref="R1" pin="2" pintype="passive"/>
-      <node ref="U1" pin="1" pinfunction="ADDR_1" pintype="input"/>
-      <node ref="U1" pin="3" pinfunction="GND_3" pintype="power_in"/>
-      <node ref="U2" pin="4" pinfunction="VSS_4" pintype="power_in"/>
-    </net>
-    <net code="4" name="/PRESS_ADC" class="Default">
-      <node ref="C4" pin="1" pintype="passive"/>
-      <node ref="R3" pin="2" pintype="passive"/>
-      <node ref="U1" pin="6" pinfunction="AIN2_6" pintype="input"/>
-    </net>
-    <net code="5" name="/PRESS_SIGNAL" class="Default">
-      <node ref="J3" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="R3" pin="1" pintype="passive"/>
-    </net>
-    <net code="6" name="/SCL" class="Default">
-      <node ref="J1" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
-      <node ref="U1" pin="10" pinfunction="SCL_10" pintype="input"/>
-      <node ref="U2" pin="2" pinfunction="SCL_2" pintype="input"/>
-    </net>
-    <net code="7" name="/SDA" class="Default">
-      <node ref="J1" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="U1" pin="9" pinfunction="SDA_9" pintype="bidirectional"/>
-      <node ref="U2" pin="1" pinfunction="SDA_1" pintype="bidirectional"/>
-    </net>
-    <net code="8" name="unconnected-(U1-AIN3-Pad7)" class="Default">
-      <node ref="U1" pin="7" pinfunction="AIN3_7" pintype="input+no_connect"/>
-    </net>
-    <net code="9" name="unconnected-(U1-ALERT/RDY-Pad2)" class="Default">
-      <node ref="U1" pin="2" pinfunction="ALERT/RDY_2" pintype="output+no_connect"/>
-    </net>
-  </nets>
-</export>
+(export
+	(version "E")
+	(design
+		(source "/Users/davidclerc/Projects/coffeeflow/pcb/ads1115/screen_sensors_draft.kicad_sch")
+		(date "2026-10-01T14:51:21")
+		(tool "Eeschema 10.0.6")
+		(sheet
+			(number "1")
+			(name "/")
+			(tstamps "/")
+			(title_block
+				(title)
+				(company)
+				(rev)
+				(date)
+				(source "screen_sensors_draft.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+	)
+	(components
+		(comp
+			(ref "C1")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Note") "At U1 VDD")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Note")
+				(value "At U1 VDD")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "14189cf7-681b-4c2e-910a-25151df25f6f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C2")
+			(value "4.7uF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "MPN") "CL10A475KO8NNNC")
+				(field
+					(name "LCSC") "C19666")
+				(field
+					(name "Note") "Board bulk, X5R 16V")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "MPN")
+				(value "CL10A475KO8NNNC")
+			)
+			(property
+				(name "LCSC")
+				(value "C19666")
+			)
+			(property
+				(name "Note")
+				(value "Board bulk, X5R 16V")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "0398d556-6d48-4c7a-814a-7115ef6f48f4")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C3")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Note") "Input filter at ADC; 1k/100nF fc~1.59kHz")
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Note")
+				(value "Input filter at ADC; 1k/100nF fc~1.59kHz")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "3fb07265-f64f-477c-b383-f0eeede6a6d5")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C4")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Note") "At pressure connector supply")
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Note")
+				(value "At pressure connector supply")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "c85d02db-22af-4a16-a7c7-4fe4b9f7fb6a")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C5")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC") "C14663")
+				(field
+					(name "Note") "At U2 VDD")
+				(field
+					(name "MPN") "CC0603KRX7R9BB104")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC")
+				(value "C14663")
+			)
+			(property
+				(name "Note")
+				(value "At U2 VDD")
+			)
+			(property
+				(name "MPN")
+				(value "CC0603KRX7R9BB104")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "e4bd25f5-4208-44fb-a9ab-b15fd4cb9cce")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J1")
+			(value "WAVESHARE_I2C")
+			(footprint "Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical")
+			(fields
+				(field
+					(name "MPN") "B4B-XH-A(LF)(SN)")
+				(field
+					(name "LCSC") "C144395")
+				(field
+					(name "Note") "Pin 1 VCC/3V3, 2 GND, 3 SCL, 4 SDA; cross SDA/SCL in Waveshare cable")
+				(field
+					(name "Footprint") "Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Connector_Generic")
+				(part "Conn_01x04")
+				(description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "B4B-XH-A(LF)(SN)")
+			)
+			(property
+				(name "LCSC")
+				(value "C144395")
+			)
+			(property
+				(name "Note")
+				(value "Pin 1 VCC/3V3, 2 GND, 3 SCL, 4 SDA; cross SDA/SCL in Waveshare cable")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "3eff6027-ffeb-443d-9cad-2080363bf41d")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J2")
+			(value "BOILER_PROBE")
+			(footprint "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical")
+			(fields
+				(field
+					(name "MPN") "B2B-XH-A-R(LF)(SN)")
+				(field
+					(name "LCSC") "C495685")
+				(field
+					(name "Footprint") "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Connector_Generic")
+				(part "Conn_01x02")
+				(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "B2B-XH-A-R(LF)(SN)")
+			)
+			(property
+				(name "LCSC")
+				(value "C495685")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "cff19e72-32af-40cb-99f3-bb80c2b05929")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J3")
+			(value "XDB401_ANALOG")
+			(footprint "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical")
+			(fields
+				(field
+					(name "MPN") "B3B-XH-A(LF)(SN)")
+				(field
+					(name "LCSC") "C144394")
+				(field
+					(name "Note") "Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors")
+				(field
+					(name "Footprint") "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Connector_Generic")
+				(part "Conn_01x03")
+				(description "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "MPN")
+				(value "B3B-XH-A(LF)(SN)")
+			)
+			(property
+				(name "LCSC")
+				(value "C144394")
+			)
+			(property
+				(name "Note")
+				(value "Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "70020b27-4f5f-4e81-afc6-8a1799e19252")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R1")
+			(value "4.7k 0.1%")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(fields
+				(field
+					(name "MPN") "PTFR0603B4K70N9")
+				(field
+					(name "LCSC") "C394547")
+				(field
+					(name "Note") "Precision / low TCR; calibrate new assembly")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "MPN")
+				(value "PTFR0603B4K70N9")
+			)
+			(property
+				(name "LCSC")
+				(value "C394547")
+			)
+			(property
+				(name "Note")
+				(value "Precision / low TCR; calibrate new assembly")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "a1a4244f-6d48-4605-b5d9-a5879bf924a9")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R3")
+			(value "1k 0.1%")
+			(footprint "Resistor_SMD:R_0603_1608Metric")
+			(fields
+				(field
+					(name "Note") "Provisional RF filter; can assemble 0R instead")
+				(field
+					(name "MPN") "PTFR0603B1K00N9")
+				(field
+					(name "LCSC") "C394536")
+				(field
+					(name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Note")
+				(value "Provisional RF filter; can assemble 0R instead")
+			)
+			(property
+				(name "MPN")
+				(value "PTFR0603B1K00N9")
+			)
+			(property
+				(name "LCSC")
+				(value "C394536")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "02f51ca6-23a2-4178-a113-a8145767ecdd")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U1")
+			(value "ADS1115IDGSR")
+			(footprint "Package_SO:TSSOP-10_3x3mm_P0.5mm")
+			(datasheet "http://www.ti.com/lit/ds/symlink/ads1113.pdf")
+			(fields
+				(field
+					(name "MPN") "ADS1115IDGSR")
+				(field
+					(name "LCSC") "C37593")
+				(field
+					(name "Note") "ADDR=GND; PGA +/-4.096V; A0 measures divider supply")
+				(field
+					(name "Footprint") "Package_SO:TSSOP-10_3x3mm_P0.5mm")
+				(field
+					(name "Datasheet") "http://www.ti.com/lit/ds/symlink/ads1113.pdf")
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Analog_ADC")
+				(part "ADS1115IDGS")
+				(description "Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10")
+			)
+			(property
+				(name "MPN")
+				(value "ADS1115IDGSR")
+			)
+			(property
+				(name "LCSC")
+				(value "C37593")
+			)
+			(property
+				(name "Note")
+				(value "ADDR=GND; PGA +/-4.096V; A0 measures divider supply")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "16 bit 4 channel I2C ADC")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TSSOP*3x3mm*P0.5mm*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "fd086712-2e1b-49f4-9161-09490a71151d")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "1")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U2")
+			(value "SHT40-AD1B")
+			(footprint "Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad")
+			(datasheet "https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf")
+			(fields
+				(field
+					(name "MPN") "SHT40-AD1B-R3")
+				(field
+					(name "LCSC") "C2848306")
+				(field
+					(name "Note") "Top-side SMT reflow with ADS1115; no board wash; address 0x44")
+				(field
+					(name "Footprint") "Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad")
+				(field
+					(name "Datasheet") "https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf")
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Sensor_Humidity")
+				(part "SHT4x")
+				(description "Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4")
+			)
+			(property
+				(name "MPN")
+				(value "SHT40-AD1B-R3")
+			)
+			(property
+				(name "LCSC")
+				(value "C2848306")
+			)
+			(property
+				(name "Note")
+				(value "Top-side SMT reflow with ADS1115; no board wash; address 0x44")
+			)
+			(property
+				(name "Sheetname")
+				(value "screen_sensors_draft")
+			)
+			(property
+				(name "Sheetfile")
+				(value "screen_sensors_draft.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "Sensirion environment environmental measurement digital SHT40 SHT41 SHT45")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "1f9d71fe-ca00-4567-b5be-3722b3388a4a")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+					)
+				)
+			)
+		)
+	)
+	(groups)
+	(variants)
+	(libparts
+		(libpart
+			(lib "Analog_ADC")
+			(part "ADS1115IDGS")
+			(description "Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10")
+			(docs "http://www.ti.com/lit/ds/symlink/ads1113.pdf")
+			(footprints
+				(fp "TSSOP*3x3mm*P0.5mm*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "ADS1115IDGS")
+				(field
+					(name "Footprint") "Package_SO:TSSOP-10_3x3mm_P0.5mm")
+				(field
+					(name "Datasheet") "http://www.ti.com/lit/ds/symlink/ads1113.pdf")
+				(field
+					(name "Description") "Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "ADDR")
+					(type "input")
+				)
+				(pin
+					(num "2")
+					(name "ALERT/RDY")
+					(type "output")
+				)
+				(pin
+					(num "3")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "4")
+					(name "AIN0")
+					(type "input")
+				)
+				(pin
+					(num "5")
+					(name "AIN1")
+					(type "input")
+				)
+				(pin
+					(num "6")
+					(name "AIN2")
+					(type "input")
+				)
+				(pin
+					(num "7")
+					(name "AIN3")
+					(type "input")
+				)
+				(pin
+					(num "8")
+					(name "VDD")
+					(type "power_in")
+				)
+				(pin
+					(num "9")
+					(name "SDA")
+					(type "bidirectional")
+				)
+				(pin
+					(num "10")
+					(name "SCL")
+					(type "input")
+				)
+			)
+		)
+		(libpart
+			(lib "Connector_Generic")
+			(part "Conn_01x02")
+			(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x02")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Connector_Generic")
+			(part "Conn_01x03")
+			(description "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x03")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "Pin_3")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Connector_Generic")
+			(part "Conn_01x04")
+			(description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x04")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "Pin_3")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "Pin_4")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Device")
+			(part "C")
+			(description "Unpolarized capacitor")
+			(footprints
+				(fp "C_*")
+			)
+			(fields
+				(field
+					(name "Reference") "C")
+				(field
+					(name "Value") "C")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Device")
+			(part "R")
+			(description "Resistor")
+			(footprints
+				(fp "R_*")
+			)
+			(fields
+				(field
+					(name "Reference") "R")
+				(field
+					(name "Value") "R")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Resistor")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "Sensor_Humidity")
+			(part "SHT4x")
+			(description "Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4")
+			(docs "https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf")
+			(footprints
+				(fp "Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "SHT4x")
+				(field
+					(name "Footprint") "Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad")
+				(field
+					(name "Datasheet") "https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf")
+				(field
+					(name "Description") "Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "SDA")
+					(type "bidirectional")
+				)
+				(pin
+					(num "2")
+					(name "SCL")
+					(type "input")
+				)
+				(pin
+					(num "3")
+					(name "VDD")
+					(type "power_in")
+				)
+				(pin
+					(num "4")
+					(name "VSS")
+					(type "power_in")
+				)
+			)
+		)
+	)
+	(libraries
+		(library
+			(logical "Analog_ADC")
+			(uri "${KICAD10_SYMBOL_DIR}/Analog_ADC.kicad_sym")
+		)
+		(library
+			(logical "Connector_Generic")
+			(uri "${KICAD10_SYMBOL_DIR}/Connector_Generic.kicad_sym")
+		)
+		(library
+			(logical "Device")
+			(uri "${KICAD10_SYMBOL_DIR}/Device.kicad_sym")
+		)
+		(library
+			(logical "Sensor_Humidity")
+			(uri "${KICAD10_SYMBOL_DIR}/Sensor_Humidity.kicad_sym")
+		)
+	)
+	(nets
+		(net
+			(code "1")
+			(name "/3V3")
+			(class "Default")
+			(node
+				(ref "C1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C4")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "4")
+				(pinfunction "AIN0_4")
+				(pintype "input")
+			)
+			(node
+				(ref "U1")
+				(pin "8")
+				(pinfunction "VDD_8")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U2")
+				(pin "3")
+				(pinfunction "VDD_3")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "2")
+			(name "/BOILER_ADC")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "5")
+				(pinfunction "AIN1_5")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "3")
+			(name "/GND")
+			(class "Default")
+			(node
+				(ref "C1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C4")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C5")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "1")
+				(pinfunction "ADDR_1")
+				(pintype "input")
+			)
+			(node
+				(ref "U1")
+				(pin "3")
+				(pinfunction "GND_3")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U2")
+				(pin "4")
+				(pinfunction "VSS_4")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "4")
+			(name "/PRESS_ADC")
+			(class "Default")
+			(node
+				(ref "C3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "6")
+				(pinfunction "AIN2_6")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "5")
+			(name "/PRESS_SIGNAL")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "3")
+				(pinfunction "Pin_3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "6")
+			(name "/SCL")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "3")
+				(pinfunction "Pin_3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "10")
+				(pinfunction "SCL_10")
+				(pintype "input")
+			)
+			(node
+				(ref "U2")
+				(pin "2")
+				(pinfunction "SCL_2")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "7")
+			(name "/SDA")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "4")
+				(pinfunction "Pin_4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "9")
+				(pinfunction "SDA_9")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U2")
+				(pin "1")
+				(pinfunction "SDA_1")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "8")
+			(name "unconnected-(U1-AIN3-Pad7)")
+			(class "Default")
+			(node
+				(ref "U1")
+				(pin "7")
+				(pinfunction "AIN3_7")
+				(pintype "input+no_connect")
+			)
+		)
+		(net
+			(code "9")
+			(name "unconnected-(U1-ALERT{slash}RDY-Pad2)")
+			(class "Default")
+			(node
+				(ref "U1")
+				(pin "2")
+				(pinfunction "ALERT/RDY_2")
+				(pintype "output+no_connect")
+			)
+		)
+	)
+)

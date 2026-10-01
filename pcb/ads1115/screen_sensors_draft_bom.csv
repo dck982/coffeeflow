@@ -1,5 +1,5 @@
 Reference,Value,Footprint,DNP,MPN,LCSC,Note
-J1,WAVESHARE_I2C,Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical,False,B4B-XH-A(LF)(SN),C144395,"Pin 1 VCC/3V3, 2 GND, 3 SDA, 4 SCL; matches Waveshare order"
+J1,WAVESHARE_I2C,Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical,False,B4B-XH-A(LF)(SN),C144395,"Pin 1 VCC/3V3, 2 GND, 3 SCL, 4 SDA; cross SDA/SCL in Waveshare cable"
 C1,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,At U1 VDD
 C2,4.7uF,Capacitor_SMD:C_0603_1608Metric,False,CL10A475KO8NNNC,C19666,"Board bulk, X5R 16V"
 U1,ADS1115IDGSR,Package_SO:TSSOP-10_3x3mm_P0.5mm,False,ADS1115IDGSR,C37593,ADDR=GND; PGA +/-4.096V; A0 measures divider supply
@@ -7,7 +7,7 @@ J2,BOILER_PROBE,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,False,B2B-XH
 R1,4.7k 0.1%,Resistor_SMD:R_0603_1608Metric,False,PTFR0603B4K70N9,C394547,Precision / low TCR; calibrate new assembly
 J3,XDB401_ANALOG,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,False,B3B-XH-A(LF)(SN),C144394,"Pin 1 3V3, 2 GND, 3 output; verify sensor wire colors"
 R3,1k 0.1%,Resistor_SMD:R_0603_1608Metric,False,PTFR0603B1K00N9,C394536,Provisional RF filter; can assemble 0R instead
-C4,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,Input filter at ADC; 1k/100nF fc~1.59kHz
-C5,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,At pressure connector supply
+C3,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,Input filter at ADC; 1k/100nF fc~1.59kHz
+C4,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,At pressure connector supply
 U2,SHT40-AD1B,Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad,False,SHT40-AD1B-R3,C2848306,Top-side SMT reflow with ADS1115; no board wash; address 0x44
-C6,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,At U2 VDD
+C5,100nF,Capacitor_SMD:C_0603_1608Metric,False,CC0603KRX7R9BB104,C14663,At U2 VDD

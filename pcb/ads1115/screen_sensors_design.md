@@ -1,102 +1,114 @@
 # CoffeeFlow screen sensor board
 
-Connected electrical draft: `screen_sensors_draft.kicad_sch`. Open this file in
-KiCad rather than the original `ads1115.kicad_sch`, which was left untouched.
-The PDF is a review copy; the CSV is a preliminary component list, not a
-finished JLCPCB assembly BOM. No PCB layout has been created.
+The connected schematic is `screen_sensors_draft.kicad_sch`; the manually
+reworked layout is `screen_sensors_draft.kicad_pcb`. The schematic PDF and
+netlist are generated review copies. `screen_sensors_draft_bom.csv` lists
+component sourcing information; assembly exports still need final preparation.
 
-KiCad 10.0.6 has no schematic-editing IPC API. The generator writes native
-KiCad symbols, instances, wires and labels using the installed libraries.
-Matching labels connect the circuit even where no long wire is drawn.
+## Connectors and supply
 
-## Connectors
-
-The Waveshare cable is custom wired, so use these assignments at the board.
-Follow the numbered pads, not an assumed left-to-right orientation.
-
-All four connector footprints are through-hole, vertical/top-entry JST XH:
-the mating cable exits perpendicular to the PCB, not sideways. Genuine XH
-pitch is 2.50mm (often advertised as 2.54mm by generic sellers). Use the JST
-2.50mm specification for these footprints. J1 is B4B-XH-A, J2/J4 are
-B2B-XH-A, and J3 is B3B-XH-A. J4 remains optional/DNP.
+All connectors are through-hole, vertical/top-entry JST XH, for JLCPCB assembly.
+Genuine XH pitch is 2.50 mm, often advertised as 2.54 mm by generic sellers.
+Follow numbered pads rather than assuming left-to-right cable orientation.
 
 | Connector | Pin 1 | Pin 2 | Pin 3 | Pin 4 |
 |---|---|---|---|---|
-| J1, Waveshare I2C | GND | 3V3 | SDA | SCL |
-| J2, boiler NTC/PT1000 | 3V3 | divider midpoint | — | — |
+| J1, Waveshare I2C | 3V3 | GND | SCL | SDA |
+| J2, boiler NTC/PT1000 | 3V3 | boiler divider midpoint | — | — |
 | J3, analog XDB401 | 3V3 | GND | pressure output | — |
-| J4, optional local NTC | 3V3 | divider midpoint | — | — |
 
-Waveshare H8 must be set to 3V3. In particular, the SHT40 is not a 5V device.
-No extra SDA/SCL pull-ups: Waveshare H7 already supplies them.
+J1 intentionally swaps SDA/SCL compared with the Waveshare connector order
+(VCC, GND, SDA, SCL), to simplify PCB routing. Cross those two wires when
+building the custom cable. The selected headers are B4B-XH-A, B2B-XH-A-R,
+and B3B-XH-A for J1, J2 and J3 respectively; exact MPNs are in the BOM.
 
-## Circuit
+Waveshare H8 must select 3V3. There are no additional SDA/SCL pull-ups on this
+board because Waveshare H7 supplies them. Check the total sensor current
+against the Waveshare supply capacity once the pressure sensor arrives.
 
-- U1 ADS1115IDGSR: address 0x48, ADDR grounded, ALERT/RDY unused.
-  A0 measures the same local 3V3 that excites the probe dividers.
-  A1 reads the boiler, A2 the pressure, A3 the optional local probe.
-- R1 is a single 4.7k, 0.1% resistor from boiler midpoint to GND, suitable
-  for both the current NTC and the PT1000. The probe is between 3V3 and midpoint.
-  R2 (100 ohms) and C3 (100nF) isolate/filter the ADC input.
-- U2 SHT40-AD1B: address 0x44, 100nF C6 close to its VDD pin.
-  Place near a board edge with access to enclosure air, away from display heat.
-  Follow Sensirion handling instructions; keep its sensing opening free of
-  flux, washing, coating and adhesives. Leave its heater off for normal sampling.
-- C1 is 100nF at ADS1115 VDD, C2 is 4.7uF board bulk capacitance.
-- J3 has C5 (100nF) supply decoupling. R3 (1k) and C4 (100nF) form a
-  provisional input filter, nominal corner about 1.59kHz for low sensor
-  source impedance. It is an RF/input filter, not a substitute for slower
-  digital pressure filtering. No voltage divider or amplifier is required
-  for the specified 0.4–2.4V output.
-- J4/R4/R5/C7 are DNP (do not populate) by default because SHT40 already
-  measures local temperature. They reserve the option of a remote 10k NTC.
-  The 10k fixed resistor is provisional pending the probe curve and expected
-  temperature. Do not interpret floating A3 as a valid measurement if omitted.
+## Circuit and component references
 
-Input series resistors offer modest current limiting; this draft does not
-include dedicated connector ESD clamps or protection against external power
-voltages. Decide those requirements against cable routing before layout.
+- U1 ADS1115IDGSR: address 0x48, ADDR grounded, ALERT/RDY unused. A0 reads
+  the local 3V3 that excites the boiler probe, A1 reads the boiler divider,
+  A2 reads pressure, and A3 is unused with a schematic no-connect.
+- R1 is 4.7 kΩ, 0.1%, from the boiler divider midpoint to GND. The NTC or
+  PT1000 probe connects between 3V3 and that midpoint. The same fixed resistor
+  supports either probe; use the corresponding firmware conversion/calibration.
+- R3 is 1 kΩ, 0.1%, in series between the pressure sensor output and A2.
+  Together with C3 it forms a provisional input low-pass filter, with nominal
+  cutoff about 1.59 kHz and time constant 100 µs for low sensor source impedance.
+  It provides modest current limiting, not complete input protection. Confirm
+  sensor output loading and assembled measurement accuracy when testing.
+- U2 SHT40-AD1B-R3: address 0x44, measures enclosure humidity and temperature.
+  Leave its heater off during normal sampling. Keep the sensing opening free
+  of flux, washing, coating and adhesives; specify no board wash for assembly.
+  It uses the same top-side SMT reflow pass as U1.
+
+| Capacitor | Value | Function |
+|---|---|---|
+| C1 | 100 nF | ADS1115 supply decoupling, close to VDD with a short ground return |
+| C2 | 4.7 µF | Board bulk supply capacitance, near incoming power at J1 |
+| C3 | 100 nF | Pressure ADC input to GND, paired with R3 |
+| C4 | 100 nF | Supply bypass at pressure connector J3 |
+| C5 | 100 nF | SHT40 supply decoupling |
+
+Capacitors were renumbered after layout: old C4 → C3, old C5 → C4, and
+old C6 → C5. C1 and C2 retained their references. The original boiler filter
+R2 and old C3 were removed at the user's request; the present C3 belongs to
+pressure measurement. The boiler input has no added series resistor or filter
+capacitor. The local NTC connector and its associated passives were removed
+because U2 provides enclosure temperature.
+
+## PCB layout
+
+The reworked board is approximately 32.5 × 29 mm, with four 3.2 mm M3 mounting
+holes. Components are on the top side; the underside is free of components.
+J1 is at the north edge, J2 west, J3 south, and U2 near the east edge.
+
+The bottom layer contains the GND plane and a few short signal/supply crossings.
+Keep ordinary component ground returns short, using nearby vias where useful.
+Keep vias outside solder pads to avoid requiring filled/capped via processing.
+The SHT40 area is excluded from the ground pour to reduce board heat conduction;
+its narrow ground connection terminates at a via outside that exclusion.
+A via is electrically permitted for U2; avoiding a direct connection to a large
+plane near the sensor is a thermal-design choice. Provide access to enclosure
+air and keep the sensor away from display heat.
 
 ## Firmware and calibration
 
-Read A0 and A1 with the same PGA, initially +/-4.096V:
+Read A0 and A1 with the same PGA, initially ±4.096 V:
 `Rprobe = Rfixed * (A0_raw / A1_raw - 1)`.
-The extra series resistor and ADC input loading are part of the assembled
-measurement circuit; calibrate the completed board.
+Calibrate the assembled board. The bench value 4676 Ω inferred on September 29
+belongs to the old measurement setup and must not automatically be reused.
+Select the NTC curve or IEC 60751 Callendar–Van Dusen conversion for PT1000 as
+appropriate. Detect open/short/out-of-range boiler readings and inhibit heating
+appropriately. Do not interpret the unused A3 reading as a measurement.
 
-The bench value 4676 ohms inferred on September 29 belongs to the old
-resistor/measurement setup, not automatically to this board. Use the correct
-new-board value. Choose the NTC curve or IEC 60751 Callendar–Van Dusen according
-to the attached probe. Revisit the existing NTC temperature offset for PT1000.
-Detect open/short/out-of-range boiler readings and inhibit heating appropriately.
-
-XDB401: user specifies 3.3V supply, 0.4–2.4V output, 0–12bar range.
+The purchased XDB401 is specified as 3.3 V supply, 0.4–2.4 V output, 0–12 bar.
 Nominal conversion is `pressure_bar = 6 * (Vout - 0.4)`.
-Linearity with pressure does not establish ratiometry with supply. Supply
-scaling is unconfirmed; use A2 as an absolute voltage initially. Check zero
-pressure, a known pressure and output versus supply when the sensor arrives.
-Also confirm wire colors, supply current and permissible output loading.
-Budget total sensor current against the Waveshare H7 supply before fabrication.
+Linearity with pressure does not establish ratiometry with supply: use absolute
+A2 voltage initially. Verify zero pressure, a known pressure, wire assignments,
+supply current, output impedance, startup, and output versus supply when the
+sensor arrives. No voltage divider or amplifier is included.
 
-## Assembly status and checks
+## Assembly and maintenance
 
-The original BOM MPN/LCSC numbers are preserved as leads. Verify supplier
-listings, actual connector variants, resistor tolerance/TCR, capacitance under
-DC bias, stock and JLCPCB through-hole assembly service before ordering.
-New items without LCSC numbers still need sourcing; the SHT40 selection is
-specifically the 0x44 AD1B variant. All assigned KiCad footprints exist, but
-supplier-to-footprint dimensional checks remain part of layout preparation.
+The BOM prefers basic parts where possible, with 0.1% resistors taking priority.
+Confirm current JLCPCB stock, exact MPN/footprint correspondence and through-hole
+assembly availability before ordering. Final assembly BOM, placement file and
+manufacturing outputs must be generated from the reviewed design.
 
-KiCad CLI successfully loaded the schematic, exported its PDF and netlist,
-and reported zero ERC errors and warnings. The netlist was checked for power,
-I2C pin mapping, ADC channels, boiler divider and pressure filter connections.
-ERC does not validate sensor behavior, component sourcing or the PCB layout.
+KiCad 10 supports PCB IPC operations but has no schematic-editing IPC API.
+The schematic generator writes native symbols, wires and labels using installed
+libraries. Matching labels are electrically connected.
+
+Do not run `build_sensor_schematic.py`, `build_sensor_pcb.py` or
+`route_sensor_pcb.py` casually: they overwrite generated design files and can
+replace manual changes. The schematic generator has been updated for the new
+capacitor references and J1 pinout. The PCB build/router helpers are historical
+and are not the source of truth for the manually reworked board.
 
 References:
-- Project: `../../docs/ntc_ads1115_calibration.md`, `../../docs/cablage.md`.
-- [KiCad IPC scope](https://dev-docs.kicad.org/en/apis-and-binding/ipc-api/for-addon-developers/).
+- `../../docs/ntc_ads1115_calibration.md`, `../../docs/cablage.md`.
 - [ADS1115 datasheet](https://www.ti.com/lit/ds/symlink/ads1115.pdf).
 - [SHT4x datasheet](https://sensirion.com/resource/datasheet/sht4x).
-
-Regenerate with `python3 build_sensor_schematic.py` only if you intend to
-replace the draft: regeneration overwrites it, including any manual edits.

@@ -57,6 +57,30 @@ struct SetPayload {
   }
 };
 
+// MAINTENANCE_VALVE (0x07) — écran → capteurs. Ouvre la vanne seule, pompe
+// forcée à 0, pour une durée bornée par les capteurs eux-mêmes ; jamais
+// renouvelée automatiquement. `open == false` ferme la vanne.
+inline constexpr uint16_t kMaintenanceValveMaxMs = 30000;
+struct MaintenanceValvePayload {
+  bool open = false;
+  uint16_t duration_ms = 0;  // 1..kMaintenanceValveMaxMs si open, ignoré sinon
+
+  Frame pack() const {
+    Frame f{};
+    f[0] = open ? 1 : 0;
+    put_u16(&f[1], open ? duration_ms : 0);
+    return f;
+  }
+  static bool unpack(const uint8_t* in, size_t len, MaintenanceValvePayload* out) {
+    if (len < 3 || in[0] > 1) return false;
+    const uint16_t duration = get_u16(&in[1]);
+    if (in[0] != 0 && (duration == 0 || duration > kMaintenanceValveMaxMs)) return false;
+    out->open = in[0] != 0;
+    out->duration_ms = out->open ? duration : 0;
+    return true;
+  }
+};
+
 // Commande chaudière indépendante du SET infusion. Bail non renouvelé par screen.
 struct SetHeatingPayload {
   bool on = false;
@@ -281,7 +305,10 @@ struct StatusActuatorsPayload {
   uint16_t continuous_on_ms = 0;
   // bit0 verrou actif, bit1 DimmerLink prêt, bit2 DimmerLink valide (détection I2C,
   // même sens que le bit0 des autres STATUS_* — pas le bit0 ici, la place
-  // est prise par le verrou).
+  // est prise par le verrou), bit3 erreur DimmerLink, bit4 vanne ouverte en
+  // maintenance, bit5 MAINTENANCE_VALVE pris en charge.
+  static constexpr uint8_t kFlagMaintenanceValveOpen = 0x10;
+  static constexpr uint8_t kFlagMaintenanceValveCapable = 0x20;
   uint8_t flags = 0;
 
   Frame pack() const {

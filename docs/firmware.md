@@ -480,6 +480,7 @@ Détails qui font que ça tient :
 - **Le verrou survit à un reset logiciel.** Il est tenu en mémoire RTC et n'est levé que sur un vrai démarrage à froid (`ESP_RST_POWERON`). Une commande `RESET` venue du bus ne le lève pas : sinon l'écran fou l'effacerait lui-même.
 - **Le gros bouton de façade est le reset.** Tout le mod est alimenté depuis l'interrupteur principal de la machine : couper la machine coupe le XIAO. La procédure de sortie de verrou est celle que n'importe qui applique déjà à une machine à café.
 - **Ça vaut aussi pour la vanne.** La bobine OLAB fait 15 VA ; ouverte en continu elle mérite la même surveillance que la pompe. Même plafond.
+- **Sauf la vanne de maintenance.** Ouverte par `MAINTENANCE_VALVE`, pompe à 0, elle n'entre pas dans le compteur : chaque ouverture est bornée à 30 s par `sensors` lui-même, et une vidange en demande plusieurs d'affilée sans 2 s de pause. Un écran fou qui la rouvrirait sans fin ne peut que vider la chaudière, chauffe interdite pendant toute l'ouverture.
 - **60 s est aussi une limite matérielle.** La pompe vibratoire chauffe et finit par ouvrir son thermique. Aucun essai utile ne dure plus longtemps.
 
 Le SSR est bas au boot, avant toute initialisation du CAN.
@@ -516,6 +517,7 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x04` | `SET_HEATING` | S → X | commande chaudière + durée diagnostique |
 | `0x06` | `SET_HEATING_POWER` | S → X | puissance chaudière par pas de 0,1 % + bail 1500 ms |
 | `0x05` | `CONFIRM_SENSORS_OTA` | S → X | confirmation de nouvelle image |
+| `0x07` | `MAINTENANCE_VALVE` | S → X | vanne seule, pompe à 0, durée ≤ 30 s (vidange) |
 | `0x08` | `PING` | ↔ | identité + uptime |
 | `0x09` | `PONG` | ↔ | identité + uptime |
 | `0x10` | `REQSTATUS` | S → X | quoi, à quelle période |
@@ -595,13 +597,16 @@ individuel diffusable périodiquement par `REQSTATUS`
 [2..3]  bail restant ms     uint16
 [4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
 [6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C),
-                            bit3 erreur dimmer active (bit ERROR du registre 0x00)
+                            bit3 erreur dimmer active (bit ERROR du registre 0x00),
+                            bit4 vanne ouverte en maintenance, bit5 MAINTENANCE_VALVE pris en charge
 [7]     réservé
 ```
 
 Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux dimmer.
 
 `SET_HEATING` (0x04) porte `[0] on` (0 ou 1) et `[1..2] duration_ms` en little endian. `on=1` est accepté pour 1 à 30000 ms, indépendamment du bail et de la marche de la pompe. `SET_HEATING_POWER` (0x06) porte `[0..1] power_permille` (0–1000, soit 0,0–100,0 %), `[2..3] lease_ms` et, depuis v0.3.30, un `[4] flags` facultatif (DLC 5) : bit0 `restart_window`, ouvrir une nouvelle période PWM à la réception ; un bit inconnu fait rejeter la trame. Seul un bail de 1500 ms est accepté. Le format ancien à 3 octets (pourcentage entier puis bail) reste accepté par `sensors`. `STATUS_HEATING` (0x23) porte `[0] heater_on`, `[1..2] bail restant ms`, `[3] bit0 capacité diagnostique, bit1 capacité puissance, bit2 résolution 0,1 %, bit3 nouvelle période sur demande`, `[4] partie entière du pourcentage`, `[5] dixième`. `screen` exige le bit2 pour la régulation, et n'envoie la trame de 5 octets qu'à un module qui annonce le bit3 : un `sensors` plus ancien la rejetterait. `/telemetry` expose ce bit dans `heating.window_restart_capable`.
+
+`MAINTENANCE_VALVE` (0x07) porte `[0] open` (0 ou 1) et `[1..2] duration_ms` en little endian. C'est une commande de **maintenance** (vidange de la chaudière), jamais émise par le cycle d'infusion, qui ne passe que par `SET`. `open=1` n'est accepté que pour 1 à 30000 ms : une durée nulle ou supérieure fait rejeter la trame, sans bornage silencieux. `sensors` ouvre alors la vanne, force le dimmer à 0, coupe la chauffe et refuse `SET_HEATING` / `SET_HEATING_POWER` non nuls jusqu'à la fermeture. Une nouvelle ouverture repart de la durée reçue, sans cumul ; l'écran envoie toujours 30000 ms et ne renouvelle jamais automatiquement. La commande est refusée sous verrou, pendant un flash, sans présence, et pendant une infusion (vanne ou pompe déjà commandées par `SET`). `open=0` ferme la vanne si elle est ouverte en maintenance et ne touche jamais une infusion. Un `SET` reprend la main : il termine la maintenance puis s'applique normalement. `STOP`, la perte de présence et le verrou la ferment comme le reste. Chaque ouverture et fermeture produit un `LOG` (`MAINTENANCE_VALVE_OPENED`, durée ; `MAINTENANCE_VALVE_CLOSED`, motif 0 commande, 1 fin de durée, 2 `SET`, 3 arrêt de sécurité). La fin de durée n'est pas un `LEASE_EXPIRED`.
 
 `LOG` (0x30)
 

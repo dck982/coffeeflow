@@ -144,3 +144,9 @@
 - name: BOILER_ADC_RECOVERED
   severity: info
   comment: Première mesure NTC valide après une erreur ADS1115. arg16 = adresse, arg32 = durée de l'interruption en ms.
+- name: MAINTENANCE_VALVE_OPENED
+  severity: info
+  comment: Vanne ouverte en maintenance, pompe arrêtée. arg32 = durée accordée en ms.
+- name: MAINTENANCE_VALVE_CLOSED
+  severity: info
+  comment: Vanne de maintenance refermée. arg16 = 0 commande, 1 fin de durée, 2 SET infusion, 3 arrêt sécurité.

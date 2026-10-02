@@ -78,6 +78,8 @@ struct View {
       *dimmer_reset{}, *dimmer_recalibrate{}, *dimmer_close{}, *dim{},
       *heating_menu{}, *heating_menu_title{}, *heating_menu_body{},
       *heating_enable{}, *heating_disable{}, *heating_close{},
+      *valve_menu{}, *valve_menu_title{}, *valve_menu_body{},
+      *valve_menu_hint{}, *valve_open{}, *valve_close{}, *valve_back{},
       *standby{}, *standby_title{}, *standby_body{};
   DiagnosticTile diag_tile[9]{};
 } v;
@@ -418,7 +420,19 @@ void fmt(char *out, size_t n, float f, const char *s) {
       *p = ',';
 }
 bool present(core::Freshness f) { return f != core::Freshness::kMissing; }
+// Dernier refus d'ouverture, affiché à la place de l'état jusqu'au prochain appui.
+const char *valve_menu_error = nullptr;
+// Quitter l'écran de maintenance referme toujours la vanne : elle ne reste
+// ouverte que sous les yeux de l'utilisateur.
+void hide_valve_menu() {
+  if (lv_obj_has_flag(v.valve_menu, LV_OBJ_FLAG_HIDDEN))
+    return;
+  hidden(v.valve_menu, true);
+  if (core::get_snapshot().maintenance_valve_open)
+    static_cast<void>(core::perform_action({core::Action::kCloseMaintenanceValve}));
+}
 void close_all() {
+  hide_valve_menu();
   hidden(v.settings, true);
   hidden(v.diag, true);
   hidden(v.keypad, true);
@@ -477,6 +491,49 @@ void show_heating_menu(lv_event_t *) {
   disable(v.heating_enable, enabled);
   disable(v.heating_disable, !enabled);
   hidden(v.heating_menu, false);
+}
+void close_valve_menu(lv_event_t *) { hide_valve_menu(); }
+void run_valve_action(lv_event_t *event) {
+  auto action = static_cast<core::Action>(reinterpret_cast<uintptr_t>(lv_event_get_user_data(event)));
+  const core::ActionResult result = core::perform_action({action});
+  valve_menu_error =
+      result.status == core::ActionStatus::kOk ? nullptr
+      : result.status == core::ActionStatus::kBusLost ? "module capteurs injoignable"
+      : result.status == core::ActionStatus::kLocked ? "verrou de sécurité actif"
+      : result.status == core::ActionStatus::kCycleActive ? "ouverture refusée pendant un cycle"
+                                                          : "ouverture indisponible";
+}
+void show_valve_menu(lv_event_t *) {
+  valve_menu_error = nullptr;
+  hidden(v.valve_menu, false);
+}
+// Rafraîchi à chaque tick tant que le menu est visible : compte à rebours et
+// conditions d'ouverture suivent l'état réel des capteurs.
+void render_valve_menu(const core::Snapshot &s, const core::Config &c) {
+  if (lv_obj_has_flag(v.valve_menu, LV_OBJ_FLAG_HIDDEN))
+    return;
+  char t[64];
+  const bool open = s.maintenance_valve_open;
+  if (valve_menu_error)
+    std::snprintf(t, sizeof(t), "%s", valve_menu_error);
+  else if (!s.sensors_alive)
+    std::snprintf(t, sizeof(t), "module capteurs injoignable");
+  else if (s.lockout)
+    std::snprintf(t, sizeof(t), "verrou de sécurité actif");
+  else if (!s.maintenance_valve_capable)
+    std::snprintf(t, sizeof(t), "module capteurs à mettre à jour");
+  else if (open)
+    std::snprintf(t, sizeof(t), "vanne ouverte · fermeture dans %u s",
+                  static_cast<unsigned>((s.lease_remaining_ms + 999) / 1000));
+  else if (c.heating_enabled)
+    std::snprintf(t, sizeof(t), "désactiver le chauffage avant d'ouvrir");
+  else
+    std::snprintf(t, sizeof(t), "vanne fermée · pompe arrêtée");
+  text(v.valve_menu_body, t);
+  text(lv_obj_get_child(v.valve_open, 0), open ? "relancer 30 s" : "ouvrir 30 s");
+  disable(v.valve_open, !s.sensors_alive || s.lockout ||
+                            !s.maintenance_valve_capable || c.heating_enabled);
+  disable(v.valve_close, !open);
 }
 void back_key(lv_event_t *) {
   editing = Edit::None;
@@ -1459,6 +1516,14 @@ void create(lv_obj_t *p) {
       lv_obj_add_flag(pump_tile, LV_OBJ_FLAG_CLICKABLE);
       lv_obj_add_event_cb(pump_tile, show_dimmer_menu, LV_EVENT_CLICKED, nullptr);
     }
+    if (i == 4) {
+      lv_obj_t *valve_tile = lv_obj_create(v.diag);
+      lv_obj_remove_style_all(valve_tile);
+      lv_obj_set_size(valve_tile, 240, 96);
+      lv_obj_set_pos(valve_tile, x, y);
+      lv_obj_add_flag(valve_tile, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_add_event_cb(valve_tile, show_valve_menu, LV_EVENT_CLICKED, nullptr);
+    }
     if (i == 5) {
       lv_obj_t *heating_tile = lv_obj_create(v.diag);
       lv_obj_remove_style_all(heating_tile);
@@ -1585,6 +1650,26 @@ void create(lv_obj_t *p) {
   lv_obj_add_event_cb(v.heating_close, close_heating_menu, LV_EVENT_CLICKED,
                       nullptr);
   hidden(v.heating_menu, true);
+  v.valve_menu = lv_obj_create(p);
+  base(v.valve_menu);
+  dyn(v.valve_menu, &v.valve_menu_title, "vanne · maintenance",
+      theme::kFontSecondary, theme::kAccent, 32, 64);
+  dyn(v.valve_menu, &v.valve_menu_body, "", theme::kFontLabel,
+      theme::kTextDim, 32, 126);
+  dyn(v.valve_menu, &v.valve_menu_hint,
+      "pompe arrêtée · ouvrir la buse vapeur pour laisser entrer l'air",
+      theme::kFontLabel, theme::kTextFaint, 32, 156);
+  v.valve_open = button(v.valve_menu, 32, 208, 352, 88, "ouvrir 30 s",
+                        Role::Primary);
+  bind(v.valve_open);
+  v.valve_close = button(v.valve_menu, 416, 208, 352, 88, "fermer la vanne");
+  v.valve_back = button(v.valve_menu, 224, 328, 352, 88, "retour");
+  lv_obj_add_event_cb(v.valve_open, run_valve_action, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<uintptr_t>(core::Action::kOpenMaintenanceValve)));
+  lv_obj_add_event_cb(v.valve_close, run_valve_action, LV_EVENT_CLICKED,
+                      reinterpret_cast<void *>(static_cast<uintptr_t>(core::Action::kCloseMaintenanceValve)));
+  lv_obj_add_event_cb(v.valve_back, close_valve_menu, LV_EVENT_CLICKED, nullptr);
+  hidden(v.valve_menu, true);
   v.dim = lv_obj_create(p);
   lv_obj_set_size(v.dim, 800, 480);
   lv_obj_set_pos(v.dim, 0, 0);
@@ -1721,6 +1806,7 @@ void refresh(const core::Snapshot &s, bool boot) {
   disable(v.minus, scale ? c.target_weight_g <= 10 : c.target_time_s <= 5);
   disable(v.plus, scale ? c.target_weight_g >= 100 : c.target_time_s >= 60);
   cycle(s, c);
+  render_valve_menu(s, c);
   if (!lv_obj_has_flag(v.diag, LV_OBJ_FLAG_HIDDEN)) {
     const DiagnosticState pressure_state =
         diagnostic_measure_state(s.pressure_valid, s.pressure_freshness);
@@ -1767,7 +1853,9 @@ void refresh(const core::Snapshot &s, bool boot) {
         s.sensors_alive, s.actuators_freshness);
     diagnostic_tile_set(v.diag_tile[4], valve_state,
                         s.valve_open ? "ouverte" : "fermée",
-                        diagnostic_measure_detail(valve_state));
+                        s.maintenance_valve_open && valve_state != DiagnosticState::Error
+                            ? "maintenance"
+                            : diagnostic_measure_detail(valve_state));
 
     const DiagnosticState heating_state = !c.heating_enabled
         ? DiagnosticState::Disabled
@@ -1887,6 +1975,12 @@ void snapshot_scenario(const char *scenario) {
     close_all();
     hidden(v.diag, false);
     show_heating_menu(nullptr);
+  } else if (std::strcmp(scenario, "valve-menu") == 0 ||
+             std::strcmp(scenario, "valve-menu-open") == 0 ||
+             std::strcmp(scenario, "valve-menu-heating") == 0) {
+    close_all();
+    hidden(v.diag, false);
+    show_valve_menu(nullptr);
   } else if (std::strcmp(scenario, "wifi-confirm") == 0) {
     page = 3;
     render_settings();

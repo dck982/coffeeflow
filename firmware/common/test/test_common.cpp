@@ -224,6 +224,31 @@ void test_status_actuators_payload_roundtrip() {
   CHECK(out.flags == in.flags);
 }
 
+void test_maintenance_valve_payload() {
+  CHECK(is_known_message_type(static_cast<uint8_t>(MessageType::kMaintenanceValve)));
+  MaintenanceValvePayload open{true, kMaintenanceValveMaxMs};
+  const Frame f = open.pack();
+  MaintenanceValvePayload out{};
+  CHECK(MaintenanceValvePayload::unpack(f.data(), 3, &out));
+  CHECK(out.open);
+  CHECK(out.duration_ms == kMaintenanceValveMaxMs);
+  CHECK(!MaintenanceValvePayload::unpack(f.data(), 2, &out));
+
+  // Ouverture sans durée ou au-delà du plafond : refusée, pas bornée en silence.
+  const Frame zero = MaintenanceValvePayload{true, 0}.pack();
+  CHECK(!MaintenanceValvePayload::unpack(zero.data(), 3, &out));
+  const Frame too_long = MaintenanceValvePayload{true, kMaintenanceValveMaxMs + 1}.pack();
+  CHECK(!MaintenanceValvePayload::unpack(too_long.data(), 3, &out));
+  Frame invalid = f;
+  invalid[0] = 2;
+  CHECK(!MaintenanceValvePayload::unpack(invalid.data(), 3, &out));
+
+  const Frame close = MaintenanceValvePayload{false, 1234}.pack();
+  CHECK(MaintenanceValvePayload::unpack(close.data(), 3, &out));
+  CHECK(!out.open);
+  CHECK(out.duration_ms == 0);
+}
+
 void test_log_payload_roundtrip() {
   LogPayload in{};
   in.code = static_cast<uint8_t>(LogCode::kRuntimeLockoutTriggered);
@@ -410,6 +435,7 @@ int main() {
   test_status_pressure_payload_roundtrip();
   test_status_flow_payload_roundtrip();
   test_status_actuators_payload_roundtrip();
+  test_maintenance_valve_payload();
   test_log_payload_roundtrip();
   test_flash_ctrl_payload_roundtrip();
   test_framing_pdu_roundtrip();

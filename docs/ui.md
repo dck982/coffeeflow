@@ -573,8 +573,8 @@ Une grille diagnostic de 3 × 3 cellules : étiquette et pastille en haut,
 valeur instantanée au centre, état brut en dessous. La grille exploite le ratio
 large sans prétendre que neuf lignes de 72 px pourraient tenir sous la barre
 haute. Les cellules restent sur `bg`, séparées par les seuls filets de 1 px.
-Les cases pompe et chauffage ouvrent chacune leur écran de service ; les sept
-autres ne sont pas interactives. Aucun graphique n'est affiché.
+Les cases pompe, vanne et chauffage ouvrent chacune leur écran de service ;
+les six autres ne sont pas interactives. Aucun graphique n'est affiché.
 
 | Case | Valeur affichée | Détail |
 | --- | --- | --- |
@@ -582,7 +582,7 @@ autres ne sont pas interactives. Aucun graphique n'est affiché.
 | Chaudière | `92,4°` | `valide` / `absent` |
 | Débit | `2,1 ml/s` | `valide` / `périmé` / `absent` |
 | Pompe | `100 %` | `valide` / `calibration` / `erreur` / `absent` |
-| Vanne | `ouverte` / `fermée` | `valide` / `périmé` / `absent` |
+| Vanne | `ouverte` / `fermée` | `valide` / `maintenance` / `périmé` / `absent` |
 | Chauffage | `62,5 %` ou `OFF` | `valide` / `désactivé` / `absent` |
 | Bus CAN | `OK` / `ERREUR` | total compact des erreurs TWAI (`K`, `M`) |
 | Balance | `36,2 g` | `présente` / `absente` |
@@ -597,6 +597,25 @@ Un appui sur chauffage ouvre un écran avec les actions `activer` et
 `désactiver`. Elles modifient `heating.enabled` par `core::put_config()` ;
 l'action correspondant à l'état courant est désactivée. Un appui sur pompe
 conserve l'écran de service DimmerLink (reset et calibration).
+
+Un appui sur vanne ouvre l'écran **vanne · maintenance**, prévu pour vider la
+chaudière : vanne seule, pompe arrêtée, via `MAINTENANCE_VALVE` (voir
+`firmware.md`). Il porte `ouvrir 30 s` (devient `relancer 30 s` vanne ouverte),
+`fermer la vanne` et `retour`. Chaque appui sur ouvrir accorde 30 s, comptées
+par les capteurs, sans renouvellement automatique : pour une vidange plus
+longue, appuyer de nouveau. La ligne d'état suit les capteurs à chaque
+rafraîchissement : `vanne fermée · pompe arrêtée`, `vanne ouverte · fermeture
+dans N s`, ou le motif d'indisponibilité. Une ligne fixe rappelle d'ouvrir la
+buse vapeur pour laisser entrer l'air.
+
+Ouvrir exige le **chauffage désactivé** (case chauffage) : sinon le bouton est
+grisé et l'état indique `désactiver le chauffage avant d'ouvrir`. Il est aussi
+grisé si le module capteurs est injoignable, verrouillé ou trop ancien pour
+annoncer la commande (`module capteurs à mettre à jour`). Un refus du cœur
+(cycle en cours, etc.) remplace la ligne d'état jusqu'au prochain appui.
+Quitter l'écran, par `retour` ou toute navigation, referme la vanne : elle ne
+reste ouverte que sous les yeux de l'utilisateur. Tant qu'elle est ouverte en
+maintenance, infusion, purge et commande brute sont refusées.
 
 Les valeurs sont celles du dernier instantané cohérent fourni par le cœur. La
 pastille et le détail distinguent une valeur courante, périmée ou absente afin
@@ -1027,6 +1046,10 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `diag.rows` | `pression` · `chaudière` · `débit` · `pompe` · `vanne` · `chauffage` · `bus can` · `balance` · `versions` |
 | `diag.valid` / `diag.warn` / `diag.absent` | `valide` / `périmé` / `absent` |
 | `diag.valve` | `ouverte` / `fermée` |
+| `valve.title` | `vanne · maintenance` |
+| `valve.hint` | `pompe arrêtée · ouvrir la buse vapeur pour laisser entrer l'air` |
+| `valve.open` / `valve.reopen` / `valve.close` / `valve.back` | `ouvrir 30 s` / `relancer 30 s` / `fermer la vanne` / `retour` |
+| `valve.state` | `vanne fermée · pompe arrêtée` / `vanne ouverte · fermeture dans %d s` / `désactiver le chauffage avant d'ouvrir` / `module capteurs à mettre à jour` |
 | `diag.scale` | `présente` / `absente` |
 | `diag.can` | `OK` / `ERREUR`, nombre compact d'erreurs |
 | `wifi.title` | `wifi mode` |

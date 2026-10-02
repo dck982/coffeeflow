@@ -324,6 +324,15 @@ void send_set(uint8_t dimmer, uint16_t ttl_ms, HFCaptureOrigin origin = HFCaptur
   can_link::send_message(common::MessageType::kSet, common::Dest::kSensors, frame.data(), 3);
 }
 
+// Durée accordée à chaque appui : le plafond protocolaire, sans renouvellement.
+void send_maintenance_valve(bool open) {
+  common::MaintenanceValvePayload command;
+  command.open = open;
+  command.duration_ms = open ? common::kMaintenanceValveMaxMs : 0;
+  common::Frame frame = command.pack();
+  can_link::send_message(common::MessageType::kMaintenanceValve, common::Dest::kSensors, frame.data(), 3);
+}
+
 void send_heating(bool on, uint16_t duration_ms) {
   common::SetHeatingPayload command;
   command.on = on;
@@ -854,6 +863,10 @@ void on_status_actuators(const uint8_t* data, uint8_t len) {
   g_state.snapshot.dimmer_ready = (payload.flags & 0x02) != 0;
   g_state.snapshot.dimmer_valid = (payload.flags & 0x04) != 0;
   g_state.snapshot.dimmer_error_active = (payload.flags & 0x08) != 0;
+  g_state.snapshot.maintenance_valve_open =
+      (payload.flags & common::StatusActuatorsPayload::kFlagMaintenanceValveOpen) != 0;
+  g_state.snapshot.maintenance_valve_capable =
+      (payload.flags & common::StatusActuatorsPayload::kFlagMaintenanceValveCapable) != 0;
   if (g_state.hf_capture.active && payload.pump_pct > 0) g_state.hf_capture.actuator_seen_on = true;
   if (g_state.hf_capture.active && !g_state.hf_capture.cooldown &&
       g_state.hf_capture.actuator_seen_on && payload.pump_pct == 0) {
@@ -1107,6 +1120,29 @@ ActionResult perform_action(const ActionCommand& command) {
     send_heating(true, command.heating.duration_ms);
     return action_result(ActionStatus::kOk);
   }
+  if (command.action == Action::kCloseMaintenanceValve) {
+    if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+    send_maintenance_valve(false);
+    return action_result(ActionStatus::kOk);
+  }
+  if (command.action == Action::kOpenMaintenanceValve) {
+    if (g_flash_active) return action_result(ActionStatus::kCycleActive);
+    if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
+    if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+    if (!snapshot.maintenance_valve_capable || snapshot.actuators_freshness != Freshness::kFresh ||
+        get_config().heating_enabled || snapshot.heating_requested)
+      return action_result(ActionStatus::kUnavailable);
+    if (snapshot.cycle_state == CycleState::kThermalPreheat ||
+        snapshot.cycle_state == CycleState::kFilling ||
+        snapshot.cycle_state == CycleState::kPreinfusion ||
+        snapshot.cycle_state == CycleState::kBrew ||
+        snapshot.cycle_state == CycleState::kRampdown ||
+        snapshot.cycle_state == CycleState::kPurge || snapshot.capture_cooldown ||
+        snapshot.pump_pct != 0 || (snapshot.valve_open && !snapshot.maintenance_valve_open))
+      return action_result(ActionStatus::kCycleActive);
+    send_maintenance_valve(true);
+    return action_result(ActionStatus::kOk);
+  }
   if (command.action == Action::kResetSensors) {
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
     if (snapshot.cycle_state == CycleState::kThermalPreheat ||
@@ -1157,6 +1193,7 @@ ActionResult perform_action(const ActionCommand& command) {
     if (g_flash_active) return action_result(ActionStatus::kCycleActive);
     if (!snapshot.sensors_alive) return action_result(ActionStatus::kBusLost);
     if (snapshot.lockout) return action_result(ActionStatus::kLocked);
+    if (snapshot.maintenance_valve_open) return action_result(ActionStatus::kCycleActive);
     if (command.action == Action::kStartBrew) {
       const Config config = get_config();
       if (!config.heating_enabled || !snapshot.brew_temperature_ready ||
@@ -1193,7 +1230,8 @@ ActionResult perform_action(const ActionCommand& command) {
   if (snapshot.cycle_state == CycleState::kThermalPreheat ||
       snapshot.cycle_state == CycleState::kFilling || snapshot.cycle_state == CycleState::kPreinfusion ||
       snapshot.cycle_state == CycleState::kBrew || snapshot.cycle_state == CycleState::kRampdown ||
-      snapshot.cycle_state == CycleState::kPurge || g_flash_active) return action_result(ActionStatus::kCycleActive);
+      snapshot.cycle_state == CycleState::kPurge || g_flash_active ||
+      snapshot.maintenance_valve_open) return action_result(ActionStatus::kCycleActive);
   send_set(command.brew.pump_pct, command.brew.ttl_ms);
   return action_result(ActionStatus::kOk);
 }

@@ -17,7 +17,8 @@ Le format PPM est volontaire : il évite d'ajouter un encodeur PNG à LVGL.
 visuel. `build/snapshots/` est ignoré par Git avec les autres artefacts de
 build. Les scénarios disponibles sont l'accueil (défaut), `no-scale`, `settings`,
 `settings1`, `settings2`, `settings3`, `diagnostic`, `diagnostic-errors`,
-`diagnostic-states`, `heating-menu-on`, `heating-menu-off`, `wifi-confirm`,
+`diagnostic-states`, `heating-menu-on`, `heating-menu-off`, `valve-menu`,
+`valve-menu-open`, `valve-menu-heating`, `wifi-confirm`,
 `dim`, `standby`, `cold` (lecture sonde à l'ambiante) et `cold-capped`
 (sonde entre 50 et 60,5 °C). Le simulateur ne
 remplace pas un essai tactile ou RGB sur la dalle. Le scénario `wifi-mode`

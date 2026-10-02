@@ -131,6 +131,10 @@ RTC_NOINIT_ATTR bool s_lockout_active;
 // État des actionneurs — RAM ordinaire, remis à zéro à chaque redémarrage,
 // logiciel ou non (seul le verrou ci-dessus doit survivre).
 bool g_valve_open = false;
+// Vanne ouverte par MAINTENANCE_VALVE, pompe arrêtée. Son bail est
+// g_lease_deadline_us, borné à common::kMaintenanceValveMaxMs ; elle n'entre
+// pas dans le plafond 60 s (voir docs/firmware.md §3).
+bool g_maintenance_valve = false;
 bool g_heater_on = false;
 int64_t g_heating_deadline_us = 0;
 bool g_heating_power_mode = false;
@@ -357,7 +361,8 @@ bool apply_dimmer(uint8_t level) {
 }
 
 void tick_dimmer_zero_guard() {
-  g_dimmer_zero_guard.tick(now_us(), g_valve_open, [] { return apply_dimmer(0); });
+  // En maintenance, la pompe doit rester à zéro : la garde la réaffirme.
+  g_dimmer_zero_guard.tick(now_us(), g_valve_open && !g_maintenance_valve, [] { return apply_dimmer(0); });
 }
 
 // Lecture périodique à vide (sans écrire de niveau) — voir le commentaire de
@@ -441,7 +446,9 @@ void send_status_actuators() {
   int64_t continuous_ms = g_run_start_us != 0 ? (t - g_run_start_us) / 1000 : 0;
   payload.continuous_on_ms = static_cast<uint16_t>(continuous_ms > 0xFFFF ? 0xFFFF : continuous_ms);
   payload.flags = static_cast<uint8_t>((s_lockout_active ? 0x01 : 0) | (g_dimmer_ready ? 0x02 : 0) |
-                                        (g_dimmer_present ? 0x04 : 0) | (g_dimmer_error_active ? 0x08 : 0));
+                                        (g_dimmer_present ? 0x04 : 0) | (g_dimmer_error_active ? 0x08 : 0) |
+                                        (g_maintenance_valve ? common::StatusActuatorsPayload::kFlagMaintenanceValveOpen : 0) |
+                                        common::StatusActuatorsPayload::kFlagMaintenanceValveCapable);
   common::Frame f = payload.pack();
   send_message(common::MessageType::kStatusActuators, common::Dest::kScreen, f.data(), 7);
 }
@@ -462,8 +469,19 @@ void send_status_heating() {
   send_message(common::MessageType::kStatusHeating, common::Dest::kScreen, frame.data(), 6);
 }
 
+// Motifs de fermeture de la vanne de maintenance, arg16 du LOG.
+enum class MaintenanceValveClose : uint16_t { kCommand = 0, kDuration = 1, kBrewSet = 2, kSafety = 3 };
+
+void end_maintenance_valve(MaintenanceValveClose reason) {
+  if (!g_maintenance_valve) return;
+  g_maintenance_valve = false;
+  send_log(common::LogCode::kMaintenanceValveClosed, common::LogSeverity::kInfo,
+           static_cast<uint16_t>(reason));
+}
+
 // Coupe les actionneurs immédiatement, sans toucher au verrou lui-même.
 void force_actuators_off() {
+  end_maintenance_valve(MaintenanceValveClose::kSafety);
   g_valve_open = false;
   g_pump_pct = 0;
   g_lease_deadline_us = 0;
@@ -660,6 +678,8 @@ void on_set_received(const uint8_t* data, size_t len) {
     return;
   }
   if (payload.pump_pct > 100) return;
+  // SET reste l'intention d'infusion : il reprend la main sur la maintenance.
+  end_maintenance_valve(MaintenanceValveClose::kBrewSet);
   // Le niveau est l'intention reçue. La politique de séquencement des deux
   // sorties reste ici, afin de pouvoir y introduire des délais calibrés sans
   // exposer SSR sur CAN.
@@ -669,6 +689,45 @@ void on_set_received(const uint8_t* data, size_t len) {
   apply_dimmer(g_valve_open ? g_pump_pct : 0);
   int64_t ttl_us = (payload.ttl_ms == 0 ? kLeaseDefaultUs : static_cast<int64_t>(payload.ttl_ms) * 1000);
   g_lease_deadline_us = now_us() + ttl_us;
+  send_status_actuators();
+}
+
+// Vidange : vanne seule, pompe forcée à 0, chauffe coupée pour toute la durée.
+// Refusée pendant une infusion ; une nouvelle ouverture repart de la durée
+// reçue, sans cumul.
+void on_maintenance_valve_received(const uint8_t* data, size_t len) {
+  common::MaintenanceValvePayload payload;
+  if (!common::MaintenanceValvePayload::unpack(data, len, &payload)) return;
+  if (!payload.open) {
+    if (g_maintenance_valve) {
+      end_maintenance_valve(MaintenanceValveClose::kCommand);
+      force_actuators_off();
+    }
+    send_status_actuators();
+    return;
+  }
+  if (g_flash.partition != nullptr || g_presence_lost) {
+    send_status_actuators();
+    return;
+  }
+  if (s_lockout_active) {
+    send_log(common::LogCode::kCommandRefusedLocked, common::LogSeverity::kWarn);
+    send_status_actuators();
+    return;
+  }
+  if (!g_maintenance_valve && (g_valve_open || g_pump_pct > 0)) {
+    send_status_actuators();
+    return;
+  }
+  force_heating_off();
+  send_status_heating();
+  g_maintenance_valve = true;
+  g_pump_pct = 0;
+  g_valve_open = true;
+  apply_dimmer(0);
+  apply_valve();
+  g_lease_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
+  send_log(common::LogCode::kMaintenanceValveOpened, common::LogSeverity::kInfo, 0, payload.duration_ms);
   send_status_actuators();
 }
 
@@ -687,6 +746,7 @@ void on_set_heating_received(const uint8_t* data, size_t len) {
   } else {
     portENTER_CRITICAL(&g_heating_lock);
     if (!g_heater_on && !g_heating_power_mode && !s_lockout_active && !g_presence_lost &&
+        !g_maintenance_valve &&
         g_flash.partition == nullptr && payload.duration_ms > 0 && payload.duration_ms <= kHeatingMaxDurationMs) {
       g_heater_on = true;
       g_heating_deadline_us = now_us() + static_cast<int64_t>(payload.duration_ms) * 1000;
@@ -721,8 +781,8 @@ void on_set_heating_power_received(const uint8_t* data, size_t len) {
     } else {
       force_heating_off_locked();
     }
-  } else if (!s_lockout_active && !g_presence_lost && g_flash.partition == nullptr &&
-             (g_heating_power_mode || !g_heater_on)) {
+  } else if (!s_lockout_active && !g_presence_lost && !g_maintenance_valve &&
+             g_flash.partition == nullptr && (g_heating_power_mode || !g_heater_on)) {
     const int64_t now = now_us();
     if (payload.restart_window)
       g_heating_pwm.restart(now, payload.power_permille);
@@ -999,6 +1059,9 @@ void dispatch_frame(const twai_message_t& msg) {
     case common::MessageType::kSetHeatingPower:
       on_set_heating_power_received(msg.data, msg.data_length_code);
       break;
+    case common::MessageType::kMaintenanceValve:
+      on_maintenance_valve_received(msg.data, msg.data_length_code);
+      break;
     case common::MessageType::kConfirmSensorsOta:
       if (msg.data_length_code == 1 && msg.data[0] == common::kHeatingProtocolConfirmationToken &&
           g_ota_roundtrip_confirmed &&
@@ -1059,6 +1122,13 @@ void tick_lease() {
     g_lease_deadline_us = 0;
     return;
   }
+  if (g_maintenance_valve) {
+    // Fin normale d'une ouverture de maintenance, pas une perte de bail.
+    end_maintenance_valve(MaintenanceValveClose::kDuration);
+    force_actuators_off();
+    send_status_actuators();
+    return;
+  }
   force_actuators_off();
   send_log(common::LogCode::kLeaseExpired, common::LogSeverity::kWarn);
   send_status_actuators();
@@ -1091,9 +1161,10 @@ void tick_presence() {
 
 // Plafond 60 s — voir docs/firmware.md §3. Le compteur de marche continue
 // n'est remis à zéro que par un arrêt d'au moins kRuntimeRearmGapUs : un
-// écran qui commuterait juste avant l'échéance ne rearme rien.
+// écran qui commuterait juste avant l'échéance ne rearme rien. La vanne de
+// maintenance n'y entre pas : pompe à 0, elle a son propre bail de 30 s.
 void tick_runtime_lockout() {
-  bool running = g_valve_open || g_pump_pct > 0;
+  bool running = g_pump_pct > 0 || (g_valve_open && !g_maintenance_valve);
   int64_t t = now_us();
 
   if (running) {

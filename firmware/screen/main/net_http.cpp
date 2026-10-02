@@ -272,6 +272,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
     else cJSON_AddStringToObject(screen_ota, "state", "unavailable");
   }
   cJSON_AddBoolToObject(brew, "valve_open", snapshot.valve_open);
+  cJSON_AddBoolToObject(brew, "maintenance_valve_open", snapshot.maintenance_valve_open);
   cJSON_AddNumberToObject(brew, "dimmer_pct", snapshot.dimmer_pct);
   cJSON_AddNumberToObject(brew, "pump_pct", snapshot.pump_pct);
   cJSON_AddBoolToObject(heating, "capable", snapshot.heating_capable);

@@ -182,6 +182,20 @@ int main(int argc, char **argv) {
     config.heating_enabled = false;
     core::put_config(config);
   }
+  if (std::strcmp(scenario, "valve-menu") == 0 ||
+      std::strcmp(scenario, "valve-menu-open") == 0 ||
+      std::strcmp(scenario, "valve-menu-heating") == 0) {
+    snapshot.maintenance_valve_capable = true;
+    snapshot.dimmer_pct = 0;
+    core::Config config = core::get_config();
+    config.heating_enabled = std::strcmp(scenario, "valve-menu-heating") == 0;
+    core::put_config(config);
+  }
+  if (std::strcmp(scenario, "valve-menu-open") == 0) {
+    snapshot.valve_open = true;
+    snapshot.maintenance_valve_open = true;
+    snapshot.lease_remaining_ms = 22'400;
+  }
   if (std::strcmp(scenario, "wifi-mode") == 0) {
     snapshot.radio_mode = core::RadioMode::kWifi;
     snapshot.network_state = static_cast<uint8_t>(core::NetworkState::kStaConnected);

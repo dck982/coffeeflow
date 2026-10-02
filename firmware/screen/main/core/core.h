@@ -78,6 +78,8 @@ struct Snapshot {
   bool dimmer_valid = false;
   bool dimmer_error_active = false;
   bool lockout = false;
+  bool maintenance_valve_open = false;     // vanne seule, ouverte par kOpenMaintenanceValve
+  bool maintenance_valve_capable = false;  // sensors annonce MAINTENANCE_VALVE
   uint16_t lease_remaining_ms = 0;
   uint16_t continuous_on_ms = 0;
 
@@ -243,6 +245,10 @@ enum class Action : uint8_t {
   kTare,
   kDismissSummary,
   kStartFlash,
+  // Vidange chaudière : vanne seule, pompe à 0, pour 30 s au plus. Exige le
+  // chauffage désactivé ; sensors coupe aussi la chauffe pendant l'ouverture.
+  kOpenMaintenanceValve,
+  kCloseMaintenanceValve,
 };
 
 enum class ActionStatus : uint8_t {

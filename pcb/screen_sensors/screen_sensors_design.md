@@ -81,6 +81,10 @@ holes. Components are on the top side; the underside is free of components.
 J1 is at the north edge, J2 west, J3 south, and U2 near the east edge.
 
 The bottom layer contains the GND plane and a few short signal/supply crossings.
+A top-side GND pour uses the same outline and sensor-area exclusion as the
+bottom plane. Both pours are connected; five redundant ground vias were removed,
+leaving three ground vias (two near U1 and one for the SHT40 ground return),
+plus six signal/supply vias. Each filled layer has one connected copper region.
 Keep ordinary component ground returns short, using nearby vias where useful.
 Keep vias outside solder pads to avoid requiring filled/capped via processing.
 The SHT40 area is excluded from the ground pour to reduce board heat conduction;

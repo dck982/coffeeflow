@@ -1,3 +1,10 @@
+# Datasheet lookup
+
+For component specifications and circuit design decisions, consult the local
+`../docs/datasheets/` directory first (the project's `docs/datasheets/` directory).
+Search the internet only when the relevant datasheet or information is unavailable
+locally; prefer the component manufacturer's documentation.
+
 # KiCad workflow
 
 These directories contain KiCad PCB projects. Keep each project's `.kicad_pro`,

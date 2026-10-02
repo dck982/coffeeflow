@@ -15,9 +15,13 @@ nécessaire à cette résolution. Sur la longueur prévue, une compensation des
 fils n'apporterait qu'un gain négligeable. Il reste intéressant uniquement si ses diagnostics
 RTD dédiés justifient une carte et une liaison SPI supplémentaires.
 
-La valeur exacte de la nouvelle résistance devra être mesurée puis utilisée
-dans la formule ratiométrique et dans <code>kBoilerNtcFixedOhm</code> ; le firmware
-doit rester réglé sur 2,193 kΩ tant que le remplacement physique n'est pas fait.
+Le 2 octobre 2026, la 4,7 kΩ du banc PT1000 (**4676 Ω**, déduits du point de
+glace, voir [Essai PT1000 sur banc](#essai-pt1000-sur-banc-29-septembre-2026))
+a remplacé la 2,193 kΩ dans le pont, la NTC restant branchée.
+<code>kBoilerNtcFixedOhm</code> vaut 4676 depuis l'écran 0.3.33. Les sections
+suivantes décrivent le montage d'origine en 2,193 kΩ ; les codes A1 bruts des
+captures antérieures se convertissent avec 2193 Ω, les suivants avec 4676 Ω.
+Premier relevé à froid : `a0 = 26305`, `a1 = 2439`, soit 45,76 kΩ et 25,6 °C.
 
 ## Contexte
 

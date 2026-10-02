@@ -311,7 +311,7 @@ Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid`
 
 ### Sonde NTC et ADS1115 dans le boîtier de l'écran
 
-La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Le **3V3 du port Sensor AD** rejoint la Wago NTC2, qui dessert une patte de la NTC et **A0** de l'ADS1115. L'autre patte rejoint la Wago NTC1, qui dessert **A1** et la résistance fixe mesurée de **2,193 kΩ**. L'autre extrémité de cette résistance retourne au **GND du port Sensor AD**, proche de la référence GND de l'ADS1115. Le GPIO/AD du port Sensor n'est pas utilisé.
+La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Le **3V3 du port Sensor AD** rejoint la Wago NTC2, qui dessert une patte de la NTC et **A0** de l'ADS1115. L'autre patte rejoint la Wago NTC1, qui dessert **A1** et la résistance fixe de **4676 Ω** (4,7 kΩ du banc PT1000, 2,193 kΩ jusqu'au 2 octobre 2026). L'autre extrémité de cette résistance retourne au **GND du port Sensor AD**, proche de la référence GND de l'ADS1115. Le GPIO/AD du port Sensor n'est pas utilisé.
 
 Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
@@ -331,10 +331,9 @@ comporte deux fils silicone de 20 à 25 cm. Le câblage restera donc un pont à
 deux fils vers A1. Sur seulement 40 à 50 cm aller-retour, la résistance des
 conducteurs devrait produire une erreur de quelques centièmes de degré ; une
 mesure sonde montée suffira à vérifier qu'aucune compensation n'est nécessaire.
-La résistance fixe actuelle de 2,193 kΩ sera remplacée par une **4,7 kΩ** de
-précision, dont la valeur réelle sera mesurée et utilisée dans le firmware.
-Le courant dans la PT1000 sera ainsi voisin de 0,54 mA vers 100 °C, contre
-0,92 mA avec le pont actuel.
+La résistance fixe est déjà une **4,7 kΩ** (4676 Ω étalonnés), montée avec la
+NTC le 2 octobre 2026 à la place de la 2,193 kΩ. Le courant dans la PT1000 sera
+ainsi voisin de 0,54 mA vers 100 °C, contre 0,92 mA avec l'ancien pont.
 
 ### Évolution prévue : XDB401 analogique sur l'ADS1115
 

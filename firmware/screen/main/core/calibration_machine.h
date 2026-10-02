@@ -19,7 +19,9 @@ inline constexpr float kPressureOffsetBar = 0.0f;
 // Les essais de flashing du 2026-09-27 placent 94 °C utilisateur près de
 // 104 °C à la sonde et 98 à 98,5 °C en sortie de groupe. L'offset concerne
 // la consigne utilisateur, pas la conversion physique de la NTC.
-inline constexpr float kBoilerNtcFixedOhm = 2193.0f;
+// Résistance fixe 4,7 kΩ du banc PT1000, 4676 Ω déduits du point de glace
+// (docs/ntc_ads1115_calibration.md) ; elle remplace la 2193 Ω depuis 0.3.33.
+inline constexpr float kBoilerNtcFixedOhm = 4676.0f;
 inline constexpr float kBoilerNtcR0Ohm = 47000.0f;
 inline constexpr float kBoilerNtcBetaK = 3950.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;

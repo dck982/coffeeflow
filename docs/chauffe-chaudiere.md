@@ -64,9 +64,11 @@ captures HF donne l'état réel du SSR.
 
 ### Conversion actuelle
 
-Le pont NTC utilise une résistance fixe mesurée de **2 193 Ω** entre A1 et
-GND, alimentée par le 3V3 du port Sensor AD du Waveshare. La résistance de la
-NTC vaut `R_NTC = 2193 × (A0_raw/A1_raw − 1)` en ohms ; `A0_raw` et `A1_raw`
+Le pont NTC utilise une résistance fixe de **4 676 Ω** entre A1 et GND
+depuis le 2 octobre 2026 (écran 0.3.33) ; c'était **2 193 Ω** avant, valeur à
+utiliser pour les captures antérieures. Il est alimenté par le 3V3 du port
+Sensor AD du Waveshare. La résistance de la NTC vaut
+`R_NTC = 4676 × (A0_raw/A1_raw − 1)` en ohms ; `A0_raw` et `A1_raw`
 sont des codes ADS1115, pas des volts. Le PGA reste à ±4,096 V sur A0 et A1.
 
 Depuis **0.3.18**, la conversion utilise **47 kΩ / 3 950 K** pour estimer la
@@ -548,10 +550,11 @@ température affichée par le PID : ce n'est pas une mesure indépendante.
 #### Sensibilité du pont
 
 Vers 90 °C locaux, la sonde vaut environ 4,5 kΩ. Une résistance fixe de
-4,7 kΩ donnerait 24,5 mV/°C contre **21,7 mV/°C** avec les 2,193 kΩ actuels,
+4,7 kΩ donnerait 24,5 mV/°C contre **21,7 mV/°C** avec les 2,193 kΩ d'origine,
 soit 196 contre **173 codes par degré** : un gain de 13 % en sensibilité, pas
-en justesse, négligeable devant l'incertitude de la courbe. Le montage n'a
-pas été modifié pour cela.
+en justesse, négligeable devant l'incertitude de la courbe. Ce n'est pas la
+raison du passage à 4676 Ω le 2 octobre 2026 : la résistance du banc PT1000 a
+été reprise telle quelle.
 
 #### Chaîne de mesure ADS1115 et multimètre
 

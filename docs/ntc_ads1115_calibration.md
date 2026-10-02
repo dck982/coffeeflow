@@ -6,8 +6,8 @@
 > Callendar–Van Dusen. Avec 20 à 25 cm de câble, la résistance des deux fils
 > devrait être négligeable ; elle sera simplement vérifiée à la calibration.
 
-Le montage conservera l'ADS1115, mais remplacera la résistance fixe mesurée de
-2,193 kΩ par une **4,7 kΩ** de précision. Autour de 100 °C, la sensibilité
+Le montage conservera l'ADS1115 et la résistance fixe **4,7 kΩ** déjà en
+place (voir ci-dessous). Autour de 100 °C, la sensibilité
 calculée restera d'environ 1,6 mV/°C, soit près de 13 codes par degré avec le
 PGA ±4,096 V. Le courant de mesure sera ramené d'environ 0,92 à 0,54 mA et la
 dissipation dans la PT1000 d'environ 1,2 à 0,41 mW. Un MAX31865 n'est pas
@@ -15,13 +15,17 @@ nécessaire à cette résolution. Sur la longueur prévue, une compensation des
 fils n'apporterait qu'un gain négligeable. Il reste intéressant uniquement si ses diagnostics
 RTD dédiés justifient une carte et une liaison SPI supplémentaires.
 
-Le 2 octobre 2026, la 4,7 kΩ du banc PT1000 (**4676 Ω**, déduits du point de
-glace, voir [Essai PT1000 sur banc](#essai-pt1000-sur-banc-29-septembre-2026))
-a remplacé la 2,193 kΩ dans le pont, la NTC restant branchée.
-<code>kBoilerNtcFixedOhm</code> vaut 4676 depuis l'écran 0.3.33. Les sections
-suivantes décrivent le montage d'origine en 2,193 kΩ ; les codes A1 bruts des
-captures antérieures se convertissent avec 2193 Ω, les suivants avec 4676 Ω.
-Premier relevé à froid : `a0 = 26305`, `a1 = 2439`, soit 45,76 kΩ et 25,6 °C.
+**Changement de résistance fixe, 2 octobre 2026.** La 4,7 kΩ du banc PT1000
+(tolérance non marquée, **4676 Ω** déduits du point de glace, voir
+[Essai PT1000 sur banc](#essai-pt1000-sur-banc-29-septembre-2026)) a remplacé
+la 2,193 kΩ dans le pont, la NTC restant branchée.
+<code>kBoilerNtcFixedOhm</code> vaut 4676 depuis l'écran 0.3.33. Les codes A1
+bruts des captures antérieures se convertissent avec **2193 Ω**, les suivants
+avec **4676 Ω** ; la courbe Beta et l'offset de −10 °C n'ont pas changé.
+Relevés à froid, chaudière éteinte : `a0 = 26305`, `a1 = 2439`, soit
+45,76 kΩ et 25,6 °C, relevé sous 0.3.32 et recalculé à la main, puis
+`a0 = 26303`, `a1 = 2382` après flash de 0.3.33, soit 46,96 kΩ et 25,0 °C
+lus par le firmware.
 
 ## Contexte
 
@@ -49,7 +53,7 @@ Waveshare Sensor AD 3V3 ----+---- A0 ADS1115
                             |
                             +---- A1 ADS1115
                             |
-                        R = 2.193 kΩ
+                        R = 4.676 kΩ (2.193 kΩ avant le 2026-10-02)
                             |
 Waveshare Sensor AD GND ----+---- GND proche de l'ADS1115
 
@@ -60,7 +64,8 @@ Notes :
 
 -   `A0` mesure la tension réelle du 3V3 qui alimente le pont.
 -   `A1` mesure la tension au point milieu NTC / résistance fixe.
--   La résistance fixe nominale est 2,2 kΩ ; sa valeur mesurée est
+-   La résistance fixe nominale est 4,7 kΩ ; sa valeur étalonnée est
+    **4676 Ω**. Jusqu'au 2 octobre 2026, c'était une 2,2 kΩ mesurée à
     **2,193 kΩ**.
 -   Le GPIO/AD du port Sensor n'est pas utilisé.
 -   Le bas de la résistance fixe et le GND de l'ADS1115 doivent avoir une
@@ -73,7 +78,7 @@ Notes :
 
 Avec :
 
--   `R_FIXED = 2193 Ω`
+-   `R_FIXED = 4676 Ω` (2193 Ω avant le 2 octobre 2026)
 -   `V_SUPPLY = tension mesurée sur A0`
 -   `V_DIV = tension mesurée sur A1`
 
@@ -93,7 +98,7 @@ Si A0 et A1 sont lus avec exactement le même réglage PGA de l'ADS1115,
 le rapport peut être calculé directement à partir des valeurs ADC :
 
 ``` text
-R_NTC = 2193 * (ADC_A0 / ADC_A1 - 1)
+R_NTC = 4676 * (ADC_A0 / ADC_A1 - 1)
 ```
 
 Cela rend la mesure pratiquement indépendante de la valeur absolue du
@@ -115,7 +120,7 @@ de l'ADS1115 ; ce dernier lisait donc correctement sa propre tension A1,
 tout en surestimant la résistance de la NTC à cause de la référence GND du pont.
 
 Le pont utilise maintenant **3V3 et GND du port Sensor AD** du Waveshare, sans
-le LDO. Après modification, un relevé `/telemetry` à froid donne
+le LDO. Après modification, avec la 2,193 kΩ d'alors, un relevé `/telemetry` à froid donne
 `boiler_ntc_a0_raw = 26305`, `boiler_ntc_a1_raw = 1151`, soit **3,288125 V**
 sur A0, **0,143875 V** sur A1 et **47,926 kΩ** calculés. La NTC débranchée
 et mesurée au multimètre juste après était à **47,9 kΩ** : l'écart est
@@ -144,6 +149,22 @@ Pour obtenir directement la température en °C :
 ``` text
 T_C = 1 / (1/T0 + ln(R_NTC/R0)/B) - 273.15
 ```
+
+### Paramètres compilés depuis 0.3.34
+
+``` text
+R0 = 47000 Ω
+B  = 3930 K
+T0 = 298.15 K
+offset utilisateur = −10,5 °C
+```
+
+`B = 3930 K` arrondit les ajustements de l'[essai NTC sur banc](#essai-ntc-sur-banc-2-octobre-2026)
+(3 916 à 3 929 K sur trois bains, 3 923 K à l'ébullition seule). À résistance
+égale, la lecture sonde monte de 0,40 °C vers 90 °C, 0,51 °C vers 104 °C et
+0,68 °C vers 125 °C par rapport à 3 950 K. L'offset passe de −10 à −10,5 °C
+pour compenser ce décalage dans la zone d'infusion : 94 °C utilisateur
+désignent la même température physique qu'en 0.3.33.
 
 ### Paramètres compilés de 0.3.9 jusqu'à l'essai du 25 septembre 2026
 
@@ -263,10 +284,10 @@ R25 ≈ 27.3 kΩ
 
 est raisonnable pour commencer l'implémentation.
 
-La résistance fixe de **2,193 kΩ** est bien adaptée : elle est proche de
-la résistance de la NTC autour de 100 °C, ce qui donne une bonne
-sensibilité du pont dans la zone principale de régulation de la
-chaudière.
+La résistance fixe de **2,193 kΩ** d'origine était choisie proche de la
+résistance de la NTC autour de 100 °C selon cette courbe. Avec la courbe
+actuelle (47 kΩ / 3950 K), la NTC vaut environ 3,3 kΩ à 100 °C et 2,85 kΩ à
+105 °C : la 4676 Ω en place donne environ 180 codes/°C dans cette zone.
 
 Une régression définitive devra comparer au minimum :
 
@@ -290,7 +311,13 @@ COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/record_probe.p
 `record_probe.py` interroge `/telemetry` à 5 Hz jusqu'à Ctrl-C et écrit
 `captures/probe-<date>.json`. Plonger la sonde dans les bains pendant
 l'enregistrement, puis retrouver les plateaux sur un tracé des codes. Écarter les
-échantillons répétés grâce à `age_ms`.
+échantillons répétés grâce à `age_ms`. `analyze_probe.py` le fait et résume
+chaque capture : moyenne, écart-type, dérive et tranches pour repérer les
+plateaux, avec une fenêtre et une référence optionnelles.
+
+```sh
+uv run firmware/tools/analyze_probe.py captures/probe-….json --start 55 --end 130 --reference-c 0
+```
 
 | Bain | Rôle | Remarques |
 |---|---|---|
@@ -370,10 +397,18 @@ biaiserait la mesure vers le bas.
 **Comparaison avec la NTC, décision en attente.** Chaque démontage de la sonde
 sur la chaudière impose de vider la chaudière et de refaire le joint. On ne
 monte donc aucune sonde à titre d'essai : on choisit sur banc, puis on monte
-une seule fois. Au prochain démontage, prévu pour remplacer le Loxeal 53-14
-par du 58-11 alimentaire, la NTC passe sur le même banc avec sa 2,193 kΩ. Le
-firmware n'a pas besoin de changer, puisque les codes bruts suffisent. Dans la
-glace, A1 descend vers 360 codes (≈ 158 kΩ) avec environ 18 codes/°C.
+une seule fois. La pointe de la NTC mesure 24 mm × 3 mm de diamètre, contre 9 × 5,5 mm
+pour la partie immergée de la PT1000. La NTC a été démontée le 2 octobre 2026
+et passée sur le même banc, avec la même 4676 Ω que la PT1000 (voir
+[Essai NTC sur banc](#essai-ntc-sur-banc-2-octobre-2026)). Le firmware n'a pas besoin de
+changer, puisque les codes bruts suffisent. Repères attendus avec
+`A0 ≈ 26 304` et la courbe 47 kΩ / 3950 K :
+
+| Bain | R_NTC | A1 | Sensibilité |
+|---|---:|---:|---:|
+| glace | ≈ 158 kΩ | ≈ 756 codes | 39 codes/°C |
+| ≈ 22 °C | ≈ 54 kΩ | ≈ 2 100 codes | 88 codes/°C |
+| 100 °C | ≈ 3,3 kΩ | ≈ 15 460 codes | 181 codes/°C |
 
 Le protocole est identique à celui de la PT1000 : même repère d'immersion
 (pointe seule), sonde sèche stabilisée 2 min à l'air avant chaque échelon,
@@ -390,10 +425,109 @@ répond en moins d'environ 3 s, la PT1000 plus courte n'apporte que quelques
 pourcents de retard en moins, pour le risque qu'elle touche moins bien l'eau.
 Si la NTC répond en 8 s ou plus, le remplacement se justifie.
 
-Si la PT1000 est retenue, le firmware doit passer à `R_fixe = 4676 Ω` et à
-la loi Callendar–Van Dusen, qui s'inverse directement pour T ≥ 0 °C. Il faut
+Si la PT1000 est retenue, `R_fixe = 4676 Ω` est déjà en place ; le firmware
+doit passer à la loi Callendar–Van Dusen, qui s'inverse directement pour T ≥ 0 °C. Il faut
 aussi retirer le décalage NTC de −10 °C
 (`kBoilerNtcTemperatureOffsetC`) et le remesurer sonde montée.
+
+### Essai NTC sur banc (2 octobre 2026)
+
+NTC démontée de la chaudière, sur le pont de l'écran 0.3.33 : 4676 Ω entre A1
+et GND, PGA ±4,096 V, courbe compilée 47 kΩ / 3950 K. Pointe seule immergée,
+sonde séchée entre les plongées. Températures lues sur les codes bruts par
+`analyze_probe.py`, sur le rapport moyen de la fenêtre.
+
+| Capture `captures/probe-20261002-…` | Condition | Référence | Fenêtre | Lecture NTC | R / courbe |
+|---|---|---|---|---|---|
+| `162026-852765` | air, juste après manipulation | Netatmo 24,6 °C à 1 m | 0–60 s | 26,78 °C, dérive −0,34 °C/min | −9,2 % |
+| `162450-810375` | air, 4 min plus tard | Netatmo 24,6 °C | 0–60 s | 25,41 °C, dérive −0,43 °C/min | −3,5 % |
+| `162813-033751` | air, avant immersion | Netatmo 24,6 °C | 15–24 s | 24,61 °C | +2,7 % |
+| `162813-033751` | eau, 1ʳᵉ plongée | thermomètre 25,2 °C | 55–70 s | 25,34 °C | −0,6 % |
+| `162813-033751` | eau, 2ᵉ plongée | thermomètre 25,2 °C | 95–118 s | 25,32 °C | −0,55 % |
+| `163646-733273` | glace, 1ʳᵉ immersion | 0 °C (thermomètre −0,2 °C) | 55–130 s | 0,26 °C, A1 ≈ 766 | −1,4 % |
+| `163646-733273` | glace, 2ᵉ immersion | 0 °C | 175–250 s | 0,30 °C, A1 ≈ 768 | −1,6 % |
+| `164815-029749` | ébullition, 1ʳᵉ plongée, 973,7 hPa | 98,89 °C | 186–197 s | 98,30 °C, dérive +1,6 °C/min | +1,7 % |
+| `164815-029749` | ébullition, 2ᵉ plongée | 98,89 °C | 237–249 s | 98,24 °C, dérive +0,9 °C/min | +1,9 % |
+| `164815-029749` | ébullition, 3ᵉ plongée | 98,89 °C | 282–291 s | 98,23 °C, dérive +2,2 °C/min | +1,9 % |
+| `170021-938097` | eau vers 90 °C | thermomètre 90,5 °C à la sortie | 98–105 s | 92,38 °C, dérive +0,07 °C/min | −5,4 % |
+
+**À l'air,** la sonde a mis plus de 8 minutes à rejoindre la Netatmo après
+la manipulation. Les deux premières captures ne sont pas à l'équilibre et ne
+servent pas à l'étalonnage. Le bruit à l'air est d'environ 0,02 °C sur 10 s,
+cinq fois moins qu'avec la PT1000 : la NTC est bien plus sensible.
+
+**À 25 °C,** la NTC lit 0,12 à 0,14 °C au-dessus du thermomètre, ce qui est
+inférieur à l'incertitude de ce dernier. Ce bain valide la mesure ; il ne
+sert pas à ajuster la courbe.
+
+**Dans la glace,** le plateau oscille de 0,0 à 0,6 °C par tranches de 5 s,
+avec un écart-type de 0,23 à 0,25 °C sur les moyennes de 1 s, contre 0,06 °C
+dans le bain à 25 °C. Ces variations sont thermiques : bain inhomogène, ou
+apport variable du corps resté à l'air selon l'agitation. Comme pour la
+PT1000, on retient le plateau le plus bas, puisque la conduction ne peut que
+faire lire trop haut : les tranches les plus basses lisent **−0,16 à 0,0 °C**,
+soit la courbe nominale à 0 °C. La moyenne du plateau lirait +0,3 °C.
+
+Le Beta qui relie 0 °C au bain à 25,2 °C vaut **3 968 K** avec le plateau le
+plus bas et **3 920 K** avec le plateau moyen ; les 3 950 K compilés sont
+entre les deux. **La courbe 47 kΩ / 3950 K est donc validée à environ 0,3 °C
+entre 0 et 25 °C.**
+
+**À l'ébullition,** le capuchon était protégé par un doigt de gant et les
+plongées ont été limitées à 20–40 s. La fin de chaque plongée lit **0,6 à
+0,66 °C sous** le point d'ébullition (98,89 °C à 973,7 hPa), mais monte encore
+de 1 à 2 °C/min : c'est donc une borne haute de l'écart. Le thermomètre lisait
+98,5 à 98,9 °C près de la sonde. Le bruit par échantillon atteint 0,25 à
+0,29 °C, à cause des bulles. Le Beta qui fait lire 98,89 °C avec `R25 = 47 kΩ`
+vaut **3 923 K**. Un ajustement Beta sur les trois bains donne
+**47,07 kΩ / 3 929 K** avec le plateau de glace le plus bas, et
+**46,77 kΩ / 3 916 K** avec le plateau moyen. Il retrouve l'ajustement de
+septembre (`47,2 kΩ / 3 922 K`). Par rapport aux 47 kΩ / 3950 K compilés,
+le firmware lit au plus **0,5 °C trop bas vers 90 °C, 0,6 à 0,7 °C vers
+104 °C et 0,8 à 1,0 °C vers 125 °C**. L'offset utilisateur de −10 °C a été
+réglé sur la courbe compilée : changer la courbe déplacerait la consigne
+physique, sauf si l'offset est réajusté en même temps.
+
+**Le bain vers 90 °C contredit l'ébullition** : la NTC lit 1,9 °C au-dessus du
+thermomètre, et 2,3 °C avec 3 930 K. Pour lui donner raison, il faudrait
+un Beta d'environ 4 040 K, à l'opposé du point d'ébullition. Ce point n'a pas
+de référence fixe : bain probablement inhomogène, ou thermomètre lu ailleurs
+que près de la pointe. Il est écarté, comme les points intermédiaires du
+protocole. **Décision : 47 kΩ / 3 930 K avec un offset de −10,5 °C, écran
+0.3.34.**
+
+**Temps de réponse vers la glace.** Durées mesurées depuis la première baisse
+détectable (−0,2 °C), donc sans le geste d'immersion, contrairement aux
+valeurs de la PT1000 :
+
+| Échelon | t63 | t90 | t95 |
+|---|---|---|---|
+| 23,8 °C → glace, corps à l'ambiante | 3,2 s | 7,3 s | 9,6 s |
+| 9,6 °C → glace, après une sortie | 3,1 s | 6,6 s | 8,2 s |
+
+La PT1000 donnait t63 ≈ 2 s et t90 ≈ 5 s sur l'échelon équivalent, suivis
+d'une traîne d'environ 40 s sur les 3 derniers °C. La NTC n'a pas cette
+traîne vers la glace : sa pointe de 24 mm éloigne l'élément sensible du
+filetage.
+
+**Temps de réponse vers l'ébullition,** mesurés de la même façon, avec comme
+valeur finale la moyenne des 4 dernières secondes de chaque plongée :
+
+| Échelon | t63 | t90 | t95 |
+|---|---|---|---|
+| 21 °C → ébullition | 6,7 s | 10,5 s | 13,1 s |
+| 47 °C → ébullition | 3,6 s | 7,4 s | 9,5 s |
+| 55 °C → ébullition | 3,2 s | 6,8 s | 8,4 s |
+
+Le premier échelon est probablement allongé par une approche lente dans la
+vapeur : la lecture monte déjà de 1,8 °C avant l'immersion. Les replongées
+de la PT1000 depuis 66–75 °C donnaient t63 = 2,3–2,4 s et t90 = 4,8–5,6 s,
+geste compris. La NTC est donc plus lente d'environ 1 s sur t63 et de 2 s sur
+t90, légèrement au-dessus du seuil de 3 s et loin des 8 s qui justifieraient
+le remplacement.
+
+**Piège retrouvé :** sortie du bain à 25 °C, la sonde mouillée descend à
+24,3–24,4 °C, sous la température de l'air, à cause de l'évaporation.
 
 ## Carte ADS1115 prévue
 

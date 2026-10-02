@@ -71,23 +71,27 @@ Sensor AD du Waveshare. La résistance de la NTC vaut
 `R_NTC = 4676 × (A0_raw/A1_raw − 1)` en ohms ; `A0_raw` et `A1_raw`
 sont des codes ADS1115, pas des volts. Le PGA reste à ±4,096 V sur A0 et A1.
 
-Depuis **0.3.18**, la conversion utilise **47 kΩ / 3 950 K** pour estimer la
-température locale de la sonde, puis soustrait **10 °C** pour obtenir la
-**température utilisateur**. Les constantes sont dans
+Depuis **0.3.34**, la conversion utilise **47 kΩ / 3 930 K** pour estimer la
+température locale de la sonde, puis soustrait **10,5 °C** pour obtenir la
+**température utilisateur**. Le Beta vient de l'étalonnage sur banc du
+2 octobre 2026 ; l'offset passe de −10 à −10,5 °C pour qu'une même consigne
+garde la même cible physique, à 0,1 °C près entre 90 et 110 °C sonde. Les constantes sont dans
 `firmware/screen/main/core/calibration_machine.h`.
 
 | Domaine | Utilisation | Exemple |
 | --- | --- | --- |
 | Utilisateur | écran, consigne, régulation, captures HF, `temperature.boiler.c`, `heating.target_c` | 90 °C |
-| Sonde | `temperature.boiler.sensor_c`, `heating.target_sensor_c` | 100 °C ≈ 3,28 kΩ |
+| Sonde | `temperature.boiler.sensor_c`, `heating.target_sensor_c` | 100,5 °C ≈ 3,28 kΩ |
 
-La coupure de chauffe à **105 °C utilisateur** représente **115 °C estimés à
-la sonde**.
+La coupure de chauffe à **105 °C utilisateur** représente **115,5 °C estimés
+à la sonde**, soit la même résistance qu'avec la courbe précédente à 0,1 °C
+près.
 
 Ce réglage vient des essais de *flashing* du 27 septembre : un crépitement
 devient perceptible à partir de **94 °C affichés**. Avec 967,7 hPa de
 pression atmosphérique brute, l'ébullition est calculée à 98,72 °C ; cette
-consigne correspond à environ 104 °C à la sonde et 98 à 98,5 °C en sortie.
+consigne correspond à environ 104 °C à la sonde avec la courbe 3 950 K
+(104,5 °C avec 3 930 K) et 98 à 98,5 °C en sortie.
 La conversion sonde et l'offset restent indicatifs : ils ne mesurent pas la
 température de l'eau au groupe.
 
@@ -105,7 +109,8 @@ de **91 °C**. Une consigne NVS existante n'est pas migrée : une valeur de
 | 0.3.9–0.3.13 | 47 kΩ / 3 950 K | 0 | valeurs nominales proches |
 | 0.3.14–0.3.15 | 47 kΩ / 4 630 K | 0 | rejoindre Gicar près de 90 °C |
 | 0.3.16–0.3.17 | 47 kΩ / 3 950 K | −14 °C | courbe sonde, affichage proche de Gicar |
-| depuis 0.3.18 | 47 kΩ / 3 950 K | −10 °C | *flashing* du 27 septembre |
+| 0.3.18–0.3.33 | 47 kΩ / 3 950 K | −10 °C | *flashing* du 27 septembre |
+| depuis 0.3.34 | 47 kΩ / 3 930 K | −10,5 °C | banc du 2 octobre ; même cible physique |
 
 ### Diagnostics ADS1115
 
@@ -456,7 +461,8 @@ le firmware du module capteurs change.
 
 La sonde chaudière est la
 [Profitec P6036](https://links.imagerelay.com/cdn/2615/ql/423575fef2a046eb97c8b5af763d79b5/Pro-600-Parts-Diagram.pdf),
-référencée comme NTC 1/8″. Sa courbe n'est pas publiée ; les marquages
+référencée comme NTC 1/8″. Sa pointe mesure **24 mm de long pour 3 mm de
+diamètre**. Sa courbe n'est pas publiée ; les marquages
 `1408504` et `16/18` n'ont pas été interprétés. À froid, la NTC débranchée
 mesurait **42,1 kΩ**, ce que les constantes de l'époque (`27 290 Ω / 3 728 K`)
 convertissaient en environ 15 °C, alors que la pièce était à 24,8 °C et le

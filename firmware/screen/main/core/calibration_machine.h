@@ -15,17 +15,20 @@ inline constexpr float kFlowPulsesPerLiter = 3450.0f;
 // n'a été établi avec le manomètre filmé.
 inline constexpr float kPressureFullScaleBar = 16.0f;
 inline constexpr float kPressureOffsetBar = 0.0f;
-// Pont NTC chaudière : courbe locale indicative de la sonde démontée.
+// Pont NTC chaudière : courbe de la sonde démontée, étalonnée sur banc le
+// 2026-10-02 (glace, 25 °C, ébullition ; docs/ntc_ads1115_calibration.md).
 // Les essais de flashing du 2026-09-27 placent 94 °C utilisateur près de
-// 104 °C à la sonde et 98 à 98,5 °C en sortie de groupe. L'offset concerne
-// la consigne utilisateur, pas la conversion physique de la NTC.
+// 104 °C à la sonde avec l'ancienne courbe 3950 K, 104,5 °C avec 3930 K, et
+// 98 à 98,5 °C en sortie de groupe. L'offset concerne la consigne
+// utilisateur, pas la conversion physique de la NTC : passé de −10 à −10,5 °C
+// avec la courbe 3930 K pour garder la même cible physique.
 // Résistance fixe 4,7 kΩ du banc PT1000, 4676 Ω déduits du point de glace
 // (docs/ntc_ads1115_calibration.md) ; elle remplace la 2193 Ω depuis 0.3.33.
 inline constexpr float kBoilerNtcFixedOhm = 4676.0f;
 inline constexpr float kBoilerNtcR0Ohm = 47000.0f;
-inline constexpr float kBoilerNtcBetaK = 3950.0f;
+inline constexpr float kBoilerNtcBetaK = 3930.0f;
 inline constexpr float kBoilerNtcT0K = 298.15f;
-inline constexpr float kBoilerNtcTemperatureOffsetC = -10.0f;
+inline constexpr float kBoilerNtcTemperatureOffsetC = -10.5f;
 inline constexpr float boiler_user_temperature_c(float sensor_c) {
   return sensor_c + kBoilerNtcTemperatureOffsetC;
 }

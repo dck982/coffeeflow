@@ -7,9 +7,9 @@ int main() {
   using core::calibration_machine::boiler_sensor_temperature_c;
   using core::calibration_machine::boiler_user_temperature_c;
   static_assert(core::calibration_machine::kBoilerNtcR0Ohm == 47000.0f);
-  static_assert(core::calibration_machine::kBoilerNtcBetaK == 3950.0f);
-  static_assert(boiler_sensor_temperature_c(90.0f) == 100.0f);
-  static_assert(boiler_user_temperature_c(104.0f) == 94.0f);
+  static_assert(core::calibration_machine::kBoilerNtcBetaK == 3930.0f);
+  static_assert(boiler_sensor_temperature_c(90.0f) == 100.5f);
+  static_assert(boiler_user_temperature_c(104.5f) == 94.0f);
   using Mode = core::thermal::Controller::Mode;
   core::thermal::Controller controller;
   auto out = controller.step(1000, 20, 90, true, true, Mode::kIdle);

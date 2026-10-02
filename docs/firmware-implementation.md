@@ -626,7 +626,35 @@ quatre pages. La tuile `cible pression` configure désormais
 `brew.target_pressure_bar` entre 6 et 12 bar. Sa régulation reste un travail
 séparé.
 
-## Phase 7 — mise en boîte
+### Remplissage relatif et pause de pré-infusion (2026-10-02, 0.3.32)
+
+Schéma de configuration **8**, avec migration depuis la version 7.
+
+- **Fin du remplissage.** `filling.pressure_target_bar` (seuil absolu) devient
+  `filling.pressure_rise_bar` : montée au-dessus du plus bas niveau de
+  pression valide vu depuis la fin de la garde de 1 s. La montée doit tenir
+  150 ms (deux paquets de pression à 100 ms) ; une mesure invalide remet la
+  confirmation à zéro. Plage de 0,05 à 0,50 bar, pas de 0,05, défaut
+  0,10 bar. `filling.time_s` reste la durée maximale. La migration remet la
+  montée à son défaut : l'ancienne cible absolue n'a pas d'équivalent.
+  Rejoué sur les dix infusions du 27 septembre au 2 octobre, le critère
+  arrête le remplissage entre 2,5 et 4,8 s (7,5 à 16,2 ml), contre 3,2 à
+  5,2 s (10,7 à 17,7 ml) avec 0,4 bar absolu.
+- **Pré-infusion.** La sortie par pression et `preinfusion.pressure_bar` sont
+  retirées : la pression n'a jamais dépassé 1,26 bar en pré-infusion depuis
+  le 26 septembre. Le bit 1 de `PreinfusionMode` reste réservé ; une
+  configuration qui n'avait que la pression passe au temps. Le défaut de
+  `preinfusion.pump_pct` passe à 35 % : une pause sous le seuil de débit de
+  la pompe, vanne ouverte. La première goutte (+0,1 g depuis le début du
+  remplissage) termine toujours la pré-infusion.
+- **Rampe.** Elle part de `max(preinfusion.pump_pct, kMinimumBrewPumpPct)`.
+- **Chauffe.** Pendant la pré-infusion, un débitmètre frais sans impulsion
+  depuis 500 ms, pompe confirmée en marche, vaut un débit nul (maintien à
+  3,5 %) au lieu du repli à 45 %.
+- **Capture HF.** La queue après l'arrêt de la pompe repasse de 30 à 20 s.
+- **API.** `/config` publie les décimales jusqu'au centième (`0.05`).
+
+
 
 - Archiver et vérifier les deux images factory avec leurs versions.
 - Rejouer les essais OTA et rollback par le réseau, cartes encore accessibles.

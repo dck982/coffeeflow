@@ -48,10 +48,9 @@ enum class Edit : uint8_t {
   BrewTemperature,
   BrewPreheatTime,
   FillingTime,
-  FillingPressureTarget,
+  FillingPressureRise,
   FillingPump,
   PreTime,
-  PrePressure,
   PrePump,
   RampTime,
   RampWeight,
@@ -537,8 +536,7 @@ KeypadMode keypad_mode_for(Edit e) {
   case Edit::BrewPressure:
   case Edit::BrewTemperature:
   case Edit::BrewPreheatTime:
-  case Edit::PrePressure:
-  case Edit::FillingPressureTarget:
+  case Edit::FillingPressureRise:
   case Edit::RampTime:
   case Edit::RampWeight:
   case Edit::RampDrop:
@@ -586,8 +584,8 @@ void set_title(Edit e) {
     t = "durée remplissage";
     u = "s";
     break;
-  case Edit::FillingPressureTarget:
-    t = "cible pression rempl.";
+  case Edit::FillingPressureRise:
+    t = "montée pression rempl.";
     u = "bar";
     break;
   case Edit::FillingPump:
@@ -597,10 +595,6 @@ void set_title(Edit e) {
   case Edit::PreTime:
     t = "durée pré-inf.";
     u = "s";
-    break;
-  case Edit::PrePressure:
-    t = "seuil pré-inf.";
-    u = "bar";
     break;
   case Edit::PrePump:
     t = "pompe pré-inf.";
@@ -664,19 +658,15 @@ void initial(Edit e) {
   case Edit::FillingTime:
     n = c.filling_time_s;
     break;
-  case Edit::FillingPressureTarget:
-    n = c.filling_pressure_target_bar;
-    decimals = 1;
+  case Edit::FillingPressureRise:
+    n = c.filling_pressure_rise_bar;
+    decimals = 2;
     break;
   case Edit::FillingPump:
     n = c.filling_pump_pct;
     break;
   case Edit::PreTime:
     n = c.preinfusion_time_s;
-    break;
-  case Edit::PrePressure:
-    n = c.preinfusion_pressure_bar;
-    decimals = 1;
     break;
   case Edit::PrePump:
     n = c.preinfusion_pump_pct;
@@ -741,16 +731,14 @@ bool valid(float *n) {
            std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
     return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
-  case Edit::FillingPressureTarget:
-    return *n >= .1f && *n <= 1.0f &&
-           std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
+  case Edit::FillingPressureRise:
+    return *n >= .05f && *n <= .5f &&
+           std::fabs(*n * 20 - std::round(*n * 20)) < .01f;
   case Edit::FillingPump:
     return *n >= 20 && *n <= 100 && std::floor(*n) == *n &&
            static_cast<unsigned>(*n) % 5 == 0;
   case Edit::PreTime:
     return *n >= 0 && *n <= 20 && std::floor(*n) == *n;
-  case Edit::PrePressure:
-    return *n >= 1 && *n <= 9;
   case Edit::PrePump:
     return *n >= 0 && *n <= 100 && std::floor(*n) == *n;
   case Edit::RampTime:
@@ -821,17 +809,14 @@ void key_accept(lv_event_t *) {
   case Edit::FillingTime:
     c.filling_time_s = n;
     break;
-  case Edit::FillingPressureTarget:
-    c.filling_pressure_target_bar = n;
+  case Edit::FillingPressureRise:
+    c.filling_pressure_rise_bar = n;
     break;
   case Edit::FillingPump:
     c.filling_pump_pct = n;
     break;
   case Edit::PreTime:
     c.preinfusion_time_s = n;
-    break;
-  case Edit::PrePressure:
-    c.preinfusion_pressure_bar = n;
     break;
   case Edit::PrePump:
     c.preinfusion_pump_pct = n;
@@ -882,12 +867,17 @@ void show_settings(lv_event_t *) {
   close_all();
   hidden(v.settings, false);
 }
+// Boutons du choix de pré-infusion : temps (bit 0), poids (bit 2). Le bit 1,
+// l'ancienne sortie par pression, n'est plus proposé.
+uint8_t preinfusion_choice_bit(unsigned i) {
+  return static_cast<uint8_t>(i == 0 ? core::PreinfusionMode::kTime : core::PreinfusionMode::kWeight);
+}
 void show_choice(Choice q);
 void choose(lv_event_t *e) {
   unsigned i = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
   auto c = core::get_config();
   if (choosing == Choice::Preinfusion) {
-    const uint8_t bit = static_cast<uint8_t>(1u << i);
+    const uint8_t bit = preinfusion_choice_bit(i);
     c.preinfusion_mode = static_cast<core::PreinfusionMode>(
         static_cast<uint8_t>(c.preinfusion_mode) ^ bit);
   } else {
@@ -906,9 +896,9 @@ void show_choice(Choice q) {
   hidden(v.choice, false);
   text(v.choice_title,
        q == Choice::Preinfusion ? "pré-infusion" : "stratégie rampe");
-  const char *n[] = {"temps", "pression", "poids", "aucune", "temps",
+  const char *n[] = {"temps", "poids", "", "aucune", "temps",
                      "poids", "chute pression"};
-  unsigned count = q == Choice::Preinfusion ? 3 : 4;
+  unsigned count = q == Choice::Preinfusion ? 2 : 4;
   for (unsigned i = 0; i < 4; ++i) {
     hidden(v.choice_button[i], i >= count);
     if (i < count) {
@@ -916,7 +906,7 @@ void show_choice(Choice q) {
            q == Choice::Preinfusion ? n[i] : n[i + 3]);
       auto c = core::get_config();
       bool sel = q == Choice::Preinfusion
-                     ? (static_cast<uint8_t>(c.preinfusion_mode) & (1u << i)) != 0
+                     ? (static_cast<uint8_t>(c.preinfusion_mode) & preinfusion_choice_bit(i)) != 0
                      : unsigned(c.rampdown_mode) == i;
       const bool preinfusion_toggle = q == Choice::Preinfusion;
       lv_obj_set_style_bg_color(v.choice_button[i],
@@ -957,8 +947,8 @@ void tile_cb(lv_event_t *e) {
     if (i == 1)
       show_choice(Choice::Preinfusion);
     else {
-      Edit a[] = {Edit::FillingPressureTarget, Edit::None, Edit::FillingTime,
-                  Edit::PreTime, Edit::BrewTemperature, Edit::PrePressure};
+      Edit a[] = {Edit::FillingPressureRise, Edit::None, Edit::FillingTime,
+                  Edit::PreTime, Edit::BrewTemperature, Edit::None};
       if (a[i] != Edit::None) show_edit(a[i]);
     }
   } else if (page == 2) {
@@ -985,9 +975,9 @@ const char *preinfusion_mode_text(core::PreinfusionMode mode, char *buffer, size
   }
   bool first = true;
   buffer[0] = '\0';
-  const char *names[] = {"temps", "pression", "poids"};
-  for (unsigned i = 0; i < 3; ++i) {
-    if ((static_cast<uint8_t>(mode) & (1u << i)) == 0) continue;
+  const char *names[] = {"temps", "poids"};
+  for (unsigned i = 0; i < 2; ++i) {
+    if ((static_cast<uint8_t>(mode) & preinfusion_choice_bit(i)) == 0) continue;
     std::snprintf(buffer + std::strlen(buffer), size - std::strlen(buffer),
                   "%s%s", first ? "" : " + ", names[i]);
     first = false;
@@ -1027,15 +1017,16 @@ void render_settings() {
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
   } else if (page == 1) {
-    std::snprintf(x[0], 40, "%.1f bar", double(c.filling_pressure_target_bar));
+    std::snprintf(x[0], 40, "+%.2f bar", double(c.filling_pressure_rise_bar));
     preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));
     std::snprintf(x[2], 40, "%u s", c.filling_time_s);
     std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
     fmt(x[4], sizeof(x[4]), c.brew_temperature_c, " °C");
-    fmt(x[5], sizeof(x[5]), c.preinfusion_pressure_bar, " bar");
-    const char *n[] = {"cible pression rempl.", "critères pré-inf.", "durée remplissage",
-                       "échéance pré-inf.", "cible chaudière", "seuil pression pré-inf."};
+    const char *n[] = {"montée pression rempl.", "critères pré-inf.", "durée remplissage",
+                       "échéance pré-inf.", "cible chaudière", ""};
     for (unsigned i = 0; i < 6; ++i) tile(i, n[i], x[i]);
+    hidden(v.tile[5], true);
+    hidden(v.tile_name[5], true);
   } else if (page == 2) {
     const char *m[] = {"aucune", "temps", "poids", "chute pression"};
     std::snprintf(x[0], 40, "%s", m[unsigned(c.rampdown_mode)]);
@@ -1634,10 +1625,7 @@ void refresh(const core::Snapshot &s, bool boot) {
         !press ? theme::kTextFaint
         : s.pressure_freshness == core::Freshness::kStale
             ? theme::kTextDim
-            : theme::ramp_color(s.pressure_bar,
-                                s.cycle_state == core::CycleState::kPreinfusion
-                                    ? c.preinfusion_pressure_bar
-                                    : 9));
+            : theme::ramp_color(s.pressure_bar, 9));
   if (boiler)
     fmt(t, sizeof(t), s.boiler_temperature_c, "°");
   else

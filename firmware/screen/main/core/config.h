@@ -6,7 +6,7 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 7;
+inline constexpr uint16_t kConfigSchemaVersion = 8;
 inline constexpr float kMinimumBrewTemperatureC = 50.0f;
 inline constexpr float kMaximumBrewTemperatureC = 100.0f;
 inline constexpr float kMaximumBrewPreheatTimeS = 15.0f;
@@ -15,12 +15,15 @@ inline constexpr float kBrewTemperatureToleranceC = 1.0f;
 // sûre. Cette borne est distincte des puissances de remplissage et de purge.
 inline constexpr uint8_t kMinimumBrewPumpPct = 50;
 
+// Le bit 1 désignait la sortie de pré-infusion par pression (schéma 7 et
+// antérieurs). Il est retiré, mais les bits suivants gardent leur valeur
+// pour que l'encodage NVS et l'interface restent lisibles.
 enum class PreinfusionMode : uint8_t {
   kNone = 0,
   kTime = 1 << 0,
-  kPressure = 1 << 1,
   kWeight = 1 << 2,
 };
+inline constexpr uint8_t kPreinfusionModeMask = 0x05;
 
 constexpr PreinfusionMode operator|(PreinfusionMode lhs, PreinfusionMode rhs) {
   return static_cast<PreinfusionMode>(static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
@@ -45,12 +48,13 @@ struct Config {
   bool heating_enabled = true;
   float brew_preheat_time_s = 2.5f;
   uint16_t filling_time_s = 3;
-  float filling_pressure_target_bar = 0.3f;
+  // Montée de pression au-dessus du plus bas niveau vu depuis la fin de la
+  // garde du remplissage : le headspace est plein.
+  float filling_pressure_rise_bar = 0.10f;
   uint8_t filling_pump_pct = 100;
   PreinfusionMode preinfusion_mode = PreinfusionMode::kTime;
   uint16_t preinfusion_time_s = 4;
-  float preinfusion_pressure_bar = 1.5f;
-  uint8_t preinfusion_pump_pct = 30;
+  uint8_t preinfusion_pump_pct = 35;
   RampdownMode rampdown_mode = RampdownMode::kNone;
   float rampdown_lead_time_s = 3.0f;
   float rampdown_lead_weight_g = 4.0f;

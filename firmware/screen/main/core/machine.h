@@ -10,7 +10,6 @@ enum class StopReason : uint8_t { kNone, kTargetTime, kTargetWeight, kManual, kS
 enum class PreinfusionMode : uint8_t {
   kNone = 0,
   kTime = 1 << 0,
-  kPressure = 1 << 1,
   kWeight = 1 << 2,
 };
 
@@ -33,11 +32,10 @@ struct Config {
   float target_pressure_bar;
   float brew_preheat_time_s;
   uint16_t filling_time_s;
-  float filling_pressure_target_bar;
+  float filling_pressure_rise_bar;
   uint8_t filling_pump_pct;
   PreinfusionMode preinfusion_mode;
   uint16_t preinfusion_time_s;
-  float preinfusion_pressure_bar;
   uint8_t preinfusion_pump_pct;
   RampdownMode rampdown_mode;
   float rampdown_lead_time_s;
@@ -96,6 +94,11 @@ class Machine {
   bool weight_goal_ = false;
   PreinfusionMode effective_preinfusion_mode_ = PreinfusionMode::kNone;
   float preinfusion_start_weight_g_ = 0.0f;
+  // Plus bas niveau de pression valide depuis la fin de la garde du
+  // remplissage, et début de la montée en cours au-dessus de ce niveau.
+  float filling_pressure_floor_bar_ = 0.0f;
+  bool filling_pressure_floor_known_ = false;
+  uint64_t filling_rise_since_ms_ = 0;
   bool preinfusion_scale_armed_ = false;
   uint8_t brew_pump_pct_ = 0;
   uint8_t brew_ramp_start_pct_ = 0;

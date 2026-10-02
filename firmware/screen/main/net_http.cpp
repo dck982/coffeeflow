@@ -151,8 +151,12 @@ void add_age(cJSON* object, const char* key, uint32_t age_ms) {
 }
 
 void add_config_decimal(cJSON* object, const char* key, float value) {
+  // Deux décimales au plus (pas de 0,05 bar pour la montée de remplissage),
+  // une au moins : 9.0, 0.1, 0.05.
   char formatted[32];
-  std::snprintf(formatted, sizeof(formatted), "%.1f", static_cast<double>(value));
+  std::snprintf(formatted, sizeof(formatted), "%.2f", static_cast<double>(value));
+  const size_t length = std::strlen(formatted);
+  if (length > 1 && formatted[length - 1] == '0') formatted[length - 1] = '\0';
   cJSON_AddRawToObject(object, key, formatted);
 }
 
@@ -170,17 +174,14 @@ cJSON* encode_config(const core::Config& config) {
   add_config_decimal(heating, "brew_preheat_time_s", config.brew_preheat_time_s);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
-  add_config_decimal(filling, "pressure_target_bar", config.filling_pressure_target_bar);
+  add_config_decimal(filling, "pressure_rise_bar", config.filling_pressure_rise_bar);
   cJSON_AddNumberToObject(filling, "pump_pct", config.filling_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
   cJSON_AddBoolToObject(preinfusion, "time",
                         core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kTime));
-  cJSON_AddBoolToObject(preinfusion, "pressure",
-                        core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kPressure));
   cJSON_AddBoolToObject(preinfusion, "weight",
                         core::has_preinfusion_mode(config.preinfusion_mode, core::PreinfusionMode::kWeight));
   cJSON_AddNumberToObject(preinfusion, "time_s", config.preinfusion_time_s);
-  add_config_decimal(preinfusion, "pressure_bar", config.preinfusion_pressure_bar);
   cJSON_AddNumberToObject(preinfusion, "pump_pct", config.preinfusion_pump_pct);
   cJSON* rampdown = cJSON_AddObjectToObject(root, "rampdown");
   cJSON_AddStringToObject(rampdown, "mode", rampdown_mode_text(config.rampdown_mode));
@@ -478,8 +479,7 @@ bool apply_heating_key(const char* key, cJSON* value, core::Config* config, cons
 }
 
 bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
-  if (std::strcmp(key, "time") == 0 || std::strcmp(key, "pressure") == 0 ||
-      std::strcmp(key, "weight") == 0) {
+  if (std::strcmp(key, "time") == 0 || std::strcmp(key, "weight") == 0) {
     bool enabled = false;
     if (!as_bool(value, &enabled)) {
       *error_field = join_field("preinfusion", key);
@@ -487,9 +487,7 @@ bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, 
     }
     const uint8_t bit = std::strcmp(key, "time") == 0
                             ? static_cast<uint8_t>(core::PreinfusionMode::kTime)
-                            : std::strcmp(key, "pressure") == 0
-                                  ? static_cast<uint8_t>(core::PreinfusionMode::kPressure)
-                                  : static_cast<uint8_t>(core::PreinfusionMode::kWeight);
+                            : static_cast<uint8_t>(core::PreinfusionMode::kWeight);
     uint8_t modes = static_cast<uint8_t>(config->preinfusion_mode);
     modes = enabled ? static_cast<uint8_t>(modes | bit) : static_cast<uint8_t>(modes & ~bit);
     config->preinfusion_mode = static_cast<core::PreinfusionMode>(modes);
@@ -504,18 +502,11 @@ bool apply_preinfusion_key(const char* key, cJSON* value, core::Config* config, 
       config->preinfusion_mode = core::PreinfusionMode::kTime;
       return true;
     }
-    if (std::strcmp(value->valuestring, "pressure") == 0) {
-      config->preinfusion_mode = core::PreinfusionMode::kPressure;
-      return true;
-    }
     *error_field = "preinfusion.mode";
     return false;
   }
   if (std::strcmp(key, "time_s") == 0) {
     return overlay_number_u16(value, "preinfusion.time_s", &config->preinfusion_time_s, error_field);
-  }
-  if (std::strcmp(key, "pressure_bar") == 0) {
-    return overlay_number_float(value, "preinfusion.pressure_bar", &config->preinfusion_pressure_bar, error_field);
   }
   if (std::strcmp(key, "pump_pct") == 0) {
     return overlay_number_u8(value, "preinfusion.pump_pct", &config->preinfusion_pump_pct, error_field);
@@ -528,8 +519,8 @@ bool apply_filling_key(const char* key, cJSON* value, core::Config* config, cons
   if (std::strcmp(key, "time_s") == 0) {
     return overlay_number_u16(value, "filling.time_s", &config->filling_time_s, error_field);
   }
-  if (std::strcmp(key, "pressure_target_bar") == 0) {
-    return overlay_number_float(value, "filling.pressure_target_bar", &config->filling_pressure_target_bar,
+  if (std::strcmp(key, "pressure_rise_bar") == 0) {
+    return overlay_number_float(value, "filling.pressure_rise_bar", &config->filling_pressure_rise_bar,
                                 error_field);
   }
   if (std::strcmp(key, "pump_pct") == 0) {

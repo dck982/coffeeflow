@@ -78,6 +78,8 @@ avant que la régulation de pression ne prenne la main. Le cas observé
 sans phase de pré-infusion conserve le passage direct à sa puissance cible.
 Si la pression entre dans la bande d'activation du régulateur avant la fin,
 la rampe s'arrête et la boucle prend la main depuis la commande courante.
+Depuis **0.3.32**, la rampe part d'au moins `kMinimumBrewPumpPct` (50 %) :
+une pause de pré-infusion à 35 % monte donc 50, 55, …, 100 % en 2,5 s.
 
 Cette rampe teste l'hypothèse qu'une arrivée d'eau progressive réduit le choc
 thermique. Elle n'anticipe pas encore la chauffe : la prochaine capture devra

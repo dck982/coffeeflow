@@ -400,11 +400,11 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 7,
+  "version": 8,
   "brew": { "target_weight_g": 36.0, "target_time_s": 28, "target_pressure_bar": 9.0, "pump_pct": 100 },
   "heating": { "enabled": true, "brew_temperature_c": 90.0, "brew_preheat_time_s": 2.5 },
-  "filling": { "time_s": 3, "pressure_target_bar": 0.3, "pump_pct": 100 },
-  "preinfusion": { "time": true, "pressure": false, "weight": false, "time_s": 4, "pressure_bar": 1.5, "pump_pct": 30 },
+  "filling": { "time_s": 3, "pressure_rise_bar": 0.1, "pump_pct": 100 },
+  "preinfusion": { "time": true, "weight": false, "time_s": 4, "pump_pct": 35 },
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
   "purge": { "pump_pct": 100, "max_s": 20 },
   "ui": { "dim_after_s": 240, "standby_after_s": 1800 },

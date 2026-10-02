@@ -39,7 +39,7 @@ constexpr uint16_t kBoilerPairPeriodMs = 100;
 // 115,2 s couvrent le réglage temporel maximal de 60 s, 15 s de précharge et
 // les 30 s de récupération conservées après une infusion.
 constexpr uint16_t kHFCaptureCapacity = 1152;
-constexpr int64_t kHFBrewCaptureCooldownUs = 30 * 1000 * 1000;
+constexpr int64_t kHFBrewCaptureCooldownUs = 20 * 1000 * 1000;
 constexpr int64_t kHFOtherCaptureCooldownUs = 5 * 1000 * 1000;
 
 struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
@@ -377,15 +377,20 @@ void tick_thermal() {
   const bool can_heat = config.heating_enabled && !g_flash_active &&
       !snapshot.heating_requested && !snapshot.lockout && snapshot.sensors_alive &&
       snapshot.heating_power_capable && snapshot.heating_freshness == Freshness::kFresh;
+  const bool flowmeter_live = snapshot.flow_valid && snapshot.flow_freshness == Freshness::kFresh &&
+      snapshot.actuators_freshness == Freshness::kFresh && snapshot.pump_pct > 0;
+  const bool flow_recent = snapshot.flow_last_edge_age_ms <= 500;
+  // La pause de pré-infusion garde la pompe sous son seuil de débit : sans
+  // impulsion, le débit est nul et non inconnu. Ailleurs, le repli à 45 %
+  // couvre un débitmètre muet pendant l'écoulement.
+  const bool paused = snapshot.cycle_state == CycleState::kPreinfusion && flowmeter_live && !flow_recent;
   const auto output = g_state.thermal_controller.step(
       static_cast<uint64_t>(now / 1000), snapshot.boiler_temperature_c,
       config.brew_temperature_c,
       snapshot.boiler_temperature_valid &&
           snapshot.boiler_temperature_freshness == Freshness::kFresh,
-      can_heat, mode, snapshot.flow_ml_s,
-      snapshot.flow_valid && snapshot.flow_freshness == Freshness::kFresh &&
-          snapshot.flow_last_edge_age_ms <= 500 &&
-          snapshot.actuators_freshness == Freshness::kFresh && snapshot.pump_pct > 0,
+      can_heat, mode, paused ? 0.0f : snapshot.flow_ml_s,
+      flowmeter_live && (flow_recent || paused),
       brew_remaining_s);
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
@@ -414,7 +419,6 @@ uint16_t config_field_arg(const char* field) {
       {"brew.pump_pct", 4},
       {"preinfusion.mode", 5},
       {"preinfusion.time_s", 6},
-      {"preinfusion.pressure_bar", 7},
       {"preinfusion.pump_pct", 8},
       {"rampdown.mode", 9},
       {"rampdown.lead_time_s", 10},
@@ -431,7 +435,7 @@ uint16_t config_field_arg(const char* field) {
       {"purge", 21},
       {"ui", 22},
       {"filling.time_s", 23},
-      {"filling.pressure_target_bar", 24},
+      {"filling.pressure_rise_bar", 24},
       {"filling.pump_pct", 25},
       {"filling", 26},
       {"brew.target_pressure_bar", 27},
@@ -465,9 +469,9 @@ ActionResult action_result(ActionStatus status) { return {status, action_reason(
 machine::Config machine_config(const Config& c) {
   return {c.target_weight_g, c.target_time_s, c.target_pressure_bar, c.brew_preheat_time_s,
           c.filling_time_s,
-          c.filling_pressure_target_bar, c.filling_pump_pct,
+          c.filling_pressure_rise_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
-          c.preinfusion_time_s, c.preinfusion_pressure_bar, c.preinfusion_pump_pct,
+          c.preinfusion_time_s, c.preinfusion_pump_pct,
           static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,
           c.rampdown_lead_weight_g, c.rampdown_pressure_drop_bar, c.brew_pump_pct,
           c.purge_pump_pct, c.purge_max_s};

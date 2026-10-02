@@ -147,9 +147,16 @@ Seuls modifient cette commande :
 | Condition | Commande |
 | --- | --- |
 | NTC au-delà de consigne + **4 °C** (sécurité) | 0 % |
-| Débit non mesurable (conditions ci-dessus) | **45 %** (repli) |
+| Pré-infusion, pompe confirmée en marche, aucune impulsion depuis 500 ms (depuis 0.3.32) | **3,5 %** : débit nul, pas inconnu |
+| Débit non mesurable (conditions ci-dessus), hors de ce cas | **45 %** (repli) |
 | Arrêt de la pompe prévu dans **11 s** ou moins | 0 % jusqu'à l'arrêt, même si l'estimation remonte |
 | Mesure invalide, chauffe désactivée, NTC > 105 °C | 0 % (coupures générales) |
+
+Depuis 0.3.32, la pré-infusion est une pause : pompe à 35 %, sous son seuil
+de débit, vanne ouverte. Sans la ligne « pré-infusion » du tableau, la
+commande serait restée au repli de 45 % pendant toute la pause. La pompe
+n'est pas mise à 0 % : la vanne 3 voies se fermerait et viderait le
+headspace, et la capture HF compterait sa queue depuis cet arrêt.
 
 Le seuil de sécurité est volontairement large : le pic de NTC dû à la
 précharge (≈ +1,5 à +2,5 °C) ne doit pas retirer l'appoint.

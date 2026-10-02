@@ -10,6 +10,10 @@ namespace {
 constexpr uint16_t kLeaseMs = 500;
 constexpr float kScaleBackwardsG = 5.0f;
 constexpr uint64_t kFillingPressureGuardMs = 1000;
+// La pression arrive toutes les 100 ms et `tick` tourne toutes les 50 ms :
+// 150 ms au-dessus du seuil exigent deux mesures consécutives, ce qui écarte
+// un paquet isolé.
+constexpr uint64_t kFillingRiseConfirmMs = 150;
 constexpr uint64_t kBrewPressureControlPeriodMs = 200;
 // Transition hydraulique douce après la pré-infusion. La période des pas est
 // adaptée à l'écart afin que la montée complète dure environ 2,5 s.
@@ -34,6 +38,8 @@ bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
   starting_weight_g_ = input.weight_g;
   preinfusion_start_weight_g_ = input.weight_g;
   preinfusion_pressure_start_bar_ = input.pressure_bar;
+  filling_pressure_floor_known_ = false;
+  filling_rise_since_ms_ = 0;
   weight_goal_ = input.scale_present;
   effective_preinfusion_mode_ = config_.preinfusion_mode;
   preinfusion_scale_armed_ = has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kWeight) &&
@@ -94,8 +100,10 @@ void Machine::enter_brew(uint64_t now_ms, bool ramp_from_preinfusion) {
   const uint8_t target_pct = config_.brew_pump_pct < core::kMinimumBrewPumpPct
                                  ? core::kMinimumBrewPumpPct
                                  : config_.brew_pump_pct;
+  // Sans charge, la pompe ne débite rien sous 40 %. Après une pause à 35 %,
+  // partir de kMinimumBrewPumpPct évite de perdre le début de la rampe.
   brew_ramp_start_pct_ = ramp_from_preinfusion
-                             ? std::min(config_.preinfusion_pump_pct, target_pct)
+                             ? std::clamp(config_.preinfusion_pump_pct, core::kMinimumBrewPumpPct, target_pct)
                              : target_pct;
   brew_pump_pct_ = brew_ramp_start_pct_;
   brew_ramp_active_ = brew_pump_pct_ < target_pct;
@@ -152,8 +160,23 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     const uint64_t elapsed = now_ms - started_ms_;
     if (elapsed < kFillingPressureGuardMs) return {config_.filling_pump_pct, kLeaseMs};
 
-    const bool pressure_done = input.pressure_valid &&
-                                input.pressure_bar > config_.filling_pressure_target_bar;
+    // Le headspace est plein dès que la pression quitte son plancher. Le
+    // plancher varie d'une infusion à l'autre (0,15 à 0,26 bar) : il est
+    // suivi ici plutôt que fixé. La pression au repos, plus haute, retombe
+    // pendant la garde ou juste après : le plancher la suit vers le bas.
+    bool pressure_done = false;
+    if (!input.pressure_valid) {
+      filling_rise_since_ms_ = 0;
+    } else if (!filling_pressure_floor_known_ || input.pressure_bar < filling_pressure_floor_bar_) {
+      filling_pressure_floor_bar_ = input.pressure_bar;
+      filling_pressure_floor_known_ = true;
+      filling_rise_since_ms_ = 0;
+    } else if (input.pressure_bar - filling_pressure_floor_bar_ > config_.filling_pressure_rise_bar) {
+      if (filling_rise_since_ms_ == 0) filling_rise_since_ms_ = now_ms;
+      pressure_done = now_ms - filling_rise_since_ms_ >= kFillingRiseConfirmMs;
+    } else {
+      filling_rise_since_ms_ = 0;
+    }
 
     const bool time_done = elapsed >= static_cast<uint64_t>(config_.filling_time_s) * 1000;
     if (!time_done && !pressure_done) return {config_.filling_pump_pct, kLeaseMs};
@@ -172,9 +195,6 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     bool done = false;
     if (has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kTime)) {
       done |= now_ms - phase_started_ms_ >= static_cast<uint64_t>(config_.preinfusion_time_s) * 1000;
-    }
-    if (has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kPressure)) {
-      done |= input.pressure_bar >= config_.preinfusion_pressure_bar;
     }
     if (preinfusion_scale_armed_ &&
         input.weight_g - preinfusion_start_weight_g_ >= 0.1f) {

@@ -210,26 +210,36 @@ réglages.
 La transition de la pré-infusion vers l'infusion (depuis 0.3.18) augmente la
 pompe par pas de 5 points en environ 2,5 s. La boucle de pression attend la
 fin de cette montée, sauf si la pression entre plus tôt dans sa bande
-d'activation : elle reprend alors la commande courante sans saut.
+d'activation : elle reprend alors la commande courante sans saut. Depuis
+0.3.32, la montée part d'au moins `kMinimumBrewPumpPct` (50 %) : après une
+pause de pré-infusion à 35 %, sous le seuil de débit de la pompe, elle ne
+perd pas son premier tiers.
 
 ### Captures
 
-Depuis **0.3.27**, une capture HF d'infusion conserve **30 s** après l'arrêt
-de la pompe (20 s en 0.3.25–0.3.26) ; une purge ou une commande de banc,
-**5 s**. La précharge y apparaît comme `thermal_preheat`. À 13 h 01, la NTC
-plafonnait déjà vers 20 s après l'arrêt (+0,09 °C sur les 2 dernières
-secondes) : 30 s devraient couvrir le maximum du rebond. Pour une purge,
-lancer `record_heating.py --mode monitor` juste après si ce maximum compte.
+Depuis **0.3.32**, une capture HF d'infusion conserve **20 s** après l'arrêt
+de la pompe (30 s en 0.3.27–0.3.31, 20 s en 0.3.25–0.3.26) ; une purge ou une
+commande de banc, **5 s**. La précharge y apparaît comme `thermal_preheat`.
+Pour une purge, lancer `record_heating.py --mode monitor` juste après si le
+maximum du rebond compte.
 
-**30 s sont conservées ; 25 s suffiraient de justesse.** À 7 h 40, la NTC
+Sur les cinq infusions du 29 septembre au
+2 octobre, la NTC varie de moins de 0,2 °C entre 20 et 29 s après l'arrêt,
+et le poids en tasse est stable 0,5 à 9,1 s après l'arrêt. Depuis 0.3.28, la
+coupure de fin retire la chauffe 11 s avant l'arrêt : le maximum du rebond
+arrive plus tôt que dans l'argument ci-dessous, écrit pour la loi 0.3.27. Les
+20 s ne couvrent plus toute la récupération (`kRecoveryDurationMs`, 30 s).
+
+Argument de 0.3.27 pour 30 s : à 13 h 01, la NTC plafonnait déjà vers 20 s
+après l'arrêt (+0,09 °C sur les 2 dernières secondes) ; 30 s devaient couvrir
+le maximum du rebond. 25 s auraient suffi de justesse. À 7 h 40, la NTC
 est à 0,06 °C de son maximum dès 20 s après l'arrêt de la pompe. Le modèle
 de [simulation](#simulation-de-la-piste-1-29-septembre) place le maximum à
 24,4–24,6 s après l'arrêt pour les deux infusions, et la montée sans
 écoulement du 28 septembre à 22,5 s après la coupure. 25 s ne laisseraient
 donc que 0 à 2,5 s de marge, et une loi qui chauffe jusqu'à l'arrêt de la
-pompe repousse ce maximum. Les 30 s couvrent aussi toute la phase de
-récupération (`kRecoveryDurationMs`). Elles ne coûtent rien en mémoire :
-environ 460 échantillons sur 1 152.
+pompe repousse ce maximum. Les 30 s couvraient aussi toute la phase de
+récupération (`kRecoveryDurationMs`).
 
 ## Points à considérer
 

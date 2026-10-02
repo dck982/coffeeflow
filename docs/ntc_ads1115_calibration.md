@@ -449,7 +449,7 @@ sonde séchée entre les plongées. Températures lues sur les codes bruts par
 | `164815-029749` | ébullition, 1ʳᵉ plongée, 973,7 hPa | 98,89 °C | 186–197 s | 98,30 °C, dérive +1,6 °C/min | +1,7 % |
 | `164815-029749` | ébullition, 2ᵉ plongée | 98,89 °C | 237–249 s | 98,24 °C, dérive +0,9 °C/min | +1,9 % |
 | `164815-029749` | ébullition, 3ᵉ plongée | 98,89 °C | 282–291 s | 98,23 °C, dérive +2,2 °C/min | +1,9 % |
-| `170021-938097` | eau vers 90 °C | thermomètre 90,5 °C à la sortie | 98–105 s | 92,38 °C, dérive +0,07 °C/min | −5,4 % |
+| `170021-938097` | eau vers 90 °C sur plaque de cuisson, indicatif | thermomètre 88 à 91 °C, 90,5 °C à la sortie | 98–105 s | 92,38 °C, dérive +0,07 °C/min | — |
 
 **À l'air,** la sonde a mis plus de 8 minutes à rejoindre la Netatmo après
 la manipulation. Les deux premières captures ne sont pas à l'équilibre et ne
@@ -488,12 +488,11 @@ le firmware lit au plus **0,5 °C trop bas vers 90 °C, 0,6 à 0,7 °C vers
 réglé sur la courbe compilée : changer la courbe déplacerait la consigne
 physique, sauf si l'offset est réajusté en même temps.
 
-**Le bain vers 90 °C contredit l'ébullition** : la NTC lit 1,9 °C au-dessus du
-thermomètre, et 2,3 °C avec 3 930 K. Pour lui donner raison, il faudrait
-un Beta d'environ 4 040 K, à l'opposé du point d'ébullition. Ce point n'a pas
-de référence fixe : bain probablement inhomogène, ou thermomètre lu ailleurs
-que près de la pointe. Il est écarté, comme les points intermédiaires du
-protocole. **Décision : 47 kΩ / 3 930 K avec un offset de −10,5 °C, écran
+**Le bain vers 90 °C n'est qu'un repère de la zone café**, pas un point
+d'étalonnage. L'eau chauffait sur une plaque de cuisson et le thermomètre
+variait de 88 à 91 °C selon l'endroit et le moment. La NTC y lit 92,4 °C
+(92,8 °C avec 3 930 K). Un écart de cet ordre est attendu dans un bain chauffé
+par le fond, sans brassage contrôlé : ce point ne contraint pas le Beta. **Décision : 47 kΩ / 3 930 K avec un offset de −10,5 °C, écran
 0.3.34.**
 
 **Temps de réponse vers la glace.** Durées mesurées depuis la première baisse

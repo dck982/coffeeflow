@@ -106,6 +106,7 @@ sont déjà choisies en tenant compte de la quantification RGB565.
 | `accent` | `#D98324` | action en cours, progression, bouton primaire |
 | `accent_wash` | `#D98324` à 14 % | surimpression locale au toucher |
 | `thermal` | `#4A9BB5` | température valide |
+| `ambient` | `#A485D0` | lecture sonde brute, machine froide |
 | `fault` | `#B9412F` | faute uniquement (verrou, perte de bus, erreur dimmer) |
 
 Ces teintes doivent toutes figurer sur l'écran de test après conversion
@@ -119,6 +120,15 @@ sa mesure est valide. Une mesure périmée emploie la même teinte à opacité
 réduite ; une mesure absente passe en `text_faint`. Cette règle ne requiert
 donc aucune nouvelle consigne dans le modèle. L'ambre demeure la couleur de
 l'action hydraulique et de la cible.
+
+**Machine froide, la température du bandeau est la lecture sonde.** Tant que
+la température utilisateur reste sous 50 °C, le bandeau affiche `sensor_c`,
+sans l'offset de −10,5 °C, en `ambient`. Allumée chauffe coupée, la machine
+montre ainsi la température ambiante, contrôle visuel de la sonde. Entre
+50 °C sonde et 50 °C utilisateur (60,5 °C sonde), l'affichage reste à 50,0
+pour ne jamais reculer ; au-delà, la température utilisateur et ses couleurs
+habituelles reprennent. Le violet est hors des teintes de chauffe : il ne se
+confond pas avec une consigne ou un état de régulation.
 
 ### La rampe d'engagement
 

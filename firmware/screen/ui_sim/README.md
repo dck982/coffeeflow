@@ -18,6 +18,7 @@ visuel. `build/snapshots/` est ignoré par Git avec les autres artefacts de
 build. Les scénarios disponibles sont l'accueil (défaut), `no-scale`, `settings`,
 `settings1`, `settings2`, `settings3`, `diagnostic`, `diagnostic-errors`,
 `diagnostic-states`, `heating-menu-on`, `heating-menu-off`, `wifi-confirm`,
-`dim` et `standby`. Le simulateur ne
+`dim`, `standby`, `cold` (lecture sonde à l'ambiante) et `cold-capped`
+(sonde entre 50 et 60,5 °C). Le simulateur ne
 remplace pas un essai tactile ou RGB sur la dalle. Le scénario `wifi-mode`
 capture le plein écran du mode Wi-Fi.

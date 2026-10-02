@@ -1626,13 +1626,23 @@ void refresh(const core::Snapshot &s, bool boot) {
         : s.pressure_freshness == core::Freshness::kStale
             ? theme::kTextDim
             : theme::ramp_color(s.pressure_bar, 9));
+  // Sous 50 °C utilisateur, la température affichée est la lecture sonde, sans
+  // offset : machine froide, elle se compare directement à l'ambiante. Elle
+  // plafonne à 50 tant que la valeur utilisateur n'a pas rejoint 50, pour que
+  // l'affichage ne recule jamais pendant la montée.
+  constexpr float kAmbientDisplayLimitC = 50.0f;
+  const bool ambient = boiler && s.boiler_temperature_c < kAmbientDisplayLimitC;
   if (boiler)
-    fmt(t, sizeof(t), s.boiler_temperature_c, "°");
+    fmt(t, sizeof(t),
+        ambient ? std::min(s.boiler_sensor_temperature_c, kAmbientDisplayLimitC)
+                : s.boiler_temperature_c,
+        "°");
   else
     std::snprintf(t, sizeof(t), "-");
   text(v.temperature, t);
   const lv_color_t temperature_color =
-      !c.heating_enabled ? theme::kTextFaint
+      ambient ? theme::kAmbient
+      : !c.heating_enabled ? theme::kTextFaint
       : !boiler ? theme::kTextDim
       : s.boiler_temperature_c > c.brew_temperature_c + core::kBrewTemperatureToleranceC ? theme::kFault
       : brew_temperature_ready ? theme::kSuccess

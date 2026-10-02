@@ -151,6 +151,14 @@ int main(int argc, char **argv) {
   snapshot.sensors_twai_rx_errors = 2;
   snapshot.sensors_twai_tx_errors = 1;
   snapshot.sensors_twai_bus_errors = 1231;
+  if (std::strcmp(scenario, "cold") == 0) {
+    snapshot.boiler_sensor_temperature_c = 24.6f;
+    snapshot.boiler_temperature_c = 14.1f;
+  }
+  if (std::strcmp(scenario, "cold-capped") == 0) {
+    snapshot.boiler_sensor_temperature_c = 56.3f;
+    snapshot.boiler_temperature_c = 45.8f;
+  }
   if (std::strcmp(scenario, "diagnostic-errors") == 0) {
     snapshot.pressure_valid = false;
     snapshot.boiler_temperature_valid = false;

@@ -4,7 +4,6 @@ U2,AMS1117-3.3,Package_TO_SOT_SMD:SOT-223-3_TabPin2,0,,AMS1117-3.3,"1A Low Dropo
 C1,4.7uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 4.7uF X7R >=10V,Unpolarized capacitor,1
 C2,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1
 C3,22uF tantalum / 10V,Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B,0,,"22uF 10V solid tantalum, case B",Polarized capacitor,1
-R1,270,Resistor_SMD:R_0603_1608Metric,0,,Generic 270 1% 0603,Resistor,1
 U1,ESP32-S3-MINI-1U-N8,RF_Module:ESP32-S2-MINI-1U,0,,ESP32-S3-MINI-1U-N8,"RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna",1
 C4,10uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 10uF X7R >=10V,Unpolarized capacitor,1
 C5,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1

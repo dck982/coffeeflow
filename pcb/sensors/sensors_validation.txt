@@ -1,6 +1,7 @@
 Sensors schematic validation — KiCad 10.0.6, 2026-10-01
 PASS: ERC, 0 errors / 0 warnings; no exclusions added.
-PASS: 47 components, matching schematic and preliminary BOM.
+PASS: 46 components, matching schematic and preliminary BOM.
+PASS: R1 omitted; fixed AMS1117-3.3 supports zero external load (local datasheet p. 3).
 PASS: All symbol pin numbers exactly match assigned footprint pad numbers.
 PASS: MCU supply and all 24 GND pads; boot/reset and flash voltage straps.
 PASS: Native USB polarity, both Type-C orientations, independent CC pull-downs.
@@ -15,5 +16,6 @@ PASS: Boiler GPIO10 active-high, direct Q3 gate sink, P-MOS high-side topology.
 PASS: Boiler gate default-off network and 1k output pull-down.
 PASS: No UART service header; GPIO3/43/44 explicitly unconnected.
 PDF: Two A3 pages exported and rendered for visual inspection.
-Limits: schematic checks only; PCB is empty. BOM LCSC sourcing, layout/DRC,
+Limits: schematic checks only; PCB layout is in progress. R1 removal from PCB
+is pending user action. BOM LCSC sourcing, layout/DRC,
 thermal checks, firmware migration and loaded hardware testing remain.

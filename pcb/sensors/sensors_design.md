@@ -20,7 +20,10 @@ During initial flashing, disconnect J1 and power the board from USB-C J2.
 Both inputs join the same +5 V rail. U2 is AMS1117-3.3 in SOT-223.
 C1/C2 bypass its input (4.7 µF / 100 nF); C3 is **22 µF solid tantalum, 10 V**, following the supplied AMS datasheet's
 stability recommendation. Do not substitute an arbitrary ceramic for C3.
-R1 is 270 Ω, providing about 12.2 mA minimum-load current at nominal 3.3 V.
+No external minimum-load resistor is required for the fixed AMS1117-3.3.
+The local datasheet (`../../docs/datasheets/ams1117.pdf`, page 3) specifies
+load regulation from 0 to 800 mA for this version; the 10 mA minimum-load
+requirement applies to the adjustable AMS1117. R1 is therefore omitted.
 C4/C5 provide 10 µF / 100 nF local module decoupling.
 
 Provide adequate copper area connected to the regulator's output/tab. Its

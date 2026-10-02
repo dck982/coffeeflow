@@ -144,8 +144,7 @@ p.part('Regulator_Linear:AMS1117-3.3','U2','AMS1117-3.3',105,45,{'1':'GND','2':'
 c(p,'C1','4.7uF',65,83,'+5V','GND',CB)
 c(p,'C2','100nF',100,83,'+5V','GND')
 p.part('Device:C_Polarized','C3','22uF tantalum / 10V',145,83,{'1':'+3V3','2':'GND'},'Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B',mpn='22uF 10V solid tantalum, case B')
-r(p,'R1','270',190,83,'+3V3','GND')
-p.text('C3: solid tantalum for AMS1117 stability. R1: 12mA minimum-load bleeder.\nProvide copper heatsinking: 0.85W at 500mA; verify enclosure temperature.\nUSB VBUS and J1 feed +5V: NEVER connect both power sources.',18,106)
+p.text('C3: solid tantalum for AMS1117 stability.\nProvide copper heatsinking: 0.85W at 500mA; verify enclosure temperature.\nUSB VBUS and J1 feed +5V: NEVER connect both power sources.',18,106)
 for i,net in enumerate(['+5V','GND']):p.part('power:PWR_FLAG','#FLG0'+str(i+1),'PWR_FLAG',35+i*45,125,{'1':net},fp='')
 
 p.text('2. ESP32-S3-MINI-1U-N8 - CAN only, no antenna fitted',225,15,1.7)

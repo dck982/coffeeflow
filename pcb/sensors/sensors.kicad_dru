@@ -1,0 +1,9 @@
+(version 1)
+
+# USB4105 locating holes are close to its four outer GND pads.
+# Keep the board-wide 0.25 mm hole clearance everywhere else.
+# The rounded GND pads provide approximately 0.208 mm clearance.
+# JLCPCB publishes a 0.20 mm minimum NPTH-to-copper clearance.
+(rule "J2 USB-C GND pads to locating holes"
+    (condition "A.Reference == 'J2' && B.Reference == 'J2' && ((A.Pad_Type == 'NPTH, mechanical' && (B.Pad_Number == 'A1' || B.Pad_Number == 'A12' || B.Pad_Number == 'B1' || B.Pad_Number == 'B12')) || (B.Pad_Type == 'NPTH, mechanical' && (A.Pad_Number == 'A1' || A.Pad_Number == 'A12' || A.Pad_Number == 'B1' || A.Pad_Number == 'B12')))")
+    (constraint hole_clearance (min 0.20mm)))

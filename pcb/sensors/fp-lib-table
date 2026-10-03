@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Sensors_Local")(type "KiCad")(uri "${KIPRJMOD}/Sensors_Local.pretty")(options "")(descr "Sensors project footprints"))
+)

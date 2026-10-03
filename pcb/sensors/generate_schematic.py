@@ -43,6 +43,11 @@ HERE=Path(__file__).resolve().parent
 LIB=Path('/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols')
 FP=LIB.parent/'footprints'
 cache={}; symbols={}; bom=[]
+ANGLE_CONNECTOR_REFS = {'J1', 'J3'}
+ANGLE_CONNECTOR_FP = 'Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal'
+ANGLE_CONNECTOR_MPN = 'S2B-XH-A(LF)(SN)'
+ANGLE_CONNECTOR_LCSC = 'C157931'
+ANGLE_CONNECTOR_DATASHEET = 'https://order.jst-mfg.com/InternetShop/app/pdf_show.php?kbn=1&key=eXH.pdf'
 def library(libid):
     if libid in symbols: return copy.deepcopy(symbols[libid])
     lib,name=libid.split(':')
@@ -80,13 +85,16 @@ class Page:
             self.add(node('label',name,node('at',*p,0),effects(1.0,'right bottom' if angle==180 else 'left bottom'),node('uuid',self.ident())))
     def text(self,t,x,y,size=1.25):self.add(node('text',t,node('at',x,y,0),effects(size,'left top'),node('uuid',self.ident())))
     def part(self,libid,ref,val,x,y,nets,fp=None,angle=0,dnp=False,desc='',mpn=''):
+        if ref in ANGLE_CONNECTOR_REFS:
+            fp = ANGLE_CONNECTOR_FP
+            mpn = ANGLE_CONNECTOR_MPN
         x=round(round(x/1.27)*1.27,4);y=round(round(y/1.27)*1.27,4)
         a=library(libid);self.libs[libid]=a
         if fp is None:fp=get(a,'property') # corrected below
         defaults={p[1]:p[2] for p in a if key(p)=='property'}
         if not isinstance(fp,str):fp=defaults.get('Footprint','')
         if fp:
-            l,n=fp.split(':'); f=(FP/(l+'.pretty'))/(n+'.kicad_mod')
+            l,n=fp.split(':'); base = HERE if l == 'Sensors_Local' else FP; f=(base/(l+'.pretty'))/(n+'.kicad_mod')
             if not f.exists():raise ValueError('Missing footprint '+fp)
         iid=uid(ref); sx=node('symbol',node('lib_id',libid),node('at',x,y,angle),node('unit',1),node('exclude_from_sim',Sym('no')),node('in_bom',Sym('yes' if not ref.startswith('#') else 'no')),node('on_board',Sym('yes' if not ref.startswith('#') else 'no')),node('dnp',Sym('yes' if dnp else 'no')),node('uuid',iid))
         # IC names above bodies; passive and transistor names beside bodies.
@@ -99,6 +107,11 @@ class Page:
         for k,v,px,py,hidden in [('Reference',ref,rx,ry,ref.startswith('#')),('Value',val,vx,vy,ref.startswith('#')),('Footprint',fp,x,y,True),('Datasheet',defaults.get('Datasheet',''),x,y,True),('Description',desc or defaults.get('Description',''),x,y,True),('MPN',mpn or val,x,y,True)]:
             pr=node('property',k,v,node('at',px,py,90 if ref.startswith(('R','C')) and angle in (90,270) else 0),effects(1.1 if k=='Reference' else 1.0, 'left' if not ref.startswith(('U','J','D')) and angle not in (90,270) else None))
             if hidden:pr.append(node('hide',Sym('yes')))
+            sx.append(pr)
+        if ref in ANGLE_CONNECTOR_REFS:
+            next(p for p in sx if key(p)=='property' and p[1]=='Datasheet')[2] = ANGLE_CONNECTOR_DATASHEET
+            pr=node('property','LCSC',ANGLE_CONNECTOR_LCSC,node('at',x,y,0),effects())
+            pr.append(node('hide',Sym('yes')))
             sx.append(pr)
         pins=[p for sub in a if key(sub)=='symbol' for p in sub if key(p)=='pin']
         done=set()
@@ -119,7 +132,7 @@ class Page:
         sx.append(node('instances',node('project','sensors',node('path',self.path,node('reference',ref),node('unit',1)))))
         self.add(sx)
         if not ref.startswith('#'):
-            bom.append({'Reference':ref,'Value':val,'Footprint':fp,'DNP':'1' if dnp else '0','LCSC':'','MPN':mpn or val,'Description':desc or defaults.get('Description',''),'Sheet':self.page})
+            bom.append({'Reference':ref,'Value':val,'Footprint':fp,'DNP':'1' if dnp else '0','LCSC':ANGLE_CONNECTOR_LCSC if ref in ANGLE_CONNECTOR_REFS else '','MPN':mpn or val,'Description':desc or defaults.get('Description',''),'Sheet':self.page})
         return sx
     def write(self,name):
         a=node('kicad_sch',node('version',20260306),node('generator',Sym('eeschema')),node('generator_version','10.0'),node('uuid',self.root),node('paper','A3'),node('title_block',node('title',self.title),node('date','2026-10-01'),node('rev','A'),node('company','CoffeeFlow'),node('comment',1,'CAN-only / USB flash power OR external 5V')),node('lib_symbols',*self.libs.values()),*self.items,node('sheet_instances',node('path','/',node('page',str(self.page)))),node('embedded_fonts',Sym('no')))
@@ -148,7 +161,7 @@ p.text('C3: solid tantalum for AMS1117 stability.\nProvide copper heatsinking: 0
 for i,net in enumerate(['+5V','GND']):p.part('power:PWR_FLAG','#FLG0'+str(i+1),'PWR_FLAG',35+i*45,125,{'1':net},fp='')
 
 p.text('2. ESP32-S3-MINI-1U-N8 - CAN only, no antenna fitted',225,15,1.7)
-nets={'3':'+3V3','4':'BOOT_N','8':'FLOW_PULSE','9':'I2C_SDA','10':'I2C_SCL','11':'CAN_TX','12':'CAN_RX','13':'VALVE_CMD','14':'HEATER_CMD','23':'USB_MCU_DM','24':'USB_MCU_DP','41':'STRAP45','44':'STRAP46','45':'EN'}
+nets={'3':'+3V3','4':'BOOT_N','16':'HEATER_CMD','9':'I2C_SDA','10':'I2C_SCL','14':'CAN_RX','15':'CAN_TX','37':'FLOW_PULSE','32':'VALVE_CMD','23':'USB_MCU_DM','24':'USB_MCU_DP','41':'STRAP45','44':'STRAP46','45':'EN'}
 for n in [1,2,42,43,*range(46,66)]:nets[str(n)]='GND'
 p.part('RF_Module:ESP32-S3-MINI-1U','U1','ESP32-S3-MINI-1U-N8',310,73,nets,mpn='ESP32-S3-MINI-1U-N8')
 c(p,'C4','10uF',240,125,'+3V3','GND',CB);c(p,'C5','100nF',275,125,'+3V3','GND')
@@ -162,11 +175,11 @@ p.text('GPIO45/46 low: 3.3V flash / download strap. GPIO3 unused.\nHold BOOT, ta
 
 p.text('3. USB-C - flashing and power; disconnect XH power before connecting USB',18,147,1.7)
 un={'A1':'GND','A12':'GND','B1':'GND','B12':'GND','SH':'GND','A4':'+5V','A9':'+5V','B4':'+5V','B9':'+5V','A5':'USB_CC1','B5':'USB_CC2','A6':'USB_HOST_DP','B6':'USB_HOST_DP','A7':'USB_HOST_DM','B7':'USB_HOST_DM'}
-p.part('Connector:USB_C_Receptacle_USB2.0_16P','J2','USB-C FLASH',43,191,un,'Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal',mpn='GCT USB4105-GF-A')
+p.part('Connector:USB_C_Receptacle_USB2.0_16P','J2','USB-C FLASH',43,191,un,'Sensors_Local:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal_RoundedGND',mpn='GCT USB4105-GF-A')
 r(p,'R4','5.1k',90,179,'USB_CC1','GND');r(p,'R5','5.1k',90,208,'USB_CC2','GND')
 r(p,'R6','22',155,185,'USB_HOST_DP','USB_MCU_DP',90)
 r(p,'R7','22',155,215,'USB_HOST_DM','USB_MCU_DM',90)
-p.part('Power_Protection:TPD2E2U06DCK','D1','TPD2E2U06DCKR',225,220,{'1':'USB_HOST_DP','2':'USB_HOST_DM','3':'GND'})
+p.part('Power_Protection:TPD2E2U06DCK','D1','TPD2E2U06DCKR',225,220,{'1':'USB_HOST_DM','2':'USB_HOST_DP','3':'GND'})
 p.text('USB flashing: disconnect J1 power, then connect Mac USB-C.\nProduction: unplug USB-C, then connect J1 to RECOM 5V.\nBoth feed the same +5V rail; no power OR-ing or reverse blocking.',18,245,1.2)
 p.text('ESP32 provides its USB data pull-up internally. CC1/CC2: 5.1k to GND.\nRoute USB as a 90-ohm pair; D1 at J2, R6/R7 at U1.\nC1: 4.7uF input bulk to reduce USB plug-in inrush.',18,265,1.1)
 # A real hierarchical sheet, globals carry the ten board-wide nets.
@@ -185,20 +198,20 @@ conn(q,'J4','DIMMER / GROVE',378,45,['I2C_SCL','I2C_SDA','+3V3','GND'],4,True)
 conn(q,'J5','XDB401 / GROVE',378,85,['I2C_SCL','I2C_SDA','+3V3','GND'],4,True)
 r(q,'R13','4.7k',243,47,'+3V3','I2C_SDA');r(q,'R14','4.7k',283,47,'+3V3','I2C_SCL')
 q.part('Sensor_Temperature:TMP102xxDRL','U5','TMP102AIDRLR',280,95,{'1':'I2C_SCL','2':'GND','4':'GND','5':'+3V3','6':'I2C_SDA'},mpn='TMP102AIDRLR')
-c(q,'C10','100nF',325,115,'+3V3','GND');c(q,'C11','100nF',370,119,'+3V3','GND')
-q.text('Grove opening up: left-to-right GND / 3V3 / SDA / SCL.\nNumbered pads: 1=SCL yellow, 2=SDA white, 3=3V3 red, 4=GND black.\nAddresses: dimmer 0x50 / XDB401 0x7F / TMP102 0x48.\nTMP102 ADD0 grounded; ALERT unused. Mount away from LDO heat.\nPull-ups always fitted: 2.35k effective with XDB401 attached.\n100kHz initial bus speed; C11 bypasses connector supply.',230,139,1.1)
+c(q,'C10','100nF',325,115,'+3V3','GND')
+q.text('Grove opening up: left-to-right GND / 3V3 / SDA / SCL.\nNumbered pads: 1=SCL yellow, 2=SDA white, 3=3V3 red, 4=GND black.\nAddresses: dimmer 0x50 / XDB401 0x7F / TMP102 0x48.\nTMP102 ADD0 grounded; ALERT unused. Mount away from LDO heat.\nPull-ups always fitted: 2.35k effective with XDB401 attached.\n100kHz initial bus speed; remote modules provide local supply decoupling.',230,139,1.1)
 
 q.text('6. DIGMESA - open collector, existing RC filter',18,147,1.7)
 conn(q,'J6','DIGMESA / FLOW',48,177,['GND','+5V','FLOW_PULSE'],3)
-r(q,'R15','1k',110,174,'+3V3','FLOW_PULSE');c(q,'C12','10nF',155,174,'FLOW_PULSE','GND');c(q,'C13','100nF',190,174,'+5V','GND')
-q.text('GPIO4 input; internal pull-up disabled. 1k x 10nF = 10us.\nDigmesa powered from 5V; signal pulled to 3.3V only.\nPin order: GND brown / 5V green / SIGNAL yellow.\nRC discharge speed also depends on sensor/cable impedance.',18,194,1.1)
+r(q,'R15','1k',110,174,'+3V3','FLOW_PULSE');c(q,'C12','10nF',155,174,'FLOW_PULSE','GND')
+q.text('GPIO41 input; internal pull-up disabled. 1k x 10nF = 10us.\nDigmesa powered from 5V; signal pulled to 3.3V only.\nPin order: GND brown / 5V green / SIGNAL yellow.\nRC discharge speed also depends on sensor/cable impedance.',18,194,1.1)
 
 q.text('7. VALVE SSR - 3.3V signal / 5V supply',230,168,1.7)
 conn(q,'J7','M5STACK VALVE SSR',378,186,['GND','+5V','VALVE_CMD'],3)
 r(q,'R17','10k',323,190,'VALVE_CMD','GND')
-q.text('GPIO9, 3.3V signal / 5V VCC; default LOW.',230,206,1.1)
+q.text('GPIO36, 3.3V signal / 5V VCC; default LOW.',230,206,1.1)
 q.text('8. BOILER SSR - powered 5V output, HIGH command = ON',18,220,1.7)
-# GPIO10 drives Q3; Q3 sinks the high-side P-MOSFET gate directly.
+# GPIO12 drives Q3; Q3 sinks the high-side P-MOSFET gate directly.
 q.part('Transistor_FET:2N7002','Q3','2N7002',70,250,{'1':'HEATER_CMD','2':'GND','3':'HEATER_GATE'})
 r(q,'R19','100k',25,250,'HEATER_CMD','GND')
 q.part('Transistor_FET:AO3401A','Q2','AO3401A',225,245,{'1':'HEATER_GATE','2':'+5V','3':'BOILER_5V'},angle=180)
@@ -210,4 +223,4 @@ q.text('J8: SSR (-) -> pin1 GND; SSR (+) -> pin2 switched 5V.\nQ3 pulls Q2 gate 
 p.write('sensors.kicad_sch');q.write('sensors_interfaces.kicad_sch')
 with (HERE/'sensors_bom.csv').open('w',newline='') as f:
     w=csv.DictWriter(f,lineterminator='\n',fieldnames=['Reference','Value','Footprint','DNP','LCSC','MPN','Description','Sheet']);w.writeheader();w.writerows(bom)
-print(f'Generated 2 sheets and {len(bom)} components; LCSC sourcing remains unassigned.')
+print(f'Generated 2 sheets and {len(bom)} components; J1/J3 sourced as C157931; remaining LCSC sourcing unassigned.')

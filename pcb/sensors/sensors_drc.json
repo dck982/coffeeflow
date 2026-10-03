@@ -1,0 +1,334 @@
+{
+    "$schema": "https://schemas.kicad.org/drc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-10-03T19:09:14",
+    "ignored_checks": [
+        {
+            "description": "Footprint has no courtyard defined",
+            "key": "missing_courtyard"
+        },
+        {
+            "description": "Track endpoint not centered on via",
+            "key": "track_not_centered_on_via"
+        },
+        {
+            "description": "Tuning profile track geometries",
+            "key": "tuning_profile_track_geometries"
+        },
+        {
+            "description": "Footprint doesn't match symbol's footprint filters",
+            "key": "footprint_filters_mismatch"
+        },
+        {
+            "description": "Footprint component type doesn't match footprint pads",
+            "key": "footprint_type_mismatch"
+        }
+    ],
+    "included_severities": [
+        "error",
+        "warning"
+    ],
+    "kicad_version": "10.0.6",
+    "schematic_parity": [
+        {
+            "description": "Duplicate footprints",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 157.0,
+                        "y": 148.0
+                    },
+                    "uuid": "5f3a6be9-fd01-4b0a-8dbf-d7bd29fae49f"
+                },
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 148.0
+                    },
+                    "uuid": "2ae7bc33-c01a-4580-a4e8-e975873ec087"
+                }
+            ],
+            "severity": "warning",
+            "type": "duplicate_footprints"
+        },
+        {
+            "description": "Duplicate footprints",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 157.0,
+                        "y": 102.0
+                    },
+                    "uuid": "75a41b75-de31-4c40-9fb4-07345aa75279"
+                },
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 148.0
+                    },
+                    "uuid": "2ae7bc33-c01a-4580-a4e8-e975873ec087"
+                }
+            ],
+            "severity": "warning",
+            "type": "duplicate_footprints"
+        },
+        {
+            "description": "Duplicate footprints",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 102.0
+                    },
+                    "uuid": "eeb76f1a-84e7-46ff-bcca-6126c934556c"
+                },
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 148.0
+                    },
+                    "uuid": "2ae7bc33-c01a-4580-a4e8-e975873ec087"
+                }
+            ],
+            "severity": "warning",
+            "type": "duplicate_footprints"
+        },
+        {
+            "description": "Missing footprint J1 (5V POWER)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint SW1 (BOOT)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint SW2 (RESET)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint J3 (CAN BUS)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint J4 (DIMMER I2C)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint J6 (FLOW HALL)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint J7 (VALVE SSR)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Missing footprint J8 (BOILER SSR)",
+            "items": [],
+            "severity": "warning",
+            "type": "missing_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint RESET",
+                    "pos": {
+                        "x": 174.275,
+                        "y": 105.0
+                    },
+                    "uuid": "068f29e3-f83e-4d63-ac1c-9c4f0d2132d4"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint FLOW",
+                    "pos": {
+                        "x": 177.0,
+                        "y": 110.1
+                    },
+                    "uuid": "0c98a141-e4fb-489a-b2b1-d02a87ad1536"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 148.0
+                    },
+                    "uuid": "2ae7bc33-c01a-4580-a4e8-e975873ec087"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint BOILER",
+                    "pos": {
+                        "x": 167.5,
+                        "y": 139.0
+                    },
+                    "uuid": "4e37b938-deb4-4747-b150-583518a2841c"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 157.0,
+                        "y": 148.0
+                    },
+                    "uuid": "5f3a6be9-fd01-4b0a-8dbf-d7bd29fae49f"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint 5V",
+                    "pos": {
+                        "x": 184.0,
+                        "y": 141.5
+                    },
+                    "uuid": "66788bb6-9de4-4ce3-9b26-0a7f24ef9323"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 157.0,
+                        "y": 102.0
+                    },
+                    "uuid": "75a41b75-de31-4c40-9fb4-07345aa75279"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint BOOT",
+                    "pos": {
+                        "x": 157.5,
+                        "y": 139.0
+                    },
+                    "uuid": "aff84467-f79a-4a30-8d17-69475260b9cc"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint DIMMER",
+                    "pos": {
+                        "x": 158.5,
+                        "y": 107.0
+                    },
+                    "uuid": "c20e9160-c58f-400d-acd8-25a32cf99885"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint VALVE",
+                    "pos": {
+                        "x": 185.0,
+                        "y": 110.1
+                    },
+                    "uuid": "d21e5a85-45ab-466a-bd7f-0567ad55c747"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint CAN",
+                    "pos": {
+                        "x": 158.0,
+                        "y": 125.0
+                    },
+                    "uuid": "dffeefc6-37b3-466b-9382-5aa3ba9e5eae"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        },
+        {
+            "description": "Extra footprint",
+            "items": [
+                {
+                    "description": "Footprint <no reference designator>",
+                    "pos": {
+                        "x": 186.0,
+                        "y": 102.0
+                    },
+                    "uuid": "eeb76f1a-84e7-46ff-bcca-6126c934556c"
+                }
+            ],
+            "severity": "warning",
+            "type": "extra_footprint"
+        }
+    ],
+    "source": "sensors.kicad_pcb",
+    "unconnected_items": [],
+    "violations": []
+}

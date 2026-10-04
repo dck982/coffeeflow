@@ -25,6 +25,7 @@
 #include "core/calibration_machine.h"
 #include "core/config.h"
 #include "core/events.h"
+#include "core/shot_summary.h"
 
 namespace core {
 
@@ -129,6 +130,10 @@ struct Snapshot {
   float cycle_start_weight_g = 0.0f;
   bool cycle_weight_goal = false;
   bool capture_cooldown = false;
+  uint32_t capture_cooldown_remaining_ms = 0;
+  // Résumé de la dernière infusion, tenu à jour pendant sa capture HF.
+  ShotSummary shot;
+  int64_t shot_start_unix_s = 0;
   bool last_shot_available = false;
   float last_shot_weight_g = 0.0f;
   uint32_t last_shot_duration_ms = 0;

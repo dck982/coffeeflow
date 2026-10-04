@@ -83,7 +83,25 @@ struct View {
       *standby{}, *standby_title{}, *standby_body{};
   DiagnosticTile diag_tile[9]{};
 } v;
-constexpr size_t N = 96, L = 128;
+// Écran d'infusion : frise des phases, six tuiles de résumé, puis la tuile de
+// fonctionnement et « arrêter » pendant l'écoulement, « fermer » ensuite.
+// Voir docs/ecran-infusion.md.
+constexpr size_t kSegments = core::kShotSegmentCount;
+struct BrewTile {
+  lv_obj_t *title{}, *aside{}, *value{}, *detail{};
+};
+struct BrewView {
+  lv_obj_t *root{}, *phase{}, *started{}, *reserve{}, *live{}, *stop{}, *close{};
+  lv_obj_t *segment[kSegments]{}, *segment_label[kSegments]{}, *number[kSegments]{};
+  BrewTile tile[6]{};
+  lv_obj_t *live_value[4]{};
+  // Géométrie déjà appliquée : LVGL invalide à chaque appel, même identique.
+  int32_t segment_x[kSegments]{}, segment_w[kSegments]{}, number_x[kSegments]{};
+  int32_t reserve_x = -1;
+  int8_t outlined = -1;
+} bv;
+// L'écran d'infusion ajoute une trentaine de libellés dynamiques.
+constexpr size_t N = 160, L = 128;
 struct Bind {
   lv_obj_t *l;
   char s[L];
@@ -1155,9 +1173,340 @@ float progress(const core::Snapshot &s, const core::Config &c) {
              ? (s.weight_g - s.cycle_start_weight_g) / c.target_weight_g
              : float(s.cycle_elapsed_ms) / (c.target_time_s * 1000.f);
 }
+
+// --- Écran d'infusion ----------------------------------------------------
+constexpr int kFriseWidth = 736;
+constexpr int kFriseHeight = 26;
+constexpr int kTileWidth = 234, kTileHeight = 76, kTileGap = 16;
+struct SegmentStyle {
+  const char *names[3];
+  lv_color_t fill;
+  bool dark_text;
+};
+const SegmentStyle &segment_style(size_t i) {
+  // Libellés du plus long au plus court : le premier qui tient est affiché.
+  static const SegmentStyle styles[kSegments] = {
+      {{"PRÉ-CHAUFFE", "CHAUFFE", "C"}, theme::kFault, false},
+      {{"REMPLISSAGE", "REMPL.", "R"}, theme::kThermal, false},
+      {{"PRÉ-INFUSION", "PRÉ-INF.", "PI"}, theme::kSurfaceHigh, false},
+      {{"MONTÉE", "MONT.", "M"}, theme::kRampLow, false},
+      {{"INFUSION", "INF.", "I"}, theme::kAccent, true},
+      {{"GOUTTES", "GTTE", "G"}, theme::kTextFaint, false},
+  };
+  return styles[i];
+}
+const lv_color_t kSegmentText = lv_color_hex(0xEEEEEE);
+int32_t text_width(const char *t, const lv_font_t *f) {
+  lv_point_t size{};
+  lv_text_get_size(&size, t, f, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+  return size.x;
+}
+// Comme fmt(), avec un nombre de décimales choisi et « - » pour l'inconnu :
+// les polices Inter embarquées s'arrêtent à Latin-1, sans tiret long.
+void fmt_digits(char *out, size_t n, float f, int digits, const char *suffix) {
+  if (!std::isfinite(f)) {
+    std::snprintf(out, n, "-");
+    return;
+  }
+  const bool negative = f < 0.0f && std::fabs(f) >= 0.5f * std::pow(10.0f, -digits);
+  std::snprintf(out, n, "%s%.*f%s", negative ? "-" : "", digits,
+                static_cast<double>(std::fabs(f)), suffix);
+  for (char *p = out; *p; ++p)
+    if (*p == '.')
+      *p = ',';
+}
+void set_geometry(lv_obj_t *o, int32_t &cached_x, int32_t &cached_w, int32_t x,
+                  int32_t w) {
+  if (cached_x == x && cached_w == w)
+    return;
+  cached_x = x;
+  cached_w = w;
+  lv_obj_set_pos(o, x, 42);
+  lv_obj_set_width(o, w);
+}
+BrewTile brew_tile(lv_obj_t *p, int col, int row, const char *title,
+                   bool main_value) {
+  const int x = theme::kMargin + col * (kTileWidth + kTileGap);
+  const int y = 112 + row * (kTileHeight + 12);
+  lv_obj_t *t = box(p, x, y, kTileWidth, kTileHeight, theme::kBgRaised,
+                    theme::kRadius);
+  lv_obj_set_style_pad_all(t, 0, 0);
+  BrewTile tile;
+  dyn(t, &tile.title, title, theme::kFontLabel, theme::kTextFaint, 16, 8);
+  // Valeur secondaire alignée à droite du titre (temps total, débit), ou
+  // posée après la valeur (températures) : voir render_brew().
+  dyn(t, &tile.aside, "", theme::kFontLabel, theme::kTextDim, 16, 8);
+  lv_obj_set_width(tile.aside, kTileWidth - 32);
+  lv_obj_set_style_text_align(tile.aside, LV_TEXT_ALIGN_RIGHT, 0);
+  dyn(t, &tile.value, "-", theme::kFontUnit,
+      main_value ? theme::kRampFull : theme::kText, 16, 30);
+  dyn(t, &tile.detail, "", theme::kFontLabel, theme::kTextDim, 16, 44);
+  return tile;
+}
+void build_brew(lv_obj_t *p) {
+  bv.root = lv_obj_create(p);
+  lv_obj_remove_style_all(bv.root);
+  lv_obj_set_size(bv.root, 800, 400);
+  lv_obj_set_pos(bv.root, 0, 80);
+  lv_obj_remove_flag(bv.root, LV_OBJ_FLAG_SCROLLABLE);
+  dyn(bv.root, &bv.phase, "", theme::kFontLabel, theme::kAccent,
+      theme::kMargin, 4);
+  dyn(bv.root, &bv.started, "", theme::kFontLabel, theme::kTextFaint, 468, 4);
+  lv_obj_set_width(bv.started, 300);
+  lv_obj_set_style_text_align(bv.started, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_obj_t *frise = lv_obj_create(bv.root);
+  lv_obj_remove_style_all(frise);
+  lv_obj_set_size(frise, kFriseWidth, 72);
+  lv_obj_set_pos(frise, theme::kMargin, 0);
+  lv_obj_remove_flag(frise, LV_OBJ_FLAG_SCROLLABLE);
+  // Réserve des gouttes : contour seul, à la fin de l'échelle prévue.
+  bv.reserve = box(frise, 0, 42, 1, kFriseHeight, theme::kBg, 4);
+  lv_obj_set_style_bg_opa(bv.reserve, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(bv.reserve, 2, 0);
+  lv_obj_set_style_border_color(bv.reserve, theme::kTextFaint, 0);
+  lv_obj_set_style_border_opa(bv.reserve, LV_OPA_60, 0);
+  hidden(bv.reserve, true);
+  for (size_t i = 0; i < kSegments; ++i) {
+    const SegmentStyle &style = segment_style(i);
+    bv.segment[i] = box(frise, 0, 42, 2, kFriseHeight, style.fill, 4);
+    lv_obj_set_style_outline_color(bv.segment[i], theme::kText, 0);
+    lv_obj_set_style_outline_pad(bv.segment[i], 0, 0);
+    dyn(bv.segment[i], &bv.segment_label[i], "", theme::kFontLabel,
+        style.dark_text ? theme::kBg : kSegmentText, 0, 0);
+    lv_obj_center(bv.segment_label[i]);
+    dyn(frise, &bv.number[i], "", theme::kFontButton, theme::kText, 0, 0);
+    hidden(bv.segment[i], true);
+    hidden(bv.number[i], true);
+    bv.segment_x[i] = bv.segment_w[i] = bv.number_x[i] = -1;
+  }
+  // Chiffres sous la frise : un objet frise plus haut porterait les deux ; ils
+  // sont placés à y 74 par rapport à bv.root.
+  lv_obj_set_height(frise, 112);
+  for (size_t i = 0; i < kSegments; ++i)
+    lv_obj_set_y(bv.number[i], 74);
+  const char *titles[6] = {"poids",      "temps infusion",  "moyenne en tasse",
+                           "temps total", "débit infusion", "baisse thermique"};
+  for (int i = 0; i < 6; ++i)
+    bv.tile[i] = brew_tile(bv.root, i % 3, i / 3, titles[i], i % 3 == 0);
+  // Tuile de fonctionnement : quatre colonnes, séparées par des filets
+  // indépendants (une bordure de colonne déborderait sur ses enfants).
+  bv.live = box(bv.root, theme::kMargin, 296, 536, theme::kButtonHeight,
+                theme::kBgRaised, theme::kRadius);
+  lv_obj_set_style_pad_all(bv.live, 0, 0);
+  const char *live_titles[4] = {"chauffe", "pompe", "débit balance",
+                                "débit pompe"};
+  for (int i = 0; i < 4; ++i) {
+    lv_obj_t *title = nullptr;
+    // 134 px par colonne : la police 26 garde « 1,25 ml/s » dans sa colonne.
+    lab(bv.live, &title, live_titles[i], theme::kFontLabel, theme::kTextFaint,
+        12 + i * 134, 14);
+    dyn(bv.live, &bv.live_value[i], "-", theme::kFontButton, theme::kText,
+        12 + i * 134, 42);
+    if (i > 0)
+      box(bv.live, i * 134, 16, 1, 56, theme::kHairline, 0);
+  }
+  bv.stop = button(bv.root, 584, 296, 184, theme::kButtonHeight, "arrêter",
+                   Role::Primary);
+  bind(bv.stop);
+  lv_obj_add_event_cb(bv.stop, stop, LV_EVENT_CLICKED, nullptr);
+  bv.close = button(bv.root, 224, 296, 352, theme::kButtonHeight, "fermer");
+  // Grisé pendant les 20 s de capture qui suivent l'arrêt : fond de tuile et
+  // texte pâle, sans le recolor gris à 50 % du thème par défaut.
+  constexpr auto disabled = static_cast<lv_style_selector_t>(
+      static_cast<uint32_t>(LV_PART_MAIN) | static_cast<uint32_t>(LV_STATE_DISABLED));
+  lv_obj_set_style_bg_color(bv.close, theme::kBgRaised, disabled);
+  lv_obj_set_style_recolor_opa(bv.close, LV_OPA_TRANSP, disabled);
+  lv_obj_set_style_text_color(lv_obj_get_child(bv.close, 0), theme::kTextFaint, disabled);
+  bind(bv.close);
+  lv_obj_add_event_cb(bv.close, stop, LV_EVENT_CLICKED, nullptr);
+  hidden(bv.close, true);
+  hidden(bv.root, true);
+}
+const char *brew_phase_text(const core::Snapshot &s, bool done) {
+  const core::ShotSummary &shot = s.shot;
+  if (done)
+    return s.capture_cooldown ? (shot.drip_done ? "écoulement" : "dernières gouttes")
+                              : "terminé";
+  switch (s.cycle_state) {
+  case core::CycleState::kThermalPreheat: return "pré-chauffe";
+  case core::CycleState::kFilling: return "remplissage";
+  case core::CycleState::kPreinfusion: return "pré-infusion";
+  case core::CycleState::kRampdown: return "rampe";
+  default:
+    return shot.has(core::ShotSegment::kInfusion) ? "infusion"
+                                                  : "infusion · montée en pression";
+  }
+}
+void render_frise(const core::ShotSummary &shot, bool live) {
+  const float axis = std::max(shot.axis_s, 1.0f);
+  const float k = kFriseWidth / axis;
+  char t[24];
+  int8_t current = -1;
+  for (size_t i = 0; i < kSegments; ++i) {
+    const auto segment = static_cast<core::ShotSegment>(i);
+    if (!shot.has(segment)) {
+      hidden(bv.segment[i], true);
+      hidden(bv.number[i], true);
+      continue;
+    }
+    const int32_t x = std::clamp<int32_t>(
+        std::lround(shot.segment_start_s[i] * k), 0, kFriseWidth - 2);
+    const int32_t end = std::clamp<int32_t>(
+        std::lround(shot.segment_end_s[i] * k), 0, kFriseWidth);
+    const int32_t w = std::max<int32_t>(2, std::min<int32_t>(end, kFriseWidth) - x - 2);
+    set_geometry(bv.segment[i], bv.segment_x[i], bv.segment_w[i], x, w);
+    hidden(bv.segment[i], false);
+    const SegmentStyle &style = segment_style(i);
+    const char *name = "";
+    for (const char *candidate : style.names)
+      if (text_width(candidate, theme::kFontLabel) + 8 <= w) {
+        name = candidate;
+        break;
+      }
+    text(bv.segment_label[i], name);
+    if (segment == core::ShotSegment::kDrip) {
+      char gain[16];
+      fmt_digits(gain, sizeof(gain), shot.drip_gain_g, 1, " g");
+      std::snprintf(t, sizeof(t), "+%s", gain);
+    } else {
+      fmt_digits(t, sizeof(t), shot.duration_s(segment), 1, "");
+    }
+    const int32_t number_w = text_width(t, theme::kFontButton);
+    // Les gouttes s'alignent sur la fin de la frise ; les autres chiffres sur
+    // le début de leur segment, s'ils tiennent dans sa largeur.
+    const bool drip = segment == core::ShotSegment::kDrip;
+    const bool show = drip ? shot.duration_s(segment) > 0.3f : number_w + 6 <= w;
+    if (show) {
+      text(bv.number[i], t);
+      const int32_t nx = drip ? std::max<int32_t>(0, x + w - number_w) : x;
+      if (bv.number_x[i] != nx) {
+        bv.number_x[i] = nx;
+        lv_obj_set_x(bv.number[i], nx);
+      }
+    }
+    hidden(bv.number[i], !show);
+    if (live && !shot.drip_done)
+      current = static_cast<int8_t>(i);
+  }
+  if (current != bv.outlined) {
+    if (bv.outlined >= 0)
+      lv_obj_set_style_outline_width(bv.segment[bv.outlined], 0, 0);
+    if (current >= 0)
+      lv_obj_set_style_outline_width(bv.segment[current], 2, 0);
+    bv.outlined = current;
+  }
+  const bool reserve = !shot.pump_stopped();
+  if (reserve) {
+    const int32_t rx = std::clamp<int32_t>(
+        std::lround((axis - core::ShotSummaryBuilder::kDripReserveS) * k), 0,
+        kFriseWidth - 2);
+    if (rx != bv.reserve_x) {
+      bv.reserve_x = rx;
+      lv_obj_set_x(bv.reserve, rx);
+      lv_obj_set_width(bv.reserve, kFriseWidth - rx);
+    }
+  }
+  hidden(bv.reserve, !reserve);
+}
+void tile_detail_after_value(BrewTile &tile) {
+  // Après la valeur, à 10 px, sur la ligne de base de la police 32.
+  const int32_t x = 16 + text_width(lv_label_get_text(tile.value), theme::kFontUnit) + 10;
+  if (lv_obj_get_x(tile.detail) != x)
+    lv_obj_set_x(tile.detail, x);
+}
+void render_brew(const core::Snapshot &s, const core::Config &c, bool done) {
+  const core::ShotSummary &shot = s.shot;
+  char t[48];
+  text(bv.phase, brew_phase_text(s, done));
+  if (s.shot_start_unix_s > 0) {
+    std::time_t start = static_cast<std::time_t>(s.shot_start_unix_s);
+    std::tm local{};
+    localtime_r(&start, &local);
+    std::strftime(t, sizeof(t), "%d/%m · %H:%M", &local);
+    text(bv.started, t);
+  } else {
+    text(bv.started, "");
+  }
+  render_frise(shot, active(s) || s.capture_cooldown);
+
+  fmt_digits(t, sizeof(t), shot.cup_weight_g, 1, " g");
+  text(bv.tile[0].value, t);
+  fmt_digits(t, sizeof(t), shot.infusion_s, 1, " s");
+  text(bv.tile[1].value, t);
+  fmt_digits(t, sizeof(t), shot.cup_mean_c, 1, "°");
+  text(bv.tile[2].value, t);
+  if (std::isfinite(shot.cup_mean_c))
+    std::snprintf(t, sizeof(t), "cible %.0f°", static_cast<double>(c.brew_temperature_c));
+  else
+    t[0] = '\0';
+  text(bv.tile[2].detail, t);
+  tile_detail_after_value(bv.tile[2]);
+  const float total = shot.pump_stopped() ? shot.pump_stop_s : shot.elapsed_s;
+  fmt_digits(t, sizeof(t), total, 1, " s");
+  text(bv.tile[3].value, t);
+  if (std::isfinite(shot.pump_start_s)) {
+    char pump[16];
+    fmt_digits(pump, sizeof(pump), total - shot.pump_start_s, 1, "");
+    std::snprintf(t, sizeof(t), "pompe %s", pump);
+    text(bv.tile[3].aside, t);
+  } else {
+    text(bv.tile[3].aside, "");
+  }
+  fmt_digits(t, sizeof(t), shot.infusion_cup_g_s, 2, " g/s");
+  text(bv.tile[4].value, t);
+  if (std::isfinite(shot.infusion_ml_s))
+    fmt_digits(t, sizeof(t), shot.infusion_ml_s, 2, " ml/s");
+  else
+    t[0] = '\0';
+  text(bv.tile[4].aside, t);
+  if (std::isfinite(shot.min_temperature_c)) {
+    fmt_digits(t, sizeof(t), -std::max(0.0f, shot.start_temperature_c - shot.min_temperature_c), 1, "°");
+    text(bv.tile[5].value, t);
+    char low[12], high[12];
+    fmt_digits(low, sizeof(low), shot.min_temperature_c, 1, "");
+    fmt_digits(high, sizeof(high), shot.max_temperature_c, 1, "°");
+    std::snprintf(t, sizeof(t), "%s-%s", low, high);
+    text(bv.tile[5].detail, t);
+  } else {
+    text(bv.tile[5].value, "-");
+    text(bv.tile[5].detail, "");
+  }
+  tile_detail_after_value(bv.tile[5]);
+
+  const bool flowing = !done;
+  hidden(bv.live, !flowing);
+  hidden(bv.stop, !flowing);
+  hidden(bv.close, flowing);
+  if (flowing) {
+    std::snprintf(t, sizeof(t), "%.0f %%", static_cast<double>(s.heating_power_pct));
+    text(bv.live_value[0], t);
+    std::snprintf(t, sizeof(t), "%u %%", s.dimmer_pct);
+    text(bv.live_value[1], t);
+    fmt_digits(t, sizeof(t), shot.cup_rate_g_s, 2, " g/s");
+    text(bv.live_value[2], t);
+    fmt_digits(t, sizeof(t), s.flow_ml_s, 2, " ml/s");
+    text(bv.live_value[3], t);
+  } else {
+    if (s.capture_cooldown)
+      std::snprintf(t, sizeof(t), "fermer · %lu s",
+                    ulong((s.capture_cooldown_remaining_ms + 999) / 1000));
+    else
+      std::snprintf(t, sizeof(t), "fermer");
+    text(lv_obj_get_child(bv.close, 0), t);
+    disable(bv.close, s.capture_cooldown);
+  }
+}
 void cycle(const core::Snapshot &s, const core::Config &c) {
   bool a = active(s), done = s.cycle_state == core::CycleState::kFinished;
   cycle_visible(a || done);
+  // Une infusion a son propre écran ; la purge garde l'écran de cycle.
+  const bool brew_view = s.shot.active && s.cycle_state != core::CycleState::kPurge && (a || done);
+  hidden(bv.root, !brew_view);
+  if (brew_view) {
+    hidden(v.cycle, true);
+    render_brew(s, c, done);
+    return;
+  }
   if (!a && !done)
     return;
   char t[96];
@@ -1467,6 +1816,7 @@ void create(lv_obj_t *p) {
   bind(v.stop);
   lv_obj_add_event_cb(v.stop, stop, LV_EVENT_CLICKED, nullptr);
   hidden(v.cycle, true);
+  build_brew(p);
   v.settings = lv_obj_create(p);
   base(v.settings);
   lv_obj_t *settings_bar =

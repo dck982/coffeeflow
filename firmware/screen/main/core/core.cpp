@@ -103,6 +103,7 @@ struct State {
   int64_t shot_start_unix_s = 0;
   bool shot_summary_pending = false;
   HFCapture hf_capture;
+  ShotSummaryBuilder shot_builder;
 };
 State g_state;
 // Le seul résumé retenu ne consomme pas de SRAM interne utile aux radios/LCD.
@@ -188,6 +189,7 @@ TelemetryProfile capture_profile_locked() {
 
 bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
   bool started = false;
+  const Config config = get_config();
   portENTER_CRITICAL(&g_state.lock);
   HFCapture& capture = g_state.hf_capture;
   if (capture.samples != nullptr && (!capture.active || capture.cooldown)) {
@@ -211,6 +213,14 @@ bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
     capture.actuator_seen_on = false;
     capture.cooldown = false;
     g_state.snapshot.capture_cooldown = false;
+    // Seule une infusion a un résumé ; une purge ou une commande de banc
+    // l'efface pour que l'écran ne montre pas un cycle étranger.
+    if (origin == HFCaptureOrigin::kBrew)
+      g_state.shot_builder.reset(config.target_pressure_bar, config.heating_enabled ? config.brew_preheat_time_s : 0.0f);
+    else
+      g_state.shot_builder.clear();
+    g_state.snapshot.shot = g_state.shot_builder.summary();
+    g_state.snapshot.shot_start_unix_s = capture.started_at_unix_s;
     started = true;
   } else if (capture.active) {
     capture.pump_pct_commanded = dimmer;
@@ -236,6 +246,29 @@ void finish_hf_capture_without_pump(int64_t now) {
     g_state.snapshot.capture_cooldown = true;
   }
   portEXIT_CRITICAL(&g_state.lock);
+}
+
+ShotSample shot_sample(const HFSample& sample) {
+  ShotSample shot;
+  shot.t_s = static_cast<float>(sample.t_ms) / 1000.0f;
+  switch (sample.mode) {
+    case HFSampleMode::kThermalPreheat: shot.mode = ShotSampleMode::kPreheat; break;
+    case HFSampleMode::kFilling: shot.mode = ShotSampleMode::kFilling; break;
+    case HFSampleMode::kPreinfusion: shot.mode = ShotSampleMode::kPreinfusion; break;
+    case HFSampleMode::kInfusion:
+    case HFSampleMode::kRampDown: shot.mode = ShotSampleMode::kInfusion; break;
+    case HFSampleMode::kCooldown: shot.mode = ShotSampleMode::kCooldown; break;
+    case HFSampleMode::kPurge: shot.mode = ShotSampleMode::kOther; break;
+  }
+  shot.pump_pct = sample.pump_pct_reported;
+  shot.pressure_valid = (sample.flags & 0x01) != 0;
+  shot.pressure_bar = sample.pressure_bar;
+  shot.scale_present = (sample.flags & 0x04) != 0;
+  shot.weight_g = sample.weight_g;
+  shot.volume_ml = sample.volume_ml;
+  shot.temperature_valid = (sample.flags & 0x08) != 0;
+  shot.temperature_c = sample.boiler_temperature_c;
+  return shot;
 }
 
 void tick_hf_capture() {
@@ -306,6 +339,10 @@ void tick_hf_capture() {
                                        freshness(g_state.boiler_received_us, kBoilerPairPeriodMs, now) == Freshness::kFresh
                                            ? 0x08 : 0) |
                                       (snapshot.heater_on ? 0x10 : 0));
+  if (capture.origin == HFCaptureOrigin::kBrew) {
+    g_state.shot_builder.add(shot_sample(sample));
+    snapshot.shot = g_state.shot_builder.summary();
+  }
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -1284,6 +1321,8 @@ Snapshot get_snapshot() {
   result.last_shot_duration_ms = g_last_shot.duration_ms;
   result.last_shot_flow_ml_s = g_last_shot.flow_ml_s;
   result.last_shot_unix_s = g_last_shot.unix_s;
+  result.capture_cooldown_remaining_ms = g_state.hf_capture.cooldown && g_state.hf_capture.cooldown_ends_at_us > now_us()
+      ? static_cast<uint32_t>((g_state.hf_capture.cooldown_ends_at_us - now_us()) / 1000) : 0;
   pressure_received = g_state.pressure_received_us;
   boiler_received = g_state.boiler_received_us;
   flow_received = g_state.flow_received_us;

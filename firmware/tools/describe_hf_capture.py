@@ -184,6 +184,159 @@ def drip_truncated(cup_flows: list[float], stop_index: int | None) -> list[float
     return result
 
 
+SHOT_MODES = {"thermal_preheat": "preheat", "filling": "filling", "preinfusion": "preinfusion",
+              "infusion": "infusion", "ramp_down": "infusion", "rampdown": "infusion", "cooldown": "cooldown"}
+SHOT_SEGMENTS = ("preheat", "filling", "preinfusion", "ramp", "infusion", "drip")
+
+
+def shot_summary(samples: list[dict[str, Any]], target_pressure_bar: float = 9.0) -> dict[str, Any]:
+    """Résumé d'infusion, mêmes définitions que core/shot_summary.h (écran).
+
+    Infusion : de consigne − 1 bar à l'arrêt de la pompe, sinon toute la phase
+    d'infusion. Poids relatif au premier échantillon. Débit en tasse sur les
+    2 dernières secondes. Gouttes : jusqu'au premier débit en tasse nul ou
+    inconnu après l'arrêt. Moyenne en tasse : NTC pondérée par le poids
+    (maximum courant) jusqu'à l'arrêt. Températures extrêmes : pompe en marche.
+    """
+    nan = float("nan")
+    start = {name: nan for name in SHOT_SEGMENTS}
+    end = {name: nan for name in SHOT_SEGMENTS}
+    current = None
+    pump_start = pump_stop = nan
+    threshold = target_pressure_bar - 1.0
+    pressure_t = pressure_w = pressure_v = nan
+    infusion_t = infusion_w = infusion_v = nan
+    last_w = nan
+    last_v = 0.0
+    origin = nan
+    window: list[tuple[float, float]] = []
+    weight_max = weighted = weight_sum = 0.0
+    last_temperature = nan
+    result = {"cup_weight_g": nan, "drip_gain_g": 0.0, "drip_done": False, "cup_mean_c": nan,
+              "start_temperature_c": nan, "min_temperature_c": nan, "max_temperature_c": nan,
+              "infusion_s": nan, "infusion_cup_g_s": nan, "infusion_ml_s": nan}
+    stop_weight = nan
+    flows_frozen = False
+    elapsed = 0.0
+
+    def open_segment(name: str, t: float) -> None:
+        nonlocal current
+        if name == current:
+            return
+        if current is not None:
+            end[current] = t
+        current = name
+        start[name] = t
+
+    for sample in samples:
+        t = number(sample.get("t_ms")) / 1000
+        elapsed = t
+        pump_on = number(sample.get("pump_pct_reported")) > 0
+        if pump_on and not math.isfinite(pump_start):
+            pump_start = t
+        running = math.isfinite(pump_start) and not math.isfinite(pump_stop)
+        if not pump_on and running:
+            pump_stop = t
+        running = math.isfinite(pump_start) and not math.isfinite(pump_stop)
+        weight = nan
+        if valid(sample, "scale") and math.isfinite(number(sample.get("weight_g"))):
+            if not math.isfinite(origin):
+                origin = number(sample.get("weight_g"))
+            weight = number(sample.get("weight_g")) - origin
+        window.append((t, weight))
+        window = window[-32:]
+        rate = nan
+        if len(window) >= 2 and math.isfinite(window[-1][1]) and window[-1][1] >= 0:
+            for past_t, past_w in reversed(window[:-1]):
+                if not math.isfinite(past_w) or past_w < 0:
+                    break
+                if t - past_t >= 2.0 - 1e-3:
+                    rate = (window[-1][1] - past_w) / (t - past_t)
+                    break
+        temperature = number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
+        if valid(sample, "boiler") and math.isfinite(temperature):
+            if not math.isfinite(result["start_temperature_c"]):
+                result["start_temperature_c"] = temperature
+            if running:
+                low, high = result["min_temperature_c"], result["max_temperature_c"]
+                result["min_temperature_c"] = temperature if not math.isfinite(low) else min(low, temperature)
+                result["max_temperature_c"] = temperature if not math.isfinite(high) else max(high, temperature)
+                if math.isfinite(weight) and weight > weight_max:
+                    previous = last_temperature if math.isfinite(last_temperature) else temperature
+                    weighted += (weight - weight_max) * (previous + temperature) / 2
+                    weight_sum += weight - weight_max
+                    weight_max = weight
+                    if weight_sum > 0.5:
+                        result["cup_mean_c"] = weighted / weight_sum
+            last_temperature = temperature
+        mode = SHOT_MODES.get(str(sample.get("mode")), "other")
+        pressure = number(sample.get("pressure_bar"))
+        if mode in ("preheat", "filling", "preinfusion"):
+            open_segment(mode, t)
+        elif mode == "infusion":
+            if not math.isfinite(infusion_t):
+                infusion_t, infusion_w, infusion_v = t, weight, number(sample.get("volume_ml"))
+            if not math.isfinite(pressure_t) and valid(sample, "pressure") and pressure >= threshold:
+                pressure_t, pressure_w, pressure_v = t, weight, number(sample.get("volume_ml"))
+            open_segment("infusion" if math.isfinite(pressure_t) else "ramp", t)
+            last_v = number(sample.get("volume_ml"))
+            if math.isfinite(weight):
+                last_w = weight
+        elif mode == "cooldown" and not result["drip_done"]:
+            open_segment("drip", t)
+        if current is not None and not result["drip_done"]:
+            end[current] = t
+        if (math.isfinite(pump_stop) and not math.isfinite(pressure_t) and math.isfinite(start["ramp"])
+                and not math.isfinite(start["infusion"])):
+            start["infusion"], end["infusion"] = start["ramp"], end["ramp"]
+            start["ramp"] = end["ramp"] = nan
+        if not result["drip_done"]:
+            if math.isfinite(weight) and weight >= 0:
+                result["cup_weight_g"] = weight
+            if math.isfinite(pump_stop):
+                if not math.isfinite(stop_weight):
+                    stop_weight = result["cup_weight_g"]
+                if math.isfinite(result["cup_weight_g"]) and math.isfinite(stop_weight):
+                    result["drip_gain_g"] = max(0.0, result["cup_weight_g"] - stop_weight)
+                if t > pump_stop and (not math.isfinite(rate) or rate <= 0):
+                    result["drip_done"] = True
+                    if math.isfinite(start["drip"]):
+                        end["drip"] = t
+        reached = math.isfinite(pressure_t)
+        begin = pressure_t if reached else infusion_t
+        if math.isfinite(begin) and (reached or math.isfinite(pump_stop)):
+            finish = pump_stop if math.isfinite(pump_stop) else t
+            duration = max(0.0, finish - begin)
+            result["infusion_s"] = duration
+            if duration >= 1.0 and not flows_frozen:
+                begin_w = pressure_w if reached else infusion_w
+                begin_v = pressure_v if reached else infusion_v
+                if math.isfinite(begin_w) and math.isfinite(last_w):
+                    result["infusion_cup_g_s"] = (last_w - begin_w) / duration
+                if math.isfinite(begin_v):
+                    result["infusion_ml_s"] = (last_v - begin_v) / duration
+                flows_frozen = math.isfinite(pump_stop)
+    result.update(segments={name: (start[name], end[name]) for name in SHOT_SEGMENTS},
+                  pump_start_s=pump_start, pump_stop_s=pump_stop, elapsed_s=elapsed,
+                  total_s=pump_stop if math.isfinite(pump_stop) else elapsed)
+    return result
+
+
+def shot_cards(shot: dict[str, Any], target_pressure_bar: float) -> list[str]:
+    """Les six tuiles de l'écran d'infusion, dans le même ordre."""
+    pump = (shot["total_s"] - shot["pump_start_s"]) if math.isfinite(shot["pump_start_s"]) else float("nan")
+    drop = shot["start_temperature_c"] - shot["min_temperature_c"]
+    return [
+        metric_card("Poids", f"{fmt(shot['cup_weight_g'], 1)} g", f"dont {fmt(shot['drip_gain_g'], 1)} g de gouttes"),
+        metric_card("Temps infusion", f"{fmt(shot['infusion_s'], 1)} s", f"depuis {target_pressure_bar - 1:g} bar"),
+        metric_card("Moyenne en tasse", f"{fmt(shot['cup_mean_c'])} °C", "NTC pondérée par la tasse"),
+        metric_card("Temps total", f"{fmt(shot['total_s'], 1)} s", f"pompe {fmt(pump, 1)} s"),
+        metric_card("Débit infusion", f"{fmt(shot['infusion_cup_g_s'])} g/s", f"{fmt(shot['infusion_ml_s'])} ml/s débitmètre"),
+        metric_card("Baisse thermique", f"-{fmt(max(0.0, drop))} °C" if math.isfinite(drop) else "—",
+                    f"{fmt(shot['min_temperature_c'], 1)}–{fmt(shot['max_temperature_c'], 1)} °C, pompe en marche"),
+    ]
+
+
 def capture_duration_s(capture: dict[str, Any]) -> float:
     started = number(capture.get("started_at_us"))
     ended = number(capture.get("ended_at_us"))
@@ -644,7 +797,8 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
 </script>"""
 
 
-def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: float = 2.0) -> str:
+def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: float = 2.0,
+                  target_pressure_bar: float = 9.0) -> str:
     samples: list[dict[str, Any]] = capture["samples"]
     if not samples:
         raise RuntimeError("la capture ne contient aucun échantillon")
@@ -680,10 +834,6 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
                         if hydraulic_duration_s > 0 and math.isfinite(stop_weight_g)
                         and math.isfinite(weights_g[hydraulic_start_index])
                         else float("nan"))
-    temp_values = [number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
-                   for sample in samples if valid(sample, "boiler")]
-    temp_values = [value for value in temp_values if math.isfinite(value)]
-    temp_drop = temp_values[0] - min(temp_values) if temp_values else float("nan")
     phase_names = [mode_label(item[4]) for item in phase_ranges(samples, duration_s)]
     hydraulic_samples = samples[hydraulic_start_index:]
     pressure_invalid_s = invalid_duration_s(hydraulic_samples, "pressure", stop_s)
@@ -698,21 +848,16 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
         f"ne sont pas utilisées. La pression est invalide pendant {pressure_invalid_s:.2f} s "
         f"({pressure_invalid_pct:.1f} % du temps d’infusion)."
     )
-    hero_cards = [
-        metric_card("Temps total", f"{stop_s:.2f} s",
-                    f"dont {hydraulic_duration_s:.2f} s pompe démarrée"),
-        metric_card("Poids au stop", f"{fmt(stop_weight_g, 1)} g", "cooldown exclu"),
+    hero_cards = shot_cards(shot_summary(samples, target_pressure_bar), target_pressure_bar)
+    diagnostic_cards = [
         metric_card("Débit tasse", f"{fmt(cup_flow_average)} / {fmt(cup_flow_max)} g/s",
                     f"moyen / maximum avant stop, lissé sur {weight_flow_window_s:g} s"),
-    ]
-    diagnostic_cards = [
         metric_card("Pression maximale", f"{fmt(pressure_max[0])} bar" if pressure_max else "—",
                     f"valide, à t = {pressure_max[1]:.2f} s" if pressure_max else "mesure valide absente"),
         metric_card("Pression valide", f"{100 - pressure_invalid_pct:.1f} %",
                     f"{pressure_invalid_s:.2f} s invalides"),
         metric_card("Débit de remplissage", f"{fmt(filling_flow_max[0])} ml/s" if filling_flow_max else "—",
                     f"débitmètre, max à t = {filling_flow_max[1]:.2f} s" if filling_flow_max else "mesure absente"),
-        metric_card("Baisse thermique max.", f"{fmt(temp_drop)} °C", "depuis la température initiale"),
     ]
     dropped = int(number(capture.get("dropped_samples"))) if math.isfinite(number(capture.get("dropped_samples"))) else 0
     quality = (f"{len(samples)} échantillons à une période annoncée de {capture.get('sample_period_ms', '—')} ms. "
@@ -821,11 +966,13 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, help="fichier HTML (défaut : même nom que la capture)")
     parser.add_argument("--weight-flow-window-s", type=float, default=2.0,
                         help="fenêtre centrée du débit balance, en secondes (défaut : 2)")
+    parser.add_argument("--target-pressure-bar", type=float, default=9.0,
+                        help="pression cible de la recette ; l'infusion part de cette valeur − 1 bar (défaut : 9)")
     args = parser.parse_args(argv)
     output = args.output or args.capture.with_suffix(".html")
     try:
         capture = validate_capture(json.loads(args.capture.read_text(encoding="utf-8")))
-        report = render_report(capture, args.capture, args.weight_flow_window_s)
+        report = render_report(capture, args.capture, args.weight_flow_window_s, args.target_pressure_bar)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(report, encoding="utf-8")
     except (OSError, json.JSONDecodeError, RuntimeError, ValueError) as error:

@@ -20,6 +20,9 @@ build. Les scénarios disponibles sont l'accueil (défaut), `no-scale`, `setting
 `diagnostic-states`, `heating-menu-on`, `heating-menu-off`, `valve-menu`,
 `valve-menu-open`, `valve-menu-heating`, `wifi-confirm`,
 `dim`, `standby`, `cold` (lecture sonde à l'ambiante) et `cold-capped`
-(sonde entre 50 et 60,5 °C). Le simulateur ne
+(sonde entre 50 et 60,5 °C). L'écran d'infusion se capture avec
+`brew-<t>` (infusion synthétique à `t` secondes, par exemple `brew-3`, `brew-15`,
+`brew-30`, `brew-41`, `brew-60`) ou `replay=<csv>@<t>` ; `brew` et `preinfusion`
+sont des alias de `brew-30` et `brew-10`. Voir `docs/ecran-infusion.md`. Le simulateur ne
 remplace pas un essai tactile ou RGB sur la dalle. Le scénario `wifi-mode`
 capture le plein écran du mode Wi-Fi.

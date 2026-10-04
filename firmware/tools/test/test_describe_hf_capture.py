@@ -66,3 +66,27 @@ def test_cup_flow_continues_after_pump_stop_until_first_zero():
     hidden = drip_truncated([1.0, 0.5, math.nan, 0.4], 1)
     assert hidden[:2] == [1.0, 0.5] and all(math.isnan(value) for value in hidden[2:])
 
+
+def test_shot_summary_matches_screen_definitions():
+    # Même infusion synthétique que firmware/screen/test/test_shot_summary.cpp.
+    from describe_hf_capture import shot_summary
+
+    def sample(t):
+        mode = ("thermal_preheat" if t < 5 else "filling" if t < 8 else "preinfusion" if t < 12
+                else "infusion" if t < 40 else "cooldown")
+        weight = 10 + max(0.0, min(t, 40) - 16) + (min(t - 40, 2) * 0.25 if t > 40 else 0)
+        return {"t_ms": round(t * 1000), "mode": mode, "flags": 0x0F,
+                "pump_pct_reported": 60 if 5 <= t < 40 else 0,
+                "pressure_bar": 0.3 if t < 12 else min(9.0, 0.3 + (t - 12) * 2),
+                "weight_g": weight, "volume_ml": max(0.0, min(t, 40) - 5) * 1.5,
+                "boiler_temperature_c": 90 - max(0.0, t - 5) * 0.1 if t < 16 else 88.9 + (t - 16) * 0.1}
+
+    shot = shot_summary([sample(i / 10) for i in range(601)])
+    assert abs(shot["segments"]["infusion"][0] - 15.9) < 0.01
+    assert abs(shot["infusion_s"] - 24.1) < 0.01
+    assert abs(shot["infusion_cup_g_s"] - 23.9 / 24.1) < 0.01
+    assert abs(shot["infusion_ml_s"] - 1.5) < 0.02
+    assert abs(shot["cup_weight_g"] - 24.5) < 0.06 and shot["drip_done"]
+    assert abs(shot["drip_gain_g"] - 0.5) < 0.06
+    assert abs(shot["cup_mean_c"] - 90.1) < 0.05
+    assert abs(shot["min_temperature_c"] - 88.9) < 0.02 and abs(shot["max_temperature_c"] - 91.3) < 0.02

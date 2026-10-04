@@ -1,5 +1,5 @@
 # Composant ESP-IDF partagé par sensors/ et screen/ — protocole CAN, CRC,
-# table de codes LOG. Voir docs/firmware.md et docs/firmware-implementation.md.
+# table de codes LOG.
 
 idf_component_register(
   SRCS "src/crc.cpp" "src/framing.cpp"

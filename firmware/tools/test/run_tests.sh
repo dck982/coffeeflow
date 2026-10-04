@@ -1,6 +1,6 @@
 #!/bin/sh
-# Tests hôte de l'outil Mac (coffeetool). Aucune dépendance matérielle : voir
-# docs/firmware-implementation.md, phase 1. Régénère d'abord log_codes.py
+# Tests hôte de l'outil Mac (coffeetool). Aucune dépendance matérielle.
+# Régénère d'abord log_codes.py
 # depuis la même source YAML que le firmware, comme common/test/run_tests.sh.
 set -eu
 

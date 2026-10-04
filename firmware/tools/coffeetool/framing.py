@@ -1,6 +1,5 @@
 """Cadrage série (USB CDC) — portage à la main de
-firmware/common/include/common/framing.hpp. Voir docs/firmware.md et
-docs/firmware-implementation.md, phase 1.
+firmware/common/include/common/framing.hpp.
 
 Le WebSocket transporte le PDU tel quel, un message = une trame ; seul le
 fil série a besoin d'un cadrage, parce qu'un flux d'octets n'a pas de

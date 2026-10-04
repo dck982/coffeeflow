@@ -1,5 +1,5 @@
 // Adaptateur CAN de secours — M5Stack Atom S3 + Unit CAN, indépendant de
-// sensors/ et screen/. Voir docs/firmware-implementation.md, phase 2.
+// sensors/ et screen/.
 //
 // Pont binaire bidirectionnel série <-> CAN, même cadrage que celui prévu
 // pour l'écran en phase 3 (COBS + PDU + CRC16, voir
@@ -38,7 +38,7 @@ namespace {
 // GPIO — Port.A de l'Atom S3, modifiables sans fouiller le reste du code.
 // GPIO 26/36 documentés initialement étaient faux pour cet exemplaire ;
 // confirmé au multimètre puis par auto-test de bouclage transceiver
-// (firmware/can-selftest) le 2026-09-08. Voir docs/firmware-implementation.md.
+// (firmware/can-selftest) le 2026-09-08.
 constexpr gpio_num_t kCanTx = GPIO_NUM_2;
 constexpr gpio_num_t kCanRx = GPIO_NUM_1;
 

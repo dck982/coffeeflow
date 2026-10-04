@@ -1,5 +1,4 @@
-// Module écran (Waveshare ESP32-S3-Touch-LCD-4.3) — phase 3 : pont USB <->
-// CAN, voir docs/firmware-implementation.md et docs/firmware.md.
+// Module écran (Waveshare ESP32-S3-Touch-LCD-4.3) — pont USB <-> CAN.
 //
 // Deux rôles à la fois, comme prévu par la doc :
 //   - Pont transparent, même cadrage que firmware/can-monitor (COBS + PDU +
@@ -17,8 +16,7 @@
 //
 // app_main() ne fait qu'initialiser le matériel et créer les tâches — voir
 // board.h, can_link.h, serial_bridge.h et ota_local.h pour le détail de
-// chaque rôle (docs/plan-phase6.md, lot 1 : restructuration sans changement
-// de comportement).
+// chaque rôle.
 //
 // Ni LVGL, ni Wi-Fi, ni BLE, ni logique d'infusion : voir docs/firmware.md,
 // "Le Waveshare reste atteignable en USB-C... image factory minuscule".
@@ -44,8 +42,7 @@ extern "C" void app_main() {
   board::ch422g_init();
   board::select_can();
 
-  // NEW ou PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4 point 3,
-  // et sensors/main.cpp (même mécanique). La validation exige une
+  // NEW ou PENDING_VERIFY : même mécanique que sensors/main.cpp. La validation exige une
   // confirmation HTTP ; le temporisateur invalide l'image au bout du délai.
   ota_local::init_pending_verify();
 
@@ -66,7 +63,7 @@ extern "C" void app_main() {
   core::start_telemetry_task();
   boiler_ntc::start();
 
-  // Écran de service (docs/plan-phase6.md, lot 2) : après le pont et le CAN,
+  // Écran de service : après le pont et le CAN,
   // pour que le conflit CH422G (dalle vs CAN_SEL) se révèle contre un bus
   // déjà vivant plutôt qu'un bus qui n'a jamais tourné.
   // Il doit aussi précéder Wi-Fi : les buffers RGB DMA ont besoin de RAM

@@ -1,5 +1,4 @@
 # Projet ESP-IDF — module capteurs (XIAO ESP32-S3).
-# Voir docs/firmware.md et docs/firmware-implementation.md.
 
 cmake_minimum_required(VERSION 3.16)
 

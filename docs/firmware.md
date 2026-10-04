@@ -14,7 +14,7 @@ firmware/
   tools/      décodeur Mac (USB série et WebSocket)
 ```
 
-**Langage : C++ sur ESP-IDF 5.x pour les deux cartes**, tâches FreeRTOS, pas de `loop()` Arduino. Une seule langue parce que le codec du protocole et le cadrage OTA doivent être identiques des deux côtés, et parce que l'écran (CH422G, GT911, RGB via `esp_lcd`, LVGL, client GATT BLE, `esp_http_server`, NVS) n'est documenté qu'en C. Rust sur le module capteurs reste une réécriture légitime plus tard, une fois l'image factory ennuyeuse et prouvée. Arduino-ESP32 peut être tiré comme composant IDF si une bibliothèque l'exige.
+**Langage : C++ sur ESP-IDF 6.1 pour les deux cartes** (version figée : `firmware/IDF_VERSION.md`), tâches FreeRTOS, pas de `loop()` Arduino. Une seule langue parce que le codec du protocole et le cadrage OTA doivent être identiques des deux côtés, et parce que l'écran (CH422G, GT911, RGB via `esp_lcd`, LVGL, client GATT BLE, `esp_http_server`, NVS) n'est documenté qu'en C. Rust sur le module capteurs reste une réécriture légitime plus tard, une fois l'image factory ennuyeuse et prouvée. Arduino-ESP32 peut être tiré comme composant IDF si une bibliothèque l'exige.
 
 ## Répartition
 
@@ -415,6 +415,30 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 `profiles` reste un tableau vide tant que la notion de profil n'existe pas :
 le schéma est prévu pour, et l'ajouter ne changera pas le reste de l'objet.
 
+Chaque changement de schéma migre les versions précédentes ; un champ dont le
+sens change (par exemple un seuil absolu devenu relatif) revient à son défaut
+plutôt que d'être converti.
+
+**Fin du remplissage (schéma 9, écran 0.3.40).** Le remplissage se termine
+quand la pression valide reste au moins 150 ms (deux paquets à 100 ms) à
+`filling.pressure_bar`, après une garde de 1 s. Défaut **1,0 bar**, plage 0,3
+à 2,0 bar. `filling.time_s` n'est qu'un secours (débitmètre ou capteur
+défaillant, galette absente) : défaut 10 s, plage 1 à 20 s. Pourquoi un seuil
+absolu : une montée de +0,10 bar au-dessus du plancher (schéma 8) arrêtait le
+remplissage vers 14–16 ml, avant que la galette soit mouillée. Sur les 14
+infusions du 26 septembre au 4 octobre, 1 bar arrive entre 23,5 et 30,7 ml,
+quelle que soit la mouture ; la pression au repos (jusqu'à 1,44 bar) retombe
+pendant la garde, et un paquet isolé est écarté par la confirmation. Si la
+première goutte tombe systématiquement pendant le remplissage et que la
+pré-infusion disparaît, baisser le seuil.
+
+**Pré-infusion.** Elle se termine au temps, ou dès la première goutte
+(+0,1 g depuis le début du remplissage). La sortie par pression a été retirée
+(schéma 8) : la pression n'a jamais dépassé 1,26 bar en pré-infusion. Le
+défaut de `preinfusion.pump_pct`, 35 %, est une pause sous le seuil de débit
+de la pompe, vanne ouverte. La rampe part de
+`max(preinfusion.pump_pct, kMinimumBrewPumpPct)`.
+
 ### Politique radio
 
 **Wi-Fi et BLE sont des modes exclusifs du coeur.** Ils partagent la radio
@@ -566,7 +590,7 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 
 **Convention `flags` — bit0 « capteur valide ».** Chaque `STATUS_*` qui porte une lecture de capteur réserve un bit à la même question : est-ce que cette valeur vient d'être obtenue avec succès ? Le sens est générique, mais la capacité de détecter une absence ne l'est pas :
 
-- **XDB401 (I2C)** : détection réelle. Une transaction I2C qui échoue (adresse muette, bus figé) ou un timeout de conversion mettent ce bit à 0 — la valeur brute qui l'accompagne reste la dernière connue, pas un zéro forcé (voir `docs/firmware-implementation.md`).
+- **XDB401 (I2C)** : détection réelle. Une transaction I2C qui échoue (adresse muette, bus figé) ou un timeout de conversion mettent ce bit à 0 — la valeur brute qui l'accompagne reste la dernière connue, pas un zéro forcé.
 - **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
 - **Dimmer (I2C, pas encore câblé)** : même détection réelle que le XDB401, prévue mais pas encore implémentée — voir `STATUS_ACTUATORS` ci-dessous.
 
@@ -741,7 +765,6 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
 
 - **Pleine échelle réelle du XDB401** monté (le banc suppose 10 bar).
 - **Seuil réel d'ouverture de l'OPV** — étape 2 de la calibration. Le principe est connu (retour à l'entrée de la pompe), c'est la valeur qui manque.
-- **Tailles exactes des partitions**, une fois qu'on connaît le poids de l'application écran avec LVGL et BLE.
 - **Utilité du débitmètre en pré-infusion** — dépend du point de décrochage.
 - Passage éventuel à **1 Mbit/s** sur le bus, après mise en boîte.
 - ~~Stratégie de provisioning Wi-Fi~~ **Décidé (2026-09-09) : point d'accès
@@ -752,7 +775,5 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
   l'AP, contrairement au tactile qui suppose déjà LVGL en place). Stockage
   en NVS, déjà acquis. Validé lot 4 (2026-09-10) : pas de repli AP
   automatique.
-- **Charte graphique / design de l'UI écran** (phase 6, LVGL) — à définir,
-  session dédiée envisagée avec Opus.
 
-Séquence d'implémentation : `firmware-implementation.md`.
+Build, flash, banc et pièges matériels : `firmware-build.md`.

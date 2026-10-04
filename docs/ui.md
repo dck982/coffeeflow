@@ -1,12 +1,11 @@
 # UI de l'écran — style, structure, décisions
 
-Document de travail pour le point 6 de la phase 6 (`firmware-implementation.md`).
-Il fixe **le style et la structure**, pas le code. `docs/ui-mockup.html` reste
-une maquette historique à l'échelle ; en cas d'écart, les cotes et critères de
-ce document sont normatifs.
+Ce document fixe **le style et la structure** de l'interface tactile, pas le
+code. `docs/ui-mockup.html` reste une maquette historique à l'échelle ; en cas
+d'écart, les cotes et critères de ce document sont normatifs. L'écran
+d'infusion a son propre document, `ecran-infusion.md`.
 
-Conception d'ensemble et protocole : `firmware.md`. Ordre de réalisation :
-`firmware-implementation.md`.
+Conception d'ensemble, protocole et `/config` : `firmware.md`.
 
 ---
 
@@ -102,7 +101,7 @@ sont déjà choisies en tenant compte de la quantification RGB565.
 | `hairline` | `#332C28` | filets de séparation (≈ 12 % de blanc chaud) |
 | `text` | `#F2EBE3` | valeurs, titres |
 | `text_dim` | `#A2968C` | unités, valeurs secondaires |
-| `text_faint` | `#6B615A` | étiquettes, valeurs absentes (`—`) |
+| `text_faint` | `#6B615A` | étiquettes, valeurs absentes (`-`) |
 | `accent` | `#D98324` | action en cours, progression, bouton primaire |
 | `accent_wash` | `#D98324` à 14 % | surimpression locale au toucher |
 | `thermal` | `#4A9BB5` | température valide |
@@ -184,8 +183,8 @@ résolutions), embarquée via `lv_font_conv`. `montserrat` intégré à LVGL ser
 de repli pendant le bring-up, mais son `1` n'est pas tabulaire — à ne pas
 garder pour l'affichage d'une valeur qui change.
 
-Coût flash, à surveiller pour les partitions (`firmware.md` laisse la taille
-exacte à trancher) : sortir les gros corps en **jeu de glyphes restreint**.
+Coût flash, à surveiller pour les partitions : sortir les gros corps en
+**jeu de glyphes restreint**.
 Le 104 px n'a besoin que de `0-9`, `.`, `g`, `s` — une douzaine de glyphes en
 4 bpp ≈ 55 ko, contre ~700 ko pour un latin complet à ce corps. Les corps
 texte (18/26/40) prennent le latin-1 complet.
@@ -295,23 +294,7 @@ fait au moins 160 px de large ; les touches `−`, `+` et les chevrons peuvent
 
 ---
 
-## Évolution visuelle 2026 — référence d'implémentation
-
-Cette évolution part des snapshots de `firmware/screen/ui_sim/build/snapshots/`
-et des idées partiellement appliquées par le commit
-`2a99b6ab43a414c01910ccc256b159d5e88097ef`. Les snapshots actuels documentent
-les états déjà implémentés, mais ne sont normatifs ni pour le contenu ni pour
-le visuel : les tables d'état de ce document continuent de décider du contenu,
-et leurs cadres de boutons ainsi que leur navigation `suite` doivent
-disparaître.
-
-Les photos BambuLab de `tmp/bambu_ui/` servent uniquement de référence pour la
-hiérarchie des surfaces, la barre de retour, les flèches de pagination et la
-saisie d'une consigne. Coffeeflow conserve sa palette chaude, ses grands
-chiffres et son ratio 800 × 480 ; il ne reprend ni les tabs, ni la densité, ni
-le vert de statut de cette interface.
-
-La hiérarchie visuelle normative est la suivante :
+## Hiérarchie des surfaces
 
 | Élément | Fond | Contenu | Trait |
 | --- | --- | --- | --- |
@@ -348,35 +331,6 @@ groupe de paramètres et reste matérialisée par `‹`, `1/4`, `›`.
   écran. L'état pressé et le filet de progression restent les seules
   animations locales.
 
-### Traduction attendue dans l'implémentation actuelle
-
-L'évolution peut rester confinée à `firmware/screen/main/ui/` et au scénario
-du simulateur. Elle ne demande aucune modification du cœur, du CAN ou du
-stockage :
-
-1. conserver les apports déjà présents du commit : filet de progression L1,
-   rampe de pression, héros coloré pendant le cycle, pastilles du diagnostic
-   et respiration de veille. L'arête ambre horizontale des anciens calques L3
-   est en revanche remplacée par la barre haute `bg_raised` ;
-2. ajouter les jetons `surface`, `surface_high`, `surface_accent` et `thermal`
-   à `ui_theme.h`, puis remplacer `outline_button()` par un constructeur de
-   bouton à rôle (`secondary`, `primary`, `destructive`, `disabled`) ;
-3. réordonner les objets de l'accueil selon les cotes, et ajouter les trois
-   glyphes d'action sans changer les callbacks existants ;
-4. donner à chaque destination L3 sa barre haute via un helper commun. Les
-   pages sont toutes créées une fois puis masquées/affichées ; la navigation
-   ne fait pas de `lv_scr_load()` et ne reconstruit pas l'arbre LVGL ;
-5. remplacer le compteur cyclique de réglages par un index borné `0..2` ; les
-   chevrons modifient cet index et leur état désactivé, jamais une tuile de
-   contenu ;
-6. réutiliser `core::put_config()` pour les éditeurs. Une valeur n'est écrite
-   qu'à *valider* ; le chevron retour abandonne la copie candidate ;
-7. conserver la garde « nouveau texte différent de l'ancien » sur chaque
-   libellé dynamique. Les icônes et fonds statiques ne sont jamais réécrits à
-   10 Hz ;
-8. étendre la génération des snapshots aux états pressés, désactivés et aux
-   deux variantes du pavé avant de remplacer les images de référence.
-
 ---
 
 ## Structure : cinq niveaux de statut
@@ -388,19 +342,18 @@ brew by weight et discret le reste du temps, sans dupliquer les écrans.
 | Niveau | Quand | Forme |
 | --- | --- | --- |
 | **L0 — bandeau** | repos | une ligne de 28 px en haut, toutes les mesures, séparées par des points médians ; sous un filet pleine largeur |
-| **L1 — héros** | infusion, purge | une valeur à 104 px au centre + son filet de progression + deux valeurs secondaires à 40 px ; le bandeau L0 reste, atténué |
+| **L1 — héros** | purge | une valeur à 104 px au centre + son filet de progression + deux valeurs secondaires à 40 px ; le bandeau L0 reste, atténué |
 | **L2 — plein écran** | boot, OTA, faute, verrou, mode Wi-Fi | tout le reste disparaît ; un titre, une phrase, éventuellement un filet de progression |
 | **L3 — destination** | profils, réglages, diagnostic, pavé numérique | page secondaire sur `bg`, avec barre haute `bg_raised`; le bandeau L0 est remplacé par la navigation |
 | **L4 — veille** | 30 min sans touche ni infusion | recouvre tout ; un petit bloc qui se déplace lentement. Voir « Veille » |
 
-**Quelle valeur est héros en L1** : c'est la cible qui décide, pas un réglage.
+L'infusion n'emploie pas ces niveaux : elle a son propre écran, avec frise des
+phases et résumé du shot (`ecran-infusion.md`).
 
-- balance présente → **le poids** est héros, le temps est secondaire ;
-- balance absente → **le temps** est héros, le volume estimé est secondaire ;
-- purge → **le temps** est héros.
-
-C'est le même mécanisme qui pilote le libellé du bouton (voir ci-dessous) :
-une seule notion d'« objectif courant », lue à deux endroits.
+**L'objectif courant** — poids si la balance fournit des mesures, temps
+sinon — est décidé par la présence de la balance, pas par un réglage. Il
+pilote la cible de l'accueil et le libellé du bouton (voir ci-dessous). En
+purge, le temps est héros.
 
 ### Composition du bandeau L0, état par état
 
@@ -467,32 +420,20 @@ projet, et il tient en une règle.
 
 ### Infusion
 
-Bandeau L0 atténué (les mesures continuent de vivre, elles ne captent plus le
-regard), héros L1 au centre, et **un bouton d'arrêt de 320 × 88** centré en
-bas. Pas plus large : le cas normal est **l'arrêt automatique** au poids ou au
-temps ; ce bouton est un secours, il doit être impossible à rater mais il n'a
-pas à occuper la surface qui sert à lire le shot en cours. Le reste de l'écran
-n'est pas touchable pendant l'infusion (un chiffon qui passe ne coupe rien).
+L'écran d'infusion est décrit dans `ecran-infusion.md` : frise des phases,
+six tuiles de résumé, tuile de fonctionnement. Trois règles de ce document
+s'y appliquent :
 
-Au-dessus du héros, **la phase courante** en étiquette ambre :
-`pré-infusion` → `infusion` → `rampe`. C'est la seule information de l'écran
-qui ne soit pas une mesure, et c'est celle qui explique pourquoi la pression
-fait ce qu'elle fait.
-
-**Pas de graphe temps réel** (les implémentations Gaggiuino en mettent un ;
-il n'apporte rien pendant qu'on regarde couler, et il est illisible à 1,5 m).
-Mais le corps de cet écran est **une zone interchangeable** : y substituer un
-`lv_chart` pression/débit ne touche ni le bandeau, ni la barre d'arrêt, ni la
-machine à états. Si le besoin vient, c'est un basculement local, pas une
-refonte — et un `lv_chart` de 600 × 260 en repaint partiel tient dans le
-budget de bande passante, contrairement à un plein écran.
-
-### Fin d'infusion
-
-Le héros devient le résultat (`36,4 g`), les secondaires donnent le temps total
-et le débit moyen. Reste **15 s** puis retour au repos tout seul. Un bouton
-*fermer* discret pour ceux qui n'attendent pas. Aucun jugement affiché (pas de
-« bon shot » / « trop rapide ») : la machine mesure, elle ne note pas.
+- **Un seul bouton pendant l'écoulement, *arrêter*.** Le cas normal est
+  l'arrêt automatique au poids ou au temps ; ce bouton est un secours. Le
+  reste de l'écran n'est pas touchable (un chiffon qui passe ne coupe rien).
+  Après l'arrêt de la pompe, il devient *fermer*, actif à la fin de la
+  capture ; il n'y a pas de retour automatique au repos.
+- **Pas de graphe temps réel** : il n'apporte rien pendant qu'on regarde
+  couler, et il est illisible à 1,5 m. La frise montre les phases, pas une
+  courbe.
+- **Aucun jugement affiché** (pas de « bon shot » / « trop rapide ») : la
+  machine mesure, elle ne note pas.
 
 ### Profils (destination L3)
 
@@ -535,10 +476,10 @@ textuels de pagination. Au début, le chevron précédent
 est désactivé ; à la fin, le suivant est désactivé : les pages ne bouclent pas.
 Un changement de page est instantané, sans glissement plein écran.
 
-Contenu : cycle et puissances de pompe, remplissage et pré-infusion, ramp-down
-et purge, puis réglages système. La cible pression est réservée visuellement
-mais reste désactivée jusqu'à l'ajout de sa régulation. **Pas de luminosité** :
-voir « Veille ».
+Contenu des quatre pages : cibles et puissances de pompe ; remplissage,
+pré-infusion et consigne chaudière ; ramp-down et purge ; système (réseau,
+LCD, précharge de chauffe). Le détail est dans la table « Réglages » plus bas.
+**Pas de luminosité** : voir « Veille ».
 
 Les stratégies sont des **choix parmi 2-4**, présentés dans un éditeur en
 segments pleins côte à côte (`surface`, choix actif `surface_high` avec texte
@@ -685,7 +626,13 @@ fonctionne serait pire que d'afficher la panne.
 - **Rafraîchissement** : la télémétrie arrive par CAN à la période demandée par
   `REQSTATUS`. Rafraîchir les libellés à **10 Hz maximum**, même si les trames
   arrivent plus vite — au-delà, c'est illisible et ça repeint pour rien. Le
-  filet de progression s'anime, lui, en continu.
+  filet de progression s'anime, lui, en continu. Un libellé dynamique n'est
+  réécrit que si son texte change ; les icônes et fonds statiques ne le sont
+  jamais.
+- **Destinations L3** : toutes créées une fois, puis masquées ou affichées.
+  La navigation ne reconstruit pas l'arbre LVGL. Un éditeur travaille sur une
+  copie candidate écrite par `core::put_config()` à *valider* ; le chevron
+  retour l'abandonne.
 - **Le tactile n'a aucun geste** : que des appuis. Pas de balayage, pas d'appui
   long (sauf éventuellement un accès de service caché dans *réglages*), pas de
   double appui. Un capacitif derrière une vitre, avec un doigt humide, ne
@@ -762,13 +709,13 @@ cher qu'elle ne rapporte.
 
 Tout est posé sur une grille verticale de 8 px, marges **32 px** à gauche et à
 droite, **24 px** en haut et en bas. Ces coordonnées sont normatives : elles
-évitent d'avoir à « placer à l'œil » en phase 6.
+évitent d'avoir à « placer à l'œil ».
 
 | Élément | x | y | l × h |
 | --- | --- | --- | --- |
 | Bandeau L0 (texte) | 32 → 768 | 24 | 736 × 44 |
 | Filet sous le bandeau | 32 → 768 | 82 | 736 × 1 |
-| Bloc héros L1 (haut du bloc) | centré | 120 | — |
+| Bloc héros L1, purge (haut du bloc) | centré | 120 | — |
 | — étiquette de phase | centré | 120 | h 22 |
 | — chiffre héros 104 px | centré | 156 | h 104 |
 | — filet de progression | centré | 282 | 420 × 2 |
@@ -780,7 +727,6 @@ droite, **24 px** en haut et en bas. Ces coordonnées sont normatives : elles
 | Tuile *infuser* | 32 | 368 | 288 × 88 |
 | Tuile *purge* | 336 | 368 | 200 × 88 |
 | Tuile *réglages* | 552 | 368 | 216 × 88 |
-| Bouton d'arrêt (seul) | centré | 368 | 320 × 88 |
 | Barre haute L3 | 0 | 0 | 800 × 88 |
 | Retour L3 (cible) | 16 | 4 | 80 × 80 |
 | Titre L3 | 112 | centré dans la barre | — |
@@ -832,53 +778,16 @@ RÉGLAGES
 
 ## Modèle de données de l'UI
 
-**Un seul état, une seule structure.** Aucun widget ne détient de valeur : la
-tâche protocole remplit `ui_model_t`, l'UI le lit à 10 Hz et met à jour les
-libellés. C'est ce qui permet de rejouer un shot enregistré
-(`coffeetool recorder`, phase 1) dans l'UI sans matériel.
+**Un seul état, une seule structure.** Aucun widget ne détient de valeur :
+l'UI lit le `core::Snapshot` cohérent publié par le cœur, au plus à 10 Hz, et
+la configuration par `core::get_config()`. Elle n'inclut jamais `can_link.h`
+et n'émet aucune trame : un appui produit une action du cœur, qui l'accepte ou
+la refuse. C'est ce qui permet de rendre l'UI dans `firmware/screen/ui_sim`
+sur un instantané rejoué, sans matériel.
 
-```c
-typedef enum { UI_IDLE, UI_BREW, UI_PURGE, UI_DONE, UI_SHEET, UI_FULLSCREEN, UI_WIFI } ui_state_t;
-typedef enum { BREW_BY_WEIGHT, BREW_BY_TIME } ui_goal_t;
-typedef enum { PHASE_PREINFUSION, PHASE_EXTRACTION, PHASE_RAMP } ui_phase_t;
-typedef enum { RADIO_MACHINE, RADIO_WIFI } ui_radio_mode_t;
-
-typedef struct {
-  ui_state_t state;
-  ui_radio_mode_t radio_mode; // RADIO_WIFI implique state == UI_WIFI
-  ui_goal_t  goal;            // dérivé de scale_present, jamais réglé à la main
-  ui_phase_t phase;
-
-  float   temperature_c;      // depuis STATUS_PRESSURE, calibration écran
-  float   pressure_bar;       // idem
-  float   flow_ml_s;          // dérivé de STATUS_FLOW (facteur K, écran)
-  float   flow_target_ml_s;   // 0 = pas de flow control → rampe niveau 1 max
-  float   weight_g;           // BLE Acaia
-  uint8_t dimmer_pct;         // écho de STATUS_ACTUATORS
-  uint8_t pump_target_pct;    // niveau demandé par le profil, pour la rampe
-  bool    valve_open;         // écho du bit ssr
-
-  bool    scale_present;      // BLE connecté ET pesée reçue < 2 s
-  bool    wifi_connected;     // RADIO_WIFI, associé ET adresse IP
-  bool    sensors_alive;      // trafic CAN reçu < 3 s
-  bool    pressure_valid;     // STATUS_PRESSURE flags bit0
-  bool    dimmer_ready;       // STATUS_ACTUATORS flags bit1
-  bool    lockout;            // STATUS_ACTUATORS flags bit0
-  bool    flash_active;       // opération OTA acceptée par le cœur, préempte en L2
-  uint8_t flash_target;       // écran ou capteurs
-  uint32_t flash_bytes_done;
-  uint32_t flash_bytes_total;
-  uint32_t last_status_ms;    // pour la péremption d'affichage
-
-  float   target_weight_g, target_time_s;
-  float   elapsed_s;
-  char    profile_name[16];
-} ui_model_t;
-```
-
-`goal` n'est **jamais** un réglage utilisateur : `scale_present ?
-BREW_BY_WEIGHT : BREW_BY_TIME`, réévalué à chaque rafraîchissement au repos,
-**gelé au démarrage d'une infusion** (voir les cas limites).
+L'objectif poids/temps n'est **jamais** un réglage utilisateur : présence de
+la balance → poids, sinon temps, réévalué à chaque rafraîchissement au repos
+et **gelé au démarrage d'une infusion** (voir les cas limites).
 
 ### Périodes de télémétrie (`REQSTATUS`)
 
@@ -889,7 +798,7 @@ BREW_BY_WEIGHT : BREW_BY_TIME`, réévalué à chaque rafraîchissement au repos
 | Plein écran (OTA) | 0 (arrêt) | 0 | 0 |
 
 Ce trafic périodique est aussi ce qui **entretient la présence** côté capteurs
-(`tick_presence()`, voir `firmware-implementation.md` phase 5) : au repos,
+(`tick_presence()`) : au repos,
 1 trame/s au minimum suffit à ne jamais retomber dans le cycle
 `PRESENCE_LOST` → `PING` observé pendant tout le bring-up. À ne pas descendre
 en dessous de 1 Hz, même en veille écran.
@@ -914,21 +823,22 @@ résumé (deux). Unité toujours détachée du nombre par une espace fine, en
 | Temps (cible) | `%d s` | `28 s` |
 | Débit moyen (résumé) | `%.2f g/s` | `1,26 g/s` |
 
-**Valeur absente ou invalide : `—` en `text_faint`, jamais un `0,0`.** Un zéro
+**Valeur absente ou invalide : `-` en `text_faint`, jamais un `0,0`.** Les
+polices embarquées n'ont pas de tiret long : le tiret ASCII le remplace. Un zéro
 affiché à la place d'une mesure manquante est le seul mensonge que cette
 interface peut faire ; il est interdit. Règle de péremption : une valeur dont
 la dernière trame date de plus de **2 × sa période demandée** passe en
-`text_dim`, de plus de **3 s** passe à `—`.
+`text_dim`, de plus de **3 s** passe à `-`.
 
 `pressure_valid = false` (bit0 de `StatusPressurePayload::flags`) →
-pression **et** température à `—` : les deux viennent du même XDB401.
+pression **et** température XDB401 à `-` : les deux viennent du même capteur.
 
 ---
 
 ## Machine à états de l'UI
 
 ```
-        ┌──────────────── (15 s, ou « fermer ») ───────────────┐
+        ┌──────────────────── (« fermer ») ────────────────────┐
         ↓                                                      │
      UI_IDLE ──[ infuser ]──→ UI_BREW ──[ cible atteinte ]──→ UI_DONE
         │  ↑                     │  ↑         [ arrêter ]      │
@@ -1033,8 +943,9 @@ point final, sans jargon protocolaire visible (jamais « CAN », « TWAI »,
 | `nav.back` / `nav.prev` / `nav.next` | icônes retour / précédent / suivant, sans texte visible |
 | `keypad.backspace` | icône effacer, sans texte visible |
 | `lbl.target` | `cible` |
+| `lbl.phase.preheat` | `précharge thermique` |
+| `lbl.phase.fill` | `remplissage` |
 | `lbl.phase.pre` | `pré-infusion` |
-| `lbl.phase.pre.pressure` | `pré-infusion · attente %.0f bar` |
 | `lbl.phase.brew` | `infusion` |
 | `lbl.phase.ramp` | `rampe` |
 | `lbl.done` | `terminé` |
@@ -1074,42 +985,43 @@ un utilisateur, et chaque chaîne de plus est du flash en moins.
 
 ## Réglages : valeurs, plages, pas, stockage
 
-Tout est en NVS côté écran (`firmware.md` : les calibrations vivent ici, un
-remplacement de XIAO ne fait rien perdre). Espace de noms `ui`.
+Toute la configuration est un seul enregistrement NVS côté écran (espace de
+noms `ui`, deux emplacements transactionnels), lu et écrit par `/config`
+(`firmware.md`) et par l'écran de réglages. Les bornes ci-dessous sont celles
+de la validation du cœur (`core/config.cpp`) ; l'UI n'en a pas d'autres.
 
-| Réglage | Clé NVS | Défaut | Min | Max | Pas |
-| --- | --- | --- | --- | --- | --- |
-| Cible poids | `tgt_w` | 36,0 g | 10 g | 100 g | **0,5 g** |
-| Cible temps | `tgt_t` | 28 s | 5 s | 60 s | **1 s** |
-| Remplissage, durée maximale | `fill_t` | 3 s | 1 s | 10 s | 1 s |
-| Remplissage, cible pression | `fill_bar` | 0,3 bar | 0,1 bar | 1,0 bar | 0,1 bar |
-| Remplissage, niveau pompe | `fill_pct` | 100 % | 20 % | 100 % | 5 % |
-| Critères pré-infusion | `pi_mode` | `temps` | — | — | combinaison `temps` / `pression` / `poids` |
-| Pré-infusion, durée relative | `pi_t` | 4 s | 0 s | 20 s | 1 s |
-| Pré-infusion, seuil | `pi_bar` | 1,5 bar | 1 bar | 9 bar | 0,5 bar |
-| Pré-infusion, niveau pompe | `pi_pct` | 30 % | 0 % | 100 % | 5 % |
-| Stratégie ramp-down | `rd_mode` | `aucune` | — | — | `aucune` / `temps` / `poids` / `chute de pression` |
-| Ramp-down, avance | `rd_t` | 3 s | 0 s | 15 s | 0,5 s |
-| Ramp-down, avance poids | `rd_g` | 4,0 g | 0 g | 20 g | 0,5 g |
-| Ramp-down, chute | `rd_bar` | 1,0 bar | 0,5 bar | 4 bar | 0,5 bar |
-| Niveau pompe infusion | `br_pct` | 100 % | 20 % | 100 % | 5 % |
-| Niveau pompe purge | `pg_pct` | 100 % | 20 % | 100 % | 5 % |
-| Purge, durée maximale | `pg_max` | **20 s** | 5 s | 60 s | 5 s |
-| Atténuation après | `dim_s` | **240 s** | 60 s | 1800 s | 60 s |
-| Veille après | `sby_s` | **1800 s** | 300 s | 3600 s | 300 s |
+| Réglage | Clé `/config` | Défaut | Min | Max | Pas | Page |
+| --- | --- | --- | --- | --- | --- | --- |
+| Cible poids | `brew.target_weight_g` | 36,0 g | 10 g | 100 g | **0,5 g** | 1 |
+| Cible temps | `brew.target_time_s` | 28 s | 5 s | 60 s | **1 s** | 1 |
+| Cible pression | `brew.target_pressure_bar` | 9,0 bar | 6 bar | 12 bar | 0,1 bar | 1 |
+| Pompe infusion | `brew.pump_pct` | 100 % | 50 % | 100 % | 5 % | 1 |
+| Pompe remplissage | `filling.pump_pct` | 100 % | 20 % | 100 % | 5 % | 1 |
+| Pompe pré-infusion | `preinfusion.pump_pct` | 35 % | 0 % | 100 % | 5 % | 1 |
+| Pression de fin de remplissage | `filling.pressure_bar` | 1,0 bar | 0,3 bar | 2,0 bar | 0,1 bar | 2 |
+| Durée maximale de remplissage | `filling.time_s` | 10 s | 1 s | 20 s | 1 s | 2 |
+| Critères pré-infusion | `preinfusion.time` / `.weight` | temps | — | — | `temps` et/ou `poids` | 2 |
+| Échéance pré-infusion | `preinfusion.time_s` | 4 s | 0 s | 20 s | 1 s | 2 |
+| Consigne chaudière | `heating.brew_temperature_c` | 90 °C | 50 °C | 100 °C | 0,5 °C | 2 |
+| Stratégie ramp-down | `rampdown.mode` | `aucune` | — | — | `aucune` / `temps` / `poids` / `chute pression` | 3 |
+| Ramp-down, avance temps | `rampdown.lead_time_s` | 3,0 s | 0 s | 15 s | 0,5 s | 3 |
+| Ramp-down, avance poids | `rampdown.lead_weight_g` | 4,0 g | 0 g | 20 g | 0,5 g | 3 |
+| Ramp-down, chute | `rampdown.pressure_drop_bar` | 1,0 bar | 0,5 bar | 4 bar | 0,5 bar | 3 |
+| Pompe purge | `purge.pump_pct` | 100 % | 20 % | 100 % | 5 % | 3 |
+| Purge, durée maximale | `purge.max_s` | **20 s** | 5 s | 60 s | 5 s | 3 |
+| Précharge de chauffe | `heating.brew_preheat_time_s` | 2,5 s | 0 s | 15 s | 0,5 s | 4 |
+| Chauffe active | `heating.enabled` | oui | — | — | — | diagnostic |
+| Atténuation après | `ui.dim_after_s` | **240 s** | 60 s | 1800 s | 60 s | — |
+| Veille après | `ui.standby_after_s` | **1800 s** | 300 s | 3600 s | 300 s | — |
 
 Les deux dernières lignes n'apparaissent **pas** dans l'écran de réglages
 tactile (voir « Veille ») : elles ne vivent qu'en NVS et dans `/config`. Il n'y
 a **pas de réglage de luminosité** — la session dure une trentaine de minutes,
 la seule intensité utile est le maximum, et l'atténuation est automatique.
 
-Ces défauts sont des points de départ raisonnables, pas des vérités : ils
-seront ajustés à la calibration (`firmware.md`, section dédiée). Ce qui compte
-est que **rien ne manque au moment d'écrire l'écran de réglages**.
-
-Les réglages qui n'ont de sens qu'avec une stratégie donnée (`pi_bar` sans le
-mode pression) restent **visibles mais atténués**, pas cachés : une ligne qui
-disparaît fait douter de l'avoir rêvée.
+Les réglages qui n'ont de sens qu'avec une stratégie donnée (l'avance poids
+sans le ramp-down au poids) restent **visibles mais atténués**, pas cachés :
+une ligne qui disparaît fait douter de l'avoir rêvée.
 
 ---
 
@@ -1117,57 +1029,26 @@ disparaît fait douter de l'avoir rêvée.
 
 ```
 firmware/screen/main/ui/
-  ui_theme.h       jetons (couleurs, corps, cotes), styles partagés — aucune logique
-  ui_model.h       ui_model_t + accesseurs ; rempli par la tâche protocole
-  ui_root.c        création de l'écran unique, bandeau L0, aiguillage d'état
-  ui_home.c        repos : cible ±, rangée de boutons
-  ui_brew.c        L1 : héros, filet de progression, secondaires, arrêt
-  ui_sheet.c       L3 : pavé numérique, profils, réglages
-  ui_full.c        L2 : le gabarit unique + ses quatre cas
-  ui_fonts/        polices générées par lv_font_conv (ne pas éditer)
+  ui_theme.h                jetons (couleurs, corps, cotes) — aucune logique
+  ui_root.cpp               création de l'écran LVGL unique
+  ui_home.cpp               accueil, purge, écran d'infusion, réglages, éditeurs,
+                            diagnostic, plein écran, veille
+  ui_test_screen.cpp        mire de bring-up de la dalle et des jetons
+  lvgl_psram_allocator.cpp  allocateur LVGL en PSRAM
+  ui_fonts/                 polices générées par lv_font_conv (ne pas éditer)
+firmware/screen/main/core/shot_summary.h   résumé de l'écran d'infusion, testé sur l'hôte
+firmware/screen/ui_sim/                    rendu hôte et snapshots de régression
 ```
 
 Règles qui tiennent l'ensemble :
 
 - **`ui_theme.h` n'inclut rien d'autre que LVGL.** Aucun fichier d'UI ne
-  connaît le protocole : il lit `ui_model_t`, point.
-- **Aucun `ui_*.c` n'envoie de trame.** Un appui produit un événement
-  (`ui_event_brew_start`, `ui_event_stop`, …) consommé par la boucle
-  d'infusion, qui est seule à émettre des `SET`. C'est ce qui permet de tester
-  l'UI sur un modèle rejoué et l'algorithme sans écran.
-- **Une seule tâche touche LVGL** (celle d'`esp_lvgl_port`) ; le modèle est
-  publié depuis la tâche CAN sous verrou, jamais un widget mis à jour depuis
-  une autre tâche.
-
----
-
-## Ordre d'écriture, et critère de sortie de chaque lot
-
-Le point 6 de la phase 6 se découpe en cinq lots. Chacun est utilisable seul,
-et chacun a de quoi savoir qu'il est fini.
-
-1. **Dalle et jetons** — `esp_lcd` RGB + GT911 + `esp_lvgl_port`, bounce
-   buffer, `ui_theme.h`, polices générées. *Fini quand* : un écran de test
-   affiche tous les jetons de couleur, dont les trois surfaces côte à côte,
-   ainsi que les sept corps de texte, et qu'un appui change localement l'état
-   d'une surface (le tactile répond).
-2. **Bandeau L0 + repos statique** — sur des valeurs figées en dur. *Fini
-   quand* : `home.png` satisfait les critères de la section « Évolution
-   visuelle 2026 » et les cotes exactes.
-3. **Modèle vivant** — `ui_model_t` alimenté par le CAN réel, péremption,
-   `—` sur valeur absente, bascule poids/temps sur présence de la balance.
-   Page de diagnostic (elle n'est que le modèle rendu ligne à ligne : c'est le
-   moment le moins cher pour l'écrire).
-   *Fini quand* : débrancher le XDB401 met la pression à `—` en moins de 3 s
-   **et le montre en `absent` dans le diagnostic**, et débrancher le câble CAN
-   fait apparaître le L2 « module injoignable ».
-4. **Interaction** — `−`/`+`, pavé numérique, NVS, réglages, purge homme-mort.
-   *Fini quand* : une cible modifiée survit à une coupure d'alimentation, et
-   la purge s'arrête au relâchement **et** à 20 s.
-5. **Infusion** — L1, phases, filet de progression, arrêt automatique et
-   manuel, résumé, cas limites de la table ci-dessus. *Fini quand* : un shot
-   enregistré (`coffeetool recorder`) rejoué dans le modèle produit le même
-   écran qu'en direct.
+  connaît le protocole : il lit le cœur, point.
+- **Aucun fichier d'UI n'envoie de trame.** Un appui produit une action du
+  cœur, qui est seul à émettre des `SET`. C'est ce qui permet de tester l'UI
+  sur un instantané rejoué et l'algorithme sans écran.
+- **Une seule tâche touche LVGL** (celle d'`esp_lvgl_port`) ; jamais un widget
+  mis à jour depuis une autre tâche.
 
 ---
 
@@ -1180,7 +1061,7 @@ et chacun a de quoi savoir qu'il est fini.
 - Pas de graphe par défaut (l'accroche existe, elle reste vide).
 - Pas de notation d'un shot, pas d'historique, pas de statistiques.
 - Pas de saisie de texte au tactile (le provisioning Wi-Fi passe par la page
-  web, décidé en phase 6 point 1).
+  web).
 - Pas de menu à plus d'un niveau de profondeur.
 - Pas de terme technique du protocole visible par l'utilisateur.
 

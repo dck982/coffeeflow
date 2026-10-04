@@ -30,7 +30,7 @@ namespace {
 // Résolution et brochage du panneau RGB (Waveshare ESP32-S3-Touch-LCD-4.3),
 // confirmés contre tmp/ESP32-S3-Touch-LCD-4.3/examples/ESP-IDF/09_lvgl_v9_demo
 // (dépôt officiel, IDF v5.x — adapté ici pour IDF v6.1 et pour piloter le
-// CH422G exclusivement via board::panel_power_on(), voir docs/plan-phase6.md).
+// CH422G exclusivement via board::panel_power_on()).
 constexpr uint32_t kLcdHRes = 800;
 constexpr uint32_t kLcdVRes = 480;
 constexpr uint32_t kLcdPixelClockHz = 16 * 1000 * 1000;
@@ -58,7 +58,7 @@ constexpr uint32_t kBounceBufferSizePx = kLcdHRes * kBounceLines;
 constexpr size_t kVisibleEvents = 5;
 
 // Combien de temps les coordonnées tactiles restent affichées après un
-// appui (docs/plan-phase6.md, lot 2, point 5).
+// appui.
 constexpr uint32_t kTouchLabelHoldMs = 1000;
 
 lv_obj_t* g_version_label = nullptr;
@@ -136,8 +136,7 @@ void set_label_if_changed(lv_obj_t* label, const char* text) {
 // esp_lcd RGB + GT911, sans passer par aucune couche BSP Waveshare : celle-ci
 // écrit le registre de sortie CH422G en une seule fois (voir
 // waveshare_rgb_lcd_port.c, waveshare_rgb_lcd_backlight_on()) et couperait
-// CAN_SEL au passage — exactement le piège documenté dans
-// docs/plan-phase6.md. board::panel_power_on() (appelé par le code qui
+// CAN_SEL au passage. board::panel_power_on() (appelé par le code qui
 // précède l'appel à init_hardware ici) est la seule chose qui touche ce
 // registre.
 esp_lcd_panel_handle_t init_rgb_panel() {
@@ -329,7 +328,7 @@ lv_obj_t* add_button(lv_obj_t* parent, const char* text, int x, int y) {
 }
 
 // Console de debug volontairement laide : pas de style, pas de cote de
-// ui.md, police montserrat intégrée à LVGL (docs/plan-phase6.md, lot 2).
+// l'UI, police montserrat intégrée à LVGL.
 void build_ui() {
   ui::root::build();
   return;

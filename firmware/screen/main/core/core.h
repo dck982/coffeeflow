@@ -1,5 +1,4 @@
-// Le cœur machine — LA façade que net_http et ui/ incluent côté machine
-// (docs/plan-phase6.md, "L'idée qui structure tout : le cœur machine").
+// Le cœur machine — LA façade que net_http et ui/ incluent côté machine.
 //
 // Trois faces, posées ici comme des structures/interfaces vides : c'est le
 // contrat que les lots suivants remplissent, pas une implémentation.
@@ -12,7 +11,7 @@
 // Une quatrième face transverse, le flux d'événements (core/events.cpp),
 // arrive avec les lots ci-dessus.
 //
-// Règle de dépendance (docs/plan-phase6.md) : core/core.h est la SEULE chose
+// Règle de dépendance : core/core.h est la SEULE chose
 // que net_http et ui/ incluent du côté machine. Un fichier d'UI ou de HTTP
 // qui inclut can_link.h franchit la frontière.
 //

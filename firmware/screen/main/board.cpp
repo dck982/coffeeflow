@@ -17,7 +17,7 @@ i2c_master_bus_handle_t g_bus = nullptr;
 i2c_master_dev_handle_t g_mode_dev = nullptr;
 i2c_master_dev_handle_t g_out_dev = nullptr;
 
-// État maintenu en RAM du registre de sortie CH422G (docs/plan-phase6.md) :
+// État maintenu en RAM du registre de sortie CH422G :
 // seule ch422g_set_bit() doit y toucher.
 uint8_t g_ch422g_out_mirror = 0;
 

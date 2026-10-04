@@ -156,9 +156,8 @@ void on_flash_end(uint32_t expected_crc32) {
   esp_restart();
 }
 
-// Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
-// phase 4 point 3, et sensors/main.cpp::tick_ota_validation() (même
-// mécanique). IDF ne redémarre jamais tout seul une image en NEW ou
+// Temporisateur d'invalidation OTA — même mécanique que
+// sensors/main.cpp::tick_ota_validation(). IDF ne redémarre jamais tout seul une image en NEW ou
 // PENDING_VERIFY. La validation requiert une confirmation HTTP explicite.
 void tick_ota_validation() {
   if (!g_ota_pending_verify) return;

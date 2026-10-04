@@ -356,9 +356,7 @@ struct LogPayload {
   }
 };
 
-// FLASH_CTRL (0x38) — sous-commande. Le layout des paramètres n'est pas
-// encore figé dans docs/firmware.md ; celui-ci est la première proposition,
-// à valider en phase 4 (voir docs/firmware-implementation.md).
+// FLASH_CTRL (0x38) — sous-commande.
 enum class FlashSubCmd : uint8_t {
   kBegin = 0,
   kBlockAck = 1,

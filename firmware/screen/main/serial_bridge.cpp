@@ -19,7 +19,7 @@
 // waveshareteam/ESP32-S3-Touch-LCD-4.3 (cloné dans tmp/), et en confirmant
 // par bissection matérielle (sonde directe de GPIO44, uart_get_buffered_data_len())
 // que le signal physique et la FIFO UART étaient sains avant de soupçonner
-// l'appel bloquant. Voir docs/firmware-implementation.md pour le détail.
+// l'appel bloquant.
 
 #include "serial_bridge.h"
 
@@ -51,7 +51,7 @@ constexpr TickType_t kUartReadTimeout = pdMS_TO_TICKS(20);
 
 // Série -> CAN : relais aveugle, comme can-monitor, SAUF pour notre propre
 // OTA (FLASH_CTRL/FLASH_DATA adressé à kScreen) — c'est un échange direct
-// Mac<->screen par USB, voir docs/firmware-implementation.md : rien à
+// Mac<->screen par USB : rien à
 // relayer sur le bus dans ce cas, et surtout pas les 256 trames FLASH_DATA
 // par bloc qui n'ont aucun sens pour sensors. coffeetool émet déjà avec
 // l'identité qu'il veut pour le reste, rien à réinterpréter ici.

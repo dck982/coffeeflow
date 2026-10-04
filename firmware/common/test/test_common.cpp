@@ -1,5 +1,5 @@
 // Tests hôte de firmware/common/ — aucune dépendance ESP-IDF, compile et
-// tourne sur le Mac (voir docs/firmware-implementation.md, phase 0).
+// tourne sur le Mac.
 
 #include <cstdio>
 #include <cstdlib>

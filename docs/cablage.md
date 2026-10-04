@@ -271,9 +271,9 @@ jusqu'à la Wago, pas par le connecteur Grove).
 lieu des ~3,3 V attendus du filtre RC), et surtout **aucune impulsion jamais comptée**
 malgré une turbine visiblement en rotation — le signal réel (rouge) était en fait câblé sur
 la broche VCC en aval, et le VCC réel (jaune) sur la broche signal, avant l'inversion
-corrective au JST SM femelle. Voir `docs/firmware-implementation.md` pour le détail de la
-session de diagnostic (comparaison avec `tests/test_flowmeter.py`, tentative sur GPIO2/pull-up
-interne, mesures ADC) qui a fini par isoler ce câblage plutôt qu'un bug logiciel.
+corrective au JST SM femelle. La session de diagnostic (comparaison avec
+`tests/test_flowmeter.py`, tentative sur GPIO2/pull-up interne, mesures ADC) a fini par
+isoler ce câblage plutôt qu'un bug logiciel.
 
 **Filtre RC**, soudé sur les pastilles à gauche du XIAO (1 = 5 V, 2 = GND, 3 = 3V3,
 D7 = GPIO 44) :

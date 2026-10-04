@@ -1,6 +1,4 @@
-// Brochage et CH422G (Waveshare ESP32-S3-Touch-LCD-4.3) — voir
-// docs/firmware.md, "Module écran", et docs/plan-phase6.md pour le piège du
-// registre de sortie partagé.
+// Brochage et CH422G (Waveshare ESP32-S3-Touch-LCD-4.3).
 #pragma once
 
 #include <cstdint>
@@ -36,8 +34,7 @@ constexpr gpio_num_t kUartRx = GPIO_NUM_44;
 // 0x38 = registre de sortie.
 //
 // Le registre de sortie est PARTAGÉ entre CAN_SEL/USB_SEL (EXIO5), LCD_BL
-// (EXIO2), LCD_RST (EXIO3), TP_RST (EXIO1) et SD_CS (EXIO4) — voir
-// docs/plan-phase6.md. Toute écriture doit passer par ch422g_set_bit(),
+// (EXIO2), LCD_RST (EXIO3), TP_RST (EXIO1) et SD_CS (EXIO4). Toute écriture doit passer par ch422g_set_bit(),
 // JAMAIS écrire le registre de sortie directement : une écriture partielle
 // écraserait les autres bits, typiquement en coupant le transceiver CAN au
 // moment d'allumer la dalle.
@@ -47,7 +44,7 @@ enum Ch422gBit : uint8_t {
   kCh422gLcdRst = 1 << 3,  // LCD_RST — piloté par panel_power_on() (lot 2)
   kCh422gSdCs = 1 << 4,    // SD_CS — non piloté par ce lot
   // CAN_SEL == USB_SEL : mux analogique GPIO19/20 USB natif <-> CAN. Ne
-  // jamais rebasculer ce bit hors de cet usage (docs/plan-phase6.md).
+  // jamais rebasculer ce bit hors de cet usage.
   kCh422gCanSel = 1 << 5,
 };
 

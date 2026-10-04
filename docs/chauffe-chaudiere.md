@@ -228,7 +228,7 @@ perd pas son premier tiers.
 Depuis **0.3.32**, une capture HF d'infusion conserve **20 s** après l'arrêt
 de la pompe (30 s en 0.3.27–0.3.31, 20 s en 0.3.25–0.3.26) ; une purge ou une
 commande de banc, **5 s**. La précharge y apparaît comme `thermal_preheat`.
-Pour une purge, lancer `record_heating.py --mode monitor` juste après si le
+Pour une purge, lancer `record_heating.py` juste après si le
 maximum du rebond compte.
 
 Sur les cinq infusions du 29 septembre au
@@ -1266,6 +1266,13 @@ Décision : supprimer la coupure de fin (0.3.39) ; terminer le remplissage
 
 ## Procédures de mesure
 
+### Enregistrement d'une chauffe
+
+`firmware/tools/record_heating.py --monitor-time 120` relève `/telemetry`
+toutes les 500 ms pendant la durée demandée (60 s par défaut) et écrit un
+JSON dans `captures/`. Il exige `heating.enabled=true`, ne modifie pas la
+configuration et lit `COFFEEFLOW_HTTP_TOKEN` et `COFFEEFLOW_IP`.
+
 ### Vérification de la conversion à chaud
 
 Après stabilisation à la consigne, sauvegarder plusieurs réponses
@@ -1300,16 +1307,15 @@ uv run firmware/tools/download_hf_capture.py
 
 Faire deux purges identiques de 8 s, en mesurant le panier immédiatement
 après chacune et en le vidant entre les deux. `purge.py` n'enregistre que les
-valeurs affichées dans le terminal. `record_heating.py --mode monitor`
+valeurs affichées dans le terminal. `record_heating.py`
 requiert `heating.enabled=true` et ne convient pas à cet essai. Comparer
 `temperature.boiler.sensor_c` à la température stabilisée de la machine
 (42,1 kΩ ≈ 27,5 °C à la sonde).
 
 ### Montée depuis l'ambiante
 
-`firmware/tools/record_heating.py` automatise les étapes 3 et 4 ci-dessous,
-coupe ensuite la chauffe et écrit un JSON dans `captures/` (`--output` pour
-choisir le fichier). Il lit `COFFEEFLOW_HTTP_TOKEN` et `COFFEEFLOW_IP`.
+`firmware/tools/record_heating.py` automatise l'étape 4 ci-dessous ; la
+chauffe s'active et se coupe à la main.
 
 1. Envoyer `POST /config` avec `{"version":7,"heating":{"enabled":false}}`,
    puis laisser refroidir.

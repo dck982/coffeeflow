@@ -1,5 +1,4 @@
-# Auto-test transceiver CAN, isolé du câble — voir la discussion de bring-up
-# phase 2 dans docs/firmware-implementation.md. Émet en TWAI_MODE_NO_ACK
+# Auto-test transceiver CAN, isolé du câble. Émet en TWAI_MODE_NO_ACK
 # (pas de flag SELF : la boucle passe par le vrai transceiver, pas par un
 # rebouclage interne du contrôleur) et vérifie que la trame revient par
 # CANH/CANL. Câble CAN débranché pendant ce test : voir le commentaire en

@@ -1178,22 +1178,22 @@ how = "Utilisateur 2026-09-12 : essai réel de fixation, vis disponibles capable
 [digmesa_fixation_entraxe_y]
 value = 35.0
 unit = "mm"
-how = "docs/support-digmesa.md ; utilisateur 2026-09-12 confirme les deux trous de gauche, Y vers l'avant, X vers la droite vue arrière, Z vers le haut."
+how = "Utilisateur 2026-09-12 : confirme les deux trous de gauche, Y vers l'avant, X vers la droite vue arrière, Z vers le haut."
 
 [digmesa_fixation_recul_x]
 value = 23.0
 unit = "mm"
-how = "docs/support-digmesa.md : centre de la première rangée à 23 mm de la face gauche, vue arrière."
+how = "Utilisateur 2026-09-12 : centre de la première rangée à 23 mm de la face gauche, vue arrière."
 
 [digmesa_fixation_recul_y]
 value = 23.0
 unit = "mm"
-how = "docs/support-digmesa.md : centre du premier trou à 23 mm du rebord arrière."
+how = "Utilisateur 2026-09-12 : centre du premier trou à 23 mm du rebord arrière."
 
 [digmesa_plaque_reservoir_z]
 value = 102.0
 unit = "mm"
-how = "docs/support-digmesa.md : plaque portant le réservoir, hauteur depuis le fond."
+how = "Utilisateur 2026-09-12 : plaque portant le réservoir, hauteur depuis le fond."
 
 [digmesa_tube_exterieur]
 value = 9.0

@@ -1,5 +1,4 @@
-"""Ligne de commande de l'outil Mac — docs/firmware-implementation.md,
-phase 1. Un seul décodeur, deux transports (--port pour l'USB série,
+"""Ligne de commande de l'outil Mac. Un seul décodeur, deux transports (--port pour l'USB série,
 --ws pour le WebSocket de phase 6).
 """
 

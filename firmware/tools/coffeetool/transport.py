@@ -1,5 +1,4 @@
-"""Deux transports, un seul décodeur (docs/firmware-implementation.md,
-phase 1) : l'USB série (phases 2-3) cadre en COBS, le WebSocket (phase 6)
+"""Deux transports, un seul décodeur : l'USB série (phases 2-3) cadre en COBS, le WebSocket (phase 6)
 transporte le PDU nu, un message = une trame. Le reste de l'outil ne
 travaille qu'avec RawFrame, jamais avec les octets du fil.
 

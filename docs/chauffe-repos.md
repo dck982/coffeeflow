@@ -170,7 +170,7 @@ simulation).
 
 ## À vérifier sur la prochaine capture
 
-Faire **10 min** de surveillance (`record_heating.py --mode monitor`) en
+Faire **10 min** de surveillance (`record_heating.py --monitor-time 600`) en
 partant d'une machine déjà stabilisée à la consigne :
 
 | Point | Attendu |

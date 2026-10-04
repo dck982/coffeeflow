@@ -1,6 +1,5 @@
 // Auto-test transceiver CAN, sans câble — isole "mon transceiver marche"
-// de "le câble/la terminaison marche". Voir la discussion de bring-up
-// phase 2 dans docs/firmware-implementation.md.
+// de "le câble/la terminaison marche".
 //
 // TWAI_MODE_NO_ACK : la trame part par le vrai TXD, traverse le
 // transceiver, sort sur CANH/CANL, et revient par le même transceiver sur

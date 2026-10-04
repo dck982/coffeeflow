@@ -4,7 +4,7 @@
 projet antérieur (`coffeetracker.ino`, Arduino-ESP32), d'un client BLE GATT
 pour une balance Acaia (Lunar). Déplacé ici depuis `tmp/ble-sample/` pour
 servir de **référence de protocole** au moment d'écrire le client BLE de
-`firmware/screen` (phase 6, voir `docs/firmware-implementation.md`).
+`firmware/screen`.
 
 **Ce code ne compile pas tel quel dans l'arbre `firmware/`.** Il est écrit
 contre la pile Arduino-ESP32 (`BLEDevice.h`, `BLEAdvertisedDevice.h`,

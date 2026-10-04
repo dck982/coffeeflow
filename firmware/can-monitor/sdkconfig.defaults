@@ -1,6 +1,5 @@
 # Défauts de projet — adaptateur CAN de secours (M5Stack Atom S3 + Unit CAN).
-# Devenu un pont série binaire (COBS+PDU) vers coffeetool, voir
-# docs/firmware-implementation.md.
+# Devenu un pont série binaire (COBS+PDU) vers coffeetool.
 
 CONFIG_IDF_TARGET="esp32s3"
 

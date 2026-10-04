@@ -4,8 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-// Cadrage série (USB CDC) — voir docs/firmware.md et
-// docs/firmware-implementation.md, phase 1. Le WebSocket transporte le PDU
+// Cadrage série (USB CDC). Le WebSocket transporte le PDU
 // tel quel, un message = une trame ; seul le fil série a besoin d'un
 // cadrage, parce qu'un flux d'octets n'a pas de bordure.
 //

@@ -1,7 +1,4 @@
-"""Client de flash (BEGIN, blocs, END) — docs/firmware-implementation.md,
-phase 1 : "Le client de flash vit ici aussi". Layout FLASH_CTRL provisoire,
-voir messages.hpp / docs/firmware.md ("Ce qui reste à trancher") — à
-revalider pour de vrai en phase 4, contre du matériel.
+"""Client de flash (BEGIN, blocs, END). Layout FLASH_CTRL : messages.hpp.
 
 Séquence (docs/firmware.md, "Flash — le seul cas de réassemblage") :
   1. FLASH_CTRL BEGIN porte la taille.
@@ -111,7 +108,7 @@ def flash(
                 # pas un envoi de 256 trames d'affilée : sa file TWAI
                 # déborde, des trames FLASH_DATA sont perdues, et le bloc
                 # reconstruit côté sensors échoue au CRC16 (constaté sur le
-                # vrai bus — voir docs/firmware-implementation.md, phase 4).
+                # vrai bus).
                 _time.sleep(0.002)
 
             ack = _wait_flash_ctrl(transport, ACK_TIMEOUT_S)

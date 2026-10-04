@@ -7,8 +7,7 @@ pas la variante deux cartes avec broches Z-C/DIM exposées — voir
 `tmp/DimmerLink/` (non versionné dans ce dépôt) —
 <https://github.com/robotdyn-dimmer/DimmerLink/blob/main/04_I2C_COMMUNICATION.md>
 si `tmp/` a été nettoyé depuis. Confirmée et corrigée contre le vrai matériel
-en bring-up le 2026-09-09 (voir `docs/firmware-implementation.md`, phase 5,
-section dimmer, pour le récit complet du diagnostic).
+en bring-up le 2026-09-09.
 
 Le firmware (`firmware/sensors/main/main.cpp`) n'utilise aujourd'hui que
 `DIM0_LEVEL` (écriture) et `STATUS`/`ERROR` (lecture de santé). Ce document
@@ -27,8 +26,7 @@ Transaction de lecture : **combinée**, pas deux transactions séparées avec
 STOP entre les deux (write pointeur de registre + read en repeated-start,
 comme `i2c_master_transmit_receive()` côté ESP-IDF ou `readfrom_mem()` côté
 MicroPython). Deux transactions séparées ont donné une lecture incohérente
-sur le vrai module (valeur figée à `0x32` en continu, y compris au repos) —
-voir le récit du bring-up dans `docs/firmware-implementation.md`.
+sur le vrai module (valeur figée à `0x32` en continu, y compris au repos).
 
 ## Carte des registres
 
@@ -144,7 +142,7 @@ indirectement, le débit), pas une sensation visuelle. `LINEAR` (puissance
 proportionnelle au niveau) donne la relation la plus directe et prévisible
 entre le niveau demandé et la puissance réellement appliquée — un point de
 départ raisonnable pour la calibration "carte dimmer → pression" déjà
-prévue (`docs/firmware-implementation.md`, section "Après", point 1).
+prévue (`docs/firmware.md`, « Calibration, dans la machine »).
 `RMS` reste une option à essayer si `LINEAR` donne une réponse trop non
 linéaire en pratique (comportement électromagnétique d'une pompe vibratoire
 pas forcément identique à une résistance pure). Ni l'un ni l'autre n'a été
@@ -194,9 +192,8 @@ son adresse en connaissant la nouvelle valeur.
 
 - `docs/firmware.md`, section "Dimmer — pompe" — vue d'ensemble protocole/
   sécurité, pas le détail registre par registre.
-- `docs/firmware-implementation.md`, phase 5 — récit complet du bring-up
-  (câblage phase/neutre inversé, diagnostic RECALIBRATE, firmware de test
-  dédié `firmware/dimmer-test/`).
+- `docs/firmware-build.md`, « Pièges connus » — câblage phase/neutre inversé,
+  pas de RECALIBRATE au boot ; firmware de test dédié `firmware/dimmer-test/`.
 - `docs/cablage.md`, "Câble du Digmesa (R2)" — piège de câblage similaire
   (connecteur qui inverse des broches), pour le débitmètre plutôt que le
   dimmer, mais même classe de piège.

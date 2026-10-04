@@ -1,5 +1,4 @@
-// Flux d'événements du cœur — face transverse de core/core.h
-// (docs/plan-phase6.md, "L'idée qui structure tout : le cœur machine").
+// Flux d'événements du cœur — face transverse de core/core.h.
 //
 // Lot 2 : juste assez pour porter un flux simple (boot, présence CAN perdue
 // et retrouvée), consommé par service_screen.cpp. Les lots suivants
@@ -26,8 +25,7 @@ enum class EventKind : uint8_t {
 struct Event {
   EventKind kind;
   // Horodatage monotone (esp_timer), en ms depuis le boot — jamais l'heure
-  // murale (docs/plan-phase6.md, "tout ce qui mesure une durée utilise
-  // l'horloge monotone").
+  // murale : tout ce qui mesure une durée utilise l'horloge monotone.
   uint32_t uptime_ms;
 };
 

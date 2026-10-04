@@ -1,7 +1,6 @@
-// Écran de service — lot 2 (docs/plan-phase6.md) : dalle RGB 800x480 + GT911
+// Écran de service : dalle RGB 800x480 + GT911
 // + esp_lvgl_port, et un affichage volontairement laid (version, état CAN,
 // état réseau, IP, cinq derniers événements du cœur, coordonnées tactiles).
-// Absorbé par ui/ au lot 10 (docs/plan-phase6.md).
 #pragma once
 
 namespace service_screen {

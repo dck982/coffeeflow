@@ -1,7 +1,6 @@
 """Décodeur de trames — lit un RawFrame déjà désassemblé (peu importe le
 transport, voir transport.py) et produit une ligne de texte lisible,
-horodatée. C'est le cœur de la phase 1 : "l'outil décode ... sans matériel"
-(docs/firmware-implementation.md).
+horodatée, sans matériel.
 """
 
 from __future__ import annotations

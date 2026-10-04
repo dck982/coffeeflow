@@ -1,6 +1,4 @@
-// Pont série (UART2 réaffecté) <-> CAN — voir docs/firmware-implementation.md
-// et docs/firmware.md. Code existant déplacé tel quel depuis main.cpp
-// (phase 3), voir docs/plan-phase6.md lot 1.
+// Pont série (UART2 réaffecté) <-> CAN.
 #pragma once
 
 #include <cstddef>

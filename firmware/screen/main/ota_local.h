@@ -1,7 +1,5 @@
-// OTA de l'écran lui-même — voir docs/firmware-implementation.md, phase 4
-// point 3 côté écran : Mac -> USB -> screen directement, sans passer par le
-// CAN (screen étant à la fois pont et destinataire). Code existant déplacé
-// tel quel, voir docs/plan-phase6.md lot 1.
+// OTA de l'écran lui-même : Mac -> USB -> screen directement, sans passer
+// par le CAN (screen étant à la fois pont et destinataire).
 #pragma once
 
 #include <cstddef>

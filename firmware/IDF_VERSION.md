@@ -7,7 +7,7 @@ expiré (mai 2026) : elle n'aurait pas eu de sens à figer pour un projet qui
 commence maintenant. On fige donc la stable courante, pas une LTS en fin de
 vie. Le principe reste le même : une carte en boîte ne se met plus à jour
 de toolchain, seulement d'application — on ne migre pas de version d'IDF en
-cours de route. Voir `docs/firmware-implementation.md`, phase 0.
+cours de route.
 
 Installée via [`eim`](https://github.com/espressif/idf-im-cli) (ESP-IDF
 Installation Manager), pas via un clone manuel :

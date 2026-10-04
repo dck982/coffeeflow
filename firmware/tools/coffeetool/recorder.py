@@ -1,6 +1,6 @@
 """Enregistrement et relecture de trames — ce format devient la fixture des
 tests d'algorithme en phase 6 : on enregistre un vrai shot, on le rejoue sur
-le Mac (docs/firmware-implementation.md, phase 1).
+le Mac.
 
 Un fichier est du JSON Lines, une trame par ligne :
     {"t": <secondes écoulées depuis la première trame>, "id": <int>, "data": "<hex>"}

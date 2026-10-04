@@ -31,4 +31,4 @@ Ce firmware jetable se flashe directement par `idf.py -p <port> flash` sur le
 banc — cycle court, sans passer par le CAN. Sa table de partitions n'est pas
 celle de production : une fois le diagnostic terminé, restaurer la table de
 partitions production à `0x8000`, puis l'image `factory` à `0x20000`, avant de
-reprendre l'OTA normal, selon `docs/firmware-implementation.md`.
+reprendre l'OTA normal, selon `docs/firmware-build.md`.

@@ -237,7 +237,7 @@ Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intér
 
 Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 
-Conception, protocole CAN et sécurité : `docs/firmware.md`. Ordre de réalisation : `docs/firmware-implementation.md`. Style et structure de l'interface tactile (LVGL) : `docs/ui.md`, maquette à l'échelle `docs/ui-mockup.html`.
+Conception, protocole CAN et sécurité : `docs/firmware.md`. Build, flash et banc : `docs/firmware-build.md`. Style et structure de l'interface tactile (LVGL) : `docs/ui.md`, maquette à l'échelle `docs/ui-mockup.html`.
 
 ## Disposition mécanique
 

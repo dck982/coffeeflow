@@ -1,6 +1,6 @@
 #!/bin/sh
 # Tests hôte de firmware/common/. Aucune dépendance ESP-IDF : tourne sur le
-# Mac, sans matériel. Voir docs/firmware-implementation.md, phase 0.
+# Mac, sans matériel.
 set -eu
 
 cd "$(dirname "$0")"

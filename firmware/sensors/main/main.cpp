@@ -1,5 +1,4 @@
-// Module capteurs (XIAO ESP32-S3) — phase 5 : application capteurs, livrée
-// par OTA. Voir docs/firmware-implementation.md et docs/firmware.md.
+// Module capteurs (XIAO ESP32-S3) — application capteurs, livrée par OTA.
 //
 // Socle phase 2 (bus, PING/PONG, LOG, RESET, machine à états de sécurité)
 // plus, depuis la phase 5, le XDB401 (I2C, port R1) et le débitmètre Digmesa
@@ -114,7 +113,7 @@ constexpr int64_t kTickPeriodUs = 100 * 1000;
 constexpr uint16_t kHeatingMaxDurationMs = 30000;
 constexpr uint16_t kHeatingPowerLeaseMs = 1500;
 
-// OTA — voir docs/firmware-implementation.md, phase 4. IDF ne redémarre
+// OTA. IDF ne redémarre
 // jamais tout seul une image en PENDING_VERIFY : ce délai est le
 // temporisateur d'invalidation explicite qui s'en charge. Réutilise le même
 // signal que la présence (mark_presence(), donc un PING/PONG venu de
@@ -161,7 +160,7 @@ int64_t g_last_own_ping_us = 0;
 uint8_t g_presence_probe_count = 0;
 bool g_presence_lost = true;  // état de repos correct, carte seule sur la table
 
-// Validation OTA — voir docs/firmware-implementation.md, phase 4.
+// Validation OTA.
 bool g_ota_pending_verify = false;
 int64_t g_ota_pending_since_us = 0;
 bool g_ota_roundtrip_confirmed = false;
@@ -878,8 +877,7 @@ void on_flash_begin(uint32_t image_size) {
   }
 
   // esp_ota_begin() efface les secteurs nécessaires à `image_size` avant de
-  // renvoyer — c'est l'effacement exigé avant d'acquitter le BEGIN (voir
-  // docs/firmware-implementation.md, phase 4, point 1).
+  // renvoyer — c'est l'effacement exigé avant d'acquitter le BEGIN.
   esp_ota_handle_t handle;
   esp_err_t err = esp_ota_begin(partition, image_size, &handle);
   if (err != ESP_OK) {
@@ -976,7 +974,7 @@ void on_flash_ctrl_received(const uint8_t* data, size_t len) {
 
 // FLASH_DATA (0x39) : la trame CAN entière (jusqu'à 8 octets) est la
 // donnée, aucun en-tête. Écrit au fil de l'eau, jamais l'image entière en
-// RAM — voir docs/firmware-implementation.md, phase 4, point 2.
+// RAM.
 //
 // Le proxy annonce chaque bloc par BLOCK_START. Si l'ACK s'est perdu,
 // le marqueur permet de reconnaître un rejeu et d'ignorer ses données.
@@ -1207,8 +1205,7 @@ void tick_twai_counters() {
   send_log(common::LogCode::kTwaiErrorCounters, common::LogSeverity::kDebug, arg16, status.bus_error_count);
 }
 
-// Temporisateur d'invalidation OTA — voir docs/firmware-implementation.md,
-// phase 4, point 3 : une image en NEW ou PENDING_VERIFY qui ne reçoit jamais
+// Temporisateur d'invalidation OTA : une image en NEW ou PENDING_VERIFY qui ne reçoit jamais
 // la confirmation explicite de screen doit rollback elle-même. La présence
 // ordinaire peut être maintenue par toute trame, mais la validation OTA
 // exige un aller-retour PING/PONG et des échos sûrs des actionneurs.
@@ -1342,7 +1339,7 @@ extern "C" void app_main() {
 
   init_lockout_state();
 
-  // NEW ou PENDING_VERIFY : voir docs/firmware-implementation.md, phase 4, point 3.
+  // NEW ou PENDING_VERIFY.
   // Ne jamais valider l'image tout de suite ici — tick_ota_validation() ne
   // le fait qu'après un PING/PONG confirmé sur le bus, ou rollback au bout
   // de kOtaValidationTimeoutUs.

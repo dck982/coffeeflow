@@ -1,5 +1,4 @@
-// TWAI : émission/réception, dispatch protocolaire, présence — voir
-// docs/firmware.md §2 et docs/plan-phase6.md lot 1.
+// TWAI : émission/réception, dispatch protocolaire, présence.
 #pragma once
 
 #include <cstdint>

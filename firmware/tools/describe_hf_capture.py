@@ -470,6 +470,80 @@ def phase_table(samples: list[dict[str, Any]], duration_s: float) -> str:
     return "\n".join(rows)
 
 
+HEATER_W = 1200.0
+
+
+def phase_energy(samples: list[dict[str, Any]], start: int, end: int, end_s: float) -> tuple[float, float]:
+    """Commande intégrée (%·s) et énergie SSR (kJ) d'une phase, chaque mesure tenue jusqu'à la suivante."""
+    command_pct_s = 0.0
+    ssr_kj = 0.0 if any(heater_state(sample) is not None for sample in samples[start:end + 1]) else float("nan")
+    for index in range(start, end + 1):
+        next_s = number(samples[index + 1].get("t_ms")) / 1000 if index + 1 < len(samples) else end_s
+        dt = next_s - number(samples[index].get("t_ms")) / 1000
+        power = number(samples[index].get("heating_power_pct"))
+        if math.isfinite(power) and dt > 0:
+            command_pct_s += power * dt
+        if heater_state(samples[index]) is True and dt > 0:
+            ssr_kj += HEATER_W * dt / 1000
+    return command_pct_s, ssr_kj
+
+
+def text_phase_table(samples: list[dict[str, Any]], duration_s: float) -> str:
+    """Table texte par phase, pour lire une capture sans ouvrir le rapport HTML."""
+    header = ("phase            début    durée   ΔV ml  débit ml/s  P bar début→fin (max)   Δpoids g  "
+              "NTC °C début→fin (min)   cmd %·s  cmd kJ  SSR kJ")
+    lines = [header]
+    for start, end, start_s, end_s, mode in phase_ranges(samples, duration_s):
+        # Les mesures de fin sont celles du premier échantillon de la phase suivante.
+        last = samples[min(end + 1, len(samples) - 1)]
+        first = samples[start]
+        span = samples[start:end + 2]
+        pressures = [number(s.get("pressure_bar")) for s in span if valid(s, "pressure")]
+        pressures = [p for p in pressures if math.isfinite(p)]
+        temps = [number(s.get("boiler_temperature_c")) for s in span]
+        temps = [t for t in temps if math.isfinite(t)]
+        volume = delta(first, last, "volume_ml")
+        duration = end_s - start_s
+        command, ssr = phase_energy(samples, start, end, end_s)
+        weight = "—" if mode == "cooldown" else fmt(delta(first, last, "weight_g"), 1)
+        lines.append(
+            f"{mode_label(mode):<15} {start_s:6.2f}  {duration:6.2f}  {fmt(volume, 1):>6}  "
+            f"{fmt(volume / duration if duration > 0 else float('nan'), 2):>10}  "
+            f"{pressure_fmt(first):>5}→{pressure_fmt(last):<5} ({fmt(max(pressures) if pressures else None):>5})  "
+            f"   {weight:>7}  "
+            f"{fmt(first.get('boiler_temperature_c')):>6}→{fmt(last.get('boiler_temperature_c')):<6} "
+            f"({fmt(min(temps) if temps else None):>6})  {command:7.0f}  {command * 12 / 1000:6.2f}  {fmt(ssr):>6}")
+    return "\n".join(lines)
+
+
+def text_events(samples: list[dict[str, Any]]) -> str:
+    """Repères hydrauliques comptés depuis le début du remplissage."""
+    fill = next((s for s in samples if s.get("mode") == "filling"), None)
+    if fill is None:
+        return ""
+    t0 = number(fill.get("t_ms")) / 1000
+    w0 = number(fill.get("weight_g"))
+    lines = ["repère (depuis le remplissage)      t s     V ml   P bar  phase"]
+
+    def line(label: str, sample: dict[str, Any] | None) -> None:
+        if sample is None:
+            lines.append(f"{label:<34}  —")
+            return
+        lines.append(f"{label:<34} {number(sample.get('t_ms')) / 1000 - t0:5.2f}  "
+                     f"{fmt(delta(fill, sample, 'volume_ml'), 1):>6}  {pressure_fmt(sample):>6}  "
+                     f"{mode_label(sample.get('mode'))}")
+
+    after = [s for s in samples if number(s.get("t_ms")) >= number(fill.get("t_ms"))
+             and s.get("mode") != "cooldown"]
+    for threshold in (1.0, 2.0, 8.0):
+        line(f"pression ≥ {threshold:g} bar",
+             next((s for s in after if valid(s, "pressure") and number(s.get("pressure_bar")) >= threshold), None))
+    if has_weight(samples) and math.isfinite(w0):
+        line("première goutte (poids ≥ 0,3 g)",
+             next((s for s in after if valid(s, "scale") and number(s.get("weight_g")) - w0 >= 0.3), None))
+    return "\n".join(lines)
+
+
 def key_points_table(samples: list[dict[str, Any]], weight_flow_window_s: float) -> str:
     cup_flows = cup_flow_series(samples, weight_flow_window_s)
 
@@ -934,6 +1008,14 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
       <thead><tr><th>Phase</th><th>Intervalle</th><th>Durée</th><th>Pression</th><th>Poids</th><th>Volume</th><th>Température</th></tr></thead>
       <tbody>{phase_table(samples, duration_s)}</tbody>
     </table></div>
+  </section>
+
+  <section aria-labelledby="balance-title">
+    <h2 id="balance-title">Bilan par phase et repères</h2>
+    <p>Commande intégrée en tenant chaque mesure jusqu’à la suivante ; 1 %·s vaut 12 J. SSR : temps à l’état ON × 1 200 W. Fin de phase lue sur le premier échantillon de la phase suivante. Repères comptés depuis le premier échantillon du remplissage, récupération exclue.</p>
+    <pre style="overflow-x:auto">{html.escape(text_phase_table(samples, duration_s))}
+
+{html.escape(text_events(samples))}</pre>
   </section>
 
   <section aria-labelledby="points-title">

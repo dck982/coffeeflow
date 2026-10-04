@@ -90,3 +90,16 @@ def test_shot_summary_matches_screen_definitions():
     assert abs(shot["drip_gain_g"] - 0.5) < 0.06
     assert abs(shot["cup_mean_c"] - 90.1) < 0.05
     assert abs(shot["min_temperature_c"] - 88.9) < 0.02 and abs(shot["max_temperature_c"] - 91.3) < 0.02
+
+
+def test_text_phase_table_integrates_heating_per_phase():
+    from describe_hf_capture import text_events, text_phase_table
+
+    samples = [{"t_ms": t * 1000, "mode": "thermal_preheat" if t < 2 else "filling", "flags": 0x0F,
+                "heating_power_pct": 90 if t < 2 else 50, "heater_on": t < 2,
+                "pressure_bar": 0.3 + max(0, t - 2), "volume_ml": max(0, t - 2) * 3.0,
+                "weight_g": 0.0, "boiler_temperature_c": 90.0} for t in range(5)]
+    lines = text_phase_table(samples, 5.0).splitlines()
+    assert lines[1].split()[-3:] == ["180", "2.16", "2.40"]
+    assert lines[2].split()[-3:] == ["150", "1.80", "0.00"]
+    assert "pression ≥ 2 bar                    2.00     6.0    2.30  remplissage" in text_events(samples)

@@ -354,21 +354,20 @@ void tick_thermal() {
   g_state.last_thermal_step_us = now;
   const Config config = get_config();
   const Snapshot snapshot = get_snapshot();
-  const bool brewing = snapshot.cycle_state == CycleState::kFilling ||
-      snapshot.cycle_state == CycleState::kPreinfusion ||
-      snapshot.cycle_state == CycleState::kBrew ||
+  const bool filling = snapshot.cycle_state == CycleState::kFilling ||
+      snapshot.cycle_state == CycleState::kPreinfusion;
+  const bool infusing = snapshot.cycle_state == CycleState::kBrew ||
       snapshot.cycle_state == CycleState::kRampdown;
   const auto mode = snapshot.cycle_state == CycleState::kThermalPreheat
       ? thermal::Controller::Mode::kThermalPreheat
       : snapshot.cycle_state == CycleState::kPurge
       ? thermal::Controller::Mode::kPurge
-      : brewing ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
+      : infusing ? thermal::Controller::Mode::kInfusion
+      : filling ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
   // Temps restant avant l'arrêt de la pompe, seulement pendant l'infusion :
   // au poids cible avec la balance, sinon au temps cible. Inconnu (NaN) en
   // remplissage, en pré-infusion ou si la balance disparaît.
   float brew_remaining_s = std::numeric_limits<float>::quiet_NaN();
-  const bool infusing = snapshot.cycle_state == CycleState::kBrew ||
-      snapshot.cycle_state == CycleState::kRampdown;
   if (!infusing) {
     g_state.brew_end_estimator.reset();
   } else {

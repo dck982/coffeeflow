@@ -1,7 +1,7 @@
 # Chauffe pendant l'infusion
 
 Ce document décrit la loi de chauffe appliquée pendant une infusion, de la
-précharge à l'arrêt de la pompe (version écran **0.3.28**), et les mesures qui
+précharge à l'arrêt de la pompe (version écran **0.3.37**), et les mesures qui
 la justifient. Le code est dans `firmware/screen/main/core/brew_heating.h`.
 
 ## Périmètre
@@ -63,6 +63,7 @@ l'offset.
 | 30/09, 9 h 43 | 8 s | **92,55 °C** | 92,00 °C |
 | 30/09, 14 h 25 | 5,5 s, mouture grossie | **89,60 °C** | 89,88 °C |
 | 01/10, 8 h 29 | 5,5 s, mouture un peu moins fine, porte-filtre moins chauffé | **88,39 °C** | 89,25 °C |
+| 04/10, 10 h 01 | 5,5 s, mouture trop fine (infusion de 34,4 s), pré-infusion à 60 % | **92,52 °C** | 91,21 °C |
 
 Les réglages et les recettes ont changé d'une infusion à l'autre ; la
 dispersion de 5,35 °C ne mesure donc pas seulement la loi. En simulation, à
@@ -102,6 +103,7 @@ Conséquences :
 - la commande pendant l'écoulement suit le débit mesuré, sans dépendre de la
   NTC ;
 - la précharge sert à **devancer** l'eau froide, pas à équilibrer un bilan ;
+  depuis 0.3.37, elle est rendue pendant l'infusion ;
 - la chauffe est coupée peu avant l'arrêt prévu de la pompe.
 
 Jusqu'à 0.3.27, un plancher de 45 % disparaissait dès que la NTC dépassait
@@ -161,6 +163,41 @@ headspace, et la capture HF compterait sa queue depuis cet arrêt.
 Le seuil de sécurité est volontairement large : le pic de NTC dû à la
 précharge (≈ +1,5 à +2,5 °C) ne doit pas retirer l'appoint.
 
+### Remboursement de la précharge
+
+Depuis 0.3.37, la précharge est une **avance sur l'appoint**. Son énergie
+forme une dette, rendue dès le début de l'infusion en retenant l'appoint :
+la commande est de **0 %** jusqu'à ce que la somme des appoints retenus
+égale la dette. Ensuite, la loi d'écoulement reprend sans changement.
+
+| Règle | Choix |
+| --- | --- |
+| Dette | commande de précharge effectivement envoyée, chaque commande comptée jusqu'au pas suivant (1 s au plus) ; une précharge supprimée par la NTC ne compte pas |
+| Début du remboursement | entrée en infusion (état `kBrew` de la machine, mode `kInfusion` du régulateur), quelle que soit la sortie de la pré-infusion (temps ou première goutte) |
+| Remplissage et pré-infusion | appoint normal, dette intacte |
+| Montant rendu à chaque pas | la commande que la loi aurait envoyée : appoint au débit, ou repli de 45 % sans débit mesurable |
+| Coupure de fin, sécurité à consigne + 4 °C | déjà à 0 % : ne rendent rien, la dette reste |
+| Dernier pas | peut rendre jusqu'à 250 ms de trop (≈ 0,27 kJ à 90 %) |
+| Pompe arrêtée avant la fin du remboursement | le reste de la dette est abandonné |
+| Précharge interrompue, cycle suivant sans précharge | dette remise à zéro au début de tout écoulement qui ne suit pas une précharge |
+| Coupure générale pendant l'écoulement (mesure invalide, chauffe désactivée, NTC > 105 °C) | régulateur remis à zéro : la dette est perdue, l'appoint reprend normalement |
+
+Le remboursement ne dépend ni de la balance ni de la NTC : seule la fin
+de la pré-infusion le déclenche, et le montant suit le débitmètre comme
+l'appoint lui-même. Il fonctionne donc à l'identique sans balance, à
+l'arrêt au temps comme au poids.
+
+Attendre que le débit amont rejoigne le débit en tasse, c'est-à-dire que
+la galette soit saturée, a été écarté. Cette condition revient à rembourser
+une fois le fort débit passé. En simulation, la variante « remboursée
+sous 2,5 ml/s » laisse 1,88 °C d'écart entre les quatre captures du
+28 au 30 septembre, contre 1,23 °C en remboursant dès l'infusion. Sur
+l'infusion de 34 s du 4 octobre, elle laisse 91,8 °C en tasse contre 89,6 °C
+(précharge de 8 s). La chaleur qui crée la double chauffe est celle de la
+montée en pression ; il faut la retenir à ce moment-là. Un profil de débit
+variable ne change rien à la règle : un débit plus fort rembourse plus
+vite, un débit plus faible plus lentement.
+
 ### Coupure de fin
 
 Le temps restant avant l'arrêt de la pompe n'est estimé que pendant
@@ -200,7 +237,7 @@ début de l'infusion, pendant la montée en pression.
 
 | Réglage | Emplacement | Valeur |
 | --- | --- | --- |
-| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; **5,5 s** depuis le 30 septembre à 14 h 25 |
+| Durée de précharge | NVS `heating.brew_preheat_time_s`, 4e page des réglages | 0 à 15 s ; 5,5 s du 30 septembre au 4 octobre ; **8 s** avec le remboursement (0.3.37) |
 | Puissance de précharge | `BrewHeating::kPreheatPowerPct` | 90 % |
 | Bande de suppression de la précharge | `BrewHeating::kPreheatAboveTargetBandC` | +0,5 °C |
 | Maintien | `BrewHeating::kHoldPowerPct` | 3,5 % |
@@ -208,6 +245,7 @@ début de l'infusion, pendant la montée en pression.
 | Plafond pendant l'écoulement | `BrewHeating::kPowerLimitPct` | 90 % |
 | Repli sans débit | `BrewHeating::kFlowFallbackPct` | 45 % |
 | Avance de la coupure de fin | `BrewHeating::kEndCutLeadS` | 11 s |
+| Durée maximale imputée à une commande (dette) | `BrewHeating::kMaximumStepMs` | 1 s |
 | Sécurité au-dessus de la consigne | `BrewHeating::kSafetyAboveTargetC` | +4 °C |
 | Fenêtre, poids et débit minimaux de l'estimation | `BrewEndEstimator::kRateWindowMs`, `kMinimumCupWeightG`, `kMinimumCupRateGPerS` | 2 s, 3 g, 0,3 g/s |
 
@@ -317,7 +355,19 @@ facteur manquant décrit plus bas. Mouture et porte-filtre ayant changé,
 l'essai ne tranche pas la répétabilité ; rien n'est changé. Détail dans le
 [journal](chauffe-chaudiere.md#infusion-de-8-h-29-1er-octobre--précharge-de-55-s).
 
-**Remboursement de la précharge (simulé, non implémenté).** L'appoint est
+**Cinquième essai, 4 octobre à 10 h 01 (précharge de 5,5 s, mouture trop
+fine, écran 0.3.32 ou plus).** Nouveau paquet du même café. Moyenne en
+tasse de **92,52 °C**, minimum de 88,71 °C pendant l'écoulement, 91,97 °C
+20 s après l'arrêt. Le temps jusqu'à 8 bar ne change pas (11,6 s) ; le
+débit en pression tombe à 0,8–1,3 ml/s et l'infusion dure 34,4 s. La
+pré-infusion, restée à 60 % après la migration du schéma 8, n'a pas fait
+de pause et a appelé ≈ 4 kJ en plein débit. La chaleur du fort débit
+atteint la sonde vers 25–37 s, pompe en marche : c'est la double chauffe
+de 9 h 43, à précharge plus courte. Détail dans le
+[journal](chauffe-chaudiere.md#infusion-de-10-h-01-4-octobre--précharge-de-55-s-mouture-trop-fine).
+
+**Remboursement de la précharge (implémenté en 0.3.37, voir
+[Loi](#remboursement-de-la-précharge)).** L'appoint est
 retenu jusqu'à ce que l'énergie retenue égale celle de la précharge ; la
 coupure de fin s'y ajoute sans compter dans ce remboursement. Moyenne en
 tasse simulée sur l'hydraulique des quatre captures (13 h 01, 7 h 40,
@@ -331,7 +381,17 @@ tasse simulée sur l'hydraulique des quatre captures (13 h 01, 7 h 40,
 
 À moyenne comparable, le remboursement dès l'infusion garde les mêmes
 minima. Il réduit l'écart entre captures de 2,1 à 1,2 °C et ramène l'état
-final sous la consigne. Attendre la fin du fort débit (sous 2,5 ou
+final sous la consigne. Rejouées sur l'hydraulique de 14 h 25, 8 h 29 et
+10 h 01 (infusions de 14,4, 13,7 et 34,4 s), les deux lois donnent :
+
+| Loi | Précharge | Tasse 14 h 25 / 8 h 29 / 10 h 01 | Écart | Minimum | Énergie |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| actuelle, coupure 11 s | 5,5 s | 87,82 / 87,62 / 91,14 °C | 3,52 °C | 86,4–87,3 °C | 13,7–23,0 kJ |
+| remboursée dès le début de l'infusion | 8 s | 89,24 / 89,00 / 89,55 °C | 0,55 °C | 86,7–88,0 °C | 13,6–17,0 kJ |
+| remboursée dès le début de l'infusion | 10 s | 90,67 / 90,37 / 90,88 °C | **0,51 °C** | 87,9–89,5 °C | 15,8–18,2 kJ |
+
+Le modèle sous-estime les trois moyennes de 0,7 à 1,8 °C ; seul l'écart
+entre captures se lit. Attendre la fin du fort débit (sous 2,5 ou
 2,0 ml/s) laisse trop peu de temps pour rembourser avant l'arrêt. Chaque
 seconde de précharge vaut ≈ 0,72 °C sur la moyenne en tasse, quelle que soit
 la loi.
@@ -351,10 +411,11 @@ confirmer sur des infusions réelles.
   courbe de la sonde. Le panier de mesure en préparation dira si le creux
   de la NTC est aussi celui de la tasse, et si l'offset de −10 °C tient
   pendant l'écoulement (voir [Objectif](#objectif)).
-- **Double chauffe de l'eau du remplissage.** La précharge et l'appoint au
-  débit la chauffent toutes les deux ; la coupure de fin n'en retire qu'une
-  partie. Voir le
-  [remboursement de la précharge](#simulation), simulé mais non implémenté.
+- **Remboursement non vérifié sur infusion réelle.** La double chauffe de
+  l'eau du remplissage (précharge puis appoint au débit) est traitée depuis
+  0.3.37 par le [remboursement](#remboursement-de-la-précharge). Son effet
+  n'est connu qu'en simulation, dont l'erreur sur la moyenne en tasse
+  atteint ±1,9 °C.
 - **Le débitmètre est en amont de la pompe.** Une recirculation par l'OPV
   gonflerait le débit mesuré, donc la commande.
 - **Premier instant du remplissage.** Le débit mesuré reste parfois proche
@@ -390,5 +451,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `260930-094308.json` | 8 s | premier essai de la 0.3.30 (fenêtre SSR neuve) ; mouture trop fine ; +2,55 °C en tasse, double chauffe du remplissage ; hors ajustement |
 | `260930-142555.json` | 5,5 s | mouture grossie ; −0,40 °C en tasse, réglage retenu ; hors ajustement |
 | `261001-082959.json` | 5,5 s | mouture un peu moins fine, porte-filtre moins chauffé ; −1,61 °C en tasse, coupure pendant la montée en pression ; hors ajustement |
+| `261004-100128.json` | 5,5 s | mouture trop fine, infusion de 34,4 s, pré-infusion à 60 % sans pause ; +2,52 °C en tasse, double chauffe du remplissage ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

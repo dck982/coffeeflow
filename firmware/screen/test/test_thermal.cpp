@@ -106,6 +106,57 @@ int main() {
     idle_then_brew.step(now, 87.0f, 90, true, true, Mode::kIdle);
   assert(idle_then_brew.step(20250, 87.0f, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
 
+  // Remboursement de la précharge : 5,5 s à 90 % font 495 %·s de dette. Le
+  // remplissage garde son appoint ; dès l'infusion, l'appoint de 52,6 % à
+  // 2 ml/s est retenu pendant 38 pas de 250 ms (13,15 %·s chacun).
+  core::thermal::Controller repay;
+  uint64_t now = 1000;
+  for (; now < 6500; now += 250)
+    assert(repay.step(now, 90, 90, true, true, Mode::kThermalPreheat).power_permille == 900);
+  for (; now < 9250; now += 250)
+    assert(repay.step(now, 90, 90, true, true, Mode::kBrew, 3.6f, true).power_permille == 900);
+  int withheld = 0;
+  while (repay.step(now, 90, 90, true, true, Mode::kInfusion, 2, true).power_permille == 0) {
+    ++withheld;
+    now += 250;
+  }
+  assert(withheld == 38);
+  assert(repay.step(now + 250, 90, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
+
+  // Sans précharge, ou après une précharge interrompue, rien n'est retenu.
+  core::thermal::Controller no_debt;
+  no_debt.step(1000, 90, 90, true, true, Mode::kIdle);
+  assert(no_debt.step(1250, 90, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
+  core::thermal::Controller aborted;
+  aborted.step(1000, 90, 90, true, true, Mode::kThermalPreheat);
+  aborted.step(1250, 90, 90, true, true, Mode::kThermalPreheat);
+  aborted.step(1500, 90, 90, true, true, Mode::kIdle);
+  assert(aborted.step(1750, 90, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
+  // Une précharge supprimée (NTC à la cible + 0,5 °C) ne crée pas de dette.
+  core::thermal::Controller hot_preheat;
+  hot_preheat.step(1000, 90.6f, 90, true, true, Mode::kThermalPreheat);
+  hot_preheat.step(1250, 90.6f, 90, true, true, Mode::kThermalPreheat);
+  assert(hot_preheat.step(1500, 90.6f, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
+
+  // La dette se compte sur la durée réelle de chaque commande ; la coupure de
+  // fin et la sécurité, déjà à 0 %, ne remboursent rien.
+  core::thermal::BrewHeating law;
+  law.reset();
+  law.preheat_pct(1000, 90, 90);
+  law.preheat_pct(1500, 90, 90);
+  assert(law.flow_pct(2000, 90, 90, 2, true, 20.0f, true) == 0.0f);
+  assert(std::fabs(law.debt_pct_s() - 90.0f) < 1e-3f);
+  assert(law.flow_pct(2250, 90, 90, 2, true, 10.0f, true) == 0.0f);
+  assert(std::fabs(law.debt_pct_s() - (90.0f - 0.25f * 52.615f)) < 1e-2f);
+  assert(law.flow_pct(2500, 90, 90, 2, true, 9.0f, true) == 0.0f);
+  assert(std::fabs(law.debt_pct_s() - (90.0f - 0.25f * 52.615f)) < 1e-2f);
+  // Un pas manqué ne compte que pour 1 s.
+  core::thermal::BrewHeating gap;
+  gap.reset();
+  gap.preheat_pct(1000, 90, 90);
+  gap.flow_pct(4000, 90, 90, 2, true, 20.0f, false);
+  assert(std::fabs(gap.debt_pct_s() - 90.0f) < 1e-3f);
+
   // Temps restant avant l'arrêt : au temps, direct ; au poids, sur le débit
   // en tasse des 2 dernières secondes, une fois 3 g atteints.
   using core::thermal::BrewEndEstimator;

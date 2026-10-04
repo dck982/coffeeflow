@@ -21,7 +21,9 @@ namespace core::thermal {
 // transit, à recalibrer sur capture.
 class Controller {
  public:
-  enum class Mode { kIdle, kThermalPreheat, kBrew, kPurge };
+  // `kBrew` : remplissage et pré-infusion ; `kInfusion` : infusion, rampe de
+  // fin comprise. Le remboursement de la précharge commence avec `kInfusion`.
+  enum class Mode { kIdle, kThermalPreheat, kBrew, kInfusion, kPurge };
   // `restart_window` : première commande non nulle de la précharge ou de
   // l'écoulement d'une infusion. Le module capteurs ouvre alors une nouvelle
   // période SSR au lieu d'attendre la fin de la période de repos en cours
@@ -82,19 +84,24 @@ class Controller {
       last_ms_ = now_ms;
     }
     const bool preheating = mode == Mode::kThermalPreheat;
-    const bool flowing = mode == Mode::kBrew || mode == Mode::kPurge;
+    const bool brewing = mode == Mode::kBrew || mode == Mode::kInfusion;
+    const bool flowing = brewing || mode == Mode::kPurge;
+    // La dette de précharge passe à l'écoulement qui la suit ; tout autre
+    // début de précharge ou d'écoulement part d'une loi d'infusion neuve.
+    if (preheating && !was_preheating_) brew_.reset();
     if (flowing != was_flowing_) {
       // The temperature slope during water exchange does not predict the
       // boiler's slope once the flow stops (or starts).
       slope_c_per_s_ = 0;
       last_temperature_c_ = temperature_c;
       last_ms_ = now_ms;
-      brew_.reset();
+      if (!flowing || !was_preheating_) brew_.reset();
       if (!flowing) recovery_until_ms_ = now_ms + kRecoveryDurationMs;
       else uncompensated_purge_ = mode == Mode::kPurge &&
           std::fabs(temperature_c - target_c) >= kPurgeCompensationBandC;
       was_flowing_ = flowing;
     }
+    was_preheating_ = preheating;
     // Une nouvelle précharge est une phase active à part entière : elle ne
     // doit pas hériter du plafond de récupération du cycle précédent.
     const bool recovering = !flowing && !preheating && now_ms < recovery_until_ms_;
@@ -128,13 +135,14 @@ class Controller {
     }
     const bool ready = ready_since_ms_ != 0 && now_ms - ready_since_ms_ >= 3000;
 
-    if (preheating || mode == Mode::kBrew) {
+    if (preheating || brewing) {
       // Loi d'infusion séparée : ni la prédiction, ni l'intégrale, ni le
       // filtre de sortie du régulateur de repos n'interviennent. La commande
       // est enregistrée pour l'estimation de chaleur en transit de la reprise.
       const float power = preheating
-          ? BrewHeating::preheat_pct(temperature_c, target_c)
-          : brew_.flow_pct(temperature_c, target_c, flow_ml_s, flow_valid, brew_remaining_s);
+          ? brew_.preheat_pct(now_ms, temperature_c, target_c)
+          : brew_.flow_pct(now_ms, temperature_c, target_c, flow_ml_s, flow_valid,
+                           brew_remaining_s, mode == Mode::kInfusion);
       filtered_power_pct_ = power;
       has_filtered_power_ = true;
       const uint16_t power_permille = static_cast<uint16_t>(
@@ -251,6 +259,7 @@ class Controller {
     filtered_power_pct_ = 0;
     has_filtered_power_ = false;
     was_flowing_ = false;
+    was_preheating_ = false;
     uncompensated_purge_ = false;
     brew_.reset();
     restarted_phase_ = WindowPhase::kNone;
@@ -322,6 +331,7 @@ class Controller {
   float filtered_power_pct_ = 0;
   bool has_filtered_power_ = false;
   bool was_flowing_ = false;
+  bool was_preheating_ = false;
   bool uncompensated_purge_ = false;
   BrewHeating brew_;
   WindowPhase restarted_phase_ = WindowPhase::kNone;

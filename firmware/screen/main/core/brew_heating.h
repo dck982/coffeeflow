@@ -16,6 +16,12 @@ namespace core::thermal {
 //
 // La commande ne dépend pas de la NTC, qui voit l'eau froide environ 11 s
 // avant la chaleur (docs/chauffe-chaudiere.md, simulation du 29 septembre).
+//
+// La précharge est une avance sur l'appoint : dès l'entrée en infusion,
+// l'appoint est retenu jusqu'à avoir rendu l'énergie de la précharge. Sans
+// ce remboursement, l'eau du remplissage est chauffée deux fois, et l'excédent
+// tombe en tasse d'autant plus que l'infusion est longue
+// (docs/chauffe-infusion.md, remboursement de la précharge).
 class BrewHeating {
  public:
   static constexpr float kPreheatPowerPct = 90.0f;
@@ -35,16 +41,48 @@ class BrewHeating {
   // de chauffe de 13 h 01 (28 septembre), provoqué par le pic de précharge.
   static constexpr float kSafetyAboveTargetC = 4.0f;
 
-  void reset() { end_cut_ = false; }
+  // Une commande vaut au plus jusqu'à 1 s : au-delà, le pas manqué n'est pas
+  // compté, comme dans le régulateur.
+  static constexpr uint64_t kMaximumStepMs = 1000;
 
-  static float preheat_pct(float temperature_c, float target_c) {
-    return temperature_c - target_c < kPreheatAboveTargetBandC ? kPreheatPowerPct : 0.0f;
+  // Début d'un cycle, avec ou sans précharge, et fin de l'écoulement.
+  void reset() {
+    end_cut_ = false;
+    debt_pct_s_ = 0.0f;
+    last_ms_ = 0;
+    last_preheat_pct_ = 0.0f;
+    last_withheld_pct_ = 0.0f;
   }
 
-  // `remaining_s` : temps estimé avant l'arrêt de la pompe, NaN si inconnu
-  // (arrêt manuel, balance sans débit établi, phase avant l'infusion).
-  float flow_pct(float temperature_c, float target_c, float flow_ml_s, bool flow_valid,
-                 float remaining_s) {
+  // Précharge : 90 % sauf si la NTC dépasse déjà la cible de 0,5 °C. La
+  // commande envoyée s'ajoute à la dette jusqu'au pas suivant.
+  float preheat_pct(uint64_t now_ms, float temperature_c, float target_c) {
+    settle(now_ms);
+    last_preheat_pct_ =
+        temperature_c - target_c < kPreheatAboveTargetBandC ? kPreheatPowerPct : 0.0f;
+    return last_preheat_pct_;
+  }
+
+  // Remplissage, pré-infusion (`infusing` faux) et infusion, rampe de fin
+  // comprise. `remaining_s` : temps estimé avant l'arrêt de la pompe, NaN si
+  // inconnu (arrêt manuel, balance sans débit établi, phase avant l'infusion).
+  float flow_pct(uint64_t now_ms, float temperature_c, float target_c, float flow_ml_s,
+                 bool flow_valid, float remaining_s, bool infusing) {
+    settle(now_ms);
+    const float law_pct = law(temperature_c, target_c, flow_ml_s, flow_valid, remaining_s);
+    // Seul l'appoint de la loi est retenu : la coupure de fin et la sécurité,
+    // qui donnent déjà 0 %, ne remboursent rien.
+    last_withheld_pct_ = infusing && debt_pct_s_ > 0.0f ? law_pct : 0.0f;
+    return law_pct - last_withheld_pct_;
+  }
+
+  bool end_cut() const { return end_cut_; }
+  // Énergie de précharge encore à rendre, en %·s (12 J par %·s).
+  float debt_pct_s() const { return debt_pct_s_; }
+
+ private:
+  float law(float temperature_c, float target_c, float flow_ml_s, bool flow_valid,
+            float remaining_s) {
     // Figée une fois atteinte : une estimation qui remonte ne relance pas la
     // chauffe avant l'arrêt de la pompe.
     if (std::isfinite(remaining_s) && remaining_s <= kEndCutLeadS) end_cut_ = true;
@@ -54,10 +92,25 @@ class BrewHeating {
                     kHoldPowerPct + std::max(0.0f, flow_ml_s) * kWaterHeatPctPerMlS);
   }
 
-  bool end_cut() const { return end_cut_; }
+  // Impute la commande du pas précédent sur la durée écoulée depuis : la
+  // précharge augmente la dette, l'appoint retenu la rembourse. Le dernier pas
+  // de remboursement peut rendre jusqu'à 250 ms de trop (≈ 0,27 kJ à 90 %).
+  void settle(uint64_t now_ms) {
+    if (last_ms_ != 0 && now_ms > last_ms_) {
+      const float dt_s =
+          static_cast<float>(std::min(now_ms - last_ms_, kMaximumStepMs)) / 1000.0f;
+      debt_pct_s_ = std::max(0.0f, debt_pct_s_ + (last_preheat_pct_ - last_withheld_pct_) * dt_s);
+    }
+    last_ms_ = now_ms;
+    last_preheat_pct_ = 0.0f;
+    last_withheld_pct_ = 0.0f;
+  }
 
- private:
   bool end_cut_ = false;
+  float debt_pct_s_ = 0.0f;
+  uint64_t last_ms_ = 0;
+  float last_preheat_pct_ = 0.0f;
+  float last_withheld_pct_ = 0.0f;
 };
 
 // Temps restant avant l'arrêt de la pompe. Au poids, le débit en tasse est

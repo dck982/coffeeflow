@@ -174,7 +174,7 @@ cJSON* encode_config(const core::Config& config) {
   add_config_decimal(heating, "brew_preheat_time_s", config.brew_preheat_time_s);
   cJSON* filling = cJSON_AddObjectToObject(root, "filling");
   cJSON_AddNumberToObject(filling, "time_s", config.filling_time_s);
-  add_config_decimal(filling, "pressure_rise_bar", config.filling_pressure_rise_bar);
+  add_config_decimal(filling, "pressure_bar", config.filling_pressure_bar);
   cJSON_AddNumberToObject(filling, "pump_pct", config.filling_pump_pct);
   cJSON* preinfusion = cJSON_AddObjectToObject(root, "preinfusion");
   cJSON_AddBoolToObject(preinfusion, "time",
@@ -520,8 +520,8 @@ bool apply_filling_key(const char* key, cJSON* value, core::Config* config, cons
   if (std::strcmp(key, "time_s") == 0) {
     return overlay_number_u16(value, "filling.time_s", &config->filling_time_s, error_field);
   }
-  if (std::strcmp(key, "pressure_rise_bar") == 0) {
-    return overlay_number_float(value, "filling.pressure_rise_bar", &config->filling_pressure_rise_bar,
+  if (std::strcmp(key, "pressure_bar") == 0) {
+    return overlay_number_float(value, "filling.pressure_bar", &config->filling_pressure_bar,
                                 error_field);
   }
   if (std::strcmp(key, "pump_pct") == 0) {

@@ -85,7 +85,6 @@ struct State {
   int64_t heating_received_us = 0;
   int64_t heating_deadline_us = 0;
   thermal::Controller thermal_controller;
-  thermal::BrewEndEstimator brew_end_estimator;
   int64_t last_heating_power_send_us = 0;
   int64_t last_thermal_step_us = 0;
   uint16_t last_heating_power_sent = 0;
@@ -401,24 +400,6 @@ void tick_thermal() {
       ? thermal::Controller::Mode::kPurge
       : infusing ? thermal::Controller::Mode::kInfusion
       : filling ? thermal::Controller::Mode::kBrew : thermal::Controller::Mode::kIdle;
-  // Temps restant avant l'arrêt de la pompe, seulement pendant l'infusion :
-  // au poids cible avec la balance, sinon au temps cible. Inconnu (NaN) en
-  // remplissage, en pré-infusion ou si la balance disparaît.
-  float brew_remaining_s = std::numeric_limits<float>::quiet_NaN();
-  if (!infusing) {
-    g_state.brew_end_estimator.reset();
-  } else {
-    portENTER_CRITICAL(&g_state.lock);
-    const float stop_weight_g = g_state.machine.stop_weight_g();
-    const float stop_time_s = g_state.machine.target_time_s();
-    portEXIT_CRITICAL(&g_state.lock);
-    if (!snapshot.cycle_weight_goal)
-      brew_remaining_s = thermal::BrewEndEstimator::by_time(snapshot.cycle_elapsed_ms, stop_time_s);
-    else if (snapshot.scale_present)
-      brew_remaining_s = g_state.brew_end_estimator.by_weight(
-          static_cast<uint64_t>(now / 1000), snapshot.weight_g - snapshot.cycle_start_weight_g,
-          stop_weight_g);
-  }
   const bool can_heat = config.heating_enabled && !g_flash_active &&
       !snapshot.heating_requested && !snapshot.lockout && snapshot.sensors_alive &&
       snapshot.heating_power_capable && snapshot.heating_freshness == Freshness::kFresh;
@@ -435,8 +416,7 @@ void tick_thermal() {
       snapshot.boiler_temperature_valid &&
           snapshot.boiler_temperature_freshness == Freshness::kFresh,
       can_heat, mode, paused ? 0.0f : snapshot.flow_ml_s,
-      flowmeter_live && (flow_recent || paused),
-      brew_remaining_s);
+      flowmeter_live && (flow_recent || paused));
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.heating_power_pct = output.power_permille / 10.0f;
   g_state.snapshot.brew_temperature_ready = output.ready;
@@ -480,7 +460,7 @@ uint16_t config_field_arg(const char* field) {
       {"purge", 21},
       {"ui", 22},
       {"filling.time_s", 23},
-      {"filling.pressure_rise_bar", 24},
+      {"filling.pressure_bar", 24},
       {"filling.pump_pct", 25},
       {"filling", 26},
       {"brew.target_pressure_bar", 27},
@@ -514,7 +494,7 @@ ActionResult action_result(ActionStatus status) { return {status, action_reason(
 machine::Config machine_config(const Config& c) {
   return {c.target_weight_g, c.target_time_s, c.target_pressure_bar, c.brew_preheat_time_s,
           c.filling_time_s,
-          c.filling_pressure_rise_bar, c.filling_pump_pct,
+          c.filling_pressure_bar, c.filling_pump_pct,
           static_cast<machine::PreinfusionMode>(static_cast<uint8_t>(c.preinfusion_mode)),
           c.preinfusion_time_s, c.preinfusion_pump_pct,
           static_cast<machine::RampdownMode>(c.rampdown_mode), c.rampdown_lead_time_s,

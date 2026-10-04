@@ -67,8 +67,7 @@ class Controller {
 
   Output step(uint64_t now_ms, float temperature_c, float target_c,
               bool valid, bool enabled, Mode mode,
-              float flow_ml_s = 0.0f, bool flow_valid = false,
-              float brew_remaining_s = std::numeric_limits<float>::quiet_NaN()) {
+              float flow_ml_s = 0.0f, bool flow_valid = false) {
     if (!valid || !enabled || !std::isfinite(temperature_c) ||
         !std::isfinite(target_c) || temperature_c > kMaximumBoilerUserTemperatureC) {
       reset();
@@ -142,7 +141,7 @@ class Controller {
       const float power = preheating
           ? brew_.preheat_pct(now_ms, temperature_c, target_c)
           : brew_.flow_pct(now_ms, temperature_c, target_c, flow_ml_s, flow_valid,
-                           brew_remaining_s, mode == Mode::kInfusion);
+                           mode == Mode::kInfusion);
       filtered_power_pct_ = power;
       has_filtered_power_ = true;
       const uint16_t power_permille = static_cast<uint16_t>(

@@ -88,16 +88,12 @@ int main() {
   assert(infusion_cold.step(1000, 78, 90, true, true, Mode::kBrew, 4, true).power_permille == 900);
   assert(infusion_cold.step(1250, 78, 90, true, true, Mode::kIdle).power_permille <= 350);
 
-  // Fin prévue à 11 s ou moins : la chauffe est coupée jusqu'à l'arrêt de la
-  // pompe, même si l'estimation remonte ou devient inconnue.
+  // Plus de coupure de fin : l'appoint suit le débit jusqu'à l'arrêt de la
+  // pompe.
   core::thermal::Controller infusion_end;
   infusion_end.step(1000, 90, 90, true, true, Mode::kIdle);
-  assert(infusion_end.step(1250, 90, 90, true, true, Mode::kBrew, 2, true, 20.0f).power_permille == 526);
-  assert(infusion_end.step(1500, 90, 90, true, true, Mode::kBrew, 2, true, 11.0f).power_permille == 0);
-  assert(infusion_end.step(1750, 90, 90, true, true, Mode::kBrew, 2, true, 14.0f).power_permille == 0);
-  assert(infusion_end.step(2000, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 0);
-  infusion_end.step(2250, 90, 90, true, true, Mode::kIdle);
-  assert(infusion_end.step(2500, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+  assert(infusion_end.step(1250, 90, 90, true, true, Mode::kBrew, 2, true).power_permille == 526);
+  assert(infusion_end.step(1500, 90, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
 
   // La loi d'infusion n'hérite pas de l'état du régulateur de repos : une
   // intégrale accumulée au repos ne change pas la commande d'infusion.
@@ -138,43 +134,24 @@ int main() {
   hot_preheat.step(1250, 90.6f, 90, true, true, Mode::kThermalPreheat);
   assert(hot_preheat.step(1500, 90.6f, 90, true, true, Mode::kInfusion, 2, true).power_permille == 526);
 
-  // La dette se compte sur la durée réelle de chaque commande ; la coupure de
-  // fin et la sécurité, déjà à 0 %, ne remboursent rien.
+  // La dette se compte sur la durée réelle de chaque commande ; la sécurité,
+  // déjà à 0 %, ne rembourse rien.
   core::thermal::BrewHeating law;
   law.reset();
   law.preheat_pct(1000, 90, 90);
   law.preheat_pct(1500, 90, 90);
-  assert(law.flow_pct(2000, 90, 90, 2, true, 20.0f, true) == 0.0f);
+  assert(law.flow_pct(2000, 90, 90, 2, true, true) == 0.0f);
   assert(std::fabs(law.debt_pct_s() - 90.0f) < 1e-3f);
-  assert(law.flow_pct(2250, 90, 90, 2, true, 10.0f, true) == 0.0f);
+  assert(law.flow_pct(2250, 95, 90, 2, true, true) == 0.0f);
   assert(std::fabs(law.debt_pct_s() - (90.0f - 0.25f * 52.615f)) < 1e-2f);
-  assert(law.flow_pct(2500, 90, 90, 2, true, 9.0f, true) == 0.0f);
+  assert(law.flow_pct(2500, 90, 90, 2, true, true) == 0.0f);
   assert(std::fabs(law.debt_pct_s() - (90.0f - 0.25f * 52.615f)) < 1e-2f);
   // Un pas manqué ne compte que pour 1 s.
   core::thermal::BrewHeating gap;
   gap.reset();
   gap.preheat_pct(1000, 90, 90);
-  gap.flow_pct(4000, 90, 90, 2, true, 20.0f, false);
+  gap.flow_pct(4000, 90, 90, 2, true, false);
   assert(std::fabs(gap.debt_pct_s() - 90.0f) < 1e-3f);
-
-  // Temps restant avant l'arrêt : au temps, direct ; au poids, sur le débit
-  // en tasse des 2 dernières secondes, une fois 3 g atteints.
-  using core::thermal::BrewEndEstimator;
-  assert(std::fabs(BrewEndEstimator::by_time(17000, 28.0f) - 11.0f) < 1e-4f);
-  BrewEndEstimator end;
-  float remaining = 0.0f;
-  for (uint64_t now = 0; now <= 1750; now += 250) {
-    remaining = end.by_weight(now, 1.5f * static_cast<float>(now) / 1000.0f, 21.0f);
-    assert(std::isnan(remaining));
-  }
-  remaining = end.by_weight(2000, 3.0f, 21.0f);
-  assert(std::fabs(remaining - 12.0f) < 1e-3f);
-  remaining = end.by_weight(2250, 3.375f, 21.0f);
-  assert(std::fabs(remaining - 11.75f) < 1e-3f);
-  BrewEndEstimator stalled;
-  for (uint64_t now = 0; now <= 2000; now += 250)
-    remaining = stalled.by_weight(now, 5.0f + 0.2f * static_cast<float>(now) / 1000.0f, 21.0f);
-  assert(std::isnan(remaining));
 
   // La précharge applique immédiatement sa puissance fixe sans débit. Elle
   // est coupée si la NTC est déjà à plus de 0,5 °C au-dessus de la cible.

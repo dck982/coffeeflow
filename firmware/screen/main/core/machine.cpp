@@ -13,7 +13,7 @@ constexpr uint64_t kFillingPressureGuardMs = 1000;
 // La pression arrive toutes les 100 ms et `tick` tourne toutes les 50 ms :
 // 150 ms au-dessus du seuil exigent deux mesures consécutives, ce qui écarte
 // un paquet isolé.
-constexpr uint64_t kFillingRiseConfirmMs = 150;
+constexpr uint64_t kFillingPressureConfirmMs = 150;
 constexpr uint64_t kBrewPressureControlPeriodMs = 200;
 // Transition hydraulique douce après la pré-infusion. La période des pas est
 // adaptée à l'écart afin que la montée complète dure environ 2,5 s.
@@ -38,8 +38,7 @@ bool Machine::start(uint64_t now_ms, const Config& config, const Input& input) {
   starting_weight_g_ = input.weight_g;
   preinfusion_start_weight_g_ = input.weight_g;
   preinfusion_pressure_start_bar_ = input.pressure_bar;
-  filling_pressure_floor_known_ = false;
-  filling_rise_since_ms_ = 0;
+  filling_pressure_since_ms_ = 0;
   weight_goal_ = input.scale_present;
   effective_preinfusion_mode_ = config_.preinfusion_mode;
   preinfusion_scale_armed_ = has_preinfusion_mode(effective_preinfusion_mode_, PreinfusionMode::kWeight) &&
@@ -160,22 +159,15 @@ Output Machine::tick(uint64_t now_ms, const Input& input) {
     const uint64_t elapsed = now_ms - started_ms_;
     if (elapsed < kFillingPressureGuardMs) return {config_.filling_pump_pct, kLeaseMs};
 
-    // Le headspace est plein dès que la pression quitte son plancher. Le
-    // plancher varie d'une infusion à l'autre (0,15 à 0,26 bar) : il est
-    // suivi ici plutôt que fixé. La pression au repos, plus haute, retombe
-    // pendant la garde ou juste après : le plancher la suit vers le bas.
+    // Pression absolue : headspace plein et galette mouillée. Le volume à
+    // 1 bar ne suit pas la mouture (23,5 à 30,7 ml du 26/09 au 04/10). La
+    // pression au repos, jusqu'à 1,44 bar, retombe pendant la garde.
     bool pressure_done = false;
-    if (!input.pressure_valid) {
-      filling_rise_since_ms_ = 0;
-    } else if (!filling_pressure_floor_known_ || input.pressure_bar < filling_pressure_floor_bar_) {
-      filling_pressure_floor_bar_ = input.pressure_bar;
-      filling_pressure_floor_known_ = true;
-      filling_rise_since_ms_ = 0;
-    } else if (input.pressure_bar - filling_pressure_floor_bar_ > config_.filling_pressure_rise_bar) {
-      if (filling_rise_since_ms_ == 0) filling_rise_since_ms_ = now_ms;
-      pressure_done = now_ms - filling_rise_since_ms_ >= kFillingRiseConfirmMs;
+    if (input.pressure_valid && input.pressure_bar >= config_.filling_pressure_bar) {
+      if (filling_pressure_since_ms_ == 0) filling_pressure_since_ms_ = now_ms;
+      pressure_done = now_ms - filling_pressure_since_ms_ >= kFillingPressureConfirmMs;
     } else {
-      filling_rise_since_ms_ = 0;
+      filling_pressure_since_ms_ = 0;
     }
 
     const bool time_done = elapsed >= static_cast<uint64_t>(config_.filling_time_s) * 1000;

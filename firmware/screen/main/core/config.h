@@ -6,7 +6,7 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 8;
+inline constexpr uint16_t kConfigSchemaVersion = 9;
 inline constexpr float kMinimumBrewTemperatureC = 50.0f;
 inline constexpr float kMaximumBrewTemperatureC = 100.0f;
 inline constexpr float kMaximumBrewPreheatTimeS = 15.0f;
@@ -47,10 +47,12 @@ struct Config {
   float brew_temperature_c = 90.0f;
   bool heating_enabled = true;
   float brew_preheat_time_s = 2.5f;
-  uint16_t filling_time_s = 3;
-  // Montée de pression au-dessus du plus bas niveau vu depuis la fin de la
-  // garde du remplissage : le headspace est plein.
-  float filling_pressure_rise_bar = 0.10f;
+  // Secours : à 75 % de pompe, 10 s admettent ≈ 34 ml, au-delà du volume
+  // à 1 bar de toutes les captures (23,5 à 30,7 ml).
+  uint16_t filling_time_s = 10;
+  // Pression absolue qui termine le remplissage : headspace plein et galette
+  // mouillée.
+  float filling_pressure_bar = 1.0f;
   uint8_t filling_pump_pct = 100;
   PreinfusionMode preinfusion_mode = PreinfusionMode::kTime;
   uint16_t preinfusion_time_s = 4;

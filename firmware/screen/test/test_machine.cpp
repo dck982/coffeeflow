@@ -12,7 +12,7 @@ using core::machine::State;
 using core::machine::StopReason;
 
 Config config() {
-  return {36, 28, 9.0f, 0.0f, 1, .1f, 100, PreinfusionMode::kTime, 4, 35, RampdownMode::kNone,
+  return {36, 28, 9.0f, 0.0f, 1, 1.0f, 100, PreinfusionMode::kTime, 4, 35, RampdownMode::kNone,
           3, 4, 1, 100, 100, 20};
 }
 
@@ -197,31 +197,29 @@ int main() {
 
   Machine filling_pressure;
   c = config();
-  c.filling_time_s = 6;
-  input = {0, false, .48f, true};  // pression résiduelle au repos
+  c.filling_time_s = 10;
+  input = {0, false, 1.44f, true};  // pression résiduelle au repos
   assert(filling_pressure.start(1000, c, input));
-  input.pressure_bar = .29f;
-  assert(filling_pressure.tick(2000, input).dimmer == 100);  // fin de garde, plancher 0,29
+  assert(filling_pressure.tick(1500, input).dimmer == 100);  // garde : ignorée
   input.pressure_bar = .26f;
-  assert(filling_pressure.tick(2300, input).dimmer == 100);  // plancher 0,26
-  input.pressure_bar = .37f;
-  assert(filling_pressure.tick(2400, input).dimmer == 100);  // paquet isolé au-dessus
-  input.pressure_bar = .30f;
-  assert(filling_pressure.tick(2500, input).dimmer == 100);  // retombé : confirmation remise à zéro
-  input.pressure_bar = .35f;
-  assert(filling_pressure.tick(2600, input).dimmer == 100);  // montée de 0,09 bar : sous le seuil
-  input.pressure_bar = .37f;
-  assert(filling_pressure.tick(2700, input).dimmer == 100);
-  assert(filling_pressure.tick(2800, input).dimmer == 100);
-  assert(filling_pressure.tick(2849, input).dimmer == 100);
-  assert(filling_pressure.tick(2850, input).dimmer == 35);  // 150 ms au-dessus de 0,26 + 0,10
+  assert(filling_pressure.tick(2000, input).dimmer == 100);
+  input.pressure_bar = 1.25f;
+  assert(filling_pressure.tick(2300, input).dimmer == 100);  // paquet isolé au-dessus
+  input.pressure_bar = .40f;
+  assert(filling_pressure.tick(2400, input).dimmer == 100);  // retombé : confirmation remise à zéro
+  input.pressure_bar = .99f;
+  assert(filling_pressure.tick(2500, input).dimmer == 100);  // sous le seuil
+  input.pressure_bar = 1.0f;
+  assert(filling_pressure.tick(2600, input).dimmer == 100);
+  assert(filling_pressure.tick(2749, input).dimmer == 100);
+  assert(filling_pressure.tick(2750, input).dimmer == 35);  // 150 ms à 1 bar ou plus
   assert(filling_pressure.state() == State::kPreinfusion);
 
   Machine filling_pressure_lost;
   input = {0, false, .26f, true};
   assert(filling_pressure_lost.start(1000, c, input));
   assert(filling_pressure_lost.tick(2000, input).dimmer == 100);
-  input.pressure_bar = .40f;
+  input.pressure_bar = 1.1f;
   assert(filling_pressure_lost.tick(2100, input).dimmer == 100);
   input.pressure_valid = false;
   assert(filling_pressure_lost.tick(2200, input).dimmer == 100);  // mesure perdue : pas de sortie
@@ -230,6 +228,14 @@ int main() {
   assert(filling_pressure_lost.tick(2449, input).dimmer == 100);
   assert(filling_pressure_lost.tick(2450, input).dimmer == 35);
   assert(filling_pressure_lost.state() == State::kPreinfusion);
+
+  // Pression jamais atteinte : la durée sert de secours.
+  Machine filling_timeout;
+  input = {0, false, .40f, true};
+  assert(filling_timeout.start(1000, c, input));
+  assert(filling_timeout.tick(10999, input).dimmer == 100);
+  assert(filling_timeout.tick(11000, input).dimmer == 35);
+  assert(filling_timeout.state() == State::kPreinfusion);
 
   Machine purge;
   assert(purge.purge_press(1000, c));

@@ -1,7 +1,7 @@
 # Chauffe pendant l'infusion
 
 Ce document décrit la loi de chauffe appliquée pendant une infusion, de la
-précharge à l'arrêt de la pompe (version écran **0.3.37**), et les mesures qui
+précharge à l'arrêt de la pompe (version écran **0.3.39**), et les mesures qui
 la justifient. Le code est dans `firmware/screen/main/core/brew_heating.h`.
 
 ## Périmètre
@@ -10,7 +10,7 @@ Deux lois de chauffe coexistent dans le firmware écran :
 
 | Loi | Code | Phases |
 | --- | --- | --- |
-| **Loi d'infusion** (ce document) | `BrewHeating`, `BrewEndEstimator` dans `brew_heating.h` | précharge, remplissage, pré-infusion, infusion, rampe de fin |
+| **Loi d'infusion** (ce document) | `BrewHeating` dans `brew_heating.h` | précharge, remplissage, pré-infusion, infusion, rampe de fin |
 | Régulateur de repos | `Controller` dans `thermal_control.h` | repos, purge, récupération après l'écoulement |
 
 `Controller::step()` reste le point d'entrée unique. Il applique d'abord
@@ -64,9 +64,11 @@ l'offset.
 | 30/09, 14 h 25 | 5,5 s, mouture grossie | **89,60 °C** | 89,88 °C |
 | 01/10, 8 h 29 | 5,5 s, mouture un peu moins fine, porte-filtre moins chauffé | **88,39 °C** | 89,25 °C |
 | 04/10, 10 h 01 | 5,5 s, mouture trop fine (infusion de 34,4 s), pré-infusion à 60 % | **92,52 °C** | 91,21 °C |
+| 04/10, 13 h 24 | 8 s, remboursement (0.3.37), pause de pré-infusion sans débit | **87,58 °C** | 90,17 °C |
 
 Les réglages et les recettes ont changé d'une infusion à l'autre ; la
-dispersion de 5,35 °C ne mesure donc pas seulement la loi. En simulation, à
+dispersion de 5,35 °C (hors 13 h 24 le 4 octobre) ne mesure donc pas
+seulement la loi. En simulation, à
 précharge égale, l'hydraulique seule des quatre captures donne 2,1 °C
 d'écart (voir [Simulation](#simulation)).
 
@@ -94,9 +96,11 @@ commande pendant 1 s vaut 12 J.
    l'écoulement ».** +0,6 kJ laissent +0,95 °C (7 h 40) ; environ +4 kJ
    laissent +3 °C (13 h 01).
 5. **Toute chauffe dans les ~11 dernières secondes n'agit que sur l'état
-   final.** Le minimum de la NTC survient pendant l'infusion ; la chaleur
-   envoyée ensuite arrive après lui. En simulation, couper 8 ou 11 s avant
-   l'arrêt ne change pas le minimum et retire 1,7 à 3,7 °C au rebond.
+   final.** La chaleur envoyée alors atteint la sonde après l'arrêt de la
+   pompe. En simulation, couper 8 ou 11 s avant l'arrêt ne change pas la
+   moyenne en tasse et retire 1,7 à 3,7 °C au rebond. Ce constat a fondé la
+   coupure de fin de 0.3.28 à 0.3.38 (voir
+   [Coupure de fin](#coupure-de-fin-supprimée-en-0339)).
 
 Conséquences :
 
@@ -104,7 +108,7 @@ Conséquences :
   NTC ;
 - la précharge sert à **devancer** l'eau froide, pas à équilibrer un bilan ;
   depuis 0.3.37, elle est rendue pendant l'infusion ;
-- la chauffe est coupée peu avant l'arrêt prévu de la pompe.
+- depuis 0.3.39, la chauffe suit le débit jusqu'à l'arrêt de la pompe.
 
 Jusqu'à 0.3.27, un plancher de 45 % disparaissait dès que la NTC dépassait
 consigne + 1 °C. À 13 h 01, le pic dû à une précharge de 10 s l'a retiré :
@@ -151,7 +155,6 @@ Seuls modifient cette commande :
 | NTC au-delà de consigne + **4 °C** (sécurité) | 0 % |
 | Pré-infusion, pompe confirmée en marche, aucune impulsion depuis 500 ms (depuis 0.3.32) | **3,5 %** : débit nul, pas inconnu |
 | Débit non mesurable (conditions ci-dessus), hors de ce cas | **45 %** (repli) |
-| Arrêt de la pompe prévu dans **11 s** ou moins | 0 % jusqu'à l'arrêt, même si l'estimation remonte |
 | Mesure invalide, chauffe désactivée, NTC > 105 °C | 0 % (coupures générales) |
 
 Depuis 0.3.32, la pré-infusion est une pause : pompe à 35 %, sous son seuil
@@ -176,7 +179,7 @@ la commande est de **0 %** jusqu'à ce que la somme des appoints retenus
 | Début du remboursement | entrée en infusion (état `kBrew` de la machine, mode `kInfusion` du régulateur), quelle que soit la sortie de la pré-infusion (temps ou première goutte) |
 | Remplissage et pré-infusion | appoint normal, dette intacte |
 | Montant rendu à chaque pas | la commande que la loi aurait envoyée : appoint au débit, ou repli de 45 % sans débit mesurable |
-| Coupure de fin, sécurité à consigne + 4 °C | déjà à 0 % : ne rendent rien, la dette reste |
+| Sécurité à consigne + 4 °C | déjà à 0 % : ne rend rien, la dette reste |
 | Dernier pas | peut rendre jusqu'à 250 ms de trop (≈ 0,27 kJ à 90 %) |
 | Pompe arrêtée avant la fin du remboursement | le reste de la dette est abandonné |
 | Précharge interrompue, cycle suivant sans précharge | dette remise à zéro au début de tout écoulement qui ne suit pas une précharge |
@@ -198,40 +201,43 @@ montée en pression ; il faut la retenir à ce moment-là. Un profil de débit
 variable ne change rien à la règle : un débit plus fort rembourse plus
 vite, un débit plus faible plus lentement.
 
-### Coupure de fin
+### Coupure de fin (supprimée en 0.3.39)
 
-Le temps restant avant l'arrêt de la pompe n'est estimé que pendant
-l'infusion, rampe de fin comprise. Il est inconnu (NaN) pendant le
-remplissage et la pré-infusion.
+De 0.3.28 à 0.3.38, la chauffe était coupée quand l'arrêt de la pompe était
+estimé à 11 s ou moins (au temps cible, ou au poids sur le débit en tasse
+des 2 dernières secondes). Elle retirait l'appoint de la fin de
+l'infusion, ≈ 3 à 4,6 kJ, qui n'atteint la sonde qu'après l'arrêt de la
+pompe.
 
-| Condition d'arrêt de la machine | Estimation |
+Tant que la précharge restait acquise, elle finançait cette coupure : à
+9 h 43 le 30 septembre, 8,5 kJ de précharge pour 4,6 kJ coupés. Depuis le
+remboursement (0.3.37), la précharge est rendue et la coupure n'est plus
+financée : elle laisse un déficit net. À 13 h 24 le 4 octobre (infusion de
+24,1 s), la commande est restée à 0 % pendant 22 s :
+
+| Intervalle | Commande |
 | --- | --- |
-| Temps cible (pas de balance au départ du cycle) | `target_time_s` − temps écoulé depuis le début du remplissage |
-| Poids cible (balance présente au départ) | (poids d'arrêt − poids en tasse) / débit en tasse |
-| Arrêt manuel | aucune : la chauffe continue jusqu'à l'arrêt |
+| 16,6 → 28,4 s | 0 % : remboursement de 703 %·s, dont 6 s à 3,5–3,9 ml/s pendant la montée en pression |
+| 28,4 → 30,6 s | ≈ 37 % : appoint au débit |
+| 30,6 → 40,8 s | 0 % : coupure de fin, 10,2 s avant l'arrêt |
 
-Le poids d'arrêt est celui qu'applique la machine
-(`Machine::stop_weight_g()`) : `target_weight_g` avec une rampe au poids,
-sinon `target_weight_g − rampdown_lead_weight_g`. Le poids en tasse est
-compté depuis le début du cycle. Le débit en tasse est calculé sur les
-**2 dernières secondes** de mesures, prises à chaque pas du régulateur
-(250 ms).
+Bilan du cycle : ≈ 14,5 kJ fournis par le SSR pour ≈ 18,9 kJ demandés par
+64 ml d'eau. La NTC finit à 84,1 °C à l'arrêt de la pompe et descend à
+82,79 °C 10 s après.
 
-L'estimation au poids reste inconnue, et la chauffe continue :
+Rejouée sur huit captures avec 8 s de précharge et remboursement, la
+suppression de la coupure ne change pas la moyenne en tasse (±0,02 °C). Elle
+relève le minimum de 0,2 à 1,3 °C et l'état 30 s après l'arrêt de 2 à 3,5 °C
+(87,59 → 91,08 °C sur l'hydraulique de 13 h 24). Elle a été supprimée pour
+simplifier la loi ; l'historique Git garde le code (`BrewEndEstimator`,
+`kEndCutLeadS`).
 
-- tant que la tasse n'a pas reçu **3 g** ;
-- tant que 2 s de mesures ne sont pas disponibles ;
-- si le débit en tasse est inférieur à **0,3 g/s** ;
-- si la balance n'est plus présente.
+Variantes écartées, même simulation :
 
-Ce choix privilégie une fin plus chaude à un creux plus profond. Rejouée sur
-les deux captures de référence, l'estimation coupe **0,1 s après** le
-moment idéal (7 h 40, infusion courte de 14,4 s, coupure à 4,5 g) et
-**1,4 s avant** (13 h 01). Une seconde d'erreur vaut 0,3 à 0,6 °C sur
-l'état final, sans effet sur le minimum.
-
-Sur une infusion courte, la coupure tombe tôt : à 7 h 40, 3,4 s après le
-début de l'infusion, pendant la montée en pression.
+| Variante | Effet |
+| --- | --- |
+| Pas de coupure tant que la dette n'est pas soldée | identique à 0.3.38 sur les huit captures : la dette est toujours soldée avant le début de la coupure |
+| Dette limitée à l'appoint envoyé pendant le remplissage et la pré-infusion | ne change que les captures où cet appoint est inférieur à la précharge (9 h 43, 10 h 01 et 13 h 24) : +0,02 à +0,66 °C en tasse |
 
 ## Réglages
 
@@ -244,10 +250,8 @@ début de l'infusion, pendant la montée en pression.
 | Pente débit → commande | `BrewHeating::kWaterHeatPctPerMlS` | 4,18 × 70,5 / 12 ≈ 24,56 % par ml/s |
 | Plafond pendant l'écoulement | `BrewHeating::kPowerLimitPct` | 90 % |
 | Repli sans débit | `BrewHeating::kFlowFallbackPct` | 45 % |
-| Avance de la coupure de fin | `BrewHeating::kEndCutLeadS` | 11 s |
 | Durée maximale imputée à une commande (dette) | `BrewHeating::kMaximumStepMs` | 1 s |
 | Sécurité au-dessus de la consigne | `BrewHeating::kSafetyAboveTargetC` | +4 °C |
-| Fenêtre, poids et débit minimaux de l'estimation | `BrewEndEstimator::kRateWindowMs`, `kMinimumCupWeightG`, `kMinimumCupRateGPerS` | 2 s, 3 g, 0,3 g/s |
 
 Les 70,5 K supposent une eau du réservoir à 24,5 °C et une chaudière à
 ≈ 95 °C réels. Une consigne très différente de 90 °C affichés, ou une eau plus
@@ -369,7 +373,8 @@ de 9 h 43, à précharge plus courte. Détail dans le
 **Remboursement de la précharge (implémenté en 0.3.37, voir
 [Loi](#remboursement-de-la-précharge)).** L'appoint est
 retenu jusqu'à ce que l'énergie retenue égale celle de la précharge ; la
-coupure de fin s'y ajoute sans compter dans ce remboursement. Moyenne en
+coupure de fin, encore présente en 0.3.37, s'y ajoutait sans compter dans
+ce remboursement. Moyenne en
 tasse simulée sur l'hydraulique des quatre captures (13 h 01, 7 h 40,
 14 h 24, 9 h 43), paramètres enregistrés :
 
@@ -413,9 +418,10 @@ confirmer sur des infusions réelles.
   pendant l'écoulement (voir [Objectif](#objectif)).
 - **Remboursement non vérifié sur infusion réelle.** La double chauffe de
   l'eau du remplissage (précharge puis appoint au débit) est traitée depuis
-  0.3.37 par le [remboursement](#remboursement-de-la-précharge). Son effet
-  n'est connu qu'en simulation, dont l'erreur sur la moyenne en tasse
-  atteint ±1,9 °C.
+  0.3.37 par le [remboursement](#remboursement-de-la-précharge). Un seul
+  essai réel (13 h 24 le 4 octobre, coupure de fin encore active) :
+  87,58 °C en tasse, alors que le modèle prévoit 89,57 °C avec la commande
+  réelle. L'écart de −2 °C n'est expliqué par aucune variante de la loi.
 - **Le débitmètre est en amont de la pompe.** Une recirculation par l'OPV
   gonflerait le débit mesuré, donc la commande.
 - **Premier instant du remplissage.** Le débit mesuré reste parfois proche
@@ -452,5 +458,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `260930-142555.json` | 5,5 s | mouture grossie ; −0,40 °C en tasse, réglage retenu ; hors ajustement |
 | `261001-082959.json` | 5,5 s | mouture un peu moins fine, porte-filtre moins chauffé ; −1,61 °C en tasse, coupure pendant la montée en pression ; hors ajustement |
 | `261004-100128.json` | 5,5 s | mouture trop fine, infusion de 34,4 s, pré-infusion à 60 % sans pause ; +2,52 °C en tasse, double chauffe du remplissage ; hors ajustement |
+| `261004-132439.json` | 8 s | premier essai du remboursement (0.3.37) ; pause de pré-infusion sans débit ; −2,42 °C en tasse, chauffe à 0 % pendant 22 des 24 s d'infusion ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

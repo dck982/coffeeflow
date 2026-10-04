@@ -654,6 +654,35 @@ Schéma de configuration **8**, avec migration depuis la version 7.
 - **Capture HF.** La queue après l'arrêt de la pompe repasse de 30 à 20 s.
 - **API.** `/config` publie les décimales jusqu'au centième (`0.05`).
 
+### Remplissage à pression absolue (2026-10-04, 0.3.40)
+
+Schéma de configuration **9**, avec migration depuis la version 8.
+
+- **Fin du remplissage.** `filling.pressure_rise_bar` redevient un seuil
+  absolu, `filling.pressure_bar` : le remplissage se termine quand la
+  pression valide reste 150 ms au moins à ce seuil, après la garde de 1 s.
+  Plage de 0,3 à 2,0 bar, pas de 0,1, défaut **1,0 bar**. Le suivi du
+  plancher est retiré.
+- **Pourquoi.** La montée de +0,10 bar arrêtait le remplissage vers
+  14–16 ml, avant que la galette soit mouillée ; à 13 h 24 le 4 octobre, la
+  pause de pré-infusion à 0,4 bar n'a ensuite admis que 2 ml en 4 s. Sur
+  les 14 infusions du 26 septembre au 4 octobre, 1 bar arrive entre 23,5 et
+  30,7 ml, quelle que soit la mouture. La pression au repos (jusqu'à
+  1,44 bar) retombe pendant la garde ; un paquet isolé à 1,25 bar est écarté
+  par la confirmation de 150 ms. Un volume minimal a été écarté : 1 bar
+  n'arrive jamais avant 20 ml, et avec un headspace plus petit (dose plus
+  grosse), 1 bar reste le bon moment.
+- **Durée.** `filling.time_s` devient un secours (débitmètre ou capteur
+  défaillant, galette absente) : défaut **10 s**, plage de 1 à 20 s. À 75 %
+  de pompe, 10 s admettent ≈ 34 ml. La migration remet la pression et la
+  durée à leurs défauts.
+- **Réglage.** Si la première goutte tombe systématiquement pendant le
+  remplissage et que la pré-infusion disparaît, baisser le seuil. La
+  pré-infusion sort au poids dès qu'une goutte est tombée depuis le début
+  du remplissage.
+- **UI.** La tuile « montée pression rempl. » devient « pression
+  remplissage ».
+
 
 
 - Archiver et vérifier les deux images factory avec leurs versions.

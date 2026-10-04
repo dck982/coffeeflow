@@ -192,7 +192,7 @@ changement de consigne le réinitialise aussi.
 | --- | --- |
 | Repos | prédicteur de retard, jusqu'à 100 %, voir [chauffe-repos.md](chauffe-repos.md) |
 | Précharge (`thermal_preheat`) | loi d'infusion : **90 %** pompe arrêtée pendant `brew_preheat_time_s`, sauf si la NTC dépasse la consigne de 0,5 °C ou plus ; hors chrono hydraulique |
-| Remplissage, pré-infusion, infusion | loi d'infusion : `min(90 %, 3,5 % + 24,56 % × débit en ml/s)` ; depuis 0.3.37, 0 % dès l'entrée en infusion jusqu'à avoir retenu l'énergie de la précharge ; voir [chauffe-infusion.md](chauffe-infusion.md) |
+| Remplissage, pré-infusion, infusion | loi d'infusion : `min(90 %, 3,5 % + 24,56 % × débit en ml/s)` ; depuis 0.3.37, 0 % dès l'entrée en infusion jusqu'à avoir retenu l'énergie de la précharge ; depuis 0.3.39, sans coupure de fin ; voir [chauffe-infusion.md](chauffe-infusion.md) |
 | Purge près de la consigne | base commune plafonnée à **35 %** ; appoint de **18 %** jusqu'à la consigne, réduit linéairement à 0 à consigne + 2 °C (13,5 % à +0,5 °C, 9 % à +1 °C) ; plus l'appoint de débit, soit **45 %** au maximum |
 | Purge lancée à ≥ 5 °C de la consigne | **0 %** jusqu'à la fin de la purge, même si la NTC traverse la consigne (purge de réglage thermique) |
 | Récupération (30 s après l'écoulement) | base commune plafonnée à **35 %**, pente négative ignorée ; prédiction sur 10 s, retenant le **plus grand** effet entre pente montante et chaleur en transit |
@@ -209,8 +209,9 @@ Au début et à la fin de l'écoulement, la pente est remise à zéro.
 ### Loi d'infusion
 
 Décrite dans [chauffe-infusion.md](chauffe-infusion.md) : appoint
-proportionnel au débit, précharge à 90 %, coupure de fin, simulation et
-réglages.
+proportionnel au débit, précharge à 90 % remboursée pendant l'infusion,
+simulation et réglages. La coupure de fin (0.3.28 à 0.3.38) y est décrite
+avec la raison de sa suppression.
 
 ### Pompe à l'entrée de l'infusion
 
@@ -232,10 +233,11 @@ maximum du rebond compte.
 
 Sur les cinq infusions du 29 septembre au
 2 octobre, la NTC varie de moins de 0,2 °C entre 20 et 29 s après l'arrêt,
-et le poids en tasse est stable 0,5 à 9,1 s après l'arrêt. Depuis 0.3.28, la
-coupure de fin retire la chauffe 11 s avant l'arrêt : le maximum du rebond
-arrive plus tôt que dans l'argument ci-dessous, écrit pour la loi 0.3.27. Les
-20 s ne couvrent plus toute la récupération (`kRecoveryDurationMs`, 30 s).
+et le poids en tasse est stable 0,5 à 9,1 s après l'arrêt. Ces infusions
+avaient la coupure de fin (0.3.28 à 0.3.38). Depuis 0.3.39, la chauffe suit
+le débit jusqu'à l'arrêt, comme en 0.3.27 : le maximum du rebond peut
+reculer au-delà des 20 s, qui ne couvrent pas non plus toute la récupération
+(`kRecoveryDurationMs`, 30 s).
 
 Argument de 0.3.27 pour 30 s : à 13 h 01, la NTC plafonnait déjà vers 20 s
 après l'arrêt (+0,09 °C sur les 2 dernières secondes) ; 30 s devaient couvrir
@@ -402,45 +404,36 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
    la fenêtre étant déjà recalée par la précharge ; il sert quand la
    précharge est nulle ou supprimée.
 
-## Prochain essai : remboursement de la précharge, précharge de 8 s
+## Prochain essai : sans coupure de fin, remplissage à 1 bar (0.3.40)
 
-Trois essais de la précharge fixe de 5,5 s : **89,60 °C** de moyenne en
-tasse à [14 h 25](#infusion-de-14-h-25-30-septembre--précharge-de-55-s)
-(critère tenu, café jugé bon), **88,39 °C** à
-[8 h 29](#infusion-de-8-h-29-1er-octobre--précharge-de-55-s) (mouture un
-peu moins fine, porte-filtre moins chauffé) et **92,52 °C** à
-[10 h 01 le 4 octobre](#infusion-de-10-h-01-4-octobre--précharge-de-55-s-mouture-trop-fine)
-(mouture trop fine, infusion de 34,4 s). L'écart suit la durée de
-l'infusion : la double chauffe du remplissage tombe en tasse quand la pompe
-tourne longtemps. Le débit devant varier dans les recettes à venir, l'écran
-**0.3.37** rembourse la précharge dès l'infusion (voir
-[chauffe-infusion.md](chauffe-infusion.md#remboursement-de-la-précharge)).
+Premier essai du remboursement à
+[13 h 24 le 4 octobre](#infusion-de-13-h-24-4-octobre--précharge-de-8-s-remboursement) :
+**87,58 °C** en tasse, chauffe à 0 % pendant 22 des 24 s d'infusion. La
+coupure de fin, que la précharge ne finance plus depuis le remboursement,
+s'enchaînait au remboursement. L'écran **0.3.39** la supprime (voir
+[chauffe-infusion.md](chauffe-infusion.md#coupure-de-fin-supprimée-en-0339)).
 
-Réglages : écran en 0.3.37, `heating.brew_preheat_time_s` à **8 s**,
-pré-infusion à **35 %** (pause), consigne de 90 °C, mouture grossie pour
-revenir vers 14–20 s d'infusion. Le remboursement rend la précharge : 5,5 s
-laisseraient la tasse 0,5 à 1,5 °C sous la consigne, d'où 8 s.
+Réglages : `heating.brew_preheat_time_s` à **8 s**, pré-infusion à **35 %**
+(pause), consigne de 90 °C. L'écran **0.3.40** termine aussi le remplissage
+à **1 bar absolu** (10 s au plus) au lieu de +0,1 bar : ≈ 10 ml de plus
+passent dans le remplissage, avec l'appoint complet au lieu d'être retenus
+par le remboursement (≈ +2,9 kJ). Avec les deux changements, une tasse plus
+chaude qu'à 13 h 24 ne départage pas leurs effets ; la simulation
+ci-dessous ne compte que la coupure de fin. Noter le volume en fin de
+remplissage et la durée de la pré-infusion.
 
-Attendu, d'après la simulation corrigée de l'erreur du modèle sur chaque
-capture (+0,7 à +1,8 °C en tasse) :
+Attendu, d'après la simulation sur l'hydraulique de 13 h 24 :
 
 | Point | Attendu |
 | --- | --- |
-| Moyenne NTC pondérée par la tasse (`analyze_hf_capture.py`) | ≈ 90,3 °C (89,7–91,0 °C) |
-| Minimum pendant l'écoulement | ≈ 87–88,5 °C |
-| Commande à 0 % dès l'entrée en infusion | ≈ 8,6 kJ retenus : ≈ 8 s si le débit reste vers 3,5 ml/s (appoint de 90 %), plus si la galette le freine plus tôt |
-| Commande pendant le remplissage et la pré-infusion | inchangée : appoint au débit, 3,5 % pendant la pause |
-| État final, 20 s après l'arrêt | sous la consigne ou proche, sans bosse de fin |
+| Commande à 0 % dès l'entrée en infusion | ≈ 700 %·s retenus, soit ≈ 8,4 kJ, puis appoint au débit **jusqu'à l'arrêt de la pompe** |
+| Moyenne NTC pondérée par la tasse | inchangée par la suppression (±0,02 °C en simulation) ; l'écart de −2 °C de 13 h 24 reste inexpliqué |
+| Minimum | +0,2 à +1,3 °C par rapport à 0.3.38 à hydraulique égale |
+| État 20 à 30 s après l'arrêt | +2 à +3,5 °C par rapport à 0.3.38, proche de la consigne ou au-dessus |
 
-La pause à 35 % change l'hydraulique du début : aucune capture de
-référence n'en a. Si la moyenne en tasse sort de 89,7–91,0 °C, corriger
-la précharge d'environ 1,8 s par °C (≈ 0,56 °C par seconde en simulation
-avec remboursement). Les essais suivants mesurent la répétabilité, y
-compris à mouture différente : c'est l'objet du remboursement. En noter la
-mouture, le poids, la durée et la chauffe du porte-filtre.
-
-Le panier de mesure de type Scace, en préparation pour dans quelques jours,
-dira si la moyenne de la NTC en tasse est bien celle de l'eau au panier.
+Si la moyenne en tasse reste vers −2 °C, le défaut n'est pas la coupure de
+fin : comparer la pause de pré-infusion (13 h 24 : 2 ml en 4 s) aux
+infusions où le débit a continué pendant la pré-infusion.
 
 Si ce n'est pas déjà fait, relever 3 min de surveillance au repos avant
 l'infusion : points à vérifier dans
@@ -1233,6 +1226,43 @@ Lecture :
 
 Décision : régler la pré-infusion à **35 %** et grossir la mouture ; garder
 **5,5 s** de précharge.
+
+#### Infusion de 13 h 24 (4 octobre) — précharge de 8 s, remboursement
+
+[Capture brute](../captures/261004-132439.json) et
+[graphique](../captures/261004-132439.html). Écran en 0.3.37 ou 0.3.38 :
+premier essai du remboursement de la précharge. Configuration
+`configs/261004-102724.json` : précharge de 8 s, remplissage de 6 s au
+plus avec sortie à +0,1 bar, pré-infusion de 4 s à 35 % avec sortie au
+poids, arrêt à 22 g.
+
+| Phase | Durée | Volume | Commande | SSR | NTC |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Précharge | 8,05 s | — | 703 %·s | 8,40 kJ | 89,55 → 89,90 °C |
+| Remplissage | 4,50 s | 15,4 ml | 316 %·s | 3,36 kJ | → 92,06 °C |
+| Pré-infusion | 4,00 s | 2,0 ml | 139 %·s | 1,80 kJ | → 91,75 °C |
+| Infusion | 24,10 s | 46,4 ml | **89 %·s** | **0,84 kJ** | → 84,17 °C |
+
+Lecture :
+
+- **Moyenne en tasse de 87,58 °C** (−2,42 °C), 90,17 °C pondérée par le
+  volume. Minimum de 82,79 °C, 10 s après l'arrêt de la pompe.
+- **Chauffe à 0 % pendant 22 des 24 s d'infusion.** Remboursement de
+  16,6 à 28,4 s, appoint à ≈ 37 % jusqu'à 30,6 s, puis coupure de fin,
+  10,2 s avant l'arrêt. Voir
+  [chauffe-infusion.md](chauffe-infusion.md#coupure-de-fin-supprimée-en-0339).
+- **Le modèle ne reproduit pas la tasse** : 89,57 °C prévus avec la
+  commande réelle. La coupure de fin explique la récupération basse, pas
+  cet écart.
+- **Le remplissage s'est arrêté sur la pression**, à 4,45 s et 15,4 ml,
+  avant les 6 s : plancher de 0,26 bar, +0,10 bar à 12,4 s.
+- **La pause de pré-infusion n'a rien admis** : 0,40–0,42 bar, 2 ml en
+  4 s, aucune goutte. Le 1er et le 2 octobre, après 14,8 et 16,2 ml de
+  remplissage, la goutte était tombée en 1,3 et 1,6 s. Ici, la première
+  goutte arrive à 35,1 ml et 3,9 bar, pendant la montée en pression.
+
+Décision : supprimer la coupure de fin (0.3.39) ; terminer le remplissage
+à 1 bar absolu, avec 10 s de secours (0.3.40).
 
 ## Procédures de mesure
 

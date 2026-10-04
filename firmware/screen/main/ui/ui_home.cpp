@@ -48,7 +48,7 @@ enum class Edit : uint8_t {
   BrewTemperature,
   BrewPreheatTime,
   FillingTime,
-  FillingPressureRise,
+  FillingPressure,
   FillingPump,
   PreTime,
   PrePump,
@@ -611,7 +611,7 @@ KeypadMode keypad_mode_for(Edit e) {
   case Edit::BrewPressure:
   case Edit::BrewTemperature:
   case Edit::BrewPreheatTime:
-  case Edit::FillingPressureRise:
+  case Edit::FillingPressure:
   case Edit::RampTime:
   case Edit::RampWeight:
   case Edit::RampDrop:
@@ -659,8 +659,8 @@ void set_title(Edit e) {
     t = "durée remplissage";
     u = "s";
     break;
-  case Edit::FillingPressureRise:
-    t = "montée pression rempl.";
+  case Edit::FillingPressure:
+    t = "pression remplissage";
     u = "bar";
     break;
   case Edit::FillingPump:
@@ -733,9 +733,9 @@ void initial(Edit e) {
   case Edit::FillingTime:
     n = c.filling_time_s;
     break;
-  case Edit::FillingPressureRise:
-    n = c.filling_pressure_rise_bar;
-    decimals = 2;
+  case Edit::FillingPressure:
+    n = c.filling_pressure_bar;
+    decimals = 1;
     break;
   case Edit::FillingPump:
     n = c.filling_pump_pct;
@@ -805,10 +805,10 @@ bool valid(float *n) {
     return *n >= 0 && *n <= core::kMaximumBrewPreheatTimeS &&
            std::fabs(*n * 2 - std::round(*n * 2)) < .01f;
   case Edit::FillingTime:
-    return *n >= 1 && *n <= 10 && std::floor(*n) == *n;
-  case Edit::FillingPressureRise:
-    return *n >= .05f && *n <= .5f &&
-           std::fabs(*n * 20 - std::round(*n * 20)) < .01f;
+    return *n >= 1 && *n <= 20 && std::floor(*n) == *n;
+  case Edit::FillingPressure:
+    return *n >= .3f && *n <= 2.0f &&
+           std::fabs(*n * 10 - std::round(*n * 10)) < .01f;
   case Edit::FillingPump:
     return *n >= 20 && *n <= 100 && std::floor(*n) == *n &&
            static_cast<unsigned>(*n) % 5 == 0;
@@ -884,8 +884,8 @@ void key_accept(lv_event_t *) {
   case Edit::FillingTime:
     c.filling_time_s = n;
     break;
-  case Edit::FillingPressureRise:
-    c.filling_pressure_rise_bar = n;
+  case Edit::FillingPressure:
+    c.filling_pressure_bar = n;
     break;
   case Edit::FillingPump:
     c.filling_pump_pct = n;
@@ -1022,7 +1022,7 @@ void tile_cb(lv_event_t *e) {
     if (i == 1)
       show_choice(Choice::Preinfusion);
     else {
-      Edit a[] = {Edit::FillingPressureRise, Edit::None, Edit::FillingTime,
+      Edit a[] = {Edit::FillingPressure, Edit::None, Edit::FillingTime,
                   Edit::PreTime, Edit::BrewTemperature, Edit::None};
       if (a[i] != Edit::None) show_edit(a[i]);
     }
@@ -1092,12 +1092,12 @@ void render_settings() {
     for (unsigned i = 0; i < 6; ++i)
       tile(i, n[i], x[i]);
   } else if (page == 1) {
-    std::snprintf(x[0], 40, "+%.2f bar", double(c.filling_pressure_rise_bar));
+    fmt(x[0], sizeof(x[0]), c.filling_pressure_bar, " bar");
     preinfusion_mode_text(c.preinfusion_mode, x[1], sizeof(x[1]));
     std::snprintf(x[2], 40, "%u s", c.filling_time_s);
     std::snprintf(x[3], 40, "%u s", c.preinfusion_time_s);
     fmt(x[4], sizeof(x[4]), c.brew_temperature_c, " °C");
-    const char *n[] = {"montée pression rempl.", "critères pré-inf.", "durée remplissage",
+    const char *n[] = {"pression remplissage", "critères pré-inf.", "durée remplissage",
                        "échéance pré-inf.", "cible chaudière", ""};
     for (unsigned i = 0; i < 6; ++i) tile(i, n[i], x[i]);
     hidden(v.tile[5], true);

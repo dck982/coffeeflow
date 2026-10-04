@@ -54,3 +54,15 @@ def test_ntc_slider_targets_temperature_and_drop_marker_not_ssr():
     assert traces[controls["dropTrace"]]["name"] == "baisse thermique maximale"
     assert controls["dropTrace"] != next(index for index, trace in enumerate(traces)
                                           if trace["name"] == "SSR chaudière actif")
+
+
+def test_cup_flow_continues_after_pump_stop_until_first_zero():
+    from describe_hf_capture import drip_truncated
+
+    flows = [1.2, 1.1, 0.6, 0.2, -0.1, 0.3, -5.0]
+    assert drip_truncated(flows, 2)[:4] == [1.2, 1.1, 0.6, 0.2]
+    assert drip_truncated(flows, 2)[4] == 0.0
+    assert all(math.isnan(value) for value in drip_truncated(flows, 2)[5:])
+    hidden = drip_truncated([1.0, 0.5, math.nan, 0.4], 1)
+    assert hidden[:2] == [1.0, 0.5] and all(math.isnan(value) for value in hidden[2:])
+

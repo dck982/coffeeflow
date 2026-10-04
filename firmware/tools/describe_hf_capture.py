@@ -168,6 +168,22 @@ def cup_flow_series(samples: list[dict[str, Any]], window_s: float,
     return weight_flow_g_s(times, weights, window_s)
 
 
+def drip_truncated(cup_flows: list[float], stop_index: int | None) -> list[float]:
+    """Prolonge le débit tasse après l'arrêt de la pompe jusqu'à son premier
+    retour à 0 (dernières gouttes), puis le masque. Une tasse retirée fait
+    passer le débit sous 0, ou le rend indéfini avec le poids négatif."""
+    if stop_index is None:
+        return cup_flows
+    result = list(cup_flows)
+    for index in range(stop_index, len(result)):
+        value = result[index]
+        if not math.isfinite(value) or value <= 0:
+            result[index] = 0.0 if math.isfinite(value) else float("nan")
+            result[index + 1:] = [float("nan")] * (len(result) - index - 1)
+            break
+    return result
+
+
 def capture_duration_s(capture: dict[str, Any]) -> float:
     started = number(capture.get("started_at_us"))
     ended = number(capture.get("ended_at_us"))
@@ -431,9 +447,8 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
     stop_index = first_pump_stop(samples)
     stop_s = times[stop_index] if stop_index is not None else duration_s
-    cup_flows = cup_flow_series(samples, weight_flow_window_s, cooldown_window_s=2.0)
-    cup_flows = [flow if time_s <= stop_s else float("nan")
-                 for time_s, flow in zip(times, cup_flows)]
+    cup_flows = drip_truncated(cup_flow_series(samples, weight_flow_window_s,
+                                               cooldown_window_s=math.inf), stop_index)
     report_weights = report_weight_series(samples)
     temperatures = [
         number(sample.get("boiler_temperature_c", sample.get("temperature_c")))

@@ -2,9 +2,9 @@
 
 Ce document décrit d'abord **l'état actuel** (version **0.3.31**) :
 machine, mesure, configuration et loi de chauffe. Viennent ensuite les
-**points à considérer**, le **prochain essai**, puis le **journal des
-essais**, qui conserve les mesures et le raisonnement ayant conduit aux
-réglages actuels. Les procédures de mesure et le remplacement prévu de la
+**points à considérer**, un renvoi au journal des infusions, puis le
+**journal des essais**, qui conserve les mesures et le raisonnement ayant
+conduit aux réglages actuels. Les procédures de mesure et le remplacement prévu de la
 sonde terminent le document.
 
 Les fichiers `captures/` cités sont locaux et ignorés par Git.
@@ -404,53 +404,13 @@ L'ancienne version de ce document annonçait aussi une bande « prête » de
    la fenêtre étant déjà recalée par la précharge ; il sert quand la
    précharge est nulle ou supprimée.
 
-## Prochain essai : sans coupure de fin, remplissage à 1 bar (0.3.40)
+## Essais d'infusion depuis 0.3.40
 
-Premier essai du remboursement à
-[13 h 24 le 4 octobre](#infusion-de-13-h-24-4-octobre--précharge-de-8-s-remboursement) :
-**87,58 °C** en tasse, chauffe à 0 % pendant 22 des 24 s d'infusion. La
-coupure de fin, que la précharge ne finance plus depuis le remboursement,
-s'enchaînait au remboursement. L'écran **0.3.39** la supprime (voir
-[chauffe-infusion.md](chauffe-infusion.md#coupure-de-fin-supprimée-en-0339)).
-
-Réglages : `heating.brew_preheat_time_s` à **8 s**, pré-infusion à **35 %**
-(pause), consigne de 90 °C. L'écran **0.3.40** termine aussi le remplissage
-à **1 bar absolu** (10 s au plus) au lieu de +0,1 bar : ≈ 10 ml de plus
-passent dans le remplissage, avec l'appoint complet au lieu d'être retenus
-par le remboursement (≈ +2,9 kJ). Avec les deux changements, une tasse plus
-chaude qu'à 13 h 24 ne départage pas leurs effets ; la simulation
-ci-dessous ne compte que la coupure de fin. Noter le volume en fin de
-remplissage et la durée de la pré-infusion.
-
-Attendu, d'après la simulation sur l'hydraulique de 13 h 24 :
-
-| Point | Attendu |
-| --- | --- |
-| Commande à 0 % dès l'entrée en infusion | ≈ 700 %·s retenus, soit ≈ 8,4 kJ, puis appoint au débit **jusqu'à l'arrêt de la pompe** |
-| Moyenne NTC pondérée par la tasse | inchangée par la suppression (±0,02 °C en simulation) ; l'écart de −2 °C de 13 h 24 reste inexpliqué |
-| Minimum | +0,2 à +1,3 °C par rapport à 0.3.38 à hydraulique égale |
-| État 20 à 30 s après l'arrêt | +2 à +3,5 °C par rapport à 0.3.38, proche de la consigne ou au-dessus |
-
-Si la moyenne en tasse reste vers −2 °C, le défaut n'est pas la coupure de
-fin : comparer la pause de pré-infusion (13 h 24 : 2 ml en 4 s) aux
-infusions où le débit a continué pendant la pré-infusion.
-
-Si ce n'est pas déjà fait, relever 3 min de surveillance au repos avant
-l'infusion : points à vérifier dans
-[chauffe-repos.md](chauffe-repos.md#à-vérifier-sur-la-prochaine-capture).
-
-Pour l'analyse :
-
-```sh
-uv run firmware/tools/analyze_hf_capture.py captures/<capture>.json
-uv run firmware/tools/simulate_boiler.py --capture captures/<capture>.json
-```
-
-Comparer aussi l'énergie commandée et l'énergie SSR (`heater_on`) par phase :
-le simulateur utilise la commande. Les contrôles de la fenêtre SSR neuve
-(0.3.30) sont décrits dans l'essai de
-[9 h 43](#infusion-de-9-h-43-30-septembre--précharge-de-8-s) ; les refaire si
-le firmware du module capteurs change.
+L'essai prévu pour 0.3.40 (sans coupure de fin, remplissage à 1 bar absolu)
+a eu lieu le 5 octobre à 7 h 26. Son analyse, les attendus vérifiés et les
+essais suivants, hydraulique comprise, sont dans
+[journal-infusions.md](journal-infusions.md). Le journal ci-dessous s'arrête
+au 4 octobre.
 
 ## Journal des essais
 

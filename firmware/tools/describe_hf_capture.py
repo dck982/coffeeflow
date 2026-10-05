@@ -697,15 +697,20 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
     def finite_series(values: list[float]) -> list[float | None]:
         return [value if math.isfinite(value) else None for value in values]
 
+    def plotted_pressure(sample: dict[str, Any]) -> bool:
+        # Des échantillons valides à −14 bar (pics isolés) étirent l'axe et
+        # aplatissent la courbe : ils sont traités comme indisponibles.
+        return valid(sample, "pressure") and number(sample.get("pressure_bar")) >= 0
+
     pressure_bridge_x: list[float | None] = []
     pressure_bridge_y: list[float | None] = []
     index = 0
     while index < len(samples):
-        if valid(samples[index], "pressure"):
+        if plotted_pressure(samples[index]):
             index += 1
             continue
         first_invalid = index
-        while index < len(samples) and not valid(samples[index], "pressure"):
+        while index < len(samples) and not plotted_pressure(samples[index]):
             index += 1
         if first_invalid > 0 and index < len(samples):
             before, after = first_invalid - 1, index
@@ -737,7 +742,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
             heating_on.append(value if overlaps_other_state else None)
 
     traces = [
-        {"name": "pression valide", "x": times, "y": series("pressure_bar", lambda s: valid(s, "pressure")),
+        {"name": "pression valide", "x": times, "y": series("pressure_bar", plotted_pressure),
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 2}, "yaxis": "y",
          "hovertemplate": "%{y:.2f} bar<extra></extra>", "legendrank": 1},
         {"name": "pompe demandée", "x": times, "y": series("pump_pct_commanded"), "type": "scatter",
@@ -826,7 +831,8 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
         "legend": {"orientation": "h", "y": 1.20, "x": 0}, "shapes": shapes, "annotations": annotations,
         "xaxis": {"title": "temps depuis le start (s)", "range": [0, duration_s], "showspikes": True,
                   "spikemode": "across", "spikesnap": "cursor", "gridcolor": "#e8ebed"},
-        "yaxis": {"title": "bar", "domain": [0.78, 1], "gridcolor": "#e8ebed", "zeroline": False},
+        "yaxis": {"title": "bar", "domain": [0.78, 1], "gridcolor": "#e8ebed", "zeroline": False,
+                  "rangemode": "tozero"},
         "yaxis2": {"title": "pompe (%)", "overlaying": "y", "side": "right", "range": [0, 105]},
         "yaxis3": {"title": "g/s · ml/s", "domain": [0.53, 0.73], "gridcolor": "#e8ebed", "zeroline": False},
         "yaxis4": {"title": "°C", "domain": [0.28, 0.48], "gridcolor": "#e8ebed", "zeroline": False},

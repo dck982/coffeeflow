@@ -432,6 +432,9 @@ pendant la garde, et un paquet isolé est écarté par la confirmation. Si la
 première goutte tombe systématiquement pendant le remplissage et que la
 pré-infusion disparaît, baisser le seuil.
 
+Les essais de seuil et de puissance de pré-infusion sont suivis dans
+[journal-infusions.md](journal-infusions.md).
+
 **Pré-infusion.** Elle se termine au temps, ou dès la première goutte
 (+0,1 g depuis le début du remplissage). La sortie par pression a été retirée
 (schéma 8) : la pression n'a jamais dépassé 1,26 bar en pré-infusion. Le

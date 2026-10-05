@@ -65,6 +65,10 @@ l'offset.
 | 01/10, 8 h 29 | 5,5 s, mouture un peu moins fine, porte-filtre moins chauffé | **88,39 °C** | 89,25 °C |
 | 04/10, 10 h 01 | 5,5 s, mouture trop fine (infusion de 34,4 s), pré-infusion à 60 % | **92,52 °C** | 91,21 °C |
 | 04/10, 13 h 24 | 8 s, remboursement (0.3.37), pause de pré-infusion sans débit | **87,58 °C** | 90,17 °C |
+| 05/10, 7 h 26 | 8 s, remboursement, sans coupure de fin, remplissage à 1 bar absolu (0.3.40) | **88,64 °C** | 89,62 °C |
+
+Depuis le 5 octobre, chaque infusion est analysée dans
+[journal-infusions.md](journal-infusions.md).
 
 Les réglages et les recettes ont changé d'une infusion à l'autre ; la
 dispersion de 5,35 °C (hors 13 h 24 le 4 octobre) ne mesure donc pas
@@ -418,10 +422,13 @@ confirmer sur des infusions réelles.
   pendant l'écoulement (voir [Objectif](#objectif)).
 - **Remboursement non vérifié sur infusion réelle.** La double chauffe de
   l'eau du remplissage (précharge puis appoint au débit) est traitée depuis
-  0.3.37 par le [remboursement](#remboursement-de-la-précharge). Un seul
-  essai réel (13 h 24 le 4 octobre, coupure de fin encore active) :
-  87,58 °C en tasse, alors que le modèle prévoit 89,57 °C avec la commande
-  réelle. L'écart de −2 °C n'est expliqué par aucune variante de la loi.
+  0.3.37 par le [remboursement](#remboursement-de-la-précharge). Deux
+  essais réels : 13 h 24 le 4 octobre (coupure de fin encore active),
+  87,58 °C en tasse pour 89,57 °C prévus avec la commande réelle ; 7 h 26
+  le 5 octobre (sans coupure), 88,64 °C pour 89,63 °C prévus. L'écart de
+  −1 à −2 °C n'est expliqué par aucune variante de la loi ; l'énergie SSR
+  inférieure à la commande en couvre ≈ 0,6 °C le 5 octobre (voir
+  [journal-infusions.md](journal-infusions.md)).
 - **Le débitmètre est en amont de la pompe.** Une recirculation par l'OPV
   gonflerait le débit mesuré, donc la commande.
 - **Premier instant du remplissage.** Le débit mesuré reste parfois proche
@@ -459,5 +466,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261001-082959.json` | 5,5 s | mouture un peu moins fine, porte-filtre moins chauffé ; −1,61 °C en tasse, coupure pendant la montée en pression ; hors ajustement |
 | `261004-100128.json` | 5,5 s | mouture trop fine, infusion de 34,4 s, pré-infusion à 60 % sans pause ; +2,52 °C en tasse, double chauffe du remplissage ; hors ajustement |
 | `261004-132439.json` | 8 s | premier essai du remboursement (0.3.37) ; pause de pré-infusion sans débit ; −2,42 °C en tasse, chauffe à 0 % pendant 22 des 24 s d'infusion ; hors ajustement |
+| `261005-072633.json` | 8 s | premier essai sans coupure de fin (0.3.40) ; remplissage de 24,1 ml à 1 bar absolu ; −1,36 °C en tasse ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

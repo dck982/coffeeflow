@@ -1,0 +1,114 @@
+{
+  "CheckedDate": "2026-10-05",
+  "Scope": "Numbered supplier CAD pads compared with KiCad; JLCPCB preview confirmation still required",
+  "Checks": [
+    {
+      "Reference": "U1",
+      "LCSC": "C2980299",
+      "SupplierCADURL": "https://easyeda.com/api/products/C2980299/components?version=6.5.51",
+      "SupplierFootprint": "BULETM-SMD_ESPRESSIF_ESP32-S3-MINI-1U-N8",
+      "RotationOffset": 0.0,
+      "MaxPadCentreDifference_mm": 0.00023,
+      "MatchedNumberedPads": 64
+    },
+    {
+      "Reference": "U2",
+      "LCSC": "C6186",
+      "SupplierCADURL": "https://easyeda.com/api/products/C6186/components?version=6.5.51",
+      "SupplierFootprint": "SOT-223-3_L6.5-W3.4-P2.30-LS7.0-BR",
+      "RotationOffset": 180.0,
+      "MaxPadCentreDifference_mm": 0.18005,
+      "MatchedNumberedPads": 3
+    },
+    {
+      "Reference": "U4",
+      "LCSC": "C38695",
+      "SupplierCADURL": "https://easyeda.com/api/products/C38695/components?version=6.5.51",
+      "SupplierFootprint": "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+      "RotationOffset": 270.0,
+      "MaxPadCentreDifference_mm": 0.12494,
+      "MatchedNumberedPads": 8
+    },
+    {
+      "Reference": "U5",
+      "LCSC": "C99269",
+      "SupplierCADURL": "https://easyeda.com/api/products/C99269/components?version=6.5.51",
+      "SupplierFootprint": "SOT-563_L1.6-W1.2-P0.50-LS1.6-BR",
+      "RotationOffset": 180.0,
+      "MaxPadCentreDifference_mm": 0.03749,
+      "MatchedNumberedPads": 6
+    },
+    {
+      "Reference": "5V",
+      "LCSC": "C158012",
+      "SupplierCADURL": "https://easyeda.com/api/products/C158012/components?version=6.5.51",
+      "SupplierFootprint": "CONN-TH_B2B-XH-A-LF-SN",
+      "RotationOffset": 180.0,
+      "MaxPadCentreDifference_mm": 2e-05,
+      "MatchedNumberedPads": 2
+    },
+    {
+      "Reference": "CAN",
+      "LCSC": "C158012",
+      "SupplierCADURL": "https://easyeda.com/api/products/C158012/components?version=6.5.51",
+      "SupplierFootprint": "CONN-TH_B2B-XH-A-LF-SN",
+      "RotationOffset": 180.0,
+      "MaxPadCentreDifference_mm": 2e-05,
+      "MatchedNumberedPads": 2
+    },
+    {
+      "Reference": "BOILER",
+      "LCSC": "C158012",
+      "SupplierCADURL": "https://easyeda.com/api/products/C158012/components?version=6.5.51",
+      "SupplierFootprint": "CONN-TH_B2B-XH-A-LF-SN",
+      "RotationOffset": 180.0,
+      "MaxPadCentreDifference_mm": 2e-05,
+      "MatchedNumberedPads": 2
+    },
+    {
+      "Reference": "FLOW",
+      "LCSC": "C144394",
+      "SupplierCADURL": "https://easyeda.com/api/products/C144394/components?version=6.5.51",
+      "SupplierFootprint": "CONN-TH_3P-P2.50_A2501WV2-3P",
+      "RotationOffset": 0,
+      "MaxPadCentreDifference_mm": 0.00013,
+      "MatchedNumberedPads": 3
+    },
+    {
+      "Reference": "VALVE",
+      "LCSC": "C144394",
+      "SupplierCADURL": "https://easyeda.com/api/products/C144394/components?version=6.5.51",
+      "SupplierFootprint": "CONN-TH_3P-P2.50_A2501WV2-3P",
+      "RotationOffset": 0,
+      "MaxPadCentreDifference_mm": 0.00013,
+      "MatchedNumberedPads": 3
+    }
+  ],
+  "C3": {
+    "RotationOffset": 180,
+    "Evidence": "User confirmed 180-degree correction in JLCPCB preview"
+  },
+  "I2C": {
+    "LCSC": "C722737",
+    "SupplierCADURL": "https://easyeda.com/api/products/C722737/components?version=6.5.51",
+    "SupplierFootprint": "CONN-TH_HY-4A",
+    "ModelUUID": "07a26d6d7f18479cb290d26ea3991273",
+    "Centre": "Numbered pin-row midpoint",
+    "RotationOffset": -90,
+    "SupplierDrillDiameter_mm": 1.0,
+    "KiCadFootprint": "Sensors_Local:CONN-TH_HY-4A",
+    "PCB_SHA256": "07080fbb7ab98c420f354ab1ed36b53387fdd022f4b829b1651f1453a1a7a31a"
+  },
+  "Q2": {
+    "RotationOffset": 180,
+    "Evidence": "User confirmed 180-degree correction in JLCPCB preview"
+  },
+  "Q3": {
+    "RotationOffset": 180,
+    "Evidence": "User confirmed 180-degree correction in JLCPCB preview"
+  },
+  "D1": {
+    "RotationOffset": -90,
+    "Evidence": "User confirmed -90-degree correction in JLCPCB preview"
+  }
+}

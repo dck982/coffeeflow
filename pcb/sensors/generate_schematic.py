@@ -161,7 +161,7 @@ p.text('C3: solid tantalum for AMS1117 stability.\nProvide copper heatsinking: 0
 for i,net in enumerate(['+5V','GND']):p.part('power:PWR_FLAG','#FLG0'+str(i+1),'PWR_FLAG',35+i*45,125,{'1':net},fp='')
 
 p.text('2. ESP32-S3-MINI-1U-N8 - CAN only, no antenna fitted',225,15,1.7)
-nets={'3':'+3V3','4':'BOOT_N','16':'HEATER_CMD','9':'I2C_SDA','10':'I2C_SCL','14':'CAN_RX','15':'CAN_TX','37':'FLOW_PULSE','32':'VALVE_CMD','23':'USB_MCU_DM','24':'USB_MCU_DP','41':'STRAP45','44':'STRAP46','45':'EN'}
+nets={'3':'+3V3','4':'BOOT_N','16':'HEATER_CMD','9':'I2C_SDA','10':'I2C_SCL','14':'CAN_RX','15':'CAN_TX','37':'FLOW_PULSE','32':'VALVE_CMD','34':'STATUS_LED','23':'USB_MCU_DM','24':'USB_MCU_DP','41':'STRAP45','44':'STRAP46','45':'EN'}
 for n in [1,2,42,43,*range(46,66)]:nets[str(n)]='GND'
 p.part('RF_Module:ESP32-S3-MINI-1U','U1','ESP32-S3-MINI-1U-N8',310,73,nets,mpn='ESP32-S3-MINI-1U-N8')
 c(p,'C4','10uF',240,125,'+3V3','GND',CB);c(p,'C5','100nF',275,125,'+3V3','GND')
@@ -182,6 +182,15 @@ r(p,'R7','22',155,215,'USB_HOST_DM','USB_MCU_DM',90)
 p.part('Power_Protection:TPD2E2U06DCK','D1','TPD2E2U06DCKR',225,220,{'1':'USB_HOST_DM','2':'USB_HOST_DP','3':'GND'})
 p.text('USB flashing: disconnect J1 power, then connect Mac USB-C.\nProduction: unplug USB-C, then connect J1 to RECOM 5V.\nBoth feed the same +5V rail; no power OR-ing or reverse blocking.',18,245,1.2)
 p.text('ESP32 provides its USB data pull-up internally. CC1/CC2: 5.1k to GND.\nRoute USB as a 90-ohm pair; D1 at J2, R6/R7 at U1.\nC1: 4.7uF input bulk to reduce USB plug-in inrush.',18,265,1.1)
+# Green status LED: module pad 34 is GPIO38, active high.
+r(p,'R25','1k',265,225,'STATUS_LED','STATUS_LED_A')
+status_led=p.part('Device:LED','D2','GREEN / STATUS',265,250,{'1':'GND','2':'STATUS_LED_A'},'LED_SMD:LED_0603_1608Metric',angle=90,desc='Green status LED, pin 1 cathode to GND',mpn='Generic green LED 0603')
+for prop in status_led:
+    if key(prop)=='property' and prop[1] in ('Reference','Value'):
+        get(prop,'at')[1:]=[278 if prop[1]=='Reference' else 283,247 if prop[1]=='Reference' else 250,0]
+        get(prop,'effects').append(node('justify',Sym('left')))
+p.text('GPIO38 / pad34\nHIGH = LED on',245,270,1.1)
+
 # A real hierarchical sheet, globals carry the ten board-wide nets.
 p.add(node('sheet',node('at',290,210),node('size',102,28),node('stroke',node('width',0.1524),node('type',Sym('default'))),node('fill',node('color',0,0,0,0)),node('uuid',SHEET),node('property','Sheetname','Sensors interfaces',node('at',290,209,0),effects(1.5,'left bottom')),node('property','Sheetfile','sensors_interfaces.kicad_sch',node('at',290,239,0),effects(1.2,'left top')),node('instances',node('project','sensors',node('path','/'+ROOT,node('page','2'))))))
 

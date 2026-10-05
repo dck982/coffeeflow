@@ -27,3 +27,10 @@ OPEN: 23 schematic parity warnings after PCB references were renamed and
 mounting-hole PCB-only attributes reverted; see sensors_drc.json.
 PASS: J2 local rounded-GND footprint, scoped 0.20mm hole clearance.
 J2 restored after an editor save reverted its footprint; no DRC exclusions added.
+
+Green status LED — KiCad 10.0.6, 2026-10-05
+PASS: D2 green 0603, R25 1k 0603; GPIO38 / U1 pad34 -> R25 -> LED anode, cathode -> GND. HIGH = on.
+PASS: ERC, 0 errors / 0 warnings; all previous netlist connections preserved.
+PASS: GPIO38 available on MINI-1U-N8; local Espressif datasheet v1.7 Table 3-1 and section 4. No internal flash, UART, USB, JTAG or boot-strap reservation.
+PDF: Two A3 pages regenerated; LED placement visually checked.
+PCB: User will update placement and routing in the PCB editor.

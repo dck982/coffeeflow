@@ -143,7 +143,7 @@ def main():
         footprints[ref] = (fp, properties)
     with source_bom.open(newline="") as stream:
         source_rows = list(csv.DictReader(stream))
-    bom, positions, fitted = [], [], set()
+    bom, positions, fitted = {}, [], set()
     for row in source_rows:
         if row["DNP"].lower() == "true":
             continue
@@ -165,7 +165,13 @@ def main():
         angle = float(at[3]) if len(at) > 3 else 0.0
         x, y, angle = customize_placement(ref, fp, x, y, angle)
         rotation = (angle + rotation_offsets.get(ref, 0)) % 360
-        bom.append([row["Value"], ref, fp[1].split(":", 1)[-1], row["LCSC"]])
+        code = row["LCSC"]
+        footprint_name = fp[1].split(":", 1)[-1]
+        if code not in bom:
+            bom[code] = [row.get("MPN") or row["Value"], [], footprint_name, code]
+        elif bom[code][2] != footprint_name:
+            raise ValueError(f"{code}: one sourced part has multiple footprints; review BOM")
+        bom[code][1].append(ref)
         positions.append([ref, f"{x:.6f}", f"{-y:.6f}", f"{rotation:.6f}", "Top"])
         fitted.add(ref)
     # Exclude mounting holes; catch newly added electrical components omitted by the BOM.
@@ -210,7 +216,9 @@ def main():
             "--excellon-zeros-format", "decimal", "--excellon-units", "mm",
             "--excellon-oval-format", "alternate", "--excellon-separate-th",
             "--output", str(gerbers) + "/", board)
-        write_csv(stage / "bom.csv", ["Comment", "Designator", "Footprint", "LCSC Part #"], bom)
+        grouped_bom = [[comment, ",".join(refs), footprint, code]
+                       for comment, refs, footprint, code in bom.values()]
+        write_csv(stage / "bom.csv", ["Comment", "Designator", "Footprint", "LCSC Part #"], grouped_bom)
         write_csv(stage / "positions.csv", ["Designator", "Mid X", "Mid Y", "Rotation", "Layer"], sorted(positions))
         (stage / "README.md").write_text(README.format(board=board.name, name=name,
                                                     notes=getattr(custom, "README_NOTES", "")))

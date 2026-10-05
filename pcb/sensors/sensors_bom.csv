@@ -1,45 +1,46 @@
-Reference,Value,Footprint,DNP,LCSC,MPN,Description,Sheet
-J1,POWER / 5V RECOM,Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,0,C157931,S2B-XH-A(LF)(SN),"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",1
-U2,AMS1117-3.3,Package_TO_SOT_SMD:SOT-223-3_TabPin2,0,,AMS1117-3.3,"1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223",1
-C1,4.7uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 4.7uF X7R >=10V,Unpolarized capacitor,1
-C2,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1
-C3,22uF tantalum / 10V,Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B,0,,"22uF 10V solid tantalum, case B",Polarized capacitor,1
-U1,ESP32-S3-MINI-1U-N8,RF_Module:ESP32-S2-MINI-1U,0,,ESP32-S3-MINI-1U-N8,"RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna",1
-C4,10uF,Capacitor_SMD:C_0805_2012Metric,0,,Generic 10uF X7R >=10V,Unpolarized capacitor,1
-C5,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,1
-R2,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
-C6,1uF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 1uF X7R >=10V,Unpolarized capacitor,1
-R3,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
-R23,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
-R24,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,1
-SW1,BOOT,Button_Switch_SMD:SW_SPST_TL3342,0,,E-Switch TL3342F160QG,"Push button switch, generic, two pins",1
-SW2,RESET,Button_Switch_SMD:SW_SPST_TL3342,0,,E-Switch TL3342F160QG,"Push button switch, generic, two pins",1
-J2,USB-C FLASH,Sensors_Local:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal_RoundedGND,0,,GCT USB4105-GF-A,USB 2.0-only 16P Type-C Receptacle connector,1
-R4,5.1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 5.1k 1% 0603,Resistor,1
-R5,5.1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 5.1k 1% 0603,Resistor,1
-R6,22,Resistor_SMD:R_0603_1608Metric,0,,Generic 22 1% 0603,Resistor,1
-R7,22,Resistor_SMD:R_0603_1608Metric,0,,Generic 22 1% 0603,Resistor,1
-D1,TPD2E2U06DCKR,Package_TO_SOT_SMD:SOT-323_SC-70,0,,TPD2E2U06DCKR,"Dual-Channel High-Speed ESD Protection, SC-70",1
-U4,TJA1051T/3,Package_SO:SOIC-8_3.9x4.9mm_P1.27mm,0,,"TJA1051T/3,118","High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8",2
-J3,CAN BUS,Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,0,C157931,S2B-XH-A(LF)(SN),"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",2
-C8,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
-C9,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
-R11,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
-R12,120 / 0.25W,Resistor_SMD:R_1206_3216Metric,0,,Generic 120 / 0.25W 1% 1206,Resistor,2
-J4,DIMMER / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2
-J5,XDB401 / GROVE,Connector:NS-Tech_Grove_1x04_P2mm_Vertical,0,,NS-Tech Grove vertical HY2.0-4P,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",2
-R13,4.7k,Resistor_SMD:R_0603_1608Metric,0,,Generic 4.7k 1% 0603,Resistor,2
-R14,4.7k,Resistor_SMD:R_0603_1608Metric,0,,Generic 4.7k 1% 0603,Resistor,2
-U5,TMP102AIDRLR,Package_TO_SOT_SMD:SOT-563,0,,TMP102AIDRLR,"Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563",2
-C10,100nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 100nF X7R >=10V,Unpolarized capacitor,2
-J6,DIGMESA / FLOW,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,0,,JST B3B-XH-A,"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",2
-R15,1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 1k 1% 0603,Resistor,2
-C12,10nF,Capacitor_SMD:C_0603_1608Metric,0,,Generic 10nF X7R >=10V,Unpolarized capacitor,2
-J7,M5STACK VALVE SSR,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,0,,JST B3B-XH-A,"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",2
-R17,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
-Q3,2N7002,Package_TO_SOT_SMD:SOT-23,0,,2N7002,"0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23",2
-R19,100k,Resistor_SMD:R_0603_1608Metric,0,,Generic 100k 1% 0603,Resistor,2
-Q2,AO3401A,Package_TO_SOT_SMD:SOT-23,0,,AO3401A,"-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23",2
-R21,10k,Resistor_SMD:R_0603_1608Metric,0,,Generic 10k 1% 0603,Resistor,2
-R22,1k,Resistor_SMD:R_0603_1608Metric,0,,Generic 1k 1% 0603,Resistor,2
-J8,BOILER SSR / 5V OUT,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,0,,JST B2B-XH-A,"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",2
+Reference,Value,Footprint,DNP,LCSC,MPN,Description,Sheet,SchematicReference,Manufacturer,JLCClass,Assembly,CheckedDate,SourceURL,Notes
+5V,5V POWER,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,False,C158012,B2B-XH-A(LF)(SN),"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors.kicad_sch,J1,JST,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C158012,
+BOILER,BOILER SSR,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,False,C158012,B2B-XH-A(LF)(SN),"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors_interfaces.kicad_sch,J8,JST,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C158012,
+BOOT,BOOT,Button_Switch_SMD:SW_SPST_TS-1088-xR020,False,C720477,TS-1088-AR02016,"Push button switch, generic, two pins",sensors.kicad_sch,SW1,XUNPU,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C720477,XUNPU 3.9x3x2mm TS-1088-AR02016 matches current footprint; replaces stale E-Switch TL3342 BOM entry.
+C1,4.7uF,Capacitor_SMD:C_0805_2012Metric,False,C107365,CL21B475KOFNNNE,Unpolarized capacitor,sensors.kicad_sch,C1,Samsung Electro-Mechanics,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C107365,"4.7uF 16V X7R, +/-10%; preserves specified dielectric."
+C2,100nF,Capacitor_SMD:C_0603_1608Metric,False,C14663,CC0603KRX7R9BB104,Unpolarized capacitor,sensors.kicad_sch,C2,YAGEO,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C14663,
+C3,22uF tantalum / 10V,Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B,False,C7198,TAJB226K010RNJ,Polarized capacitor,sensors.kicad_sch,C3,--,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C7198,"22uF 10V solid MnO2 tantalum, case B 3528-21, +/-10%, ESR 2.4 ohm max at 100kHz; pin 1 positive. Retained for AMS1117 stability."
+C4,10uF,Capacitor_SMD:C_0805_2012Metric,False,C95841,CL21B106KOQNNNE,Unpolarized capacitor,sensors.kicad_sch,C4,Samsung Electro-Mechanics,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C95841,"10uF 16V X7R, +/-10%; preserves specified dielectric."
+C5,100nF,Capacitor_SMD:C_0603_1608Metric,False,C14663,CC0603KRX7R9BB104,Unpolarized capacitor,sensors.kicad_sch,C5,YAGEO,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C14663,
+C6,1uF,Capacitor_SMD:C_0603_1608Metric,False,C29936,CL10B105KA8NNNC,Unpolarized capacitor,sensors.kicad_sch,C6,Samsung Electro-Mechanics,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C29936,"1uF 25V X7R, +/-10%; EN timing capacitor."
+C8,100nF,Capacitor_SMD:C_0603_1608Metric,False,C14663,CC0603KRX7R9BB104,Unpolarized capacitor,sensors_interfaces.kicad_sch,C8,YAGEO,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C14663,
+C9,100nF,Capacitor_SMD:C_0603_1608Metric,False,C14663,CC0603KRX7R9BB104,Unpolarized capacitor,sensors_interfaces.kicad_sch,C9,YAGEO,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C14663,
+C10,100nF,Capacitor_SMD:C_0603_1608Metric,False,C14663,CC0603KRX7R9BB104,Unpolarized capacitor,sensors_interfaces.kicad_sch,C10,YAGEO,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C14663,
+C12,10nF,Capacitor_SMD:C_0603_1608Metric,False,C57112,0603B103K500NT,Unpolarized capacitor,sensors_interfaces.kicad_sch,C12,FH (Guangdong Fenghua Advanced Tech),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C57112,
+CAN,CAN BUS,Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,False,C158012,B2B-XH-A(LF)(SN),"Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors_interfaces.kicad_sch,J3,JST,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C158012,
+D1,TPD2E2U06DCKR,Package_TO_SOT_SMD:SOT-323_SC-70,False,C1855726,TPD2E2U06DCKR,"Dual-Channel High-Speed ESD Protection, SC-70",sensors.kicad_sch,D1,Texas Instruments,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C1855726,"Exact TI SC-70-3 DCK package: pins 1/2 I/O, pin 3 GND. Limited catalog stock (11), no reservable presale quantity shown; resolve stock with JLCPCB before ordering. Do not use 5-pin DRL variant."
+D2,GREEN / STATUS,LED_SMD:LED_0603_1608Metric,False,C2289,KT-0603YG,"Green status LED, pin 1 cathode to GND",sensors.kicad_sch,D2,Hubei KENTO Elec,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C2289,"Yellow-green 0603, Vf 2.0-2.2V; approximately 1.1-1.3mA with existing 1k at 3.3V. Pin 1 cathode; pin 2 anode. No verified Basic low-Vf green 0603 selected."
+FLOW,FLOW HALL,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,False,C144394,B3B-XH-A(LF)(SN),"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors_interfaces.kicad_sch,J6,JST,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C144394,
+I2C,DIMMER I2C,Sensors_Local:CONN-TH_HY-4A,False,C722737,HY-4A,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors_interfaces.kicad_sch,J4,CAX,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C722737,"CAX vertical HY 4-pin, 2mm pitch; user confirmed model displays in JLCPCB. Retain NS-Tech Grove pin layout, but update PCB drills to supplier CAD 1.0mm (current drills 0.762mm). CPL uses pin-row midpoint and -90 degree rotation offset matched to supplier pad numbering."
+J2,USB-C FLASH,Sensors_Local:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal_RoundedGND,False,C3025063,USB4105-GF-A-060,USB 2.0-only 16P Type-C Receptacle connector,sensors.kicad_sch,J2,Global Connector Technology,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C3025063,GCT USB4105-GF-A-060: same recommended land pattern; 0.60mm shell stakes. Existing footprint lists this variant. Confirm stake length against board thickness; catalog contact-count field is inconsistent with manufacturer 16-contact drawing.
+Q2,AO3401A,Package_TO_SOT_SMD:SOT-23,False,C15127,AO3401A,"-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23",sensors_interfaces.kicad_sch,Q2,Alpha & Omega Semicon,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C15127,
+Q3,2N7002,Package_TO_SOT_SMD:SOT-23,False,C8545,2N7002,"0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23",sensors_interfaces.kicad_sch,Q3,"Jiangsu Changjing Electronics Technology Co., Ltd.",Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C8545,
+R2,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors.kicad_sch,R2,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R3,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors.kicad_sch,R3,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R4,5.1k,Resistor_SMD:R_0603_1608Metric,False,C23186,0603WAF5101T5E,Resistor,sensors.kicad_sch,R4,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23186,
+R5,5.1k,Resistor_SMD:R_0603_1608Metric,False,C23186,0603WAF5101T5E,Resistor,sensors.kicad_sch,R5,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23186,
+R6,22,Resistor_SMD:R_0603_1608Metric,False,C23345,0603WAF220JT5E,Resistor,sensors.kicad_sch,R6,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23345,
+R7,22,Resistor_SMD:R_0603_1608Metric,False,C23345,0603WAF220JT5E,Resistor,sensors.kicad_sch,R7,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23345,
+R11,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors_interfaces.kicad_sch,R11,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R12,120 / 0.25W,Resistor_SMD:R_1206_3216Metric,False,C17909,1206W4F1200T5E,Resistor,sensors_interfaces.kicad_sch,R12,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C17909,
+R13,4.7k,Resistor_SMD:R_0603_1608Metric,False,C23162,0603WAF4701T5E,Resistor,sensors_interfaces.kicad_sch,R13,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23162,
+R14,4.7k,Resistor_SMD:R_0603_1608Metric,False,C23162,0603WAF4701T5E,Resistor,sensors_interfaces.kicad_sch,R14,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C23162,
+R15,1k,Resistor_SMD:R_0603_1608Metric,False,C21190,0603WAF1001T5E,Resistor,sensors_interfaces.kicad_sch,R15,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C21190,
+R17,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors_interfaces.kicad_sch,R17,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R19,100k,Resistor_SMD:R_0603_1608Metric,False,C25803,0603WAF1003T5E,Resistor,sensors_interfaces.kicad_sch,R19,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25803,
+R21,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors_interfaces.kicad_sch,R21,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R22,1k,Resistor_SMD:R_0603_1608Metric,False,C21190,0603WAF1001T5E,Resistor,sensors_interfaces.kicad_sch,R22,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C21190,
+R23,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors.kicad_sch,R23,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R24,10k,Resistor_SMD:R_0603_1608Metric,False,C25804,0603WAF1002T5E,Resistor,sensors.kicad_sch,R24,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C25804,
+R25,1k,Resistor_SMD:R_0603_1608Metric,False,C21190,0603WAF1001T5E,Resistor,sensors.kicad_sch,R25,UNI-ROYAL(Uniroyal Elec),Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C21190,
+RESET,RESET,Button_Switch_SMD:SW_SPST_TS-1088-xR020,False,C720477,TS-1088-AR02016,"Push button switch, generic, two pins",sensors.kicad_sch,SW2,XUNPU,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C720477,XUNPU 3.9x3x2mm TS-1088-AR02016 matches current footprint; replaces stale E-Switch TL3342 BOM entry.
+U1,ESP32-S3-MINI-1U-N8,RF_Module:ESP32-S2-MINI-1U,False,C2980299,ESP32-S3-MINI-1U-N8,"RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna",sensors.kicad_sch,U1,Espressif Systems,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C2980299,"Exact 1U-N8 module, 8MB flash, no PSRAM, 15.4x15.4mm. Catalog VFQFN-56-EP label is misleading; use Espressif module drawing and existing 65-pad land pattern. Confirm assembly service and orientation in JLCPCB review."
+U2,AMS1117-3.3,Package_TO_SOT_SMD:SOT-223-3_TabPin2,False,C6186,AMS1117-3.3,"1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223",sensors.kicad_sch,U2,Advanced Monolithic Systems,Basic,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C6186,
+U4,TJA1051T/3,Package_SO:SOIC-8_3.9x4.9mm_P1.27mm,False,C38695,TJA1051T/3/1J,"High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8",sensors_interfaces.kicad_sch,U4,NXP Semicon,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C38695,NXP TJA1051T/3/1J is the current orderable /3 SO8 variant; pin 5 VIO remains 3.3V. Do not substitute non-/3 variant.
+U5,TMP102AIDRLR,Package_TO_SOT_SMD:SOT-563,False,C99269,TMP102AIDRLR,"Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563",sensors_interfaces.kicad_sch,U5,Texas Instruments,Extended,SMT,2026-10-05,https://jlcpcb.com/partdetail/x/C99269,
+VALVE,VALVE SSR,Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,False,C144394,B3B-XH-A(LF)(SN),"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",sensors_interfaces.kicad_sch,J7,JST,Extended,THT,2026-10-05,https://jlcpcb.com/partdetail/x/C144394,

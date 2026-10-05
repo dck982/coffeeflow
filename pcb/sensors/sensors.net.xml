@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/sensors/sensors.kicad_sch</source>
-    <date>2026-10-03T18:37:27</date>
+    <date>2026-10-05T19:10:07</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -47,13 +47,15 @@
       <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 4.7uF X7R &gt;=10V</field>
+        <field name="MPN">CL21B475KOFNNNE</field>
+        <field name="LCSC">C107365</field>
         <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 4.7uF X7R &gt;=10V"/>
+      <property name="MPN" value="CL21B475KOFNNNE"/>
+      <property name="LCSC" value="C107365"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -74,13 +76,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 100nF X7R &gt;=10V</field>
+        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C14663</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 100nF X7R &gt;=10V"/>
+      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C14663"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -101,13 +105,15 @@
       <footprint>Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B</footprint>
       <description>Polarized capacitor</description>
       <fields>
-        <field name="MPN">22uF 10V solid tantalum, case B</field>
+        <field name="MPN">TAJB226K010RNJ</field>
+        <field name="LCSC">C7198</field>
         <field name="Footprint">Capacitor_Tantalum_SMD:CP_EIA-3528-21_Kemet-B</field>
         <field name="Datasheet"/>
         <field name="Description">Polarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C_Polarized" description="Polarized capacitor"/>
-      <property name="MPN" value="22uF 10V solid tantalum, case B"/>
+      <property name="MPN" value="TAJB226K010RNJ"/>
+      <property name="LCSC" value="C7198"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -128,13 +134,15 @@
       <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 10uF X7R &gt;=10V</field>
+        <field name="MPN">CL21B106KOQNNNE</field>
+        <field name="LCSC">C95841</field>
         <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 10uF X7R &gt;=10V"/>
+      <property name="MPN" value="CL21B106KOQNNNE"/>
+      <property name="LCSC" value="C95841"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -155,13 +163,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 100nF X7R &gt;=10V</field>
+        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C14663</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 100nF X7R &gt;=10V"/>
+      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C14663"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -182,13 +192,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 1uF X7R &gt;=10V</field>
+        <field name="MPN">CL10B105KA8NNNC</field>
+        <field name="LCSC">C29936</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 1uF X7R &gt;=10V"/>
+      <property name="MPN" value="CL10B105KA8NNNC"/>
+      <property name="LCSC" value="C29936"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -211,12 +223,14 @@
       <description>Dual-Channel High-Speed ESD Protection, SC-70</description>
       <fields>
         <field name="MPN">TPD2E2U06DCKR</field>
+        <field name="LCSC">C1855726</field>
         <field name="Footprint">Package_TO_SOT_SMD:SOT-323_SC-70</field>
         <field name="Datasheet">http://www.ti.com/lit/ds/symlink/tpd2e2u06.pdf</field>
         <field name="Description">Dual-Channel High-Speed ESD Protection, SC-70</field>
       </fields>
       <libsource lib="Power_Protection" part="TPD2E2U06DCK" description="Dual-Channel High-Speed ESD Protection, SC-70"/>
       <property name="MPN" value="TPD2E2U06DCKR"/>
+      <property name="LCSC" value="C1855726"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="TVS"/>
@@ -233,18 +247,49 @@
         </unit>
       </units>
     </comp>
+    <comp ref="D2">
+      <value>GREEN / STATUS</value>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
+      <description>Green status LED, pin 1 cathode to GND</description>
+      <fields>
+        <field name="MPN">KT-0603YG</field>
+        <field name="LCSC">C2289</field>
+        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description">Green status LED, pin 1 cathode to GND</field>
+      </fields>
+      <libsource lib="Device" part="LED" description="Light emitting diode"/>
+      <property name="MPN" value="KT-0603YG"/>
+      <property name="LCSC" value="C2289"/>
+      <property name="Sheetname" value="sensors"/>
+      <property name="Sheetfile" value="sensors.kicad_sch"/>
+      <property name="ki_keywords" value="LED diode"/>
+      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e08b4b48-5cc5-5dea-8dd1-a8e7ff18160d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
     <comp ref="J1">
       <value>5V POWER</value>
       <footprint>Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</footprint>
       <description>Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">JST B2B-XH-A</field>
+        <field name="MPN">B2B-XH-A(LF)(SN)</field>
+        <field name="LCSC">C158012</field>
         <field name="Footprint">Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x02" description="Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="JST B2B-XH-A"/>
+      <property name="MPN" value="B2B-XH-A(LF)(SN)"/>
+      <property name="LCSC" value="C158012"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -266,13 +311,15 @@
       <datasheet>https://www.usb.org/sites/default/files/documents/usb_type-c.zip</datasheet>
       <description>USB 2.0-only 16P Type-C Receptacle connector</description>
       <fields>
-        <field name="MPN">GCT USB4105-GF-A</field>
+        <field name="MPN">USB4105-GF-A-060</field>
+        <field name="LCSC">C3025063</field>
         <field name="Footprint">Sensors_Local:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal_RoundedGND</field>
         <field name="Datasheet">https://www.usb.org/sites/default/files/documents/usb_type-c.zip</field>
         <field name="Description">USB 2.0-only 16P Type-C Receptacle connector</field>
       </fields>
       <libsource lib="Connector" part="USB_C_Receptacle_USB2.0_16P" description="USB 2.0-only 16P Type-C Receptacle connector"/>
-      <property name="MPN" value="GCT USB4105-GF-A"/>
+      <property name="MPN" value="USB4105-GF-A-060"/>
+      <property name="LCSC" value="C3025063"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="usb universal serial bus type-C USB2.0"/>
@@ -308,13 +355,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -335,13 +384,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -362,13 +413,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 5.1k 1% 0603</field>
+        <field name="MPN">0603WAF5101T5E</field>
+        <field name="LCSC">C23186</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 5.1k 1% 0603"/>
+      <property name="MPN" value="0603WAF5101T5E"/>
+      <property name="LCSC" value="C23186"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -389,13 +442,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 5.1k 1% 0603</field>
+        <field name="MPN">0603WAF5101T5E</field>
+        <field name="LCSC">C23186</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 5.1k 1% 0603"/>
+      <property name="MPN" value="0603WAF5101T5E"/>
+      <property name="LCSC" value="C23186"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -416,13 +471,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 22 1% 0603</field>
+        <field name="MPN">0603WAF220JT5E</field>
+        <field name="LCSC">C23345</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 22 1% 0603"/>
+      <property name="MPN" value="0603WAF220JT5E"/>
+      <property name="LCSC" value="C23345"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -443,13 +500,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 22 1% 0603</field>
+        <field name="MPN">0603WAF220JT5E</field>
+        <field name="LCSC">C23345</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 22 1% 0603"/>
+      <property name="MPN" value="0603WAF220JT5E"/>
+      <property name="LCSC" value="C23345"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -470,13 +529,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -497,13 +558,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -519,18 +582,49 @@
         </unit>
       </units>
     </comp>
+    <comp ref="R25">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <description>Resistor</description>
+      <fields>
+        <field name="MPN">0603WAF1001T5E</field>
+        <field name="LCSC">C21190</field>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description">Resistor</field>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="MPN" value="0603WAF1001T5E"/>
+      <property name="LCSC" value="C21190"/>
+      <property name="Sheetname" value="sensors"/>
+      <property name="Sheetfile" value="sensors.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>2ea32290-3d9f-5984-8005-04b9cf8892be</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
     <comp ref="SW1">
       <value>BOOT</value>
       <footprint>Button_Switch_SMD:SW_SPST_TS-1088-xR020</footprint>
       <description>Push button switch, generic, two pins</description>
       <fields>
-        <field name="MPN">E-Switch TL3342F160QG</field>
+        <field name="MPN">TS-1088-AR02016</field>
+        <field name="LCSC">C720477</field>
         <field name="Footprint">Button_Switch_SMD:SW_SPST_TS-1088-xR020</field>
         <field name="Datasheet"/>
         <field name="Description">Push button switch, generic, two pins</field>
       </fields>
       <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
-      <property name="MPN" value="E-Switch TL3342F160QG"/>
+      <property name="MPN" value="TS-1088-AR02016"/>
+      <property name="LCSC" value="C720477"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
@@ -550,13 +644,15 @@
       <footprint>Button_Switch_SMD:SW_SPST_TS-1088-xR020</footprint>
       <description>Push button switch, generic, two pins</description>
       <fields>
-        <field name="MPN">E-Switch TL3342F160QG</field>
+        <field name="MPN">TS-1088-AR02016</field>
+        <field name="LCSC">C720477</field>
         <field name="Footprint">Button_Switch_SMD:SW_SPST_TS-1088-xR020</field>
         <field name="Datasheet"/>
         <field name="Description">Push button switch, generic, two pins</field>
       </fields>
       <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
-      <property name="MPN" value="E-Switch TL3342F160QG"/>
+      <property name="MPN" value="TS-1088-AR02016"/>
+      <property name="LCSC" value="C720477"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
@@ -578,12 +674,14 @@
       <description>RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna</description>
       <fields>
         <field name="MPN">ESP32-S3-MINI-1U-N8</field>
+        <field name="LCSC">C2980299</field>
         <field name="Footprint">RF_Module:ESP32-S2-MINI-1U</field>
         <field name="Datasheet">https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf</field>
         <field name="Description">RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna</field>
       </fields>
       <libsource lib="RF_Module" part="ESP32-S3-MINI-1U" description="RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, SMD, external antenna"/>
       <property name="MPN" value="ESP32-S3-MINI-1U-N8"/>
+      <property name="LCSC" value="C2980299"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="RF Radio BT ESP ESP32-S3 Espressif"/>
@@ -669,12 +767,14 @@
       <description>1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223</description>
       <fields>
         <field name="MPN">AMS1117-3.3</field>
+        <field name="LCSC">C6186</field>
         <field name="Footprint">Package_TO_SOT_SMD:SOT-223-3_TabPin2</field>
         <field name="Datasheet">http://www.advanced-monolithic.com/pdf/ds1117.pdf</field>
         <field name="Description">1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223</field>
       </fields>
       <libsource lib="Regulator_Linear" part="AMS1117-3.3" description="1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223"/>
       <property name="MPN" value="AMS1117-3.3"/>
+      <property name="LCSC" value="C6186"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
       <property name="ki_keywords" value="linear regulator ldo fixed positive"/>
@@ -696,13 +796,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 100nF X7R &gt;=10V</field>
+        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C14663</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 100nF X7R &gt;=10V"/>
+      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C14663"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -723,13 +825,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 100nF X7R &gt;=10V</field>
+        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C14663</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 100nF X7R &gt;=10V"/>
+      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C14663"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -750,13 +854,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 100nF X7R &gt;=10V</field>
+        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C14663</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 100nF X7R &gt;=10V"/>
+      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C14663"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -777,13 +883,15 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <description>Unpolarized capacitor</description>
       <fields>
-        <field name="MPN">Generic 10nF X7R &gt;=10V</field>
+        <field name="MPN">0603B103K500NT</field>
+        <field name="LCSC">C57112</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Unpolarized capacitor</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="MPN" value="Generic 10nF X7R &gt;=10V"/>
+      <property name="MPN" value="0603B103K500NT"/>
+      <property name="LCSC" value="C57112"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>
@@ -804,13 +912,15 @@
       <footprint>Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</footprint>
       <description>Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">JST B2B-XH-A</field>
+        <field name="MPN">B2B-XH-A(LF)(SN)</field>
+        <field name="LCSC">C158012</field>
         <field name="Footprint">Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x02" description="Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="JST B2B-XH-A"/>
+      <property name="MPN" value="B2B-XH-A(LF)(SN)"/>
+      <property name="LCSC" value="C158012"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -828,16 +938,18 @@
     </comp>
     <comp ref="J4">
       <value>DIMMER I2C</value>
-      <footprint>Connector:NS-Tech_Grove_1x04_P2mm_Vertical</footprint>
+      <footprint>Sensors_Local:CONN-TH_HY-4A</footprint>
       <description>Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">NS-Tech Grove vertical HY2.0-4P</field>
-        <field name="Footprint">Connector:NS-Tech_Grove_1x04_P2mm_Vertical</field>
+        <field name="MPN">HY-4A</field>
+        <field name="LCSC">C722737</field>
+        <field name="Footprint">Sensors_Local:CONN-TH_HY-4A</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x04" description="Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="NS-Tech Grove vertical HY2.0-4P"/>
+      <property name="MPN" value="HY-4A"/>
+      <property name="LCSC" value="C722737"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -860,13 +972,15 @@
       <footprint>Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</footprint>
       <description>Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">JST B3B-XH-A</field>
+        <field name="MPN">B3B-XH-A(LF)(SN)</field>
+        <field name="LCSC">C144394</field>
         <field name="Footprint">Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x03" description="Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="JST B3B-XH-A"/>
+      <property name="MPN" value="B3B-XH-A(LF)(SN)"/>
+      <property name="LCSC" value="C144394"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -888,13 +1002,15 @@
       <footprint>Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</footprint>
       <description>Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">JST B3B-XH-A</field>
+        <field name="MPN">B3B-XH-A(LF)(SN)</field>
+        <field name="LCSC">C144394</field>
         <field name="Footprint">Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x03" description="Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="JST B3B-XH-A"/>
+      <property name="MPN" value="B3B-XH-A(LF)(SN)"/>
+      <property name="LCSC" value="C144394"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -916,13 +1032,15 @@
       <footprint>Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</footprint>
       <description>Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
       <fields>
-        <field name="MPN">JST B2B-XH-A</field>
+        <field name="MPN">B2B-XH-A(LF)(SN)</field>
+        <field name="LCSC">C158012</field>
         <field name="Footprint">Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical</field>
         <field name="Datasheet"/>
         <field name="Description">Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
       </fields>
       <libsource lib="Connector_Generic" part="Conn_01x02" description="Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="JST B2B-XH-A"/>
+      <property name="MPN" value="B2B-XH-A(LF)(SN)"/>
+      <property name="LCSC" value="C158012"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="connector"/>
@@ -945,12 +1063,14 @@
       <description>-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23</description>
       <fields>
         <field name="MPN">AO3401A</field>
+        <field name="LCSC">C15127</field>
         <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
         <field name="Datasheet">http://www.aosmd.com/pdfs/datasheet/AO3401A.pdf</field>
         <field name="Description">-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23</field>
       </fields>
       <libsource lib="Transistor_FET" part="AO3401A" description="-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23"/>
       <property name="MPN" value="AO3401A"/>
+      <property name="LCSC" value="C15127"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="P-Channel MOSFET"/>
@@ -974,12 +1094,14 @@
       <description>0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23</description>
       <fields>
         <field name="MPN">2N7002</field>
+        <field name="LCSC">C8545</field>
         <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
         <field name="Datasheet">https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF</field>
         <field name="Description">0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23</field>
       </fields>
       <libsource lib="Transistor_FET" part="2N7002" description="0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23"/>
       <property name="MPN" value="2N7002"/>
+      <property name="LCSC" value="C8545"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="N-Channel Switching MOSFET"/>
@@ -1001,13 +1123,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1028,13 +1152,15 @@
       <footprint>Resistor_SMD:R_1206_3216Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 120 / 0.25W 1% 1206</field>
+        <field name="MPN">1206W4F1200T5E</field>
+        <field name="LCSC">C17909</field>
         <field name="Footprint">Resistor_SMD:R_1206_3216Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 120 / 0.25W 1% 1206"/>
+      <property name="MPN" value="1206W4F1200T5E"/>
+      <property name="LCSC" value="C17909"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1055,13 +1181,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 4.7k 1% 0603</field>
+        <field name="MPN">0603WAF4701T5E</field>
+        <field name="LCSC">C23162</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 4.7k 1% 0603"/>
+      <property name="MPN" value="0603WAF4701T5E"/>
+      <property name="LCSC" value="C23162"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1082,13 +1210,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 4.7k 1% 0603</field>
+        <field name="MPN">0603WAF4701T5E</field>
+        <field name="LCSC">C23162</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 4.7k 1% 0603"/>
+      <property name="MPN" value="0603WAF4701T5E"/>
+      <property name="LCSC" value="C23162"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1109,13 +1239,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 1k 1% 0603</field>
+        <field name="MPN">0603WAF1001T5E</field>
+        <field name="LCSC">C21190</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 1k 1% 0603"/>
+      <property name="MPN" value="0603WAF1001T5E"/>
+      <property name="LCSC" value="C21190"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1136,13 +1268,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1163,13 +1297,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 100k 1% 0603</field>
+        <field name="MPN">0603WAF1003T5E</field>
+        <field name="LCSC">C25803</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 100k 1% 0603"/>
+      <property name="MPN" value="0603WAF1003T5E"/>
+      <property name="LCSC" value="C25803"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1190,13 +1326,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 10k 1% 0603</field>
+        <field name="MPN">0603WAF1002T5E</field>
+        <field name="LCSC">C25804</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 10k 1% 0603"/>
+      <property name="MPN" value="0603WAF1002T5E"/>
+      <property name="LCSC" value="C25804"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1217,13 +1355,15 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <description>Resistor</description>
       <fields>
-        <field name="MPN">Generic 1k 1% 0603</field>
+        <field name="MPN">0603WAF1001T5E</field>
+        <field name="LCSC">C21190</field>
         <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description">Resistor</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
-      <property name="MPN" value="Generic 1k 1% 0603"/>
+      <property name="MPN" value="0603WAF1001T5E"/>
+      <property name="LCSC" value="C21190"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="R res resistor"/>
@@ -1245,13 +1385,15 @@
       <datasheet>http://www.nxp.com/docs/en/data-sheet/TJA1051.pdf</datasheet>
       <description>High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8</description>
       <fields>
-        <field name="MPN">TJA1051T/3,118</field>
+        <field name="MPN">TJA1051T/3/1J</field>
+        <field name="LCSC">C38695</field>
         <field name="Footprint">Package_SO:SOIC-8_3.9x4.9mm_P1.27mm</field>
         <field name="Datasheet">http://www.nxp.com/docs/en/data-sheet/TJA1051.pdf</field>
         <field name="Description">High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8</field>
       </fields>
       <libsource lib="Interface_CAN_LIN" part="TJA1051T-3" description="High-Speed CAN Transceiver, separate VIO, silent mode, SOIC-8"/>
-      <property name="MPN" value="TJA1051T/3,118"/>
+      <property name="MPN" value="TJA1051T/3/1J"/>
+      <property name="LCSC" value="C38695"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="High-Speed CAN Transceiver"/>
@@ -1280,12 +1422,14 @@
       <description>Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563</description>
       <fields>
         <field name="MPN">TMP102AIDRLR</field>
+        <field name="LCSC">C99269</field>
         <field name="Footprint">Package_TO_SOT_SMD:SOT-563</field>
         <field name="Datasheet">https://www.ti.com/lit/ds/symlink/tmp102.pdf</field>
         <field name="Description">Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563</field>
       </fields>
       <libsource lib="Sensor_Temperature" part="TMP102xxDRL" description="Digital Temperature Sensor, ±3°C, low-Power, SMBus, 12 bit, Two-Wire Serial Interface, SOT-563"/>
       <property name="MPN" value="TMP102AIDRLR"/>
+      <property name="LCSC" value="C99269"/>
       <property name="Sheetname" value="Sensors interfaces"/>
       <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
       <property name="ki_keywords" value="digital temperature sensor i2c smbus"/>
@@ -1426,6 +1570,26 @@
       <pins>
         <pin num="1" name="" type="passive"/>
         <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="LED">
+      <description>Light emitting diode</description>
+      <footprints>
+        <fp>LED*</fp>
+        <fp>LED_SMD:*</fp>
+        <fp>LED_THT:*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">LED</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Light emitting diode</field>
+        <field name="Sim.Pins">1=K 2=A</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
       </pins>
     </libpart>
     <libpart lib="Device" part="R">
@@ -1696,7 +1860,7 @@
     </library>
   </libraries>
   <nets>
-    <net code="1" name="+3V3" class="Default">
+    <net code="1" name="+3V3" class="POWER,Default">
       <node ref="C10" pin="1" pintype="passive"/>
       <node ref="C3" pin="1" pintype="passive"/>
       <node ref="C4" pin="1" pintype="passive"/>
@@ -1714,7 +1878,7 @@
       <node ref="U4" pin="5" pinfunction="VIO_5" pintype="power_in"/>
       <node ref="U5" pin="5" pinfunction="V+_5" pintype="power_in"/>
     </net>
-    <net code="2" name="+5V" class="Default">
+    <net code="2" name="+5V" class="POWER,Default">
       <node ref="C1" pin="1" pintype="passive"/>
       <node ref="C2" pin="1" pintype="passive"/>
       <node ref="C8" pin="1" pintype="passive"/>
@@ -1741,78 +1905,86 @@
       <node ref="SW2" pin="1" pinfunction="1_1" pintype="passive"/>
       <node ref="U1" pin="45" pinfunction="EN_45" pintype="input"/>
     </net>
-    <net code="5" name="/STRAP45" class="Default">
+    <net code="5" name="/STATUS_LED" class="Default">
+      <node ref="R25" pin="1" pintype="passive"/>
+      <node ref="U1" pin="34" pinfunction="IO38_34" pintype="bidirectional"/>
+    </net>
+    <net code="6" name="/STATUS_LED_A" class="Default">
+      <node ref="D2" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="R25" pin="2" pintype="passive"/>
+    </net>
+    <net code="7" name="/STRAP45" class="Default">
       <node ref="R23" pin="1" pintype="passive"/>
       <node ref="U1" pin="41" pinfunction="IO45_41" pintype="bidirectional"/>
     </net>
-    <net code="6" name="/STRAP46" class="Default">
+    <net code="8" name="/STRAP46" class="Default">
       <node ref="R24" pin="1" pintype="passive"/>
       <node ref="U1" pin="44" pinfunction="IO46_44" pintype="bidirectional"/>
     </net>
-    <net code="7" name="/Sensors interfaces/BOILER_5V" class="Default">
+    <net code="9" name="/Sensors interfaces/BOILER_5V" class="Default">
       <node ref="J8" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="Q2" pin="3" pinfunction="D_3" pintype="passive"/>
       <node ref="R22" pin="1" pintype="passive"/>
     </net>
-    <net code="8" name="/Sensors interfaces/CAN_H" class="Default">
+    <net code="10" name="/Sensors interfaces/CAN_H" class="Default">
       <node ref="J3" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R12" pin="1" pintype="passive"/>
       <node ref="U4" pin="7" pinfunction="CANH_7" pintype="bidirectional"/>
     </net>
-    <net code="9" name="/Sensors interfaces/CAN_L" class="Default">
+    <net code="11" name="/Sensors interfaces/CAN_L" class="Default">
       <node ref="J3" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="R12" pin="2" pintype="passive"/>
       <node ref="U4" pin="6" pinfunction="CANL_6" pintype="bidirectional"/>
     </net>
-    <net code="10" name="/Sensors interfaces/HEATER_GATE" class="Default">
+    <net code="12" name="/Sensors interfaces/HEATER_GATE" class="Default">
       <node ref="Q2" pin="1" pinfunction="G_1" pintype="input"/>
       <node ref="Q3" pin="3" pinfunction="D_3" pintype="passive"/>
       <node ref="R21" pin="2" pintype="passive"/>
     </net>
-    <net code="11" name="/USB_CC1" class="Default">
+    <net code="13" name="/USB_CC1" class="Default">
       <node ref="J2" pin="A5" pinfunction="CC1_A5" pintype="bidirectional"/>
       <node ref="R4" pin="1" pintype="passive"/>
     </net>
-    <net code="12" name="/USB_CC2" class="Default">
+    <net code="14" name="/USB_CC2" class="Default">
       <node ref="J2" pin="B5" pinfunction="CC2_B5" pintype="bidirectional"/>
       <node ref="R5" pin="1" pintype="passive"/>
     </net>
-    <net code="13" name="/USB_HOST_DM" class="Default">
+    <net code="15" name="/USB_HOST_DM" class="Default">
       <node ref="D1" pin="1" pintype="passive"/>
       <node ref="J2" pin="A7" pinfunction="D-_A7" pintype="bidirectional"/>
       <node ref="J2" pin="B7" pinfunction="D-_B7" pintype="bidirectional"/>
       <node ref="R7" pin="1" pintype="passive"/>
     </net>
-    <net code="14" name="/USB_HOST_DP" class="Default">
+    <net code="16" name="/USB_HOST_DP" class="Default">
       <node ref="D1" pin="2" pintype="passive"/>
       <node ref="J2" pin="A6" pinfunction="D+_A6" pintype="bidirectional"/>
       <node ref="J2" pin="B6" pinfunction="D+_B6" pintype="bidirectional"/>
       <node ref="R6" pin="1" pintype="passive"/>
     </net>
-    <net code="15" name="/USB_MCU_DM" class="Default">
+    <net code="17" name="/USB_MCU_DM" class="Default">
       <node ref="R7" pin="2" pintype="passive"/>
       <node ref="U1" pin="23" pinfunction="USB_D-_23" pintype="bidirectional"/>
     </net>
-    <net code="16" name="/USB_MCU_DP" class="Default">
+    <net code="18" name="/USB_MCU_DP" class="Default">
       <node ref="R6" pin="2" pintype="passive"/>
       <node ref="U1" pin="24" pinfunction="USB_D+_24" pintype="bidirectional"/>
     </net>
-    <net code="17" name="CAN_RX" class="Default">
+    <net code="19" name="CAN_RX" class="Default">
       <node ref="U1" pin="14" pinfunction="IO10_14" pintype="bidirectional"/>
       <node ref="U4" pin="4" pinfunction="RXD_4" pintype="output"/>
     </net>
-    <net code="18" name="CAN_TX" class="Default">
+    <net code="20" name="CAN_TX" class="Default">
       <node ref="R11" pin="2" pintype="passive"/>
       <node ref="U1" pin="15" pinfunction="IO11_15" pintype="bidirectional"/>
       <node ref="U4" pin="1" pinfunction="TXD_1" pintype="input"/>
     </net>
-    <net code="19" name="FLOW_PULSE" class="Default">
+    <net code="21" name="FLOW_PULSE" class="Default">
       <node ref="C12" pin="1" pintype="passive"/>
       <node ref="J6" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R15" pin="2" pintype="passive"/>
       <node ref="U1" pin="37" pinfunction="IO41_37" pintype="bidirectional"/>
     </net>
-    <net code="20" name="GND" class="Default">
+    <net code="22" name="GND" class="Default">
       <node ref="C1" pin="2" pintype="passive"/>
       <node ref="C10" pin="2" pintype="passive"/>
       <node ref="C12" pin="2" pintype="passive"/>
@@ -1824,6 +1996,7 @@
       <node ref="C8" pin="2" pintype="passive"/>
       <node ref="C9" pin="2" pintype="passive"/>
       <node ref="D1" pin="3" pintype="passive"/>
+      <node ref="D2" pin="1" pinfunction="K_1" pintype="passive"/>
       <node ref="J1" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J2" pin="A1" pinfunction="GND_A1" pintype="passive"/>
       <node ref="J2" pin="A12" pinfunction="GND_A12" pintype="passive"/>
@@ -1874,116 +2047,113 @@
       <node ref="U5" pin="2" pinfunction="GND_2" pintype="power_in"/>
       <node ref="U5" pin="4" pinfunction="ADD0_4" pintype="input"/>
     </net>
-    <net code="21" name="HEATER_CMD" class="Default">
+    <net code="23" name="HEATER_CMD" class="Default">
       <node ref="Q3" pin="1" pinfunction="G_1" pintype="input"/>
       <node ref="R19" pin="1" pintype="passive"/>
       <node ref="U1" pin="16" pinfunction="IO12_16" pintype="bidirectional"/>
     </net>
-    <net code="22" name="I2C_SCL" class="Default">
+    <net code="24" name="I2C_SCL" class="Default">
       <node ref="J4" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="R14" pin="2" pintype="passive"/>
       <node ref="U1" pin="10" pinfunction="IO6_10" pintype="bidirectional"/>
       <node ref="U5" pin="1" pinfunction="SCL_1" pintype="input"/>
     </net>
-    <net code="23" name="I2C_SDA" class="Default">
+    <net code="25" name="I2C_SDA" class="Default">
       <node ref="J4" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R13" pin="2" pintype="passive"/>
       <node ref="U1" pin="9" pinfunction="IO5_9" pintype="bidirectional"/>
       <node ref="U5" pin="6" pinfunction="SDA_6" pintype="bidirectional"/>
     </net>
-    <net code="24" name="VALVE_CMD" class="Default">
+    <net code="26" name="VALVE_CMD" class="Default">
       <node ref="J7" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R17" pin="1" pintype="passive"/>
       <node ref="U1" pin="32" pinfunction="IO36_32" pintype="bidirectional"/>
     </net>
-    <net code="25" name="unconnected-(J2-SBU1-PadA8)" class="Default">
+    <net code="27" name="unconnected-(J2-SBU1-PadA8)" class="Default">
       <node ref="J2" pin="A8" pinfunction="SBU1_A8" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="26" name="unconnected-(J2-SBU2-PadB8)" class="Default">
+    <net code="28" name="unconnected-(J2-SBU2-PadB8)" class="Default">
       <node ref="J2" pin="B8" pinfunction="SBU2_B8" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="27" name="unconnected-(U1-IO1-Pad5)" class="Default">
+    <net code="29" name="unconnected-(U1-IO1-Pad5)" class="Default">
       <node ref="U1" pin="5" pinfunction="IO1_5" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="28" name="unconnected-(U1-IO2-Pad6)" class="Default">
+    <net code="30" name="unconnected-(U1-IO2-Pad6)" class="Default">
       <node ref="U1" pin="6" pinfunction="IO2_6" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="29" name="unconnected-(U1-IO3-Pad7)" class="Default">
+    <net code="31" name="unconnected-(U1-IO3-Pad7)" class="Default">
       <node ref="U1" pin="7" pinfunction="IO3_7" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="30" name="unconnected-(U1-IO4-Pad8)" class="Default">
+    <net code="32" name="unconnected-(U1-IO4-Pad8)" class="Default">
       <node ref="U1" pin="8" pinfunction="IO4_8" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="31" name="unconnected-(U1-IO7-Pad11)" class="Default">
+    <net code="33" name="unconnected-(U1-IO7-Pad11)" class="Default">
       <node ref="U1" pin="11" pinfunction="IO7_11" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="32" name="unconnected-(U1-IO8-Pad12)" class="Default">
+    <net code="34" name="unconnected-(U1-IO8-Pad12)" class="Default">
       <node ref="U1" pin="12" pinfunction="IO8_12" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="33" name="unconnected-(U1-IO9-Pad13)" class="Default">
+    <net code="35" name="unconnected-(U1-IO9-Pad13)" class="Default">
       <node ref="U1" pin="13" pinfunction="IO9_13" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="34" name="unconnected-(U1-IO13-Pad17)" class="Default">
+    <net code="36" name="unconnected-(U1-IO13-Pad17)" class="Default">
       <node ref="U1" pin="17" pinfunction="IO13_17" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="35" name="unconnected-(U1-IO14-Pad18)" class="Default">
+    <net code="37" name="unconnected-(U1-IO14-Pad18)" class="Default">
       <node ref="U1" pin="18" pinfunction="IO14_18" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="36" name="unconnected-(U1-IO15-Pad19)" class="Default">
+    <net code="38" name="unconnected-(U1-IO15-Pad19)" class="Default">
       <node ref="U1" pin="19" pinfunction="IO15_19" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="37" name="unconnected-(U1-IO16-Pad20)" class="Default">
+    <net code="39" name="unconnected-(U1-IO16-Pad20)" class="Default">
       <node ref="U1" pin="20" pinfunction="IO16_20" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="38" name="unconnected-(U1-IO17-Pad21)" class="Default">
+    <net code="40" name="unconnected-(U1-IO17-Pad21)" class="Default">
       <node ref="U1" pin="21" pinfunction="IO17_21" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="39" name="unconnected-(U1-IO18-Pad22)" class="Default">
+    <net code="41" name="unconnected-(U1-IO18-Pad22)" class="Default">
       <node ref="U1" pin="22" pinfunction="IO18_22" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="40" name="unconnected-(U1-IO21-Pad25)" class="Default">
+    <net code="42" name="unconnected-(U1-IO21-Pad25)" class="Default">
       <node ref="U1" pin="25" pinfunction="IO21_25" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="41" name="unconnected-(U1-IO26-Pad26)" class="Default">
+    <net code="43" name="unconnected-(U1-IO26-Pad26)" class="Default">
       <node ref="U1" pin="26" pinfunction="IO26_26" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="42" name="unconnected-(U1-IO33-Pad28)" class="Default">
+    <net code="44" name="unconnected-(U1-IO33-Pad28)" class="Default">
       <node ref="U1" pin="28" pinfunction="IO33_28" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="43" name="unconnected-(U1-IO34-Pad29)" class="Default">
+    <net code="45" name="unconnected-(U1-IO34-Pad29)" class="Default">
       <node ref="U1" pin="29" pinfunction="IO34_29" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="44" name="unconnected-(U1-IO35-Pad31)" class="Default">
+    <net code="46" name="unconnected-(U1-IO35-Pad31)" class="Default">
       <node ref="U1" pin="31" pinfunction="IO35_31" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="45" name="unconnected-(U1-IO37-Pad33)" class="Default">
+    <net code="47" name="unconnected-(U1-IO37-Pad33)" class="Default">
       <node ref="U1" pin="33" pinfunction="IO37_33" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="46" name="unconnected-(U1-IO38-Pad34)" class="Default">
-      <node ref="U1" pin="34" pinfunction="IO38_34" pintype="bidirectional+no_connect"/>
-    </net>
-    <net code="47" name="unconnected-(U1-IO39-Pad35)" class="Default">
+    <net code="48" name="unconnected-(U1-IO39-Pad35)" class="Default">
       <node ref="U1" pin="35" pinfunction="IO39_35" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="48" name="unconnected-(U1-IO40-Pad36)" class="Default">
+    <net code="49" name="unconnected-(U1-IO40-Pad36)" class="Default">
       <node ref="U1" pin="36" pinfunction="IO40_36" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="49" name="unconnected-(U1-IO42-Pad38)" class="Default">
+    <net code="50" name="unconnected-(U1-IO42-Pad38)" class="Default">
       <node ref="U1" pin="38" pinfunction="IO42_38" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="50" name="unconnected-(U1-IO47-Pad27)" class="Default">
+    <net code="51" name="unconnected-(U1-IO47-Pad27)" class="Default">
       <node ref="U1" pin="27" pinfunction="IO47_27" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="51" name="unconnected-(U1-IO48-Pad30)" class="Default">
+    <net code="52" name="unconnected-(U1-IO48-Pad30)" class="Default">
       <node ref="U1" pin="30" pinfunction="IO48_30" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="52" name="unconnected-(U1-RXD0-Pad40)" class="Default">
+    <net code="53" name="unconnected-(U1-RXD0-Pad40)" class="Default">
       <node ref="U1" pin="40" pinfunction="RXD0_40" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="53" name="unconnected-(U1-TXD0-Pad39)" class="Default">
+    <net code="54" name="unconnected-(U1-TXD0-Pad39)" class="Default">
       <node ref="U1" pin="39" pinfunction="TXD0_39" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="54" name="unconnected-(U5-ALERT-Pad3)" class="Default">
+    <net code="55" name="unconnected-(U5-ALERT-Pad3)" class="Default">
       <node ref="U5" pin="3" pinfunction="ALERT_3" pintype="open_collector+no_connect"/>
     </net>
   </nets>

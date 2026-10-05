@@ -84,6 +84,7 @@ are unconnected.
 | CAN RX | 10 | 14 | GPIO8; move to GPIO10 |
 | M5Stack valve SSR | 36 | 32 | GPIO9; move to GPIO36; HIGH = on |
 | Boiler SSR driver | 12 | 16 | GPIO3 active-low; move to GPIO12 **active-high** |
+| Green status LED D2 | 38 | 34 | New output; HIGH = on |
 | USB D− / D+ | 19 / 20 | 23 / 24 | Native USB Serial/JTAG |
 | UART TX / RX | 43 / 44 | 39 / 40 | Unconnected; no service header |
 
@@ -99,6 +100,21 @@ GPIO41 is also the external JTAG MTDI input: this avoids using the MTDO
 output pin but still overlaps external pad JTAG. Configure it as a GPIO input
 for FLOW_PULSE and do not use external pad JTAG on this pin. Native USB
 Serial/JTAG remains on GPIO19/20. Neither new assignment is a boot strap.
+
+D2 is a green 0603 status LED, driven by **GPIO38 (module pad 34)** through
+R25 = **1 kΩ**: GPIO38 → R25 → D2 anode (pin 2), cathode (pin 1) → GND.
+HIGH turns it on; configure GPIO38 as a GPIO output in firmware. With a
+green LED forward voltage of approximately 2.0–2.2 V, nominal current is
+approximately 1.1–1.3 mA at 3.3 V; the exact LED part remains to be sourced.
+The local Espressif `esp32-s3-mini-1_mini-1u_datasheet_en.pdf` v1.7 lists
+GPIO38 / FSPIWP / SUBSPIWP for pad 34 (Table 3-1, p. 11). The alternate SPI
+functions are multiplexed peripheral functions, not a reserved internal
+flash connection. The MINI-1U-N8 uses in-package 8 MB Quad SPI flash and
+has no PSRAM (Table 1-1). GPIO38 is neither a boot strap (GPIO0/3/45/46,
+§4), a default UART pin (UART0 TX/RX on GPIO43/44), nor an external JTAG
+pin (GPIO39–42). It is available for this LED provided firmware does not
+route another peripheral to it. The schematic and review exports include
+D2/R25; their PCB placement and routing are to be updated in the PCB editor.
 
 Before using this PCB, change `kGpioCanTx` to `GPIO_NUM_11`, `kGpioCanRx`
 to `GPIO_NUM_10`, `kGpioFlow` to `GPIO_NUM_41`, `kGpioHeater` to

@@ -3996,7 +3996,7 @@
 				)
 			)
 		)
-		(property "MPN" "JST B3B-XH-A"
+		(property "MPN" "B3B-XH-A(LF)(SN)"
 			(at 378.46 185.42 0)
 			(hide yes)
 			(show_name no)
@@ -4024,6 +4024,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C144394" (at 378.46 185.42 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4094,7 +4096,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 100k 1% 0603"
+		(property "MPN" "0603WAF1003T5E"
 			(at 25.4 250.19 0)
 			(hide yes)
 			(show_name no)
@@ -4120,6 +4122,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C25803" (at 25.4 250.19 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4190,7 +4194,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 1k 1% 0603"
+		(property "MPN" "0603WAF1001T5E"
 			(at 255.27 267.97 0)
 			(hide yes)
 			(show_name no)
@@ -4216,6 +4220,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C21190" (at 255.27 267.97 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4286,7 +4292,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 1k 1% 0603"
+		(property "MPN" "0603WAF1001T5E"
 			(at 110.49 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -4312,6 +4318,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C21190" (at 110.49 173.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Sensor_Temperature:TMP102xxDRL")
@@ -4414,6 +4422,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C99269" (at 279.4 95.25 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x03")
@@ -4479,7 +4489,7 @@
 				)
 			)
 		)
-		(property "MPN" "JST B3B-XH-A"
+		(property "MPN" "B3B-XH-A(LF)(SN)"
 			(at 48.26 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -4507,6 +4517,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C144394" (at 48.26 176.53 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4577,7 +4589,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 10k 1% 0603"
+		(property "MPN" "0603WAF1002T5E"
 			(at 119.38 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -4603,6 +4615,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C25804" (at 119.38 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x04")
@@ -4635,7 +4649,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector:NS-Tech_Grove_1x04_P2mm_Vertical"
+		(property "Footprint" "Sensors_Local:CONN-TH_HY-4A"
 			(at 378.46 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -4668,7 +4682,7 @@
 				)
 			)
 		)
-		(property "MPN" "NS-Tech Grove vertical HY2.0-4P"
+		(property "MPN" "HY-4A"
 			(at 378.46 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -4699,6 +4713,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C722737" (at 378.46 44.45 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -4769,7 +4785,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 10nF X7R >=10V"
+		(property "MPN" "0603B103K500NT"
 			(at 154.94 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -4795,6 +4811,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C57112" (at 154.94 173.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4865,7 +4883,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 4.7k 1% 0603"
+		(property "MPN" "0603WAF4701T5E"
 			(at 242.57 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -4891,6 +4909,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C23162" (at 242.57 46.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
@@ -4956,7 +4976,7 @@
 				)
 			)
 		)
-		(property "MPN" "JST B2B-XH-A"
+		(property "MPN" "B2B-XH-A(LF)(SN)"
 			(at 154.94 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -4981,6 +5001,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C158012" (at 154.94 49.53 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5051,7 +5073,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 100nF X7R >=10V"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 39.37 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -5077,6 +5099,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C14663" (at 39.37 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5147,7 +5171,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 4.7k 1% 0603"
+		(property "MPN" "0603WAF4701T5E"
 			(at 283.21 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -5173,6 +5197,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C23162" (at 283.21 46.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5243,7 +5269,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 100nF X7R >=10V"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 325.12 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -5269,6 +5295,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C14663" (at 325.12 115.57 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Transistor_FET:AO3401A")
@@ -5368,6 +5396,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C15127" (at 224.79 245.11 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5438,7 +5468,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 100nF X7R >=10V"
+		(property "MPN" "CC0603KRX7R9BB104"
 			(at 80.01 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -5464,6 +5494,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C14663" (at 80.01 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Interface_CAN_LIN:TJA1051T-3")
@@ -5529,7 +5561,7 @@
 				)
 			)
 		)
-		(property "MPN" "TJA1051T/3,118"
+		(property "MPN" "TJA1051T/3/1J"
 			(at 85.09 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -5572,6 +5604,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C38695" (at 85.09 54.61 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5642,7 +5676,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 10k 1% 0603"
+		(property "MPN" "0603WAF1002T5E"
 			(at 322.58 190.5 0)
 			(hide yes)
 			(show_name no)
@@ -5668,6 +5702,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C25804" (at 322.58 190.5 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Transistor_FET:2N7002")
@@ -5767,6 +5803,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C8545" (at 69.85 250.19 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
@@ -5832,7 +5870,7 @@
 				)
 			)
 		)
-		(property "MPN" "JST B2B-XH-A"
+		(property "MPN" "B2B-XH-A(LF)(SN)"
 			(at 288.29 242.57 0)
 			(hide yes)
 			(show_name no)
@@ -5857,6 +5895,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C158012" (at 288.29 242.57 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5927,7 +5967,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 120 / 0.25W 1% 1206"
+		(property "MPN" "1206W4F1200T5E"
 			(at 181.61 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -5953,6 +5993,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C17909" (at 181.61 86.36 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -6023,7 +6065,7 @@
 				(justify left)
 			)
 		)
-		(property "MPN" "Generic 10k 1% 0603"
+		(property "MPN" "0603WAF1002T5E"
 			(at 175.26 267.97 0)
 			(hide yes)
 			(show_name no)
@@ -6049,6 +6091,8 @@
 				)
 			)
 		)
+
+		(property "LCSC" "C25804" (at 175.26 267.97 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(sheet_instances
 		(path "/"

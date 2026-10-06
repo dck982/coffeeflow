@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/screen_sensors/screen_sensors.kicad_sch</source>
-    <date>2026-10-01T18:36:06</date>
+    <date>2026-10-06T20:02:11</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -85,20 +85,20 @@
       </units>
     </comp>
     <comp ref="C3">
-      <value>100nF</value>
+      <value>10uF</value>
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <fields>
-        <field name="LCSC">C14663</field>
-        <field name="Note">Input filter at ADC; 1k/100nF fc~1.59kHz</field>
-        <field name="MPN">CC0603KRX7R9BB104</field>
+        <field name="LCSC">C19702</field>
+        <field name="Note">Input filter at ADC; 1k/10uF fc~16Hz; X5R 10V</field>
+        <field name="MPN">CL10A106KP8NNNC</field>
         <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
         <field name="Datasheet"/>
         <field name="Description"/>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
-      <property name="LCSC" value="C14663"/>
-      <property name="Note" value="Input filter at ADC; 1k/100nF fc~1.59kHz"/>
-      <property name="MPN" value="CC0603KRX7R9BB104"/>
+      <property name="LCSC" value="C19702"/>
+      <property name="Note" value="Input filter at ADC; 1k/10uF fc~16Hz; X5R 10V"/>
+      <property name="MPN" value="CL10A106KP8NNNC"/>
       <property name="Sheetname" value="screen_sensors"/>
       <property name="Sheetfile" value="screen_sensors.kicad_sch"/>
       <property name="ki_keywords" value="cap capacitor"/>

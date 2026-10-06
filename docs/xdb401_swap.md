@@ -289,6 +289,10 @@ Attendus après montage, pente d'usine :
       Enregistrer quand même la décroissance (`record_probe.py`, 5–10 min)
       comme référence.
 - [ ] Série analogique (mêmes purges que la série I2C) et analyse.
+- [ ] Bruit de A2 sous découpe de phase : le câble longe désormais le 230 V
+      (sortie avant, bouton marche). À 100 % le dimmer ne découpe pas ;
+      ajouter une purge sans porte-filtre à `purge.pump_pct` = 50 et
+      comparer l'écart-type de A2 au repos (7,9 codes), à 100 % et à 50 %.
 - [ ] Firmware `screen` : conversion A2 en bar.
 - [ ] Firmware `sensors` sans XDB401, mise à jour de `README.md` et `cablage.md`.
 - [ ] Commit des changements firmware et outils.

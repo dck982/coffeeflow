@@ -11,7 +11,7 @@ def sim_puck(width=40.0, depth=30.0, height=20.0, wall=2.0, draft=False):
 
     half_r = pf_diameter/3.0
     hole_r = 1.0
-    for a in (0,60,120,180,240,300):    
+    for a in (0,60,120,180,240,300):
         rad = math.radians(a)
         cx = math.cos(rad)*half_r
         cy = math.sin(rad)*half_r
@@ -20,11 +20,17 @@ def sim_puck(width=40.0, depth=30.0, height=20.0, wall=2.0, draft=False):
 
     probe_cx = 0
     probe_cy = pf_diameter/4
-    probe_r = 1.0
-    body -= Pos(probe_cx,probe_cy-puck_dz/2-probe_r,0) * Rot(45,0,0) * Cylinder(probe_r,puck_dz*2, align=(Align.CENTER,Align.MIN,Align.CENTER))
+    probe_r = 1.1
+    # channel for the probe
+    body -= (
+        Pos(probe_cx,probe_cy-puck_dz/2-probe_r-0.5,0) * Rot(45,0,0) * 
+        Cylinder(probe_r,puck_dz*2, align=(Align.CENTER,Align.MIN,Align.CENTER))
+    )
+    # clean opening on the bottom
+    #body -= Pos(probe_cx,probe_cy,-puck_dz/2) * Cylinder(probe_r*2,1.0, align=(Align.CENTER,Align.CENTER,Align.MIN))
 
-    joint_outer_d = 9.1
-    joint_inner_d = 6.45
+    joint_outer_d = 11
+    joint_inner_d = 7.4
     joint_dz = 1.0
     cmin = (Align.CENTER,Align.CENTER,Align.MIN)
     joint_cutter = Cylinder(joint_outer_d/2,joint_dz,align=cmin)-Cylinder(joint_inner_d/2,joint_dz,align=cmin)

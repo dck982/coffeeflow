@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <limits>
 
 #include "cJSON.h"
@@ -344,7 +345,7 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   }
   cJSON_AddBoolToObject(network, "time_known", snapshot.time_known);
   if (snapshot.time_known) {
-    cJSON_AddNumberToObject(network, "wall_time_unix_s", static_cast<double>(snapshot.wall_time_unix_s));
+    cJSON_AddNumberToObject(network, "wall_time_unix_s", static_cast<double>(std::time(nullptr)));
   } else {
     cJSON_AddNullToObject(network, "wall_time_unix_s");
   }

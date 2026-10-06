@@ -1,6 +1,7 @@
 #include "core/core.h"
 
 #include <cstring>
+#include <ctime>
 #include <cmath>
 #include <limits>
 
@@ -186,9 +187,14 @@ TelemetryProfile capture_profile_locked() {
   return g_state.machine.active() || g_state.hf_capture.active ? TelemetryProfile::kActive : TelemetryProfile::kIdle;
 }
 
+// L'horloge système avance d'elle-même depuis la synchronisation SNTP.
+// time() prend un verrou de la libc : à lire avant la section critique.
+int64_t wall_clock_s() { return static_cast<int64_t>(std::time(nullptr)); }
+
 bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
   bool started = false;
   const Config config = get_config();
+  const int64_t wall_s = wall_clock_s();
   portENTER_CRITICAL(&g_state.lock);
   HFCapture& capture = g_state.hf_capture;
   if (capture.samples != nullptr && (!capture.active || capture.cooldown)) {
@@ -199,7 +205,7 @@ bool begin_hf_capture(HFCaptureOrigin origin, uint8_t dimmer, int64_t now) {
     capture.origin = origin;
     capture.started_at_us = now;
     capture.ended_at_us = 0;
-    capture.started_at_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+    capture.started_at_unix_s = g_state.snapshot.time_known ? wall_s : 0;
     capture.ended_at_unix_s = 0;
     capture.next_sample_us = now;
     capture.cooldown_ends_at_us = 0;
@@ -272,6 +278,7 @@ ShotSample shot_sample(const HFSample& sample) {
 
 void tick_hf_capture() {
   const int64_t now = now_us();
+  const int64_t wall_s = wall_clock_s();
   portENTER_CRITICAL(&g_state.lock);
   HFCapture& capture = g_state.hf_capture;
   if (!capture.active) {
@@ -283,7 +290,7 @@ void tick_hf_capture() {
     capture.complete = true;
     capture.cooldown = false;
     capture.ended_at_us = capture.cooldown_ends_at_us;
-    capture.ended_at_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+    capture.ended_at_unix_s = g_state.snapshot.time_known ? wall_s : 0;
     g_state.snapshot.capture_cooldown = false;
     if (g_state.shot_summary_pending) {
       remember_completed_shot_locked(g_state.snapshot);
@@ -983,10 +990,9 @@ void update_network_status(NetworkState state, uint32_t ipv4_address) {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
-void mark_wall_time_known(int64_t unix_s) {
+void mark_wall_time_known() {
   portENTER_CRITICAL(&g_state.lock);
-  g_state.snapshot.time_known = unix_s > 0;
-  g_state.snapshot.wall_time_unix_s = unix_s;
+  g_state.snapshot.time_known = true;
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -1220,13 +1226,14 @@ ActionResult perform_action(const ActionCommand& command) {
         return action_result(ActionStatus::kUnavailable);
     }
     if (!snapshot.dimmer_ready || !snapshot.dimmer_valid) return action_result(ActionStatus::kDimmerNotReady);
+    const int64_t wall_s = wall_clock_s();
     portENTER_CRITICAL(&g_state.lock);
     finalize_pending_shot_locked();
     bool ok = command.action == Action::kStartBrew
                   ? g_state.machine.start(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()), machine_input(g_state.snapshot, now_us()))
                   : g_state.machine.purge_press(static_cast<uint64_t>(now_us() / 1000), machine_config(get_config()));
     if (ok && command.action == Action::kStartBrew) {
-      g_state.shot_start_unix_s = g_state.snapshot.time_known ? g_state.snapshot.wall_time_unix_s : 0;
+      g_state.shot_start_unix_s = g_state.snapshot.time_known ? wall_s : 0;
     }
     update_cycle_snapshot_locked(now_us());
     portEXIT_CRITICAL(&g_state.lock);

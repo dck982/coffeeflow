@@ -108,7 +108,6 @@ struct Snapshot {
   uint32_t internal_heap_largest = 0;
   uint32_t internal_heap_minimum = 0;
   bool time_known = false;
-  int64_t wall_time_unix_s = 0;
   bool boot_time_syncing = false;
 
   uint32_t pressure_raw = 0;
@@ -213,7 +212,7 @@ void set_touch_ready(bool ready);
 void note_touch_press();
 
 void update_network_status(NetworkState state, uint32_t ipv4_address);
-void mark_wall_time_known(int64_t unix_s);
+void mark_wall_time_known();
 void set_boot_time_syncing(bool syncing);
 
 // Transition radio asynchrone, toujours effectuée sur le cœur 0. Au bring-up,

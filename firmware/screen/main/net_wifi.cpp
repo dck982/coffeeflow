@@ -221,7 +221,7 @@ void start_sntp_once() {
 void on_sntp_event(void*, esp_event_base_t, int32_t, void* event_data) {
   auto* event = static_cast<esp_netif_sntp_time_sync_t*>(event_data);
   if (event == nullptr || event->tv.tv_sec < 1700000000) return;
-  core::mark_wall_time_known(event->tv.tv_sec);
+  core::mark_wall_time_known();
   if (g_boot_sync_events != nullptr) xEventGroupSetBits(g_boot_sync_events, kBootTimeKnown);
   core::events::push(core::EventKind::kTimeKnown);
   // One-shot : l'heure est valide pour la session, les mesures restent

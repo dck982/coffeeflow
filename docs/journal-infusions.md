@@ -119,7 +119,8 @@ Valeurs du rapport (définitions ci-dessus). Les infusions avant le
 | 01/10 8 h 29 | 4,40 s, 14,8 ml, 0,42 bar | 1,30 s, 4,1 ml, goutte | 18,8 ml | 6,4 s | 7,3 s, 1,59 g/s, 2,06 ml/s | 22,5 g | 88,42 °C |
 | 04/10 10 h 01 | 3,00 s, 10,1 ml, 0,33 bar | 4,00 s, 12,5 ml, échéance | 38,0 ml | 4,6 s | 29,8 s, 0,71 g/s, 0,91 ml/s | 22,2 g | 92,50 °C |
 | 04/10 13 h 24 | 4,50 s, 15,4 ml, 0,39 bar | 4,00 s, 2,0 ml, échéance | 35,1 ml | 6,4 s | 17,8 s, 1,10 g/s, 1,40 ml/s | 22,2 g | 87,58 °C |
-| **05/10 7 h 26** | 7,00 s, 24,1 ml, 1,19 bar | 1,20 s, 1,2 ml, goutte | 25,8 ml | 4,5 s | 13,3 s, 1,28 g/s, 1,85 ml/s | 22,4 g | 88,64 °C |
+| 05/10 7 h 26 | 7,00 s, 24,1 ml, 1,19 bar | 1,20 s, 1,2 ml, goutte | 25,8 ml | 4,5 s | 13,3 s, 1,28 g/s, 1,85 ml/s | 22,4 g | 88,64 °C |
+| **06/10 7 h 19** | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
 
 ## Entrées
 
@@ -259,3 +260,116 @@ capture, même mouture supposée) :
 
 Si possible, prolonger la capture à 40–60 s après l'arrêt pour voir où la
 NTC se stabilise.
+
+### 6 octobre, 7 h 19 — `261006-071953`
+
+**Contexte.** Premiers essais du seuil de remplissage à 0,8 bar et de la
+pré-infusion à 50 % (`configs/261005-075907.json`), firmware et mouture
+inchangés depuis le 5 octobre. Observations de David : débit assez élevé,
+amertume en bouche ; mouture jugée trop grossière.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,00 s | — | — |
+| Remplissage | 8,00 s | 6,10 s | 21,2 ml (3,47 ml/s) | 0,38 → 0,90 bar |
+| Pré-infusion | 14,10 s | 2,10 s | 4,1 ml (1,93 ml/s) | 0,90 → 0,98 bar |
+| Infusion | 16,20 s | 16,50 s | 36,8 ml | 9,07 bar max |
+
+- Premier paquet au-dessus de 0,8 bar à 13,90 s (20,6 ml, 5,9 s après le
+  début du remplissage), passage en pré-infusion à 14,10 s : 200 ms,
+  compatible avec la confirmation d'au moins 150 ms de
+  [firmware.md](firmware.md). Le 5 octobre, l'écart était de 100 ms.
+- Le firmware a vu la première goutte à 16,20 s et 25,2 ml, comme le
+  5 octobre, et a terminé la pré-infusion dessus, 1,9 s avant l'échéance ;
+  le rapport la place à 25,5 ml (≥ 0,3 g). Marge de remplissage : 4,0 à
+  4,3 ml selon la définition.
+- Montée de 4,8 s jusqu'à 8 bar, avec 5,5 g déjà en tasse (4,4 g le
+  5 octobre). Le débit en tasse culmine à 1,8 g/s vers 19,5 s, sous
+  ≈ 4 bar.
+- Depuis 8 bar : 11,8 s, 1,35 g/s en tasse, 1,89 ml/s en amont, 21,6 g à
+  l'arrêt, 22,6 g final. Plus court et plus rapide que le 5 octobre
+  (13,3 s, 1,28 g/s).
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,59 bar en moyenne, pompe
+  à 69 %, 1,37 g/s, soit 6,3 bar·s/g contre 6,8 le 5 octobre (pompe à
+  70 %). Galette ≈ 8 % moins résistante, à mouture inchangée.
+
+**Thermique.**
+
+| Grandeur | Mesure |
+| --- | ---: |
+| NTC pondérée par la tasse | **88,47 °C** (−1,53 °C) |
+| NTC pondérée par le volume | 89,68 °C |
+| Pic avant l'infusion | 92,03 °C |
+| Minimum pendant l'écoulement | 86,74 °C, à l'arrêt de la pompe |
+| Minimum total | 85,89 °C à 37,2 s, ≈ 4,4 s après l'arrêt (−3,92 °C) |
+| 20 s après l'arrêt (fin de la capture) | 87,74 °C, en hausse |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 8,64 kJ | 8,64 kJ |
+| Remplissage | 5,61 kJ | 4,68 kJ |
+| Pré-infusion | 1,83 kJ | 1,68 kJ |
+| Infusion | 2,81 kJ | 2,76 kJ |
+| Récupération | 2,43 kJ | 2,76 kJ |
+
+La commande, à 90 % pendant le remplissage, descend de 78 à 52 % pendant
+la pré-infusion, reste à 0 % de 16,20 à 27,70 s (11,5 s), puis suit le
+débit à 36–57 % jusqu'à l'arrêt. De la précharge à l'arrêt : 18,9 kJ
+commandés, 17,8 kJ fournis par le SSR, pour 62,3 ml admis. Comme le
+5 octobre, l'écart vient surtout du remplissage.
+
+**Attendus vérifiés** (entrée du 5 octobre) :
+
+| Attendu | Mesure |
+| --- | --- |
+| Paquet au-dessus de 0,8 bar à ≈ 21,2 ml, ≈ 6,2 s | 20,6 ml, 5,9 s |
+| Fin du remplissage à ≈ 21,5 ml, ≈ 6,3 s | 21,2 ml, 6,1 s |
+| Marge de ≈ 3,7 ml avant la goutte (25,2 ml selon le firmware) | 4,0 ml, goutte à 25,2 ml |
+| Pré-infusion à 1,5 à 2,5 ml/s, goutte en 1,5 à 2,5 s avant l'échéance | 1,93 ml/s, goutte en 2,1 s |
+| Thermique : noter commande, SSR et NTC à +20 s | ci-dessus ; 87,74 °C à +20 s |
+| Capture prolongée à 40–60 s après l'arrêt | **non** : 19,9 s |
+
+**Lecture.**
+
+- *Mouture, mesuré.* Tout désigne une galette trop perméable : débit en
+  tasse de 1,8 g/s sous 4 bar pendant la montée, 5,5 g en tasse à 8 bar,
+  11,8 s depuis 8 bar, résistance au plateau en baisse. La mouture est la
+  même que le 5 octobre ; la différence de résistance vient de la
+  préparation ou de la pré-infusion, sans mesure pour départager.
+- *Pré-infusion, mesuré.* À 50 %, elle passe 4,1 ml et ne laisse pas de
+  pause sans débit : la galette est mouillée jusqu'à la goutte, comme
+  attendu. Qu'elle soit pour quelque chose dans la perméabilité au plateau
+  reste une hypothèse non testée.
+- *Amertume, hypothèse non testée.* Une mouture grossière sous-extrait et
+  donne plutôt un café acide ou creux. Une amertume avec un débit élevé
+  évoque une extraction inégale (canal) ou de l'astringence. La pression
+  ne s'effondre pas au plateau, aucun canal franc n'est visible.
+- *Pic avant l'infusion, estimé.* 92,03 °C contre 91,58 °C le 5 octobre :
+  le remplissage s'arrête 2,9 ml plus tôt, donc moins d'eau froide sous la
+  précharge, pour une commande identique jusque-là.
+- *Tasse froide, en simulation.* Rejouée avec la commande réelle, la
+  moyenne en tasse vaut 89,15 °C (0,68 °C au-dessus de la mesure), le
+  minimum 87,88 °C (2,0 °C au-dessus) et le pic 90,66 °C (1,4 °C
+  en dessous). Le modèle surestime le creux comme le 5 octobre ; le
+  facteur inconnu reste inexpliqué.
+
+**Décision.** David affine la mouture pour la prochaine infusion. Réglages
+inchangés (`configs/261005-075907.json`), pour attribuer à la mouture seule
+les écarts de la prochaine capture.
+
+**Attendus pour l'infusion suivante** (même configuration, mouture plus
+fine) :
+
+| Point | Attendu |
+| --- | --- |
+| Remplissage | fin à 0,8 bar, 20 à 22 ml, ≈ 6 s ; la mouture ne change que la galette sèche, peu le remplissage |
+| Pré-infusion à 50 % | moins de 1,9 ml/s ; goutte au-delà de 2,1 s, peut-être à l'échéance de 4 s (≈ 7 ml passés au plus) |
+| Montée | moins de 5,5 g en tasse à 8 bar, pic de débit en tasse sous 1,8 g/s |
+| Plateau | résistance au-dessus de 6,8 bar·s/g, pompe sous 69 % pour tenir 9 bar |
+| Depuis 8 bar | plus de 13,3 s, moins de 1,28 g/s ; au-delà de 27 s le temps arrête la pompe avant 22 g |
+| Thermique | pas d'attendu chiffré : la commande à 0 % (≈ 11,5 s ici) couvrira une part plus faible d'une infusion plus longue ; noter commande, SSR et NTC à +20 s |
+
+Prolonger la capture à 40–60 s après l'arrêt pour voir où la NTC se
+stabilise.

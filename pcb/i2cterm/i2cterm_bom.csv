@@ -1,0 +1,7 @@
+Reference,Value,Footprint,DNP,LCSC,MPN,Description,Sheet,Datasheet
+J1,GROVE VERTICAL,I2CTerm_Local:CONN-TH_HY-4A,0,C722737,HY-4A,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",1,https://www.lcsc.com/product-detail/C722737.html
+R1,4.7k,Resistor_SMD:R_0603_1608Metric,0,C23162,0603 4.7k 1%,Resistor,1,
+R2,4.7k,Resistor_SMD:R_0603_1608Metric,0,C23162,0603 4.7k 1%,Resistor,1,
+R3,1k,Resistor_SMD:R_0603_1608Metric,0,C21190,0603 1k 1%,Resistor,1,
+D1,GREEN,LED_SMD:LED_0603_1608Metric,0,C2289,KT-0603YG,Light emitting diode,1,https://datasheet.lcsc.com/lcsc/2507101606_Hubei-KENTO-Elec-KT-0603YG_C2289.pdf
+J2,GROVE VERTICAL,I2CTerm_Local:CONN-TH_HY-4A,0,C722737,HY-4A,"Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",1,https://www.lcsc.com/product-detail/C722737.html

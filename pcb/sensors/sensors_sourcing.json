@@ -495,6 +495,17 @@
       "JLCClass": "Basic",
       "Assembly": "SMT",
       "Notes": ""
+    },
+    "8d3801e6-b962-47dc-b5bf-871295c61ed8": {
+      "SchematicReference": "J5",
+      "ExpectedValue": "DIMMER I2C",
+      "ExpectedFootprint": "Sensors_Local:CONN-TH_HY-4A",
+      "LCSC": "C722737",
+      "MPN": "HY-4A",
+      "Manufacturer": "CAX",
+      "JLCClass": "Extended",
+      "Assembly": "THT",
+      "Notes": "Second parallel Grove I2C connector (PCB I2C A), same SCL/SDA/3V3/GND bus and C722737 sourcing as J4 (I2C B)."
     }
   },
   "CatalogSnapshot": {
@@ -1210,5 +1221,9 @@
       "componentLibraryType": "expand",
       "preferredComponentFlag": "$undefined"
     }
+  },
+  "AssemblyReferenceAliases": {
+    "I2C A": "I2CA",
+    "I2C B": "I2CB"
   }
 }

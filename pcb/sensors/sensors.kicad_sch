@@ -1215,6 +1215,207 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:LED"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "LED"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Light emitting diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Sim.Pins" "1=K 2=A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "LED diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "LED* LED_SMD:* LED_THT:*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "LED_0_1"
+				(polyline
+					(pts
+						(xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 0) (xy 1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -1.27) (xy -1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "LED_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:R"
 			(pin_numbers
 				(hide yes)
@@ -3467,8 +3668,6 @@
 			)
 			(embedded_fonts no)
 		)
-
-		(symbol "Device:LED" (pin_numbers (hide yes)) (pin_names (offset 1.016) (hide yes)) (exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes) (duplicate_pin_numbers_are_jumpers no) (property "Reference" "D" (at 0 2.54 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)))) (property "Value" "LED" (at 0 -2.54 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)))) (property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (property "Description" "Light emitting diode" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (property "Sim.Pins" "1=K 2=A" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (property "ki_keywords" "LED diode" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (property "ki_fp_filters" "LED* LED_SMD:* LED_THT:*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27)))) (symbol "LED_0_1" (polyline (pts (xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)) (stroke (width 0) (type default)) (fill (type none))) (polyline (pts (xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)) (stroke (width 0) (type default)) (fill (type none))) (polyline (pts (xy -1.27 0) (xy 1.27 0)) (stroke (width 0) (type default)) (fill (type none))) (polyline (pts (xy -1.27 -1.27) (xy -1.27 1.27)) (stroke (width 0.254) (type default)) (fill (type none))) (polyline (pts (xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)) (stroke (width 0.254) (type default)) (fill (type none)))) (symbol "LED_1_1" (pin passive line (at -3.81 0 0) (length 2.54) (name "K" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27))))) (pin passive line (at 3.81 0 180) (length 2.54) (name "A" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))) (embedded_fonts no))
 	)
 	(text "2. ESP32-S3-MINI-1U-N8 - CAN only, no antenna fitted"
 		(exclude_from_sim no)
@@ -3536,6 +3735,17 @@
 		)
 		(uuid "8f3b3841-cd79-54bf-9f0c-e73513d32b2c")
 	)
+	(text "GPIO38 / pad34\nHIGH = LED on"
+		(exclude_from_sim no)
+		(at 245 270 0)
+		(effects
+			(font
+				(size 1.1 1.1)
+			)
+			(justify left top)
+		)
+		(uuid "a1127f78-dddb-5554-bead-4d70a8d8f862")
+	)
 	(text "ESP32 provides its USB data pull-up internally. CC1/CC2: 5.1k to GND.\nRoute USB as a 90-ohm pair; D1 at J2, R6/R7 at U1.\nC1: 4.7uF input bulk to reduce USB plug-in inrush."
 		(exclude_from_sim no)
 		(at 18 265 0)
@@ -3570,10 +3780,6 @@
 	(no_connect
 		(at 294.64 92.71)
 		(uuid "2fd83b73-aeef-5db2-8c91-575533e10b69")
-	)
-	(no_connect
-		(at 325.12 69.85)
-		(uuid "33cb5c06-14ad-5a67-87fc-63d35271c189")
 	)
 	(no_connect
 		(at 325.12 74.93)
@@ -3640,6 +3846,10 @@
 		(uuid "bb85de5d-7047-5b61-a608-ab707fb3d248")
 	)
 	(no_connect
+		(at 325.12 77.47)
+		(uuid "bf212b8c-fb43-42ac-b651-9cdd84515c0c")
+	)
+	(no_connect
 		(at 58.42 203.2)
 		(uuid "c56e0a59-27da-5afa-8430-b39669d68d76")
 	)
@@ -3659,7 +3869,16 @@
 		(at 325.12 64.77)
 		(uuid "ec78ea01-2474-5c5f-a465-0fb862d1a259")
 	)
-
+	(wire
+		(pts
+			(xy 265.43 254) (xy 265.43 259.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "008330b6-2f28-550c-bf8f-baf768437268")
+	)
 	(wire
 		(pts
 			(xy 217.17 217.17) (xy 212.09 217.17)
@@ -3749,6 +3968,16 @@
 			(type default)
 		)
 		(uuid "165e6d9d-0ac6-521a-b863-7c70d4dafa7a")
+	)
+	(wire
+		(pts
+			(xy 265.43 228.6) (xy 265.43 233.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1be668b8-3037-5860-b479-2a13f7c6cd74")
 	)
 	(wire
 		(pts
@@ -4002,6 +4231,16 @@
 	)
 	(wire
 		(pts
+			(xy 265.43 220.98) (xy 265.43 215.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6deb1fdf-13f9-5da7-934b-b9f4f3fcfc51")
+	)
+	(wire
+		(pts
 			(xy 144.78 78.74) (xy 144.78 73.66)
 		)
 		(stroke
@@ -4019,6 +4258,16 @@
 			(type default)
 		)
 		(uuid "8350c55d-89fc-536a-8d2e-5e113a57d840")
+	)
+	(wire
+		(pts
+			(xy 265.43 246.38) (xy 265.43 241.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88e6e51a-f482-5037-9707-0d061a8f7fdf")
 	)
 	(wire
 		(pts
@@ -4099,6 +4348,16 @@
 			(type default)
 		)
 		(uuid "a284bf88-3140-5002-849e-b2c123471b0c")
+	)
+	(wire
+		(pts
+			(xy 325.12 69.85) (xy 330.2 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a9aac994-15d7-460a-8799-376201255fa6")
 	)
 	(wire
 		(pts
@@ -4430,6 +4689,16 @@
 		)
 		(uuid "41e1ad68-7112-5918-ac43-1b8a7e69eb5b")
 	)
+	(label "STATUS_LED_A"
+		(at 265.43 241.3 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+		(uuid "461ba8a8-bfbf-5a8f-af6f-27926776ad28")
+	)
 	(label "USB_CC2"
 		(at 63.5 182.88 0)
 		(effects
@@ -4490,6 +4759,16 @@
 		)
 		(uuid "880cfd62-5013-54fc-898f-790f1bed103e")
 	)
+	(label "STATUS_LED"
+		(at 265.43 215.9 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+		(uuid "90a19633-b0f4-5257-8079-ac876145a556")
+	)
 	(label "USB_HOST_DP"
 		(at 63.5 195.58 0)
 		(effects
@@ -4530,6 +4809,16 @@
 		)
 		(uuid "bf6a2583-997c-58c0-9e49-60808324e06a")
 	)
+	(label "STATUS_LED_A"
+		(at 265.43 233.68 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+		(uuid "c1e8cb16-5a7c-57a9-8eda-3229c6d2c9ed")
+	)
 	(label "STRAP46"
 		(at 330.2 92.71 0)
 		(effects
@@ -4539,6 +4828,16 @@
 			(justify left bottom)
 		)
 		(uuid "c32f8b1f-c4d7-5861-a320-76121990b2fc")
+	)
+	(label "STATUS_LED"
+		(at 330.2 69.85 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+		(uuid "c89f27f9-1ad6-5cce-a17b-6d90c8ef5bec")
 	)
 	(label "BOOT_N"
 		(at 234.95 81.28 0)
@@ -5142,6 +5441,28 @@
 	)
 	(global_label "GND"
 		(shape bidirectional)
+		(at 265.43 259.08 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left)
+		)
+		(uuid "970ddc6a-48c0-53ed-9dd8-5ed9fba0dd01")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 265.43 259.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+	)
+	(global_label "GND"
+		(shape bidirectional)
 		(at 80.01 129.54 0)
 		(effects
 			(font
@@ -5523,6 +5844,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C2980299"
+			(at 309.88 72.39 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "7503e89a-30fc-59bf-8e0a-790c5ad0b344")
 		)
@@ -5726,8 +6058,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C2980299" (at 309.88 72.39 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5810,6 +6140,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C29936"
+			(at 384.81 124.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "036750c8-e63d-55c6-8499-ae77e03c6123")
 		)
@@ -5824,8 +6165,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C29936" (at 384.81 124.46 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
@@ -5902,6 +6241,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C158012"
+			(at 39.37 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "055e56d2-ce8d-5b8e-ae17-c51bb62c31f2")
 		)
@@ -5916,8 +6266,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C158012" (at 39.37 44.45 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
@@ -6095,6 +6443,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C107365"
+			(at 64.77 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "6429c994-6f0b-51ff-9913-653193bc68c3")
 		)
@@ -6109,8 +6468,113 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C107365" (at 64.77 82.55 0) (hide yes) (effects (font (size 1 1))))
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 265.43 224.79 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2ea32290-3d9f-5984-8005-04b9cf8892be")
+		(property "Reference" "R25"
+			(at 270.43 222.79 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 270.43 225.79 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 265.43 224.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 265.43 224.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 265.43 224.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "MPN" "0603WAF1001T5E"
+			(at 265.43 224.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "LCSC" "C21190"
+			(at 265.43 224.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d35a5526-c2c2-5d46-8b6e-a512082a6705")
+		)
+		(pin "2"
+			(uuid "c1af4fb5-5ee8-5958-8698-b1bd6be50206")
+		)
+		(instances
+			(project "sensors"
+				(path "/655ba0f3-0427-5cf4-88d9-0bb38b1023d4"
+					(reference "R25")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -6193,6 +6657,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C95841"
+			(at 240.03 124.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "9735266c-60c4-5f13-a35b-81cfa1f1ee10")
 		)
@@ -6207,8 +6682,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C95841" (at 240.03 124.46 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -6291,6 +6764,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C23186"
+			(at 90.17 179.07 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "28354495-f56c-5760-b5fe-a8605cb291a3")
 		)
@@ -6305,8 +6789,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23186" (at 90.17 179.07 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -6389,6 +6871,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 309.88 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "3731dbd7-7e57-573d-9b53-97319a6f31da")
 		)
@@ -6403,8 +6896,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 309.88 154.94 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector:USB_C_Receptacle_USB2.0_16P")
@@ -6481,6 +6972,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C3025063"
+			(at 43.18 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "A1"
 			(uuid "6e72e8d7-26c0-5191-a583-4b83d348aa8c")
 		)
@@ -6540,8 +7042,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C3025063" (at 43.18 190.5 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -6624,6 +7124,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C14663"
+			(at 100.33 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "26f26783-914c-57c8-a0e5-35182b3603f7")
 		)
@@ -6638,8 +7149,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C14663" (at 100.33 82.55 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Switch:SW_Push")
@@ -6722,6 +7231,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C720477"
+			(at 350.52 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "d9897b6c-31a4-5f2e-8069-dfdd8db6d7e0")
 		)
@@ -6736,8 +7256,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C720477" (at 350.52 154.94 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -6820,6 +7338,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C23186"
+			(at 90.17 208.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "10d72028-57d5-5a72-9199-3ff0e5c0fe18")
 		)
@@ -6834,8 +7363,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23186" (at 90.17 208.28 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
@@ -6918,6 +7445,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C7198"
+			(at 144.78 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "5e4b346a-cd14-5b68-a893-767401829e27")
 		)
@@ -6932,8 +7470,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C7198" (at 144.78 82.55 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -7016,6 +7552,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 350.52 124.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "62471abd-62cd-5849-9180-cb10d16b9705")
 		)
@@ -7030,8 +7577,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 350.52 124.46 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -7114,6 +7659,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 234.95 72.39 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "4e459735-d8be-5bf1-90d5-8fd1dfc6447a")
 		)
@@ -7128,8 +7684,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 234.95 72.39 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
@@ -7301,6 +7855,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C1855726"
+			(at 224.79 219.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "dbe259cf-e191-5cc0-b805-bb3ce987a06e")
 		)
@@ -7318,8 +7883,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C1855726" (at 224.79 219.71 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -7402,6 +7965,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 279.4 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "b10ea1e1-5f65-5137-8549-9fb8e343006f")
 		)
@@ -7416,8 +7990,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 279.4 154.94 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Regulator_Linear:AMS1117-3.3")
@@ -7494,6 +8066,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C6186"
+			(at 105.41 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "277ceedf-3c91-5258-98f0-f2fbf806ef65")
 		)
@@ -7511,8 +8094,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C6186" (at 105.41 44.45 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -7589,6 +8170,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C23345"
+			(at 154.94 185.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "655ef64f-339f-5234-84ad-6c7d4f3b0d0f")
 		)
@@ -7603,8 +8195,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23345" (at 154.94 185.42 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Switch:SW_Push")
@@ -7687,6 +8277,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C720477"
+			(at 234.95 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "1a1a3838-8af8-5c20-b0d1-afc0a6e85df0")
 		)
@@ -7701,8 +8302,109 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C720477" (at 234.95 91.44 0) (hide yes) (effects (font (size 1 1))))
+	)
+	(symbol
+		(lib_id "Device:LED")
+		(at 265.43 250.19 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e08b4b48-5cc5-5dea-8dd1-a8e7ff18160d")
+		(property "Reference" "D2"
+			(at 278 247 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "GREEN / STATUS"
+			(at 283 250 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+			(at 265.43 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 265.43 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "Description" "Green status LED, pin 1 cathode to GND"
+			(at 265.43 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "MPN" "KT-0603YG"
+			(at 265.43 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "LCSC" "C2289"
+			(at 265.43 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "8ab1c144-3f02-56a5-ac17-d439f61af664")
+		)
+		(pin "2"
+			(uuid "c34e0a93-b5d5-553a-97bf-af256712f84f")
+		)
+		(instances
+			(project "sensors"
+				(path "/655ba0f3-0427-5cf4-88d9-0bb38b1023d4"
+					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -7779,6 +8481,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C23345"
+			(at 154.94 214.63 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "283c9f4c-64cd-587e-885b-f356f042c7db")
 		)
@@ -7793,8 +8506,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23345" (at 154.94 214.63 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -7877,6 +8588,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C14663"
+			(at 275.59 124.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "1c12d964-0587-55cf-8a7b-fcda497c6c14")
 		)
@@ -7891,8 +8613,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C14663" (at 275.59 124.46 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(sheet
 		(at 290 210)
@@ -7945,22 +8665,4 @@
 		)
 	)
 	(embedded_fonts no)
-
-	(wire (pts (xy 325.12 77.47) (xy 330.2 77.47)) (stroke (width 0) (type default)) (uuid "e3cc6f88-ceb3-5619-b01b-1e2c39d35a0b"))
-	(label "STATUS_LED" (at 330.2 77.47 0) (effects (font (size 1.0 1.0)) (justify left bottom)) (uuid "c89f27f9-1ad6-5cce-a17b-6d90c8ef5bec"))
-	(wire (pts (xy 265.43 220.98) (xy 265.43 215.9)) (stroke (width 0) (type default)) (uuid "6deb1fdf-13f9-5da7-934b-b9f4f3fcfc51"))
-	(label "STATUS_LED" (at 265.43 215.9 0) (effects (font (size 1.0 1.0)) (justify left bottom)) (uuid "90a19633-b0f4-5257-8079-ac876145a556"))
-	(wire (pts (xy 265.43 228.6) (xy 265.43 233.68)) (stroke (width 0) (type default)) (uuid "1be668b8-3037-5860-b479-2a13f7c6cd74"))
-	(label "STATUS_LED_A" (at 265.43 233.68 0) (effects (font (size 1.0 1.0)) (justify left bottom)) (uuid "c1e8cb16-5a7c-57a9-8eda-3229c6d2c9ed"))
-	(symbol (lib_id "Device:R") (at 265.43 224.79 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "2ea32290-3d9f-5984-8005-04b9cf8892be") (property "Reference" "R25" (at 270.43 222.79 0) (effects (font (size 1.1 1.1)) (justify left))) (property "Value" "1k" (at 270.43 225.79 0) (effects (font (size 1.0 1.0)) (justify left))) (property "Footprint" "Resistor_SMD:R_0603_1608Metric" (at 265.43 224.79 0) (effects (font (size 1.0 1.0)) (justify left)) (hide yes)) (property "Datasheet" "" (at 265.43 224.79 0) (effects (font (size 1.0 1.0)) (justify left)) (hide yes)) (property "Description" "Resistor" (at 265.43 224.79 0) (effects (font (size 1.0 1.0)) (justify left)) (hide yes)) (property "MPN" "0603WAF1001T5E" (at 265.43 224.79 0) (effects (font (size 1.0 1.0)) (justify left)) (hide yes)) (pin "1" (uuid "d35a5526-c2c2-5d46-8b6e-a512082a6705")) (pin "2" (uuid "c1af4fb5-5ee8-5958-8698-b1bd6be50206")) (instances (project "sensors" (path "/655ba0f3-0427-5cf4-88d9-0bb38b1023d4" (reference "R25") (unit 1))))
-		(property "LCSC" "C21190" (at 265.43 224.79 0) (hide yes) (effects (font (size 1 1))))
-	)
-	(wire (pts (xy 265.43 254.0) (xy 265.43 259.08)) (stroke (width 0) (type default)) (uuid "008330b6-2f28-550c-bf8f-baf768437268"))
-	(global_label "GND" (shape bidirectional) (at 265.43 259.08 0) (effects (font (size 1.0 1.0)) (justify left)) (uuid "970ddc6a-48c0-53ed-9dd8-5ed9fba0dd01") (property "Intersheetrefs" "${INTERSHEET_REFS}" (at 265.43 259.08 0) (hide yes) (effects (font (size 1.0 1.0)))))
-	(wire (pts (xy 265.43 246.38) (xy 265.43 241.3)) (stroke (width 0) (type default)) (uuid "88e6e51a-f482-5037-9707-0d061a8f7fdf"))
-	(label "STATUS_LED_A" (at 265.43 241.3 0) (effects (font (size 1.0 1.0)) (justify left bottom)) (uuid "461ba8a8-bfbf-5a8f-af6f-27926776ad28"))
-	(symbol (lib_id "Device:LED") (at 265.43 250.19 90) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "e08b4b48-5cc5-5dea-8dd1-a8e7ff18160d") (property "Reference" "D2" (at 278 247 0) (effects (font (size 1.1 1.1)) (justify left))) (property "Value" "GREEN / STATUS" (at 283 250 0) (effects (font (size 1.0 1.0)) (justify left))) (property "Footprint" "LED_SMD:LED_0603_1608Metric" (at 265.43 250.19 0) (effects (font (size 1.0 1.0))) (hide yes)) (property "Datasheet" "" (at 265.43 250.19 0) (effects (font (size 1.0 1.0))) (hide yes)) (property "Description" "Green status LED, pin 1 cathode to GND" (at 265.43 250.19 0) (effects (font (size 1.0 1.0))) (hide yes)) (property "MPN" "KT-0603YG" (at 265.43 250.19 0) (effects (font (size 1.0 1.0))) (hide yes)) (pin "1" (uuid "8ab1c144-3f02-56a5-ac17-d439f61af664")) (pin "2" (uuid "c34e0a93-b5d5-553a-97bf-af256712f84f")) (instances (project "sensors" (path "/655ba0f3-0427-5cf4-88d9-0bb38b1023d4" (reference "D2") (unit 1))))
-		(property "LCSC" "C2289" (at 265.43 250.19 0) (hide yes) (effects (font (size 1 1))))
-	)
-	(text "GPIO38 / pad34\nHIGH = LED on" (at 245 270 0) (effects (font (size 1.1 1.1)) (justify left top)) (uuid "a1127f78-dddb-5554-bead-4d70a8d8f862"))
 )

@@ -2,7 +2,7 @@
 
 Checked against the saved PCB and both schematic sheets on **2026-10-05**.
 
-**45 fitted components: 29 Basic, 16 Extended.** The upload BOM contains all 45 components in 26 part groups. Basic/Extended classifications and stock were read directly from JLCPCB catalog data; the dated snapshot is in `sensors_sourcing.json`. Stock and classifications can change.
+**46 fitted components: 29 Basic, 17 Extended.** The upload BOM contains all 46 components in 26 part groups. Basic/Extended classifications and stock were read directly from JLCPCB catalog data; the dated snapshot is in `sensors_sourcing.json`. Stock and classifications can change.
 
 - `sensors_bom.csv`: full per-component source BOM, with PCB and schematic references, exact MPN, LCSC code, class, assembly method and notes.
 - `sensors_jlcpcb_bom.csv`: grouped four-column JLCPCB upload BOM using the actual PCB references.
@@ -25,7 +25,7 @@ Regenerate from the saved designs with `uv run sensors/generate_bom.py` from `pc
 | C12 | 0603B103K500NT | [C57112](https://jlcpcb.com/partdetail/x/C57112) | Basic | SMT | 6,657,115 |
 | D1 | TPD2E2U06DCKR | [C1855726](https://jlcpcb.com/partdetail/x/C1855726) | Extended | SMT | 11 |
 | FLOW, VALVE | B3B-XH-A(LF)(SN) | [C144394](https://jlcpcb.com/partdetail/x/C144394) | Extended | THT | 174,813 |
-| I2C | HY-4A | [C722737](https://jlcpcb.com/partdetail/x/C722737) | Extended | THT | 1,106 |
+| I2C A, I2C B | HY-4A | [C722737](https://jlcpcb.com/partdetail/x/C722737) | Extended | THT | 1,106 |
 | J2 | USB4105-GF-A-060 | [C3025063](https://jlcpcb.com/partdetail/x/C3025063) | Extended | SMT | 1,287 |
 | Q2 | AO3401A | [C15127](https://jlcpcb.com/partdetail/x/C15127) | Basic | SMT | 815,848 |
 | Q3 | 2N7002 | [C8545](https://jlcpcb.com/partdetail/x/C8545) | Basic | SMT | 1,601,156 |
@@ -66,9 +66,9 @@ Regenerate from the saved designs with `uv run sensors/generate_bom.py` from `pc
 
 **USB-C uses GCT USB4105-GF-A-060.** C3025063 is a listed variant of the assigned footprint; it has shorter 0.60mm shell stakes than the unsuffixed part. [GCT drawing](https://gct.co/files/drawings/usb4105.pdf) provides the shared PCB land pattern. Confirm shell engagement for the board thickness. D1 is the exact TI 3-pin SC-70 DCK part, with I/O on pins 1/2 and GND on 3 ([TI datasheet](https://www.ti.com/lit/ds/symlink/tpd2e2u06.pdf)); the 5-pin DRL version is incompatible.
 
-**I2C/Grove uses CAX HY-4A / C722737.** The user selected this Extended THT part after confirming its model displays in JLCPCB. The project-local `Sensors_Local:CONN-TH_HY-4A` footprint is now assigned in schematic and PCB, with the supplier 3D model, a KiCad-compatible pad order and 1.0mm drills. It retains the 4-pin 2mm pin layout. Numbered supplier pads match the KiCad pad order with a -90° CPL rotation offset. Position uses the numbered pin-row midpoint. The linked supplier PDF contains unrelated PH-series information and is not used as mechanical evidence.
+**Both I2C/Grove connectors use CAX HY-4A / C722737.** The user selected this Extended THT part after confirming its model displays in JLCPCB. The project-local `Sensors_Local:CONN-TH_HY-4A` footprint is now assigned in schematic and PCB, with the supplier 3D model, a KiCad-compatible pad order and 1.0mm drills. It retains the 4-pin 2mm pin layout. Numbered supplier pads match the KiCad pad order with a -90° CPL rotation offset. Position uses the numbered pin-row midpoint. The linked supplier PDF contains unrelated PH-series information and is not used as mechanical evidence.
 
-**Six connectors need through-hole assembly.** 5V/CAN/BOILER share C158012, the white JST B2B-XH-A(LF)(SN). FLOW/VALVE share C144394, JST B3B-XH-A(LF)(SN). The I2C/Grove connector adds C722737. For full outsourced assembly select a service supporting these THT parts; otherwise fit them manually and remove those references from the assembly upload.
+**Seven connectors need through-hole assembly.** 5V/CAN/BOILER share C158012, the white JST B2B-XH-A(LF)(SN). FLOW/VALVE share C144394, JST B3B-XH-A(LF)(SN). I2C A/B both use C722737. For full outsourced assembly select a service supporting these THT parts; otherwise fit them manually and remove those references from the assembly upload.
 
 ## Reference reconciliation and scope
 
@@ -81,14 +81,20 @@ The old BOM still included J5, used obsolete horizontal J1/J3 connectors, and li
 | SW1 | BOOT |
 | J3 | CAN |
 | J6 | FLOW |
-| J4 | I2C |
+| J4 | I2C B |
+| J5 | I2C A |
+| D2 | STATUS |
 | SW2 | RESET |
 | J7 | VALVE |
 
-Both schematic sheets now contain hidden `LCSC` fields and updated `MPN` fields matching the sourced JSON: all 45 LCSC IDs are populated, including J4’s CAX Grove connector. Existing references and schematic connectivity are unchanged. Reload the schematics from disk in any open editor before using Update PCB from Schematic with “Update footprint fields from symbols”. Review the reference/value differences listed above when applying the update. PCB fields and geometry were not changed by this schematic update.
+Both schematic sheets now contain hidden `LCSC` fields and updated `MPN` fields matching the sourced JSON: all 46 LCSC IDs are populated, including both J4/J5 CAX Grove connectors. Existing references and schematic connectivity are unchanged. Reload the schematics from disk in any open editor before using Update PCB from Schematic with “Update footprint fields from symbols”. Review the reference/value differences listed above when applying the update. PCB fields and geometry were not changed by this schematic update.
 
-Manufacturing outputs are now in `manufacturing/`: `sensors_jlcpcb.zip` contains fabrication, BOM and placement files; `sensors_gerbers.zip` contains fabrication files only. Physical DRC passed with zero violations and zero unconnected items. The project-local `customize-manufacturing.py` accepts only the eight intentional reference-label pairs listed above and the four specific mechanical mounting holes. It verifies renamed footprints against their schematic UUIDs, values, footprints and sourcing fields, and independently compares schematic/PCB connected net membership on every export. Other parity findings still stop exports. Placement corrections in `customize-manufacturing.py` now use numbered pin-row midpoints for XH/Grove connectors. Relative rotation offsets: U1=0°, U2=180°, U4=270°, U5=180°, C3/Q2/Q3=180° and D1=-90° (user-confirmed), and C158012 connectors 5V/CAN/BOILER=180°. Supplier CAD numbered pads were compared against KiCad for all U parts and JST connectors; see `sensors_placement_validation.json`. This is evidence for the selected supplier CAD orientation, not independent confirmation of JLCPCB’s private assembly models. C722737 Grove supplier CAD was retrieved: its midpoint and -90° rotation correction match the four numbered pads. Check Grove alignment and all corrected placements in JLCPCB’s preview. These changes affect only manufacturing placement files; PCB geometry is unchanged.
+Manufacturing outputs are now in `manufacturing/`: `sensors_jlcpcb.zip` contains fabrication, BOM and placement files; `sensors_gerbers.zip` contains fabrication files only. Physical DRC passed with zero violations and zero unconnected items. The project-local `customize-manufacturing.py` accepts only the ten intentional reference-label pairs listed above and the four specific mechanical mounting holes. It verifies renamed footprints against their schematic UUIDs, values, footprints and sourcing fields, and independently compares schematic/PCB connected net membership on every export. Other parity findings still stop exports. Placement corrections in `customize-manufacturing.py` now use numbered pin-row midpoints for XH/Grove connectors. Relative rotation offsets: U1=0°, U2=180°, U4=270°, U5=180°, C3/Q2/Q3=180° and D1=-90° (user-confirmed), and C158012 connectors 5V/CAN/BOILER=180°. Supplier CAD numbered pads were compared against KiCad for all U parts and JST connectors; see `sensors_placement_validation.json`. This is evidence for the selected supplier CAD orientation, not independent confirmation of JLCPCB’s private assembly models. C722737 Grove supplier CAD was retrieved: its midpoint and -90° rotation correction match the four numbered pads. Check Grove alignment and all corrected placements in JLCPCB’s preview. These changes affect only manufacturing placement files; PCB geometry is unchanged.
 
 `generate_schematic.py` is an older schematic seed and still contains earlier design choices; running it would overwrite edited schematics and the sourced BOM. Use `generate_bom.py` for this saved layout.
 
-C722737 PCB synchronization is complete. Source/upload BOMs, placement CSV and manufacturing archives are regenerated from the saved board. Physical DRC passed with zero violations and zero unconnected items; the 20 known reference-label/mounting-hole parity findings were accepted only after component identity and independent connectivity checks. The current archive selects C722737 / HY-4A and the local CONN-TH_HY-4A footprint.
+C722737 PCB synchronization is complete. Source/upload BOMs, placement CSV and manufacturing archives are regenerated from the saved board. Physical DRC passed with zero violations and zero unconnected items; the 24 known reference-label/mounting-hole parity findings were accepted only after component identity and independent connectivity checks. The current archive selects C722737 / HY-4A and the local CONN-TH_HY-4A footprint.
+
+The saved board is now 33×70mm. J4 (PCB I2C B) and J5 (PCB I2C A) are two parallel sockets on the same SCL/SDA/3V3/GND bus, not independent buses. Duplicated footprint I2C A was assigned its own J5 symbol UUID; only this schematic-link metadata was changed in the PCB. All previous schematic net memberships were verified unchanged after adding J5. ERC and physical DRC are clean. Both Grove placements use pin-row midpoints and the existing -90° correction.
+
+Assembly upload aliases: `I2C A` → `I2CA`, `I2C B` → `I2CB`. JLCPCB parses spaces differently between BOM and CPL, so both exports use the same space-free names. PCB and schematic references are unchanged. The source of this mapping is `AssemblyReferenceAliases` in `sensors_sourcing.json`; alias collisions or unsupported characters stop both exporters. Verified 46 matching unique upload references and unchanged placement coordinates/rotations.

@@ -88,17 +88,6 @@
     "RotationOffset": 180,
     "Evidence": "User confirmed 180-degree correction in JLCPCB preview"
   },
-  "I2C": {
-    "LCSC": "C722737",
-    "SupplierCADURL": "https://easyeda.com/api/products/C722737/components?version=6.5.51",
-    "SupplierFootprint": "CONN-TH_HY-4A",
-    "ModelUUID": "07a26d6d7f18479cb290d26ea3991273",
-    "Centre": "Numbered pin-row midpoint",
-    "RotationOffset": -90,
-    "SupplierDrillDiameter_mm": 1.0,
-    "KiCadFootprint": "Sensors_Local:CONN-TH_HY-4A",
-    "PCB_SHA256": "07080fbb7ab98c420f354ab1ed36b53387fdd022f4b829b1651f1453a1a7a31a"
-  },
   "Q2": {
     "RotationOffset": 180,
     "Evidence": "User confirmed 180-degree correction in JLCPCB preview"
@@ -110,5 +99,27 @@
   "D1": {
     "RotationOffset": -90,
     "Evidence": "User confirmed -90-degree correction in JLCPCB preview"
+  },
+  "I2C A": {
+    "LCSC": "C722737",
+    "SupplierCADURL": "https://easyeda.com/api/products/C722737/components?version=6.5.51",
+    "SupplierFootprint": "CONN-TH_HY-4A",
+    "ModelUUID": "07a26d6d7f18479cb290d26ea3991273",
+    "Centre": "Numbered pin-row midpoint",
+    "RotationOffset": -90,
+    "SupplierDrillDiameter_mm": 1.0,
+    "KiCadFootprint": "Sensors_Local:CONN-TH_HY-4A",
+    "PCB_SHA256": "88bfdf22c068656b9c8c862e237bac9a9ec7b5c2d0b87071696b1ec0f6d3bc80"
+  },
+  "I2C B": {
+    "LCSC": "C722737",
+    "SupplierCADURL": "https://easyeda.com/api/products/C722737/components?version=6.5.51",
+    "SupplierFootprint": "CONN-TH_HY-4A",
+    "ModelUUID": "07a26d6d7f18479cb290d26ea3991273",
+    "Centre": "Numbered pin-row midpoint",
+    "RotationOffset": -90,
+    "SupplierDrillDiameter_mm": 1.0,
+    "KiCadFootprint": "Sensors_Local:CONN-TH_HY-4A",
+    "PCB_SHA256": "88bfdf22c068656b9c8c862e237bac9a9ec7b5c2d0b87071696b1ec0f6d3bc80"
   }
 }

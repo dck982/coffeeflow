@@ -4007,6 +4007,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C144394"
+			(at 378.46 185.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "ca605012-2b16-5c35-bc1b-24b430a02324")
 		)
@@ -4024,8 +4035,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C144394" (at 378.46 185.42 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4108,6 +4117,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25803"
+			(at 25.4 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "814da665-0e66-5eb6-85ab-0b33ef92b3b6")
 		)
@@ -4122,8 +4142,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25803" (at 25.4 250.19 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4206,6 +4224,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C21190"
+			(at 255.27 267.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "90447308-c378-521a-8b5d-0301aaed0fb8")
 		)
@@ -4220,8 +4249,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C21190" (at 255.27 267.97 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4304,6 +4331,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C21190"
+			(at 110.49 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "8279720d-7eab-5791-bc1b-187a15346df3")
 		)
@@ -4318,8 +4356,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C21190" (at 110.49 173.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Sensor_Temperature:TMP102xxDRL")
@@ -4396,6 +4432,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C99269"
+			(at 279.4 95.25 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "c94b6da3-df1a-5b10-948a-4692ce53fc27")
 		)
@@ -4422,8 +4469,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C99269" (at 279.4 95.25 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x03")
@@ -4500,6 +4545,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C144394"
+			(at 48.26 176.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "8ec8ff42-1dee-535e-958f-97b4e4e784d3")
 		)
@@ -4517,8 +4573,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C144394" (at 48.26 176.53 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4601,6 +4655,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 119.38 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "732bc41d-89f8-5017-b176-ee4b2c9f8517")
 		)
@@ -4615,8 +4680,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 119.38 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x04")
@@ -4693,6 +4756,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C722737"
+			(at 378.46 44.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "a4383c14-5032-59ee-82bf-7a800ab09380")
 		)
@@ -4713,8 +4787,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C722737" (at 378.46 44.45 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -4797,6 +4869,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C57112"
+			(at 154.94 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "cc794e9a-9597-5209-93d7-cb1f0f3f9787")
 		)
@@ -4811,8 +4894,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C57112" (at 154.94 173.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -4895,6 +4976,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C23162"
+			(at 242.57 46.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "7f9ef038-6015-58c9-8cf8-15bc2f810757")
 		)
@@ -4909,8 +5001,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23162" (at 242.57 46.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
@@ -4987,6 +5077,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C158012"
+			(at 154.94 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "97e812e3-3ef9-50ac-bc1c-765a4b9a253e")
 		)
@@ -5001,8 +5102,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C158012" (at 154.94 49.53 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5085,6 +5184,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C14663"
+			(at 39.37 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "612bcc59-26c9-5234-9948-c6e90e2484e8")
 		)
@@ -5099,8 +5209,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C14663" (at 39.37 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5183,6 +5291,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C23162"
+			(at 283.21 46.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "9a246bcd-642e-5a60-ab18-da0708a71403")
 		)
@@ -5197,8 +5316,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C23162" (at 283.21 46.99 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5281,6 +5398,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C14663"
+			(at 325.12 115.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "504c3e6e-0507-5648-8183-e1b6d506d373")
 		)
@@ -5295,8 +5423,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C14663" (at 325.12 115.57 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Transistor_FET:AO3401A")
@@ -5379,6 +5505,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C15127"
+			(at 224.79 245.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "5ac1a889-67dd-5603-89e1-e734b393add0")
 		)
@@ -5396,8 +5533,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C15127" (at 224.79 245.11 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -5480,6 +5615,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C14663"
+			(at 80.01 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "99bd1778-16aa-522a-9d29-5a880a927dfc")
 		)
@@ -5494,8 +5640,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C14663" (at 80.01 91.44 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Interface_CAN_LIN:TJA1051T-3")
@@ -5572,6 +5716,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C38695"
+			(at 85.09 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "2fd29226-4333-59c1-9d91-0a394d9e3d66")
 		)
@@ -5604,8 +5759,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C38695" (at 85.09 54.61 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5688,6 +5841,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 322.58 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "4eb8d36c-22d3-534e-bd35-ba7598da7f59")
 		)
@@ -5702,8 +5866,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 322.58 190.5 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Transistor_FET:2N7002")
@@ -5786,6 +5948,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C8545"
+			(at 69.85 250.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "9d206683-6b30-577f-8e69-cb98cfc2713e")
 		)
@@ -5803,8 +5976,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C8545" (at 69.85 250.19 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
@@ -5881,6 +6052,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C158012"
+			(at 288.29 242.57 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "854b7454-cd51-5b6c-a799-4948a096d16a")
 		)
@@ -5895,8 +6077,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C158012" (at 288.29 242.57 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -5979,6 +6159,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C17909"
+			(at 181.61 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "6ae5af89-bc74-567f-ac1a-44640360988c")
 		)
@@ -5993,8 +6184,6 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C17909" (at 181.61 86.36 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -6077,6 +6266,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25804"
+			(at 175.26 267.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "5f814049-d68b-5df0-a064-406ec319a94a")
 		)
@@ -6091,12 +6291,246 @@
 				)
 			)
 		)
-
-		(property "LCSC" "C25804" (at 175.26 267.97 0) (hide yes) (effects (font (size 1 1))))
 	)
 	(sheet_instances
 		(path "/"
 			(page "2")
+		)
+	)
+
+	(wire
+		(pts
+			(xy 373.38 80.01) (xy 368.3 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a8c2803-695a-462d-9a60-15336805f5be")
+	)
+	(wire
+		(pts
+			(xy 373.38 77.47) (xy 368.3 77.47)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0f896355-7e3d-48aa-a23a-17c240bed43f")
+	)
+	(wire
+		(pts
+			(xy 373.38 85.09) (xy 368.3 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9a08ba41-d0b1-41ba-bf36-2520a3d89fa9")
+	)
+	(wire
+		(pts
+			(xy 373.38 82.55) (xy 368.3 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b2d9aa54-47a6-4fc1-a180-f11e6910219a")
+	)
+	(global_label "I2C_SCL"
+		(shape bidirectional)
+		(at 368.3 77.47 180)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify right)
+		)
+		(uuid "2725b1c6-31cf-4ce8-9976-d18771d2e05e")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 368.3 77.47 180)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+	)
+	(global_label "I2C_SDA"
+		(shape bidirectional)
+		(at 368.3 80.01 180)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify right)
+		)
+		(uuid "a97dced5-2fe7-4901-91c9-05c147c5068c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 368.3 80.01 180)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+	)
+	(global_label "+3V3"
+		(shape bidirectional)
+		(at 368.3 82.55 180)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify right)
+		)
+		(uuid "b33fdc94-6d5b-4e01-ad0f-7ae2afc51f90")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 368.3 82.55 180)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+	)
+	(global_label "GND"
+		(shape bidirectional)
+		(at 368.3 85.09 180)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify right)
+		)
+		(uuid "c57c0f65-7637-4260-aa13-062c9acbd64a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 368.3 85.09 180)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x04")
+		(at 378.46 80.01 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "8d3801e6-b962-47dc-b5bf-871295c61ed8")
+		(property "Reference" "J5"
+			(at 378.46 70.20 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+			)
+		)
+		(property "Value" "DIMMER I2C"
+			(at 378.46 73.20 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "Footprint" "Sensors_Local:CONN-TH_HY-4A"
+			(at 378.46 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 378.46 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 378.46 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "MPN" "HY-4A"
+			(at 378.46 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(property "LCSC" "C722737"
+			(at 378.46 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0fe1bce3-9732-4113-a0c8-87859779b0e2")
+		)
+		(pin "2"
+			(uuid "7a89455a-6a5f-476b-b6e4-770d7110d76d")
+		)
+		(pin "3"
+			(uuid "e1fdd8f2-0e21-4d2b-b9ca-1fd177dc8ca4")
+		)
+		(pin "4"
+			(uuid "e4286337-c18d-4923-968e-73d9cf5af23c")
+		)
+		(instances
+			(project "sensors"
+				(path "/655ba0f3-0427-5cf4-88d9-0bb38b1023d4/75feafe7-4600-5614-9e51-33ca428cd046"
+					(reference "J5")
+					(unit 1)
+				)
+			)
 		)
 	)
 )

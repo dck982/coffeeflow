@@ -1,28 +1,34 @@
 {
   "Scope": "BOM only; not a manufacturing release or placement validation",
   "CheckedDate": "2026-10-05",
-  "Components": 45,
+  "Components": 46,
   "LibraryCounts": {
-    "Extended": 16,
+    "Extended": 17,
     "Basic": 29
   },
   "JLCUniqueParts": 26,
   "ManualReferences": [],
+  "AssemblyReferenceAliases": {
+    "I2C A": "I2CA",
+    "I2C B": "I2CB"
+  },
   "ReferenceAliases": {
     "J1": "5V",
     "J8": "BOILER",
     "SW1": "BOOT",
     "J3": "CAN",
     "J6": "FLOW",
-    "J4": "I2C",
+    "J5": "I2C A",
+    "J4": "I2C B",
     "SW2": "RESET",
+    "D2": "STATUS",
     "J7": "VALVE"
   },
   "SourceSHA256": {
-    "sensors.kicad_pcb": "07080fbb7ab98c420f354ab1ed36b53387fdd022f4b829b1651f1453a1a7a31a",
-    "sensors_sourcing.json": "b148978e4a0648a7611c402822969b18d9bd92f6ae94eb0f44be39cb542ab7b3",
-    "generate_bom.py": "7c4e782864dee71bdeff8ccf38f118ffa02676952554149f47418491797d7cc4",
-    "sensors.kicad_sch": "003ecbaebf8b23bd8a3ef122f6fb0fd53517c6fc6d392938d96090a53b3005af",
-    "sensors_interfaces.kicad_sch": "558dc92e25b7177fb1b173c9aad55ad259250a5c1e652381a3f6a89253126540"
+    "sensors.kicad_pcb": "2c2e20ddb23efc52aa9ea273596b3cb5f4149e06a13e48b73466399daec94e01",
+    "sensors_sourcing.json": "8a6d3cb7ec47c4aa6094cf52ac0877521521f5d27e82310950615ff378139f70",
+    "generate_bom.py": "128780811c35b6532f833509b7fbe374301e8cba796175612f30e98642906734",
+    "sensors.kicad_sch": "a953b9848910830ed7344b534171d7a199c1d962d0faab2aef26ee8fdc0a315c",
+    "sensors_interfaces.kicad_sch": "dc4bdcba2b7653f501ecedbc08b280173baba759a7f34882625cf13364e9fbc6"
   }
 }

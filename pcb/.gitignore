@@ -4,6 +4,7 @@ kicad-python
 .history/
 manufacturing/
 __pycache__/
+.easyeda_cache/
 ~*.lck
 fp-info-cache
 *-backups/

@@ -3,6 +3,7 @@
 Validate electrical connectivity independently because KiCad's parity check
 reports renamed footprints as missing/extra and cannot compare their pins.
 """
+import json
 import math
 import subprocess
 import tempfile
@@ -12,6 +13,11 @@ from pathlib import Path
 
 from generate_manufacturing import children, first, parse_sexpr
 
+# Only upload names are changed; saved PCB references and parity use the labels.
+ASSEMBLY_REFERENCE_ALIASES = json.loads(
+    (Path(__file__).resolve().parent / 'sensors_sourcing.json').read_text()
+)['AssemblyReferenceAliases']
+
 # Match numbered pads in the selected supplier CAD footprints to KiCad.
 # C3/Q2/Q3/D1 corrections were confirmed by the user in the JLCPCB preview.
 ROTATION_OFFSETS = {
@@ -19,10 +25,10 @@ ROTATION_OFFSETS = {
     'C3': 180.0, '5V': 180.0, 'CAN': 180.0, 'BOILER': 180.0,
     'Q2': 180.0, 'Q3': 180.0,
     'D1': -90.0,
-    'I2C': -90.0,
+    'I2C A': -90.0, 'I2C B': -90.0,
 }
 PLACEMENT_REVISION = (
-    'v5: XH/Grove pin-row midpoints; C722737 Grove -90 degrees from supplier pads; '
+    'v6: dual I2C A/B Grove pin-row midpoints; C722737 -90 degrees from supplier pads; '
     'supplier CAD orientation for U1/U2/U4/U5 and C158012; '
     'C3/Q2/Q3 +180 and D1 -90 degrees confirmed in JLCPCB preview'
 )
@@ -49,7 +55,8 @@ def customize_placement(ref, footprint, x, y, angle):
     if not (is_xh or is_grove):
         return x, y, angle
     expected_codes = {'5V': 'C158012', 'CAN': 'C158012', 'BOILER': 'C158012',
-                      'FLOW': 'C144394', 'VALVE': 'C144394', 'I2C': 'C722737'}
+                      'FLOW': 'C144394', 'VALVE': 'C144394',
+                      'I2C A': 'C722737', 'I2C B': 'C722737'}
     if props.get('LCSC') != expected_codes.get(ref):
         raise ValueError(f'{ref}: connector sourcing changed; review placement correction')
     pads = [p for p in children(footprint, 'pad') if p[1]]
@@ -65,8 +72,9 @@ def customize_placement(ref, footprint, x, y, angle):
 
 # Source BOM already uses PCB references; do not apply aliases to its rows.
 SCHEMATIC_LABELS = {
-    'J1': '5V', 'J3': 'CAN', 'J4': 'I2C', 'J6': 'FLOW',
+    'J1': '5V', 'J3': 'CAN', 'J4': 'I2C B', 'J5': 'I2C A', 'J6': 'FLOW',
     'J7': 'VALVE', 'J8': 'BOILER', 'SW1': 'BOOT', 'SW2': 'RESET',
+    'D2': 'STATUS',
 }
 MOUNTING_HOLES = {
     'MH1': '5f3a6be9-fd01-4b0a-8dbf-d7bd29fae49f',
@@ -75,18 +83,19 @@ MOUNTING_HOLES = {
     'MH4': '2ae7bc33-c01a-4580-a4e8-e975873ec087',
 }
 README_NOTES = """PCB references intentionally use connector/function labels:
-J1=5V, J3=CAN, J4=I2C, J6=FLOW, J7=VALVE, J8=BOILER,
-SW1=BOOT, SW2=RESET. BOM and placement use the PCB labels.
+J1=5V, J3=CAN, J4=I2C B, J5=I2C A, J6=FLOW, J7=VALVE, J8=BOILER,
+SW1=BOOT, SW2=RESET, D2=STATUS. Upload names I2CA/I2CB correspond to
+PCB labels I2C A/I2C B; spaces are omitted consistently in BOM and placement.
 MH1-MH4 are mechanical holes excluded from assembly.
 Electrical net membership is checked independently of these reference aliases.
-Select through-hole assembly for 5V, CAN, I2C, FLOW, VALVE and BOILER.
+Select through-hole assembly for 5V, CAN, I2C A, I2C B, FLOW, VALVE and BOILER.
 XH and Grove connector coordinates use numbered pin-row midpoints, following
 the screen_sensors XH convention. U2 has +180, U4 +270, U5 +180 degrees;
 U1 needs no correction. C3, Q2 and Q3 have user-confirmed +180-degree corrections.
 D1 has the user-confirmed -90-degree correction.
 C158012 two-pin connectors have +180 degrees to match supplier pad numbering.
-C722737 Grove I2C has -90 degrees to match supplier pad numbering. Its
-supplier footprint uses 1.0 mm drills; update the PCB holes before fabrication.
+C722737 Grove I2C A/B have -90 degrees to match supplier pad numbering.
+Their supplier footprint uses 1.0 mm drills.
 Other parts retain saved KiCad origins/rotations. Verify the new file in the
 JLCPCB preview.
 """

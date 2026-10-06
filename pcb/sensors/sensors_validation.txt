@@ -34,3 +34,9 @@ PASS: ERC, 0 errors / 0 warnings; all previous netlist connections preserved.
 PASS: GPIO38 available on MINI-1U-N8; local Espressif datasheet v1.7 Table 3-1 and section 4. No internal flash, UART, USB, JTAG or boot-strap reservation.
 PDF: Two A3 pages regenerated; LED placement visually checked.
 PCB: User will update placement and routing in the PCB editor.
+
+Dual I2C / 33x70mm board — 2026-10-05
+PASS: Added J5 for I2C A; J4 maps to I2C B. SCL/SDA/3V3/GND pin order identical and connected in parallel.
+PASS: Existing schematic connections preserved; ERC 0 violations.
+PASS: Physical DRC 0 violations / 0 unconnected items. 24 specific intentional reference/mounting parity findings accepted after independent connectivity validation.
+PASS: Manufacturing archive verified: 46 components, 26 unique LCSC rows, both I2C placements at corrected pin-row centres.

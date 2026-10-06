@@ -115,6 +115,7 @@ def main():
         parser.error("Output must be separate from the source project directory")
     custom = load_customization(root)
     reference_aliases = getattr(custom, "REFERENCE_ALIASES", {})
+    assembly_reference_aliases = getattr(custom, "ASSEMBLY_REFERENCE_ALIASES", {})
     rotation_offsets = getattr(custom, "ROTATION_OFFSETS", {})
     placement_revision = getattr(custom, "PLACEMENT_REVISION", "Saved KiCad footprint origins and rotations")
     customize_placement = getattr(custom, "customize_placement", lambda ref, fp, x, y, angle: (x, y, angle))
@@ -144,10 +145,15 @@ def main():
     with source_bom.open(newline="") as stream:
         source_rows = list(csv.DictReader(stream))
     bom, positions, fitted = {}, [], set()
+    assembly_refs = set()
     for row in source_rows:
         if row["DNP"].lower() == "true":
             continue
         ref = reference_aliases.get(row["Reference"], row["Reference"])
+        assembly_ref = assembly_reference_aliases.get(ref, ref)
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", assembly_ref) or assembly_ref in assembly_refs:
+            raise ValueError(f"{ref}: invalid or duplicate assembly reference {assembly_ref!r}")
+        assembly_refs.add(assembly_ref)
         if ref in fitted:
             raise ValueError(f"Duplicate BOM reference: {ref}")
         fp, props = footprints[ref]
@@ -171,8 +177,8 @@ def main():
             bom[code] = [row.get("MPN") or row["Value"], [], footprint_name, code]
         elif bom[code][2] != footprint_name:
             raise ValueError(f"{code}: one sourced part has multiple footprints; review BOM")
-        bom[code][1].append(ref)
-        positions.append([ref, f"{x:.6f}", f"{-y:.6f}", f"{rotation:.6f}", "Top"])
+        bom[code][1].append(assembly_ref)
+        positions.append([assembly_ref, f"{x:.6f}", f"{-y:.6f}", f"{rotation:.6f}", "Top"])
         fitted.add(ref)
     # Exclude mounting holes; catch newly added electrical components omitted by the BOM.
     electrical = {ref for ref, (fp, _) in footprints.items()
@@ -225,8 +231,20 @@ def main():
         if source_hashes != {p.name: sha(p) for p in source_paths}:
             raise ValueError("Source changed during export; save and rerun")
         files = sorted(gerbers.iterdir())
-        if len(files) != 11:
-            raise ValueError(f"Expected 11 fabrication files, found {len(files)}")
+        enabled_layers = {layer[1] for layer in first(tree, "layers")[1:]
+                          if isinstance(layer, list)}
+        gerber_names = {
+            "F.Cu": "F_Cu.gtl", "B.Cu": "B_Cu.gbl",
+            "F.Mask": "F_Mask.gts", "B.Mask": "B_Mask.gbs",
+            "F.SilkS": "F_Silkscreen.gto", "B.SilkS": "B_Silkscreen.gbo",
+            "F.Paste": "F_Paste.gtp", "Edge.Cuts": "Edge_Cuts.gm1",
+        }
+        expected_files = {f"{name}-{suffix}" for layer, suffix in gerber_names.items()
+                          if layer in enabled_layers}
+        expected_files.update({f"{name}-PTH.drl", f"{name}-NPTH.drl", f"{name}-job.gbrjob"})
+        if {path.name for path in files} != expected_files:
+            raise ValueError(f"Unexpected fabrication file set: "
+                             f"{ {path.name for path in files} ^ expected_files }")
         manifest = {"source_board": board.name, "board_sha256": source_hashes[board.name],
                     "source_sha256": source_hashes, "size_mm": size, "components": len(fitted),
                     "files": {p.name: sha(p) for p in files},

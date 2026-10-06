@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/sensors/sensors.kicad_sch</source>
-    <date>2026-10-05T19:10:07</date>
+    <date>2026-10-05T20:34:13</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -967,6 +967,37 @@
         </unit>
       </units>
     </comp>
+    <comp ref="J5">
+      <value>DIMMER I2C</value>
+      <footprint>Sensors_Local:CONN-TH_HY-4A</footprint>
+      <description>Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
+      <fields>
+        <field name="MPN">HY-4A</field>
+        <field name="LCSC">C722737</field>
+        <field name="Footprint">Sensors_Local:CONN-TH_HY-4A</field>
+        <field name="Datasheet"/>
+        <field name="Description">Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x04" description="Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="MPN" value="HY-4A"/>
+      <property name="LCSC" value="C722737"/>
+      <property name="Sheetname" value="Sensors interfaces"/>
+      <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/Sensors interfaces/" tstamps="/75feafe7-4600-5614-9e51-33ca428cd046/"/>
+      <tstamps>8d3801e6-b962-47dc-b5bf-871295c61ed8</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
     <comp ref="J6">
       <value>FLOW HALL</value>
       <footprint>Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical</footprint>
@@ -1867,6 +1898,7 @@
       <node ref="C5" pin="1" pintype="passive"/>
       <node ref="C9" pin="1" pintype="passive"/>
       <node ref="J4" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+      <node ref="J5" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R11" pin="1" pintype="passive"/>
       <node ref="R13" pin="1" pintype="passive"/>
       <node ref="R14" pin="1" pintype="passive"/>
@@ -1907,7 +1939,7 @@
     </net>
     <net code="5" name="/STATUS_LED" class="Default">
       <node ref="R25" pin="1" pintype="passive"/>
-      <node ref="U1" pin="34" pinfunction="IO38_34" pintype="bidirectional"/>
+      <node ref="U1" pin="31" pinfunction="IO35_31" pintype="bidirectional"/>
     </net>
     <net code="6" name="/STATUS_LED_A" class="Default">
       <node ref="D2" pin="2" pinfunction="A_2" pintype="passive"/>
@@ -2004,6 +2036,7 @@
       <node ref="J2" pin="B12" pinfunction="GND_B12" pintype="passive"/>
       <node ref="J2" pin="SH" pinfunction="SHIELD_SH" pintype="passive"/>
       <node ref="J4" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+      <node ref="J5" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
       <node ref="J6" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J7" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J8" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
@@ -2054,12 +2087,14 @@
     </net>
     <net code="24" name="I2C_SCL" class="Default">
       <node ref="J4" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="J5" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="R14" pin="2" pintype="passive"/>
       <node ref="U1" pin="10" pinfunction="IO6_10" pintype="bidirectional"/>
       <node ref="U5" pin="1" pinfunction="SCL_1" pintype="input"/>
     </net>
     <net code="25" name="I2C_SDA" class="Default">
       <node ref="J4" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="J5" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R13" pin="2" pintype="passive"/>
       <node ref="U1" pin="9" pinfunction="IO5_9" pintype="bidirectional"/>
       <node ref="U5" pin="6" pinfunction="SDA_6" pintype="bidirectional"/>
@@ -2126,11 +2161,11 @@
     <net code="45" name="unconnected-(U1-IO34-Pad29)" class="Default">
       <node ref="U1" pin="29" pinfunction="IO34_29" pintype="bidirectional+no_connect"/>
     </net>
-    <net code="46" name="unconnected-(U1-IO35-Pad31)" class="Default">
-      <node ref="U1" pin="31" pinfunction="IO35_31" pintype="bidirectional+no_connect"/>
-    </net>
-    <net code="47" name="unconnected-(U1-IO37-Pad33)" class="Default">
+    <net code="46" name="unconnected-(U1-IO37-Pad33)" class="Default">
       <node ref="U1" pin="33" pinfunction="IO37_33" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="47" name="unconnected-(U1-IO38-Pad34)" class="Default">
+      <node ref="U1" pin="34" pinfunction="IO38_34" pintype="bidirectional+no_connect"/>
     </net>
     <net code="48" name="unconnected-(U1-IO39-Pad35)" class="Default">
       <node ref="U1" pin="35" pinfunction="IO39_35" pintype="bidirectional+no_connect"/>

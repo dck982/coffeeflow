@@ -82,15 +82,21 @@ def main():
     fields = list(rows[0])
     manual = [r for r in rows if r['Assembly'] == 'Manual' and r['DNP'] == 'False']
     grouped = {}
+    assembly_aliases = sourcing.get('AssemblyReferenceAliases', {})
+    assembly_refs = set()
     for row in rows:
         if row['DNP'] == 'True' or row['Assembly'] == 'Manual':
             continue
+        assembly_ref = assembly_aliases.get(row['Reference'], row['Reference'])
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', assembly_ref) or assembly_ref in assembly_refs:
+            raise ValueError(f'Invalid or duplicate assembly reference: {assembly_ref!r}')
+        assembly_refs.add(assembly_ref)
         key = (row['LCSC'], row['Footprint'])
         if key not in grouped:
             grouped[key] = {'Comment': row['MPN'], 'Designator': [],
                             'Footprint': row['Footprint'].split(':', 1)[-1],
                             'LCSC Part #': row['LCSC']}
-        grouped[key]['Designator'].append(row['Reference'])
+        grouped[key]['Designator'].append(assembly_ref)
     upload = [dict(r, Designator=','.join(r['Designator'])) for r in grouped.values()]
     write_csv(HERE / 'sensors_bom.csv', fields, rows)
     write_csv(HERE / 'sensors_jlcpcb_bom.csv',
@@ -100,6 +106,7 @@ def main():
               'CheckedDate': sourcing['CheckedDate'], 'Components': len(rows),
               'LibraryCounts': dict(Counter(r['JLCClass'] for r in rows)),
               'JLCUniqueParts': len(upload), 'ManualReferences': [r['Reference'] for r in manual],
+              'AssemblyReferenceAliases': assembly_aliases,
               'ReferenceAliases': {r['SchematicReference']: r['Reference'] for r in rows
                                    if r['SchematicReference'] != r['Reference']},
               'SourceSHA256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}}

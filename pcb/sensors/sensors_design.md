@@ -139,7 +139,8 @@ silkscreen rather than assuming a cable view or pin position.
 |---|---|---|---|---|---|
 | J1 external power | XH 2 | GND | 5 V in | — | — |
 | J3 CAN | XH 2 | CAN_L | CAN_H | — | — |
-| J4 dimmer | Grove HY2.0 4 | SCL | SDA | 3V3 | GND |
+| J4 / I2C B | Grove HY2.0 4 | SCL | SDA | 3V3 | GND |
+| J5 / I2C A | Grove HY2.0 4 | SCL | SDA | 3V3 | GND |
 | J6 Digmesa | XH 3 | GND | 5 V | SIGNAL | — |
 | J7 M5Stack valve SSR | XH 3 | GND | 5 V | SIGNAL (3.3 V) | — |
 | J8 boiler SSR | XH 2 | GND / SSR − | switched 5 V / SSR + | — | — |
@@ -166,7 +167,7 @@ R11 pulls TXD high during ESP32 reset to keep the bus recessive.
 R12, 120 Ω / 0.25 W, is permanently connected across CAN_H/CAN_L.
 This board is a bus-end node, with a total of two terminations along the bus.
 
-J4 and TMP102 share the 3.3 V I2C bus. R13/R14 are ordinary **4.7 kΩ, 1%**
+J4, J5 and TMP102 share the 3.3 V I2C bus. The two Grove sockets are connected in parallel. R13/R14 are ordinary **4.7 kΩ, 1%**
 pull-ups, always fitted. Each draws about 0.7 mA when its line is low at
 3.3 V; any pull-ups in the attached dimmer act in parallel. Start with the
 current 100 kHz bus and verify signal timing with the
@@ -322,3 +323,5 @@ H1-H4 identify the four M2 mounting holes. They are marked PCB-only and
 excluded from the BOM and position files; their reference labels are hidden.
 No routing, component positions, hole sizes or schematic nets were changed
 for these DRC fixes.
+
+The current PCB outline is 33×70mm. Both I2C A/B sockets use CAX HY-4A (C722737), the local `Sensors_Local:CONN-TH_HY-4A` footprint, 1.0mm drills and the imported 3D model.

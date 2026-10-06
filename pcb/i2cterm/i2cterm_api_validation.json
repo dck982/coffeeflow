@@ -1,0 +1,16 @@
+{
+  "kicad_version": "10.0.6",
+  "placement_and_routing": "Saved user layout; top-side tracks, no GND copper plane",
+  "track_count": 29,
+  "vias": 0,
+  "grove_pinout": {
+    "1": "SCL",
+    "2": "SDA",
+    "3": "+3V3",
+    "4": "GND"
+  },
+  "ground_plane": null,
+  "drc_violations": 0,
+  "unconnected_items": 0,
+  "schematic_parity_issues": 0
+}

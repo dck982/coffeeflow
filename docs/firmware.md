@@ -54,7 +54,7 @@ calibration du facteur K.
 | --- | --- |
 | `temperature.boiler` | Température chaudière `c`, validité, fraîcheur, âge et codes NTC `ntc_a0_raw` / `ntc_a1_raw`. |
 | `temperature.xdb401` | Température `c` et code `raw` du XDB401. `c` vaut `null` si la mesure de pression associée n'est pas fraîche et valide. |
-| `pressure` | Pression `bar`, mesure `raw`, validité, fraîcheur et âge. |
+| `pressure` | Pression `bar`, mesure `raw`, validité, fraîcheur et âge. `a2_raw` : code ADS1115 de A2 (XDB401 analogique, 125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. |
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
 | `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |

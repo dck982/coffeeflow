@@ -19,10 +19,11 @@ class Clock:
         self.now += seconds
 
 
-def telemetry(a0=26305, a1=1151):
+def telemetry(a0=26305, a1=1151, a2=3182):
     return {"temperature": {"boiler": {
         "c": 20, "valid": True, "freshness": "fresh", "age_ms": 120,
-        "ntc_a0_raw": a0, "ntc_a1_raw": a1}}}
+        "ntc_a0_raw": a0, "ntc_a1_raw": a1}},
+        "pressure": {"a2_raw": a2, "bar": -0.57, "valid": True}}
 
 
 class ProbeTests(unittest.TestCase):
@@ -43,6 +44,13 @@ class ProbeTests(unittest.TestCase):
         first = result["samples"][0]
         self.assertEqual((first["a0_raw"], first["a1_raw"]), (26305, 1151))
         self.assertEqual(first["age_ms"], 120)
+        self.assertEqual(first["a2_raw"], 3182)
+        self.assertEqual((first["pressure_bar"], first["pressure_valid"]), (-0.57, True))
+
+    def test_unread_a2_is_kept_as_null(self):
+        result = self.run_probe(lambda m, p, b: telemetry(a2=None), duration_s=1)
+        self.assertEqual(result["stop_reason"], "duration")
+        self.assertIsNone(result["samples"][0]["a2_raw"])
 
     def test_only_telemetry_is_requested(self):
         calls = []

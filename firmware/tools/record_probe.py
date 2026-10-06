@@ -2,7 +2,8 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Enregistre les codes bruts A0/A1 de la sonde chaudière pour l'étalonner.
+"""Enregistre les codes bruts A0/A1 de la sonde chaudière et A2 du XDB401
+analogique pour les étalonner.
 
 Exemple : COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=192.168.2.196 \
     uv run firmware/tools/record_probe.py
@@ -10,6 +11,9 @@ Exemple : COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=192.168.2.196 \
 Interroge /telemetry à 5 Hz jusqu'à Ctrl-C (ou --duration). Plonger la sonde
 dans les bains pendant l'enregistrement ; retrouver ensuite les plateaux sur
 un tracé de a0_raw / a1_raw. Le rapport a0/a1 − 1 vaut R_sonde / R_fixe.
+a2_raw vaut null si A2 n'a pas pu être lu ; un code vaut 125 µV. La pression
+du XDB401 I2C (pressure_bar, pressure_valid) est relevée en même temps, pour
+lire son zéro au repos, hors des captures HF qui démarrent avec la pompe.
 
 Les captures sont écrites par défaut dans captures/ (ignoré par Git).
 """
@@ -55,6 +59,9 @@ def probe_sample(telemetry: dict[str, Any]) -> dict[str, Any]:
         "valid": boiler.get("valid"),
         "freshness": boiler.get("freshness"),
         "age_ms": boiler.get("age_ms"),
+        "a2_raw": telemetry.get("pressure", {}).get("a2_raw"),
+        "pressure_bar": telemetry.get("pressure", {}).get("bar"),
+        "pressure_valid": telemetry.get("pressure", {}).get("valid"),
     }
 
 
@@ -93,8 +100,13 @@ def record_probe(output: Path,
             if received >= next_status:
                 a0, a1 = sample["a0_raw"], sample["a1_raw"]
                 ratio = f"{a0 / a1 - 1:.5f}" if a1 > 0 else "indisponible"
+                a2 = sample["a2_raw"]
+                a2_text = f"{a2} ({a2 * 0.125:.1f} mV)" if is_number(a2) else "indisponible"
+                bar = sample["pressure_bar"]
+                bar_text = f"{bar:.3f} bar" if is_number(bar) and sample["pressure_valid"] else "indisponible"
                 print(f"{received - started:6.1f} s : a0 {a0} / a1 {a1} / a0/a1−1 {ratio}"
-                      f" / {sample['c']} °C ({sample['freshness']})", flush=True)
+                      f" / {sample['c']} °C ({sample['freshness']}) / a2 {a2_text}"
+                      f" / I2C {bar_text}", flush=True)
                 while next_status <= received:
                     next_status += STATUS_INTERVAL_S
             next_poll += POLL_INTERVAL_S

@@ -243,6 +243,8 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   cJSON_AddNumberToObject(flow, "ml_s", snapshot.flow_ml_s);
   cJSON_AddNumberToObject(flow, "volume_ml", snapshot.volume_ml);
   cJSON_AddNumberToObject(pressure, "raw", snapshot.pressure_raw);
+  if (snapshot.pressure_a2_valid) cJSON_AddNumberToObject(pressure, "a2_raw", snapshot.pressure_a2_raw);
+  else cJSON_AddNullToObject(pressure, "a2_raw");
   cJSON_AddNumberToObject(xdb401, "raw", snapshot.xdb401_temperature_raw);
   cJSON_AddNumberToObject(flow, "pulse_count", snapshot.flow_pulse_count);
   cJSON_AddBoolToObject(pressure, "valid", snapshot.pressure_valid);
@@ -707,6 +709,9 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
   char line[768];
   char boiler_temperature[32];
   char boiler_age[16];
+  char pressure_a2[16];
+  if ((sample.flags & 0x20) != 0) std::snprintf(pressure_a2, sizeof(pressure_a2), "%d", sample.pressure_a2_raw);
+  else std::snprintf(pressure_a2, sizeof(pressure_a2), "null");
   if (sample.boiler_temperature_age_ms == UINT32_MAX) {
     std::snprintf(boiler_temperature, sizeof(boiler_temperature), "null");
     std::snprintf(boiler_age, sizeof(boiler_age), "null");
@@ -721,13 +726,14 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
   const char* heater_on = (sample.flags & 0x10) != 0 ? "true" : "false";
   if (view == HFCaptureView::kRaw) {
     written = std::snprintf(line, sizeof(line),
-                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"xdb401_temperature_raw\":%u,"
-                            "\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"pressure_a2_raw\":%s,"
+                            "\"xdb401_temperature_raw\":%u,\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
                             "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
                             "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,"
                             "\"heater_on\":%s,\"mode\":\"%s\",\"flags\":%u}",
-                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), pressure_a2,
+                            sample.xdb401_temperature_raw,
                             sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
                             boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
@@ -752,8 +758,8 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             hf_sample_mode_text(sample.mode), sample.flags);
   } else {
     written = std::snprintf(line, sizeof(line),
-                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"xdb401_temperature_raw\":%u,"
-                            "\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
+                            "%s{\"t_ms\":%u,\"pressure_raw\":%u,\"pressure_a2_raw\":%s,"
+                            "\"xdb401_temperature_raw\":%u,\"boiler_ntc_a0_raw\":%d,\"boiler_ntc_a1_raw\":%d,"
                             "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
                             "\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
@@ -761,7 +767,8 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             "\"flow_ml_s\":%.6g,\"weight_g\":%.6g,\"pump_pct_commanded\":%u,"
                             "\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,\"heater_on\":%s,"
                             "\"mode\":\"%s\",\"flags\":%u}",
-                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), sample.xdb401_temperature_raw,
+                            comma, static_cast<unsigned>(sample.t_ms), static_cast<unsigned>(sample.pressure_raw), pressure_a2,
+                            sample.xdb401_temperature_raw,
                             sample.boiler_ntc_a0_raw, sample.boiler_ntc_a1_raw,
                             boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),

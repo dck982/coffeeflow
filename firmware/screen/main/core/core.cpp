@@ -321,6 +321,7 @@ void tick_hf_capture() {
   sample.xdb401_temperature_raw = snapshot.xdb401_temperature_raw;
   sample.boiler_ntc_a0_raw = snapshot.boiler_ntc_a0_raw;
   sample.boiler_ntc_a1_raw = snapshot.boiler_ntc_a1_raw;
+  sample.pressure_a2_raw = snapshot.pressure_a2_raw;
   sample.boiler_temperature_age_ms = age_ms(g_state.boiler_received_us, now);
   sample.flow_pulse_count = snapshot.flow_pulse_count;
   sample.flow_last_edge_age_ms = age_ms(g_state.last_flow_edge_received_us, now);
@@ -344,7 +345,8 @@ void tick_hf_capture() {
                                       (snapshot.boiler_temperature_valid &&
                                        freshness(g_state.boiler_received_us, kBoilerPairPeriodMs, now) == Freshness::kFresh
                                            ? 0x08 : 0) |
-                                      (snapshot.heater_on ? 0x10 : 0));
+                                      (snapshot.heater_on ? 0x10 : 0) |
+                                      (snapshot.pressure_a2_valid ? 0x20 : 0));
   if (capture.origin == HFCaptureOrigin::kBrew) {
     g_state.shot_builder.add(shot_sample(sample));
     snapshot.shot = g_state.shot_builder.summary();
@@ -844,6 +846,13 @@ bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
   }
   portEXIT_CRITICAL(&g_state.lock);
   return valid;
+}
+
+void on_pressure_a2_reading(int16_t raw, bool read_ok) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.pressure_a2_valid = read_ok;
+  if (read_ok) g_state.snapshot.pressure_a2_raw = raw;
+  portEXIT_CRITICAL(&g_state.lock);
 }
 
 void on_status_flow(const uint8_t* data, uint8_t len) {

@@ -64,9 +64,9 @@ bool ensure_device(Diagnostic* diagnostic) {
 }
 
 bool read_channel(uint16_t mux, int16_t* raw, Diagnostic* diagnostic) {
-  const uint8_t stage_offset = mux == 4 ? 0 : 3;
-  // OS=1, MUX=A0/A1-GND, PGA=±4,096 V, single-shot, 128 SPS,
-  // comparateur désactivé. Les deux canaux utilisent le même PGA.
+  const uint8_t stage_offset = static_cast<uint8_t>((mux - 4) * 3);
+  // OS=1, MUX=A0/A1/A2-GND, PGA=±4,096 V, single-shot, 128 SPS,
+  // comparateur désactivé. Les trois canaux utilisent le même PGA.
   const uint16_t config = static_cast<uint16_t>(0x8000 | (mux << 12) | 0x0200 | 0x0100 | 0x0080 | 0x0003);
   const uint8_t command[] = {0x01, static_cast<uint8_t>(config >> 8), static_cast<uint8_t>(config)};
   esp_err_t error = i2c_master_transmit(g_device, command, sizeof(command), kI2cTimeoutMs);
@@ -97,7 +97,7 @@ bool read_channel(uint16_t mux, int16_t* raw, Diagnostic* diagnostic) {
     }
   }
   diagnostic->code = common::LogCode::kBoilerAdcConversionTimeout;
-  diagnostic->arg16 = static_cast<uint16_t>(((mux == 4 ? 0 : 1) << 8) | g_device_address);
+  diagnostic->arg16 = static_cast<uint16_t>(((mux - 4) << 8) | g_device_address);
   return false;
 }
 
@@ -111,9 +111,14 @@ void task(void*) {
   for (;;) {
     int16_t a0 = 0;
     int16_t a1 = 0;
+    int16_t a2 = 0;
     Diagnostic diagnostic;
     const bool ok = ensure_device(&diagnostic) && read_channel(4, &a0, &diagnostic) &&
                     read_channel(5, &a1, &diagnostic);
+    // A2 porte la sortie 0,4–2,4 V du XDB401 analogique. Son échec n'invalide
+    // pas la paire NTC, mais il est signalé et relance la temporisation.
+    const bool a2_ok = ok && read_channel(6, &a2, &diagnostic);
+    core::on_pressure_a2_reading(a2, a2_ok);
     const bool valid = core::on_boiler_ntc_reading(a0, a1, ok);
     if (ok && !valid) {
       diagnostic.code = common::LogCode::kBoilerNtcInvalidReading;
@@ -121,7 +126,7 @@ void task(void*) {
       diagnostic.arg32 = (static_cast<uint32_t>(static_cast<uint16_t>(a0)) << 16) |
                          static_cast<uint16_t>(a1);
     }
-    if (!valid) {
+    if (!valid || !a2_ok) {
       const int64_t now = esp_timer_get_time();
       if (!failure_active) failure_started_us = now;
       const bool error_changed = diagnostic.code != common::LogCode::kBoilerNtcInvalidReading &&
@@ -145,7 +150,7 @@ void task(void*) {
       }
       failure_active = false;
     }
-    if (ok) {
+    if (ok && a2_ok) {
       consecutive_i2c_errors = 0;
       vTaskDelayUntil(&next, pdMS_TO_TICKS(kPairPeriodMs));
     } else {

@@ -17,6 +17,7 @@ _DEST_NAMES = {Dest.BROADCAST: "broadcast", Dest.SCREEN: "écran", Dest.SENSORS:
 _BOILER_ADC_STAGES = {
     0: "bus indisponible", 1: "ajout du périphérique", 2: "configuration A0", 3: "statut A0", 4: "résultat A0",
     5: "configuration A1", 6: "statut A1", 7: "résultat A1",
+    8: "configuration A2", 9: "statut A2", 10: "résultat A2",
 }
 
 

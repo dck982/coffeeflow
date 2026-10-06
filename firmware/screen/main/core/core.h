@@ -44,6 +44,9 @@ struct Snapshot {
   float boiler_sensor_temperature_c = 0.0f;  // estimation locale, sans offset
   int16_t boiler_ntc_a0_raw = 0;
   int16_t boiler_ntc_a1_raw = 0;
+  // Code ADS1115 de A2 (XDB401 analogique), lu avec la paire NTC.
+  int16_t pressure_a2_raw = 0;
+  bool pressure_a2_valid = false;
   bool boiler_temperature_valid = false;
   Freshness boiler_temperature_freshness = Freshness::kMissing;
   uint32_t boiler_temperature_age_ms = UINT32_MAX;
@@ -152,6 +155,7 @@ struct HFSample {
   uint16_t xdb401_temperature_raw = 0;
   int16_t boiler_ntc_a0_raw = 0;
   int16_t boiler_ntc_a1_raw = 0;
+  int16_t pressure_a2_raw = 0;
   uint32_t boiler_temperature_age_ms = UINT32_MAX;
   uint32_t flow_pulse_count = 0;
   uint32_t flow_last_edge_age_ms = 0;
@@ -166,7 +170,8 @@ struct HFSample {
   uint8_t pump_pct_reported = 0;
   HFSampleMode mode = HFSampleMode::kPurge;
   uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente,
-                      // bit3 chaudière valide/fraîche, bit4 SSR chaudière actif
+                      // bit3 chaudière valide/fraîche, bit4 SSR chaudière actif,
+                      // bit5 A2 lu
 };
 
 struct HFCaptureInfo {
@@ -194,6 +199,7 @@ bool get_hf_capture_sample(uint16_t index, HFSample* sample);
 
 // Publication atomique d'une paire ADS1115 depuis la tâche I2C locale.
 bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok);
+void on_pressure_a2_reading(int16_t raw, bool read_ok);
 
 // Adaptateurs de protocole, appelés exclusivement par can_link après que la
 // trame a été attribuée au nœud sensors.

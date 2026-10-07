@@ -93,6 +93,12 @@ partition `factory`, d'où l'on relivre l'image fonctionnelle par OTA. Le même
 effacement de `otadata` sert de récupération quand une image OTA redémarre en
 boucle sans que le rollback reprenne le slot précédent.
 
+### Sonde SCACE
+
+`firmware/scace` tourne sur un M5Stack Core2 indépendant de la machine :
+cible `esp32`, partition unique, sans OTA. `idf.py flash` complet est le
+chemin normal. Conception et calibration : [sonde-scace.md](sonde-scace.md).
+
 ### Outils hôte
 
 Les outils de protocole sont sous `firmware/tools/coffeetool` et s'exécutent

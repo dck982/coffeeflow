@@ -1,0 +1,15 @@
+# Défauts de projet — sonde SCACE (M5Stack Core2, ESP32, flash 16 Mo,
+# PSRAM 8 Mo). Complète la config par défaut d'ESP-IDF v6.1.
+
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# L'image tient dans une seule application ; pas d'OTA sur cet appareil.
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+
+# Le tampon d'écran 320 × 240 en 16 bits (150 ko) vit en PSRAM.
+CONFIG_SPIRAM=y
+
+# Tick à 1 ms : la boucle tourne toutes les 10 ms.
+CONFIG_FREERTOS_HZ=1000

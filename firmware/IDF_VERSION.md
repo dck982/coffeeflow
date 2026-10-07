@@ -17,7 +17,8 @@ eim install -t esp32s3 -i v6.1
 eim select v6.1
 ```
 
-Les deux projets (`sensors/`, `screen/`) ciblent `esp32s3`
-(`idf.py set-target esp32s3`).
+Les deux projets de la machine (`sensors/`, `screen/`) ciblent `esp32s3`
+(`idf.py set-target esp32s3`). La sonde SCACE (`scace/`, M5Stack Core2)
+cible `esp32` avec la même version d'IDF.
 
 Référence API pour cette version, cette cible : <https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32s3/api-reference/index.html>

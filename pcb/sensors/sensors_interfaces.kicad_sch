@@ -9,7 +9,7 @@
 		(date "2026-10-01")
 		(rev "A")
 		(company "CoffeeFlow")
-		(comment 1 "CAN-only / USB flash power OR external 5V")
+		(comment 1 "XIAO sockets - schematic only; PCB pending")
 	)
 	(lib_symbols
 		(symbol "Connector_Generic:Conn_01x02"
@@ -2118,7 +2118,7 @@
 		)
 		(uuid "6e4f9cda-dc5c-5b0a-9964-c5b7010b2efc")
 	)
-	(text "Grove opening up: left-to-right GND / 3V3 / SDA / SCL.\nNumbered pads: 1=SCL yellow, 2=SDA white, 3=3V3 red, 4=GND black.\nAddresses: dimmer 0x50 / XDB401 0x7F / TMP102 0x48.\nTMP102 ADD0 grounded; ALERT unused. Mount away from LDO heat.\nPull-ups always fitted: 2.35k effective with XDB401 attached.\n100kHz initial bus speed; remote modules provide local supply decoupling."
+	(text "Grove opening up: left-to-right GND / 3V3 / SDA / SCL.\nNumbered pads: 1=SCL yellow, 2=SDA white, 3=3V3 red, 4=GND black.\nAddresses: dimmer 0x50 / XDB401 0x7F / TMP102 0x48.\nTMP102 ADD0 grounded; ALERT unused. Mount away from XIAO and MOSFET heat.\nPull-ups always fitted: 2.35k effective with XDB401 attached.\n100kHz initial bus speed; remote modules provide local supply decoupling."
 		(exclude_from_sim no)
 		(at 230 139 0)
 		(effects
@@ -2129,7 +2129,7 @@
 		)
 		(uuid "7cc302ba-282c-5ede-a9f5-ed842bacd99a")
 	)
-	(text "GPIO36, 3.3V signal / 5V VCC; default LOW."
+	(text "GPIO9 / D10, 3.3V signal / 5V VCC; default LOW."
 		(exclude_from_sim no)
 		(at 230 206 0)
 		(effects
@@ -2162,7 +2162,7 @@
 		)
 		(uuid "b50ca649-222b-5a06-877a-c2ce89a36a82")
 	)
-	(text "J8: SSR (-) -> pin1 GND; SSR (+) -> pin2 switched 5V.\nQ3 pulls Q2 gate LOW; Q2 supplies the SSR current.\nR19/R21/R22 ensure off with GPIO floating or 3V3 absent. Shared GND.\nGate pull-up current about 0.5mA when ON; load <=100mA; no mains."
+	(text "J8: SSR (-) -> pin1 GND; SSR (+) -> pin2 switched 5V.\nQ3 pulls Q2 gate LOW; Q2 supplies the SSR current.\nGPIO4 / D3 -> HEATER_CMD (HIGH = ON).\nR19/R21/R22 ensure off with GPIO floating or 3V3 absent. Shared GND.\nGate pull-up current about 0.5mA when ON; load <=100mA; no mains."
 		(exclude_from_sim no)
 		(at 18 279 0)
 		(effects
@@ -2173,7 +2173,7 @@
 		)
 		(uuid "c471891d-f490-563d-a730-d02d6ba23e23")
 	)
-	(text "GPIO41 input; internal pull-up disabled. 1k x 10nF = 10us.\nDigmesa powered from 5V; signal pulled to 3.3V only.\nPin order: GND brown / 5V green / SIGNAL yellow.\nRC discharge speed also depends on sensor/cable impedance."
+	(text "GPIO44 / D7 input; internal pull-up disabled. 1k x 10nF = 10us.\nDigmesa powered from 5V; signal pulled to 3.3V only.\nPin order: GND brown / 5V green / SIGNAL yellow.\nRC discharge speed also depends on sensor/cable impedance."
 		(exclude_from_sim no)
 		(at 18 194 0)
 		(effects

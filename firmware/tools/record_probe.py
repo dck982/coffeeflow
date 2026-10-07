@@ -12,8 +12,8 @@ Interroge /telemetry à 5 Hz jusqu'à Ctrl-C (ou --duration). Plonger la sonde
 dans les bains pendant l'enregistrement ; retrouver ensuite les plateaux sur
 un tracé de a0_raw / a1_raw. Le rapport a0/a1 − 1 vaut R_sonde / R_fixe.
 a2_raw vaut null si A2 n'a pas pu être lu ; un code vaut 125 µV. La pression
-du XDB401 I2C (pressure_bar, pressure_valid) est relevée en même temps, pour
-lire son zéro au repos, hors des captures HF qui démarrent avec la pompe.
+convertie (pressure_bar, pressure_valid) est relevée en même temps, pour lire
+l'état au repos, hors des captures HF qui démarrent avec la pompe.
 
 Les captures sont écrites par défaut dans captures/ (ignoré par Git).
 """

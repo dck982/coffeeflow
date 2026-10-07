@@ -10,11 +10,13 @@ inline constexpr unsigned kSchemaVersion = 1;
 // Le K catalogue (2382 imp/L) sur-estimait le débit d'environ 45 % sur le
 // montage réel ; conserver cette valeur machine plutôt que le nominal.
 inline constexpr float kFlowPulsesPerLiter = 3450.0f;
-// XDB401 annoncé pour une plage de 0 à 16 bar. Les essais de purge du
-// 2026-09-17 sont cohérents avec cette pleine échelle; aucun offset fiable
-// n'a été établi avec le manomètre filmé.
-inline constexpr float kPressureFullScaleBar = 16.0f;
-inline constexpr float kPressureOffsetBar = 0.0f;
+// XDB401 analogique (0,4–2,4 V pour 0–12 bar) sur A2 de l'ADS1115, PGA
+// ±4,096 V, soit 125 µV par code. Pente d'usine, 6 bar/V : en panier aveugle
+// à froid, plateau OPV − état bas = 9,80 bar, contre 9,74 bar avec l'ancien
+// XDB401 I2C (2026-10-07). Zéro lu sonde à l'air libre le 2026-10-06 : la
+// pression est relative à l'atmosphère (la sonde I2C y lisait +0,03 bar).
+inline constexpr float kPressureA2ZeroCode = 3167.3f;
+inline constexpr float kPressureBarPerA2Code = 0.00075f;
 // Pont NTC chaudière : courbe de la sonde démontée, étalonnée sur banc le
 // 2026-10-02 (glace, 25 °C, ébullition ; docs/ntc_ads1115_calibration.md).
 // Les essais de flashing du 2026-09-27 placent 94 °C utilisateur près de

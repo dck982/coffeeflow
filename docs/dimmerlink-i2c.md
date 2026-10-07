@@ -20,7 +20,7 @@ si on veut l'ajouter plus tard.
 | --- | --- |
 | Adresse I2C (7 bits) | `0x50` |
 | Vitesse | 100 kHz (Standard Mode) |
-| Pull-up | 4,7 kΩ sur SDA et SCL — déjà fournies par le XDB401 sur ce bus partagé, voir `docs/firmware.md` §"I2C partagé" |
+| Pull-up | 4,7 kΩ sur SDA et SCL — fournies par le module Grove branché sur R1, voir `docs/firmware.md` §"Bus I2C" |
 
 Transaction de lecture : **combinée**, pas deux transactions séparées avec
 STOP entre les deux (write pointeur de registre + read en repeated-start,

@@ -225,9 +225,9 @@ cJSON* encode_telemetry(const core::Snapshot& snapshot) {
   if (snapshot.heating_freshness == core::Freshness::kFresh)
     cJSON_AddNumberToObject(heating, "accepted_power_pct", snapshot.heating_power_accepted_pct);
   else cJSON_AddNullToObject(heating, "accepted_power_pct");
-  if (snapshot.pressure_valid && snapshot.pressure_freshness == core::Freshness::kFresh)
-    cJSON_AddNumberToObject(xdb401, "c", snapshot.xdb401_temperature_c);
-  else cJSON_AddNullToObject(xdb401, "c");
+  // Seul l'ancien XDB401 I2C mesurait sa température ; la sonde analogique
+  // n'en donne pas.
+  cJSON_AddNullToObject(xdb401, "c");
   if (snapshot.boiler_temperature_age_ms == UINT32_MAX) {
     cJSON_AddNullToObject(boiler, "c");
     cJSON_AddNullToObject(boiler, "sensor_c");

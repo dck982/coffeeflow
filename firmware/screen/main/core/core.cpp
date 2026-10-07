@@ -26,8 +26,6 @@
 namespace core {
 namespace {
 
-constexpr float kPressureFullScaleBar = calibration_machine::kPressureFullScaleBar;
-constexpr float kPressureOffsetBar = calibration_machine::kPressureOffsetBar;
 constexpr float kFlowPulsesPerLiter = calibration_machine::kFlowPulsesPerLiter;
 constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmesa
 constexpr uint32_t kFlowSilenceMs = 3000;
@@ -43,14 +41,16 @@ constexpr uint16_t kHFCaptureCapacity = 1152;
 constexpr int64_t kHFBrewCaptureCooldownUs = 20 * 1000 * 1000;
 constexpr int64_t kHFOtherCaptureCooldownUs = 5 * 1000 * 1000;
 
-struct Periods { uint16_t pressure; uint16_t flow; uint16_t actuators; };
+// La pression ne passe plus par le CAN : elle est lue sur A2 avec la paire
+// NTC, à la cadence kBoilerPairPeriodMs.
+struct Periods { uint16_t flow; uint16_t actuators; };
 constexpr Periods periods_for(TelemetryProfile profile) {
   switch (profile) {
-    case TelemetryProfile::kIdle: return {500, 1000, 1000};
-    case TelemetryProfile::kActive: return {100, 100, 200};
-    case TelemetryProfile::kSuspended: return {0, 0, 0};
+    case TelemetryProfile::kIdle: return {1000, 1000};
+    case TelemetryProfile::kActive: return {100, 200};
+    case TelemetryProfile::kSuspended: return {0, 0};
   }
-  return {0, 0, 0};
+  return {0, 0};
 }
 
 struct FlowSample { uint32_t pulses; uint16_t edge_ms; int64_t received_us; };
@@ -124,17 +124,6 @@ uint32_t age_ms(int64_t received_us, int64_t now) {
 Freshness freshness(int64_t received_us, uint16_t period_ms, int64_t now) {
   if (received_us == 0 || now - received_us > 3 * 1000 * 1000) return Freshness::kMissing;
   return now - received_us > static_cast<int64_t>(2 * period_ms) * 1000 ? Freshness::kStale : Freshness::kFresh;
-}
-
-float decode_pressure_bar(uint32_t raw) {
-  uint32_t be = ((raw & 0xFF) << 16) | (raw & 0xFF00) | ((raw >> 16) & 0xFF);
-  int32_t signed_raw = (be & 0x800000) ? static_cast<int32_t>(be | 0xFF000000) : static_cast<int32_t>(be);
-  return static_cast<float>(signed_raw) * kPressureFullScaleBar / 8388608.0f + kPressureOffsetBar;
-}
-
-float decode_temperature_c(uint16_t raw) {
-  uint16_t be = static_cast<uint16_t>((raw << 8) | (raw >> 8));
-  return static_cast<float>(static_cast<int16_t>(be)) / 256.0f;
 }
 
 void remember_flow_sample(uint32_t pulses, uint16_t edge_ms, int64_t received_us) {
@@ -624,7 +613,6 @@ void telemetry_task(void*) {
     int64_t now = now_us();
     if (dirty || now - last_request >= 1000 * 1000) {
       Periods p = periods_for(profile);
-      send_request(common::MessageType::kStatusPressure, p.pressure);
       send_request(common::MessageType::kStatusFlow, p.flow);
       send_request(common::MessageType::kStatusActuators, p.actuators);
       send_request(common::MessageType::kStatusHeating, 250);
@@ -796,23 +784,17 @@ void finish_flash() {
   portEXIT_CRITICAL(&g_state.lock);
 }
 
+// L'écran ne demande plus STATUS_PRESSURE : la pression vient de A2. Un
+// paquet reçu quand même ne garde que ses codes bruts, pour le diagnostic.
 void on_status_pressure(const uint8_t* data, uint8_t len) {
   common::StatusPressurePayload payload;
   if (!common::StatusPressurePayload::unpack(data, len, &payload)) return;
   int64_t now = now_us();
   portENTER_CRITICAL(&g_state.lock);
   g_state.last_sensors_message_us = now;
-  g_state.pressure_received_us = now;
-  g_state.snapshot.pressure_valid = (payload.flags & 0x01) != 0;
   g_state.snapshot.pressure_raw = payload.pressure_raw;
   g_state.snapshot.temperature_raw = payload.temperature_raw;
   g_state.snapshot.xdb401_temperature_raw = payload.temperature_raw;
-  if (g_state.snapshot.pressure_valid) {
-    g_state.pressure_last_valid_us = now;
-    g_state.snapshot.pressure_bar = decode_pressure_bar(payload.pressure_raw);
-    g_state.snapshot.temperature_c = decode_temperature_c(payload.temperature_raw);
-    g_state.snapshot.xdb401_temperature_c = g_state.snapshot.temperature_c;
-  }
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -849,9 +831,17 @@ bool on_boiler_ntc_reading(int16_t a0_raw, int16_t a1_raw, bool read_ok) {
 }
 
 void on_pressure_a2_reading(int16_t raw, bool read_ok) {
+  const int64_t now = now_us();
   portENTER_CRITICAL(&g_state.lock);
+  g_state.pressure_received_us = now;
   g_state.snapshot.pressure_a2_valid = read_ok;
-  if (read_ok) g_state.snapshot.pressure_a2_raw = raw;
+  g_state.snapshot.pressure_valid = read_ok;
+  if (read_ok) {
+    g_state.snapshot.pressure_a2_raw = raw;
+    g_state.snapshot.pressure_bar = (static_cast<float>(raw) - calibration_machine::kPressureA2ZeroCode) *
+                                    calibration_machine::kPressureBarPerA2Code;
+    g_state.pressure_last_valid_us = now;
+  }
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -1345,7 +1335,7 @@ Snapshot get_snapshot() {
     result.heater_on = false;
     result.heating_lease_remaining_ms = 0;
   }
-  result.pressure_freshness = result.pressure_valid ? freshness(pressure_received, periods.pressure, now) : Freshness::kMissing;
+  result.pressure_freshness = result.pressure_valid ? freshness(pressure_received, kBoilerPairPeriodMs, now) : Freshness::kMissing;
   result.flow_freshness = result.flow_valid ? freshness(flow_received, periods.flow, now) : Freshness::kMissing;
   result.actuators_freshness = freshness(actuators_received, periods.actuators, now);
   result.sensors_alive = sensors_message != 0 && now - sensors_message <= 3 * 1000 * 1000;

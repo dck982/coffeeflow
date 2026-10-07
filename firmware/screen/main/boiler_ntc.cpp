@@ -65,9 +65,13 @@ bool ensure_device(Diagnostic* diagnostic) {
 
 bool read_channel(uint16_t mux, int16_t* raw, Diagnostic* diagnostic) {
   const uint8_t stage_offset = static_cast<uint8_t>((mux - 4) * 3);
-  // OS=1, MUX=A0/A1/A2-GND, PGA=±4,096 V, single-shot, 128 SPS,
-  // comparateur désactivé. Les trois canaux utilisent le même PGA.
-  const uint16_t config = static_cast<uint16_t>(0x8000 | (mux << 12) | 0x0200 | 0x0100 | 0x0080 | 0x0003);
+  // OS=1, MUX=A0/A1/A2-GND, PGA=±4,096 V, single-shot, comparateur
+  // désactivé. Les trois canaux utilisent le même PGA. Le pont NTC est lu à
+  // 128 SPS. La pression sur A2 est lue à 16 SPS : la conversion intègre
+  // 62,5 ms, soit ~3 impulsions de la pompe vibrante (50 Hz), dont
+  // l'ondulation, échantillonnée à 128 SPS, ajoutait jusqu'à ±0,2 bar.
+  const uint16_t data_rate = mux == 6 ? 0x0020 : 0x0080;
+  const uint16_t config = static_cast<uint16_t>(0x8000 | (mux << 12) | 0x0200 | 0x0100 | data_rate | 0x0003);
   const uint8_t command[] = {0x01, static_cast<uint8_t>(config >> 8), static_cast<uint8_t>(config)};
   esp_err_t error = i2c_master_transmit(g_device, command, sizeof(command), kI2cTimeoutMs);
   if (error != ESP_OK) {

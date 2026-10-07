@@ -53,8 +53,8 @@ calibration du facteur K.
 | Objet | Contenu |
 | --- | --- |
 | `temperature.boiler` | Température chaudière `c`, validité, fraîcheur, âge et codes NTC `ntc_a0_raw` / `ntc_a1_raw`. |
-| `temperature.xdb401` | Température `c` et code `raw` du XDB401. `c` vaut `null` si la mesure de pression associée n'est pas fraîche et valide. |
-| `pressure` | Pression `bar`, mesure `raw`, validité, fraîcheur et âge. `a2_raw` : code ADS1115 de A2 (XDB401 analogique, 125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. |
+| `temperature.xdb401` | Héritée du XDB401 I2C : `c` vaut toujours `null` depuis 0.3.46, `raw` reste le dernier code reçu par `STATUS_PRESSURE`. |
+| `pressure` | Pression `bar` tirée de A2, validité, fraîcheur et âge (voir « XDB401 — pression »). `a2_raw` : code ADS1115 de A2 (125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. `raw` : dernier code reçu par `STATUS_PRESSURE`, que l'écran ne demande plus. |
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
 | `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |
@@ -140,7 +140,7 @@ bring-up phase 2 en échec faute de cette traduction :
 
 | Port | Périphérique | Bus | D-number (silkscreen) | GPIO natif |
 | --- | --- | --- | --- | --- |
-| R1 | XDB401 pression / température | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
+| R1 | Module Grove de pull-ups (2 × 4,7 kΩ vers 3,3 V), à la place de l'ancien XDB401 I2C | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
 | L4 | Dimmer RBDimmer DimmerLink | I2C (même bus) | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
 | R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
 | R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
@@ -152,17 +152,7 @@ bring-up phase 2 en échec faute de cette traduction :
 d'où un mode Silent permanent). Un M5Stack Unit CAN avait servi de contournement pendant
 l'investigation ; il n'est plus utilisé côté capteurs.
 
-**I2C partagé.** Dimmer à `0x50`, XDB401 à `0x7F`. Les seules pull-ups du bus sont les 4,7 kΩ du XDB401 : retirer le capteur de pression rend le dimmer muet. Accès sérialisé par mutex. Ne pas empiler un second jeu de pull-ups tant que le XDB401 est là.
-
-**Migration envisagée.** Le remplacement du XDB401 I2C par une version analogique impose
-de monter sur le XIAO deux pull-ups de **4,7 kΩ vers 3,3 V**, une sur SDA et une sur SCL,
-dans un petit connecteur Grove branché sur le shield (pas de soudure sur les pastilles : la
-pastille 3,3 V est déjà prise ; voir `docs/cablage.md`). Il doit être branché avant de
-retirer le XDB401, sinon le dimmer devient muet. Le dimmer devient
-alors le seul périphérique de ce bus ; les pull-ups internes de l'ESP32 ne doivent pas être
-utilisées comme solution permanente.
-
-**Le mutex I2C ne couvre pas l'attente de conversion du XDB401.** Déclencher, relâcher le mutex, attendre ~50 ms, reprendre, lire. Sinon une rampe dimmer à 10 Hz se prend 50 ms de latence pour rien.
+**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique. Ses seules pull-ups sont les 4,7 kΩ du module Grove sur R1 : le retirer rend le dimmer muet, et la pompe ne démarre plus, sans autre symptôme. Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
 
 ### SSR — vanne solénoïde
 
@@ -221,33 +211,31 @@ Le capteur est **en amont de la pompe** (3 bar de tenue), dans la ligne qui va d
 
 Avec l'OPV réglée à 11 bar pour un fonctionnement à 9 bar, **elle ne s'ouvre jamais pendant une extraction**. Le seul régime où la lecture ne veut plus rien dire est la purge de backflush, où on ne mesure rien de toute façon. Un flow control fondé sur le débit reste donc légitime ; ce qui le limite est la résolution du capteur (ci-dessus), pas la plomberie. Voir `debitmetres.md`.
 
-### XDB401 — pression et température
+### XDB401 — pression
 
-Même bus I2C. Déclencher une conversion (`0x30` / `0x0A`), attendre ~50 ms, lire 5 octets à partir de `0x06` : pression 24 bits, température 16 bits. Ces 5 octets partent **tels quels** sur le CAN. La pleine échelle est une propriété de la pièce et c'est une calibration : elle vit côté écran (`kPressureFullScaleBar = 16` dans `screen/main/core/calibration_machine.h`, cohérent avec les purges du 2026-09-17 ; le script de banc `tests/test_xdb401.py` suppose encore 10 bar). La température est celle du corps de la sonde, mesurée par sa puce pour compenser la pression ; elle ne mesure pas l'eau.
+Depuis 0.3.46, la pression vient d'un XDB401 **analogique** 0–12 bar (0,4–2,4 V, sortie
+non ratiométrique), alimenté en 3,3 V et lu par l'écran sur **A2 de l'ADS1115**, dans la
+même boucle que la paire NTC (A0, A1). Mesure entre la pompe et la chaudière, en amont de
+la vanne solénoïde.
 
-Mesure côté groupe, en amont de la vanne solénoïde.
+- **Conversion** : `bar = (A2 − 3167,3) × 0,00075`, soit la pente d'usine de 6 bar/V
+  (`screen/main/core/calibration_machine.h`). Le zéro a été lu sonde à l'air libre : la
+  pression est relative. En panier aveugle, la pente d'usine rend le plateau de l'OPV à
+  0,6 % de l'ancien XDB401 I2C : les consignes et captures antérieures restent
+  comparables.
+- **Cadence et filtrage** : A2 est converti à **16 SPS**. La conversion intègre 62,5 ms,
+  soit ~3 impulsions de la pompe vibrante ; à 128 SPS, l'ondulation de la pompe ajoutait
+  jusqu'à ±0,2 bar. Le cycle A0/A1/A2 dure ~100 ms, une mesure de pression arrive donc à
+  ~10 Hz.
+- **Validité** : `pressure_valid` suit la dernière lecture de A2. La fraîcheur se juge sur
+  la période de la paire NTC (100 ms). La boucle de pression tient la dernière mesure
+  valide 300 ms au plus.
+- La sonde analogique ne donne pas de température.
 
-Une évolution prévue remplace cette pièce par un XDB401 **0–12 bar**, alimenté en 3,3 V
-et donnant **0,4–2,4 V**, raccordé à **A2 de l'ADS1115** côté écran. A0 restera la
-référence du 3,3 V, A1 la température chaudière et A3 restera libre. Une troisième
-conversion ADS1115 tient largement dans la période d'acquisition de 100 ms ; une pression
-à 10 Hz reste également adaptée à la boucle actuelle, exécutée toutes les 200 ms.
-
-Cette migration déplacera l'acquisition de pression vers `screen`. La boucle de pression et
-les captures HF pourront consommer directement cette mesure locale, mais la télémétrie et
-la notion de fraîcheur devront cesser de dépendre de `STATUS_PRESSURE` envoyé par le XIAO.
-Le champ brut devra aussi être redéfini, car il contient actuellement le code signé 24 bits
-du XDB401 I2C. La température interne fournie par ce dernier disparaîtra.
-
-La sonde analogique est calibrée d'usine : la conversion part de la droite nominale
-0,4 V → 0 bar, 2,4 V → 12 bar (6 bar/V). Aucune pression connue ne peut être générée au
-banc ; la caractérisation suit [cablage.md — Calibration de la version analogique](cablage.md#calibration-de-la-version-analogique).
-Elle fixe le mode de conversion avant tout changement logiciel : test ratiométrique (A2 seul,
-ou rapport A2/A0), puis offset mesuré à pression atmosphérique, machine chaude. La pente est
-ensuite alignée pour que la sonde analogique rende la même valeur que le XDB401 I2C au
-plateau de l'OPV (purge à 100 %, panier aveugle) : les consignes et captures existantes
-restent ainsi comparables. Ce relevé de référence doit être fait **avant** de débrancher la
-sonde actuelle.
+Le canal `STATUS_PRESSURE` reste dans le protocole et dans `sensors`, sans capteur : le
+module publie une pression invalide si on la lui demande, et l'écran ne la demande plus.
+Une sonde rebranchée sur le module capteurs se lirait dans sa tâche pression, juste avant
+l'envoi.
 
 ---
 
@@ -589,15 +577,15 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 [3..7]  réservé
 ```
 
-Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Plancher utile côté XDB401 : 50 ms de conversion, donc pas en dessous de ~100 ms.
+Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Le module impose un plancher de 100 ms.
 
 **Convention `flags` — bit0 « capteur valide ».** Chaque `STATUS_*` qui porte une lecture de capteur réserve un bit à la même question : est-ce que cette valeur vient d'être obtenue avec succès ? Le sens est générique, mais la capacité de détecter une absence ne l'est pas :
 
-- **XDB401 (I2C)** : détection réelle. Une transaction I2C qui échoue (adresse muette, bus figé) ou un timeout de conversion mettent ce bit à 0 — la valeur brute qui l'accompagne reste la dernière connue, pas un zéro forcé.
+- **Pression** : aucun capteur sur le module depuis 0.3.46, ce bit reste à 0.
 - **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
-- **Dimmer (I2C, pas encore câblé)** : même détection réelle que le XDB401, prévue mais pas encore implémentée — voir `STATUS_ACTUATORS` ci-dessous.
+- **Dimmer (I2C)** : détection réelle, une transaction I2C qui échoue met l'état à jour — voir `STATUS_ACTUATORS` ci-dessous.
 
-`STATUS_PRESSURE` (0x20) — recopie du registre `0x06`
+`STATUS_PRESSURE` (0x20) — format hérité du XDB401 I2C (recopie du registre `0x06`), sans capteur depuis 0.3.46
 
 ```
 [0..2]  pression brute      24 bits

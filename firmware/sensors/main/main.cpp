@@ -1,8 +1,9 @@
 // Module capteurs (XIAO ESP32-S3) — application capteurs, livrée par OTA.
 //
 // Socle phase 2 (bus, PING/PONG, LOG, RESET, machine à états de sécurité)
-// plus, depuis la phase 5, le XDB401 (I2C, port R1) et le débitmètre Digmesa
-// (GPIO, port R2). Pas encore de logique d'infusion.
+// plus le débitmètre Digmesa (GPIO, port R2) et le dimmer (I2C). Le canal
+// pression (STATUS_PRESSURE) reste en place sans capteur : le XDB401 I2C a
+// été remplacé par sa version analogique, lue par l'écran.
 
 #include <cstring>
 
@@ -54,18 +55,11 @@ constexpr gpio_num_t kGpioCanRx = GPIO_NUM_8;  // D9
 // shield (1 kΩ vers 3,3 V, 10 nF vers GND) : pull-up interne éteinte.
 constexpr gpio_num_t kGpioFlow = GPIO_NUM_44;  // D7
 
-// XDB401 (pression/température), port R1 — voir docs/firmware.md, "XDB401 —
-// pression et température" et docs/cablage.md. Bus I2C partagé avec le
-// dimmer (pas encore câblé) : les seules pull-ups du bus sont les 4,7 kΩ du
-// XDB401, ne pas activer les pull-ups internes ni en empiler d'autres.
+// Bus I2C du dimmer. Ses seules pull-ups sont les 4,7 kΩ du module Grove
+// branché sur le port R1, à la place de l'ancien XDB401 : ne pas activer les
+// pull-ups internes ni en empiler d'autres.
 constexpr gpio_num_t kGpioI2cSda = GPIO_NUM_5;  // D4
 constexpr gpio_num_t kGpioI2cScl = GPIO_NUM_6;  // D5
-constexpr uint16_t kXdb401Addr = 0x7F;
-constexpr uint8_t kXdb401RegTrigger = 0x30;
-constexpr uint8_t kXdb401TriggerValue = 0x0A;
-constexpr uint8_t kXdb401RegPressure = 0x06;  // 3 octets, 0x06..0x08
-constexpr uint8_t kXdb401RegTemperature = 0x09;  // 2 octets, 0x09..0x0A
-constexpr uint32_t kXdb401ConversionDelayMs = 50;
 
 // Dimmer RBDimmer/DimmerLink, même bus I2C (port L4) — voir docs/firmware.md,
 // "Dimmer — pompe", et tmp/DimmerLink/04_I2C_COMMUNICATION.md (doc officielle
@@ -97,8 +91,8 @@ constexpr int64_t kDimmerHealthPeriodUs = 2000 * 1000;
 // naturelle observée sans jamais appeler RECALIBRATE). Volontairement large
 // pour ne pas courir après une calibration déjà en cours.
 constexpr int64_t kDimmerAutoRecalibrateDelayUs = 20 * 1000 * 1000;
-// Plancher défensif : en dessous, deux lectures se chevaucheraient avec la
-// conversion (~50 ms) du cycle précédent. Voir docs/firmware.md §"période".
+// Plancher des publications STATUS_PRESSURE, pour qu'une requête mal formée
+// ne sature pas le bus.
 constexpr uint16_t kPressurePeriodFloorMs = 100;
 
 // Sécurité — voir docs/firmware.md, section "Sécurité".
@@ -166,16 +160,15 @@ int64_t g_ota_pending_since_us = 0;
 bool g_ota_roundtrip_confirmed = false;
 bool g_ota_screen_confirmed = false;
 
-// XDB401 — voir docs/firmware.md, "I2C partagé" : le mutex sérialise
-// l'accès au bus (utile dès que le dimmer sera câblé dessus), mais ne
-// couvre pas l'attente de conversion (kXdb401ConversionDelayMs).
+// Le mutex sérialise l'accès au bus I2C entre les tâches.
 i2c_master_bus_handle_t g_i2c_bus = nullptr;
-i2c_master_dev_handle_t g_xdb401_dev = nullptr;
 i2c_master_dev_handle_t g_dimmer_dev = nullptr;
 SemaphoreHandle_t g_i2c_mutex = nullptr;
 uint16_t g_pressure_period_ms = 0;  // 0 = arrêt, voir REQSTATUS
 int64_t g_pressure_last_sent_us = 0;
-common::StatusPressurePayload g_last_pressure;  // dernière valeur connue (flags à jour)
+// Aucun capteur de pression branché : flags à 0 (invalide), publié tel quel
+// si un REQSTATUS le demande.
+common::StatusPressurePayload g_last_pressure;
 
 // Débitmètre — compteur incrémenté depuis l'ISR, lu depuis les tâches. Pas
 // de mutex : lecture d'un uint32_t/int64_t alignés sur un cœur unique, la
@@ -516,14 +509,8 @@ void init_i2c() {
   bus_cfg.scl_io_num = kGpioI2cScl;
   bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;
   bus_cfg.glitch_ignore_cnt = 7;
-  bus_cfg.flags.enable_internal_pullup = false;  // pull-ups déjà sur le XDB401
+  bus_cfg.flags.enable_internal_pullup = false;  // pull-ups du module Grove sur R1
   ESP_ERROR_CHECK(i2c_new_master_bus(&bus_cfg, &g_i2c_bus));
-
-  i2c_device_config_t dev_cfg{};
-  dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-  dev_cfg.device_address = kXdb401Addr;
-  dev_cfg.scl_speed_hz = 100000;
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &dev_cfg, &g_xdb401_dev));
 
   i2c_device_config_t dimmer_cfg{};
   dimmer_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
@@ -532,93 +519,6 @@ void init_i2c() {
   ESP_ERROR_CHECK(i2c_master_bus_add_device(g_i2c_bus, &dimmer_cfg, &g_dimmer_dev));
 
   g_i2c_mutex = xSemaphoreCreateMutex();
-}
-
-// Déclenche une conversion, relâche le mutex pendant l'attente (voir
-// docs/firmware.md, "Le mutex I2C ne couvre pas l'attente de conversion"),
-// puis lit les 5 octets à partir de 0x06 et met à jour g_last_pressure.
-void read_pressure() {
-  const uint8_t trigger[2] = {kXdb401RegTrigger, kXdb401TriggerValue};
-
-  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
-  esp_err_t err = i2c_master_transmit(g_xdb401_dev, trigger, sizeof(trigger), pdMS_TO_TICKS(100));
-  xSemaphoreGive(g_i2c_mutex);
-
-  if (err != ESP_OK) {
-    send_log(common::LogCode::kI2cError, common::LogSeverity::kError, kXdb401Addr,
-             static_cast<uint32_t>(err));
-    g_last_pressure.flags &= ~0x01;  // capteur invalide (I2C injoignable)
-    return;
-  }
-
-  // Attente de fin de conversion par scrutation du bit Sco (bit 3 du
-  // registre 0x30) plutôt qu'un délai fixe — voir datasheet XDB401,
-  // "I2C Digital Output Read Process" : le délai fixe de 50 ms donnait une
-  // pression aberrante d'une lecture à l'autre (température stable, donc
-  // pas un problème de bus, plutôt une conversion pression pas toujours
-  // terminée à 50 ms).
-  bool conversion_done = false;
-  for (int attempt = 0; attempt < 10; ++attempt) {
-    vTaskDelay(pdMS_TO_TICKS(kXdb401ConversionDelayMs / 10));
-    uint8_t status = 0;
-    const uint8_t reg_status = kXdb401RegTrigger;
-    xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
-    esp_err_t status_err = i2c_master_transmit(g_xdb401_dev, &reg_status, 1, pdMS_TO_TICKS(100));
-    if (status_err == ESP_OK) {
-      status_err = i2c_master_receive(g_xdb401_dev, &status, 1, pdMS_TO_TICKS(100));
-    }
-    xSemaphoreGive(g_i2c_mutex);
-    if (status_err == ESP_OK && (status & 0x08) == 0) {
-      conversion_done = true;
-      break;
-    }
-  }
-  if (!conversion_done) {
-    vTaskDelay(pdMS_TO_TICKS(kXdb401ConversionDelayMs));  // repli : délai fixe si Sco ne retombe jamais
-  }
-
-  // Deux transactions séparées par registre, chacune écriture-pointeur puis
-  // lecture avec son propre STOP (pas de repeated-start) — reproduit
-  // exactement l'exemple du fabricant (datasheet XDB401, "I2C_ReadNByte
-  // (0x06, Pressure, 3)" puis "I2C_ReadNByte(0x09, Temp, 2)" en deux appels
-  // distincts, pas une rafale unique de 5 octets 0x06..0x0A). Une rafale
-  // unique donnait une pression aberrante d'une lecture à l'autre alors
-  // que la température, elle, restait cohérente.
-  uint8_t pressure_bytes[3] = {0};
-  uint8_t temp_bytes[2] = {0};
-  const uint8_t reg_pressure = kXdb401RegPressure;
-  const uint8_t reg_temp = kXdb401RegTemperature;
-  xSemaphoreTake(g_i2c_mutex, portMAX_DELAY);
-  err = i2c_master_transmit(g_xdb401_dev, &reg_pressure, 1, pdMS_TO_TICKS(100));
-  if (err == ESP_OK) {
-    err = i2c_master_receive(g_xdb401_dev, pressure_bytes, sizeof(pressure_bytes), pdMS_TO_TICKS(100));
-  }
-  if (err == ESP_OK) {
-    err = i2c_master_transmit(g_xdb401_dev, &reg_temp, 1, pdMS_TO_TICKS(100));
-  }
-  if (err == ESP_OK) {
-    err = i2c_master_receive(g_xdb401_dev, temp_bytes, sizeof(temp_bytes), pdMS_TO_TICKS(100));
-  }
-  xSemaphoreGive(g_i2c_mutex);
-
-  if (err != ESP_OK) {
-    send_log(common::LogCode::kXdb401Timeout, common::LogSeverity::kError, 0,
-             static_cast<uint32_t>(err));
-    g_last_pressure.flags = static_cast<uint8_t>(g_last_pressure.flags | 0x02);  // timeout
-    g_last_pressure.flags &= ~0x01;  // capteur invalide (transaction I2C échouée)
-    return;
-  }
-
-  // Les octets partent tels quels sur le CAN (voir docs/firmware.md,
-  // "XDB401 — pression et température") : reconstruits ici en little-endian
-  // pour que StatusPressurePayload::pack() les réémette dans le même ordre
-  // que la lecture I2C, sans réinterprétation — la calibration vit côté
-  // écran.
-  g_last_pressure.pressure_raw = static_cast<uint32_t>(pressure_bytes[0]) |
-                                  (static_cast<uint32_t>(pressure_bytes[1]) << 8) |
-                                  (static_cast<uint32_t>(pressure_bytes[2]) << 16);
-  g_last_pressure.temperature_raw = static_cast<uint16_t>(temp_bytes[0]) | (static_cast<uint16_t>(temp_bytes[1]) << 8);
-  g_last_pressure.flags = 0x01;  // capteur valide, pas de timeout
 }
 
 void send_status_pressure() {
@@ -1279,9 +1179,9 @@ void safety_task(void*) {
   }
 }
 
-// Tâche dédiée plutôt qu'un tick de plus dans safety_task : la lecture XDB401
-// bloque ~kXdb401ConversionDelayMs (50 ms) sans tenir le mutex I2C, ce qui
-// serait un délai grossier pour la boucle bail/présence/verrou (100 ms).
+// Publie STATUS_PRESSURE à la période demandée. Sans capteur, la valeur reste
+// invalide ; un capteur rebranché sur ce module se lirait ici, juste avant
+// l'envoi.
 void pressure_task(void*) {
   for (;;) {
     if (g_pressure_period_ms == 0) {
@@ -1293,7 +1193,6 @@ void pressure_task(void*) {
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
-    read_pressure();
     send_status_pressure();
     g_pressure_last_sent_us = now_us();
   }

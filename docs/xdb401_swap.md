@@ -101,8 +101,11 @@ de rechange) ; ou joint + Loxeal dès le montage.
   configuration.
 
 Plus tard, dans cet ordre : conversion A2 → `pressure_bar` / `pressure_valid`
-dans `screen`, puis `sensors` sans XDB401 (lecture I2C et `STATUS_PRESSURE` à
-retirer ou à marquer invalide, à trancher). Entre le démontage et la
+dans `screen`, puis `sensors` sans XDB401 : la lecture I2C est désactivée et la
+pression marquée invalide, mais le concept de pression reste dans `sensors`
+(champs, statut, télémétrie). Le futur PCB de `sensors` prévoit un ADS1115 :
+le XDB401 analogique pourra s'y brancher, loin du 230 V, si le bruit sur le A2
+de `screen` gêne. Entre le démontage et la
 conversion : **pas d'espresso** (remplissage, pré-infusion et contrôle de
 pression lisent `pressure_valid`) ; les purges, à pompe fixe, fonctionnent.
 `sensors` émet alors un `I2C_ERROR` à chaque lecture de pression ; le bus reste
@@ -257,6 +260,60 @@ Attendus après montage, pente d'usine :
 | Plateau OPV | ~9,84 bar | ~16 290 (2,04 V) |
 | Plateau − bas | 9,74 ± 0,34 bar | 12 990 ± 450 codes |
 
+## Résultats de la série analogique (7 octobre 2026, à froid)
+
+Relevé `probe-20261007-210200-680101`, captures HF `261007-210315` à
+`261007-210638`, purges de 15 s à 100 %, chauffage coupé. Alternance sans
+porte-filtre (`210315`, `210439`, `210558`) et panier aveugle (`210358`,
+`210516`, `210638`). Même méthode que la série I2C ; aucune lecture A2 en
+échec, aucun point écarté (écart > 0,5 bar à la médiane).
+
+| Purge aveugle | État bas avant (record_probe, 3 s) | Plateau (dès 9,5 bar + 0,5 s) | Plateau − bas |
+| --- | --- | --- | --- |
+| `210358` | 3 317,1 (0,112 bar) | 16 406,1 (9,929 bar), écart-type 125 codes | 13 089,1 codes |
+| `210516` | 3 291,6 (0,093 bar) | 16 280,6 (9,835 bar), écart-type 110 codes | 12 989,0 codes |
+| `210638` | 3 356,5 (0,142 bar) | 16 473,7 (9,980 bar), écart-type 66 codes | 13 117,2 codes |
+| **Série** | | | **13 065 ± 67 codes** = 1,6331 V |
+
+- Pente d'usine : plateau − bas = **9,799 ± 0,051 bar**, contre 9,743 ± 0,040
+  bar à l'I2C : écart **+0,056 bar (+0,6 %)**, dans la tolérance (0,34 bar).
+  L'alimentation 3,3 V n'aplatit pas le haut de plage : pas de série en 5 V.
+- Pente qui reproduit l'I2C : 9,743 / 1,6331 = **5,966 bar/V**
+  (0,000746 bar par code), contre 6 bar/V d'usine.
+- Pente retenue : **usine, 6 bar/V** (écart avec la pente alignée sur l'I2C :
+  0,06 bar au plateau). Zéro : 3 167,3 codes, lu à l'air.
+- Pendant une purge sans porte-filtre : 0,084–0,146 bar. Piégé après un panier
+  aveugle : 6,11–6,29 bar (I2C : 6,14–6,25).
+- Bruit au plateau : écart-type 66–125 codes (0,05–0,09 bar), contre
+  0,025–0,033 bar à l'I2C. Creux périodiques de −180 à −270 codes
+  (−0,13 à −0,2 bar).
+- Purge sans porte-filtre à 50 % (`261007-210818`, 10 s, 2,1 ml/s) :
+  écart-type 21 codes, contre 34–77 à 100 %. Les écarts restent à des niveaux
+  fixes (≈ −54 codes, un échantillon sur deux par moments) : échantillonnage
+  d'une forme périodique à 50 Hz. La découpe ne les grossit pas, la pression
+  si : le bruit pompe en marche est surtout **hydraulique** (impulsions de la
+  pompe, OPV au plateau), pas le triac.
+
+### À chaud (~89 °C)
+
+Relevé `probe-20261007-211716-699863`, captures `261007-211814` (sans
+porte-filtre), `261007-212013` (panier aveugle), `261007-212051` (sans
+porte-filtre, 5 s), chauffage actif (régulation, SSR ~35 % du temps).
+
+- Dilatation : la chaudière est dans le tronçon piégé. Après la purge sans
+  porte-filtre (chaudière à 67 °C), la pression piégée remonte de 0,06 à
+  0,85 bar pendant le retour à 89 °C (~100 s). Avant cette purge : 2,24 bar.
+  L'état bas dépend donc de la température : « plateau − bas » ne se compare
+  qu'à froid.
+- Plateau OPV : **9,81 bar** (16 245,6 codes, écart-type 169), en baisse
+  continue pendant la purge (9,86 → 9,60 bar en ~8 s) pendant que la chaudière
+  passe de 89 à 81 °C. À froid : 9,84–9,98 bar. Cause non établie (OPV ou
+  sonde, dont le corps refroidit au passage d'eau froide).
+- Bruit au repos, chauffage en régulation : **5,6 codes** d'un échantillon au
+  suivant (sauts jusqu'à 37 codes, 0,03 bar), contre 1,3–1,6 à froid. Le
+  chauffage ajoute du bruit au repos, sans effet à l'échelle de la
+  régulation.
+
 ## État au 6 octobre 2026
 
 - [x] Sortie non ratiométrique vérifiée au voltmètre.
@@ -281,18 +338,75 @@ Attendus après montage, pente d'usine :
       plus une dérive lente de ±10 codes. Probablement électrique (corps de
       sonde au châssis, trajet du câble) ; sans effet à l'échelle de la
       régulation. Filtre RC ou moyenne à envisager dans le firmware.
-- [ ] +12 h : purge sans porte-filtre, contrôle visuel du raccord.
-- [ ] +24 h (cure eau potable laiton) : purge en panier aveugle, essuie-tout
-      sous le raccord en T et autour de la sonde. La pression piégée baisse
-      même d'origine (fuite de l'électrovanne, vers le groupe) : sa pente ne
-      distingue pas une fuite du raccord, seul le contrôle visuel tranche.
-      Enregistrer quand même la décroissance (`record_probe.py`, 5–10 min)
-      comme référence.
-- [ ] Série analogique (mêmes purges que la série I2C) et analyse.
-- [ ] Bruit de A2 sous découpe de phase : le câble longe désormais le 230 V
-      (sortie avant, bouton marche). À 100 % le dimmer ne découpe pas ;
-      ajouter une purge sans porte-filtre à `purge.pump_pct` = 50 et
-      comparer l'écart-type de A2 au repos (7,9 codes), à 100 % et à 50 %.
-- [ ] Firmware `screen` : conversion A2 en bar.
-- [ ] Firmware `sensors` sans XDB401, mise à jour de `README.md` et `cablage.md`.
-- [ ] Commit des changements firmware et outils.
+- [x] Purges sans porte-filtre après montage, raccord sec. Le 7.10 :
+      `probe-20261007-202838-622878`, `261007-203000` (15 s, 60 ml,
+      3,96 ml/s). Repos 0,151 bar (écart-type 1,4 code : le bruit de 7,9 codes
+      du montage a disparu) ; écoulement **0,097 bar** (3 297,2 codes,
+      écart-type 4,8) ; piégé après ~0,14 bar. Pompe en marche : 12 % des
+      échantillons HF à **+90 codes** (+0,07 bar), amplitude quasi fixe :
+      impulsions de la pompe vibrante, ou parasites (voir « Bruit de A2 »
+      ci-dessous). Pour la conversion : filtre médian (3–5 lectures), pas une
+      moyenne.
+- [x] +24 h : montée en pression par paliers (purges de 4 s en panier
+      aveugle), raccord sec. Le 7.10 : `probe-20261007-204608-332442`,
+      `261007-204655` à `261007-205231`. Hydraulique observée :
+      - au début d'une purge en panier aveugle, la pression à la sonde
+        s'effondre (8,4 → 1,7 bar en 0,2 s) : la vanne relie la chaudière au
+        groupe, mis à l'air à la fin de la purge précédente ;
+      - à la fin, chute de ~10 à **6,3 bar** en 0,2 s au basculement de la
+        vanne 3 voies, pas à la refermeture de l'OPV : en `204803`, la pompe a
+        tourné ~1,1 s de plus que la vanne (17 impulsions de débit contre
+        3–6), la chute est arrivée avec la vanne puis la pompe a remonté le
+        tronçon à 10 bar ; à son arrêt, la pression n'est descendue qu'à
+        ~9,1 bar ;
+      - au-dessus de ~9 bar la pression baisse lentement (9,1 → 8,4 bar en
+        ~45 s) ; à 6,3 bar elle tient 3,5 min (±0,03 bar). Un clapet à joint
+        souple serre mieux à forte contre-pression : une fuite qui n'existe
+        qu'en haut de plage désigne plutôt l'OPV, qui suinte près de son
+        tarage ;
+      - plateau OPV sur ces purges courtes : 9,9–10,06 bar avec la pente
+        d'usine (I2C : ~9,84 bar rapporté à l'atmosphère).
+- Pompe qui tourne ~1,1 s après l'arrêt (`204803`), vanne déjà fermée :
+      phénomène connu, l'arrêt du dimmer n'est parfois pas appliqué. Avant
+      la garde du zéro, la pompe tournait jusqu'à l'extinction de la
+      machine ; la garde l'arrête maintenant à son rafraîchissement (1 s).
+- [x] Série analogique et analyse, voir « Résultats de la série
+      analogique ». Pente d'usine retenue.
+- [x] Bruit de A2 (voir « Résultats de la série analogique » et « À
+      chaud ») : le câble de la sonde passe près de la phase du chauffage
+      chaudière (éteint pendant ces séries), du câble qui alimente le système
+      (alimentation 5 V, dimmer, SSR, donc le courant de la pompe) et du câble
+      de l'électrovanne ; pas près du câble de la pompe. Même à 100 %, le
+      triac s'amorce à chaque demi-alternance au plus près du passage par
+      zéro : moins de parasites qu'en découpe de phase, mais pas aucun. Pompe
+      et vanne étant commandées ensemble, une purge ne les sépare pas.
+      Comparer les pics de A2 (taille, proportion d'échantillons) dans les
+      cas suivants :
+      - en panier aveugle à 100 % : des pics qui grandissent avec la pression
+        désignent l'hydraulique ;
+      - sans porte-filtre à `purge.pump_pct` = 50 : des pics qui grandissent
+        avec la découpe désignent le triac ;
+      - avec le chauffage en marche (série terminée) : des pics qui
+        apparaissent au repos désignent le câble de chauffage.
+- [x] Firmware 0.3.46, construit, pas encore flashé :
+      - `screen` : `pressure_bar` = (A2 − 3 167,3) × 0,00075, validité et
+        fraîcheur sur A2, utilisée par l'UI, la régulation, les captures et
+        `/telemetry` ; A2 converti à 16 SPS (62,5 ms, ~3 impulsions de pompe) ;
+        plus de `REQSTATUS` pression sur le CAN ;
+      - `sensors` : pilote XDB401 I2C retiré ; `STATUS_PRESSURE` et la tâche
+        pression restent, avec une valeur invalide ;
+      - `docs/firmware.md` mis à jour.
+- [x] 0.3.46 flashé le 7.10 (`probe-20261007-214641-946675`,
+      `probe-20261007-215425-658235`, captures `261007-214750` à
+      `261007-215541`). Plus de `REQSTATUS` pression sur le CAN. Au repos
+      après refroidissement : −0,23 bar, un vide piégé (la chaudière se
+      contracte), revenu à 0,115 bar à la purge sans porte-filtre. Écart-type
+      à 16 SPS : 12 codes en écoulement (34–77 à 128 SPS), 11–27 codes au
+      plateau (66–169). Plateau **9,90 bar**, manomètre à aiguille sur 10 bar ;
+      piégé après : 7,89 et 6,92 bar, manomètre 8 et un peu moins de 7. Une
+      purge isolée (`214828`) a plafonné à 9,05 bar, plat, sans cause
+      établie (porte-filtre mal serré ?).
+- [ ] Premier espresso : remplissage, pré-infusion, régulation.
+- [ ] `README.md`, `cablage.md` (résultats de la transition), puis suppression
+      de ce document.
+- [ ] Commit.

@@ -9,6 +9,7 @@
 #include "common/framing.hpp"
 #include "common/messages.hpp"
 #include "common/protocol.hpp"
+#include "common/scace_ble.hpp"
 #include "common/version.hpp"
 #include "log_codes.hpp"
 
@@ -423,6 +424,57 @@ void test_crc32_known_vector() {
 
 }  // namespace
 
+// Les tableaux petit-boutistes donnés à NimBLE doivent rester l'image exacte
+// des UUID texte, que lit le script Mac.
+bool uuid_matches(const char* text, const uint8_t (&le)[16]) {
+  uint8_t be[16]{};
+  int n = 0;
+  for (const char* p = text; *p != '\0'; ++p) {
+    if (*p == '-') continue;
+    const int nibble = std::stoi(std::string(1, *p), nullptr, 16);
+    be[n / 2] = static_cast<uint8_t>(be[n / 2] | (n % 2 == 0 ? nibble << 4 : nibble));
+    ++n;
+  }
+  if (n != 32) return false;
+  for (int i = 0; i < 16; ++i) {
+    if (be[i] != le[15 - i]) return false;
+  }
+  return true;
+}
+
+void test_scace_uuids_match_text() {
+  CHECK(uuid_matches(scace::kServiceUuid, scace::kServiceUuidLe));
+  CHECK(uuid_matches(scace::kFrameUuid, scace::kFrameUuidLe));
+}
+
+void test_scace_frame_roundtrip() {
+  scace::Frame in;
+  in.seq = 0xfffe;
+  in.ms = 0x1234;
+  in.a0 = 26416;
+  in.a1 = -3;
+  in.centi_c = 2503;
+  in.status = scace::Status::kOk;
+  uint8_t bytes[scace::kFrameSize];
+  scace::encode(in, bytes);
+  CHECK(bytes[0] == 0xfe && bytes[1] == 0xff);
+  CHECK(bytes[8] == 0xc7 && bytes[9] == 0x09);
+  CHECK(bytes[10] == 1 && bytes[11] == 0);
+  scace::Frame out;
+  CHECK(scace::decode(bytes, sizeof(bytes), &out));
+  CHECK(out.seq == in.seq && out.ms == in.ms && out.a0 == in.a0 && out.a1 == in.a1);
+  CHECK(out.centi_c == in.centi_c && out.status == in.status);
+}
+
+void test_scace_frame_rejects_short_and_unknown_status() {
+  uint8_t bytes[scace::kFrameSize];
+  scace::encode(scace::Frame{}, bytes);
+  scace::Frame out;
+  CHECK(!scace::decode(bytes, scace::kFrameSize - 1, &out));
+  bytes[10] = 4;
+  CHECK(!scace::decode(bytes, sizeof(bytes), &out));
+}
+
 int main() {
   test_can_id_roundtrip();
   test_can_id_priority_ordering();
@@ -445,6 +497,9 @@ int main() {
   test_stream_decoder_resyncs_after_garbage();
   test_crc16_known_vector();
   test_crc32_known_vector();
+  test_scace_uuids_match_text();
+  test_scace_frame_roundtrip();
+  test_scace_frame_rejects_short_and_unknown_status();
 
   if (g_failures == 0) {
     std::printf("OK\n");

@@ -70,10 +70,11 @@ struct View {
       *hero_time{}, *hero_divider{},
       *cycle_detail{}, *progress{}, *stop{}, *settings{}, *tab[4]{},
       *tile[6]{}, *tile_name[6]{}, *tile_value[6]{}, *diag{},
-      *diag_version_value{}, *diag_version_detail{}, *keypad{}, *key_title{},
+      *diag_version_value{}, *diag_version_detail{}, *diag_memory{}, *keypad{}, *key_title{},
       *key_value{}, *key_unit{}, *key_error{}, *key_ok{}, *key_comma{},
       *choice{}, *choice_title{}, *choice_button[4]{}, *confirm{},
       *confirm_title{}, *confirm_body{}, *full{}, *full_title{}, *full_body{},
+      *full_memory{},
       *wifi_exit{}, *dimmer_menu{}, *dimmer_menu_title{}, *dimmer_menu_body{},
       *dimmer_reset{}, *dimmer_recalibrate{}, *dimmer_close{}, *dim{},
       *heating_menu{}, *heating_menu_title{}, *heating_menu_body{},
@@ -1888,6 +1889,7 @@ void create(lv_obj_t *p) {
     if (i < 6)
       rule(v.diag, x, y + 96, 240);
   }
+  dyn(v.diag, &v.diag_memory, "", theme::kFontLabel, theme::kTextFaint, 32, 440);
   hidden(v.diag, true);
   v.keypad = lv_obj_create(p);
   base(v.keypad);
@@ -1960,6 +1962,7 @@ void create(lv_obj_t *p) {
   dyn(v.full, &v.full_title, "coffeeflow", theme::kFontSecondary,
       theme::kAccent, 32, 154);
   dyn(v.full, &v.full_body, "", theme::kFontButton, theme::kTextDim, 32, 220);
+  dyn(v.full, &v.full_memory, "", theme::kFontLabel, theme::kTextFaint, 32, 440);
   v.wifi_exit = button(v.full, 32, 300, 320, 88, "quitter le mode wifi");
   lv_obj_add_event_cb(
       v.wifi_exit,
@@ -2040,6 +2043,22 @@ void create(lv_obj_t *p) {
       theme::kTextFaint, 92, 58);
   hidden(v.standby, true);
   hidden(v.dim, true);
+}
+
+// Octets jusqu'à 9999, puis kibioctets entiers (1 K = 1024 o).
+void memory_size(char *out, size_t n, uint32_t bytes) {
+  if (bytes < 10000)
+    std::snprintf(out, n, "%u o", static_cast<unsigned>(bytes));
+  else
+    std::snprintf(out, n, "%u K", static_cast<unsigned>(bytes / 1024));
+}
+
+// SRAM interne : la marge des bounce buffers RGB et des piles radio.
+void memory_line(char *out, size_t n, const core::Snapshot &s) {
+  char free_text[16], largest_text[16];
+  memory_size(free_text, sizeof(free_text), s.internal_heap_free);
+  memory_size(largest_text, sizeof(largest_text), s.internal_heap_largest);
+  std::snprintf(out, n, "sram libre %s · plus gros bloc %s", free_text, largest_text);
 }
 
 void refresh(const core::Snapshot &s, bool boot) {
@@ -2249,6 +2268,8 @@ void refresh(const core::Snapshot &s, bool boot) {
                   s.sensors_version_minor, s.sensors_version_patch);
     text(v.diag_version_value, t);
     text(v.diag_version_detail, "sensors");
+    memory_line(t, sizeof(t), s);
+    text(v.diag_memory, t);
   }
   if (s.boot_time_syncing)
     fullscreen(true, "synchronisation heure", "connexion wifi...");
@@ -2290,11 +2311,14 @@ void refresh(const core::Snapshot &s, bool boot) {
                     s.screen_version_patch);
     }
     fullscreen(true, "Mode wifi", t);
+    memory_line(t, sizeof(t), s);
+    text(v.full_memory, t);
   } else if (boot)
     fullscreen(true, "coffeeflow", "démarrage");
   else
     fullscreen(false, "", "");
   hidden(v.wifi_exit, s.flash_active || s.radio_mode != core::RadioMode::kWifi);
+  hidden(v.full_memory, s.flash_active || s.radio_mode != core::RadioMode::kWifi);
   idle(s);
 }
 

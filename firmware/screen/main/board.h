@@ -33,15 +33,17 @@ constexpr gpio_num_t kUartRx = GPIO_NUM_44;
 // sélectionne la fonction. 0x24 = registre de mode (direction des EXIO),
 // 0x38 = registre de sortie.
 //
-// Le registre de sortie est PARTAGÉ entre CAN_SEL/USB_SEL (EXIO5), LCD_BL
+// Le registre de sortie est PARTAGÉ entre CAN_SEL/USB_SEL (EXIO5), DISP
 // (EXIO2), LCD_RST (EXIO3), TP_RST (EXIO1) et SD_CS (EXIO4). Toute écriture doit passer par ch422g_set_bit(),
 // JAMAIS écrire le registre de sortie directement : une écriture partielle
 // écraserait les autres bits, typiquement en coupant le transceiver CAN au
 // moment d'allumer la dalle.
 enum Ch422gBit : uint8_t {
   kCh422gTpRst = 1 << 1,   // TP_RST — piloté par panel_power_on() (lot 2)
-  kCh422gLcdBl = 1 << 2,   // LCD_BL — piloté par panel_power_on() (lot 2)
-  kCh422gLcdRst = 1 << 3,  // LCD_RST — piloté par panel_power_on() (lot 2)
+  // DISP : veille/marche de la dalle ET EN du convertisseur de rétroéclairage.
+  kCh422gDisp = 1 << 2,
+  // LCD_RST : relié à la broche 35 du connecteur dalle, marquée NC.
+  kCh422gLcdRst = 1 << 3,
   kCh422gSdCs = 1 << 4,    // SD_CS — non piloté par ce lot
   // CAN_SEL == USB_SEL : mux analogique GPIO19/20 USB natif <-> CAN. Ne
   // jamais rebasculer ce bit hors de cet usage.
@@ -69,7 +71,7 @@ i2c_master_bus_handle_t i2c_bus();
 
 // Prépare la dalle et sort le tactile de reset, uniquement via l'état CH422G
 // maintenu en RAM (ch422g_set_bit) — jamais un accès direct au registre.
-// LCD_BL reste coupé. LCD_RST et TP_RST sont maintenus bas 100 ms, puis hauts
+// DISP reste haut. LCD_RST et TP_RST sont maintenus bas 100 ms, puis hauts
 // pendant 200 ms avant toute initialisation RGB ou transaction GT911. À
 // appeler après ch422g_init() et select_can().
 void panel_power_on();
@@ -77,8 +79,5 @@ void panel_power_on();
 // Reprise du GT911 après un reset logiciel où le tactile ne répond pas.
 // Ne change ni LCD_RST ni CAN_SEL.
 void touch_reset();
-
-// Rend l'image visible après l'initialisation RGB et le premier rendu LVGL.
-void panel_backlight_on();
 
 }  // namespace board

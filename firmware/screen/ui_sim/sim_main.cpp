@@ -224,6 +224,8 @@ int main(int argc, char **argv) {
   snapshot.screen_version_major = 0;
   snapshot.screen_version_minor = 2;
   snapshot.screen_version_patch = 3;
+  snapshot.internal_heap_free = 61428;
+  snapshot.internal_heap_largest = 31744;
   snapshot.sensors_version_major = 0;
   snapshot.sensors_version_minor = 1;
   snapshot.sensors_version_patch = 7;

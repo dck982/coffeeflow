@@ -48,9 +48,11 @@ void ch422g_init() {
   uint8_t mode_val = kCh422gModeOutputs;
   ESP_ERROR_CHECK(i2c_master_transmit(g_mode_dev, &mode_val, 1, -1));
 
-  // Miroir RAM initialisé à 0 : c'est l'état de sortie réel du CH422G avant
-  // toute écriture de ce firmware.
-  g_ch422g_out_mirror = 0;
+  // DISP est haut dès la première écriture (select_can()) et ne retombe
+  // plus : la dalle sort de veille avant le flux RGB, jamais au milieu d'une
+  // trame. Après un reboot logiciel, le CH422G a gardé DISP haut et la dalle
+  // ne repasse pas par la veille.
+  g_ch422g_out_mirror = kCh422gDisp;
 }
 
 void ch422g_set_bit(uint8_t bit, bool value) {
@@ -76,12 +78,9 @@ void panel_power_on() {
   touch_irq_cfg.intr_type = GPIO_INTR_DISABLE;
   ESP_ERROR_CHECK(gpio_config(&touch_irq_cfg));
   gpio_set_level(kTouchIrq, 0);
-  // Réinitialiser réellement la dalle avant de démarrer le flux RGB. Le
-  // précédent démarrage ne faisait que placer LCD_RST à 1, ce qui laissait
-  // son état de capture RGB dépendre du boot précédent. Le rétroéclairage
-  // reste éteint jusqu'au premier rendu LVGL pour ne pas exposer la trame de
-  // démarrage. Chaque écriture préserve CAN_SEL dans le miroir CH422G.
-  ch422g_set_bit(kCh422gLcdBl, false);
+  // Même séquence que Waveshare. LCD_RST arrive sur une broche NC de la
+  // dalle : seul TP_RST a un effet certain. Chaque écriture préserve DISP et
+  // CAN_SEL dans le miroir CH422G.
   ch422g_set_bit(kCh422gLcdRst, false);
   ch422g_set_bit(kCh422gTpRst, false);
   vTaskDelay(pdMS_TO_TICKS(100));
@@ -97,7 +96,5 @@ void touch_reset() {
   ch422g_set_bit(kCh422gTpRst, true);
   vTaskDelay(pdMS_TO_TICKS(150));
 }
-
-void panel_backlight_on() { ch422g_set_bit(kCh422gLcdBl, true); }
 
 }  // namespace board

@@ -376,6 +376,19 @@ d'`otadata` n'est pas `VALID`. Tant que ce script n'existe pas, on suit les
 
 ### Écritures en flash : à concevoir à part
 
+Toutes les écritures en flash de l'écran relèvent de cette question, et pas
+seulement l'OTA :
+
+- l'image `screen` écrite dans le slot inactif ;
+- le relais du flash `sensors`, écrit dans `ota_staging` au fil des blocs
+  reçus ;
+- la confirmation et le rollback, qui réécrivent `otadata` ;
+- le stockage persistant : identifiants Wi-Fi, `/config` et calibrations,
+  aujourd'hui en NVS. Il faudra soit une implémentation NVS en Rust
+  compatible avec les données existantes, soit un autre format avec une
+  migration au premier démarrage. Le choix se fait avec le reste de cette
+  section.
+
 Le problème est matériel : pendant un effacement ou une écriture de la flash,
 le cache de la mémoire externe (flash et PSRAM) est coupé. La recopie des
 bounce buffers ne peut plus lire le framebuffer, et l'affichage reçoit des
@@ -419,6 +432,131 @@ l'étape OTA en Rust, et rien n'est fait d'ici là.
 
 ---
 
+## Viabilité : ce qui reste à démontrer
+
+Trois questions décident si Rust convient au projet. Les étapes ci-dessous y
+répondent en partie ; le reste se conçoit à part.
+
+1. **La charge radio sur l'écran.** Le BLE avec l'affichage est validé par
+   l'étape 4 pour le scan. Restent les connexions GATT (étape 4), le Wi-Fi
+   (étape 5), et le passage répété d'un mode radio à l'autre avec la SRAM
+   rendue à chaque fois (étape 6).
+2. **La stratégie d'UI : Slint, décidé le 2026-10-08** (section suivante).
+   Reste à mesurer son rendu sur notre affichage (étape 7).
+3. **La stratégie d'écriture en flash** : OTA, relais vers `ota_staging`,
+   `otadata` et stockage persistant (section « Écritures en flash »).
+
+Trois autres points à couvrir, qui ne remettent pas en cause la viabilité :
+
+- **Deux connexions BLE simultanées**, la Lunar et la SCACE, avec le
+  heartbeat de l'Acaia tenu pendant le dessin. Le client GATT de
+  trouble-host 0.7 n'a pas encore été éprouvé ici. Vérifié avec la suite de
+  l'étape 4.
+- **La couche réseau applicative** : serveur HTTP, WebSocket (miroir CAN),
+  SNTP, client HTTP vers `coffeetracker`, provisioning par point d'accès.
+  C'est surtout une question d'effort ; les serveurs WebSocket `no_std` sont
+  les crates les moins mûres de la liste. L'étape 5 ne teste qu'un petit
+  serveur HTTP.
+- **Le partage du bus I2C de l'écran** entre tâches (CH422G, GT911,
+  ADS1115) : le bus partagé d'`embassy-embedded-hal` suffit.
+
+Ce qui ne présente pas de difficulté particulière :
+
+- **Le CAN.** esp-hal 1.2.2 fournit un pilote TWAI. Sur l'écran, le CAN
+  passe par GPIO19/20, les broches USB : esp-hal coupe le pad USB quand il
+  les reprend (`usb_pad_enable`), et CAN_SEL reste à tenir haut par le
+  CH422G. La compatibilité binaire est assurée par `protocol` et les
+  vecteurs de test de `common/test`. Seul le relais du flash `sensors`
+  demande une mesure, et il relève de la stratégie d'écriture en flash.
+- **L'I2C** : GT911 lu en polling, ADS1115 (A0, A1, A2 à 16 SPS), CH422G
+  (déjà fait), DimmerLink côté capteurs. Ce ne sont que des registres. Pour
+  le dimmer, garder l'interdiction de la commande `0x03`, qui écrit dans son
+  EEPROM.
+- **Le reste de `sensors`** : l'interruption GPIO du débitmètre, la chauffe
+  modulée sur une période d'une seconde, le verrou de 60 s en mémoire RTC
+  persistante (`#[ram(unstable(rtc_fast, persistent))]`) et la cause du
+  reset existent dans esp-hal.
+
+---
+
+## UI : Slint
+
+**Décision du 2026-10-08 : l'UI de `screen` sera écrite en Slint.** Pas de
+bindings vers LVGL.
+
+### Pourquoi pas `embedded-graphics` seul
+
+L'UI de coffeeflow est simple à dessiner : environ 2 400 lignes de LVGL,
+des labels, des rectangles arrondis, deux boutons, quelques rangées en flex,
+et une frise faite de rectangles et de chiffres. La police est Inter, en
+7 tailles de 18 à 104 px, anticrénelée sur 4 bits. Ce que LVGL apportait
+au-delà du dessin, c'est la couche du dessus : objets retenus, mise en page,
+suivi des zones à redessiner, texte anticrénelé, routage du toucher.
+`embedded-graphics` ne donne que des primitives en mode immédiat et des
+polices bitmap 1 bit. Toute cette couche serait donc à écrire et à
+maintenir. Slint la fournit.
+
+### Ce que Slint apporte
+
+- un langage déclaratif (`.slint`) avec des layouts horizontaux, verticaux
+  et en grille, des propriétés liées aux données et des animations ;
+- un rendu logiciel `no_std` qui ne redessine que les zones modifiées
+  (`RepaintBufferType::ReusedBuffer`), ou qui gère deux framebuffers
+  (`SwappedBuffers`) ;
+- les polices TTF pré-rendues au build (`EmbedForSoftwareRenderer`) : Inter
+  s'utilise directement, sans conversion ;
+- le même `.slint` qui tourne sur le Mac avec aperçu en direct, ce qui permet
+  de mettre l'UI au point sans flasher.
+
+Le cœur de Slint ne dépend pas d'esp-hal : aucun couplage de versions.
+
+### Règles d'intégration
+
+- **On garde notre pilote d'affichage** (bounce buffers, recopie par
+  interruption, essais 02b à 04). Slint dessine dans notre framebuffer
+  PSRAM avec `SoftwareRenderer::render(fb, 800)`, depuis le cœur 0, comme
+  le dessin de l'essai 03.
+- **On ne reprend pas le pilote d'affichage de `mcu-board-support`** pour
+  les cartes ESP32-S3 RGB (`esp32_s3_lcd_ev_board`). Il envoie le
+  framebuffer PSRAM en DMA direct par `Dpi::send`, l'approche que l'essai 02
+  a écartée. De ce crate, on ne reprend que la façon d'implémenter
+  `Platform`, le temps et le toucher.
+- **Double framebuffer** avec `SwappedBuffers` : l'échange est un changement
+  de pointeur, fait quand la recopie repasse au bloc 0 (étape 3). Coût :
+  768 Ko de PSRAM.
+- **Limites du rendu logiciel** : pas d'ombre portée, pas de rotation ni de
+  mise à l'échelle, pas de `clip` combiné à `border-radius`, pas de contour
+  de texte. L'UI actuelle n'en utilise aucune.
+
+### Références dans le clone `tmp/rust/slint`
+
+Exemples et démos sous licence MIT, donc réutilisables :
+
+- `examples/mcu-embassy` : 800×480, embassy, tâche de rendu, double
+  framebuffer en `SwappedBuffers`, et un simulateur sur PC
+  (`bin/ui_simulator.rs`) qui partage l'UI et le contrôleur avec la version
+  MCU. C'est le gabarit de l'essai 7.
+- `demos/energy-monitor` : tuiles (`widgets/tile.slint`) et histogrammes
+  (`widgets/bar_chart.slint`), proches de nos tuiles et de la frise ;
+  fenêtre MCU dédiée (`mcu_window.slint`) ; `cache-rendering-hint`.
+  `bar_chart.slint` utilise `clip` avec `border-radius`, à ne pas copier.
+- `demos/printerdemo_mcu` : Inter embarquée au build (`ui/fonts`), et
+  `bench.rs`, qui mesure le rendu complet et ligne par ligne sur le Mac.
+- `api/rs/slint/mcu.md` : guide de Slint sur microcontrôleur (`Platform`,
+  boucle, rendu).
+
+### Licence
+
+Le framework Slint est sous GPLv3, sous licence commerciale, ou sous une
+licence gratuite « Royalty-free » qui exclut les systèmes embarqués
+(`LICENSE.md` du clone). La page de prix de Slint indique toutefois
+qu'aucune redevance n'est due pour un projet personnel, non commercial ou
+open source. Coffeeflow est un projet personnel, et Slint ne limite rien
+techniquement : la question ne se pose pas. **À reprendre si le projet
+devait un jour être distribué**, ce qui n'est pas prévu.
+
+---
+
 ## Étapes initiales
 
 Chaque étape a un critère de réussite. On ne passe à la suivante qu'une fois
@@ -447,7 +585,7 @@ cadre d'un pixel sur les bords, carré de couleur dans chaque coin.
 
 - **Prouve :** le brochage, les timings, la PSRAM octale, et l'alimentation du
   DPI d'esp-hal depuis un framebuffer PSRAM.
-- **Réussi si :** la mire est stable pendant 10 minutes, sans décalage ni
+- **Réussi si :** la mire est stable pendant une minute, sans décalage ni
   saut, cadre intact sur les quatre bords.
 
 **Résultat (2026-10-08) : DMA direct depuis la PSRAM écarté.** L'essai
@@ -503,10 +641,9 @@ que la FIFO du LCD en contient déjà. On compte les recopies en retard.
 démarrage, immobile, y compris quand le témoin de code froid passe à 30 s.
 Console sur 70 s : 31 trames/s, zéro recalage, recopie la plus lente à
 607 µs sur 1 220 µs disponibles (~53 Mo/s lus depuis la PSRAM à travers le
-cache). Un seul « retard » compté avant 10 s, puis plus aucun : soit le
-démarrage à cache froid, soit le compteur lui-même, qui lit `out_dscr` sans
-savoir s'il désigne le descripteur en cours ou le suivant. À vérifier à
-l'essai 03.
+cache). Un seul « retard » compté avant 10 s, puis plus aucun. L'essai 04 a
+montré que ce compteur donnait de fausses alarmes (voir le résultat de
+l'étape 4) : ce retard en était très probablement une.
 
 Coût de 20 lignes : 64 Ko de SRAM interne, et au pire 24 × 31 × 607 µs ≈ 45 %
 d'un cœur pour les recopies. Ce compromis SRAM/CPU est retenu. Pour alléger
@@ -528,10 +665,9 @@ manqué).
 - **Variante :** la même chose sur deux cœurs, pour vérifier que le Rust
   reproduit le problème connu, et donc que la mesure le détecte.
 - **Réussi si :** aucun décalage visible et zéro sous-alimentation en
-  10 minutes, avec redessin continu de plusieurs zones.
-- Le choix d'une bibliothèque d'UI (Slint, LVGL via des bindings, ou
-  `embedded-graphics` seul) se fait **après** cette étape, une fois les
-  chiffres connus.
+  une minute, avec redessin continu de plusieurs zones.
+- Le choix d'une bibliothèque d'UI se fait **après** cette étape, une fois
+  les chiffres connus. Fait le 2026-10-08 : Slint (section « UI : Slint »).
 
 **Résultat (2026-10-08) : validé sur un cœur.** L'essai `03-lcd-dynamic`
 reprend l'affichage de 02b. Trois rectangles rebondissent sans pause sur la
@@ -615,10 +751,61 @@ modèle de `examples/ble/scanner`, **sur le cœur 1**.
 - **Si l'affichage ne tient pas :** on ne corrige pas tout de suite. On note
   les chiffres, puis on choisit entre plus de lignes de bounce buffer, le
   code de recopie en SRAM, et le placement de la radio.
-- **Puis :** connexion GATT à la SCACE et lecture d'une notification,
-  puisque coffeeflow lit déjà la SCACE en BLE, avec les mêmes compteurs.
+- **Puis :** connexions GATT **simultanées** à la Lunar et à la SCACE, comme
+  coffeeflow, avec lecture de leurs notifications et le heartbeat de
+  l'Acaia tenu. Mêmes compteurs, et mêmes critères d'affichage pendant la
+  connexion et pendant la réception.
 
 Matériel : balance et SCACE allumées, à portée. Machine au repos.
+
+**Résultat du scan (2026-10-08) : validé en régime établi.** L'Acaia
+(`ACAIAL-C1EF4C9`) et la SCACE apparaissent, avec 70 à 150 annonces reçues
+par seconde. La mire reste immobile.
+
+- **Radio sur le cœur 1.** `BleConnector::new` est appelé sur le cœur 1 :
+  esp-hal y active l'interruption `RWBLE` (lu dans la matrice
+  d'interruptions ; `BT_BB` n'est activée sur aucun cœur). La tâche du
+  contrôleur y est épinglée par `Config::with_task_cpu(Cpu::AppCpu)`, et
+  l'hôte trouble-host tourne dans un exécuteur embassy du cœur 1. Seule la
+  tâche « timer » d'esp-radio n'est pas épinglée, et rien ne permet de
+  l'épingler sans patcher le crate. Le cœur 1 ne journalise rien lui-même :
+  esp-println écrit sous une section critique partagée par les deux cœurs.
+- **Régime établi :** 31 trames/s, 0 recopie en retard et 0 recalage sur
+  2 min 30. Recopie la plus lente entre 882 et 940 µs (885 µs pour
+  l'essai 03), soit environ 280 µs de marge sur 1 220. L'interruption entre
+  à l'heure, à moins de 100 µs près. Les PC interrompus relevés tombent tous
+  dans le dessin : aucune section critique ne la masque.
+- **Démarrage :** 6 vrais retards pendant l'initialisation BLE (calibration
+  PHY, démarrage du contrôleur). La recopie monte jusqu'à 1 757 µs, et
+  l'interruption entre jusqu'à ~600 µs en retard. Cela ne se produit qu'une
+  fois. Parade pour `screen` : démarrer la radio avant l'affichage.
+- **Le détecteur de retard des essais 02b et 03 était faux.** Malgré la doc
+  du PAC (« descripteur en cours »), `OUT_DSCR` a **deux descripteurs
+  d'avance** sur celui que lit le DMA. Un histogramme relevé à l'entrée de
+  l'interruption de fin de buffer le montre : sur 114 000 entrées, toutes
+  sauf 4 (celles du démarrage) trouvent `OUT_DSCR` au troisième descripteur
+  de l'autre buffer. L'ancien détecteur sonnait dès que la recopie dépassait
+  6 × 152 ≈ 912 µs, et non 1 220 µs. Le détecteur corrigé prend le
+  descripteur situé deux crans avant `OUT_DSCR`. Les durées de recopie
+  mesurées dans 02b et 03 restent valables.
+- **Code de recopie en SRAM : sans effet.** L'interruption, la recopie et le
+  VSYNC passés en `#[esp_hal::ram]` (1 420 octets d'IRAM) laissaient la
+  recopie à 900–980 µs. Le surcoût de la radio ne vient donc pas des défauts
+  de cache sur le code de la recopie, mais de la lecture de la PSRAM, sur un
+  cache et un bus partagés avec le cœur 1. Retour en flash, pour garder la
+  SRAM. À remesurer sous la charge de LVGL.
+- **Mémoire.** Le BLE prend 35,8 Ko du tas interne de 72 Ko (37,9 Ko
+  restent libres), dont deux piles de tâches de 8 Ko (contrôleur et timer).
+  Le plus grand bloc libre n'est pas mesurable avec esp-alloc 0.11. La pile
+  du cœur 1 utilise 2,7 Ko sur 16 Ko. Image : 369 Ko.
+- **Répartition de la SRAM interne.** esp-hal donne à la pile du cœur 0
+  **tout ce qui reste** (195 Ko), dont elle n'utilise que 1,6 Ko, alors que
+  le tas est un bloc fixe. Le reste : 64 Ko de bounce buffers, 43,5 Ko de
+  code en IRAM (dont 25 Ko de correctifs du contrôleur BLE), 17 Ko de
+  `.data`, 16 Ko de pile du cœur 1, et le tas de 72 Ko pris sur la zone du
+  bootloader. Le libre comparable aux 70 à 80 Ko de coffeeflow (BLE actif,
+  avec LVGL) est donc d'environ 38 + 193 ≈ 230 Ko. Pour l'étape 6, il faudra
+  rendre une partie de la pile du cœur 0 au tas, pour mesurer.
 
 ### 5. `05-wifi-ap` — Wi-Fi
 
@@ -642,6 +829,12 @@ qui compte est la **dernière combinaison** : un essai `06-all` qui fait
 tourner l'écran dynamique avec le BLE, puis avec l'AP Wi-Fi. La combinaison
 écran + BLE est déjà mesurée par l'essai 04.
 
+Comme coffeeflow change de mode radio en cours de route, `06-all` passe
+aussi **plusieurs fois** de BLE à Wi-Fi puis de nouveau à BLE, l'affichage
+tournant. Il vérifie qu'esp-radio permet de désinitialiser un contrôleur et
+d'en relancer un autre, et que le tas interne revient à la même valeur après
+chaque cycle.
+
 Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
 temps**. Les faire coexister serait un plus, mais pas au prix d'un arbitrage
 sur le code placé en SRAM : si la place manque, le code en SRAM passe
@@ -654,9 +847,35 @@ d'abord. À titre indicatif, les exemples d'esp-radio sur ESP32-S3 réservent
 - **Référence :** relever les mêmes grandeurs dans coffeeflow
   (`GET /telemetry`) avant de comparer.
 - **Réussi si :** les critères de l'étape 3 tiennent avec BLE, puis avec
-  Wi-Fi actif,
-  et le plus grand bloc interne libre ne descend pas sous la réserve de
-  coffeeflow (`CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL`, 32 Ko).
+  Wi-Fi actif, et pendant chaque changement de mode. Le plus grand bloc
+  interne libre ne descend pas sous la réserve de coffeeflow
+  (`CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL`, 32 Ko), et le tas libre est le
+  même après chaque aller-retour BLE → Wi-Fi → BLE.
+
+### 7. `07-slint-display` — Slint sur notre affichage
+
+Indépendant des étapes 5 et 6 : il peut passer avant ou après. La radio et
+l'UI se mesurent séparément, et `06-all` réunira les deux.
+
+L'essai reprend l'affichage de l'essai 04 sans la radio, sur la structure
+de `examples/mcu-embassy`, avec le simulateur sur Mac dès le départ. Slint
+dessine dans le framebuffer PSRAM une maquette de l'accueil : la barre du
+haut, six tuiles, de grands chiffres Inter en 104 px, et la frise. Les
+valeurs changent à 10 Hz, comme pendant une infusion. Un bouton fait
+basculer entre deux écrans, pour mesurer un redessin complet.
+
+- **Mesure :** le temps de rendu partiel (mise à jour des valeurs) et
+  complet (changement d'écran), les compteurs de recopie de l'essai 04, la
+  taille de l'image, et le tas utilisé (interne et PSRAM). D'abord en
+  `ReusedBuffer`, puis en `SwappedBuffers`, pour les déchirures.
+- **Réussi si :** 0 recopie en retard et 0 recalage pendant une minute ; une
+  mise à jour des valeurs rendue en moins de 50 ms, ce qui laisse tenir
+  10 Hz avec de la marge ; un changement d'écran rendu en moins de 300 ms ;
+  une image qui tient dans le slot de 3 500 Ko.
+- **Si le rendu est trop lent :** noter les chiffres avant de corriger.
+  Leviers dans l'ordre : réduire les zones redessinées (valeurs isolées
+  dans leurs composants, `cache-rendering-hint`), puis placer le tas de
+  Slint en SRAM interne plutôt qu'en PSRAM.
 
 ---
 
@@ -673,7 +892,9 @@ Résultats datés, au fil des essais.
   bascule, le bootloader IDF v6.1 charge l'app depuis `0x120000`, et le compteur
   s'affiche chaque seconde sur `/dev/cu.usbmodem5B790235091`. Retour sur `ota_1`
   (`otadata` `0x53`/`0x54`, les deux `VALID`), coffeeflow redémarre normalement.
-  Reste à faire pour clore l'étape : le panic volontaire avec backtrace décodée.
+  Le décodage des adresses par `espflash monitor --elf` (fonction, fichier,
+  ligne) a été vérifié à l'essai 04. La backtrace d'un panic se vérifiera au
+  premier vrai panic, sans essai dédié.
 - **2026-10-08 :** `02-lcd-static`, DMA direct depuis la PSRAM. Mire juste
   (couleurs, bits, timings), mais décalée horizontalement. Deux causes
   trouvées. D'abord, `Dpi::send` jette le contenu de la FIFO au démarrage :
@@ -693,3 +914,14 @@ Résultats datés, au fil des essais.
   reproduit le problème de coffeeflow et valide le compteur. Répartition
   retenue : affichage sur le cœur 0, radio sur le cœur 1. Retour sur
   coffeeflow, `otadata` `0x57`/`0x58`, les deux `VALID`.
+- **2026-10-08 :** `04-ble-display`, scan BLE actif sur le cœur 1 avec
+  l'affichage de 03 sur le cœur 0. Acaia et SCACE vues. En régime établi :
+  0 retard, 0 recalage, recopie max 940 µs. Six vrais retards à
+  l'initialisation BLE. Le détecteur des essais 02b et 03 était faux
+  (`OUT_DSCR` a deux descripteurs d'avance) ; il est corrigé. Code de
+  recopie en SRAM essayé, sans effet, puis retiré. Critère de stabilité
+  ramené de 10 minutes à une minute. Essai dans `ota_0`, `otadata`
+  `0x59`/`0x58`, les deux `VALID`. Reste la connexion GATT à la SCACE.
+- **2026-10-08 :** UI de `screen` en Slint, décidé après comparaison avec
+  `embedded-graphics` seul. Pas de bindings vers LVGL. Licence sans objet
+  tant que le projet reste personnel. Essai `07-slint-display` ajouté.

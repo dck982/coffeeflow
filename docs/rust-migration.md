@@ -254,6 +254,11 @@ esp-generate --headless -s -o esp32s3 -o esp32s3-wroom-1-octal-psram \
 rm -rf NN-nom/.git            # esp-generate fait un git init imbriqué
 ```
 
+Cargo refuse un nom de paquet qui commence par un chiffre. Dans
+`Cargo.toml`, `name` (paquet et `[[bin]]`) devient `trial-NN-nom` ; le dossier
+garde `NN-nom`. Les chemins `target/.../release/` qui suivent utilisent donc
+`trial-NN-nom`.
+
 Puis, dans chaque essai :
 
 - **Runner :** dans `.cargo/config.toml`, remplacer
@@ -285,13 +290,17 @@ PORT=/dev/cu.usbmodem5B790235091
 # 1. Construire et convertir au format d'image IDF
 cargo build --release
 espflash save-image --chip esp32s3 \
-  target/xtensa-esp32s3-none-elf/release/NN-nom /tmp/trial.bin   # ≤ 3500K
+  target/xtensa-esp32s3-none-elf/release/trial-NN-nom /tmp/trial.bin   # ≤ 3500K
 
 # 2. Lire otadata : quel slot porte coffeeflow ?
 otatool.py -p $PORT read_otadata
 #    slot courant = (séquence la plus haute − 1) mod 2 ;
 #    TEST = l'autre. Au 2026-10-08 : coffeeflow = ota_1, TEST = ota_0.
 #    Si une copie est INVALID/ABORTED : s'arrêter.
+#    read_otadata n'affiche que séquence et CRC, pas l'état. Pour l'état :
+#    parttool.py read_partition --partition-name otadata (otadata, jamais nvs),
+#    puis lire le mot de 32 bits à l'octet 24 de chaque copie (0x0, 0x1000) :
+#    2 = VALID, 3 = INVALID, 4 = ABORTED.
 
 # 3. Écrire l'essai dans le slot de test, et seulement là
 parttool.py -p $PORT write_partition --partition-name TEST --input /tmp/trial.bin
@@ -300,7 +309,7 @@ parttool.py -p $PORT write_partition --partition-name TEST --input /tmp/trial.bi
 otatool.py -p $PORT switch_ota_partition --name TEST
 
 # 5. Console
-espflash monitor --chip esp32s3 --port $PORT --elf target/xtensa-esp32s3-none-elf/release/NN-nom
+espflash monitor --chip esp32s3 --port $PORT --elf target/xtensa-esp32s3-none-elf/release/trial-NN-nom
 
 # 6. Fin de session : retour sur coffeeflow
 otatool.py -p $PORT switch_ota_partition --name COFFEEFLOW
@@ -461,3 +470,10 @@ Résultats datés, au fil des essais.
 - **2026-10-08 :** environnement vérifié, `esp-generate` 1.4.0 et `probe-rs`
   0.32.0 installés, partitions et `otadata` de l'écran relus (coffeeflow dans
   `ota_1`, slot de test `ota_0`). Aucun essai flashé.
+- **2026-10-08 :** `01-hello-uart` — chaîne complète validée. Build release
+  41 s, image 99 488 octets. `otadata` relu : `0x51`/`0x52`, les deux `VALID`,
+  coffeeflow dans `ota_1`. Essai écrit dans `ota_0` (`0x120000`, hash vérifié),
+  bascule, le bootloader IDF v6.1 charge l'app depuis `0x120000`, et le compteur
+  s'affiche chaque seconde sur `/dev/cu.usbmodem5B790235091`. Retour sur `ota_1`
+  (`otadata` `0x53`/`0x54`, les deux `VALID`), coffeeflow redémarre normalement.
+  Reste à faire pour clore l'étape : le panic volontaire avec backtrace décodée.

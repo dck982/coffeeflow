@@ -13,6 +13,7 @@
 #include "freertos/task.h"
 
 #include "can_link.h"
+#include "ble_central.h"
 #include "ble_scale.h"
 #include "net_wifi.h"
 #include "core/calibration_machine.h"
@@ -31,6 +32,8 @@ constexpr uint32_t kFlowWindowPulses = 10;  // réglage unique du lissage Digmes
 constexpr uint32_t kFlowSilenceMs = 3000;
 constexpr uint32_t kTelemetryTickMs = 50;
 constexpr uint32_t kScalePresentMs = 2000;
+// La sonde SCACE notifie à 10 Hz : trois trames manquées la rendent invalide.
+constexpr uint32_t kScaceFreshMs = 300;
 constexpr uint16_t kHFCapturePeriodMs = 100;
 constexpr SampleSchedule kHFCaptureSchedule{static_cast<int64_t>(kHFCapturePeriodMs) * 1000,
                                             static_cast<int64_t>(kTelemetryTickMs) * 1000 / 2};
@@ -92,6 +95,8 @@ struct State {
   int64_t last_sensors_message_us = 0;
   int64_t last_flow_edge_received_us = 0;
   int64_t scale_received_us = 0;
+  int64_t scace_received_us = 0;  // dernière trame avec température, 0 sinon
+  int16_t scace_centi_c = 0;
   FlowSample flow_history[kFlowHistoryCapacity]{};
   size_t flow_count = 0;
   TelemetryProfile profile = TelemetryProfile::kIdle;
@@ -119,6 +124,10 @@ int64_t now_us() { return esp_timer_get_time(); }
 
 uint32_t age_ms(int64_t received_us, int64_t now) {
   return received_us == 0 ? UINT32_MAX : static_cast<uint32_t>((now - received_us) / 1000);
+}
+
+bool scace_valid(bool connected, int64_t received_us, int64_t now) {
+  return connected && received_us != 0 && now - received_us <= static_cast<int64_t>(kScaceFreshMs) * 1000;
 }
 
 Freshness freshness(int64_t received_us, uint16_t period_ms, int64_t now) {
@@ -311,6 +320,7 @@ void tick_hf_capture() {
   sample.boiler_ntc_a0_raw = snapshot.boiler_ntc_a0_raw;
   sample.boiler_ntc_a1_raw = snapshot.boiler_ntc_a1_raw;
   sample.pressure_a2_raw = snapshot.pressure_a2_raw;
+  sample.scace_centi_c = g_state.scace_centi_c;
   sample.boiler_temperature_age_ms = age_ms(g_state.boiler_received_us, now);
   sample.flow_pulse_count = snapshot.flow_pulse_count;
   sample.flow_last_edge_age_ms = age_ms(g_state.last_flow_edge_received_us, now);
@@ -335,7 +345,9 @@ void tick_hf_capture() {
                                        freshness(g_state.boiler_received_us, kBoilerPairPeriodMs, now) == Freshness::kFresh
                                            ? 0x08 : 0) |
                                       (snapshot.heater_on ? 0x10 : 0) |
-                                      (snapshot.pressure_a2_valid ? 0x20 : 0));
+                                      (snapshot.pressure_a2_valid ? 0x20 : 0) |
+                                      (scace_valid(snapshot.scace_connected, g_state.scace_received_us, now)
+                                           ? 0x40 : 0));
   if (capture.origin == HFCaptureOrigin::kBrew) {
     g_state.shot_builder.add(shot_sample(sample));
     snapshot.shot = g_state.shot_builder.summary();
@@ -662,15 +674,15 @@ void telemetry_task(void*) {
 void radio_transition_task(void* arg) {
   const RadioMode target = static_cast<RadioMode>(reinterpret_cast<uintptr_t>(arg));
   if (target == RadioMode::kWifi) {
-    ble_scale::stop();
+    ble_central::stop();
     net_wifi::start();
   } else if (target == RadioMode::kMachine) {
     net_wifi::stop();
-    ble_scale::init();
+    ble_central::init();
   } else {
     // Mode diagnostic : aucune radio ne retient de SRAM interne.
     net_wifi::stop();
-    ble_scale::stop();
+    ble_central::stop();
   }
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.radio_mode = target;
@@ -707,7 +719,7 @@ void set_telemetry_profile(TelemetryProfile profile) {
   // La balance suffit à une cadence sobre au repos. La machine du lot 9
   // sélectionnera kActive pendant une infusion ou une purge ; le client BLE
   // publiera alors chaque notification plutôt qu'un échantillon par seconde.
-  ble_scale::set_active(profile == TelemetryProfile::kActive);
+  ble_central::set_active(profile == TelemetryProfile::kActive);
 }
 
 bool begin_flash(FlashTarget target, uint32_t total) {
@@ -967,6 +979,26 @@ void update_scale_weight(float weight_g) {
   portENTER_CRITICAL(&g_state.lock);
   g_state.snapshot.weight_g = weight_g;
   g_state.scale_received_us = now;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void update_scace_connection(bool connected) {
+  portENTER_CRITICAL(&g_state.lock);
+  g_state.snapshot.scace_connected = connected;
+  if (!connected) g_state.scace_received_us = 0;
+  portEXIT_CRITICAL(&g_state.lock);
+}
+
+void update_scace_temperature(int16_t centi_c, bool ok) {
+  int64_t now = now_us();
+  portENTER_CRITICAL(&g_state.lock);
+  if (ok) {
+    g_state.scace_centi_c = centi_c;
+    g_state.snapshot.scace_temperature_c = static_cast<float>(centi_c) / 100.0f;
+    g_state.scace_received_us = now;
+  } else {
+    g_state.scace_received_us = 0;
+  }
   portEXIT_CRITICAL(&g_state.lock);
 }
 
@@ -1299,6 +1331,7 @@ Snapshot get_snapshot() {
   int64_t sensors_message;
   int64_t last_edge;
   int64_t scale_received;
+  int64_t scace_received;
   TelemetryProfile profile;
   portENTER_CRITICAL(&g_state.lock);
   result = g_state.snapshot;
@@ -1317,6 +1350,7 @@ Snapshot get_snapshot() {
   sensors_message = g_state.last_sensors_message_us;
   last_edge = g_state.last_flow_edge_received_us;
   scale_received = g_state.scale_received_us;
+  scace_received = g_state.scace_received_us;
   profile = g_state.profile;
   portEXIT_CRITICAL(&g_state.lock);
 
@@ -1343,6 +1377,8 @@ Snapshot get_snapshot() {
   result.scale_age_ms = age_ms(scale_received, now);
   result.scale_present = result.scale_connected && scale_received != 0 &&
                          now - scale_received <= static_cast<int64_t>(kScalePresentMs) * 1000;
+  result.scace_age_ms = age_ms(scace_received, now);
+  result.scace_valid = scace_valid(result.scace_connected, scace_received, now);
   if (last_edge == 0 || now - last_edge > static_cast<int64_t>(kFlowSilenceMs) * 1000) result.flow_ml_s = 0.0f;
   result.screen_version_major = common::kFirmwareVersionMajor;
   result.screen_version_minor = common::kFirmwareVersionMinor;

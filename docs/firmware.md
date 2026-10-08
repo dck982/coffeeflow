@@ -113,7 +113,13 @@ L'export est envoyé par morceaux, sans
 construire le document entier en SRAM. L'image écran 0.2.67 produit le schéma
 `coffeeflow.hf_capture.v2` avec les codes A0/A1, la température chaudière,
 son âge et sa validité. L'outil de tracé accepte aussi les captures v1 et y
-interprète `temperature_c` comme la température XDB401.
+interprète `temperature_c` comme la température XDB401. Depuis 0.3.47, les
+vues `calibrated` et `both` portent aussi `scace_temperature_c` : la dernière
+température reçue de la sonde SCACE, en °C au centième, `null` si la sonde
+n'est pas connectée ou si sa dernière mesure correcte date de plus de 300 ms
+(bit6 des `flags`). Le schéma reste v2 : ce champ s'ajoute comme
+`pressure_a2_raw`, et les outils ignorent les champs qu'ils ne connaissent
+pas.
 
 `firmware/tools/download_hf_capture.py` télécharge la capture et conserve le
 JSON brut dans `captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être
@@ -251,6 +257,7 @@ Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 | --- | --- |
 | UI LVGL | toujours, surtout pendant une infusion |
 | Client BLE → Acaia Lunar | pendant une infusion (poids) |
+| Client BLE → sonde SCACE | campagnes de mesure seulement (`scace.enabled`) |
 | CAN → capteurs | pendant une infusion (commandes + télémétrie) |
 | Wi-Fi / HTTP | configuration, flash, envoi du shot en fin de cycle |
 
@@ -259,6 +266,42 @@ poids/temps/boutons, heartbeat obligatoire) : `reference/acaia-ble/`.
 C'est du code Arduino-ESP32 d'un projet antérieur, à ne pas compiler tel
 quel dans `firmware/screen` (qui est en ESP-IDF pur) — voir le `README.md`
 du dossier pour ce qui est réutilisable et ce qui ne l'est pas.
+
+### Sonde SCACE
+
+Depuis 0.3.47, l'écran est client BLE de deux périphériques à la fois :
+`CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2`. Cette seconde connexion ne coûte rien
+en DRAM statique (`idf.py size` identique à l'octet) : le pool de connexions
+de l'hôte NimBLE est en PSRAM (`MEM_ALLOC_MODE_EXTERNAL`) et le contrôleur
+est déjà dimensionné par `CONFIG_BT_CTRL_BLE_MAX_ACT=6`. Le code de la sonde
+ajoute 128 octets de variables statiques en DIRAM et aucune tâche. À
+l'exécution, balance et sonde connectées, l'écran de diagnostic affiche
+**80 K** de SRAM interne libre (plus gros bloc 31 K), contre 88 à 91 K avec
+la balance seule en 0.3.43–0.3.44. L'écart n'est pas encore attribué :
+probablement les tampons du contrôleur pour la seconde connexion, à
+confirmer en 0.3.47 sonde éteinte.
+
+`ble_central` porte la pile NimBLE, le scan et la tâche `ble_central`
+(100 ms, ex-tâche heartbeat Acaia). `ble_scale` et `ble_scace` ne gèrent que
+leur connexion, chacun avec son callback GAP. Politique de scan
+(`ble_scan_policy.h`, testée sur l'hôte) :
+
+| Situation | Scan |
+| --- | --- |
+| Balance absente | continu, actif, sans déduplication, comme avant la sonde ; il trouve aussi la sonde |
+| Balance connectée, sonde voulue (`scace.enabled`) et absente | passif, 1 s toutes les 10 s, hors cycle |
+| Infusion ou purge en cours, balance connectée | aucun |
+| Connexion en cours | aucun (NimBLE n'en accepte qu'une à la fois) |
+
+Allumer la sonde avant l'infusion : elle est trouvée en moins de 10 s.
+`scace.enabled=false` arrête toute recherche et coupe une sonde connectée.
+L'écran ne garde que la température et l'état (pas les codes ADS1115 : la
+sonde est calibrée par ailleurs). Codes `LOG` : `SCACE_FOUND`,
+`SCACE_CONNECTED` (abonné), `SCACE_DISCONNECTED`, `SCACE_ERROR`.
+
+La sonde n'est pas dans `/telemetry` : en mode Wi-Fi, le BLE de l'écran est
+éteint. Pour un relevé en direct, le Mac lit la sonde lui-même
+(`record_probe.py --scace`) ; le Core2 accepte l'écran et le Mac à la fois.
 
 Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LCD, LVGL et la boucle d'infusion sur le **cœur 1** (l'ISR DMA du panneau RGB doit y vivre, sinon sauts d'image — `docs/screen-issue.md`) ; TWAI, UART, pont, Wi-Fi et pile BLE sur le **cœur 0**, là où Espressif met déjà les radios. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
 
@@ -388,7 +431,7 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 9,
+  "version": 10,
   "brew": { "target_weight_g": 36.0, "target_time_s": 28, "target_pressure_bar": 9.0, "pump_pct": 100 },
   "heating": { "enabled": true, "brew_temperature_c": 90.0, "brew_preheat_time_s": 2.5 },
   "filling": { "time_s": 10, "pressure_bar": 1.0, "pump_pct": 100 },
@@ -396,9 +439,18 @@ Règles qui rendent ça utilisable plutôt que dangereux :
   "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
   "purge": { "pump_pct": 100, "max_s": 20 },
   "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
+  "scace": { "enabled": false },
   "profiles": []
 }
 ```
+
+`scace.enabled` (schéma 10, écran 0.3.47) autorise la recherche et la
+connexion BLE de la sonde SCACE (voir « Sonde SCACE »). Il n'a pas d'écran de
+réglage : `uv run firmware/tools/set_scace.py true|false`. Défaut `false`, et
+`false` après la migration du schéma 9. Une sauvegarde du schéma 9 ne se
+restaure plus telle quelle (`version` refusée) : elle ne diffère du schéma 10
+que par cette section absente, et passe après avoir remplacé `"version": 9`
+par `10`.
 
 `profiles` reste un tableau vide tant que la notion de profil n'existe pas :
 le schéma est prévu pour, et l'ajouter ne changera pas le reste de l'objet.

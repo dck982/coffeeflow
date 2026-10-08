@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from record_probe import record_probe
+from scace_ble_log import LatestTemperature
 
 
 class Clock:
@@ -51,6 +52,19 @@ class ProbeTests(unittest.TestCase):
         result = self.run_probe(lambda m, p, b: telemetry(a2=None), duration_s=1)
         self.assertEqual(result["stop_reason"], "duration")
         self.assertIsNone(result["samples"][0]["a2_raw"])
+
+    def test_scace_temperature_is_added_when_followed(self):
+        class Fixed(LatestTemperature):
+            def read(self):
+                return 91.5, 40
+
+        result = self.run_probe(lambda m, p, b: telemetry(), duration_s=1, scace=Fixed())
+        first = result["samples"][0]
+        self.assertEqual((first["scace_c"], first["scace_age_ms"]), (91.5, 40))
+
+    def test_without_scace_no_probe_fields(self):
+        result = self.run_probe(lambda m, p, b: telemetry(), duration_s=1)
+        self.assertNotIn("scace_c", result["samples"][0])
 
     def test_only_telemetry_is_requested(self):
         calls = []

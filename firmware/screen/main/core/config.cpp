@@ -17,6 +17,34 @@ constexpr uint32_t kMagic = 0x43464731;  // CFG1
 struct StoredConfig { uint32_t magic; Config config; uint32_t checksum; };
 static_assert(sizeof(StoredConfig) < 512, "configuration must remain a small NVS blob");
 
+// Exact v9 layout. Version 10 added the SCACE probe switch.
+struct ConfigV9 {
+  uint16_t version;
+  uint32_t revision;
+  float target_weight_g;
+  uint16_t target_time_s;
+  float target_pressure_bar;
+  float brew_temperature_c;
+  bool heating_enabled;
+  float brew_preheat_time_s;
+  uint16_t filling_time_s;
+  float filling_pressure_bar;
+  uint8_t filling_pump_pct;
+  PreinfusionMode preinfusion_mode;
+  uint16_t preinfusion_time_s;
+  uint8_t preinfusion_pump_pct;
+  RampdownMode rampdown_mode;
+  float rampdown_lead_time_s;
+  float rampdown_lead_weight_g;
+  float rampdown_pressure_drop_bar;
+  uint8_t brew_pump_pct;
+  uint8_t purge_pump_pct;
+  uint16_t purge_max_s;
+  uint16_t dim_after_s;
+  uint16_t standby_after_s;
+};
+struct StoredConfigV9 { uint32_t magic; ConfigV9 config; uint32_t checksum; };
+
 // Exact v8 layout. Version 9 turned the filling pressure rise back into an
 // absolute target, and the filling time into a fallback.
 struct ConfigV8 {
@@ -45,7 +73,7 @@ struct ConfigV8 {
   uint16_t standby_after_s;
 };
 struct StoredConfigV8 { uint32_t magic; ConfigV8 config; uint32_t checksum; };
-static_assert(sizeof(StoredConfigV8) == sizeof(StoredConfig), "v8 and v9 layouts must match");
+static_assert(sizeof(StoredConfigV8) == sizeof(StoredConfigV9), "v8 and v9 layouts must match");
 
 // Exact v7 layout. Version 8 removed the preinfusion pressure exit and
 // turned the absolute filling pressure target into a rise above the lowest
@@ -252,6 +280,10 @@ uint32_t checksum_v5(const StoredConfigV5& stored) {
   return checksum_bytes(&stored, offsetof(StoredConfigV5, checksum));
 }
 
+uint32_t checksum_v9(const StoredConfigV9& stored) {
+  return checksum_bytes(&stored, offsetof(StoredConfigV9, checksum));
+}
+
 uint32_t checksum_v8(const StoredConfigV8& stored) {
   return checksum_bytes(&stored, offsetof(StoredConfigV8, checksum));
 }
@@ -292,6 +324,12 @@ bool read_v5_slot(nvs_handle_t handle, const char* key, StoredConfigV5* out) {
   size_t size = sizeof(*out);
   if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
   return out->magic == kMagic && out->config.version == 5 && out->checksum == checksum_v5(*out);
+}
+
+bool read_v9_slot(nvs_handle_t handle, const char* key, StoredConfigV9* out) {
+  size_t size = sizeof(*out);
+  if (nvs_get_blob(handle, key, out, &size) != ESP_OK || size != sizeof(*out)) return false;
+  return out->magic == kMagic && out->config.version == 9 && out->checksum == checksum_v9(*out);
 }
 
 bool read_v8_slot(nvs_handle_t handle, const char* key, StoredConfigV8* out) {
@@ -419,6 +457,33 @@ Config migrate_v6(const ConfigV6& legacy) {
   migrated.filling_time_s = legacy.filling_time_s;
   migrated.filling_pump_pct = legacy.filling_pump_pct;
   migrated.preinfusion_mode = migrate_preinfusion_mode(legacy.preinfusion_mode);
+  migrated.preinfusion_time_s = legacy.preinfusion_time_s;
+  migrated.preinfusion_pump_pct = legacy.preinfusion_pump_pct;
+  migrated.rampdown_mode = legacy.rampdown_mode;
+  migrated.rampdown_lead_time_s = legacy.rampdown_lead_time_s;
+  migrated.rampdown_lead_weight_g = legacy.rampdown_lead_weight_g;
+  migrated.rampdown_pressure_drop_bar = legacy.rampdown_pressure_drop_bar;
+  migrated.brew_pump_pct = legacy.brew_pump_pct;
+  migrated.purge_pump_pct = legacy.purge_pump_pct;
+  migrated.purge_max_s = legacy.purge_max_s;
+  migrated.dim_after_s = legacy.dim_after_s;
+  migrated.standby_after_s = legacy.standby_after_s;
+  return migrated;
+}
+
+Config migrate_v9(const ConfigV9& legacy) {
+  Config migrated{};
+  migrated.revision = legacy.revision;
+  migrated.target_weight_g = legacy.target_weight_g;
+  migrated.target_time_s = legacy.target_time_s;
+  migrated.target_pressure_bar = legacy.target_pressure_bar;
+  migrated.brew_temperature_c = legacy.brew_temperature_c;
+  migrated.heating_enabled = legacy.heating_enabled;
+  migrated.brew_preheat_time_s = legacy.brew_preheat_time_s;
+  migrated.filling_time_s = legacy.filling_time_s;
+  migrated.filling_pressure_bar = legacy.filling_pressure_bar;
+  migrated.filling_pump_pct = legacy.filling_pump_pct;
+  migrated.preinfusion_mode = legacy.preinfusion_mode;
   migrated.preinfusion_time_s = legacy.preinfusion_time_s;
   migrated.preinfusion_pump_pct = legacy.preinfusion_pump_pct;
   migrated.rampdown_mode = legacy.rampdown_mode;
@@ -600,6 +665,16 @@ void config_init() {
     if (a_valid || b_valid) {
       selected = (!b_valid || (a_valid && a.config.revision >= b.config.revision)) ? a.config : b.config;
       found = true;
+    }
+    StoredConfigV9 v9_a{}, v9_b{};
+    const bool v9_a_valid = !found && read_v9_slot(handle, "a", &v9_a);
+    const bool v9_b_valid = !found && read_v9_slot(handle, "b", &v9_b);
+    if (v9_a_valid || v9_b_valid) {
+      const StoredConfigV9& legacy =
+          (!v9_b_valid || (v9_a_valid && v9_a.config.revision >= v9_b.config.revision)) ? v9_a : v9_b;
+      selected = migrate_v9(legacy.config);
+      found = true;
+      migrated = true;
     }
     StoredConfigV8 v8_a{}, v8_b{};
     const bool v8_a_valid = !found && read_v8_slot(handle, "a", &v8_a);

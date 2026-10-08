@@ -6,7 +6,7 @@
 
 namespace core {
 
-inline constexpr uint16_t kConfigSchemaVersion = 9;
+inline constexpr uint16_t kConfigSchemaVersion = 10;
 inline constexpr float kMinimumBrewTemperatureC = 50.0f;
 inline constexpr float kMaximumBrewTemperatureC = 100.0f;
 inline constexpr float kMaximumBrewPreheatTimeS = 15.0f;
@@ -66,6 +66,9 @@ struct Config {
   uint16_t purge_max_s = 20;
   uint16_t dim_after_s = 240;
   uint16_t standby_after_s = 1800;
+  // Recherche et connexion BLE de la sonde SCACE. Désactivée par défaut : la
+  // sonde ne sert qu'aux campagnes de mesure.
+  bool scace_enabled = false;
 };
 
 // `profiles` et les courbes de calibration ne sont délibérément pas encodés

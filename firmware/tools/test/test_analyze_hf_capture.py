@@ -25,3 +25,16 @@ def test_cup_mean_ignores_scale_dips_and_invalid_weights():
 
 def test_cup_mean_without_scale_is_none():
     assert cup_weighted_temperature([sample(0.0, 90.0, flags=0x0B)] * 3, 2) is None
+
+
+def test_scace_cup_mean_uses_the_basket_probe_and_skips_missing_frames():
+    samples = [dict(sample(0.0, 90.0), scace_temperature_c=88.0),
+               dict(sample(1.0, 90.0), scace_temperature_c=None),
+               dict(sample(3.0, 90.0), scace_temperature_c=92.0)]
+    cup_g, average_c = cup_weighted_temperature(samples, 2, "scace")
+    assert cup_g == pytest.approx(3.0)
+    assert average_c == pytest.approx(90.0)
+
+
+def test_scace_cup_mean_without_probe_is_none():
+    assert cup_weighted_temperature([sample(0.0, 90.0), sample(2.0, 90.0)], 1, "scace") is None

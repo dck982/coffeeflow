@@ -24,6 +24,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
+from analyze_hf_capture import cup_weighted_temperature
+
 PHASE_STYLE = {
     "thermal_preheat": ("chauffe", "#4a9bb5"),
     "filling": ("remplissage", "#8c6bb1"),
@@ -126,6 +128,10 @@ def heater_state(sample: dict[str, Any]) -> bool | None:
 def heater_fmt(sample: dict[str, Any]) -> str:
     state = heater_state(sample)
     return "ON" if state is True else "OFF" if state is False else "—"
+
+
+def has_scace(samples: list[dict[str, Any]]) -> bool:
+    return any(sample.get("scace_temperature_c") is not None for sample in samples)
 
 
 def has_weight(samples: list[dict[str, Any]]) -> bool:
@@ -783,6 +789,10 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 1.5, "dash": "dash"},
          "yaxis": "y", "hoverinfo": "skip", "legendrank": 2},
     ]
+    if has_scace(samples):
+        traces.append({"name": "sonde SCACE · panier", "x": times, "y": series("scace_temperature_c"),
+                       "type": "scatter", "mode": "lines", "line": {"color": "#8c564b", "width": 2},
+                       "yaxis": "y4", "hovertemplate": "%{y:.2f} °C<extra></extra>"})
     shapes = []
     annotations = []
     for start, _end, start_s, end_s, mode in phase_ranges(samples, duration_s):
@@ -929,6 +939,11 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
         f"({pressure_invalid_pct:.1f} % du temps d’infusion)."
     )
     hero_cards = shot_cards(shot_summary(samples, target_pressure_bar), target_pressure_bar)
+    stop_index = first_pump_stop(samples)
+    scace_cup = cup_weighted_temperature(samples, stop_index, "scace") if stop_index is not None else None
+    if scace_cup is not None:
+        hero_cards.append(metric_card("SCACE en tasse", f"{fmt(scace_cup[1])} °C",
+                                      f"sonde du panier pondérée par la tasse, {fmt(scace_cup[0], 1)} g"))
     diagnostic_cards = [
         metric_card("Débit tasse", f"{fmt(cup_flow_average)} / {fmt(cup_flow_max)} g/s",
                     f"moyen / maximum avant stop, lissé sur {weight_flow_window_s:g} s"),

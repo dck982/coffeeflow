@@ -340,13 +340,13 @@ présente dans `sdkconfig`, même désactivée, l'emporte sur les défauts.
 ## Serveur BLE
 
 Le Core2 est périphérique GATT. Il remplace la console USB pour la
-calibration et alimentera les captures de l'écran. L'écran s'y connectera
-comme il le fait déjà avec la balance et horodatera chaque trame dans sa
-capture : aucune synchronisation d'horloge n'est nécessaire.
+calibration et alimente les captures de l'écran, qui s'y connecte comme à la
+balance et horodate chaque trame à sa réception : aucune synchronisation
+d'horloge n'est nécessaire.
 
 La définition du service vit dans
-`firmware/common/include/common/scace_ble.hpp`, compilée par la sonde et, à
-terme, par l'écran. Le script Mac en reprend les UUID ; un test vérifie
+`firmware/common/include/common/scace_ble.hpp`, compilée par la sonde et par
+l'écran. Le script Mac en reprend les UUID ; un test vérifie
 qu'ils n'ont pas divergé.
 
 | Élément | Valeur |
@@ -400,10 +400,19 @@ Mac), `seq`, `probe_ms`, `a0`, `a1`, `celsius` (vide sans température),
 dérive en K/min et la moyenne de R/R_fixe, ainsi que le nombre de trames
 perdues.
 
-### Côté écran, à faire
+### Côté écran
 
-- Passer `CONFIG_BT_NIMBLE_MAX_CONNECTIONS` de 1 à 2 : la balance et la
-  sonde. NimBLE alloue déjà en PSRAM (`MEM_ALLOC_MODE_EXTERNAL`).
-- Se connecter au service SCACE, se reconnecter après une perte.
-- Ajouter une voie sonde à la capture HF (schéma v3), avec les codes bruts,
-  et dater chaque trame à partir du temps sonde.
+Depuis l'écran 0.3.47, voir « Sonde SCACE » dans [firmware.md](firmware.md) :
+
+- l'écran se connecte à la sonde si `scace.enabled` est vrai
+  (`uv run firmware/tools/set_scace.py true`), se reconnecte après une perte,
+  et la cherche 1 s toutes les 10 s tant que la balance est connectée ;
+- la capture HF porte `scace_temperature_c` (température seule, au
+  centième), `null` sans mesure correcte depuis 300 ms. Chaque échantillon
+  prend la dernière trame reçue, sans dater par le temps sonde : le décalage
+  reste sous 100 ms plus l'intervalle de connexion, contre plusieurs
+  secondes de retard pour la NTC chaudière ;
+- `analyze_hf_capture.py` et `describe_hf_capture.py` en donnent la moyenne
+  pondérée par la tasse et la courbe ;
+- `record_probe.py --scace` lit la sonde en BLE depuis le Mac, en parallèle
+  de `/telemetry`.

@@ -4,6 +4,9 @@
 # ///
 """Calcule la température NTC moyenne d'une capture HF, pondérée par la tasse et par le volume.
 
+Si la capture contient la sonde SCACE, sa moyenne pondérée par la tasse est
+donnée aussi : c'est l'eau dans le panier, pas la chaudière.
+
 La moyenne pondérée par la tasse est le critère de la consigne
 (docs/chauffe-infusion.md#objectif) : chaque gramme arrivé en tasse avant
 l'arrêt de la pompe compte avec la NTC du même instant.
@@ -63,12 +66,30 @@ def volume_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -
 SCALE_VALID = 0x04
 
 
-def cup_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -> tuple[float, float] | None:
-    """Moyenne NTC pondérée par les grammes arrivés en tasse jusqu'à ``end_index``.
+def sample_temperature(sample: dict[str, Any], source: str, index: int) -> float | None:
+    """Température de ``source`` à cet échantillon, ``None`` si elle manque.
+
+    ``boiler`` : NTC chaudière, ignorée si invalide. ``scace`` : sonde dans le
+    panier, ``null`` quand elle est absente ou sans mesure fraîche.
+    """
+    if source == "boiler":
+        if sample.get("boiler_temperature_valid") is not True:
+            return None
+        return finite_number(sample.get("boiler_temperature_c"), "boiler_temperature_c", index)
+    value = sample.get("scace_temperature_c")
+    if value is None:
+        return None
+    return finite_number(value, "scace_temperature_c", index)
+
+
+def cup_weighted_temperature(samples: list[dict[str, Any]], end_index: int,
+                             source: str = "boiler") -> tuple[float, float] | None:
+    """Moyenne de ``source`` pondérée par les grammes arrivés en tasse jusqu'à ``end_index``.
 
     Le poids est pris en maximum courant : la balance oscille de quelques
     dixièmes de gramme et une baisse n'est pas de l'eau qui remonte. Les
-    poids invalides ou négatifs sont ignorés. ``None`` sans balance.
+    poids invalides ou négatifs sont ignorés, comme les échantillons sans
+    température. ``None`` sans balance ou sans température.
     """
     cup_g = 0.0
     temperature_cup = 0.0
@@ -80,9 +101,9 @@ def cup_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -> t
         if not (int(sample.get("flags", 0)) & SCALE_VALID) or isinstance(weight, bool) \
                 or not isinstance(weight, (int, float)) or not math.isfinite(weight) or weight < 0:
             continue
-        if sample.get("boiler_temperature_valid") is not True:
+        temperature = sample_temperature(sample, source, index)
+        if temperature is None:
             continue
-        temperature = finite_number(sample.get("boiler_temperature_c"), "boiler_temperature_c", index)
         if top_g is None:
             top_g, top_temperature = float(weight), temperature
             continue
@@ -135,6 +156,10 @@ def main() -> int:
             print(f"Pondérée par la tasse, jusqu'à l'arrêt de la pompe : {cup_c:.2f} °C sur {cup_g:.1f} g")
         else:
             print("Pondérée par la tasse : pas de balance dans la capture")
+        scace = cup_weighted_temperature(capture["samples"], pump_stop_index(capture["samples"]), "scace")
+        if scace is not None:
+            scace_g, scace_c = scace
+            print(f"Sonde SCACE pondérée par la tasse, jusqu'à l'arrêt de la pompe : {scace_c:.2f} °C sur {scace_g:.1f} g")
         print(f"Pondérée par le volume, jusqu'à l'arrêt de la pompe ({stop_s:.2f} s) : {average_c:.2f} °C sur {volume_ml:.2f} ml")
     else:
         print("Arrêt de la pompe absent : moyenne pendant toute la capture seulement")

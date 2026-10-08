@@ -60,6 +60,13 @@ struct Snapshot {
   bool scale_present = false;
   uint32_t scale_age_ms = 0;
 
+  // Sonde SCACE (BLE, 10 Hz) : température de l'eau dans le panier.
+  // scace_valid exige une mesure correcte reçue depuis moins de 300 ms.
+  bool scace_connected = false;
+  bool scace_valid = false;
+  float scace_temperature_c = 0.0f;
+  uint32_t scace_age_ms = UINT32_MAX;
+
   bool sensors_alive = false;
   bool pressure_valid = false;
   bool flow_valid = false;
@@ -156,6 +163,7 @@ struct HFSample {
   int16_t boiler_ntc_a0_raw = 0;
   int16_t boiler_ntc_a1_raw = 0;
   int16_t pressure_a2_raw = 0;
+  int16_t scace_centi_c = 0;  // centièmes de °C, valable si bit6
   uint32_t boiler_temperature_age_ms = UINT32_MAX;
   uint32_t flow_pulse_count = 0;
   uint32_t flow_last_edge_age_ms = 0;
@@ -171,7 +179,7 @@ struct HFSample {
   HFSampleMode mode = HFSampleMode::kPurge;
   uint8_t flags = 0;  // bit0 pression valide, bit1 débit valide, bit2 balance présente,
                       // bit3 chaudière valide/fraîche, bit4 SSR chaudière actif,
-                      // bit5 A2 lu
+                      // bit5 A2 lu, bit6 SCACE valide
 };
 
 struct HFCaptureInfo {
@@ -214,6 +222,11 @@ void on_log(const uint8_t* data, uint8_t len);
 // reste au coeur : connectée et une pesée reçue depuis moins de deux secondes.
 void update_scale_connection(bool connected);
 void update_scale_weight(float weight_g);
+
+// Sonde SCACE, appelé exclusivement par ble_scace. ok est faux pour une
+// trame sans température (pont hors tension, NTC ouverte ou en court-circuit).
+void update_scace_connection(bool connected);
+void update_scace_temperature(int16_t centi_c, bool ok);
 void set_touch_ready(bool ready);
 void note_touch_press();
 

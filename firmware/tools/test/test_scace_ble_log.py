@@ -5,8 +5,8 @@ import struct
 import unittest
 from pathlib import Path
 
-from scace_ble_log import (FRAME_UUID, SERVICE_UUID, Recorder, decode_frame, lost_frames,
-                           slope_per_min)
+from scace_ble_log import (FRAME_UUID, SERVICE_UUID, LatestTemperature, Recorder, decode_frame,
+                           lost_frames, slope_per_min)
 
 
 HEADER = Path(__file__).resolve().parents[2] / "common" / "include" / "common" / "scace_ble.hpp"
@@ -87,6 +87,35 @@ class ScaceBleLogTest(unittest.TestCase):
         line = recorder.status_line()
         self.assertIn("0.29 °C", line)
         self.assertIn("dérive +0.600 K/min", line)
+
+
+class LatestTemperatureTest(unittest.TestCase):
+    def setUp(self):
+        self.now = 100.0
+        self.latest = LatestTemperature(clock=lambda: self.now)
+
+    def test_nothing_received(self):
+        self.assertEqual(self.latest.read(), (None, None))
+
+    def test_fresh_temperature_and_age(self):
+        self.latest.on_data(frame_bytes(centi_c=9123))
+        self.now += 0.1
+        self.assertEqual(self.latest.read(), (91.23, 100))
+
+    def test_stale_temperature_is_dropped_but_age_kept(self):
+        self.latest.on_data(frame_bytes(centi_c=9123))
+        self.now += 0.5
+        self.assertEqual(self.latest.read(), (None, 500))
+
+    def test_frame_without_measurement_clears_temperature(self):
+        self.latest.on_data(frame_bytes(centi_c=9123))
+        self.latest.on_data(frame_bytes(centi_c=-32768, status=0))
+        self.assertEqual(self.latest.read(), (None, 0))
+
+    def test_invalid_frame_is_ignored(self):
+        self.latest.on_data(frame_bytes(centi_c=9123))
+        self.latest.on_data(b"\x00" * 4)
+        self.assertEqual(self.latest.read()[0], 91.23)
 
 
 if __name__ == "__main__":

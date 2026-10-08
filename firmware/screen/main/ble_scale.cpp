@@ -7,15 +7,12 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "host/ble_gap.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
-#include "host/util/util.h"
-#include "nimble/nimble_port.h"
-#include "nimble/nimble_port_freertos.h"
 #include "os/os_mbuf.h"
 
+#include "ble_central.h"
 #include "core/core.h"
 #include "can_link.h"
 
@@ -54,14 +51,10 @@ uint16_t g_cccd_handle = 0;
 DiscoveryMode g_discovery_mode = DiscoveryMode::kLegacy;
 bool g_active = false;
 bool g_subscribed = false;
-bool g_started = false;
-TaskHandle_t g_heartbeat_task = nullptr;
 int64_t g_last_heartbeat_us = 0;
 int64_t g_last_publish_us = 0;
 uint8_t g_rx[kRxCapacity]{};
 size_t g_rx_len = 0;
-
-int gap_event(struct ble_gap_event* event, void* arg);
 
 bool ready(uint16_t* connection, uint16_t* value_handle) {
   portENTER_CRITICAL(&g_lock);
@@ -89,10 +82,7 @@ void clear_connection() {
   if (was_connected) can_link::send_log(common::LogCode::kBleDisconnected, common::LogSeverity::kWarn);
 }
 
-bool is_acaia_advertisement(const struct ble_gap_disc_desc& disc) {
-  struct ble_hs_adv_fields fields{};
-  if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) != 0) return false;
-
+bool is_acaia_advertisement(const struct ble_hs_adv_fields& fields) {
   // La Lunar annonce normalement ce service. Le nom est un repli utile pour
   // les versions qui ne mettent l'UUID que dans la scan response.
   for (uint8_t i = 0; i < fields.num_uuids128; ++i) {
@@ -113,46 +103,6 @@ void discovery_failed(uint16_t connection, const char* stage, int status) {
   can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
                      static_cast<uint16_t>(status));
   ble_gap_terminate(connection, BLE_ERR_REM_USER_CONN_TERM);
-}
-
-void scan() {
-  uint8_t own_addr_type;
-  int rc = ble_hs_id_infer_auto(0, &own_addr_type);
-  if (rc != 0) {
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(rc));
-    return;
-  }
-  struct ble_gap_disc_params params{};
-  // La Lunar peut diffuser l'UUID dans l'advertising et son nom dans la scan
-  // response. Le contrôleur du S3 déduplique sinon par adresse, et masque le
-  // second paquet avant que NimBLE nous le livre.
-  params.filter_duplicates = 0;
-  params.passive = 0;
-  rc = ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &params, gap_event, nullptr);
-  if (rc == 0) {
-    can_link::send_log(common::LogCode::kBleScanStarted, common::LogSeverity::kDebug);
-  } else if (rc != BLE_HS_EALREADY) {
-    ESP_LOGW(kTag, "scan unavailable: %d", rc);
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(rc));
-  }
-}
-
-void connect_to_device(const ble_addr_t& address) {
-  uint8_t own_addr_type;
-  int rc = ble_hs_id_infer_auto(0, &own_addr_type);
-  if (rc == 0) {
-    // nullptr demande les paramètres de connexion valides par défaut de
-    // NimBLE. Une structure value-initialized contient des zéros invalides.
-    rc = ble_gap_connect(own_addr_type, &address, 30000, nullptr, gap_event, nullptr);
-  }
-  if (rc != 0) {
-    ESP_LOGW(kTag, "Acaia connect unavailable: %d", rc);
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(rc));
-    scan();
-  }
 }
 
 void send_frame(uint8_t cmd, const uint8_t* payload, size_t payload_len, bool length_prefix) {
@@ -393,30 +343,27 @@ int start_descriptor_discovery(uint16_t connection) {
   return rc;
 }
 
+void heartbeat(int64_t now) {
+  int64_t last;
+  portENTER_CRITICAL(&g_lock);
+  last = g_last_heartbeat_us;
+  portEXIT_CRITICAL(&g_lock);
+  if (now - last < static_cast<int64_t>(kHeartbeatMs) * 1000) return;
+  request_notifications_and_heartbeat();
+  portENTER_CRITICAL(&g_lock);
+  g_last_heartbeat_us = now;
+  portEXIT_CRITICAL(&g_lock);
+}
+
+}  // namespace
+
 int gap_event(struct ble_gap_event* event, void*) {
   switch (event->type) {
-    case BLE_GAP_EVENT_DISC:
-      if (!is_acaia_advertisement(event->disc)) return 0;
-      can_link::send_log(common::LogCode::kBleScaleFound, common::LogSeverity::kInfo,
-                         static_cast<uint16_t>(event->disc.rssi));
-      {
-        int rc = ble_gap_disc_cancel();
-        if (rc != 0) {
-          can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                             static_cast<uint16_t>(rc));
-          return 0;
-        }
-        // NimBLE retire le callback du scan pendant l'annulation : aucun
-        // BLE_GAP_EVENT_DISC_COMPLETE ne nous sera remis. La connexion doit
-        // donc être demandée immédiatement après l'annulation réussie.
-        connect_to_device(event->disc.addr);
-      }
-      return 0;
     case BLE_GAP_EVENT_CONNECT:
+      ble_central::connection_attempt_finished();
       if (event->connect.status != 0) {
         can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
                            static_cast<uint16_t>(event->connect.status));
-        scan();
         return 0;
       }
       portENTER_CRITICAL(&g_lock);
@@ -440,7 +387,6 @@ int gap_event(struct ble_gap_event* event, void*) {
       return 0;
     case BLE_GAP_EVENT_DISCONNECT:
       clear_connection();
-      scan();
       return 0;
     case BLE_GAP_EVENT_NOTIFY_RX: {
       size_t length = OS_MBUF_PKTLEN(event->notify_rx.om);
@@ -455,81 +401,20 @@ int gap_event(struct ble_gap_event* event, void*) {
   }
 }
 
-void on_reset(int reason) {
-  ESP_LOGW(kTag, "NimBLE reset: %d", reason);
-  can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                     static_cast<uint16_t>(reason));
-  clear_connection();
+bool matches(const ble_hs_adv_fields& fields) { return is_acaia_advertisement(fields); }
+
+bool connected() {
+  portENTER_CRITICAL(&g_lock);
+  bool result = g_connection != BLE_HS_CONN_HANDLE_NONE;
+  portEXIT_CRITICAL(&g_lock);
+  return result;
 }
 
-void on_sync() {
-  int rc = ble_hs_util_ensure_addr(0);
-  if (rc == 0) {
-    scan();
-  } else {
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(rc));
-  }
-}
-void host_task(void*) { nimble_port_run(); nimble_port_freertos_deinit(); }
+void tick(int64_t now_us) { heartbeat(now_us); }
 
-void heartbeat_task(void*) {
-  for (;;) {
-    int64_t now = esp_timer_get_time();
-    int64_t last;
-    portENTER_CRITICAL(&g_lock);
-    last = g_last_heartbeat_us;
-    portEXIT_CRITICAL(&g_lock);
-    if (now - last >= static_cast<int64_t>(kHeartbeatMs) * 1000) {
-      request_notifications_and_heartbeat();
-      portENTER_CRITICAL(&g_lock);
-      g_last_heartbeat_us = now;
-      portEXIT_CRITICAL(&g_lock);
-    }
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
-
-}  // namespace
-
-void init() {
-  if (g_started) return;
-  esp_err_t init_err = nimble_port_init();
-  if (init_err != ESP_OK) {
-    ESP_LOGE(kTag, "nimble_port_init failed: %s", esp_err_to_name(init_err));
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(init_err));
-    return;
-  }
-  ble_hs_cfg.reset_cb = on_reset;
-  ble_hs_cfg.sync_cb = on_sync;
-  nimble_port_freertos_init(host_task);
-  if (xTaskCreatePinnedToCore(heartbeat_task, "ble_acaia", 4096, nullptr, 5,
-                              &g_heartbeat_task, 0) != pdPASS) {
-    ESP_LOGE(kTag, "heartbeat task creation failed");
-    can_link::send_log(common::LogCode::kBleError, common::LogSeverity::kWarn,
-                       static_cast<uint16_t>(ESP_ERR_NO_MEM));
-    nimble_port_stop();
-    nimble_port_deinit();
-    return;
-  }
-  g_started = true;
-}
-
-void stop() {
-  if (!g_started) return;
-  // La tâche hôte et la tâche heartbeat peuvent encore appeler NimBLE ; elles
-  // doivent disparaître avant de libérer les allocations du contrôleur.
-  if (g_heartbeat_task != nullptr) {
-    vTaskDelete(g_heartbeat_task);
-    g_heartbeat_task = nullptr;
-  }
+void reset() {
   set_active(false);
   clear_connection();
-  nimble_port_stop();
-  nimble_port_deinit();
-  g_started = false;
-  ESP_LOGI(kTag, "NimBLE et controleur completement desinitialises");
 }
 
 void set_active(bool active) {

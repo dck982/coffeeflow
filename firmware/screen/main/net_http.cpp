@@ -195,6 +195,8 @@ cJSON* encode_config(const core::Config& config) {
   cJSON* ui = cJSON_AddObjectToObject(root, "ui");
   cJSON_AddNumberToObject(ui, "dim_after_s", config.dim_after_s);
   cJSON_AddNumberToObject(ui, "standby_after_s", config.standby_after_s);
+  cJSON* scace = cJSON_AddObjectToObject(root, "scace");
+  cJSON_AddBoolToObject(scace, "enabled", config.scace_enabled);
   cJSON_AddItemToObject(root, "profiles", cJSON_CreateArray());
   return root;
 }
@@ -587,6 +589,19 @@ bool apply_ui_key(const char* key, cJSON* value, core::Config* config, const cha
   return false;
 }
 
+bool apply_scace_key(const char* key, cJSON* value, core::Config* config, const char** error_field) {
+  if (std::strcmp(key, "enabled") == 0) {
+    if (!cJSON_IsBool(value)) {
+      *error_field = "scace.enabled";
+      return false;
+    }
+    config->scace_enabled = cJSON_IsTrue(value);
+    return true;
+  }
+  *error_field = join_field("scace", key);
+  return false;
+}
+
 bool apply_json_patch(cJSON* root, core::Config* config, const char** error_field) {
   if (!cJSON_IsObject(root)) {
     *error_field = "version";
@@ -636,6 +651,10 @@ bool apply_json_patch(cJSON* root, core::Config* config, const char** error_fiel
     }
     if (std::strcmp(child->string, "ui") == 0) {
       if (!overlay_object(child, "ui", config, error_field, apply_ui_key)) return false;
+      continue;
+    }
+    if (std::strcmp(child->string, "scace") == 0) {
+      if (!overlay_object(child, "scace", config, error_field, apply_scace_key)) return false;
       continue;
     }
     if (std::strcmp(child->string, "profiles") == 0) {
@@ -710,6 +729,10 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
   char boiler_temperature[32];
   char boiler_age[16];
   char pressure_a2[16];
+  char scace_temperature[16];
+  if ((sample.flags & 0x40) != 0)
+    std::snprintf(scace_temperature, sizeof(scace_temperature), "%.2f", sample.scace_centi_c / 100.0);
+  else std::snprintf(scace_temperature, sizeof(scace_temperature), "null");
   if ((sample.flags & 0x20) != 0) std::snprintf(pressure_a2, sizeof(pressure_a2), "%d", sample.pressure_a2_raw);
   else std::snprintf(pressure_a2, sizeof(pressure_a2), "null");
   if (sample.boiler_temperature_age_ms == UINT32_MAX) {
@@ -744,13 +767,13 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
     written = std::snprintf(line, sizeof(line),
                             "%s{\"t_ms\":%u,\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
                             "\"boiler_temperature_c\":%s,\"boiler_temperature_age_ms\":%s,"
-                            "\"boiler_temperature_valid\":%s,"
+                            "\"boiler_temperature_valid\":%s,\"scace_temperature_c\":%s,"
                             "\"volume_ml\":%.6g,\"flow_ml_s\":%.6g,\"weight_g\":%.6g,"
                             "\"pump_pct_commanded\":%u,\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,"
                             "\"heater_on\":%s,\"mode\":\"%s\",\"flags\":%u}",
                             comma, static_cast<unsigned>(sample.t_ms), static_cast<double>(sample.pressure_bar),
                             static_cast<double>(sample.xdb401_temperature_c), boiler_temperature,
-                            boiler_age, boiler_valid ? "true" : "false",
+                            boiler_age, boiler_valid ? "true" : "false", scace_temperature,
                             static_cast<double>(sample.volume_ml),
                             static_cast<double>(sample.flow_ml_s), static_cast<double>(sample.weight_g),
                             sample.pump_pct_commanded, sample.pump_pct_reported,
@@ -763,7 +786,7 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             "\"boiler_temperature_age_ms\":%s,\"boiler_temperature_valid\":%s,"
                             "\"flow_pulse_count\":%u,\"flow_last_edge_age_ms\":%u,"
                             "\"pressure_bar\":%.6g,\"xdb401_temperature_c\":%.6g,"
-                            "\"boiler_temperature_c\":%s,\"volume_ml\":%.6g,"
+                            "\"boiler_temperature_c\":%s,\"scace_temperature_c\":%s,\"volume_ml\":%.6g,"
                             "\"flow_ml_s\":%.6g,\"weight_g\":%.6g,\"pump_pct_commanded\":%u,"
                             "\"pump_pct_reported\":%u,\"heating_power_pct\":%.6g,\"heater_on\":%s,"
                             "\"mode\":\"%s\",\"flags\":%u}",
@@ -773,7 +796,7 @@ bool send_hf_capture_sample(httpd_req_t* request, const core::HFSample& sample, 
                             boiler_age, boiler_valid ? "true" : "false",
                             static_cast<unsigned>(sample.flow_pulse_count), static_cast<unsigned>(sample.flow_last_edge_age_ms),
                             static_cast<double>(sample.pressure_bar), static_cast<double>(sample.xdb401_temperature_c),
-                            boiler_temperature,
+                            boiler_temperature, scace_temperature,
                             static_cast<double>(sample.volume_ml), static_cast<double>(sample.flow_ml_s),
                             static_cast<double>(sample.weight_g), sample.pump_pct_commanded,
                             sample.pump_pct_reported, static_cast<double>(sample.heating_power_pct), heater_on,

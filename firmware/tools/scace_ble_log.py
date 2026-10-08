@@ -34,12 +34,13 @@ import csv
 import math
 import struct
 import sys
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Callable, TextIO
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -172,6 +173,70 @@ class Recorder:
                          f" dérive {drift:+.3f} K/min, R/R_fixe {mean_r:.5f}")
         parts.append(f"{self.lost} perdue(s)")
         return " / ".join(parts)
+
+
+# Trois trames manquées à 10 Hz : la dernière température n'est plus lue.
+LATEST_STALE_S = 0.3
+
+
+class LatestTemperature:
+    """Dernière température de la sonde, écrite par le thread BLE et lue par un autre."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self.clock = clock
+        self.lock = threading.Lock()
+        self.celsius: float | None = None
+        self.received: float | None = None
+
+    def on_data(self, data: bytes) -> None:
+        try:
+            frame = decode_frame(data)
+        except ValueError:
+            return
+        celsius = frame.celsius if frame.status == STATUS_OK else None
+        with self.lock:
+            self.celsius = celsius
+            self.received = self.clock()
+
+    def read(self) -> tuple[float | None, int | None]:
+        """Température (``None`` si absente ou périmée) et âge de la dernière trame en ms."""
+        with self.lock:
+            celsius, received = self.celsius, self.received
+        if received is None:
+            return None, None
+        age_s = self.clock() - received
+        return (celsius if age_s <= LATEST_STALE_S else None), round(age_s * 1000)
+
+
+async def follow(latest: LatestTemperature, *, address: str | None, scan_timeout_s: float) -> None:
+    """Garde la sonde connectée et alimente ``latest``, jusqu'à l'arrêt du programme."""
+    from bleak import BleakClient
+    from bleak.exc import BleakError
+
+    while True:
+        device = await find_device(address, scan_timeout_s)
+        if device is None:
+            continue
+        disconnected = asyncio.Event()
+        try:
+            async with BleakClient(device, disconnected_callback=lambda _c: disconnected.set()) as client:
+                await client.start_notify(FRAME_UUID, lambda _sender, data: latest.on_data(bytes(data)))
+                print(f"SCACE connectée ({device.name or device.address})", flush=True)
+                await disconnected.wait()
+        except (BleakError, OSError, asyncio.TimeoutError) as error:
+            print(f"SCACE, liaison BLE : {error}", flush=True)
+        print("SCACE perdue, reconnexion…", flush=True)
+        await asyncio.sleep(RECONNECT_DELAY_S)
+
+
+def follow_in_background(latest: LatestTemperature, *, address: str | None = None,
+                         scan_timeout_s: float = 10.0) -> threading.Thread:
+    """Lance ``follow`` dans un thread démon, pour un programme synchrone."""
+    thread = threading.Thread(
+        target=lambda: asyncio.run(follow(latest, address=address, scan_timeout_s=scan_timeout_s)),
+        name="scace-ble", daemon=True)
+    thread.start()
+    return thread
 
 
 async def find_device(address: str | None, timeout_s: float):

@@ -101,7 +101,7 @@
   comment: POST /config rejeté. arg16 identifie la clé fautive.
 - name: BLE_SCAN_STARTED
   severity: debug
-  comment: Client BLE Acaia prêt et scan actif.
+  comment: Scan BLE continu démarré (balance absente).
 - name: BLE_SCALE_FOUND
   severity: info
   comment: Annonce BLE Acaia reconnue, connexion demandée. arg16 = RSSI signé sur 16 bits.
@@ -116,7 +116,7 @@
   comment: Connexion BLE Acaia perdue ou arrêtée.
 - name: BLE_ERROR
   severity: warn
-  comment: Échec client BLE Acaia. arg16 = code NimBLE ou ESP-IDF.
+  comment: Échec de la pile BLE, du scan, d'une connexion ou du client Acaia. arg16 = code NimBLE ou ESP-IDF.
 - name: BREW_STARTED
   severity: info
   comment: Cycle d'infusion démarré.
@@ -150,3 +150,15 @@
 - name: MAINTENANCE_VALVE_CLOSED
   severity: info
   comment: Vanne de maintenance refermée. arg16 = 0 commande, 1 fin de durée, 2 SET infusion, 3 arrêt sécurité.
+- name: SCACE_FOUND
+  severity: info
+  comment: Annonce BLE de la sonde SCACE reconnue, connexion demandée. arg16 = RSSI signé sur 16 bits.
+- name: SCACE_CONNECTED
+  severity: info
+  comment: Sonde SCACE connectée et abonnée à ses notifications.
+- name: SCACE_DISCONNECTED
+  severity: info
+  comment: Connexion BLE de la sonde SCACE perdue ou arrêtée.
+- name: SCACE_ERROR
+  severity: warn
+  comment: Échec client BLE SCACE. arg16 = code NimBLE.

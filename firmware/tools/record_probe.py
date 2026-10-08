@@ -1,6 +1,7 @@
 #!/usr/bin/env -S uv run
 # /// script
 # requires-python = ">=3.10"
+# dependencies = ["bleak>=0.22"]
 # ///
 """Enregistre les codes bruts A0/A1 de la sonde chaudière et A2 du XDB401
 analogique pour les étalonner.
@@ -14,6 +15,12 @@ un tracé de a0_raw / a1_raw. Le rapport a0/a1 − 1 vaut R_sonde / R_fixe.
 a2_raw vaut null si A2 n'a pas pu être lu ; un code vaut 125 µV. La pression
 convertie (pressure_bar, pressure_valid) est relevée en même temps, pour lire
 l'état au repos, hors des captures HF qui démarrent avec la pompe.
+
+Avec --scace, la sonde SCACE est lue en BLE directement par le Mac (le Core2
+accepte l'écran et le Mac à la fois) : chaque mesure porte la dernière
+température reçue (scace_c, null si absente ou plus vieille que 300 ms) et
+son âge (scace_age_ms). L'écran ne la donne pas dans /telemetry : en mode
+Wi-Fi, son BLE est éteint.
 
 Les captures sont écrites par défaut dans captures/ (ignoré par Git).
 """
@@ -31,6 +38,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from record_heating import request_json
+from scace_ble_log import LatestTemperature, follow_in_background
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -69,7 +77,8 @@ def record_probe(output: Path,
                  client: Callable[[str, str, dict[str, Any] | None], dict[str, Any]],
                  *, clock: Callable[[], float] = time.monotonic,
                  sleep: Callable[[float], None] = time.sleep,
-                 duration_s: float | None = None) -> dict[str, Any]:
+                 duration_s: float | None = None,
+                 scace: LatestTemperature | None = None) -> dict[str, Any]:
     if duration_s is not None and (not math.isfinite(duration_s) or duration_s <= 0):
         raise ValueError("duration doit être un nombre de secondes positif")
     if output.exists():
@@ -91,6 +100,8 @@ def record_probe(output: Path,
             if duration_s is not None and clock() >= started + duration_s:
                 break
             sample = probe_sample(client("GET", "/telemetry", None))
+            if scace is not None:
+                sample["scace_c"], sample["scace_age_ms"] = scace.read()
             received = clock()
             capture["samples"].append({
                 "elapsed_s": round(received - started, 3),
@@ -104,9 +115,13 @@ def record_probe(output: Path,
                 a2_text = f"{a2} ({a2 * 0.125:.1f} mV)" if is_number(a2) else "indisponible"
                 bar = sample["pressure_bar"]
                 bar_text = f"{bar:.3f} bar" if is_number(bar) and sample["pressure_valid"] else "indisponible"
+                scace_text = ""
+                if scace is not None:
+                    scace_c = sample["scace_c"]
+                    scace_text = f" / SCACE {scace_c:.2f} °C" if is_number(scace_c) else " / SCACE indisponible"
                 print(f"{received - started:6.1f} s : a0 {a0} / a1 {a1} / a0/a1−1 {ratio}"
                       f" / {sample['c']} °C ({sample['freshness']}) / a2 {a2_text}"
-                      f" / I2C {bar_text}", flush=True)
+                      f" / pression {bar_text}{scace_text}", flush=True)
                 while next_status <= received:
                     next_status += STATUS_INTERVAL_S
             next_poll += POLL_INTERVAL_S
@@ -131,6 +146,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="fichier JSON de sortie")
     parser.add_argument("--duration", type=float, metavar="SECONDS",
                         help="durée en secondes (défaut : jusqu'à Ctrl-C)")
+    parser.add_argument("--scace", action="store_true", help="lire aussi la sonde SCACE en BLE")
+    parser.add_argument("--scace-address", help="adresse BLE de la sonde (sinon par service)")
     args = parser.parse_args()
     if args.duration is not None and (not math.isfinite(args.duration) or args.duration <= 0):
         parser.error("--duration doit être un nombre de secondes positif")
@@ -141,8 +158,12 @@ def main() -> int:
     url = f"http://{address.rstrip('/')}"
     output = args.output or CAPTURE_DIR / f"probe-{datetime.now():%Y%m%d-%H%M%S-%f}.json"
     client = lambda method, path, body: request_json(url, token, method, path, body)
+    scace = None
+    if args.scace:
+        scace = LatestTemperature()
+        follow_in_background(scace, address=args.scace_address)
     try:
-        capture = record_probe(output, client, duration_s=args.duration)
+        capture = record_probe(output, client, duration_s=args.duration, scace=scace)
     except (OSError, ValueError) as error:
         print(f"erreur du relevé : {error}", file=sys.stderr)
         return 1

@@ -260,31 +260,42 @@ sens sur le bus CAN acceptent l'USB.
 |---|---|---|---|
 | `flash <image> --target screen\|sensors` | `coffeetool flash` | `POST /firmware?target=` | `FLASH_CTRL`/`FLASH_DATA` |
 | `confirm` | `confirm_fw.sh` | `POST /firmware/confirm` | — |
-| `monitor` | `coffeetool monitor` | WebSocket `/ws` (miroir CAN) | flux série |
+| `monitor [--out <fichier>]` | `coffeetool monitor`, `coffeetool record` | WebSocket `/ws` (miroir CAN) | flux série |
 | `send`, `replay` | `coffeetool send`, `replay` | WebSocket | série |
 | `telemetry` | `curl GET /telemetry` | `GET /telemetry`, JSON indenté | — |
+| `telemetry --record [--rate] [--duration] [--scace]` | `record_probe.py`, `record_heating.py` | `/telemetry` en boucle, dans `captures/` | — |
 | `config save [fichier]` | `save_config.py` | `GET /config`, écrit dans `configs/` | — |
 | `config restore <fichier>` | `restore_config.py` | `POST /config` | — |
 | `set heating on\|off` | `set_heating.py` | `GET` puis `POST /config` | — |
 | `set scace on\|off` | `set_scace.py` | `GET` puis `POST /config` | — |
 | `download-hf` | `download_hf_capture.py` | dernière capture HF, dans `captures/` | — |
-| `record can` | `coffeetool record` | WebSocket | série |
-| `record probe [--scace]` | `record_probe.py` | `/telemetry` à 5 Hz, dans `captures/` | — |
-| `record heating` | `record_heating.py` | idem | — |
 | `purge <s>` | `purge.py` | idem | — |
 
 - **`set`** garde le protocole des scripts : relire `/config` pour sa
   `version`, n'envoyer que la clé changée avec cette version, puis
   vérifier la réponse. Une nouvelle clé s'ajoute au tableau des réglages
   de l'outil ; il n'y a pas de `set <chemin> <valeur>` générique.
-- **`record`** regroupe les enregistrements. L'ancien `coffeetool record`
-  (flux CAN) devient `record can`.
-- **`record probe --scace`** lit la SCACE en BLE depuis le Mac, comme
-  `record_probe.py` avec bleak. En Rust, c'est `btleplug`, la seule
-  dépendance BLE côté hôte.
-- **Formats de fichier :** ceux des scripts actuels, à l'identique.
-  `analyze_probe.py` et les outils de capture HF continuent ainsi de lire
-  les fichiers produits.
+- **`telemetry --record`** remplace `record_probe.py` et
+  `record_heating.py`, qui font la même chose à la fréquence et au tri
+  près. Chaque échantillon garde **toute** la télémétrie
+  (`{elapsed_s, received_at_utc, telemetry}`), et un instantané de `/config`
+  est pris au départ : il remplace la consigne que relevait
+  `record_heating.py`. Le fichier garde l'enveloppe des scripts :
+  `started_at_utc`, `interval_s`, `max_duration_s`, `samples`,
+  `stop_reason`, `ended_at_utc`, plus `config`. Par défaut : `--rate` 5 Hz,
+  et sans `--duration`, l'enregistrement dure jusqu'à Ctrl-C. Une ligne
+  d'état toutes les 10 s donne la température chaudière et la consigne,
+  la puissance, la pression, le rapport a0/a1, et la SCACE si elle est
+  lue. La taille des fichiers est à mesurer d'après une réponse de
+  `/telemetry` ; à 2 Ko, ce serait environ 36 Mo par heure à 5 Hz.
+- **`--scace`** lit la SCACE en BLE depuis le Mac, comme `record_probe.py`
+  avec bleak. En Rust, c'est `btleplug`, la seule dépendance BLE côté hôte.
+  Chaque échantillon porte alors `scace_c` et `scace_age_ms`.
+- **`monitor --out`** enregistre le flux CAN décodé, comme l'ancien
+  `coffeetool record`. Le fichier garde son format, que `replay` relit.
+- **Formats de fichier :** `analyze_probe.py` lit les codes A0/A1 dans
+  `sample["telemetry"]` pour les nouveaux fichiers, et à la racine de
+  l'échantillon pour les anciens. Les captures HF ne changent pas.
 - **Restent en Python**, hors de `coffeetool` : les outils d'analyse et de
   tracé, qui n'ont jamais parlé à la machine et s'appuient sur matplotlib,
   numpy ou scipy. Ce sont `analyze_hf_capture.py`, `analyze_probe.py`,

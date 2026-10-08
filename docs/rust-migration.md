@@ -408,6 +408,15 @@ Pistes, à trancher avant l'OTA en Rust :
 avec la radio sur le cœur 1, il faudra le suspendre le temps de chaque
 écriture.
 
+**Mesure possible, reportée (décision du 2026-10-08).** L'affichage de
+l'essai 03 tournerait pendant qu'on efface puis réécrit un secteur, avec
+les compteurs de retards et de recalages, et un contrôle visuel. Cela
+confirmerait ou non que l'image se rétablit seule après une ou deux trames.
+Mais cela demande d'écrire en flash, ce que la règle n° 1 interdit aux
+essais. La seule zone envisageable serait la fin du slot de test, au-delà de
+l'image de l'essai. Cette exception n'est pas accordée : la question attend
+l'étape OTA en Rust, et rien n'est fait d'ici là.
+
 ---
 
 ## Étapes initiales

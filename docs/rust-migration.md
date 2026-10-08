@@ -365,9 +365,48 @@ d'`otadata` n'est pas `VALID`. Tant que ce script n'existe pas, on suit les
   dessin **sur le même cœur**, et de ne redessiner que ce qui change.
   `docs/screen-issue.md` donne le détail.
 - Les écritures en flash coupent le cache PSRAM et affament l'ISR. Les essais
-  n'écrivent pas en flash, et la question reviendra avec l'OTA en Rust.
+  n'écrivent pas en flash, et la question reviendra avec l'OTA en Rust. Le
+  correctif d'IDF (`CONFIG_SPIRAM_XIP_FROM_PSRAM`, `docs/screen-issue.md`)
+  n'a pas d'équivalent trouvé dans esp-hal 1.2.2. De plus, `esp-storage`
+  fait chaque effacement et chaque écriture en section critique, et exige
+  que l'autre cœur soit arrêté pendant ce temps. Voir la section « Écritures
+  en flash ».
 - Le double framebuffer avec `avoid_tearing` a été essayé dans IDF puis
   abandonné (écran instable).
+
+### Écritures en flash : à concevoir à part
+
+Le problème est matériel : pendant un effacement ou une écriture de la flash,
+le cache de la mémoire externe (flash et PSRAM) est coupé. La recopie des
+bounce buffers ne peut plus lire le framebuffer, et l'affichage reçoit des
+lignes périmées. Rust ne le fait pas disparaître.
+
+Chiffres à vérifier sur la puce de l'écran, mais typiques : effacement d'un
+secteur de 4 Ko en ~45 ms (jusqu'à plusieurs centaines), programmation
+d'une page de 256 octets en ~1 ms. `esp-storage` fait chaque opération sous
+section critique : l'interruption de recopie est bloquée pendant tout ce
+temps, soit environ 37 recopies perdues par secteur effacé.
+
+Différence avec coffeeflow avant son correctif : le contrôle au VSYNC
+détecte une trame incomplète et relance le DMA en phase. Une écriture flash
+devrait donc donner une ou deux trames fausses, puis l'image se rétablit,
+sans décalage permanent. À vérifier.
+
+Pistes, à trancher avant l'OTA en Rust :
+
+- accepter un écran figé ou un écran fixe « mise à jour » pendant l'OTA, et
+  des écritures NVS rares, groupées et brèves ;
+- programmer les pages pendant le blanking vertical (2,9 ms). Cela ne marche
+  pas pour un effacement de secteur, trop long ;
+- la suspension d'effacement de la flash (`CONFIG_SPI_FLASH_AUTO_SUSPEND`
+  côté IDF), si la puce la supporte et si esp-storage peut l'utiliser ;
+- l'équivalent de `XIP_FROM_PSRAM` : copier le code et les rodata en PSRAM
+  et remapper la MMU. Ce n'est pas fourni par esp-hal 1.2.2, donc ce serait
+  à écrire.
+
+`esp-storage` exige aussi que l'autre cœur soit arrêté pendant l'opération :
+avec la radio sur le cœur 1, il faudra le suspendre le temps de chaque
+écriture.
 
 ---
 
@@ -485,6 +524,50 @@ manqué).
   `embedded-graphics` seul) se fait **après** cette étape, une fois les
   chiffres connus.
 
+**Résultat (2026-10-08) : validé sur un cœur.** L'essai `03-lcd-dynamic`
+reprend l'affichage de 02b. Trois rectangles rebondissent sans pause sur la
+mire, dont le fond est restauré à chaque pas, et un compteur texte
+(`embedded-graphics`, FONT_10X20) est réécrit à chaque pas.
+
+| | Même cœur (défaut) | Deux cœurs (`--features two-cores`) |
+|---|---|---|
+| Trames/s | 31 | 31 |
+| Recopies en retard | 0 | ~46/s (≈ 6 %) |
+| Recalages | 0 | 0 |
+| Recopie la plus lente | 885 µs sur 1 220 | 1 320 µs |
+| Pas de dessin/s | 38 | 67 |
+| Écriture | ~5,2 Mo/s | ~9 Mo/s |
+
+- Sur **un cœur**, la mire reste immobile, le compteur est net, et aucune
+  recopie n'est en retard, même dès le démarrage. Cela confirme que le retard
+  isolé de 02b venait du journal : un `info!` qui attend la FIFO de l'UART
+  bloque les interruptions, sous la section critique d'esp-println. Il faut
+  donc des lignes courtes et espacées tant que l'affichage tourne.
+- La recopie passe de 607 à 885 µs, alors que l'interruption a priorité sur
+  le dessin. Hypothèse : le dessin remplit le cache de lignes modifiées, que
+  la recopie doit réécrire en PSRAM avant de lire. Il reste 27 % de marge.
+- La recopie prend 45 à 65 % du cœur. Le débit de dessin mesuré est donc
+  celui d'un demi-cœur, avec une restauration de fond volontairement lente
+  (calcul de la mire pixel par pixel). Ce n'est pas un débit de référence
+  pour la PSRAM.
+- Sur **deux cœurs**, le problème connu de coffeeflow est reproduit, et le
+  compteur de retards est validé. La mire le masque presque : une recopie en
+  retard montre les lignes situées 40 px plus haut, et la mire se répète
+  tous les 40 px. Sur du texte, ce seraient des bandes qui sautent.
+- Les rectangles déchirent : c'est l'effet d'un seul framebuffer. Avec les
+  bounce buffers, un double framebuffer ne demande qu'un changement de
+  pointeur, au moment où la recopie repasse au bloc 0 (pas au VSYNC : les
+  blocs 0 et 1 de la trame suivante sont déjà chargés). Coût : 768 Ko de
+  PSRAM. À décider avec le choix de la bibliothèque d'UI.
+
+**Répartition des cœurs retenue :** cœur 0 pour l'affichage (recopie et
+dessin de l'UI), cœur 1 pour la radio (BLE, ou Wi-Fi et HTTP). L'UI de
+coffeeflow anime peu : la frise pendant l'infusion, quelques valeurs. À
+vérifier à l'étape 6 : les défauts de cache du code radio, sur le cœur 1,
+partagent le bus avec la recopie, comme le dessin ici. Si la marge de 27 %
+ne suffit pas : 30 ou 40 lignes, ou le code de recopie en SRAM. Reste aussi
+à voir si esp-radio peut être cantonné au cœur 1.
+
 ### 4. `04-ble-scan` — BLE
 
 `esp-radio` + `trouble-host` en central, sur le modèle de
@@ -562,3 +645,9 @@ Résultats datés, au fil des essais.
   en SRAM, recopie par interruption, contrôle de phase au VSYNC. Mire stable,
   insensible au code froid. 31 trames/s, 0 recalage, recopie max 607 µs sur
   1 220. Un retard isolé au démarrage, à vérifier. 20 lignes retenues.
+- **2026-10-08 :** `03-lcd-dynamic`. Sur un cœur : mire immobile, 0 retard,
+  0 recalage, recopie max 885 µs, rectangles déchirés (un seul
+  framebuffer). Sur deux cœurs : ~46 retards/s, recopie max 1 320 µs, ce qui
+  reproduit le problème de coffeeflow et valide le compteur. Répartition
+  retenue : affichage sur le cœur 0, radio sur le cœur 1. Retour sur
+  coffeeflow, `otadata` `0x57`/`0x58`, les deux `VALID`.

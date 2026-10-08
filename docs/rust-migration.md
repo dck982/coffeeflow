@@ -243,6 +243,56 @@ firmware/rust/
   carte la plus simple, mais elle est enfermée dans la machine et se met à
   jour uniquement à travers l'écran.
 
+### `coffeetool` : un seul outil (demande du 2026-10-08)
+
+Le nouvel outil remplace la plupart des scripts de `firmware/tools`, pour
+ne plus écrire de commandes `curl` ni lancer un script par tâche.
+
+**Transport par défaut : HTTP.** L'outil vise `http://$COFFEEFLOW_IP`, avec
+le jeton `$COFFEEFLOW_HTTP_TOKEN` en `Authorization: Bearer`, comme les
+scripts actuels. S'il manque une variable, il s'arrête en la nommant.
+`--ip` et `--token` les remplacent pour une commande. **`--usb [PORT]`**
+passe par le port série (pont USB-série ↔ CAN de l'image `factory`). Par
+défaut, le port est celui de l'écran. Seules les commandes qui ont un
+sens sur le bus CAN acceptent l'USB.
+
+| Commande | Remplace | HTTP | `--usb` |
+|---|---|---|---|
+| `flash <image> --target screen\|sensors` | `coffeetool flash` | `POST /firmware?target=` | `FLASH_CTRL`/`FLASH_DATA` |
+| `confirm` | `confirm_fw.sh` | `POST /firmware/confirm` | — |
+| `monitor` | `coffeetool monitor` | WebSocket `/ws` (miroir CAN) | flux série |
+| `send`, `replay` | `coffeetool send`, `replay` | WebSocket | série |
+| `telemetry` | `curl GET /telemetry` | `GET /telemetry`, JSON indenté | — |
+| `config save [fichier]` | `save_config.py` | `GET /config`, écrit dans `configs/` | — |
+| `config restore <fichier>` | `restore_config.py` | `POST /config` | — |
+| `set heating on\|off` | `set_heating.py` | `GET` puis `POST /config` | — |
+| `set scace on\|off` | `set_scace.py` | `GET` puis `POST /config` | — |
+| `download-hf` | `download_hf_capture.py` | dernière capture HF, dans `captures/` | — |
+| `record can` | `coffeetool record` | WebSocket | série |
+| `record probe [--scace]` | `record_probe.py` | `/telemetry` à 5 Hz, dans `captures/` | — |
+| `record heating` | `record_heating.py` | idem | — |
+| `purge <s>` | `purge.py` | idem | — |
+
+- **`set`** garde le protocole des scripts : relire `/config` pour sa
+  `version`, n'envoyer que la clé changée avec cette version, puis
+  vérifier la réponse. Une nouvelle clé s'ajoute au tableau des réglages
+  de l'outil ; il n'y a pas de `set <chemin> <valeur>` générique.
+- **`record`** regroupe les enregistrements. L'ancien `coffeetool record`
+  (flux CAN) devient `record can`.
+- **`record probe --scace`** lit la SCACE en BLE depuis le Mac, comme
+  `record_probe.py` avec bleak. En Rust, c'est `btleplug`, la seule
+  dépendance BLE côté hôte.
+- **Formats de fichier :** ceux des scripts actuels, à l'identique.
+  `analyze_probe.py` et les outils de capture HF continuent ainsi de lire
+  les fichiers produits.
+- **Restent en Python**, hors de `coffeetool` : les outils d'analyse et de
+  tracé, qui n'ont jamais parlé à la machine et s'appuient sur matplotlib,
+  numpy ou scipy. Ce sont `analyze_hf_capture.py`, `analyze_probe.py`,
+  `describe_hf_capture.py`, `plot_hf_capture.py`, `replay_brew_pi.py`,
+  `simulate_boiler.py` et `scace_calibration.py`. Restent aussi
+  `scace_ble_log.py` (BLE Mac ↔ SCACE seul, pour la calibration) et
+  `check_screen_strings.py`, propre à l'UI LVGL.
+
 ---
 
 ## Approche : des essais petits et isolés

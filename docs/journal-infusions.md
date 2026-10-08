@@ -122,7 +122,22 @@ Valeurs du rapport (définitions ci-dessus). Les infusions avant le
 | 04/10 13 h 24 | 4,50 s, 15,4 ml, 0,39 bar | 4,00 s, 2,0 ml, échéance | 35,1 ml | 6,4 s | 17,8 s, 1,10 g/s, 1,40 ml/s | 22,2 g | 87,58 °C |
 | 05/10 7 h 26 | 7,00 s, 24,1 ml, 1,19 bar | 1,20 s, 1,2 ml, goutte | 25,8 ml | 4,5 s | 13,3 s, 1,28 g/s, 1,85 ml/s | 22,4 g | 88,64 °C |
 | 06/10 7 h 19 | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
-| **08/10 8 h 43** | 6,30 s, 20,0 ml, 0,88 bar | 3,40 s, 6,1 ml, goutte | 26,7 ml | 4,5 s | 16,0 s, 1,07 g/s, 1,16 ml/s | 22,2 g | 87,69 °C |
+| 08/10 8 h 43 | 6,30 s, 20,0 ml, 0,88 bar | 3,40 s, 6,1 ml, goutte | 26,7 ml | 4,5 s | 16,0 s, 1,07 g/s, 1,16 ml/s | 22,2 g | 87,69 °C |
+| **08/10 13 h 44** | 5,80 s, 20,3 ml, 0,83 bar | 3,40 s, 6,7 ml, goutte | 27,0 ml | 4,0 s | 15,0 s, 1,15 g/s, 1,39 ml/s | 22,2 g | 88,80 °C |
+
+## Pistes pour le goût
+
+Recette : grain ViCafé (100 % arabica), 8,0 g en panier. Les pistes
+ci-dessous attendent que la chauffe soit stabilisée ; on n'en change
+qu'une à la fois. Les repères « avant » viennent du journal de dégustation
+tenu avant la modification de la machine (juillet–août 2026, local, hors
+Git).
+
+| Piste | Priorité | Lecture |
+| --- | --- | --- |
+| Température | **première** | Les meilleurs cafés d'avant étaient à « 93 °C » affichés par la machine ; la consigne est aujourd'hui de 90 °C à la NTC, 88,8 °C en tasse le 8 octobre à 13 h 44. Les deux chiffres ne viennent pas du même capteur : il faut d'abord étalonner la SCACE pour savoir ce que « consigne 90 °C » donne dans la galette, puis seulement choisir une consigne |
+| Pression | basse | Peu de marge attendue, mais une pression plus basse (≈ 8,5 bar) vaut un essai. Avant, 9 → 8 bar à débit égal avait donné de la rondeur, mais sur un grain avec 30 % de robusta ; sur le ViCafé, tous les bons cafés étaient à 9 bar. Les « 9 bar » d'avant venaient de la machine, ceux d'aujourd'hui du XDB401 (plateau à 8,87 bar). Essai à débit égal : baisser la pression ralentit le débit, ouvrir la mouture en même temps, sinon l'amertume du ralentissement se lit comme un effet de la pression |
+| Poids | basse | 22 g (ratio 2,75) est le point retenu pour 8 g. Avant : ratio 2,70 à 2,85 retenu, 24 g (ratio 3,00) amer à galette impeccable. Le filet blondit déjà à 22 g. Seul ajustement possible : jusqu'à ≈ 23 g si la mouture plus grosse laisse le filet encore crémeux à 22 g, une galette rapide s'épuisant plus tard |
 
 ## Entrées
 
@@ -506,3 +521,141 @@ celles du 6 et du 8 octobre) :
 | Commande à 0 % | entre 11,5 et 15,4 s ; plus court avec un débit plus fort |
 | Moyenne en tasse | entre 87,7 et 88,5 °C si l'écart suit la durée du 0 % ; sous la consigne dans tous les cas |
 | Modèle, commande réelle | écart entre −0,7 et −2,1 °C, pour situer le point dans le tableau ci-dessus |
+
+### 8 octobre, 13 h 44 — `261008-134433`
+
+**Contexte.** Firmware, loi de chauffe et réglages d'infusion inchangés
+depuis le matin (même remplissage, pré-infusion, cible et arrêt que
+`configs/261005-075907.json`). Mouture un peu grossie depuis 8 h 43. Pas de
+SCACE dans la capture. Observations de David : la mouture reste trop fine,
+mais moins que ce matin ; il change la finesse pas à pas, c'est plus un
+chemin qu'un saut. L'arrêt s'est fait quand le filet commençait à blondir :
+proche de ce qu'il attend. Le goût est bon.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,01 s | 8,00 s | — | — |
+| Remplissage | 8,01 s | 5,80 s | 20,3 ml (3,50 ml/s) | 0,37 → 0,83 bar |
+| Pré-infusion | 13,81 s | 3,40 s | 6,7 ml (1,96 ml/s) | 0,83 → 1,18 bar |
+| Infusion | 17,21 s | 18,90 s | 33,3 ml | 9,02 bar max |
+
+- Pression au repos avant l'infusion : 0,30 bar piégés (0,44 bar le
+  matin).
+- Premier paquet au-dessus de 0,8 bar à 13,71 s (19,7 ml, 5,7 s après le
+  début du remplissage), passage en pré-infusion à 13,81 s : 100 ms, contre
+  200 ms le 6 et le 8 octobre au matin. Même écart inexpliqué que le
+  5 octobre au regard des 150 ms de [firmware.md](firmware.md).
+- Le firmware a vu la première goutte à 17,21 s et 27,0 ml, 0,6 s avant
+  l'échéance, comme le matin ; le rapport la place aussi à 27,0 ml
+  (≥ 0,3 g). Marge de remplissage : 6,7 ml (6,1 à 6,7 ml le matin).
+- La pré-infusion a duré exactement comme le matin (3,40 s), mais a passé
+  6,7 ml au lieu de 6,1 : 1,96 contre 1,79 ml/s.
+- Montée de 4,0 s jusqu'à 8 bar (4,5 s le matin), avec 3,8 g en tasse
+  (4,1 g le matin). Pompe à 100 % de 19,8 à 20,9 s. Débit en tasse au plus
+  de 1,35 g/s vers 20,7 s, sous ≈ 6,2 bar.
+- Depuis 8 bar : 15,0 s, 1,15 g/s en tasse, 1,39 ml/s en amont, 21,5 g à
+  l'arrêt (au poids), 22,2 g final.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,87 ± 0,07 bar, pompe à
+  66 %, 1,18 g/s, soit **7,5 bar·s/g** : entre le 6 octobre (6,3, trop
+  grossière) et le matin (8,3, trop fine), ≈ 10 % sous le matin. C'est la
+  mesure de ce que vaut le pas de mouture fait à midi.
+- Après l'arrêt, la pression piégée tombe à 6,98 bar puis remonte à
+  9,38 bar en 8 s, comme le matin.
+
+**Thermique.**
+
+| Grandeur | Mesure |
+| --- | ---: |
+| NTC pondérée par la tasse | **88,80 °C** (−1,20 °C) |
+| NTC pondérée par le volume | 89,93 °C |
+| Pic avant l'infusion | 92,07 °C, à 13,41 s (fin du remplissage) |
+| Minimum pendant l'écoulement | 87,65 °C, à l'arrêt de la pompe |
+| Minimum total | 86,18 °C à 42,0 s, ≈ 5,8 s après l'arrêt (3,81 °C sous la NTC de départ, 89,99 °C) |
+| 20 s après l'arrêt (fin de la capture) | 88,23 °C, en hausse |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 8,54 kJ | 8,40 kJ |
+| Remplissage | 5,19 kJ | 4,44 kJ |
+| Pré-infusion | 2,52 kJ | 2,28 kJ |
+| Infusion | 2,27 kJ | 2,28 kJ |
+| Récupération | 3,69 kJ | 3,96 kJ |
+
+La commande reste à 0 % de 17,31 à 31,31 s (**14,0 s**), puis suit le
+débit à 34–46 % pendant les 4,8 dernières secondes. 15,6 des 21,5 g en
+tasse arrivent pendant ce 0 %. De la précharge à l'arrêt : 18,5 kJ
+commandés, 17,4 kJ fournis par le SSR, pour 60,3 ml admis, soit
+0,289 kJ/ml fournis (0,298 le matin, 0,286 le 6 octobre).
+
+**Attendus vérifiés** (entrée du 8 octobre, 8 h 43) :
+
+| Attendu | Mesure |
+| --- | --- |
+| Remplissage : fin à 0,8 bar, 19 à 22 ml, ≈ 6 s | 20,3 ml, 5,8 s |
+| Pré-infusion : goutte entre 2,1 et 3,4 s, 4 à 6 ml | goutte en 3,4 s ; **6,7 ml**, un peu au-dessus |
+| Plateau : entre 6,3 et 8,3 bar·s/g, pompe entre 67 et 69 % | 7,5 bar·s/g ; pompe à **66 %**, un point sous la fourchette |
+| Depuis 8 bar : entre 11,8 et 16,0 s, entre 1,07 et 1,35 g/s | 15,0 s, 1,15 g/s |
+| Commande à 0 % : entre 11,5 et 15,4 s | 14,0 s |
+| Moyenne en tasse : entre 87,7 et 88,5 °C, sous la consigne | **non** : 88,80 °C, 0,3 °C au-dessus de la fourchette ; sous la consigne |
+| Modèle, commande réelle : écart entre −0,7 et −2,1 °C | −1,33 °C |
+
+**Lecture.**
+
+- *Mouture, mesuré.* Le pas de midi a fait baisser la résistance au plateau
+  de 8,3 à 7,5 bar·s/g et la durée depuis 8 bar de 16,0 à 15,0 s. La
+  pré-infusion, elle, ne le voit pas : même durée jusqu'à la goutte, un peu
+  plus de volume. Si le jugement de David tient (encore trop fine, goût
+  bon), la cible est entre 6,3 et 7,5 bar·s/g, soit au plus un pas de plus
+  si un pas vaut toujours ≈ 0,8 bar·s/g (estimé sur ce seul pas).
+- *Tasse plus chaude que prévu, mesuré et en simulation.* Rejouée avec la
+  commande réelle, la moyenne en tasse vaut 90,13 °C (mesure −1,33 °C), le
+  minimum 89,11 °C (mesure −2,9 °C), le pic 90,97 °C (mesure +1,1 °C). Le
+  point se range dans le tableau du matin, entre le 5 octobre et le matin :
+
+  | Infusion | 0 % pendant | Tasse sous 0 % | Mesure − modèle (tasse) |
+  | --- | ---: | ---: | ---: |
+  | 06/10 7 h 19 | 11,5 s | 14,6 g | −0,68 °C |
+  | 05/10 7 h 26 | 12,4 s | 14,7 g | −0,99 °C |
+  | 08/10 13 h 44 | 14,0 s | 15,6 g | −1,33 °C |
+  | 08/10 8 h 43 | 15,4 s | 15,8 g | −2,14 °C |
+
+  L'écart suit toujours la durée du 0 %. Interpolé entre 12,4 et 15,4 s,
+  il vaudrait ≈ −1,6 °C à 14,0 s : la mesure est ≈ 0,3 °C plus chaude, ce
+  qui est aussi l'écart à la fourchette attendue. Deux causes possibles,
+  non séparées : l'eau du réservoir, plus chaude à 13 h 44 qu'au matin
+  (première infusion de l'après-midi depuis le 4 octobre), ou la dispersion
+  ordinaire d'une relation tirée de trois points. La NTC de départ, 0,2 °C
+  au-dessus du matin, joue dans le même sens mais le modèle la connaît déjà.
+- *Pic avant l'infusion, mesuré.* 92,07 °C contre 91,71 °C le matin, pour
+  une commande identique en précharge ; départ 0,2 °C plus haut et
+  remplissage 0,5 s plus court.
+- *Minimum total, mesuré.* −3,81 °C sous le départ, contre −6,38 °C le matin
+  et −3,92 °C le 6 octobre. L'appoint reprend aussi ≈ 5 s avant l'arrêt
+  dans les deux infusions du jour ; ce qui change, c'est 1,4 s de 0 % en
+  moins et une infusion plus courte de 1,5 s. Que cela suffise à 2,6 °C
+  d'écart sur le minimum n'est pas vérifié : le modèle ne reproduit aucun
+  des deux creux.
+
+**Décision.** David grossit la mouture d'un pas de plus. Réglages
+inchangés (`configs/261005-075907.json`). La mouture est la seule
+variable entre cette infusion et la suivante.
+
+**Attendus pour l'infusion suivante** (un pas plus gros, si un pas vaut
+≈ 0,8 bar·s/g comme à midi ; estimé sur ce seul pas) :
+
+| Point | Attendu |
+| --- | --- |
+| Remplissage | fin à 0,8 bar, 19 à 22 ml, ≈ 6 s |
+| Pré-infusion à 50 % | goutte en 2,1 à 3,4 s, 4 à 7 ml |
+| Plateau | 6,4 à 7,0 bar·s/g, pompe à 68–70 % |
+| Depuis 8 bar | 12,5 à 14,5 s, 1,2 à 1,35 g/s |
+| Commande à 0 % | 12 à 13,5 s |
+| Moyenne en tasse | 88,5 à 89,3 °C si l'écart suit le 0 % ; plus froide si l'infusion est du matin et que l'eau du réservoir compte |
+| Modèle, commande réelle | écart de −0,9 à −1,4 °C |
+| Filet à 22 g | moins blond qu'ici : à débit plus fort, la galette s'épuise plus tard |
+
+Une infusion du matin et une de l'après-midi à mouture égale sépareraient
+l'eau du réservoir de la durée du 0 % ; mesurer la température du réservoir
+au moment de l'infusion suffirait aussi.

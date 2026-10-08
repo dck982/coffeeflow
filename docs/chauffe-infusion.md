@@ -68,6 +68,7 @@ l'offset.
 | 05/10, 7 h 26 | 8 s, remboursement, sans coupure de fin, remplissage à 1 bar absolu (0.3.40) | **88,64 °C** | 89,62 °C |
 | 06/10, 7 h 19 | 8 s, remplissage à 0,8 bar absolu, pré-infusion à 50 %, mouture trop grossière | **88,47 °C** | 89,68 °C |
 | 08/10, 8 h 43 | 8 s, sonde analogique (0.3.46), mouture un peu trop fine (16,0 s depuis 8 bar) | **87,69 °C** | 89,28 °C |
+| 08/10, 13 h 44 | 8 s, mouture grossie d'un pas, encore un peu fine (15,0 s depuis 8 bar) | **88,80 °C** | 89,93 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -471,5 +472,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261005-072633.json` | 8 s | premier essai sans coupure de fin (0.3.40) ; remplissage de 24,1 ml à 1 bar absolu ; −1,36 °C en tasse ; hors ajustement |
 | `261006-071953.json` | 8 s | remplissage à 0,8 bar absolu, pré-infusion à 50 % ; mouture trop grossière (11,8 s depuis 8 bar) ; −1,53 °C en tasse ; hors ajustement |
 | `261008-084342.json` | 8 s | première infusion sur la sonde analogique ; mouture un peu trop fine (16,0 s depuis 8 bar) ; 0 % pendant 15,4 s ; −2,31 °C en tasse, modèle à +2,14 °C ; hors ajustement |
+| `261008-134433.json` | 8 s | mouture grossie d'un pas (7,5 bar·s/g au plateau) ; 15,0 s depuis 8 bar ; 0 % pendant 14,0 s ; −1,20 °C en tasse, modèle à +1,33 °C ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

@@ -448,10 +448,24 @@ cours et le recalage au VSYNC. Pour le recalage, IDF sur ESP32-S3 relance le
 DMA à 17 pixels (`LCD_LL_FIFO_DEPTH + 1`) après le début de la trame, parce
 que la FIFO du LCD en contient déjà. On compte les recopies en retard.
 
-- **Réussi si :** même mire que `02-lcd-static`, stable 10 minutes, y compris
-  avec le témoin de code froid, et zéro recopie en retard.
-- 20 lignes est un point de départ. L'essai 03 dira s'il faut revenir à 40
-  ou si 10 suffisent.
+- **Réussi si :** même mire que `02-lcd-static`, stable, y compris avec le
+  témoin de code froid, et zéro recopie en retard.
+
+**Résultat (2026-10-08) : validé, 20 lignes retenues.** Mire alignée dès le
+démarrage, immobile, y compris quand le témoin de code froid passe à 30 s.
+Console sur 70 s : 31 trames/s, zéro recalage, recopie la plus lente à
+607 µs sur 1 220 µs disponibles (~53 Mo/s lus depuis la PSRAM à travers le
+cache). Un seul « retard » compté avant 10 s, puis plus aucun : soit le
+démarrage à cache froid, soit le compteur lui-même, qui lit `out_dscr` sans
+savoir s'il désigne le descripteur en cours ou le suivant. À vérifier à
+l'essai 03.
+
+Coût de 20 lignes : 64 Ko de SRAM interne, et au pire 24 × 31 × 607 µs ≈ 45 %
+d'un cœur pour les recopies. Ce compromis SRAM/CPU est retenu. Pour alléger
+le CPU, deux pistes restent ouvertes : précharger dans le cache le bloc
+suivant, comme le fait IDF (`cache_hal_preload`), ou faire la recopie par un
+DMA mémoire à mémoire. Pour l'instant, les interruptions et la recopie
+s'exécutent depuis la flash.
 
 ### 3. `03-lcd-dynamic` — contenu qui change
 
@@ -509,7 +523,7 @@ sur le code placé en SRAM : si la place manque, le code en SRAM passe
 d'abord. À titre indicatif, les exemples d'esp-radio sur ESP32-S3 réservent
 72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko pour les deux.
 
-- **Prouve :** que les deux bounce buffers internes (64 Ko à 20 lignes), la
+- **Prouve :** que les deux bounce buffers internes (64 Ko, 20 lignes), la
   pile radio active et les tâches tiennent en SRAM interne, avec une marge,
   et sans dégrader l'affichage de l'étape 3.
 - **Référence :** relever les mêmes grandeurs dans coffeeflow
@@ -544,3 +558,7 @@ Résultats datés, au fil des essais.
   Mode direct écarté, passage aux bounce buffers de 20 lignes
   (`02b-lcd-bounce`). Retour sur coffeeflow, `otadata` `0x55`/`0x56`, les deux
   `VALID`.
+- **2026-10-08 :** `02b-lcd-bounce` validé. Deux bounce buffers de 20 lignes
+  en SRAM, recopie par interruption, contrôle de phase au VSYNC. Mire stable,
+  insensible au code froid. 31 trames/s, 0 recalage, recopie max 607 µs sur
+  1 220. Un retard isolé au démarrage, à vérifier. 20 lignes retenues.

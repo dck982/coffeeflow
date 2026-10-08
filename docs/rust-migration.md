@@ -577,16 +577,48 @@ partagent le bus avec la recopie, comme le dessin ici. Si la marge de 27 %
 ne suffit pas : 30 ou 40 lignes, ou le code de recopie en SRAM. Reste aussi
 à voir si esp-radio peut être cantonné au cœur 1.
 
-### 4. `04-ble-scan` — BLE
+### 4. `04-ble-display` — BLE avec l'affichage
 
-`esp-radio` + `trouble-host` en central, sur le modèle de
-`examples/ble/scanner`. Il scanne et affiche les annonces de l'Acaia Lunar et
-de la sonde SCACE (nom, RSSI). Il ne se connecte pas encore en GATT.
+Décision du 2026-10-08 : le scan BLE se teste directement avec l'affichage
+de l'essai 03, pour gagner une étape. On mesure ainsi tout de suite ce que la
+radio coûte à la recopie, au lieu d'attendre `06-all`.
 
+L'essai part d'une copie de `03-lcd-dynamic`, variante un cœur, sans
+changement d'affichage. Le cœur 0 garde la recopie et le dessin continu des
+rectangles et du compteur : c'est le pire cas de charge PSRAM, et on le garde
+volontairement. On y ajoute `esp-radio` + `trouble-host` en central, sur le
+modèle de `examples/ble/scanner`, **sur le cœur 1**.
+
+- **Cœur de la radio.** On regarde d'abord dans les sources d'esp-rtos et
+  d'esp-radio comment la cantonner au cœur 1. Si c'est impossible, on lance
+  l'essai quand même, on note sur quel cœur tournent les tâches et
+  l'interruption radio, et la mesure dit si c'est acceptable.
+- **Scan actif**, pour recevoir les noms dans les réponses de scan. Mêmes
+  critères que coffeeflow : un nom contenant `ACAIA` ou `LUNAR`, sans tenir
+  compte de la casse, pour la balance (`ble_scale.cpp`). Le nom exact
+  `SCACE` pour la sonde (`common/scace_ble.hpp`). Les autres annonces sont
+  ignorées.
+- **Journal.** Au plus une ligne par appareil reconnu toutes les 10 s (nom,
+  adresse, RSSI), plus la ligne de compteurs de l'essai 03. Les lignes
+  restent courtes et espacées : un `info!` qui attend la FIFO de l'UART
+  bloque les interruptions (étape 3).
+- **Mémoire** (étape 6). Au démarrage puis toutes les 10 s : SRAM interne
+  libre et plus grand bloc libre (`esp_alloc::HEAP.stats()`), taille de
+  l'image. Le tas interne prend la taille des exemples BLE d'esp-radio
+  (72 Ko), en plus des 64 Ko de bounce buffers.
 - **Prouve :** que la pile BLE Rust démarre sur cette carte et voit les deux
-  périphériques réels.
-- **Puis :** connexion GATT à la SCACE et lecture d'une notification, puisque
-  coffeeflow lit déjà la SCACE en BLE.
+  appareils réels, et que l'affichage tient pendant le scan.
+- **Réussi si :** l'Acaia Lunar et la SCACE apparaissent. Pendant le scan,
+  les critères de l'étape 3 tiennent : mire immobile, 0 recopie en retard,
+  0 recalage. La recopie la plus lente est notée à côté des 885 µs de
+  l'essai 03.
+- **Si l'affichage ne tient pas :** on ne corrige pas tout de suite. On note
+  les chiffres, puis on choisit entre plus de lignes de bounce buffer, le
+  code de recopie en SRAM, et le placement de la radio.
+- **Puis :** connexion GATT à la SCACE et lecture d'une notification,
+  puisque coffeeflow lit déjà la SCACE en BLE, avec les mêmes compteurs.
+
+Matériel : balance et SCACE allumées, à portée. Machine au repos.
 
 ### 5. `05-wifi-ap` — Wi-Fi
 
@@ -607,7 +639,8 @@ Chaque essai, de l'étape 2 à l'étape 5, affiche sur la console, au démarrage
 puis toutes les 10 s : SRAM interne libre, plus grand bloc interne libre,
 PSRAM libre (`esp_alloc::HEAP.stats()`), et taille de l'image. Le critère
 qui compte est la **dernière combinaison** : un essai `06-all` qui fait
-tourner l'écran dynamique avec le scan BLE, puis avec l'AP Wi-Fi.
+tourner l'écran dynamique avec le BLE, puis avec l'AP Wi-Fi. La combinaison
+écran + BLE est déjà mesurée par l'essai 04.
 
 Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
 temps**. Les faire coexister serait un plus, mais pas au prix d'un arbitrage

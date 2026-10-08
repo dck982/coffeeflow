@@ -230,6 +230,13 @@ firmware/rust/
   bootloader IDF (`esp_app_desc!`) et doivent, à terme, implémenter la
   confirmation OTA et le rollback décrits dans `docs/firmware.md`. Ce sera la
   première étape qui ajoute `esp-storage`, et elle se conçoit à part.
+- **Avant la production : refaire l'image `factory` de l'écran.** D'après
+  ce qu'on en sait, elle ne met pas à jour correctement l'état OTA :
+  l'image resterait en `NEW`. C'est à vérifier dans son code avant de la
+  refaire. On profitera d'une session où l'écran est branché en USB pour
+  la réécrire. Ce sera la seule exception à « `factory` n'est jamais
+  réécrite ». Elle se prépare à part, avec sa propre procédure, puisque
+  la règle n° 1 interdit d'écrire dans `factory` pendant les essais.
 - **Ordre.** `protocol` et `coffeetool` d'abord, sans risque matériel. Puis
   `screen`, la carte la plus risquée en technique (LCD, BLE, Wi-Fi), sur
   laquelle portent les essais ci-dessous. `sensors` en dernier : c'est la
@@ -442,8 +449,11 @@ répondent en partie ; le reste se conçoit à part.
 
 1. **La charge radio sur l'écran.** Le BLE avec l'affichage est validé par
    l'étape 4 : scan, puis deux connexions GATT simultanées, avec le code en
-   PSRAM. Restent le Wi-Fi (étape 5), et le passage répété d'un mode radio à
-   l'autre avec la SRAM rendue à chaque fois (étape 6).
+   PSRAM. Le Wi-Fi est validé par l'étape 5, seul puis avec les deux liens
+   BLE, à la marge de recopie près à 20 lignes. Reste le passage répété d'un
+   mode radio à l'autre, avec la SRAM rendue à chaque fois (étape 6). La vraie question
+   est **UI + BLE** et **UI + Wi-Fi** : elle ne se tranche qu'avec Slint
+   (étape 7), dans `06-all`.
 2. **La stratégie d'UI : Slint, décidé le 2026-10-08** (section suivante).
    Reste à mesurer son rendu sur notre affichage (étape 7).
 3. **La stratégie d'écriture en flash** : OTA, relais vers `ota_staging`,
@@ -910,9 +920,47 @@ minute sans pause.
 - **Si la combinaison ne tient pas en SRAM :** noter où, et ce qu'il manque.
   Le fonctionnement actuel de coffeeflow, une radio à la fois, reste la
   référence (étape 6).
+- **Portée du temps combiné (décision du 2026-10-08).** BLE et Wi-Fi
+  ensemble, c'est préférable mais pas exigé : il est acceptable qu'ils ne
+  tiennent pas ensemble, faute de SRAM. Le temps combiné de l'étape 5 ne
+  tranche donc pas, que la combinaison passe ou non : la mise en page de la
+  SRAM changera avec Slint (tas, tampons de rendu). La réponse viendra de
+  `06-all`, avec Slint. L'étape 5 sert à mesurer les coûts, sans décider.
 - Un mode station viendra plus tard. Il faudra alors décider comment fournir
   les identifiants sans les lire depuis NVS (fichier ignoré par Git, comme
   `secrets.h`).
+
+**Réalisation (2026-10-08).** L'essai `05-wifi-ap` reprend 04b. Le code
+BLE de 04b est passé tel quel dans `src/bin/ble.rs`, compilé seulement avec
+la feature `ble`. Le point d'accès est dans `src/bin/wifi.rs`, et
+`autobins = false` empêche Cargo de prendre ces deux fichiers pour des
+binaires.
+
+- **Point d'accès :** SSID `coffeeflow-essai-05`, WPA2, mot de passe
+  `essai-rust-05`, canal 1, au plus 4 stations. Adresse fixe `192.168.2.1/24`,
+  serveur DHCP d'`edge-dhcp` comme dans l'exemple. Pas de DNS : l'iPhone
+  signale « pas d'Internet », ce qui ne gêne pas.
+- **HTTP :** port 80, 4 connexions servies en parallèle, en keep-alive.
+  `/stats` rend les compteurs cumulés : trames, retards, recalages, recopie
+  la plus lente, tas libre et minimum, pile du cœur 1, stations, requêtes,
+  erreurs HTTP. En combiné, il y ajoute l'état de chaque lien BLE. La page
+  compte ses propres requêtes, erreurs, délais dépassés et latences, et
+  affiche les retards et recalages survenus depuis son ouverture. Le bouton
+  « Remise à zéro » repart de zéro après un changement de mode.
+- **Ordre de démarrage, sur le cœur 1 :** le BLE d'abord, en combiné, comme
+  l'exemple `embassy_coex`, puis le contrôleur Wi-Fi. Ce dernier épingle sa
+  tâche sur le cœur qui le crée (`wifi_task_core_id = Cpu::current()`).
+- **Interruption Wi-Fi : à vérifier.** Sur ESP32-S3, `set_intr` d'esp-radio
+  beta.1 force la matrice du **cœur 0** (`intr_matrix_set(0, …)`), puis
+  `set_isr` active `WIFI_MAC` et `WIFI_PWR` sur le cœur courant, par
+  esp-hal. La ligne `pile0` du rapport affiche donc la matrice des deux
+  cœurs pour `mac` et `pwr` (16 = désactivée). Si le cœur 0 reçoit
+  l'interruption, cela se verra dans les retards de recopie.
+- **Tas interne :** 72 Ko pris sur la zone du bootloader, plus 28 Ko
+  (Wi-Fi seul) ou 56 Ko (combiné) en `.bss`, pris sur la pile du cœur 0.
+- **Images :** 637 Ko pour le Wi-Fi seul, 878 Ko pour le combiné. Le blob
+  Wi-Fi place 32 Ko de code en IRAM (`.rwtext.wifi`), et 51 Ko en combiné.
+  `.bss` : 151 Ko pour le Wi-Fi seul, 190 Ko pour le combiné.
 
 ### 6. Pression mémoire
 
@@ -932,7 +980,9 @@ chaque cycle.
 Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
 temps**. Les faire coexister serait un plus, mesuré par l'étape 5, mais pas
 au prix d'un arbitrage sur le code placé en SRAM : si la place manque, le
-code en SRAM passe d'abord. À titre indicatif, les exemples d'esp-radio sur
+code en SRAM passe d'abord. Il est acceptable qu'ils ne tiennent pas
+ensemble. `06-all` se fait avec l'UI Slint de l'étape 7 : c'est la charge
+d'UI réelle, et non la scène de test, qui décide si la combinaison tient. À titre indicatif, les exemples d'esp-radio sur
 ESP32-S3 réservent 72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko
 pour les deux.
 
@@ -949,8 +999,8 @@ pour les deux.
 
 ### 7. `07-slint-display` — Slint sur notre affichage
 
-Indépendant des étapes 5 et 6 : il peut passer avant ou après. La radio et
-l'UI se mesurent séparément, et `06-all` réunira les deux.
+Indépendant de l'étape 5 : il peut passer avant ou après. Il passe en
+revanche **avant `06-all`**, qui réunit la radio et l'UI Slint.
 
 L'essai reprend l'affichage de l'essai 04 sans la radio, sur la structure
 de `examples/mcu-embassy`, avec le simulateur sur Mac dès le départ. Slint
@@ -1027,3 +1077,41 @@ Résultats datés, au fil des essais.
 - **2026-10-08 :** UI de `screen` en Slint, décidé après comparaison avec
   `embedded-graphics` seul. Pas de bindings vers LVGL. Licence sans objet
   tant que le projet reste personnel. Essai `07-slint-display` ajouté.
+- **2026-10-08 :** `05-wifi-ap` écrit et compilé, dans ses deux variantes
+  (Wi-Fi seul, et `--features ble`). Pas encore flashé. BLE + Wi-Fi
+  ensemble est préférable mais pas exigé. La réponse viendra de `06-all`
+  avec Slint, qui passe donc après l'étape 7.
+- **2026-10-08 :** `05-wifi-ap`, Wi-Fi seul, dans `ota_0` (`otadata`
+  `0x5d`/`0x5c`). Premier démarrage en panic : la feature `dns`
+  d'`embassy-net`, activée par `edge-nal-embassy`, réserve un socket de plus.
+  Après correction, le point d'accès, le DHCP et le HTTP fonctionnent, de
+  5 à 130 requêtes/s, sans erreur. Recopie la plus lente : 890 µs sans
+  client, environ 1 050 µs dès qu'un iPhone est associé, et 1 100 à
+  1 211 µs sous charge, quel que soit le débit. Une vraie recopie en retard
+  en environ 3 min, 0 recalage. L'interruption reste à l'heure. Matrice :
+  `WIFI_MAC`/`WIFI_PWR` sur l'interruption CPU 1 du cœur 1 ; le cœur 0 garde
+  la valeur 0 écrite par esp-radio, sans effet visible. Tas : 100 Ko, dont
+  38,5 Ko libres au minimum. Pile du cœur 1 : 6,3 Ko sur 16. Le compteur
+  de stations ratait des déconnexions : il s'abonnait de nouveau à chaque
+  événement. Corrigé après coup par un abonnement unique et un suivi par
+  AID, sans nouveau passage sur la carte. **Décision :** les bounce buffers
+  restent à 20 lignes, et 30 lignes reste une option. En mode Wi-Fi, l'écran
+  de coffeeflow est une page fixe, sans animation. On passe donc à 30
+  lignes seulement si la SRAM le permet, sinon on reste à 20.
+- **2026-10-08 :** `05-wifi-ap --features ble`, BLE + Wi-Fi, dans `ota_0`.
+  La Lunar et la SCACE sont abonnées en 10 s. Pendant la charge HTTP (5 Hz,
+  puis 98 à 127 requêtes/s), la SCACE garde 10 trames/s sans trame
+  manquée. La balance garde 9 notifications/s et un heartbeat toutes les
+  2,5 s. Aucun échec ni perte de lien. Page : 16 ms de latence moyenne et
+  30 ms au maximum à 5 Hz ; 8 ms et 150 ms sans pause. Recopie la plus
+  lente : 870 à 911 µs sans requêtes, jusqu'à 1 258 µs sous charge.
+  **4 vraies recopies en retard** en environ 90 s de charge, 0 recalage.
+  L'interruption entre parfois jusqu'à environ 120 µs en retard (écart de
+  1 340 µs). `RWBLE`, `WIFI_MAC` et `WIFI_PWR` sont servies par le cœur 1.
+  Tas : 128 Ko, dont 33,7 Ko libres au minimum. Pile du cœur 1 : 8,4 Ko
+  sur 16. La pile du cœur 0 garde 57 Ko, dont 3,3 Ko utilisés. Image :
+  878 Ko, 13 pages de XIP. La combinaison tient en SRAM, et 30 lignes de
+  bounce buffer (+32 Ko) y resteraient possibles. Retour sur coffeeflow :
+  `otadata` `0x5d`/`0x5e`, les deux `VALID`, coffeeflow redémarre
+  normalement. **Étape 5 close.** L'effet de 30 lignes est compris, sans
+  essai dédié : la décision se prendra avec la SRAM disponible sous Slint.

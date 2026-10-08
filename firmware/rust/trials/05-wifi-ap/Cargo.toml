@@ -1,0 +1,89 @@
+[package]
+edition      = "2024"
+name         = "trial-05-wifi-ap"
+rust-version = "1.95"
+version      = "0.1.0"
+# ble.rs et wifi.rs, à côté de main.rs, sont des modules et non des binaires.
+autobins     = false
+
+[[bin]]
+name = "trial-05-wifi-ap"
+path = "./src/bin/main.rs"
+
+[dependencies]
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+
+esp-rtos = { version = "0.4.0", features = [
+  "embassy",
+  "esp-alloc",
+  "esp-radio",
+  "esp32s3",
+  "log-04",
+] }
+
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+log                    = "0.4.27"
+
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+esp-alloc = { version = "0.11.0", features = ["esp32s3", "internal-heap-stats"] }
+esp-backtrace = { version = "0.20.0", features = [
+  "esp32s3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "log-04",
+  "uart",
+] }
+esp-radio = { version = "1.0.0-beta.1", features = [
+  "esp-alloc",
+  "esp32s3",
+  "log-04",
+  "unstable",
+  "wifi",
+] }
+bt-hci = { version = "0.9.0", optional = true }
+trouble-host = { version = "0.7.0", features = ["scan"], optional = true }
+embassy-net = { version = "0.9.0", features = [
+  "medium-ethernet",
+  "proto-ipv4",
+  "tcp",
+  "udp",
+] }
+edge-dhcp = "0.8.0"
+edge-nal = "0.7.0"
+edge-nal-embassy = "0.9.0"
+embedded-io-async = "0.7"
+heapless = "0.9.1"
+esp32s3 = "0.36.0"
+embedded-graphics = "0.8"
+embassy-futures = "0.1"
+
+critical-section = "1.2.0"
+static_cell      = "2.1.1"
+
+
+# For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
+[profile.dev]
+# The default debug profile is too slow and too big for resource-constrained devices.
+# Always build with some optimizations enabled.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1     # LLVM can perform better optimizations using a single thread
+debug         = 2     # prefer slower builds but better debugging experience
+lto           = 'fat'
+opt-level     = 's'
+
+[features]
+# Variantes de mesure. Par défaut : code en PSRAM, scène redessinée à 10 Hz
+# (ordre de grandeur de l'UI en infusion).
+exec-from-flash = [] # code et rodata lus en flash, sans XIP
+draw-continuous = [] # scène redessinée sans pause (pire cas des essais 03 et 04)
+# Second temps de l'essai : les deux liens GATT de 04b en même temps que le
+# point d'accès, avec la coexistence d'esp-radio.
+ble = ["dep:bt-hci", "dep:trouble-host", "esp-radio/ble", "esp-radio/coex"]

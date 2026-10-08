@@ -286,8 +286,9 @@ sens sur le bus CAN acceptent l'USB.
   et sans `--duration`, l'enregistrement dure jusqu'à Ctrl-C. Une ligne
   d'état toutes les 10 s donne la température chaudière et la consigne,
   la puissance, la pression, le rapport a0/a1, et la SCACE si elle est
-  lue. La taille des fichiers est à mesurer d'après une réponse de
-  `/telemetry` ; à 2 Ko, ce serait environ 36 Mo par heure à 5 Hz.
+  lue. Taille : un enregistrement ne dépasse jamais 5 min, soit environ
+  3 Mo à 5 Hz pour une réponse de 2 Ko. Garder toute la télémétrie ne
+  pose donc pas de problème.
 - **`--scace`** lit la SCACE en BLE depuis le Mac, comme `record_probe.py`
   avec bleak. En Rust, c'est `btleplug`, la seule dépendance BLE côté hôte.
   Chaque échantillon porte alors `scace_c` et `scace_age_ms`.

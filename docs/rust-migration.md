@@ -450,12 +450,12 @@ répondent en partie ; le reste se conçoit à part.
 1. **La charge radio sur l'écran.** Le BLE avec l'affichage est validé par
    l'étape 4 : scan, puis deux connexions GATT simultanées, avec le code en
    PSRAM. Le Wi-Fi est validé par l'étape 5, seul puis avec les deux liens
-   BLE, à la marge de recopie près à 20 lignes. Reste le passage répété d'un
-   mode radio à l'autre, avec la SRAM rendue à chaque fois (étape 6). La vraie question
-   est **UI + BLE** et **UI + Wi-Fi** : elle ne se tranche qu'avec Slint
-   (étape 7), dans `06-all`.
+   BLE, à la marge de recopie près à 20 lignes. La vraie question est
+   **UI + BLE + Wi-Fi** : elle ne se tranche qu'avec Slint, à l'étape 7.
+   Le passage d'un mode radio à l'autre ne se vérifie que si cette
+   combinaison ne tient pas.
 2. **La stratégie d'UI : Slint, décidé le 2026-10-08** (section suivante).
-   Reste à mesurer son rendu sur notre affichage (étape 7).
+   Reste à mesurer son rendu sur notre affichage (étape 6).
 3. **La stratégie d'écriture en flash** : OTA, relais vers `ota_staging`,
    `otadata` et stockage persistant (section « Écritures en flash »).
 
@@ -544,7 +544,7 @@ Exemples et démos sous licence MIT, donc réutilisables :
 - `examples/mcu-embassy` : 800×480, embassy, tâche de rendu, double
   framebuffer en `SwappedBuffers`, et un simulateur sur PC
   (`bin/ui_simulator.rs`) qui partage l'UI et le contrôleur avec la version
-  MCU. C'est le gabarit de l'essai 7.
+  MCU. C'est le gabarit de l'essai 6.
 - `demos/energy-monitor` : tuiles (`widgets/tile.slint`) et histogrammes
   (`widgets/bar_chart.slint`), proches de nos tuiles et de la frise ;
   fenêtre MCU dédiée (`mcu_window.slint`) ; `cache-rendering-hint`.
@@ -919,13 +919,13 @@ minute sans pause.
   réclame justement la combinaison.
 - **Si la combinaison ne tient pas en SRAM :** noter où, et ce qu'il manque.
   Le fonctionnement actuel de coffeeflow, une radio à la fois, reste la
-  référence (étape 6).
+  référence (bascule, étape 7).
 - **Portée du temps combiné (décision du 2026-10-08).** BLE et Wi-Fi
   ensemble, c'est préférable mais pas exigé : il est acceptable qu'ils ne
   tiennent pas ensemble, faute de SRAM. Le temps combiné de l'étape 5 ne
   tranche donc pas, que la combinaison passe ou non : la mise en page de la
   SRAM changera avec Slint (tas, tampons de rendu). La réponse viendra de
-  `06-all`, avec Slint. L'étape 5 sert à mesurer les coûts, sans décider.
+  l'étape 7, avec Slint. L'étape 5 sert à mesurer les coûts, sans décider.
 - Un mode station viendra plus tard. Il faudra alors décider comment fournir
   les identifiants sans les lire depuis NVS (fichier ignoré par Git, comme
   `secrets.h`).
@@ -962,52 +962,22 @@ binaires.
   Wi-Fi place 32 Ko de code en IRAM (`.rwtext.wifi`), et 51 Ko en combiné.
   `.bss` : 151 Ko pour le Wi-Fi seul, 190 Ko pour le combiné.
 
-### 6. Pression mémoire
+### 6. `06-slint-display` — Slint sur notre affichage
 
-Chaque essai, de l'étape 2 à l'étape 5, affiche sur la console, au démarrage
-puis toutes les 10 s : SRAM interne libre, plus grand bloc interne libre,
-PSRAM libre (`esp_alloc::HEAP.stats()`), et taille de l'image. Le critère
-qui compte est la **dernière combinaison** : un essai `06-all` qui fait
-tourner l'écran dynamique avec le BLE, puis avec l'AP Wi-Fi. La combinaison
-écran + BLE est déjà mesurée par l'essai 04.
+Décision du 2026-10-08 : l'ancienne étape 6 (« pression mémoire ») est
+retirée. Chaque essai a relevé la mémoire au fil de l'eau, et le combiné
+BLE + Wi-Fi de l'étape 5 en est le pire cas radio. La seule question qui
+lui restait propre, le passage d'un mode radio à l'autre, ne se pose que si
+l'étape 7 ne tient pas : elle y est décrite.
 
-Comme coffeeflow change de mode radio en cours de route, `06-all` passe
-aussi **plusieurs fois** de BLE à Wi-Fi puis de nouveau à BLE, l'affichage
-tournant. Il vérifie qu'esp-radio permet de désinitialiser un contrôleur et
-d'en relancer un autre, et que le tas interne revient à la même valeur après
-chaque cycle.
-
-Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
-temps**. Les faire coexister serait un plus, mesuré par l'étape 5, mais pas
-au prix d'un arbitrage sur le code placé en SRAM : si la place manque, le
-code en SRAM passe d'abord. Il est acceptable qu'ils ne tiennent pas
-ensemble. `06-all` se fait avec l'UI Slint de l'étape 7 : c'est la charge
-d'UI réelle, et non la scène de test, qui décide si la combinaison tient. À titre indicatif, les exemples d'esp-radio sur
-ESP32-S3 réservent 72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko
-pour les deux.
-
-- **Prouve :** que les deux bounce buffers internes (64 Ko, 20 lignes), la
-  pile radio active et les tâches tiennent en SRAM interne, avec une marge,
-  et sans dégrader l'affichage de l'étape 3.
-- **Référence :** relever les mêmes grandeurs dans coffeeflow
-  (`GET /telemetry`) avant de comparer.
-- **Réussi si :** les critères de l'étape 3 tiennent avec BLE, puis avec
-  Wi-Fi actif, et pendant chaque changement de mode. Le plus grand bloc
-  interne libre ne descend pas sous la réserve de coffeeflow
-  (`CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL`, 32 Ko), et le tas libre est le
-  même après chaque aller-retour BLE → Wi-Fi → BLE.
-
-### 7. `07-slint-display` — Slint sur notre affichage
-
-Indépendant de l'étape 5 : il peut passer avant ou après. Il passe en
-revanche **avant `06-all`**, qui réunit la radio et l'UI Slint.
-
-L'essai reprend l'affichage de l'essai 04 sans la radio, sur la structure
-de `examples/mcu-embassy`, avec le simulateur sur Mac dès le départ. Slint
-dessine dans le framebuffer PSRAM une maquette de l'accueil : la barre du
-haut, six tuiles, de grands chiffres Inter en 104 px, et la frise. Les
-valeurs changent à 10 Hz, comme pendant une infusion. Un bouton fait
-basculer entre deux écrans, pour mesurer un redessin complet.
+Slint se mesure seul, pour que l'étape 7 sache ce qui revient à l'UI et ce
+qui revient à la radio. L'essai reprend l'affichage de l'essai 04b (XIP
+compris), sans la radio, sur la structure de `examples/mcu-embassy`, avec
+le simulateur sur Mac dès le départ. Slint dessine dans le framebuffer
+PSRAM une maquette de l'accueil : la barre du haut, six tuiles, de grands
+chiffres Inter en 104 px, et la frise. Les valeurs changent à 10 Hz, comme
+pendant une infusion. Un bouton fait basculer entre deux écrans, pour
+mesurer un redessin complet.
 
 - **Mesure :** le temps de rendu partiel (mise à jour des valeurs) et
   complet (changement d'écran), les compteurs de recopie de l'essai 04, la
@@ -1021,6 +991,68 @@ basculer entre deux écrans, pour mesurer un redessin complet.
   Leviers dans l'ordre : réduire les zones redessinées (valeurs isolées
   dans leurs composants, `cache-rendering-hint`), puis placer le tas de
   Slint en SRAM interne plutôt qu'en PSRAM.
+
+### 7. `07-slint-radio` — Slint, BLE et Wi-Fi ensemble
+
+Décision du 2026-10-08 : c'est le cas réaliste qui résume les essais. Il
+répond à la question qui décide de la viabilité : l'UI tient-elle avec le
+BLE et le Wi-Fi ensemble ?
+
+L'essai réunit l'affichage Slint de l'étape 6 (cœur 0) et la radio de
+l'étape 5, en combiné (cœur 1) : les deux liens GATT, le point d'accès, le
+DHCP et le serveur HTTP, avec la même page de charge et le même `/stats`.
+Il n'y a pas de variante Wi-Fi seul ni BLE seul : l'étape 5 les a déjà
+mesurées.
+
+**Un essai, pas le début de `screen` (décision du 2026-10-08).** Trois
+raisons :
+
+- la viabilité n'est pas acquise : cette étape et la stratégie d'écriture
+  en flash peuvent encore changer l'architecture ;
+- l'ordre prévu (« Cible finale ») fait passer `protocol` et `coffeetool`
+  avant `screen` ;
+- un essai peut prendre des raccourcis sans laisser de dette : point
+  d'accès de test, page de charge, valeurs simulées.
+
+`screen` commencera après, en reprenant les essais comme référence, et non
+comme base de code.
+
+- **UI :** la maquette de l'étape 6. La **température réelle de la SCACE**
+  y remplace la valeur simulée du grand chiffre, et elle est rafraîchie à
+  **5 Hz**. Le rendu lit la dernière trame reçue ; la SCACE en envoie 10
+  par seconde. Les autres valeurs restent simulées, au rythme de
+  l'étape 6. Sonde débranchée ou lien coupé : le chiffre affiche « – »,
+  comme coffeeflow sans température.
+- **Bounce buffers :** 20 lignes au départ. L'étape 5 a montré de rares
+  recopies en retard à 20 lignes sous trafic Wi-Fi ; on s'attend à les
+  retrouver. Une fois les mesures à 20 lignes notées, on passe à
+  **30 lignes si la SRAM le permet** : le tas libre minimum reste au-dessus
+  de la réserve de coffeeflow (32 Ko), et la pile du cœur 0 garde au moins
+  16 Ko de marge après les 32 Ko de plus. Sinon, on reste à 20 (décision du
+  2026-10-08 : en mode Wi-Fi, l'écran de coffeeflow est une page fixe).
+- **Charge :** les deux liens abonnés, puis l'iPhone sur le point d'accès,
+  une minute à 5 Hz et une minute sans pause, comme à l'étape 5.
+- **Mesures :** celles de l'étape 5 (affichage, tas, piles, liens, HTTP,
+  matrice d'interruptions), plus les temps de rendu de Slint de l'étape 6,
+  et la taille de l'image.
+- **Réussi si :** pendant toute la charge HTTP, 0 recalage et 0 recopie en
+  retard (à 30 lignes si la SRAM l'a permis) ; la SCACE garde ses 10 trames
+  par seconde sans trame manquée, et la balance ses pesées et son
+  heartbeat ; la page ne compte ni erreur ni délai dépassé à 5 Hz ; la
+  température change à l'écran au rythme de la sonde ; le rendu tient les
+  critères de l'étape 6 ; le tas libre minimum reste au-dessus de 32 Ko.
+- **Si l'affichage ne tient pas :** noter les chiffres avant de corriger.
+  Leviers : 30 lignes, si ce n'est pas déjà fait, puis réduire les défauts
+  de cache du cœur 1 (code réseau chaud en IRAM), puis la recopie par DMA
+  mémoire à mémoire ou le préchargement du cache.
+- **Si la combinaison ne tient pas en SRAM :** on revient au
+  fonctionnement de coffeeflow, une radio à la fois. C'est acceptable
+  (décision du 2026-10-08). Un essai de **bascule** s'ajoute alors. Avec
+  l'UI qui tourne, il passe plusieurs fois de BLE à Wi-Fi, puis de nouveau
+  à BLE. Il vérifie qu'esp-radio sait arrêter un contrôleur et en relancer
+  un autre, et que le tas interne revient à la même valeur après chaque
+  aller-retour. Critères : ceux de l'affichage, pendant chaque changement
+  de mode.
 
 ---
 
@@ -1115,3 +1147,10 @@ Résultats datés, au fil des essais.
   `otadata` `0x5d`/`0x5e`, les deux `VALID`, coffeeflow redémarre
   normalement. **Étape 5 close.** L'effet de 30 lignes est compris, sans
   essai dédié : la décision se prendra avec la SRAM disponible sous Slint.
+- **2026-10-08 :** plan revu. L'étape « pression mémoire » est retirée :
+  ses mesures sont faites au fil des essais, et le combiné de l'étape 5 en
+  est le pire cas radio. Étape 6 : `06-slint-display`, Slint seul. Étape 7 :
+  `07-slint-radio`, Slint avec BLE et Wi-Fi, la température SCACE affichée
+  à 5 Hz. La bascule BLE ↔ Wi-Fi ne s'essaie que si l'étape 7 ne tient pas
+  en SRAM. Les étapes 6 et 7 restent des essais : `screen` ne commence
+  qu'ensuite.

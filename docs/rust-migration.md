@@ -308,12 +308,21 @@ parttool.py -p $PORT write_partition --partition-name TEST --input /tmp/trial.bi
 # 4. Basculer (une seule fois par session ; ensuite, réécrire TEST suffit)
 otatool.py -p $PORT switch_ota_partition --name TEST
 
-# 5. Console
+# 5. Console (voir l'avertissement ci-dessous)
 espflash monitor --chip esp32s3 --port $PORT --elf target/xtensa-esp32s3-none-elf/release/trial-NN-nom
 
 # 6. Fin de session : retour sur coffeeflow
 otatool.py -p $PORT switch_ota_partition --name COFFEEFLOW
 ```
+
+**Ouvrir le port redémarre la carte.** Sous macOS, l'ouverture comme la
+fermeture du port du pont CH343 basculent DTR/RTS, même depuis un lecteur
+pyserial qui les force à zéro. Chaque lecture de console relance donc l'essai,
+et un phénomène observé à l'écran peut n'être qu'un redémarrage. Pendant une
+observation longue, on ne touche pas au port. `espflash monitor --no-reset`
+ne règle rien : il se connecte au bootloader ROM et laisse la puce en mode
+téléchargement. On la relance avec `espflash reset`, qui n'écrit rien.
+`parttool.py write_partition` redémarre aussi la carte à la fin.
 
 Après le retour (étape 6), on vérifie que coffeeflow a bien redémarré :
 `GET /telemetry`, `firmware.screen.ota.running_partition`. Le test laissé dans
@@ -376,30 +385,73 @@ Squelette `esp-generate` sans modification, à part le runner et
 - **Prouve :** la chaîne complète (build, `save-image`, écriture dans le slot
   de test, bascule, démarrage par le bootloader IDF installé, console, retour
   sur coffeeflow).
-- **Réussi si :** le compteur s'affiche dans `espflash monitor`, un panic
-  volontaire affiche une backtrace décodée, et le retour sur coffeeflow
-  redémarre l'écran normalement.
+- **Réussi si :** le compteur s'affiche dans `espflash monitor`, et le retour
+  sur coffeeflow redémarre l'écran normalement. Le décodage d'une backtrace
+  sera vérifié au premier vrai panic.
 - **Ne touche pas** au CH422G.
 
 ### 2. `02-lcd-static` — contenu fixe à l'écran
 
 Init du CH422G (octet complet, CAN_SEL=0), mise sous tension de la dalle,
 PSRAM, framebuffer 800×480 RGB565 en PSRAM, puis affichage d'une mire fixe :
-bandes de couleur, cadre d'un pixel sur les bords, et quadrillage pour voir
-un décalage.
+bandes de couleur, dégradés R, V, B et gris, quadrillage tous les 40 px,
+cadre d'un pixel sur les bords, carré de couleur dans chaque coin.
 
-- **Prouve :** le brochage, les timings, la PSRAM octale, et le driver DPI
-  d'esp-hal alimenté depuis un framebuffer PSRAM, avec ou sans bounce
-  buffers.
-- **Question à trancher en début d'étape, sources à l'appui :** le DPI
-  d'esp-hal peut-il lire directement un framebuffer PSRAM en DMA (via
-  `Preparation::accesses_psram`, avec burst), ou faut-il des bounce buffers ?
-  Dans le second cas, il faut écrire un `DmaTxBuffer` maison : un anneau de
-  descripteurs sur deux buffers en SRAM interne, avec une interruption à
-  chaque fin de descripteur pour recopier la suite du framebuffer. Rien de
-  cela n'a encore été vérifié.
+- **Prouve :** le brochage, les timings, la PSRAM octale, et l'alimentation du
+  DPI d'esp-hal depuis un framebuffer PSRAM.
 - **Réussi si :** la mire est stable pendant 10 minutes, sans décalage ni
   saut, cadre intact sur les quatre bords.
+
+**Résultat (2026-10-08) : DMA direct depuis la PSRAM écarté.** L'essai
+`02-lcd-static` lit le framebuffer en DMA, par une chaîne circulaire de
+191 descripteurs de 4 032 octets (rafales de 64 octets), sans bounce buffer.
+Brochage, couleurs, ordre des bits et timings sont justes. Mais **chaque
+défaut de cache sur le code en flash fait perdre des pixels pour toujours**.
+La flash (en DIO) et la PSRAM partagent le bus : pendant un chargement de
+ligne de cache, le DMA attend, la FIFO du LCD (16 entrées, ~0,5 µs à 16 MHz)
+se vide, et la chaîne circulaire, qui ne se recale jamais, garde le retard.
+Un premier `info!` a coûté ~40 px. La preuve est dans l'essai : avec le code
+de la boucle préchargé en cache, la mire reste alignée, puis saute quand un
+témoin exécute du code froid à 30 s. Dans le vrai firmware, les défauts de
+cache sont permanents (piles radio, rodata, polices). Un recalage à chaque
+VSYNC limiterait chaque perte à une trame, mais l'image scintillerait.
+
+Ce qui reste acquis de cet essai :
+
+- correspondance des timings IDF → `FrameTiming` d'esp-hal :
+  `horizontal_blank_front_porch` = pulse + back porch d'IDF (48 + 88),
+  `horizontal_total_width` = 976 ; en vertical, 3 + 32 et 528. PCLK sur front
+  descendant = `Phase::ShiftHigh`, `Polarity::IdleLow`. HSYNC et VSYNC au
+  repos haut, DE au repos bas ;
+- `lcd_always_out_en`, posé par IDF et pas par esp-hal, se pose par le PAC
+  `esp32s3` ;
+- **`Dpi::send` démarre dans le mauvais ordre** : il lance le DMA puis vide
+  la FIFO du LCD, ce qui jette les premiers pixels. Il faut refaire le
+  démarrage dans l'ordre d'IDF (`lcd_rgb_panel_start_transmission`) : LCD
+  arrêté, FIFO vidée, DMA remis à zéro puis relancé, 1 µs, LCD démarré
+  (`restart_in_phase` dans l'essai) ;
+- le CPU écrit le framebuffer à travers le cache : il faut un writeback
+  (`rom_Cache_WriteBack_Addr`) avant que le DMA le lise.
+
+### 2b. `02b-lcd-bounce` — bounce buffers en SRAM
+
+Décision du 2026-10-08 : l'architecture de coffeeflow, à savoir le
+framebuffer en PSRAM et **deux bounce buffers de 20 lignes** en SRAM interne
+(2 × 32 000 octets). Le DMA ne lit plus que la SRAM, que le bus flash/PSRAM ne
+bloque pas. Une interruption de fin de buffer recopie les 20 lignes suivantes
+du framebuffer, avec 1,22 ms de marge (744 interruptions/s). On recale à
+chaque VSYNC par sécurité : un retard ne gâche alors qu'une trame.
+
+Il faut écrire un `DmaTxBuffer` maison (anneau de descripteurs sur les deux
+buffers, EOF sur chacun), l'interruption de recopie, le suivi de la ligne en
+cours et le recalage au VSYNC. Pour le recalage, IDF sur ESP32-S3 relance le
+DMA à 17 pixels (`LCD_LL_FIFO_DEPTH + 1`) après le début de la trame, parce
+que la FIFO du LCD en contient déjà. On compte les recopies en retard.
+
+- **Réussi si :** même mire que `02-lcd-static`, stable 10 minutes, y compris
+  avec le témoin de code froid, et zéro recopie en retard.
+- 20 lignes est un point de départ. L'essai 03 dira s'il faut revenir à 40
+  ou si 10 suffisent.
 
 ### 3. `03-lcd-dynamic` — contenu qui change
 
@@ -449,15 +501,21 @@ Chaque essai, de l'étape 2 à l'étape 5, affiche sur la console, au démarrage
 puis toutes les 10 s : SRAM interne libre, plus grand bloc interne libre,
 PSRAM libre (`esp_alloc::HEAP.stats()`), et taille de l'image. Le critère
 qui compte est la **dernière combinaison** : un essai `06-all` qui fait
-tourner ensemble l'écran dynamique, le scan BLE et l'AP Wi-Fi.
+tourner l'écran dynamique avec le scan BLE, puis avec l'AP Wi-Fi.
 
-- **Prouve :** que les deux bounce buffers internes (128 Ko si l'on reprend
-  les 40 lignes de coffeeflow), la pile BLE, la pile Wi-Fi et les tâches
-  tiennent ensemble en SRAM interne, avec une marge, et sans dégrader
-  l'affichage de l'étape 3.
+Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
+temps**. Les faire coexister serait un plus, mais pas au prix d'un arbitrage
+sur le code placé en SRAM : si la place manque, le code en SRAM passe
+d'abord. À titre indicatif, les exemples d'esp-radio sur ESP32-S3 réservent
+72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko pour les deux.
+
+- **Prouve :** que les deux bounce buffers internes (64 Ko à 20 lignes), la
+  pile radio active et les tâches tiennent en SRAM interne, avec une marge,
+  et sans dégrader l'affichage de l'étape 3.
 - **Référence :** relever les mêmes grandeurs dans coffeeflow
   (`GET /telemetry`) avant de comparer.
-- **Réussi si :** les critères de l'étape 3 tiennent avec BLE et Wi-Fi actifs,
+- **Réussi si :** les critères de l'étape 3 tiennent avec BLE, puis avec
+  Wi-Fi actif,
   et le plus grand bloc interne libre ne descend pas sous la réserve de
   coffeeflow (`CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL`, 32 Ko).
 
@@ -477,3 +535,12 @@ Résultats datés, au fil des essais.
   s'affiche chaque seconde sur `/dev/cu.usbmodem5B790235091`. Retour sur `ota_1`
   (`otadata` `0x53`/`0x54`, les deux `VALID`), coffeeflow redémarre normalement.
   Reste à faire pour clore l'étape : le panic volontaire avec backtrace décodée.
+- **2026-10-08 :** `02-lcd-static`, DMA direct depuis la PSRAM. Mire juste
+  (couleurs, bits, timings), mais décalée horizontalement. Deux causes
+  trouvées. D'abord, `Dpi::send` jette le contenu de la FIFO au démarrage :
+  corrigé en redémarrant dans l'ordre d'IDF. Ensuite, chaque défaut de cache
+  sur la flash affame le DMA, et la perte est définitive. Démontré par un
+  témoin de code froid à 30 s, qui fait sauter une mire jusque-là alignée.
+  Mode direct écarté, passage aux bounce buffers de 20 lignes
+  (`02b-lcd-bounce`). Retour sur coffeeflow, `otadata` `0x55`/`0x56`, les deux
+  `VALID`.

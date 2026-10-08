@@ -247,7 +247,7 @@ l'envoi.
 
 ## Module écran (Waveshare ESP32-S3-Touch-LCD-4.3)
 
-Dalle RGB 800 × 480, tactile GT911, 16 Mo de flash, 8 Mo de PSRAM, TJA1051T/3 intégré. CAN sur GPIO 15 TX / 16 RX. `CAN_SEL` est l'EXIO5 du CH422G et **doit être tenu haut**, sinon le transceiver n'est pas sélectionné (cette ligne est aussi USB_SEL, actif bas). Notes de bring-up CH422G / GT911 : `../tests/screen/hello_waveshare/`.
+Dalle RGB 800 × 480, tactile GT911, 16 Mo de flash, 8 Mo de PSRAM, TJA1051T/3 intégré. CAN sur GPIO 20 TX / 19 RX (broches USB natives D+/D-, basculées vers le transceiver par le mux quand `CAN_SEL` est haut). `CAN_SEL` est l'EXIO5 du CH422G et **doit être tenu haut**, sinon le transceiver n'est pas sélectionné (cette ligne est aussi USB_SEL, actif bas). Notes de bring-up CH422G / GT911 : `../tests/screen/hello_waveshare/`.
 
 Depuis v0.2.64, le reset du tactile maintient `TP_IRQ` (GPIO 4) à LOW pendant `TP_RST` pour fixer l'adresse I²C du GT911, comme dans l'exemple Waveshare. En cas d'échec à l'initialisation, `screen` essaie les deux adresses possibles puis réinitialise seulement le tactile et réessaie. La télémétrie publie `inputs.touch_ready` et `inputs.touch_press_count` : une pression physique doit incrémenter ce compteur avant de confirmer une nouvelle image. Après le flash OTA de la v0.2.64, le tactile a fonctionné dès le redémarrage et trois pressions ont été comptées.
 

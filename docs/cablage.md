@@ -170,7 +170,7 @@ Elle chemine dans la machine et **sort par le trou de l'ancien bouton brew** (Ø
 
 Un **JST SM 2 poles** relie la paire torsadée à un câble **JST PH 2.0 2 poles** qui se
 branche sur le PCB du Waveshare. Le transceiver TJA1051T/3 y est intégré : CAN sur
-**GPIO15 (TX) / GPIO16 (RX)**, `CAN_SEL` (EXIO5 du CH422G) à l'état haut.
+**GPIO20 (TX) / GPIO19 (RX)**, `CAN_SEL` (EXIO5 du CH422G) à l'état haut.
 
 ---
 

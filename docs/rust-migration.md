@@ -367,7 +367,8 @@ d'`otadata` n'est pas `VALID`. Tant que ce script n'existe pas, on suit les
 - Les écritures en flash coupent le cache PSRAM et affament l'ISR. Les essais
   n'écrivent pas en flash, et la question reviendra avec l'OTA en Rust. Le
   correctif d'IDF (`CONFIG_SPIRAM_XIP_FROM_PSRAM`, `docs/screen-issue.md`)
-  n'a pas d'équivalent trouvé dans esp-hal 1.2.2. De plus, `esp-storage`
+  n'a pas d'équivalent dans esp-hal 1.2.2 ; l'essai 04b l'écrit
+  (`src/xip.rs`, étape 4). De plus, `esp-storage`
   fait chaque effacement et chaque écriture en section critique, et exige
   que l'autre cœur soit arrêté pendant ce temps. Voir la section « Écritures
   en flash ».
@@ -414,8 +415,10 @@ Pistes, à trancher avant l'OTA en Rust :
 - la suspension d'effacement de la flash (`CONFIG_SPI_FLASH_AUTO_SUSPEND`
   côté IDF), si la puce la supporte et si esp-storage peut l'utiliser ;
 - l'équivalent de `XIP_FROM_PSRAM` : copier le code et les rodata en PSRAM
-  et remapper la MMU. Ce n'est pas fourni par esp-hal 1.2.2, donc ce serait
-  à écrire.
+  et remapper la MMU. Écrit et validé par l'essai 04b pour l'affichage
+  (étape 4). Reste à vérifier ce qu'il permet pendant une écriture : le code
+  ne lit plus la flash, mais `esp-storage` coupe encore le cache et les
+  interruptions.
 
 `esp-storage` exige aussi que l'autre cœur soit arrêté pendant l'opération :
 avec la radio sur le cœur 1, il faudra le suspendre le temps de chaque
@@ -438,9 +441,9 @@ Trois questions décident si Rust convient au projet. Les étapes ci-dessous y
 répondent en partie ; le reste se conçoit à part.
 
 1. **La charge radio sur l'écran.** Le BLE avec l'affichage est validé par
-   l'étape 4 pour le scan. Restent les connexions GATT (étape 4), le Wi-Fi
-   (étape 5), et le passage répété d'un mode radio à l'autre avec la SRAM
-   rendue à chaque fois (étape 6).
+   l'étape 4 : scan, puis deux connexions GATT simultanées, avec le code en
+   PSRAM. Restent le Wi-Fi (étape 5), et le passage répété d'un mode radio à
+   l'autre avec la SRAM rendue à chaque fois (étape 6).
 2. **La stratégie d'UI : Slint, décidé le 2026-10-08** (section suivante).
    Reste à mesurer son rendu sur notre affichage (étape 7).
 3. **La stratégie d'écriture en flash** : OTA, relais vers `ota_staging`,
@@ -448,10 +451,6 @@ répondent en partie ; le reste se conçoit à part.
 
 Trois autres points à couvrir, qui ne remettent pas en cause la viabilité :
 
-- **Deux connexions BLE simultanées**, la Lunar et la SCACE, avec le
-  heartbeat de l'Acaia tenu pendant le dessin. Le client GATT de
-  trouble-host 0.7 n'a pas encore été éprouvé ici. Vérifié avec la suite de
-  l'étape 4.
 - **La couche réseau applicative** : serveur HTTP, WebSocket (miroir CAN),
   SNTP, client HTTP vers `coffeetracker`, provisioning par point d'accès.
   C'est surtout une question d'effort ; les serveurs WebSocket `no_std` sont
@@ -807,15 +806,110 @@ par seconde. La mire reste immobile.
   avec LVGL) est donc d'environ 38 + 193 ≈ 230 Ko. Pour l'étape 6, il faudra
   rendre une partie de la pile du cœur 0 au tas, pour mesurer.
 
+**Résultat des connexions GATT (2026-10-08) : validé, avec le code en
+PSRAM.** L'essai `04b-ble-gatt` reprend 04. Un scan actif trouve la Lunar et
+la SCACE, puis s'arrête. Chaque lien se connecte ensuite par adresse : le
+contrôleur cherche l'appareil lui-même, sans scan de l'hôte, et le lien se
+reconnecte seul. Intervalle demandé : 30 à 50 ms, comme NimBLE ; les deux
+appareils acceptent 50 ms.
+
+- **BLE.** Client GATT de trouble-host 0.7 : découverte par UUID, abonnement,
+  écritures sans réponse. La Lunar répond au service legacy `0x1820/0x2A80`,
+  avec 9 notifications/s et le heartbeat tenu toutes les 2,5 s. La SCACE
+  envoie 10 trames/s, sans trame manquée d'après les numéros de séquence.
+  Balance éteinte : elle envoie `0x20` avant de couper. Appareil éteint :
+  chaque tentative expire en 10 s, puis le lien revient seul. La file de
+  notifications de trouble-host n'a qu'une place : une trame non lue à temps
+  serait écrasée, d'où le compteur de trames manquées.
+- **Affichage, code en flash : échec.** Avec les deux liens et le dessin
+  continu de 03, 0,1 à 0,25 recopie en retard par seconde, et la recopie la
+  plus lente monte à 1 944 µs (940 µs avec le scan seul). L'interruption
+  entre à l'heure : c'est la recopie qui ralentit. Le cache est partagé par
+  les deux cœurs (datasheet, §3.1.5), et la flash et la PSRAM partagent le
+  même bus. Or un défaut de cache servi par la flash DIO occupe ce bus
+  environ 1,9 µs, contre environ 0,4 µs en PSRAM octale. Avec les
+  connexions, le code radio du cœur 1 fait bien plus de défauts que pendant
+  le scan.
+- **Code en PSRAM.** coffeeflow exécute son code depuis la PSRAM
+  (`CONFIG_SPIRAM_XIP_FROM_PSRAM`, et `SPIRAM_FETCH_INSTRUCTIONS` et
+  `SPIRAM_RODATA`). esp-hal 1.2.2 n'en a pas d'équivalent ;
+  `src/xip.rs` le fait au démarrage, avant tout autre usage de la PSRAM. Il
+  copie les pages de flash de l'app au début de la PSRAM, puis redirige leurs
+  entrées MMU, caches suspendus, depuis l'IRAM. Le bus d'instructions et
+  celui de données partagent la table MMU : une redirection déplace le code
+  et les rodata de la page. La fonction ROM `Cache_Flash_To_SPIRAM_Copy`
+  n'est pas utilisée : IDF corrige un bug de la ROM sur le compte des pages,
+  et la dernière entrée sert au bootloader. 7 pages (448 Ko) en 42 ms ; le
+  framebuffer suit.
+- **Dessin à 10 Hz.** Le dessin continu de 03 (5,2 Mo/s écrits, doublés par
+  l'allocation en écriture du cache) n'est pas représentatif. La scène
+  avance désormais à 10 Hz, soit 1,35 Mo/s, l'ordre de grandeur de l'UI
+  pendant une infusion. `draw-continuous` rend le pire cas ;
+  `exec-from-flash` désactive le XIP.
+- **Résultat :** 0 retard et 0 recalage, y compris pendant l'initialisation
+  BLE (7 retards avant). Recopie la plus lente : 870 à 892 µs, avec ou sans
+  liens, soit environ 330 µs de marge avec 20 lignes. Le XIP et le dessin à
+  10 Hz ont changé ensemble, et leurs parts ne sont pas séparées : ce n'est
+  pas utile, puisque le XIP est retenu de toute façon. **Les bounce buffers
+  restent à 20 lignes**, pour garder la SRAM interne.
+- **Mémoire.** Tas interne libre inchangé (38 Ko), pile du cœur 1 à 7,4 Ko
+  sur 16. Image : 426 Ko.
+- Les essais d'affichage suivants partent de 04b, XIP compris.
+
 ### 5. `05-wifi-ap` — Wi-Fi
 
-Point d'accès avec un SSID et un mot de passe **propres à l'essai**, écrits
-dans le source de l'essai, sans rapport avec ceux de coffeeflow et sans
-lecture de NVS. DHCP, et un petit serveur HTTP qui renvoie les mesures
-mémoire, sur le modèle de `examples/wifi/embassy_access_point`.
+Décision du 2026-10-08 : comme pour le BLE à l'étape 4, le Wi-Fi se teste
+**avec l'affichage qui tourne**, puis **combiné au BLE**.
+
+L'essai part d'une copie de `04b-ble-gatt` : affichage, XIP, scène à 10 Hz
+et rapport inchangés sur le cœur 0, radio sur le cœur 1. Il se fait en deux
+temps, choisis par une feature :
+
+1. **Wi-Fi seul** (par défaut). Point d'accès avec un SSID et un mot de
+   passe **propres à l'essai**, écrits dans le source de l'essai, sans
+   rapport avec ceux de coffeeflow et sans lecture de NVS. DHCP, et un petit
+   serveur HTTP sur le modèle de `examples/wifi/embassy_access_point`
+   (détail plus bas). Tas interne à la taille de l'exemple Wi-Fi
+   d'esp-radio (100 Ko), pris sur la pile du cœur 0, qui n'utilise que
+   3 Ko de ses 189.
+2. **BLE + Wi-Fi** (feature `ble`). Les deux liens GATT de 04b et le point
+   d'accès en même temps, avec la coexistence d'esp-radio (feature `coex`,
+   modèle : `examples/wifi/embassy_coex`). Tas interne de 128 Ko, la taille
+   des exemples pour les deux radios.
+
+**Serveur HTTP et charge.** Le client est l'iPhone, connecté au point
+d'accès. Pas le Mac : en rejoignant l'AP, il perdrait l'accès à Internet,
+et la session Claude Code avec. Le serveur sert deux chemins :
+
+- `GET /` : une page HTML, avec son JavaScript, écrite dans le source de
+  l'essai. Elle appelle `GET /stats` toutes les 200 ms (5 Hz) et affiche la
+  dernière réponse, le nombre de requêtes, d'erreurs et de délais dépassés
+  (1 s), et la latence moyenne et maximale. Un bouton passe en mode « sans
+  pause » : la requête suivante part dès que la précédente a répondu.
+- `GET /stats` : un petit JSON avec les compteurs du rapport (affichage,
+  tas interne, liens BLE en combiné).
+
+Mesures, dans le rapport et dans `/stats` : les compteurs d'affichage de
+04b, le tas interne libre et son minimum, la pile du cœur 1, la taille de
+l'image ; côté BLE, les mêmes lignes qu'en 04b ; côté HTTP, les requêtes
+servies par seconde. La charge dure au moins une minute à 5 Hz, puis une
+minute sans pause.
 
 - **Prouve :** la pile Wi-Fi et réseau (esp-radio + embassy-net) sur cette
-  carte, sans dépendre des identifiants du réseau domestique.
+  carte, sans dépendre des identifiants du réseau domestique, et ce que le
+  Wi-Fi, seul puis avec le BLE, coûte à la recopie et à la SRAM interne.
+- **Réussi si :** dans les deux temps, 0 recopie en retard et 0 recalage,
+  hors démarrage de la radio, pendant la charge HTTP, et la page ne compte
+  ni erreur ni délai dépassé à 5 Hz. En combiné, la SCACE garde ses
+  10 trames/s sans trame manquée, et la balance ses pesées et son heartbeat,
+  toujours pendant la charge HTTP.
+- **Si l'affichage ne tient pas :** noter les chiffres, sans corriger tout
+  de suite (même règle qu'à l'étape 4). Les 40 lignes de bounce buffer
+  restent possibles, mais elles coûtent 64 Ko de SRAM interne, celle que
+  réclame justement la combinaison.
+- **Si la combinaison ne tient pas en SRAM :** noter où, et ce qu'il manque.
+  Le fonctionnement actuel de coffeeflow, une radio à la fois, reste la
+  référence (étape 6).
 - Un mode station viendra plus tard. Il faudra alors décider comment fournir
   les identifiants sans les lire depuis NVS (fichier ignoré par Git, comme
   `secrets.h`).
@@ -836,10 +930,11 @@ d'en relancer un autre, et que le tas interne revient à la même valeur après
 chaque cycle.
 
 Comme aujourd'hui dans coffeeflow, **Wi-Fi et BLE ne tournent pas en même
-temps**. Les faire coexister serait un plus, mais pas au prix d'un arbitrage
-sur le code placé en SRAM : si la place manque, le code en SRAM passe
-d'abord. À titre indicatif, les exemples d'esp-radio sur ESP32-S3 réservent
-72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko pour les deux.
+temps**. Les faire coexister serait un plus, mesuré par l'étape 5, mais pas
+au prix d'un arbitrage sur le code placé en SRAM : si la place manque, le
+code en SRAM passe d'abord. À titre indicatif, les exemples d'esp-radio sur
+ESP32-S3 réservent 72 Ko de tas pour le BLE, 100 Ko pour le Wi-Fi et 128 Ko
+pour les deux.
 
 - **Prouve :** que les deux bounce buffers internes (64 Ko, 20 lignes), la
   pile radio active et les tâches tiennent en SRAM interne, avec une marge,
@@ -922,6 +1017,13 @@ Résultats datés, au fil des essais.
   recopie en SRAM essayé, sans effet, puis retiré. Critère de stabilité
   ramené de 10 minutes à une minute. Essai dans `ota_0`, `otadata`
   `0x59`/`0x58`, les deux `VALID`. Reste la connexion GATT à la SCACE.
+- **2026-10-08 :** `04b-ble-gatt`, connexions GATT simultanées à la Lunar et
+  à la SCACE, reconnexion validée. Avec le code en flash, recopies en retard
+  (jusqu'à 1 944 µs). Code et rodata passés en PSRAM (`src/xip.rs`) et
+  dessin ramené à 10 Hz : 0 retard, 0 recalage, recopie max 892 µs, avec
+  20 lignes. Essai laissé dans `ota_0` ; retour sur coffeeflow, `otadata`
+  `0x5b`/`0x5c`, les deux `VALID`, coffeeflow redémarre normalement.
+  Prochaine étape : 5, Wi-Fi avec l'affichage, puis combiné au BLE.
 - **2026-10-08 :** UI de `screen` en Slint, décidé après comparaison avec
   `embedded-graphics` seul. Pas de bindings vers LVGL. Licence sans objet
   tant que le projet reste personnel. Essai `07-slint-display` ajouté.

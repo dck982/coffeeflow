@@ -406,7 +406,12 @@ porte-filtre, 5 s), chauffage actif (régulation, SSR ~35 % du temps).
       piégé après : 7,89 et 6,92 bar, manomètre 8 et un peu moins de 7. Une
       purge isolée (`214828`) a plafonné à 9,05 bar, plat, sans cause
       établie (porte-filtre mal serré ?).
-- [ ] Premier espresso : remplissage, pré-infusion, régulation.
+- [x] Premier espresso le 8.10 (`261008-084342`, détail dans
+      [journal-infusions.md](journal-infusions.md)). Fin de remplissage à
+      0,8 bar 200 ms après le premier paquet, comme sur l'I2C ; pré-infusion
+      terminée à la goutte ; plateau régulé à 8,91 ± 0,06 bar, aucune
+      lecture invalide. Après l'arrêt, le tronçon piégé remonte de 7,06 à
+      9,35 bar en 9 s, chaudière en chauffe, et plafonne là (OPV).
 - [ ] `README.md`, `cablage.md` (résultats de la transition), puis suppression
       de ce document.
 - [ ] Commit.

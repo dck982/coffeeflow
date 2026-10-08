@@ -24,6 +24,7 @@ seuil de remplissage et la puissance de pré-infusion diffèrent de
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
 | Firmware écran | 0.3.40 : remboursement de la précharge, sans coupure de fin, fin de remplissage en pression absolue | avant le 5 octobre |
+| Sonde de pression | XDB401 analogique sur A2 (0.3.46), loi de chauffe inchangée | 7 octobre |
 | Précharge | 8 s à 90 % | 4 octobre |
 | Consigne | 90 °C | — |
 | Remplissage | pompe à 75 %, fin à **0,8 bar** (10 s au plus) | 5 octobre, 7 h 59 |
@@ -120,7 +121,8 @@ Valeurs du rapport (définitions ci-dessus). Les infusions avant le
 | 04/10 10 h 01 | 3,00 s, 10,1 ml, 0,33 bar | 4,00 s, 12,5 ml, échéance | 38,0 ml | 4,6 s | 29,8 s, 0,71 g/s, 0,91 ml/s | 22,2 g | 92,50 °C |
 | 04/10 13 h 24 | 4,50 s, 15,4 ml, 0,39 bar | 4,00 s, 2,0 ml, échéance | 35,1 ml | 6,4 s | 17,8 s, 1,10 g/s, 1,40 ml/s | 22,2 g | 87,58 °C |
 | 05/10 7 h 26 | 7,00 s, 24,1 ml, 1,19 bar | 1,20 s, 1,2 ml, goutte | 25,8 ml | 4,5 s | 13,3 s, 1,28 g/s, 1,85 ml/s | 22,4 g | 88,64 °C |
-| **06/10 7 h 19** | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
+| 06/10 7 h 19 | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
+| **08/10 8 h 43** | 6,30 s, 20,0 ml, 0,88 bar | 3,40 s, 6,1 ml, goutte | 26,7 ml | 4,5 s | 16,0 s, 1,07 g/s, 1,16 ml/s | 22,2 g | 87,69 °C |
 
 ## Entrées
 
@@ -373,3 +375,134 @@ fine) :
 
 Prolonger la capture à 40–60 s après l'arrêt pour voir où la NTC se
 stabilise.
+
+### 8 octobre, 8 h 43 — `261008-084342`
+
+**Contexte.** Première infusion avec la pression lue sur le XDB401
+analogique (écran 0.3.46, voir [xdb401_swap.md](xdb401_swap.md)) ; loi de
+chauffe inchangée depuis 0.3.40, réglages d'infusion inchangés
+(`configs/261005-075907.json`). Mouture affinée depuis le 6 octobre.
+Observations de David : mouture probablement un peu trop fine, infusion
+plus longue.
+
+Le changement de sonde touche peu les comparaisons : l'analogique a son
+zéro à l'atmosphère (l'I2C lisait +0,027 bar) et lit le plateau de l'OPV
+0,06 bar plus haut que l'I2C.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,04 s | 8,05 s | — | — |
+| Remplissage | 8,09 s | 6,30 s | 20,0 ml (3,17 ml/s) | 0,48 → 0,88 bar |
+| Pré-infusion | 14,38 s | 3,40 s | 6,1 ml (1,79 ml/s) | 0,88 → 1,18 bar |
+| Infusion | 17,79 s | 20,40 s | 32,2 ml | 9,07 bar max |
+
+- Pression au repos avant l'infusion : 0,44 bar piégés.
+- Premier paquet au-dessus de 0,8 bar à 14,19 s (19,4 ml, 6,1 s après le
+  début du remplissage), passage en pré-infusion à 14,38 s : 200 ms, comme
+  le 6 octobre. La fin de remplissage sur la sonde analogique se comporte
+  comme sur l'I2C.
+- Le firmware a vu la première goutte à 17,79 s et 26,1 ml, 0,6 s avant
+  l'échéance ; le rapport la place à 26,7 ml (≥ 0,3 g). Marge de
+  remplissage : 6,1 à 6,7 ml (4,0 à 4,3 ml le 6 octobre).
+- Montée de 4,5 s jusqu'à 8 bar, avec 4,1 g en tasse (5,5 g le 6 octobre).
+  Débit en tasse au plus de 1,35 g/s vers 21,3 s, sous ≈ 4,7 bar.
+- Depuis 8 bar : 16,0 s, 1,07 g/s en tasse, 1,16 ml/s en amont, 21,5 g à
+  l'arrêt (au poids), 22,2 g final.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,91 ± 0,06 bar, pompe à
+  67 %, 1,08 g/s, soit **8,3 bar·s/g** contre 6,3 le 6 octobre et 6,8 le
+  5 octobre : galette ≈ 30 % plus résistante qu'au 6 octobre.
+- Après l'arrêt, la pression piégée tombe à 7,06 bar puis remonte à
+  9,35 bar en 9 s, chaudière en chauffe (dilatation), et s'y plafonne
+  (9,27 bar en fin de capture) : l'OPV limite le tronçon.
+
+**Thermique.**
+
+| Grandeur | Mesure |
+| --- | ---: |
+| NTC pondérée par la tasse | **87,69 °C** (−2,31 °C) |
+| NTC pondérée par le volume | 89,28 °C |
+| Pic avant l'infusion | 91,71 °C, à 13,99 s (fin du remplissage) |
+| Minimum pendant l'écoulement | 85,37 °C, à l'arrêt de la pompe |
+| Minimum total | 83,41 °C à 45,3 s, ≈ 7,0 s après l'arrêt (6,38 °C sous la NTC de départ, 89,79 °C) |
+| 20 s après l'arrêt (fin de la capture) | 86,19 °C, en hausse |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 8,54 kJ | 8,40 kJ |
+| Remplissage | 5,45 kJ | 4,68 kJ |
+| Pré-infusion | 2,45 kJ | 2,28 kJ |
+| Infusion | 2,06 kJ | 2,04 kJ |
+| Récupération | 6,78 kJ | 6,72 kJ |
+
+La commande reste à 0 % de 17,89 à 33,29 s (**15,4 s**, remboursement de
+712 %·s), puis suit le débit à 33–37 % pendant les 4,9 dernières secondes.
+15,8 des 21,5 g en tasse arrivent pendant ce 0 %. De la précharge à
+l'arrêt : 18,5 kJ commandés, 17,4 kJ fournis par le SSR, pour 58,3 ml
+admis, soit 0,298 kJ/ml fournis (0,286 le 6 octobre, 0,280 le 5 octobre).
+
+**Attendus vérifiés** (entrée du 6 octobre) :
+
+| Attendu | Mesure |
+| --- | --- |
+| Remplissage : fin à 0,8 bar, 20 à 22 ml, ≈ 6 s | 20,0 ml, 6,3 s |
+| Pré-infusion sous 1,9 ml/s, goutte au-delà de 2,1 s, ≈ 7 ml au plus | 1,79 ml/s, goutte en 3,4 s, 6,1 ml |
+| Montée : moins de 5,5 g à 8 bar, pic sous 1,8 g/s | 4,1 g, 1,35 g/s |
+| Plateau : au-dessus de 6,8 bar·s/g, pompe sous 69 % | 8,3 bar·s/g, 67 % |
+| Depuis 8 bar : plus de 13,3 s, moins de 1,28 g/s | 16,0 s, 1,07 g/s ; arrêt au poids, pas au temps |
+| Thermique : noter commande, SSR et NTC à +20 s | ci-dessus ; 86,19 °C à +20 s |
+| Capture prolongée à 40–60 s après l'arrêt | **non** : 19,9 s |
+
+**Lecture.**
+
+- *Énergie, mesuré.* La tasse froide ne vient pas d'un manque d'énergie :
+  le SSR a fourni plus par millilitre que les deux infusions précédentes.
+  Ce qui change, c'est le moment : à débit lent, la dette se rembourse
+  lentement, la commande reste à 0 % 15,4 s au lieu de 11,5 à 12,4 s, et
+  l'appoint ne reprend que 4,9 s avant l'arrêt. Avec ≈ 17,6 s de délai
+  chauffe → sonde, il arrive après l'arrêt ; la NTC baisse encore 7 s après.
+- *Perte thermique proportionnelle à la durée, estimé.* Une fuite de
+  chaleur expliquerait mal l'écart : 4 s d'infusion de plus pour ≈ 0,8 °C
+  de moins en tasse qu'au 6 octobre demanderait ≈ 300 W de pertes en plus
+  (1,47 kJ/K), un quart de la résistance.
+- *Écart au modèle, en simulation.* Rejouée avec la commande réelle, la
+  moyenne en tasse vaut 89,85 °C (mesure −2,14 °C), le minimum 88,93 °C
+  (mesure −5,5 °C), le pic 90,55 °C (mesure +1,2 °C). La NTC réelle baisse
+  bien plus que le modèle. Sur les infusions avec remboursement, l'écart
+  suit la durée du 0 % :
+
+  | Infusion | 0 % pendant | Tasse sous 0 % | Mesure − modèle (tasse) |
+  | --- | ---: | ---: | ---: |
+  | 06/10 7 h 19 | 11,5 s | 14,6 g | −0,68 °C |
+  | 05/10 7 h 26 | 12,4 s | 14,7 g | −0,99 °C |
+  | 08/10 8 h 43 | 15,4 s | 15,8 g | −2,14 °C |
+  | 04/10 13 h 24 (coupure de fin en plus) | 21,8 s | 19,3 g | −1,99 °C |
+
+  Avant le remboursement, résistance en marche pendant l'écoulement,
+  l'écart était positif (+1,9 °C à 9 h 43 le 30 septembre). Hypothèse non
+  testée : sans chauffe, plus de brassage par convection ; l'eau froide
+  admise stratifie autour de la NTC, qui voit une capacité locale plus
+  petite que les 1,47 kJ/K du modèle. Ce serait le « facteur manquant » de
+  [chauffe-infusion.md](chauffe-infusion.md#simulation).
+- *Eau du réservoir.* Non mesurée ; les trois dernières infusions sont du
+  matin, rien ne la sépare de la durée.
+
+**Décision.** David grossit un peu la mouture pour la prochaine infusion.
+Réglages inchangés (`configs/261005-075907.json`). La loi de chauffe reste
+telle quelle jusqu'au panier SCACE, attendu dans deux infusions : il dira
+si le creux de la NTC est aussi celui de l'eau au groupe avant de toucher
+au remboursement (plafond ou plancher de commande).
+
+**Attendus pour l'infusion suivante** (même configuration, mouture entre
+celles du 6 et du 8 octobre) :
+
+| Point | Attendu |
+| --- | --- |
+| Remplissage | fin à 0,8 bar, 19 à 22 ml, ≈ 6 s |
+| Pré-infusion à 50 % | goutte entre 2,1 et 3,4 s, 4 à 6 ml |
+| Plateau | résistance entre 6,3 et 8,3 bar·s/g, pompe entre 67 et 69 % |
+| Depuis 8 bar | entre 11,8 et 16,0 s, entre 1,07 et 1,35 g/s |
+| Commande à 0 % | entre 11,5 et 15,4 s ; plus court avec un débit plus fort |
+| Moyenne en tasse | entre 87,7 et 88,5 °C si l'écart suit la durée du 0 % ; sous la consigne dans tous les cas |
+| Modèle, commande réelle | écart entre −0,7 et −2,1 °C, pour situer le point dans le tableau ci-dessus |

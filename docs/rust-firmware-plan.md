@@ -458,8 +458,10 @@ seconde (même à une image déjà validée).
   régulée vérifiée (la puissance baisse à l'approche de 90 °C) ;
   `coffeetool telemetry --record` vérifié. Purge vérifiée
   (`captures/261009-214844.json`) : 87 impulsions du débitmètre, pompe
-  confirmée à 100 %, fin en `cooldown` ; capture HF téléchargée. Reste
-  l'infusion.
+  confirmée à 100 %, fin en `cooldown` ; capture HF téléchargée. Plafond
+  de purge (10 s) respecté doigt appuyé (`captures/261009-215259.json`) ;
+  purge à 50 % : pompe nettement plus lente (sans capture). Purge
+  validée. Restent l'infusion et la sonde SCACE.
 
 État des cartes :
 - `sensors` : Rust 0.4.2 actif et validé ; l'autre slot, Rust 0.4.1 validé.

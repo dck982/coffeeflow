@@ -1863,7 +1863,143 @@ réarmé au début de `main`.
   relit son NVS après le passage de Rust. Sinon : notre propre format,
   avec migration au premier démarrage.
 
+**Le NVS de coffeeflow (relevé dans le code le 2026-10-09).** Deux espaces
+seulement : `ui` (blobs `a` et `b`, la configuration en double, 80
+octets chacun) et `wifi` (blob `credentials` de 97 octets : SSID sur 33,
+mot de passe sur 64, terminés par un zéro). S'y ajoutent ceux d'IDF :
+`phy` (`cal_data`, 1 904 octets ; `cal_mac` ; `cal_version`) et
+`nvs.net80211/ap.sndchan`, que le Wi-Fi écrit malgré `WIFI_STORAGE_RAM`.
+Relevé sur la carte : 7 entrées.
+
+**`esp-nvs` 0.6.2 (relevé le 2026-10-09).**
+
+- **`Nvs::new` peut écrire dès l'ouverture** : fin d'une défragmentation
+  interrompue, entrées abîmées ou trous marqués effacés, doublons effacés,
+  anciens blobs migrés. Sur un NVS sain, rien de cela ne devrait arriver,
+  mais l'ouverture n'est pas garantie en lecture seule. Le vrai NVS se lit
+  donc à travers une flash qui refuse toute écriture et compte les refus
+  (`flash.rs`).
+- Sa feature de puce tire `esp-storage` < 0.10. L'essai s'en passe :
+  `flash.rs` fournit l'accès à la flash (esp-storage 0.10, feature
+  `embedded-storage`) et le CRC32 d'IDF en logiciel.
+- `get`/`set` : entiers de 8 à 64 bits, `String`, `Vec<u8>` (blobs en
+  plusieurs morceaux, comme IDF depuis v4.0).
+
+**Essai `08c-nvs` (écrit le 2026-10-09).** Image minimale, sans affichage,
+code exécuté depuis la flash, un seul cœur. Un cas par build :
+
+- **`c-factice`** (8c.1 et 8c.2) : une zone de 24 Ko, la taille du vrai NVS,
+  à 2 Mo du début du slot démarré. L'essai vérifie qu'elle est au-delà de
+  son image et dans le slot. `nvs/donnees.py` décrit les données factices,
+  et `nvs/verifier.py generer` en fait le CSV, puis l'image par
+  `nvs_partition_gen` d'IDF. Les données imitent les types de coffeeflow :
+  `ui/a` et `ui/b`, de faux `wifi/credentials`, plus des entiers, une
+  chaîne et un blob de 6 000 octets sur deux pages. La Rust relit tout
+  (8c.1), puis modifie un entier, réécrit `ui/b`, ajoute une chaîne, un
+  blob, un `u64` et un `i8`, et efface une clé. Elle rouvre ensuite la zone
+  et relit tout. Elle n'écrit que dans une zone intacte : rejouée, elle
+  contrôle seulement l'état d'après. Sur le Mac, `nvs/verifier.py apres`
+  décode la zone relue avec le parseur d'IDF (`nvs_parser`, celui de
+  `nvs_tool.py`), recompose les blobs selon leur index, la compare aux
+  données attendues et fait le contrôle d'intégrité de `nvs_tool.py -i`
+  (8c.2) ;
+- **`c-reel-lecture`** (8c.3, lecture) : le vrai NVS en lecture seule. La
+  console donne les écritures refusées à l'ouverture, puis espace, clé,
+  type et longueur de chaque entrée, jamais une valeur, et le CRC32 du NVS
+  avant et après. Ensuite, les identifiants de `wifi/credentials` (on
+  n'en journalise que les longueurs) servent à rejoindre le Wi-Fi de la
+  maison en station. L'essai journalise l'adresse obtenue, et sert sur le
+  port 80 une page de texte fixe ;
+- **`c-reel-ecriture`** (8c.3, écriture) : `rust8c/essai` = `0x08C0FFEE`
+  (`u32`), dans un espace que coffeeflow n'ouvre pas. Puis réouverture,
+  relecture et liste des entrées.
+
+Images, dans `target/variants/` : `factice.bin` (173 Ko),
+`reel-lecture.bin` (555 Ko), `reel-ecriture.bin` (162 Ko), avec leurs
+`.elf`, et la zone factice `zone/essai.bin`.
+
+**Déroulé (bureau, USB).** Dans `firmware/rust/trials/08c-nvs`, environnement
+de « Déployer un essai ». Au 2026-10-09 : coffeeflow sur `ota_1` (copie 0
+`0x66` VALID), la Rust A de 8b dans `ota_0` (copie 1 `0x65` VALID). Le slot
+de test est `ota_0`, et la bascule vers `ota_0` réécrit la copie 1, qui est
+`VALID` : une seule bascule suffit. Si `otadata` a changé, on le relit
+d'abord.
+
+```sh
+V=target/variants
+# 1. 8c.1 et 8c.2 : zone factice.
+parttool.py -p $PORT write_partition --partition-name ota_0 --input $V/factice.bin
+otatool.py -p $PORT switch_ota_partition --name ota_0
+#    La zone en dernier, carte laissée en mode téléchargement : la première
+#    exécution sur la zone intacte sera celle de la console.
+esptool.py --chip esp32s3 -p $PORT --after no-reset write-flash 0x320000 $V/zone/essai.bin
+espflash monitor --chip esp32s3 --port $PORT --elf $V/factice.elf
+#    Attendu : ouverture 0 écriture, « ok » partout, relecture 0 écart,
+#    SSID de 10 car. et mot de passe de 17 car. (les faux), écritures 0
+#    erreur, après 0 écart. Console fermée :
+esptool.py --chip esp32s3 -p $PORT read-flash 0x320000 0x6000 /tmp/08c-zone.bin
+python nvs/verifier.py apres /tmp/08c-zone.bin
+# 2. 8c.3 : le vrai NVS. D'abord, par David : nvs-vault save, et la
+#    configuration (GET /config) pour comparer à la fin.
+parttool.py -p $PORT write_partition --partition-name ota_0 --input $V/reel-lecture.bin
+espflash monitor --chip esp32s3 --port $PORT --elf $V/reel-lecture.elf
+#    Attendu : 0 écriture refusée, la liste (ui, wifi, phy…), les
+#    longueurs des identifiants, crc inchangé, puis « wifi: associé » et
+#    une adresse ; curl http://<adresse>/ depuis le Mac. Console fermée :
+parttool.py -p $PORT write_partition --partition-name ota_0 --input $V/reel-ecriture.bin
+espflash monitor --chip esp32s3 --port $PORT --elf $V/reel-ecriture.elf
+#    Attendu : rust8c/essai relu ok, toutes les entrées de coffeeflow
+#    encore là. Console fermée :
+otatool.py -p $PORT switch_ota_partition --name ota_1
+#    Coffeeflow redémarre : Wi-Fi en STA (il a relu wifi/credentials) et
+#    GET /config identique à celui du début (il a relu ui/a ou ui/b).
+# 3. Par David, dans tous les cas : nvs-vault restore.
+```
+
+Le cas `c-reel-ecriture` a déjà tourné une fois avant l'ouverture de la
+console : `write_partition` redémarre la carte. La console montre une
+deuxième exécution, qui réécrit la même valeur. On perd seulement le compte
+d'écritures de la première.
+
+**Résultats du 2026-10-09 : 8c réussie.**
+
+- **IDF → Rust (8c.1) :** les 8 entrées de l'image de `nvs_partition_gen`
+  sont relues sans écart (blob de 6 000 octets sur deux pages compris), et
+  l'ouverture n'écrit rien.
+- **Rust → IDF (8c.2) :** après les écritures de la Rust, puis une
+  réouverture, 0 écart. La zone relue sur le Mac est décodée par le
+  parseur d'IDF : 11 clés conformes, `signe` absente, CRC des pages justes.
+- **Vrai NVS, lecture seule :** aucune écriture tentée à l'ouverture, CRC
+  inchangé (`0x73a929fa`), 7 entrées. Avec les identifiants de
+  `wifi/credentials`, la Rust rejoint le Wi-Fi de la maison
+  (192.168.2.196) et répond au `curl` du Mac.
+- **Vrai NVS, écriture :** `rust8c/essai` est écrite, puis relue après
+  réouverture, et les 7 entrées de coffeeflow restent là. La deuxième
+  exécution n'écrit rien : `esp-nvs` ne réécrit pas une valeur identique.
+- **Retour sur coffeeflow :** il est en `sta_connected`, donc il a relu
+  `wifi/credentials`. Puis `nvs-vault restore` (SHA-256 du `save` du jour,
+  `67eda92b…`), et `/config` est identique avant et après la
+  restauration : coffeeflow a relu ses réglages malgré la clé de la Rust.
+
+**Conclusion : `esp-nvs` lit et écrit le NVS d'IDF dans les deux sens. Pas
+de format propre ni de migration.** À reprendre dans l'app : l'accès par
+`flash.rs` (esp-storage 0.10 et CRC logiciel), et la prudence à
+l'ouverture, qui peut écrire sur un NVS abîmé.
+
 ### 9. `09-sensors-probe` — première image Rust sur `sensors`, sans USB
+
+**Décision du 2026-10-09 : pas de sonde, le vrai firmware directement.**
+L'étape 8b a déjà prouvé ce que la sonde devait montrer : le retour en
+arrière du bootloader, le redémarrage après une panique (`custom_halt`), et
+le watchdog RTC. Une image jetable n'apporte rien de plus. On garde
+seulement sa garantie : la **première installation** de l'app Rust de
+`sensors` se construit avec une feature qui empêche toute validation. Le
+bootloader ramène donc toujours le C++, et l'app y montre ses sorties
+sûres, son CAN et ses journaux. On ne construit la version qui se valide
+qu'une fois vue, en vrai, sa réception d'une OTA par l'écran. Une app
+validée dont la réception est cassée ne se remplacerait plus sans ouvrir
+la machine. Ce qui suit reste la liste des vérifications de cette
+première installation.
 
 Décision du 2026-10-09 : `sensors` passe à Rust par la chaîne OTA C++
 actuelle, sans jamais ouvrir la machine. L'étape vient après la 8b, qui
@@ -2105,3 +2241,15 @@ Résultats datés, au fil des essais.
   `otatool` relit les écritures de Rust. Constat : `otatool
   switch_ota_partition` garde l'état de la copie réécrite, d'où une double
   bascule au départ. Coffeeflow remis dans `ota_1`.
+- **2026-10-09 :** étape 9 sans sonde : le vrai firmware de `sensors`
+  directement, sa première installation construite sans validation.
+  `08c-nvs` écrit (zone factice, vrai NVS en lecture seule avec le Wi-Fi
+  de la maison, clé de test), avec `nvs/verifier.py` qui décode par le
+  parseur d'IDF. Relevé : `esp_nvs::Nvs::new` peut écrire à l'ouverture.
+  Rien de flashé.
+- **2026-10-09 :** 8c réussie. Zone factice relue et écrite par Rust,
+  décodée par le parseur d'IDF sans écart. Le vrai NVS est lu sans écriture
+  (CRC inchangé), et la Rust rejoint le Wi-Fi de la maison avec les
+  identifiants de coffeeflow. Une clé de test est écrite, coffeeflow relit
+  Wi-Fi et réglages, puis `nvs-vault restore`. Coffeeflow remis sur
+  `ota_1` (copie 0 `0x68`).

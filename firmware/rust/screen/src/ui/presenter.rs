@@ -72,6 +72,7 @@ fn tile(name: &str, value: String, detail: &str, enabled: bool, tone: i32) -> Ti
         name: name.into(),
         value: value.into(),
         detail: detail.into(),
+        aside: "".into(),
         enabled,
         tone,
     }
@@ -723,7 +724,7 @@ impl Presenter {
         } else {
             shot.elapsed_s
         };
-        app.set_brew_values(model(alloc::vec![
+        let mut brew_tiles = alloc::vec![
             tile("poids", number(shot.cup_weight_g, 1, " g"), "", true, 0),
             tile(
                 "temps infusion",
@@ -758,7 +759,26 @@ impl Presenter {
                 true,
                 0
             )
-        ]));
+        ];
+        if shot.cup_mean_c.is_finite() {
+            brew_tiles[2].detail = format!("cible {:.0}°", c.brew_temperature_c).into();
+        }
+        if shot.pump_start_s.is_finite() {
+            brew_tiles[3].aside =
+                format!("pompe {}", number(total - shot.pump_start_s, 1, "")).into();
+        }
+        if shot.infusion_ml_s.is_finite() {
+            brew_tiles[4].aside = number(shot.infusion_ml_s, 2, " ml/s").into();
+        }
+        if shot.min_temperature_c.is_finite() && shot.max_temperature_c.is_finite() {
+            brew_tiles[5].detail = format!(
+                "{}-{}",
+                number(shot.min_temperature_c, 1, ""),
+                number(shot.max_temperature_c, 1, "°")
+            )
+            .into();
+        }
+        app.set_brew_values(model(brew_tiles));
         app.set_live_values(model(alloc::vec![
             tile("chauffe", number(s.heating_power_pct, 0, " %"), "", true, 0),
             tile("pompe", format!("{} %", s.dimmer_pct), "", true, 0),
@@ -771,6 +791,12 @@ impl Presenter {
             ),
             tile("débit pompe", number(s.flow_ml_s, 2, " ml/s"), "", true, 0)
         ]));
+        app.set_reserve_visible(shot.active && !shot.pump_stopped());
+        app.set_reserve_x(
+            ((shot.axis_s - screen_core::shot_summary::ShotSummaryBuilder::DRIP_RESERVE_S) * 736.0
+                / shot.axis_s.max(1.0))
+            .clamp(0.0, 734.0),
+        );
         let names = [
             "PRÉ-CHAUFFE",
             "REMPLISSAGE",
@@ -798,7 +824,11 @@ impl Presenter {
                     "".into()
                 },
                 value: if width > 40.0 {
-                    number(end - start, 1, "").into()
+                    if i == 5 {
+                        format!("+{}", number(shot.drip_gain_g, 1, " g")).into()
+                    } else {
+                        number(end - start, 1, "").into()
+                    }
                 } else {
                     "".into()
                 },

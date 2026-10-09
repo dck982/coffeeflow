@@ -82,6 +82,19 @@ async fn main(spawner: Spawner) -> ! {
     watchdog::arm(peripherals.RTC_TIMER);
     clock::init();
 
+    // TWAI : 500 kbit/s, tout accepter (filtre par défaut), RX GPIO8 et TX
+    // GPIO7. Démarré tôt, en mode bloquant, pour les jalons du démarrage ; il
+    // passe en asynchrone juste avant la boucle de logique.
+    let mut twai = TwaiConfiguration::new(
+        peripherals.TWAI0,
+        peripherals.GPIO8,
+        peripherals.GPIO7,
+        BaudRate::B500K,
+        TwaiMode::Normal,
+    )
+    .start();
+    can::milestone(&mut twai, 1);
+
     // U0TXD sur GPIO43 (D6 du shield), pour la console. GPIO44, le RX de
     // l'UART0, est le débitmètre : on ne le branche pas. Le pilote vit
     // jusqu'à la fin de main, qui ne rend jamais la main.
@@ -89,8 +102,10 @@ async fn main(spawner: Spawner) -> ! {
     let _console = esp_hal::uart::UartTx::new(peripherals.UART0, esp_hal::uart::Config::default())
         .unwrap()
         .with_tx(peripherals.GPIO43);
+    can::milestone(&mut twai, 2);
 
     let lockout_active = lockout::init();
+    can::milestone(&mut twai, 3);
     info!(
         "sensors {}, reset: {:?}, verrou {}, validation {}",
         protocol::FIRMWARE_VERSION,
@@ -101,27 +116,18 @@ async fn main(spawner: Spawner) -> ! {
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0, peripherals.FROM_CPU_INTR0);
+    can::milestone(&mut twai, 4);
 
     // NEW ou PENDING_VERIFY. On ne valide jamais l'image ici : la logique ne
     // le fait qu'après un PING/PONG confirmé sur le bus, sinon elle revient
     // en arrière au bout de 30 s.
     let mut ota = FlashOta::new(peripherals.FLASH);
+    can::milestone(&mut twai, 5);
     let ota_pending = ota.pending_state();
+    can::milestone(&mut twai, 6);
     if let Some(state) = ota_pending {
         info!("image en attente de confirmation, état otadata {state}");
     }
-
-    // TWAI : 500 kbit/s, tout accepter (filtre par défaut).
-    let twai = TwaiConfiguration::new(
-        peripherals.TWAI0,
-        peripherals.GPIO8,
-        peripherals.GPIO7,
-        BaudRate::B500K,
-        TwaiMode::Normal,
-    )
-    .into_async()
-    .start();
-    spawner.spawn(can::task(twai).unwrap());
 
     // Bus I2C du dimmer. Ses seules pull-ups sont les 4,7 kΩ du module Grove
     // branché sur R1 : ni pull-up interne ni autre jeu en plus, d'où des
@@ -147,6 +153,7 @@ async fn main(spawner: Spawner) -> ! {
     .unwrap()
     .with_sda(sda)
     .with_scl(scl);
+    can::milestone(&mut twai, 7);
 
     let board = Board {
         valve,
@@ -163,8 +170,16 @@ async fn main(spawner: Spawner) -> ! {
         },
     ));
     machine.start();
+    can::milestone(&mut twai, 8);
     flow::init(peripherals.IO_MUX, peripherals.GPIO44);
+    can::milestone(&mut twai, 9);
     machine.ready();
+
+    let twai = twai.stop().into_async().start();
+    spawner.spawn(can::task(twai).unwrap());
+    // Le dernier jalon part par la tâche CAN : il prouve aussi l'émission
+    // asynchrone et l'exécuteur.
+    let _ = can::TX.try_send(can::milestone_frame(10));
 
     logic(machine).await
 }

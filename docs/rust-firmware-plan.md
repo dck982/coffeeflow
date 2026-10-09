@@ -356,10 +356,14 @@ Analyse (rien de vérifié sur carte) :
 
 Pistes pour la prochaine session (à choisir avec David ; pas de console USB
 sur la machine) :
-1. **Jalons sur le CAN** : initialiser le TWAI en premier (juste après les
-   sorties sûres et le watchdog) et émettre en bloquant un `LOG` par étape
-   de `main` (`arg16` = numéro d'étape) avant de passer en async. Le
-   moniteur `coffeetool` montre alors la dernière étape atteinte.
+1. **Jalons sur le CAN — fait, pas encore essayé.** TWAI démarré juste
+   après les sorties sûres et le watchdog, en bloquant ; `LOG BOOT`
+   `arg16` = étape, `arg32` = 0x52555354 (« RUST »), 20 ms au plus chacun.
+   Étapes : 1 TWAI, 2 console, 3 verrou, 4 esp-rtos, 5 table de partitions,
+   6 otadata, 7 I2C, 8 `machine.start`, 9 débitmètre, 10 (par la tâche CAN
+   asynchrone) boucle de logique lancée. Aucun jalon : l'émission CAN ou
+   ce qui précède l'étape 1 est en cause. Image
+   `/tmp/sensors-jalons-no-validate.bin` (version toujours 0.4.1).
 2. **Jalons en RAM RTC** survivant au reset du watchdog : inutile seul, le
    C++ qui reprend la main ne les lit pas.
 3. **Reproduire au bureau** sur un XIAO ESP32-S3 de rechange, console

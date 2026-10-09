@@ -1,4 +1,4 @@
-//! TWAI à 500 kbit/s sur GPIO19 (TX) et GPIO20 (RX), CAN_SEL haut.
+//! TWAI à 500 kbit/s sur GPIO20 (TX) et GPIO19 (RX), CAN_SEL haut.
 //!
 //! Une tâche possède le contrôleur. Elle reçoit dans la file de la logique,
 //! émet ce que la logique a mis en file (50 ms au plus par trame, une trame

@@ -222,6 +222,10 @@ pub fn shot_date_text(unix_s: i64) -> String {
 }
 
 impl Presenter {
+    /// Chaque appui physique réveille l'écran, même sur une zone sans bouton.
+    pub fn note_touch(&mut self, now_us: u64) {
+        self.last_touch_us = now_us;
+    }
     fn edit(&mut self, e: usize, c: &Config) {
         self.editor = Some(e);
         self.editor_value = number(value(c, e), if decimal(e) { 1 } else { 0 }, "");

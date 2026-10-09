@@ -1576,12 +1576,18 @@ impl<S: ConfigStore> Core<S> {
     }
 
     /// Écrit une configuration validée, tout ou rien. Refusée (`Busy`) pendant
-    /// une infusion ou une purge. Ramène à zéro l'état « prêt » si la consigne
+    /// une infusion, une purge ou un transfert OTA. Ramène à zéro l'état « prêt » si la consigne
     /// de température change, et coupe la chauffe si elle est désactivée.
     pub fn put_config(&mut self, clock: Clock, candidate: &Config) -> ConfigResult {
         self.enter(clock);
         if self.snapshot_now().cycle_state.is_active() {
             return ConfigResult::new(ConfigStatus::Busy, "cycle");
+        }
+        // Le propriétaire flash du cœur 1 peut garder l'image staging pendant
+        // tout le transfert. Attendre NVS ici bloquerait le cœur de l'UI jusqu'à
+        // son watchdog, alors que l'OTA attend elle aussi ses réponses.
+        if self.flash_active {
+            return ConfigResult::new(ConfigStatus::Busy, "flash");
         }
         for _ in 0..2 {
             let previous = self.config.get();
@@ -1611,6 +1617,12 @@ impl<S: ConfigStore> Core<S> {
     /// Remet les valeurs par défaut (nouvelle révision).
     pub fn reset_config(&mut self, clock: Clock) -> ConfigResult {
         self.enter(clock);
+        if self.snapshot_now().cycle_state.is_active() {
+            return ConfigResult::new(ConfigStatus::Busy, "cycle");
+        }
+        if self.flash_active {
+            return ConfigResult::new(ConfigStatus::Busy, "flash");
+        }
         self.config.reset(&mut self.store)
     }
 

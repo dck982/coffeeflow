@@ -1,28 +1,44 @@
-//! Cœur 1 : radio, réseau et flash, plus tard. Son exécuteur tourne déjà, sans
-//! tâche : le BLE, le Wi-Fi et le reste s'y ajoutent dans `start`.
-//!
-//! Le cœur 1 ne journalise rien lui-même : esp-println écrit sous une section
-//! critique partagée par les deux cœurs, et le cœur 0 resterait bloqué,
-//! interruptions masquées, le temps que l'autre vide sa ligne. Il alloue en
-//! SRAM interne (voir `heap`).
-
-use esp_hal::peripherals::{CPU_CTRL, FROM_CPU_INTR1};
-use esp_hal::system::Stack;
+//! Radio et flash possédées par le cœur 1. Le démarrage est acquitté avant
+//! de lancer le LCD : les blobs radio ne doivent pas bloquer sa recopie.
+use embassy_executor::Spawner;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
+use esp_hal::{peripherals::{CPU_CTRL, FROM_CPU_INTR1, WIFI, BT}, system::Stack};
+use esp_radio::ble::controller::BleConnector;
+use screen::{ble, flash::{Flash, Layout}, network, nvs};
 use static_cell::StaticCell;
 
+static READY: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 const STACK_BYTES: usize = 16384;
 
-/// Démarre le second cœur avec son exécuteur embassy. À appeler une fois
-/// l'affichage lancé : esp-hal active les interruptions radio sur le cœur qui
-/// crée le contrôleur, et le Wi-Fi y épingle sa tâche. Les périphériques
-/// radio (`WIFI`, `BT`) seront passés ici et confiés à la tâche de départ.
-pub fn start(cpu_ctrl: CPU_CTRL<'static>, intr1: FROM_CPU_INTR1<'static>) {
+pub fn start(cpu_ctrl: CPU_CTRL<'static>, intr1: FROM_CPU_INTR1<'static>,
+    wifi: WIFI<'static>, bt: BT<'static>, flash: Flash, layout: Layout) {
     static STACK: StaticCell<Stack<STACK_BYTES>> = StaticCell::new();
     static EXECUTOR: StaticCell<esp_rtos::embassy::Executor> = StaticCell::new();
     let stack = STACK.init_with(Stack::new);
     esp_rtos::start_second_core(cpu_ctrl, intr1, stack, move || {
         let executor = EXECUTOR.init(esp_rtos::embassy::Executor::new());
-        // Les tâches radio et réseau se lanceront ici : `spawner.spawn(...)`.
-        executor.run(|_spawner| {});
+        executor.run(|spawner| { spawner.spawn(boot(spawner,wifi,bt,flash,layout).unwrap()); });
     });
+}
+
+pub async fn wait_ready() { READY.wait().await }
+
+#[allow(clippy::large_stack_frames, reason = "état des futures dans l'arène de l'exécuteur")]
+#[embassy_executor::task]
+async fn boot(spawner: Spawner, wifi: WIFI<'static>, bt: BT<'static>, flash: Flash, layout: Layout) {
+    let connector = ble::connector(bt);
+    nvs::start(spawner,flash,layout).await;
+    network::start(spawner,wifi).await;
+    spawner.spawn(ble_task(connector).unwrap());
+    READY.signal(());
+}
+
+#[allow(clippy::large_stack_frames, reason = "état de l'hôte GATT dans l'arène de l'exécuteur")]
+#[embassy_executor::task]
+async fn ble_task(connector: BleConnector<'static>) {
+    ble::run(connector).await;
+    // Une erreur fatale de l'hôte ne laisse pas une interface connectée
+    // fictive ; le bootloader conserve sa politique de rollback.
+    embassy_time::Timer::after_millis(50).await;
+    esp_hal::system::software_reset();
 }

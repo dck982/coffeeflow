@@ -6,7 +6,7 @@
 
 pub mod render;
 
-use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
 use esp_hal::dma::{BurstConfig, DmaDescriptor, DmaTxBuffer, Owner, Preparation};
 use esp_hal::gpio::{AnyPin, Level};
@@ -66,6 +66,13 @@ static LAST_EOF_US: AtomicU32 = AtomicU32::new(0);
 // Mesures de la recopie, lues par le rapport.
 /// Trames affichées (un VSYNC chacune).
 pub static FRAMES: AtomicU32 = AtomicU32::new(0);
+static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Le geste UI demande un recalage au prochain blanking vertical, comme le
+/// pilote IDF. Le DMA n'est jamais arrêté au milieu d'une ligne affichée.
+pub fn request_restart() {
+    RESTART_REQUESTED.store(true, Relaxed);
+}
 /// Recopies terminées après que le DMA est revenu sur le buffer : des lignes
 /// périmées sont parties vers la dalle.
 pub static LATE: AtomicU32 = AtomicU32::new(0);
@@ -232,7 +239,8 @@ extern "C" fn on_vsync() {
     lcd_regs().lc_dma_int_clr().write(|w| w.lcd_vsync_int_clr().set_bit());
     FRAMES.fetch_add(1, Relaxed);
 
-    if EOF_COUNT.load(Relaxed) != BB_PER_FRAME {
+    let requested = RESTART_REQUESTED.swap(false, Relaxed);
+    if EOF_COUNT.load(Relaxed) != BB_PER_FRAME || requested {
         REALIGNS.fetch_add(1, Relaxed);
         if NEXT_CHUNK.load(Relaxed) > 2 {
             NEXT_CHUNK.store(0, Relaxed);

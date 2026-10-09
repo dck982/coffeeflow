@@ -21,6 +21,30 @@ fn cmd(action: Action) -> ActionCommand {
     ActionCommand::new(action)
 }
 
+#[test]
+fn config_changes_during_ota_do_not_wait_for_the_flash_owner() {
+    let mut rig = prepared_rig();
+    let clock = rig.clock();
+    let original = rig.core.config();
+    let mut changed = original;
+    changed.target_time_s = original.target_time_s + 1;
+    assert_ne!(rig.core.begin_flash(clock, FlashTarget::Screen, 1000), screen_core::core::FlashStart::Refused);
+    assert_eq!(rig.core.put_config(clock, &changed).status, ConfigStatus::Busy);
+    assert_eq!(rig.core.reset_config(clock).status, ConfigStatus::Busy);
+    assert_eq!(rig.core.config(), original);
+    rig.core.finish_flash();
+    assert_eq!(rig.core.put_config(clock, &changed).status, ConfigStatus::Ok);
+}
+
+#[test]
+fn reset_config_cannot_change_the_running_brew() {
+    let mut rig = prepared_rig();
+    assert_eq!(start(&mut rig, ActionSource::Ui), ActionStatus::Ok);
+    let original = rig.core.config();
+    assert_eq!(rig.core.reset_config(rig.clock()).status, ConfigStatus::Busy);
+    assert_eq!(rig.core.config(), original);
+}
+
 fn log_codes(outputs: &[Output]) -> Vec<u8> {
     outputs
         .iter()

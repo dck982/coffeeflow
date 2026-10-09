@@ -1,7 +1,7 @@
 # Tâche 7 — CAN, pont USB et OTA sensors
 
 Les services sont exportés par la bibliothèque `screen`. L'assemblage lance
-`can::task` avec TWAI à 500 kbit/s, RX GPIO20/TX GPIO19, après avoir placé
+`can::task` avec TWAI à 500 kbit/s, RX GPIO19/TX GPIO20, après avoir placé
 CAN_SEL haut ; il lance `serial_bridge::receive`/`transmit` avec UART0 à
 115200 bauds, RX GPIO44/TX GPIO43. Le cœur consomme `can::RX` et produit
 `can::TX` ; la présence, les PING/PONG et les décisions de confirmation

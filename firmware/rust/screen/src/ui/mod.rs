@@ -97,7 +97,7 @@ pub fn init() -> Ui {
     clippy::large_stack_frames,
     reason = "futures d'embassy : clippy compte l'état de la future, qui vit dans l'arène de l'exécuteur ou la future de main, pas sur la pile"
 )]
-pub async fn run(ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>) -> ! {
+pub async fn run(mut ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>, mut runtime: crate::runtime::Runtime) -> ! {
     let mut pressed: Option<slint::LogicalPosition> = None;
     let mut iteration = 0u32;
     loop {
@@ -114,12 +114,15 @@ pub async fn run(ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>)
                         Some(_) => WindowEvent::PointerMoved { position },
                         None => {
                             TOUCH_PRESSES.fetch_add(1, Relaxed);
+                            runtime.touch_press();
+                            ui.presenter.note_touch(Instant::now().as_micros());
                             WindowEvent::PointerPressed { position, button: PointerEventButton::Left }
                         }
                     };
                     ui.window.dispatch_event(event);
                 }
                 Ok(Touch::Released) => {
+                    runtime.purge_release();
                     if let Some(position) = pressed.take() {
                         ui.window.dispatch_event(WindowEvent::PointerReleased {
                             position,
@@ -130,10 +133,20 @@ pub async fn run(ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>)
                 }
                 Err(_) => {
                     TOUCH_ERRORS.fetch_add(1, Relaxed);
+                    // Une erreur pendant un appui ne doit pas retenir une
+                    // purge. Retirer aussi l'appui Slint évite un bouton figé.
+                    runtime.purge_release();
+                    if let Some(position) = pressed.take() {
+                        ui.window.dispatch_event(WindowEvent::PointerReleased {
+                            position, button: PointerEventButton::Left,
+                        });
+                        ui.window.dispatch_event(WindowEvent::PointerExited);
+                    }
                 }
             }
         }
 
+        runtime.poll(&mut ui);
         ui.window.draw_if_needed(|renderer| {
             let t0 = esp_hal::time::Instant::now();
             renderer.render_by_line(LineToFb(fb));

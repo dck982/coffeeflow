@@ -7,8 +7,8 @@
 )]
 #![deny(clippy::large_stack_frames)]
 
-// Firmware de l'écran Waveshare 7" de coffeeflow. Pour l'instant : la carte,
-// l'affichage, Slint et la lecture de l'ADS1115, sans radio, CAN ni réseau.
+// Firmware de l'écran Waveshare 7" : UI, cœur et entrées locales sur le
+// cœur 0 ; radio, réseau et flash sur le cœur 1.
 //
 // Deux cœurs. Le cœur 0 porte la recopie d'affichage (interruptions de
 // niveau 3), le rendu Slint et la logique ; il alloue en PSRAM. Le cœur 1,
@@ -21,6 +21,7 @@ mod core1;
 mod display;
 mod heap;
 mod report;
+mod runtime;
 mod ui;
 mod watchdog;
 mod xip;
@@ -56,7 +57,7 @@ extern "Rust" fn custom_halt() -> ! {
 )]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
-    esp_println::logger::init_logger_from_env();
+    screen::serial_bridge::init_logger().expect("journal déjà installé");
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -69,13 +70,17 @@ async fn main(spawner: Spawner) -> ! {
     // GPIO, sortie coupée : on rebranche U0TXD avant le premier journal.
     // esp-println écrit ensuite directement dans la FIFO d'UART0. Le pilote
     // vit jusqu'à la fin de main, qui ne rend jamais la main.
-    let _console = esp_hal::uart::UartTx::new(peripherals.UART0, esp_hal::uart::Config::default())
-        .unwrap()
-        .with_tx(peripherals.GPIO43);
+    let console = esp_hal::uart::Uart::new(peripherals.UART0, esp_hal::uart::Config::default())
+        .unwrap().with_tx(peripherals.GPIO43).with_rx(peripherals.GPIO44).into_async();
     info!("screen 0.4.0, reset: {:?}", esp_hal::system::reset_reason());
 
     // Le tas interne d'abord : 128 Ko pour la radio, plus tard.
     heap::init_internal();
+
+    let mut flash = screen::flash::Flash::new(unsafe {
+        esp_storage::FlashStorage::new(peripherals.FLASH).multicore_ignore()
+    },true);
+    let layout = screen::flash::layout(&mut flash).expect("table de partitions écran incompatible");
 
     let psram = Psram::new(
         peripherals.PSRAM,
@@ -118,14 +123,29 @@ async fn main(spawner: Spawner) -> ! {
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0, peripherals.FROM_CPU_INTR0);
 
+    // La radio démarre avant la dalle ; les initialisations des blobs peuvent
+    // masquer longtemps les interruptions du cœur qui les crée.
+    core1::start(peripherals.CPU_CTRL,peripherals.FROM_CPU_INTR1,
+        peripherals.WIFI,peripherals.BT,flash,layout);
+    core1::wait_ready().await;
+    let (console_rx,console_tx) = console.split();
+    spawner.spawn(screen::serial_bridge::receive(console_rx).unwrap());
+    spawner.spawn(screen::serial_bridge::transmit(console_tx).unwrap());
+
     // Bus I2C, CH422G, séquence de mise sous tension de la dalle, GT911.
-    let board = board::init(
+    let mut board = board::init(
         peripherals.I2C0,
         peripherals.GPIO8,
         peripherals.GPIO9,
         peripherals.GPIO4,
     )
     .await;
+
+    board.expander.select_can(true).await.expect("sélection CAN");
+    let twai = esp_hal::twai::TwaiConfiguration::new(peripherals.TWAI0,
+        peripherals.GPIO20,peripherals.GPIO19,esp_hal::twai::BaudRate::B500K,
+        esp_hal::twai::TwaiMode::Normal).into_async().start();
+    spawner.spawn(screen::can::task(twai).unwrap());
 
     let _display = display::start(
         peripherals.LCD_CAM,
@@ -161,14 +181,12 @@ async fn main(spawner: Spawner) -> ! {
     Timer::after(Duration::from_millis(200)).await;
     info!("DPI démarré");
 
-    // Le cœur 1 démarre une fois l'affichage lancé.
-    core1::start(peripherals.CPU_CTRL, peripherals.FROM_CPU_INTR1);
-
     let ui = ui::init();
     Timer::after(Duration::from_millis(20)).await;
     info!("Slint: rendu ligne par ligne");
 
     spawner.spawn(report::report().unwrap());
     spawner.spawn(board::ads1115_task(board.device()).unwrap());
-    ui::run(ui, fb.cast::<Rgb565Pixel>(), board.touch).await
+    let runtime = runtime::Runtime::new(board.touch.is_some());
+    ui::run(ui, fb.cast::<Rgb565Pixel>(), board.touch, runtime).await
 }

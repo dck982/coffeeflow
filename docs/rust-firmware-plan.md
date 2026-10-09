@@ -18,11 +18,11 @@ firmware assemblé : ils restent la référence technique pour sa mise en servic
 | 3 | Intégrée | 96 tests de logique ; builds Xtensa normal et `no-validate` réussis ; image normale 164 240 octets (< 1 Mo), Clippy propre. |
 | 4 | Terminée et intégrée (`181a446`) | 117 tests + 1 doctest ; Clippy propre. Parsing serde_json sans std, sortie compatible cJSON et clés HTTP conservées. Écarts de parsing documentés dans `screen-core/README.md`. |
 | 5 | Intégrée | Carte, LCD, XIP, tactile et ADS constituent la base de l'assemblage. |
-| 6 | Intégrée (`833acdf`), derniers détails en intégration | 9 tests simulateur, Clippy propre, 24 captures RGB565 examinées. Pas de comparaison pixel par pixel avec LVGL. |
-| 7 | Intégrée (`4b43756`, `953a164`) | CAN, pont série, staging et proxy OTA compilent pour Xtensa ; tests protocole/ACK/NOR/journaux verts. Rapport : `rust-task7.md`. |
-| 8 | Intégrée (`8443b1b` et correctifs suivants) | Services GATT compilés pour Xtensa, Clippy propre ; scan, arrêt provisioning, maintien, panne de l'hôte et horodatage revus. |
-| 9 | En validation dans le worktree réseau | STA/AP, HTTP/WS, SNTP, OTA locale/USB et NVS écrits ; vérifications finales avant intégration. |
-| 10 | En cours | Liaison du cœur, de l'UI et des services ; compilation complète et contrôles finaux à faire. |
+| 6 | Intégrée (`833acdf`, `c34a338`, `5703524`) | 9 tests simulateur, Clippy propre, 24 captures RGB565 examinées. Pas de comparaison pixel par pixel avec LVGL. |
+| 7 | Intégrée (`4b43756`, `953a164`) | CAN, pont série, staging/proxy OTA, journaux UART sérialisés et récupération bus-off compilés pour Xtensa ; tests protocole/ACK/NOR/journaux verts. Brochage vérifié dans `archive/firmware/screen/main/board.h` : TX GPIO20, RX GPIO19. Rapport : `rust-task7.md`. |
+| 8 | Intégrée (`8443b1b`, `4b6ec69`, `4363bc2`) | GATT compilé pour Xtensa, Clippy propre ; scan, arrêt provisioning, heartbeat, panne de l'hôte et horodatage revus. |
+| 9 | Inachevée, worktree `codex/task9-network` au commit `181a446` | STA/AP, HTTP/WS, SNTP, OTA locale/USB et NVS écrits dans le worktree, pas encore intégrés ni compilés avec `screen`. Les fichiers `firmware/rust/screen-net/` du worktree principal sont un parseur de protocoles préparatoire ; son intégration au workspace reste à faire. |
+| 10 | Brouillon non compilé | `main.rs`, `core1.rs`, `runtime.rs` et mesures ADS/UI modifiés dans le worktree principal ; ils appellent les modules réseau absents de `screen`, donc l'assemblage ne compile pas encore. Compilation complète, Clippy et contrôles à faire. |
 
 La logique et l'UI tournent sur le cœur 0 ; les services radio et le propriétaire
 flash sur le cœur 1. La lecture de l'identité du slot précède le remappage XIP,
@@ -30,6 +30,15 @@ la radio précède le LCD, et les écritures flash gardent les interruptions act
 Les mesures ADS ne sont publiées qu'après une nouvelle tentative de lecture ;
 les événements BLE conservent leur instant de réception. Le relâchement physique
 de la purge reste indépendant de la durée de vie du bouton Slint.
+
+**Point de reprise WIP.** Un risque d'interblocage a été trouvé pendant
+l'assemblage : un changement de configuration pouvait attendre NVS sur le
+cœur 0 alors qu'un OTA tenait le propriétaire flash du cœur 1. Le cœur répond
+maintenant `Busy` aux écritures/reset de configuration pendant une infusion,
+une purge ou un transfert flash. Deux tests de régression ont été ajoutés,
+mais leur exécution complète et leur revue restent à faire. Le worktree
+principal contient ces modifications non validées ; `codex/task9-network`
+reste séparé. Aucun commit d'assemblage WIP n'a encore été créé.
 
 **Matériel : aucun flash, moniteur ou accès à la carte pendant ces travaux.**
 Une fois le point 10 validé hors matériel, demander à David l'accès à l'écran

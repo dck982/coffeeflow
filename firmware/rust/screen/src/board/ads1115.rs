@@ -97,6 +97,13 @@ impl<I: I2c> Ads1115<I> {
 /// valeur est périmée, sans invalider la paire NTC.
 pub static RAW: [AtomicU32; 3] = [const { AtomicU32::new(0) }; 3];
 pub static A2_OK: AtomicBool = AtomicBool::new(false);
+/// Validité de la dernière paire ; une erreur doit invalider la chaudière
+/// sans republier les anciens codes comme une mesure neuve.
+pub static NTC_OK: AtomicBool = AtomicBool::new(false);
+/// Compte chaque tentative terminée, succès comme erreur. Tout vit sur le
+/// même exécuteur : le cœur lit les codes après ce marqueur sans interruption
+/// par la tâche ADS (il ne rend pas la main pendant la lecture).
+pub static SAMPLES: AtomicU32 = AtomicU32::new(0);
 /// Cycles complets, cycles en erreur, et adresse trouvée (0 : absent).
 pub static CYCLES: AtomicU32 = AtomicU32::new(0);
 pub static ERRORS: AtomicU32 = AtomicU32::new(0);
@@ -151,6 +158,8 @@ pub async fn run<I: I2c>(i2c: I) -> ! {
             RAW[2].store(*a2 as u16 as u32, Relaxed);
         }
         A2_OK.store(a2_ok, Relaxed);
+        NTC_OK.store(ntc_ok, Relaxed);
+        SAMPLES.fetch_add(1, Relaxed);
 
         if ntc_ok && a2_ok {
             failures = 0;

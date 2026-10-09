@@ -2,13 +2,16 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Résume une ou plusieurs captures de record_probe.py.
+"""Résume une ou plusieurs captures de `coffeetool telemetry --record`
+(ou de l'ancien record_probe.py).
 
 Exemple :
     uv run firmware/analysis/analyze_probe.py captures/probe-….json --reference-c 24.6
     uv run firmware/analysis/analyze_probe.py captures/probe-….json --start 30 --end 90
 
-Les échantillons qui relisent la même conversion ADS1115 (même instant de
+Les codes A0/A1 et l'âge de la mesure sont lus dans `sample["telemetry"]`
+pour les fichiers de coffeetool, et à la racine de l'échantillon pour ceux de
+record_probe.py. Les échantillons qui relisent la même conversion ADS1115 (même instant de
 mesure, déduit de `age_ms`) sont écartés. Pour chaque capture : moyenne,
 écart-type, min et max des codes, de la résistance et de la température dans
 la fenêtre choisie, dérive par régression linéaire, puis un tableau par
@@ -67,16 +70,27 @@ def pt1000_resistance(temperature_c: float) -> float:
     return PT_R0_OHM * (1.0 + PT_A * temperature_c + PT_B * temperature_c * temperature_c)
 
 
+def probe_fields(raw: dict[str, Any]) -> tuple[Any, Any, Any]:
+    """Codes A0/A1 et âge (ms) d'un échantillon, nouveau ou ancien format."""
+    telemetry = raw.get("telemetry")
+    if isinstance(telemetry, dict):
+        temperature = telemetry.get("temperature")
+        boiler = temperature.get("boiler") if isinstance(temperature, dict) else None
+        if not isinstance(boiler, dict):
+            return None, None, None
+        return boiler.get("ntc_a0_raw"), boiler.get("ntc_a1_raw"), boiler.get("age_ms")
+    return raw.get("a0_raw"), raw.get("a1_raw"), raw.get("age_ms")
+
+
 def load_samples(capture: dict[str, Any]) -> tuple[list[Sample], int, int]:
     """Renvoie les conversions distinctes, le nombre de doublons et d'invalides."""
     samples: list[Sample] = []
     duplicates = invalid = 0
     for raw in capture.get("samples", []):
-        a0, a1 = raw.get("a0_raw"), raw.get("a1_raw")
+        a0, a1, age = probe_fields(raw)
         if not isinstance(a0, int) or not isinstance(a1, int) or a1 <= 0 or a1 >= a0:
             invalid += 1
             continue
-        age = raw.get("age_ms")
         t = float(raw["elapsed_s"]) - (age / 1000.0 if isinstance(age, (int, float)) else 0.0)
         if samples and abs(t - samples[-1].t_s) < SAME_CONVERSION_S and \
                 (a0, a1) == (samples[-1].a0, samples[-1].a1):

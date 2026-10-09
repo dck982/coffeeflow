@@ -1,0 +1,24 @@
+[package]
+name = "coffeetool"
+version = "0.1.0"
+edition = "2024"
+description = "Outil Mac de coffeeflow : HTTP, USB série, WebSocket, enregistrements"
+
+[dependencies]
+anyhow = "1.0.104"
+btleplug = "0.13.4"
+chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive"] }
+ctrlc = "3.5.2"
+futures = "0.3.34"
+protocol = { version = "0.1.0", path = "../protocol", features = ["std", "serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+serialport = { version = "4.10.1", default-features = false }
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "time", "macros"] }
+tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+ureq = { version = "3.4.2", default-features = false, features = ["json"] }
+uuid = "1.27.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"

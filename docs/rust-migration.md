@@ -356,6 +356,8 @@ Puis, dans chaque essai :
   `jtag-serial`. Le port « UART » de la Waveshare (pont CH343,
   `/dev/cu.usbmodem5B790235091`) est câblé sur UART0, GPIO43/44, où sortent
   aussi les logs du bootloader IDF. Le port USB natif est partagé avec le CAN.
+  Depuis le bootloader avec rollback (étape 8), GPIO43 est déconnecté au
+  démarrage : rebrancher U0TXD avant le premier journal (voir l'essai 08a).
 - **PSRAM :** le modèle `-octal-psram` ne configure pas la PSRAM. Les
   essais qui en ont besoin l'initialisent en `PsramMode::OctalSpi` à 80 MHz
   (8 Mo, comme coffeeflow) et l'ajoutent au tas avec
@@ -511,14 +513,12 @@ avec la radio sur le cœur 1, il faudra le suspendre le temps de chaque
 écriture.
 
 **Mesure possible, reportée (décision du 2026-10-08), puis prévue à
-l'étape 8a (décision du 2026-10-09).** L'affichage de
-l'essai 03 tournerait pendant qu'on efface puis réécrit un secteur, avec
-les compteurs de retards et de recalages, et un contrôle visuel. Cela
-confirmerait ou non que l'image se rétablit seule après une ou deux trames.
-Mais cela demande d'écrire en flash, ce que la règle n° 1 interdit aux
-essais. La seule zone envisageable serait la fin du slot de test, au-delà de
-l'image de l'essai. Cette exception n'est pas accordée : la question attend
-l'étape OTA en Rust, et rien n'est fait d'ici là.
+l'étape 8a (décision du 2026-10-09).** L'affichage tourne pendant qu'on
+efface puis réécrit la fin du slot de test, au-delà de l'image de l'essai,
+avec les compteurs de retards et de recalages, et un contrôle visuel. Cela
+confirme ou non que l'image se rétablit seule après une ou deux trames.
+L'écriture en flash est permise par la levée partielle de la règle n° 1
+(étape 8). Essai : `08a-flash-display`.
 
 ---
 
@@ -1532,6 +1532,110 @@ l'image, radio suspendue par `multicore_auto_park`.
   opération sont attendus : on les compte, ils décident de l'UI pendant
   une OTA (écran fixe « mise à jour » ou non).
 
+**Essai `08a-flash-display` (écrit le 2026-10-09).** L'essai 07 à 20
+lignes, plus une tâche sur le cœur 0 qui rejoue la charge d'une OTA de
+coffeeflow : `esp_ota_begin` efface toute la taille annoncée, puis
+`firmware_handler` écrit par morceaux de 1 024 octets. Chaque cycle :
+
+1. 30 s sans écriture, pour la référence du rapport ;
+2. effacement de 1 Mo (60 % d'une image de coffeeflow), par secteurs de
+   4 Ko aux cycles impairs, par blocs de 64 Ko aux cycles pairs ;
+3. écriture de 1 024 morceaux de 1 024 octets pseudo-aléatoires, sans
+   attendre de réseau, la charge la plus dure ;
+4. relecture et comparaison.
+
+Une opération à la fois, puis la tâche rend la main : rendu, rapport et
+recalage passent entre deux. Deux modes, choisis au build :
+
+- **`esp-storage` tel quel** (par défaut) : chaque opération passe en
+  section critique, avec l'arrêt et la reprise du cœur 1
+  (`multicore_auto_park`). Une interruption en attente ne part qu'une fois
+  le cœur 1 relancé, et ne peut pas attendre un verrou qu'il tiendrait,
+  arrêté ;
+- **`comme-idf`** (`--no-default-features --features comme-idf`) : ce que
+  fait IDF quand le code tourne depuis la PSRAM (`spi1_start` dans
+  `spi_flash_os_func_app.c`, cas `!MMAP_EXECUTABLES_FROM_FLASH`). Le cache
+  ne lit plus la flash et reste actif, sans section critique ni arrêt du
+  cœur 1 (`multicore_ignore`, feature `critical-section` d'esp-storage
+  retirée). La tâche est seule à écrire, ce qui tient lieu du mutex SPI1
+  d'IDF. La fonction ROM attend la fin de l'opération en boucle active :
+  l'exécuteur du cœur 0 attend, les interruptions passent.
+
+Images : `target/variants/storage.{bin,elf}` et `idf.{bin,elf}`.
+
+La zone commence à 2 Mo dans le slot démarré et fait 1 Mo (`ota_0` :
+`0x320000..0x420000`). L'essai lit le slot démarré dans la table de
+partitions avant le remappage XIP, et la fin de l'image dans la MMU. Il
+n'écrit rien si le slot n'est pas `ota_0`/`ota_1`, si la zone en sort, ou si
+l'image la chevauche. Image de 1 734 Ko.
+
+Journal, une ligne par phase et par cycle :
+`flash cN effacement secteurs|blocs n= moy= max= ms ret=+ recal=+`,
+`flash cN ecriture n= moy= max= ms Ko/s ret=+ recal=+`,
+`flash cN relecture ms max= ecarts= err=`. `/stats` ajoute
+`flash_cycles`, `flash_erreurs` et `flash_ecarts`.
+
+**Résultats du 2026-10-09, dans `ota_0`.**
+
+- **`esp-storage` tel quel : écran brouillé** pendant chaque phase
+  d'écriture, à l'œil, sans journal (console coupée, voir plus bas). C'est
+  la situation de coffeeflow avant `CONFIG_SPIRAM_XIP_FROM_PSRAM`
+  (`docs/screen-issue.md`). Pas de chiffres : le verdict suffit.
+- **`comme-idf` : écran stable, 0 retard et 0 recalage** pendant toutes
+  les phases de 11 cycles. Une page MMU reste sur la flash (la dernière
+  entrée, laissée au bootloader) ; elle n'a rien gêné.
+
+| `comme-idf` | Secteurs (4 Ko) | Blocs (64 Ko) |
+|---|---|---|
+| Effacement, par opération | 16,3 à 16,6 ms en moyenne, 22,4 ms au plus | 82,8 à 83,2 ms en moyenne, 92,6 ms au plus |
+| Effacement de 1 Mo | 5,0 à 6,0 s | 1,4 à 1,5 s |
+| Écriture de 1 Ko | 1,6 ms en moyenne, 3,2 ms au plus | idem |
+| Débit d'écriture | 384 à 488 Ko/s | idem |
+| Relecture | 0 écart, 0 erreur | idem |
+
+Coût : la boucle de rendu attend la fonction ROM. Rendu partiel de 130 ms
+au plus pendant les effacements par blocs, contre 70 ms sans flash.
+
+Avec la charge complète des cycles 8 à 11 (balance et SCACE abonnées, deux
+téléphones sur le point d'accès, page à 5 requêtes/s) : 0 erreur HTTP, la
+page ne s'interrompt pas pendant la flash, 0 retard et 0 recalage pendant
+les phases. Deux retards hors des phases de flash, recopies de 1 243 et
+1 246 µs (rendu concurrent en PSRAM, `memcpy` et `spec_fill`), comme les
+deux retards de l'essai 07 sous charge. Tas interne libre minimum 34 Ko.
+Vers 350 s, la balance demande la déconnexion (message 0x20), puis la
+SCACE se déconnecte. Ni l'une ni l'autre ne répond ensuite.
+
+**Conclusion : la flash ne trouble ni l'affichage ni la radio, à condition
+de faire comme IDF**, sans la section critique d'`esp-storage`. L'OTA en
+Rust passera par ce mode. Reste à faire attendre l'effacement de façon
+asynchrone plutôt qu'en boucle active, pour ne pas bloquer le rendu.
+
+**Console coupée par le nouveau bootloader.** Construit avec
+`CONFIG_ESP_CONSOLE_NONE`, il exécute `release_default_console_io()`
+(IDF v6.1) : GPIO43 repasse en GPIO, sortie coupée. Seul le texte de la
+ROM sort encore. Un essai doit rebrancher U0TXD avant son premier
+journal : `UartTx::new(UART0, …).with_tx(GPIO43)`, gardé vivant jusqu'à la
+fin de `main`.
+
+**Scan BLE (décision du 2026-10-09).** Le firmware final garde BLE et Wi-Fi
+ensemble. Le scan de la balance n'a pas besoin d'être agressif : 50 % du
+temps radio au plus (fenêtre = moitié de l'intervalle), au lieu du scan
+continu des essais. Pendant 8a, tant que le scan continu cherche la
+balance et la SCACE, l'iPhone voit le SSID mais refuse de s'y connecter ;
+il se connecte une fois les deux appareils trouvés et le scan arrêté.
+
+Essai à 30/60 ms (scan actif, balance et SCACE éteintes au démarrage) :
+l'iPhone s'associe après deux échecs, vers 55 s. Ensuite, deux téléphones,
+page à 5 requêtes/s, 0 erreur HTTP, et 0 retard et 0 recalage sur 4 cycles
+de flash. Tas interne libre minimum 29,9 Ko, le plus bas de 8a, atteint
+pendant l'association. Une fois rallumées, la balance est vue en ~6 s et
+la SCACE en ~3 s, puis abonnées en moins de 10 s. Le scan reste trop présent pour une association du premier
+coup : à régler plus tard (taux plus bas, ou fenêtre plus courte).
+
+Un effacement de secteur déjà vierge ne prend que 2,4 ms en moyenne (cycle
+1, juste après `parttool.py write_partition`, qui efface tout le slot),
+contre 16,5 ms pour un secteur écrit.
+
 **8b. Un cycle OTA complet, Rust et C++ mêlés.** Le slot inactif porte
 coffeeflow : la Rust A l'écrase. C'est voulu, et c'est le meilleur test :
 
@@ -1783,3 +1887,20 @@ Résultats datés, au fil des essais.
   confirmation (écran hors du bus), retour seul sur `ota_1` en 0.3.47,
   `valid`, après cinq minutes. Le rollback de l'écran fonctionne, comme
   celui de `sensors`. Préalables de l'étape 8 faits.
+- **2026-10-09 :** `08a-flash-display` écrit : l'essai 07 plus la charge
+  d'une OTA de coffeeflow sur 1 Mo en fin de slot de test (effacement par
+  secteurs ou par blocs selon le cycle, écritures de 1 024 octets sans
+  pause, relecture). Image de 1 734 Ko. Rien de flashé.
+- **2026-10-09 :** `08a-flash-display` dans `ota_0` (`otadata` : copie 0
+  `0x63` INVALID, laissée par le rollback ; copie 1 passée de `0x62` à
+  `0x63` VALID par `switch_ota_partition`). Avec `esp-storage` tel quel,
+  l'écran se brouille à chaque écriture. En mode `comme-idf` (cache actif,
+  ni section critique ni arrêt du cœur 1), 0 retard et 0 recalage sur 11
+  cycles, avec ou sans BLE et page HTTP ; effacement 16 ms par secteur,
+  83 ms par bloc, écriture de 1 Ko en 1,6 ms. Console rebranchée sur
+  GPIO43, coupée par le nouveau bootloader. Décision : scan BLE à 50 % au
+  plus dans le firmware final.
+- **2026-10-09 :** `08a-flash-display`, scan de découverte BLE à 30/60 ms
+  au lieu du scan continu. Appareils éteints, l'iPhone s'associe après deux
+  échecs ; page et flash ensuite sans erreur ni retard. Tas interne libre
+  minimum 29,9 Ko. Réglage fin du scan reporté.

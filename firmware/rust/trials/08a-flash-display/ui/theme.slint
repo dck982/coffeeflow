@@ -1,0 +1,30 @@
+// Jetons visuels de coffeeflow (firmware/screen/main/ui/ui_theme.h).
+
+export global Theme {
+    out property <color> bg: #16110C;
+    out property <color> bg-raised: #241B14;
+    out property <color> surface: #33271E;
+    out property <color> surface-high: #453426;
+    out property <color> surface-accent: #4A2E16;
+    out property <color> hairline: #332C28;
+    out property <color> text: #F2EBE3;
+    out property <color> text-dim: #A2968C;
+    out property <color> text-faint: #6B615A;
+    out property <color> accent: #D98324;
+    out property <color> thermal: #4A9BB5;
+    out property <color> thermal-near: #849B82;
+    out property <color> fault: #B9412F;
+    out property <color> ramp-low: #8C5A22;
+    out property <color> ramp-full: #F2B25C;
+
+    out property <length> margin: 32px;
+    out property <length> radius: 8px;
+
+    // Corps de coffeeflow employés par la maquette. Chaque taille embarque
+    // ses propres glyphes : pas de taille inutilisée ici.
+    out property <length> font-label: 18px;
+    out property <length> font-button: 26px;
+    out property <length> font-status: 28px;
+    out property <length> font-unit: 32px;
+    out property <length> font-hero-brew: 104px;
+}

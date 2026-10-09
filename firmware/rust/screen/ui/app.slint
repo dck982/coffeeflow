@@ -53,6 +53,7 @@ export component AppWindow inherits Window {
     in property <string> warning;
     in property <string> detail;
     in property <string> clock: "-";
+    in property <string> version;
     in property <string> weight;
     in property <string> pressure: "-";
     in property <string> temperature: "-";
@@ -62,6 +63,7 @@ export component AppWindow inherits Window {
     in property <bool> wifi-connected: false;
     in property <[Tile]> settings;
     in property <[Tile]> diagnostics;
+    in property <string> diag-memory;
     in property <[Tile]> brew-values;
     in property <[Tile]> live-values;
     in property <[Segment]> segments;
@@ -106,7 +108,7 @@ export component AppWindow inherits Window {
     if root.page == 0 || root.page == 1 || root.page == 2: Rectangle {
         x: 32px; y: 24px; width: 736px; height: 52px; background: transparent;
         Label { x: 40px; width: 82px; text: root.clock; color: Theme.dim; font-size: 28px; }
-        Label { x: 142px; width: 104px; text: "v0.4.00"; font-size: 28px; }
+        Label { x: 142px; width: 104px; text: root.version; font-size: 28px; }
         Rectangle { x: 132px; y: 12px; width: 1px; height: 28px; background: Theme.hairline; }
         Rectangle { x: 260px; y: 12px; width: 1px; height: 28px; background: Theme.hairline; }
         Label { x: 270px; width: 184px; text: root.weight; color: Theme.dim; font-size: 28px; horizontal-alignment: right; }
@@ -185,13 +187,17 @@ export component AppWindow inherits Window {
         }
         if root.page == 4: Rectangle { background: transparent;
             for tile[i] in root.diagnostics: Rectangle { x: 32px + mod(i, 3) * 248px; y: 104px + floor(i / 3) * 112px; width: 240px; height: 96px; background: transparent;
-                Label { height: 24px; width: 240px; text: tile.name; font-size: 18px; color: Theme.faint; }
-                Label { y: 28px; height: 32px; width: 240px; text: tile.value; color: tile.tone == 2 ? Theme.fault : Theme.text; }
-                Label { y: 62px; height: 24px; width: 240px; text: tile.detail; font-size: 18px; color: tile.tone == 1 ? Theme.accent : Theme.faint; }
+                Rectangle { x: 0px; y: 7px; width: 10px; height: 10px; border-radius: 5px; background: tile.tone == 0 ? Theme.success : tile.tone == 1 ? Theme.accent : tile.tone == 2 ? Theme.fault : Theme.faint; }
+                Label { x: 18px; y: 0px; height: 24px; width: 222px; text: tile.name; font-size: 18px; color: Theme.dim; }
+                Label { x: 0px; y: 28px; height: 32px; width: tile.aside == "" ? 240px : 112px; text: tile.value; }
+                Label { x: 0px; y: 62px; height: 24px; width: tile.aside == "" ? 240px : 112px; text: tile.detail; font-size: 18px; color: Theme.faint; }
+                if tile.aside != "": Label { x: 120px; y: 28px; height: 32px; width: 120px; text: tile.aside; }
+                if tile.aside != "": Label { x: 120px; y: 62px; height: 24px; width: 120px; text: "sensors"; font-size: 18px; color: Theme.faint; }
                 if mod(i, 3) != 2: Rectangle { x: 240px; width: 1px; height: 96px; background: Theme.hairline; }
                 if i < 6: Rectangle { y: 96px; width: 240px; height: 1px; background: Theme.hairline; }
                 TouchArea { clicked => { root.command(16, "" + i); } }
             }
+            Label { x: 32px; y: 440px; width: 736px; height: 24px; text: root.diag-memory; font-size: 18px; color: Theme.faint; }
         }
         if root.page == 5: Rectangle { background: transparent;
             Label { x: 32px; y: 144px; width: 208px; height: 104px; text: root.editor-value; font-size: 76px; }

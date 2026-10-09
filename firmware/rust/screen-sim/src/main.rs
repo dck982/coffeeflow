@@ -64,7 +64,14 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         brew_temperature_ready: true,
         dimmer_ready: true,
         dimmer_valid: true,
-        sensors_version_minor: 4,
+        screen_version_major: protocol::FIRMWARE_VERSION.major,
+        screen_version_minor: protocol::FIRMWARE_VERSION.minor,
+        screen_version_patch: protocol::FIRMWARE_VERSION.patch,
+        sensors_version_major: protocol::FIRMWARE_VERSION.major,
+        sensors_version_minor: protocol::FIRMWARE_VERSION.minor,
+        sensors_version_patch: protocol::FIRMWARE_VERSION.patch,
+        internal_heap_free: 59 * 1024,
+        internal_heap_largest: 31 * 1024,
         maintenance_valve_capable: true,
         ..Snapshot::default()
     };

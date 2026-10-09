@@ -78,7 +78,11 @@ async fn main(spawner: Spawner) -> ! {
         .with_tx(peripherals.GPIO43)
         .with_rx(peripherals.GPIO44)
         .into_async();
-    info!("screen 0.4.0, reset: {:?}", esp_hal::system::reset_reason());
+    info!(
+        "screen {}, reset: {:?}",
+        protocol::FIRMWARE_VERSION,
+        esp_hal::system::reset_reason()
+    );
 
     // Le tas interne d'abord : 120 Ko pour la radio du cœur 1.
     heap::init_internal();

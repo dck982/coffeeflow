@@ -83,11 +83,52 @@ fn model<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
 fn hex(v: u32) -> Color {
     Color::from_rgb_u8((v >> 16) as u8, (v >> 8) as u8, v as u8)
 }
-fn freshness(v: Freshness) -> &'static str {
-    match v {
-        Freshness::Fresh => "valide",
-        Freshness::Stale => "périmé",
-        Freshness::Missing => "absent",
+// États des pastilles du diagnostic, repris tels quels de `tone` par le Slint.
+const DIAG_VALID: i32 = 0;
+const DIAG_WARN: i32 = 1;
+const DIAG_ERROR: i32 = 2;
+const DIAG_DISABLED: i32 = 3;
+
+fn diag_state(valid: bool, fresh: Freshness) -> i32 {
+    match (valid, fresh) {
+        (false, _) | (_, Freshness::Missing) => DIAG_ERROR,
+        (_, Freshness::Stale) => DIAG_WARN,
+        _ => DIAG_VALID,
+    }
+}
+fn diag_detail(state: i32) -> &'static str {
+    match state {
+        DIAG_VALID => "valide",
+        DIAG_WARN => "périmé",
+        _ => "absent",
+    }
+}
+fn diag_tile(name: &str, state: i32, value: String, detail: &str) -> Tile {
+    tile(name, value, detail, true, state)
+}
+/// Comme le C++ : « 12 erreurs », « 1,2 K erreurs », « 34 K erreurs »,
+/// « 1,3 M erreurs », « 12 M erreurs ».
+fn error_count(n: u64) -> String {
+    match n {
+        0..1000 => format!("{n} erreur{}", if n == 1 { "" } else { "s" }),
+        1000..10_000 => {
+            let tenths = (n + 50) / 100;
+            format!("{},{} K erreurs", tenths / 10, tenths % 10)
+        }
+        10_000..1_000_000 => format!("{} K erreurs", (n + 500) / 1000),
+        1_000_000..10_000_000 => {
+            let tenths = (n + 50_000) / 100_000;
+            format!("{},{} M erreurs", tenths / 10, tenths % 10)
+        }
+        _ => format!("{} M erreurs", (n + 500_000) / 1_000_000),
+    }
+}
+/// Octets jusqu'à 9999, puis kibioctets entiers.
+fn memory_size(bytes: u32) -> String {
+    if bytes < 10_000 {
+        format!("{bytes} o")
+    } else {
+        format!("{} K", bytes / 1024)
     }
 }
 
@@ -551,6 +592,14 @@ impl Presenter {
         }
     }
     fn status(&self, app: &AppWindow, s: &Snapshot, c: &Config, clock: &str) {
+        // Comme le C++ : correctif sur deux chiffres (v0.4.01).
+        app.set_version(
+            format!(
+                "v{}.{}.{:02}",
+                s.screen_version_major, s.screen_version_minor, s.screen_version_patch
+            )
+            .into(),
+        );
         app.set_clock(if s.time_known {
             clock.into()
         } else {
@@ -857,87 +906,125 @@ impl Presenter {
         reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
     )]
     fn diagnostics(&self, app: &AppWindow, s: &Snapshot, c: &Config) {
+        let measure = |valid: bool, value: String, fresh: Freshness| {
+            let state = diag_state(valid, fresh);
+            let value = if state == DIAG_ERROR { "-".into() } else { value };
+            (state, value, diag_detail(state))
+        };
+        let (pressure, pressure_value, pressure_detail) = measure(
+            s.pressure_valid,
+            number(s.pressure_bar, 1, " bar"),
+            s.pressure_freshness,
+        );
+        let (boiler, boiler_value, boiler_detail) = measure(
+            s.boiler_temperature_valid,
+            number(s.boiler_temperature_c, 1, "°"),
+            s.boiler_temperature_freshness,
+        );
+        let (flow, flow_value, flow_detail) =
+            measure(s.flow_valid, number(s.flow_ml_s, 1, " ml/s"), s.flow_freshness);
+        let pump = if s.dimmer_error_active || !s.sensors_alive || !s.dimmer_valid {
+            DIAG_ERROR
+        } else if !s.dimmer_ready {
+            DIAG_WARN
+        } else {
+            DIAG_VALID
+        };
+        let pump_detail = if s.dimmer_error_active {
+            "erreur"
+        } else {
+            match pump {
+                DIAG_VALID => "valide",
+                DIAG_WARN => "calibration",
+                _ => "absent",
+            }
+        };
+        let valve = diag_state(s.sensors_alive, s.actuators_freshness);
+        let valve_detail = if s.maintenance_valve_open && valve != DIAG_ERROR {
+            "maintenance"
+        } else {
+            diag_detail(valve)
+        };
+        let heating = if c.heating_enabled {
+            diag_state(
+                s.sensors_alive && s.heating_power_capable,
+                s.heating_freshness,
+            )
+        } else {
+            DIAG_DISABLED
+        };
+        let can_errors = u64::from(s.sensors_twai_rx_errors)
+            + u64::from(s.sensors_twai_tx_errors)
+            + u64::from(s.sensors_twai_bus_errors);
+        let mut versions = diag_tile(
+            "versions",
+            if s.sensors_alive { DIAG_VALID } else { DIAG_WARN },
+            format!(
+                "{}.{}.{}",
+                s.screen_version_major, s.screen_version_minor, s.screen_version_patch
+            ),
+            "screen",
+        );
+        versions.aside = format!(
+            "{}.{}.{}",
+            s.sensors_version_major, s.sensors_version_minor, s.sensors_version_patch
+        )
+        .into();
         app.set_diagnostics(model(alloc::vec![
-            tile(
-                "pression",
-                number(s.pressure_bar, 1, " bar"),
-                freshness(s.pressure_freshness),
-                true,
-                0
-            ),
-            tile(
-                "chaudière",
-                number(s.boiler_temperature_c, 1, "°"),
-                freshness(s.boiler_temperature_freshness),
-                true,
-                0
-            ),
-            tile(
-                "débit",
-                number(s.flow_ml_s, 2, " ml/s"),
-                freshness(s.flow_freshness),
-                true,
-                0
-            ),
-            tile(
-                "pompe",
-                format!("{} %", s.dimmer_pct),
-                if s.dimmer_ready {
-                    "valide"
-                } else {
-                    "calibration"
-                },
-                true,
-                0
-            ),
-            tile(
+            diag_tile("pression", pressure, pressure_value, pressure_detail),
+            diag_tile("chaudière", boiler, boiler_value, boiler_detail),
+            diag_tile("débit", flow, flow_value, flow_detail),
+            diag_tile("pompe", pump, format!("{} %", s.dimmer_pct), pump_detail),
+            diag_tile(
                 "vanne",
+                valve,
                 if s.valve_open { "ouverte" } else { "fermée" }.into(),
-                freshness(s.actuators_freshness),
-                true,
-                0
+                valve_detail
             ),
-            tile(
+            diag_tile(
                 "chauffage",
-                number(s.heating_power_pct, 0, " %"),
+                heating,
                 if c.heating_enabled {
-                    "activé"
+                    number(s.heating_power_accepted_pct, 1, " %")
                 } else {
-                    "désactivé"
+                    "OFF".into()
                 },
-                true,
-                0
+                if heating == DIAG_DISABLED {
+                    "désactivé"
+                } else {
+                    diag_detail(heating)
+                }
             ),
-            tile(
+            diag_tile(
                 "bus can",
+                if s.sensors_alive { DIAG_VALID } else { DIAG_ERROR },
                 if s.sensors_alive { "OK" } else { "ERREUR" }.into(),
-                "",
-                true,
-                if s.sensors_alive { 1 } else { 2 }
+                &error_count(can_errors)
             ),
-            tile(
+            diag_tile(
                 "balance",
+                if s.scale_present { DIAG_VALID } else { DIAG_ERROR },
+                if s.scale_present {
+                    number(s.weight_g, 1, " g")
+                } else {
+                    "-".into()
+                },
                 if s.scale_present {
                     "présente"
                 } else {
                     "absente"
                 }
-                .into(),
-                "",
-                true,
-                0
             ),
-            tile(
-                "versions",
-                format!(
-                    "0.4.0 / {}.{}.{}",
-                    s.sensors_version_major, s.sensors_version_minor, s.sensors_version_patch
-                ),
-                "écran / sensors",
-                true,
-                0
-            )
+            versions
         ]));
+        app.set_diag_memory(
+            format!(
+                "sram libre {} · plus gros bloc {}",
+                memory_size(s.internal_heap_free),
+                memory_size(s.internal_heap_largest)
+            )
+            .into(),
+        );
         match self.menu {
             3 => {
                 app.set_menu_title("dimmerlink".into());

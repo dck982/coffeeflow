@@ -374,14 +374,25 @@ sur la machine) :
 4. Allonger le watchdog (ex. 8 s) pour distinguer un blocage d'une
    lenteur.
 
+Prochaine action (David, après ce commit) : flasher
+`/tmp/sensors-jalons-no-validate.bin` par `coffeetool --ip 192.168.2.196
+flash … --target sensors`, `coffeetool monitor` ouvert, en regardant la LED
+du XIAO. Relever : le dernier jalon `LOG BOOT arg16=N arg32=0x52555354`
+reçu, l'état de la LED, un éventuel `PING` v0.4.1, et l'instant du retour de
+0.3.48. Décision : les images d'essai de `sensors` restent en 0.4.1 (pas
+d'incrément à chaque image tant que la première installation n'a pas
+abouti).
+
 État des cartes à la fin de la session :
 - `sensors` : C++ 0.3.48 actif et `VALID` ; l'autre slot contient l'image
   Rust `no-validate` (non validée, jamais rechoisie par le bootloader).
 - Écran : 0.4.1 dans `ota_1`, actif et confirmé ; `ota_0` = build
   intermédiaire (priorité « mise à jour », 0.4.0). Plus de C++ sur l'écran.
-- Images : `/tmp/screen-0.4.1.{bin,elf}`, `/tmp/sensors-0.4.1.{bin,elf}`,
-  `/tmp/sensors-0.4.1-no-validate.{bin,elf}` (perdues au redémarrage du
-  Mac ; se reconstruisent depuis `9071370`).
+- Images : `/tmp/screen-0.4.1.{bin,elf}` (depuis `9071370`),
+  `/tmp/sensors-jalons-no-validate.{bin,elf}` (depuis `4802dfc`, `cargo
+  build --release --offline --features no-validate` dans
+  `firmware/rust/sensors`, puis `espflash save-image --chip esp32s3
+  --flash-size 8mb --skip-update-check`). Perdues au redémarrage du Mac.
 
 ### Pour reprendre
 

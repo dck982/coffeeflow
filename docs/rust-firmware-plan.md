@@ -362,7 +362,10 @@ sur la machine) :
    Étapes : 1 TWAI, 2 console, 3 verrou, 4 esp-rtos, 5 table de partitions,
    6 otadata, 7 I2C, 8 `machine.start`, 9 débitmètre, 10 (par la tâche CAN
    asynchrone) boucle de logique lancée. Aucun jalon : l'émission CAN ou
-   ce qui précède l'étape 1 est en cause. Image
+   ce qui précède l'étape 1 est en cause. LED du XIAO (GPIO21, libre en
+   C++ comme en Rust, visible du haut de la machine) : éteinte = image Rust
+   pas démarrée ; fixe = démarrée, bloquée avant la boucle (puis éteinte au
+   reset du watchdog) ; clignotante à 1 Hz = boucle de logique lancée. Image
    `/tmp/sensors-jalons-no-validate.bin` (version toujours 0.4.1).
 2. **Jalons en RAM RTC** survivant au reset du watchdog : inutile seul, le
    C++ qui reprend la main ne les lit pas.

@@ -77,6 +77,10 @@ async fn main(spawner: Spawner) -> ! {
         OutputConfig::default().with_pull(Pull::Up),
     );
     let valve = Output::new(peripherals.GPIO9, Level::Low, OutputConfig::default());
+    // LED du XIAO, allumée au niveau bas, visible du haut de la machine sans
+    // console : fixe dès ici, elle clignote une fois la boucle de logique
+    // lancée. Fixe puis éteinte au bout de 3 s : blocage, puis watchdog.
+    let led = Output::new(peripherals.GPIO21, Level::Low, OutputConfig::default());
 
     // esp_hal::init a coupé les watchdogs : on réarme celui du RTC tout de suite.
     watchdog::arm(peripherals.RTC_TIMER);
@@ -181,14 +185,19 @@ async fn main(spawner: Spawner) -> ! {
     // asynchrone et l'exécuteur.
     let _ = can::TX.try_send(can::milestone_frame(10));
 
-    logic(machine).await
+    logic(machine, led).await
 }
 
 /// Reçoit les trames, déroule le tick de sécurité et exécute les
 /// redémarrages demandés.
-async fn logic(machine: &'static mut Machine<Board>) -> ! {
+async fn logic(machine: &'static mut Machine<Board>, mut led: Output<'static>) -> ! {
     let mut next_tick_us = clock::now_us() + TICK_PERIOD_US;
+    let mut next_blink_us = clock::now_us();
     loop {
+        if clock::now_us() >= next_blink_us {
+            led.toggle();
+            next_blink_us = clock::now_us() + 500_000;
+        }
         // Réveil toutes les 10 ms au plus : c'est la cadence de la tâche
         // pression du C++, et la précision du tick de sécurité.
         if let Ok(frame) = with_timeout(Duration::from_millis(10), can::RX.receive()).await {

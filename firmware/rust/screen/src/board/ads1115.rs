@@ -55,7 +55,11 @@ impl<I: I2c> Ads1115<I> {
     pub async fn probe(mut i2c: I) -> Result<Self, I> {
         for addr in 0x48..=0x4B {
             let mut config = [0u8; 2];
-            if i2c.write_read(addr, &[REG_CONFIG], &mut config).await.is_ok() {
+            if i2c
+                .write_read(addr, &[REG_CONFIG], &mut config)
+                .await
+                .is_ok()
+            {
                 return Ok(Self { i2c, addr });
             }
         }
@@ -69,10 +73,17 @@ impl<I: I2c> Ads1115<I> {
     /// Lance une conversion sur `mux`, attend la fin et rend le code brut
     /// signé.
     async fn read(&mut self, mux: u16) -> Result<i16, Error<I::Error>> {
-        let rate = if mux == MUX_A2 { RATE_16_SPS } else { RATE_128_SPS };
+        let rate = if mux == MUX_A2 {
+            RATE_16_SPS
+        } else {
+            RATE_128_SPS
+        };
         let config = CONFIG_BASE | (mux << 12) | rate;
         let [hi, lo] = config.to_be_bytes();
-        self.i2c.write(self.addr, &[REG_CONFIG, hi, lo]).await.map_err(Error::I2c)?;
+        self.i2c
+            .write(self.addr, &[REG_CONFIG, hi, lo])
+            .await
+            .map_err(Error::I2c)?;
         for _ in 0..POLL_ATTEMPTS {
             Timer::after(POLL_EVERY).await;
             let mut status = [0u8; 2];
@@ -117,8 +128,12 @@ pub fn raw(channel: usize) -> i16 {
 /// Lit A0, A1 puis A2 toutes les 100 ms. Une sonde absente ou en erreur ne
 /// bloque rien : la tâche réessaie avec une attente croissante.
 ///
-/// Les codes sont publiés dans `RAW`. Quand `screen-core` existera, c'est ici
-/// qu'on lui enverra les échantillons horodatés.
+/// Les codes et leur validité sont publiés avec `SAMPLES` ; le propriétaire
+/// du cœur les prend une fois par tentative terminée, sans rajeunir les anciens.
+#[allow(
+    clippy::large_stack_frames,
+    reason = "état de la future ADS stocké dans l’arène de la tâche, pas une allocation de pile à chaque lecture"
+)]
 pub async fn run<I: I2c>(i2c: I) -> ! {
     let mut adc = {
         let mut i2c = i2c;
@@ -147,7 +162,11 @@ pub async fn run<I: I2c>(i2c: I) -> ! {
         let ntc_ok = a0.is_ok() && a1.is_ok();
         // A2 n'est tenté que si la paire a réussi, comme en C++ : après une
         // erreur de bus, le prochain essai attend de toute façon.
-        let a2 = if ntc_ok { Some(adc.read(MUX_A2).await) } else { None };
+        let a2 = if ntc_ok {
+            Some(adc.read(MUX_A2).await)
+        } else {
+            None
+        };
         let a2_ok = matches!(a2, Some(Ok(_)));
 
         if let (Ok(a0), Ok(a1)) = (&a0, &a1) {

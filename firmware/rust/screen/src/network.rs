@@ -146,6 +146,14 @@ pub async fn start(spawner: Spawner, wifi: WIFI<'static>) {
         wifi,
         ControllerConfig::default().with_initial_config(config),
     ) else {
+        // L'UI ne doit pas rester dans l'attente d'une heure que ce pilote
+        // n'obtiendra jamais. Le BLE et la logique peuvent continuer seuls.
+        service::notify(Operation::Network {
+            state: NetworkState::Off,
+            ipv4: 0,
+        })
+        .await;
+        service::notify(Operation::BootTimeSyncing(false)).await;
         return;
     };
     let rng = Rng::new();
@@ -392,15 +400,15 @@ async fn sntp(stack: Stack<'static>) {
 async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
     // Fenêtre TCP agrandie : les paquets d'OTA ne sont pas arrêtés à chaque
     // secteur écrit ; les interruptions continuent sur le cœur radio.
-    let mut rx = [0; 8192];
-    let mut tx = [0; 2048];
+    let mut rx = crate::heap::psram_buffer::<8192>();
+    let mut tx = crate::heap::psram_buffer::<2048>();
     loop {
         let stack = if PROVISIONING.load(Ordering::Acquire) {
             ap
         } else {
             sta
         };
-        let mut socket = TcpSocket::new(stack, &mut rx, &mut tx);
+        let mut socket = TcpSocket::new(stack, &mut rx[..], &mut tx[..]);
         socket.set_timeout(Some(Duration::from_secs(10)));
         if with_timeout(Duration::from_secs(1), socket.accept(80))
             .await
@@ -447,7 +455,7 @@ async fn call_http(worker: usize, operation: Operation) -> HttpResponse {
     }
 }
 async fn serve(worker: usize, socket: &mut TcpSocket<'_>) -> Result<(), Broken> {
-    let mut head = [0; 4096];
+    let mut head = crate::heap::psram_buffer::<4096>();
     let mut used = 0;
     let request = loop {
         match Request::parse(&head[..used]) {

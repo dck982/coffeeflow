@@ -2,11 +2,9 @@
 //! Le propriétaire vit sur le cœur 1 ; aucun alias ni verrou inter-cœurs.
 //! esp-storage sans section critique conserve les interruptions radio.
 //!
-//! `Nvs::new` peut écrire dès l'ouverture : fin d'une défragmentation
-//! interrompue, entrées abîmées ou trous marqués effacés, doublons effacés,
-//! anciens blobs migrés. Sur le vrai NVS, la lecture passe donc par une
-//! flash qui refuse toute écriture et compte les refus : si esp-nvs voulait
-//! écrire, on le sait, et rien n'a changé.
+//! `Nvs::new` peut réparer des pages dès l'ouverture. Même une lecture NVS
+//! doit donc passer par le propriétaire flash et son exclusion avec l'OTA.
+//! Une flash explicitement en lecture seule compte et refuse ces réparations.
 
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 

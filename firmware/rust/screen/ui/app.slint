@@ -23,14 +23,15 @@ component Key inherits Rectangle {
     border-radius: 8px;
     background: !enabled ? Theme.raised : touch.pressed ? Theme.high : selected-toggle ? Theme.success : primary ? Theme.primary : Theme.surface;
     Label { text: root.label; font-size: root.content-size; color: root.selected-toggle ? Theme.bg : !root.enabled ? Theme.faint : root.destructive ? Theme.fault : root.primary ? Theme.accent : Theme.text; horizontal-alignment: center; x: root.icon != 0 ? 32px : 0px; width: parent.width - self.x; }
-    // Un même jeu de tracés remplace les glyphes absents du sous-ensemble Inter.
-    if root.icon == 1: Path { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; stroke: Theme.accent; stroke-width: 2px; fill: transparent; commands: "M 2 5 L 24 5 L 24 21 Q 24 29 13 29 Q 2 29 2 21 Z M 24 9 L 29 9 Q 34 16 24 19"; }
-    if root.icon == 2: Path { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; stroke: Theme.full; stroke-width: 2px; fill: transparent; commands: "M 16 1 Q 2 17 3 23 Q 5 32 16 32 Q 27 32 29 23 Q 30 17 16 1 Z"; }
-    if root.icon == 3: Path { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; stroke: Theme.dim; stroke-width: 2px; fill: transparent; commands: "M 0 7 L 32 7 M 0 16 L 32 16 M 0 25 L 32 25 M 10 2 L 10 12 M 23 11 L 23 21 M 14 20 L 14 30"; }
+    // Les tracés SVG sont pré-rendus au build : les icônes restent disponibles
+    // sans le moteur de chemins vectoriels, qui exige std dans Slint 1.18.
+    if root.icon == 1: Image { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; source: @image-url("icons/cup.svg"); colorize: Theme.accent; }
+    if root.icon == 2: Image { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; source: @image-url("icons/drop.svg"); colorize: Theme.full; }
+    if root.icon == 3: Image { x: 18px; y: (parent.height - 32px) / 2; width: 32px; height: 32px; source: @image-url("icons/settings.svg"); colorize: Theme.dim; }
     touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } pointer-event(event) => { if event.kind == PointerEventKind.down { root.held(true); } if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel { root.held(false); } } }
 }
 component Back inherits Key {
-    Path { x: 30px; y: 26px; width: 20px; height: 28px; stroke: Theme.text; stroke-width: 3px; fill: transparent; commands: "M 18 0 L 2 14 L 18 28"; }
+    Image { x: 30px; y: 26px; width: 20px; height: 28px; source: @image-url("icons/back.svg"); colorize: Theme.text; }
 }
 
 export component AppWindow inherits Window {
@@ -113,7 +114,7 @@ export component AppWindow inherits Window {
         Label { x: 626px; width: 110px; text: root.temperature; color: root.temperature-color; font-size: 28px; horizontal-alignment: right; }
         Rectangle { x: 606px; y: 12px; width: 1px; height: 28px; background: Theme.hairline; }
         Rectangle { x: 656px; y: 48px; width: 80px; height: 4px; background: Theme.raised; Rectangle { width: parent.width * root.heating; height: 4px; background: root.temperature-color; } }
-        Path { x: 0px; y: 16px; width: 24px; height: 24px; stroke: Theme.dim; stroke-width: 2px; fill: transparent; commands: "M 2 20 L 2 10 M 10 20 L 10 2 M 18 20 L 18 14 M 0 20 L 22 20"; }
+        Image { x: 0px; y: 16px; width: 24px; height: 24px; source: @image-url("icons/chart.svg"); colorize: Theme.dim; }
         TouchArea { x: 0px; y: -24px; width: 132px; height: 80px; clicked => { root.command(4, ""); } }
     }
     if root.page == 0: Rectangle {
@@ -170,7 +171,7 @@ export component AppWindow inherits Window {
             Label { x: 112px; width: 310px; text: root.page == 3 ? "réglages" : root.page == 4 ? "diagnostic" : root.editor-title; }
             if root.page == 3: Rectangle { background: transparent;
                 Key { x: 360px; y: 4px; width: 80px; height: 80px; label: ""; primary: root.wifi-enabled; clicked => { root.command(11, ""); }
-                    Path { x: 24px; y: 26px; width: 32px; height: 28px; stroke: root.wifi-enabled ? Theme.text : Theme.faint; stroke-width: 2px; fill: transparent; commands: "M 0 6 Q 16 -4 32 6 M 5 13 Q 16 5 27 13 M 11 20 Q 16 16 21 20 M 15 26 L 17 26"; } }
+                    Image { x: 24px; y: 26px; width: 32px; height: 28px; source: @image-url("icons/wifi.svg"); colorize: root.wifi-enabled ? Theme.text : Theme.faint; } }
                 for i in 4: Key { x: 536px + i * 64px; y: 12px; width: 56px; height: 64px; label: "" + (i + 1); primary: root.settings-page == i; clicked => { root.command(12, "" + i); } }
             }
             if root.page == 5: Key { x: 640px; y: 4px; width: 160px; height: 80px; primary: true; label: "valider"; clicked => { root.command(15, ""); } }
@@ -197,7 +198,7 @@ export component AppWindow inherits Window {
             Label { x: 200px; y: 190px; width: 48px; height: 38px; text: root.editor-unit; font-size: 32px; color: Theme.dim; }
             Label { x: 32px; y: 286px; width: 208px; height: 80px; text: root.editor-error; wrap: word-wrap; font-size: 18px; color: Theme.fault; }
             for key[i] in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", ","]: Key { x: 256px + mod(i, 3) * 176px; y: 104px + floor(i / 3) * 96px; width: 160px; height: 80px; label: i == 9 ? "" : key; enabled: i != 11 || root.editor-decimal; clicked => { root.command(14, i == 9 ? "back" : key); }
-                if i == 9: Path { x: 58px; y: 26px; width: 42px; height: 28px; stroke: Theme.text; stroke-width: 2px; fill: transparent; commands: "M 12 0 L 42 0 L 42 28 L 12 28 L 0 14 Z M 20 7 L 34 21 M 34 7 L 20 21"; }
+                if i == 9: Image { x: 58px; y: 26px; width: 42px; height: 28px; source: @image-url("icons/erase.svg"); colorize: Theme.text; }
             }
         }
         if root.page == 6: Rectangle { background: transparent;

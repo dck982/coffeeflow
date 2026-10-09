@@ -61,3 +61,34 @@ Validation : tests et Clippy hôte du crate `screen-net`, compilation et Clippy
 Xtensa de la bibliothèque et du binaire `screen`. L'assemblage final est une
 tâche séparée ; DHCP, reconnexion, WS, écritures flash, OTA et rollback restent
 à vérifier sur carte sur décision de David. Aucun flash matériel dans ce port.
+
+## Assemblage et contrôles hors matériel
+
+Le binaire initialise maintenant le propriétaire flash et le réseau sur le
+cœur 1 avant le LCD ; `runtime.rs` possède le cœur et traite les requêtes
+réseau sur le cœur 0. Le pilote CAN distribue lui-même ses miroirs WS, sans
+écho USB des trames issues du pont. L'exclusion OTA reste active jusqu'à la
+libération du mutex flash, y compris durant l'attente de l'écho STOP sensors.
+
+Les quatre workers gardent leur fenêtre RX de 8192 octets. RX/TX et en-têtes
+HTTP sont en PSRAM, pour un maximum de 56 Ko de tampons, afin de préserver la
+SRAM radio. Le tas interne reste de 128 Ko et la pile du cœur 1 de 16 Ko.
+`stack-budget.x` impose au moins 16 Ko de pile au cœur 0 ; le linker produit
+une carte mémoire `screen.map` dans le répertoire de sortie du build.
+
+Depuis `firmware/rust/screen`, sans accès à la carte :
+
+```sh
+source ~/export-esp.sh
+cargo build --release --offline
+cargo clippy --release --lib --bin screen --offline -- -D warnings
+espflash save-image --chip esp32s3 --flash-size 16mb --skip-update-check \
+  target/xtensa-esp32s3-none-elf/release/screen target/screen-0.4.0.bin
+```
+
+Ne pas utiliser `--all-targets` pour les contrôles Xtensa : le harnais Rust
+`test` n'existe pas sur cette cible. Les tests du protocole, du cœur et des
+formats réseau s'exécutent dans le workspace hôte. La compilation sans
+`secrets.rs` ne permet pas de tester HTTP/provisioning sur carte ; renseigner
+ce fichier local avant les essais réseau. Les premiers essais USB restent
+sur le bureau, sans CAN, avec le slot C++ et les précautions de retour conservés.

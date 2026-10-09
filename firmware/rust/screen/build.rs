@@ -29,8 +29,15 @@ fn main() {
     )
     .unwrap();
     check_xtensa_linker_available();
-    // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
+    // linkall.x définit les sections ; le budget qui suit ajoute seulement
+    // une assertion sur la marge de pile, sans changer leur placement.
     println!("cargo:rustc-link-arg=-Tlinkall.x");
+    println!("cargo:rerun-if-changed=stack-budget.x");
+    println!("cargo:rustc-link-arg=-Tstack-budget.x");
+    println!(
+        "cargo:rustc-link-arg=-Wl,-Map={}/screen.map",
+        std::env::var("OUT_DIR").unwrap()
+    );
 }
 
 #[cfg(unix)]

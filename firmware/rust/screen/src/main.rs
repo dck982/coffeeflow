@@ -12,14 +12,13 @@
 //
 // Deux cœurs. Le cœur 0 porte la recopie d'affichage (interruptions de
 // niveau 3), le rendu Slint et la logique ; il alloue en PSRAM. Le cœur 1,
-// libre, recevra la radio, le réseau et le flash ; il alloue en SRAM interne.
+// porte la radio, le réseau et le flash ; il alloue en SRAM interne.
 
 extern crate alloc;
 
 mod board;
 mod core1;
 mod display;
-mod heap;
 mod report;
 mod runtime;
 mod ui;
@@ -36,6 +35,7 @@ use esp_hal::gpio::Pin;
 use esp_hal::psram::{Psram, PsramConfig, PsramMode, SpiRamFreq};
 use esp_hal::timer::timg::TimerGroup;
 use log::info;
+use screen::heap;
 use slint::platform::software_renderer::Rgb565Pixel;
 
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -71,15 +71,19 @@ async fn main(spawner: Spawner) -> ! {
     // esp-println écrit ensuite directement dans la FIFO d'UART0. Le pilote
     // vit jusqu'à la fin de main, qui ne rend jamais la main.
     let console = esp_hal::uart::Uart::new(peripherals.UART0, esp_hal::uart::Config::default())
-        .unwrap().with_tx(peripherals.GPIO43).with_rx(peripherals.GPIO44).into_async();
+        .unwrap()
+        .with_tx(peripherals.GPIO43)
+        .with_rx(peripherals.GPIO44)
+        .into_async();
     info!("screen 0.4.0, reset: {:?}", esp_hal::system::reset_reason());
 
-    // Le tas interne d'abord : 128 Ko pour la radio, plus tard.
+    // Le tas interne d'abord : 128 Ko pour la radio du cœur 1.
     heap::init_internal();
 
-    let mut flash = screen::flash::Flash::new(unsafe {
-        esp_storage::FlashStorage::new(peripherals.FLASH).multicore_ignore()
-    },true);
+    let mut flash = screen::flash::Flash::new(
+        unsafe { esp_storage::FlashStorage::new(peripherals.FLASH).multicore_ignore() },
+        true,
+    );
     let layout = screen::flash::layout(&mut flash).expect("table de partitions écran incompatible");
 
     let psram = Psram::new(
@@ -108,12 +112,20 @@ async fn main(spawner: Spawner) -> ! {
         bytes
     };
     let heap_start = code_bytes + display::FB_BYTES;
-    assert!(psram_size > heap_start + 1024 * 1024, "PSRAM absente ou trop petite");
+    assert!(
+        psram_size > heap_start + 1024 * 1024,
+        "PSRAM absente ou trop petite"
+    );
     let fb = psram_start.wrapping_add(code_bytes);
     // Noir avant le premier rendu : la dalle ne montre jamais de PSRAM
     // non initialisée.
     unsafe { fb.write_bytes(0, display::FB_BYTES) };
-    unsafe { heap::init_psram(psram_start.wrapping_add(heap_start), psram_size - heap_start) };
+    unsafe {
+        heap::init_psram(
+            psram_start.wrapping_add(heap_start),
+            psram_size - heap_start,
+        )
+    };
     info!(
         "tas: {} octets en PSRAM (cœur 0), {} en interne (cœur 1)",
         psram_size - heap_start,
@@ -125,10 +137,16 @@ async fn main(spawner: Spawner) -> ! {
 
     // La radio démarre avant la dalle ; les initialisations des blobs peuvent
     // masquer longtemps les interruptions du cœur qui les crée.
-    core1::start(peripherals.CPU_CTRL,peripherals.FROM_CPU_INTR1,
-        peripherals.WIFI,peripherals.BT,flash,layout);
+    core1::start(
+        peripherals.CPU_CTRL,
+        peripherals.FROM_CPU_INTR1,
+        peripherals.WIFI,
+        peripherals.BT,
+        flash,
+        layout,
+    );
     core1::wait_ready().await;
-    let (console_rx,console_tx) = console.split();
+    let (console_rx, console_tx) = console.split();
     spawner.spawn(screen::serial_bridge::receive(console_rx).unwrap());
     spawner.spawn(screen::serial_bridge::transmit(console_tx).unwrap());
 
@@ -141,10 +159,20 @@ async fn main(spawner: Spawner) -> ! {
     )
     .await;
 
-    board.expander.select_can(true).await.expect("sélection CAN");
-    let twai = esp_hal::twai::TwaiConfiguration::new(peripherals.TWAI0,
-        peripherals.GPIO20,peripherals.GPIO19,esp_hal::twai::BaudRate::B500K,
-        esp_hal::twai::TwaiMode::Normal).into_async().start();
+    board
+        .expander
+        .select_can(true)
+        .await
+        .expect("sélection CAN");
+    let twai = esp_hal::twai::TwaiConfiguration::new(
+        peripherals.TWAI0,
+        peripherals.GPIO20,
+        peripherals.GPIO19,
+        esp_hal::twai::BaudRate::B500K,
+        esp_hal::twai::TwaiMode::Normal,
+    )
+    .into_async()
+    .start();
     spawner.spawn(screen::can::task(twai).unwrap());
 
     let _display = display::start(

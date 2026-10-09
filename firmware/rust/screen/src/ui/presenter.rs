@@ -237,6 +237,10 @@ impl Presenter {
     /// au cœur avec la même horloge que l'instantané, puis `feedback` reçoit
     /// son refus éventuel. La purge libérée est toujours transmise, même si
     /// une faute vient de préempter l'écran.
+    #[allow(
+        clippy::large_stack_frames,
+        reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
+    )]
     pub fn command(
         &mut self,
         id: i32,
@@ -245,7 +249,7 @@ impl Presenter {
         s: &Snapshot,
         c: &Config,
     ) -> Option<UiRequest> {
-        self.last_touch_us = now_us;
+        self.note_touch(now_us);
         self.refresh.invalidate();
         let i = payload.parse::<usize>().unwrap_or(0);
         if id == 3 {
@@ -596,6 +600,10 @@ impl Presenter {
             s.network_state == screen_core::snapshot::NetworkState::StaConnected,
         );
     }
+    #[allow(
+        clippy::large_stack_frames,
+        reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
+    )]
     fn content(&self, app: &AppWindow, s: &Snapshot, c: &Config) {
         app.set_target(if s.scale_present {
             number(c.target_weight_g, 1, " g").into()
@@ -842,6 +850,10 @@ impl Presenter {
         }
         app.set_segments(model(segments));
     }
+    #[allow(
+        clippy::large_stack_frames,
+        reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
+    )]
     fn diagnostics(&self, app: &AppWindow, s: &Snapshot, c: &Config) {
         app.set_diagnostics(model(alloc::vec![
             tile(
@@ -995,6 +1007,10 @@ impl Presenter {
             _ => {}
         }
     }
+    #[allow(
+        clippy::large_stack_frames,
+        reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
+    )]
     fn settings(&self, app: &AppWindow, c: &Config) {
         let mut tiles = Vec::new();
         for &e in &EDITS[self.settings_page] {

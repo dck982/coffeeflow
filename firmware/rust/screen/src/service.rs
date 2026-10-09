@@ -147,17 +147,20 @@ pub fn process(core: &mut Core<CoreStore>, clock: Clock) {
                 continue;
             }
             Operation::FinishUpload => {
+                core.cancel_pending_flash();
                 core.finish_flash();
                 Reply::Ready(true)
             }
             Operation::Confirm => {
                 let s = core.snapshot(clock);
                 Reply::Ready(
-                    (crate::ota_local::pending() || crate::ota_local::valid())
-                        && s.sensors_alive
-                        && core.peer_roundtrip_confirmed()
-                        && s.actuators_freshness == screen_core::snapshot::Freshness::Fresh
-                        && s.network_state == screen_core::snapshot::NetworkState::StaConnected,
+                    crate::ota_local::valid()
+                        || (crate::ota_local::pending()
+                            && s.sensors_alive
+                            && core.peer_roundtrip_confirmed()
+                            && s.actuators_freshness == screen_core::snapshot::Freshness::Fresh
+                            && s.network_state
+                                == screen_core::snapshot::NetworkState::StaConnected),
                 )
             }
             Operation::Unauthorized => {

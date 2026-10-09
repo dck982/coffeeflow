@@ -30,6 +30,7 @@ archive/firmware/*/.cache/
 # Secrets locaux de l'écran : ne jamais versionner le mot de passe WPA de
 # l'AP de provisioning ni le jeton HTTP.
 archive/firmware/screen/main/secrets.h
+firmware/rust/screen/secrets.rs
 
 # Cargo
 target/

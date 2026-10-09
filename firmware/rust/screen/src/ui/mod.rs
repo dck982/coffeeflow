@@ -9,9 +9,9 @@ pub mod presenter;
 
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
+use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use alloc::rc::Rc;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 use embassy_time::{Duration, Instant, Timer};
@@ -56,20 +56,46 @@ pub struct Ui {
 
 impl Ui {
     /// Les callbacks déposent des gestes ; seul l'assemblage appelle le cœur.
-    pub fn take_requests(&mut self, now_us: u64, snapshot: &screen_core::snapshot::Snapshot, config: &screen_core::config::Config) -> Vec<presenter::UiRequest> {
+    pub fn take_requests(
+        &mut self,
+        now_us: u64,
+        snapshot: &screen_core::snapshot::Snapshot,
+        config: &screen_core::config::Config,
+    ) -> Vec<presenter::UiRequest> {
         let mut requests = Vec::new();
         while let Some((id, payload)) = self.commands.borrow_mut().pop_front() {
-            if let Some(request) = self.presenter.command(id, &payload, now_us, snapshot, config) { requests.push(request); }
+            if let Some(request) = self
+                .presenter
+                .command(id, &payload, now_us, snapshot, config)
+            {
+                requests.push(request);
+            }
         }
         requests
     }
 
     /// Affiche les priorités avant le prochain rendu, puis une tranche de valeurs.
-    pub fn update(&mut self, now_us: u64, snapshot: &screen_core::snapshot::Snapshot, config: &screen_core::config::Config, provisioning_ssid: &str, clock_text: &str) {
-        self.presenter.update(&self.app, now_us, snapshot, config, provisioning_ssid, clock_text);
+    pub fn update(
+        &mut self,
+        now_us: u64,
+        snapshot: &screen_core::snapshot::Snapshot,
+        config: &screen_core::config::Config,
+        provisioning_ssid: &str,
+        clock_text: &str,
+    ) {
+        self.presenter.update(
+            &self.app,
+            now_us,
+            snapshot,
+            config,
+            provisioning_ssid,
+            clock_text,
+        );
     }
 
-    pub fn feedback(&mut self, reply: screen_core::core::Reply) { self.presenter.feedback(reply); }
+    pub fn feedback(&mut self, reply: screen_core::core::Reply) {
+        self.presenter.feedback(reply);
+    }
 }
 
 /// Pose la plateforme et affiche la fenêtre.
@@ -78,14 +104,21 @@ pub fn init() -> Ui {
     // zone modifiée est à redessiner, comme en ReusedBuffer.
     let window = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
     window.set_size(slint::PhysicalSize::new(H_RES as u32, V_RES as u32));
-    slint::platform::set_platform(Box::new(EmbassyPlatform { window: window.clone() }))
-        .expect("plateforme Slint déjà posée");
+    slint::platform::set_platform(Box::new(EmbassyPlatform {
+        window: window.clone(),
+    }))
+    .expect("plateforme Slint déjà posée");
     let app = AppWindow::new().unwrap();
     app.show().unwrap();
     let commands = Rc::new(RefCell::new(VecDeque::new()));
     let queue = commands.clone();
     app.on_command(move |id, payload| queue.borrow_mut().push_back((id, payload)));
-    Ui { window, app, presenter: presenter::Presenter::default(), commands }
+    Ui {
+        window,
+        app,
+        presenter: presenter::Presenter::default(),
+        commands,
+    }
 }
 
 /// Boucle de rendu : minuteurs et animations de Slint, tactile toutes les
@@ -97,7 +130,12 @@ pub fn init() -> Ui {
     clippy::large_stack_frames,
     reason = "futures d'embassy : clippy compte l'état de la future, qui vit dans l'arène de l'exécuteur ou la future de main, pas sur la pile"
 )]
-pub async fn run(mut ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>, mut runtime: crate::runtime::Runtime) -> ! {
+pub async fn run(
+    mut ui: Ui,
+    fb: *mut Rgb565Pixel,
+    mut touch: Option<Gt911<Device>>,
+    mut runtime: crate::runtime::Runtime,
+) -> ! {
     let mut pressed: Option<slint::LogicalPosition> = None;
     let mut iteration = 0u32;
     loop {
@@ -116,7 +154,10 @@ pub async fn run(mut ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Devic
                             TOUCH_PRESSES.fetch_add(1, Relaxed);
                             runtime.touch_press();
                             ui.presenter.note_touch(Instant::now().as_micros());
-                            WindowEvent::PointerPressed { position, button: PointerEventButton::Left }
+                            WindowEvent::PointerPressed {
+                                position,
+                                button: PointerEventButton::Left,
+                            }
                         }
                     };
                     ui.window.dispatch_event(event);
@@ -138,7 +179,8 @@ pub async fn run(mut ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Devic
                     runtime.purge_release();
                     if let Some(position) = pressed.take() {
                         ui.window.dispatch_event(WindowEvent::PointerReleased {
-                            position, button: PointerEventButton::Left,
+                            position,
+                            button: PointerEventButton::Left,
                         });
                         ui.window.dispatch_event(WindowEvent::PointerExited);
                     }

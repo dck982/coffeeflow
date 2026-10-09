@@ -1148,6 +1148,7 @@ impl<S: ConfigStore> Core<S> {
         };
         let can_heat = config.heating_enabled
             && !self.flash_active
+            && self.pending_flash.is_none()
             && !s.heating_requested
             && !s.lockout
             && s.sensors_alive
@@ -1586,7 +1587,7 @@ impl<S: ConfigStore> Core<S> {
         // Le propriétaire flash du cœur 1 peut garder l'image staging pendant
         // tout le transfert. Attendre NVS ici bloquerait le cœur de l'UI jusqu'à
         // son watchdog, alors que l'OTA attend elle aussi ses réponses.
-        if self.flash_active {
+        if self.flash_active || self.pending_flash.is_some() {
             return ConfigResult::new(ConfigStatus::Busy, "flash");
         }
         for _ in 0..2 {
@@ -1620,7 +1621,7 @@ impl<S: ConfigStore> Core<S> {
         if self.snapshot_now().cycle_state.is_active() {
             return ConfigResult::new(ConfigStatus::Busy, "cycle");
         }
-        if self.flash_active {
+        if self.flash_active || self.pending_flash.is_some() {
             return ConfigResult::new(ConfigStatus::Busy, "flash");
         }
         self.config.reset(&mut self.store)
@@ -1716,7 +1717,7 @@ impl<S: ConfigStore> Core<S> {
             if !self.config.get().heating_enabled {
                 return result(St::Unavailable);
             }
-            if self.flash_active {
+            if self.flash_active || self.pending_flash.is_some() {
                 return result(St::CycleActive);
             }
             if !snapshot.sensors_alive {
@@ -1747,7 +1748,7 @@ impl<S: ConfigStore> Core<S> {
             return result(St::Ok);
         }
         if command.action == Action::OpenMaintenanceValve {
-            if self.flash_active {
+            if self.flash_active || self.pending_flash.is_some() {
                 return result(St::CycleActive);
             }
             if !snapshot.sensors_alive {
@@ -1777,7 +1778,10 @@ impl<S: ConfigStore> Core<S> {
             if !snapshot.sensors_alive {
                 return result(St::BusLost);
             }
-            if cycle_busy || snapshot.capture_cooldown || self.flash_active {
+            if cycle_busy
+                || snapshot.capture_cooldown
+                || (self.flash_active || self.pending_flash.is_some())
+            {
                 return result(St::CycleActive);
             }
             self.send_set(0, 0, Origin::SetActuators);
@@ -1788,7 +1792,10 @@ impl<S: ConfigStore> Core<S> {
             if !snapshot.sensors_alive {
                 return result(St::BusLost);
             }
-            if cycle_busy || snapshot.capture_cooldown || self.flash_active {
+            if cycle_busy
+                || snapshot.capture_cooldown
+                || (self.flash_active || self.pending_flash.is_some())
+            {
                 return result(St::CycleActive);
             }
             // Coupe explicitement les sorties avant une maintenance qui peut
@@ -1843,7 +1850,7 @@ impl<S: ConfigStore> Core<S> {
             return result(if ok { St::Ok } else { St::NoCycle });
         }
         if command.action == Action::StartBrew || command.action == Action::PurgePress {
-            if self.flash_active {
+            if self.flash_active || self.pending_flash.is_some() {
                 return result(St::CycleActive);
             }
             if !snapshot.sensors_alive {
@@ -1917,7 +1924,9 @@ impl<S: ConfigStore> Core<S> {
         if snapshot.lockout {
             return result(St::Locked);
         }
-        if snapshot.cycle_state.is_active() || self.flash_active || snapshot.maintenance_valve_open
+        if snapshot.cycle_state.is_active()
+            || (self.flash_active || self.pending_flash.is_some())
+            || snapshot.maintenance_valve_open
         {
             return result(St::CycleActive);
         }

@@ -87,7 +87,7 @@ pub async fn task(mut twai: Twai<'static, Async>) -> ! {
                     if !serial_origin {
                         mirror(frame);
                     } else if transmitted {
-                        let _ = WS.try_send(frame);
+                        crate::network::mirror(frame);
                     }
                 }
             }
@@ -109,13 +109,11 @@ pub async fn task(mut twai: Twai<'static, Async>) -> ! {
     }
 }
 
-/// Miroir WebSocket : une file indépendante évite que l'USB vole ses trames.
-pub static WS: Channel<CriticalSectionRawMutex, Frame, 128> = Channel::new();
 /// Miroir série : une tâche possède seule TX UART0 pour garder chaque PDU entier.
 pub static SERIAL: Channel<CriticalSectionRawMutex, Frame, 128> = Channel::new();
 
 fn mirror(frame: Frame) {
-    let _ = WS.try_send(frame);
+    crate::network::mirror(frame);
     let _ = SERIAL.try_send(frame);
 }
 

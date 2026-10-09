@@ -16,13 +16,13 @@ firmware assemblé : ils restent la référence technique pour sa mise en servic
 | 1 | Intégrée | Tests hôte et Clippy du workspace verts. |
 | 2 | Intégrée | 70 tests hôte ; Clippy propre. |
 | 3 | Intégrée | 96 tests de logique ; builds Xtensa normal et `no-validate` réussis ; image normale 164 240 octets (< 1 Mo), Clippy propre. |
-| 4 | Terminée et intégrée (`181a446`) | 117 tests + 1 doctest ; Clippy propre. Parsing serde_json sans std, sortie compatible cJSON et clés HTTP conservées. Écarts de parsing documentés dans `screen-core/README.md`. |
+| 4 | Terminée et intégrée (`181a446`) | 124 tests + 1 doctest après assemblage ; Clippy propre. Parsing serde_json sans std, sortie compatible cJSON et clés HTTP conservées. Écarts de parsing documentés dans `screen-core/README.md`. |
 | 5 | Intégrée | Carte, LCD, XIP, tactile et ADS constituent la base de l'assemblage. |
 | 6 | Intégrée (`833acdf`, `c34a338`, `5703524`) | 9 tests simulateur, Clippy propre, 24 captures RGB565 examinées. Pas de comparaison pixel par pixel avec LVGL. |
 | 7 | Intégrée (`4b43756`, `953a164`) | CAN, pont série, staging/proxy OTA, journaux UART sérialisés et récupération bus-off compilés pour Xtensa ; tests protocole/ACK/NOR/journaux verts. Brochage vérifié dans `archive/firmware/screen/main/board.h` : TX GPIO20, RX GPIO19. Rapport : `rust-task7.md`. |
 | 8 | Intégrée (`8443b1b`, `4b6ec69`, `4363bc2`) | GATT compilé pour Xtensa, Clippy propre ; scan, arrêt provisioning, heartbeat, panne de l'hôte et horodatage revus. |
-| 9 | Inachevée, worktree `codex/task9-network` au commit `181a446` | STA/AP, HTTP/WS, SNTP, OTA locale/USB et NVS écrits dans le worktree, pas encore intégrés ni compilés avec `screen`. Les fichiers `firmware/rust/screen-net/` du worktree principal sont un parseur de protocoles préparatoire ; son intégration au workspace reste à faire. |
-| 10 | Brouillon non compilé | `main.rs`, `core1.rs`, `runtime.rs` et mesures ADS/UI modifiés dans le worktree principal ; ils appellent les modules réseau absents de `screen`, donc l'assemblage ne compile pas encore. Compilation complète, Clippy et contrôles à faire. |
+| 9 | Intégrée (`92163c3`, depuis `0de6bac`) | STA/AP, provisioning, HTTP/WS, SNTP, OTA locale/USB et NVS raccordés à `screen`. `screen-net` fait partie du workspace ; ses 7 tests passent. |
+| 10 | Terminée hors matériel | UI ↔ cœur ↔ CAN/BLE/réseau/flash raccordés. Build release Xtensa complet, Clippy hôte/Xtensa et tests verts ; image OTA vérifiée et prête pour la session USB. |
 
 La logique et l'UI tournent sur le cœur 0 ; les services radio et le propriétaire
 flash sur le cœur 1. La lecture de l'identité du slot précède le remappage XIP,
@@ -31,18 +31,83 @@ Les mesures ADS ne sont publiées qu'après une nouvelle tentative de lecture ;
 les événements BLE conservent leur instant de réception. Le relâchement physique
 de la purge reste indépendant de la durée de vie du bouton Slint.
 
-**Point de reprise WIP.** Un risque d'interblocage a été trouvé pendant
-l'assemblage : un changement de configuration pouvait attendre NVS sur le
-cœur 0 alors qu'un OTA tenait le propriétaire flash du cœur 1. Le cœur répond
-maintenant `Busy` aux écritures/reset de configuration pendant une infusion,
-une purge ou un transfert flash. Deux tests de régression ont été ajoutés,
-mais leur exécution complète et leur revue restent à faire. Le worktree
-principal contient ces modifications non validées ; `codex/task9-network`
-reste séparé. Aucun commit d'assemblage WIP n'a encore été créé.
+### Problèmes rencontrés et résolus pendant l'assemblage
+
+- **Intégration réseau.** Les fichiers `screen-net` préparatoires entraient en
+  conflit avec la version complète de la tâche 9. Cette dernière est retenue,
+  le workspace et le lockfile sont réunis, les dépendances dupliquées de
+  `screen/Cargo.toml` supprimées et les modules réseau exportés par la bibliothèque.
+- **Interblocage OTA/NVS.** Une écriture ou un reset de configuration pouvait
+  attendre NVS sur le cœur 0 pendant que l'OTA gardait la flash sur le cœur 1
+  et attendait le cœur 0. Configuration refusée pendant un cycle et dès
+  l'attente STOP d'un OTA. La notification proxy `Finished` ne lève plus
+  l'exclusion : seul `FinishUpload`, après libération de la flash, le fait.
+- **Attente STOP des capteurs.** Une infusion, une purge, une commande de
+  maintenance ou la régulation thermique pouvait repartir avant l'écho STOP.
+  Elles restent maintenant exclues pendant cette attente ; un échec/délai OTA
+  annule aussi l'attente, permettant un nouvel essai. Trois tests de régression
+  couvrent configuration/OTA, reset pendant infusion et attente STOP/annulation.
+- **WebSocket.** Les miroirs CAN/série préparatoires n'alimentaient pas les
+  sessions réseau. Les réceptions CAN, émissions du cœur et émissions USB
+  réussies alimentent maintenant les files indépendantes de chaque client WS.
+- **Slint `no_std`.** Les éléments `Path` ne compilaient pas sans la feature
+  de chemins ; son activation déclenchait une erreur `f32::rem_euclid` dans
+  Slint 1.18.1 sans std. Les sept mêmes tracés sont conservés en SVG, pré-rendus
+  au build et teintés par l'UI, sans moteur vectoriel à l'exécution.
+- **SRAM.** L'édition de liens du firmware complet dépassait la SRAM de
+  41 920 octets. Les tampons TCP RX/TX et en-têtes des quatre workers sont
+  alloués explicitement en PSRAM (56 Ko au maximum), sans réduire la fenêtre
+  TCP OTA ni le tas radio interne de 128 Ko. Le build final réussit avec
+  20 912 octets de pile cœur 0 ; un script linker impose désormais au moins
+  16 Ko. La pile cœur 1 reste interne, 16 Ko. Les estimations Clippy de pile
+  sont documentées aux points concernés ; la marge réelle reste à observer
+  sur carte.
+- **Fin de démarrage réseau.** Un échec de création du contrôleur Wi-Fi
+  publie maintenant `Off` et termine l'attente SNTP, au lieu de laisser l'UI
+  attendre indéfiniment. La confirmation d'une image déjà valide reste
+  idempotente, même sans capteurs ou STA.
+
+### Vérifications et limites
+
+Le workspace hôte passe **355 tests et 1 doctest** ; le simulateur passe
+**9 tests** et produit les 24 captures RGB565. Les nouvelles icônes ont été
+examinées sur l'accueil et les réglages. Ce n'est toujours pas une comparaison
+pixel par pixel avec LVGL. Les tests HTTP hôte nécessitent un socket local :
+ils passent hors de la restriction réseau du sandbox.
+
+Build release Xtensa final réussi ; image IDF générée avec
+`espflash save-image` uniquement, **2 728 288 octets**, sous la limite de slot
+**3 584 000 octets**. Le vérificateur Rust `screen-net::image::verify` a relu
+l'image et validé structure ESP32-S3, checksum XOR et SHA256. L'image est dans
+`firmware/rust/screen/target/screen-0.4.0.bin` (artefact local non versionné).
+Les commandes reproductibles sont dans `screen/NETWORK.md`.
+
+Clippy du workspace hôte, du simulateur et du binaire/bibliothèque Xtensa est propre. Sur Xtensa, utiliser `--lib --bin screen`, pas
+`--all-targets` : le harnais Rust `test` n'existe pas pour cette cible ; les
+modules testables sont exécutés sur l'hôte. Le linker GCC signale un segment
+RWX, attendu pour les données/instructions en RAM de cette cible.
+
+**Préparation USB :** `screen/secrets.rs` est absent dans cet environnement.
+Le build utilise l'exemple et désactive HTTP authentifié et provisioning.
+Avant les essais réseau, renseigner ce fichier local ignoré par Git depuis
+`secrets.example.rs`. Aucun secret existant n'a été lu ni modifié.
+La règle `.gitignore` manquante pour `screen/secrets.rs` a été ajoutée.
+Comme en C++, le jeton HTTP et le mot de passe WPA2 AP sont embarqués au
+build ; les identifiants STA restent en NVS. Différence explicite : le C++
+refuse de compiler sans `secrets.h`, tandis que le Rust compile en mode
+réseau restreint et refuse `CHANGE_ME` comme jeton. Le code HTTP C++ ne
+rejette pas explicitement son placeholder. Les valeurs existantes peuvent
+être reprises localement pour conserver les clients, avec les correspondances
+`kHttpBearerToken` → `HTTP_BEARER_TOKEN` et `kProvisioningApPassword` →
+`PROVISIONING_AP_PASSWORD`.
+
+Restent exclusivement matériels : démarrage réel, marge de pile/tas radio,
+rendu et tactile, BLE/Wi-Fi simultanés, DHCP/reconnexion, HTTP/WS, persistance
+NVS, OTA USB/HTTP et rollback. Aucun de ces points n'est validé par le build.
 
 **Matériel : aucun flash, moniteur ou accès à la carte pendant ces travaux.**
-Une fois le point 10 validé hors matériel, demander à David l'accès à l'écran
-en USB sur le host ou à la machine par Wi-Fi. Reprendre alors les précautions,
+Le point 10 est validé hors matériel : demander maintenant à David l'accès
+à l'écran en USB sur le host. Reprendre alors les précautions,
 les méthodes et les résultats de `rust-migration.md` avant tout essai ; le
 premier parcours prévu reste l'écran sur le bureau, USB sans CAN, puis la machine.
 

@@ -6,6 +6,7 @@
 //! choisit selon le cœur ; les `malloc` des blobs radio ne passent pas par lui
 //! mais vont droit à `esp_alloc::HEAP`, qui n'a que de la SRAM interne.
 
+use alloc::boxed::Box;
 use core::alloc::{GlobalAlloc, Layout};
 
 use esp_hal::system::Cpu;
@@ -45,6 +46,21 @@ unsafe impl GlobalAlloc for PerCoreHeap {
 
 #[global_allocator]
 static ALLOCATOR: PerCoreHeap = PerCoreHeap;
+
+/// Les tampons TCP applicatifs n'ont aucune contrainte DMA. Les placer en
+/// PSRAM laisse la SRAM aux blobs radio et réduit les futures statiques des
+/// workers. Le tas PSRAM est initialisé avant le démarrage du cœur 1.
+pub fn psram_buffer<const N: usize>() -> Box<[u8; N]> {
+    assert!(N > 0, "tampon PSRAM vide");
+    let layout = Layout::new::<[u8; N]>();
+    // Allouer directement évite un tableau temporaire de N octets sur la pile.
+    let pointer = unsafe { PSRAM_HEAP.alloc_zeroed(layout) };
+    if pointer.is_null() {
+        alloc::alloc::handle_alloc_error(layout);
+    }
+    // La libération globale reconnaît l'adresse PSRAM, même sur le cœur 1.
+    unsafe { Box::from_raw(pointer.cast()) }
+}
 
 /// Tas interne, à créer avant la PSRAM et avant toute allocation.
 pub fn init_internal() {

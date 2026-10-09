@@ -28,12 +28,21 @@ fn config_changes_during_ota_do_not_wait_for_the_flash_owner() {
     let original = rig.core.config();
     let mut changed = original;
     changed.target_time_s = original.target_time_s + 1;
-    assert_ne!(rig.core.begin_flash(clock, FlashTarget::Screen, 1000), screen_core::core::FlashStart::Refused);
-    assert_eq!(rig.core.put_config(clock, &changed).status, ConfigStatus::Busy);
+    assert_ne!(
+        rig.core.begin_flash(clock, FlashTarget::Screen, 1000),
+        screen_core::core::FlashStart::Refused
+    );
+    assert_eq!(
+        rig.core.put_config(clock, &changed).status,
+        ConfigStatus::Busy
+    );
     assert_eq!(rig.core.reset_config(clock).status, ConfigStatus::Busy);
     assert_eq!(rig.core.config(), original);
     rig.core.finish_flash();
-    assert_eq!(rig.core.put_config(clock, &changed).status, ConfigStatus::Ok);
+    assert_eq!(
+        rig.core.put_config(clock, &changed).status,
+        ConfigStatus::Ok
+    );
 }
 
 #[test]
@@ -41,8 +50,51 @@ fn reset_config_cannot_change_the_running_brew() {
     let mut rig = prepared_rig();
     assert_eq!(start(&mut rig, ActionSource::Ui), ActionStatus::Ok);
     let original = rig.core.config();
-    assert_eq!(rig.core.reset_config(rig.clock()).status, ConfigStatus::Busy);
+    assert_eq!(
+        rig.core.reset_config(rig.clock()).status,
+        ConfigStatus::Busy
+    );
     assert_eq!(rig.core.config(), original);
+}
+
+#[test]
+fn awaiting_sensors_stop_excludes_new_actions_and_can_be_cancelled() {
+    let mut rig = Rig::new();
+    rig.ready();
+    let clock = rig.clock();
+    assert_eq!(
+        rig.core.begin_flash(clock, FlashTarget::Sensors, 1000),
+        screen_core::core::FlashStart::AwaitingStop
+    );
+    for action in [
+        Action::StartBrew,
+        Action::PurgePress,
+        Action::OpenMaintenanceValve,
+        Action::ResetSensors,
+        Action::ResetDimmer,
+    ] {
+        assert_eq!(
+            rig.core
+                .perform_action(clock, &cmd(action), ActionSource::Ui)
+                .status,
+            ActionStatus::CycleActive
+        );
+    }
+    assert_eq!(rig.core.reset_config(clock).status, ConfigStatus::Busy);
+    assert_eq!(
+        rig.core.put_config(clock, &Config::default()).status,
+        ConfigStatus::Busy
+    );
+    rig.core.cancel_pending_flash();
+    rig.core.finish_flash();
+    assert_eq!(
+        rig.core.put_config(clock, &Config::default()).status,
+        ConfigStatus::Ok
+    );
+    assert_eq!(
+        rig.core.begin_flash(clock, FlashTarget::Sensors, 1000),
+        screen_core::core::FlashStart::AwaitingStop
+    );
 }
 
 fn log_codes(outputs: &[Output]) -> Vec<u8> {

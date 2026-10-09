@@ -123,7 +123,8 @@ Valeurs du rapport (définitions ci-dessus). Les infusions avant le
 | 05/10 7 h 26 | 7,00 s, 24,1 ml, 1,19 bar | 1,20 s, 1,2 ml, goutte | 25,8 ml | 4,5 s | 13,3 s, 1,28 g/s, 1,85 ml/s | 22,4 g | 88,64 °C |
 | 06/10 7 h 19 | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
 | 08/10 8 h 43 | 6,30 s, 20,0 ml, 0,88 bar | 3,40 s, 6,1 ml, goutte | 26,7 ml | 4,5 s | 16,0 s, 1,07 g/s, 1,16 ml/s | 22,2 g | 87,69 °C |
-| **08/10 13 h 44** | 5,80 s, 20,3 ml, 0,83 bar | 3,40 s, 6,7 ml, goutte | 27,0 ml | 4,0 s | 15,0 s, 1,15 g/s, 1,39 ml/s | 22,2 g | 88,80 °C |
+| 08/10 13 h 44 | 5,80 s, 20,3 ml, 0,83 bar | 3,40 s, 6,7 ml, goutte | 27,0 ml | 4,0 s | 15,0 s, 1,15 g/s, 1,39 ml/s | 22,2 g | 88,80 °C |
+| **09/10 7 h 01** | 6,00 s, 20,6 ml, 0,89 bar | 3,10 s, 6,7 ml, goutte | 29,3 ml | 4,4 s | 13,7 s, 1,27 g/s, 1,93 ml/s | 22,2 g | 89,26 °C |
 
 ## Pistes pour le goût
 
@@ -659,3 +660,136 @@ variable entre cette infusion et la suivante.
 Une infusion du matin et une de l'après-midi à mouture égale sépareraient
 l'eau du réservoir de la durée du 0 % ; mesurer la température du réservoir
 au moment de l'infusion suffirait aussi.
+
+### 9 octobre, 7 h 01 — `261009-070144`
+
+**Contexte.** Firmware, loi de chauffe et réglages d'infusion inchangés
+(`configs/261005-075907.json`). Mouture grossie d'un pas depuis le 8 octobre
+à 13 h 44, seule variable. Pas de SCACE dans la capture. Observation de
+David : on voit que la mouture est plus grossière. Pas de remarque sur le
+goût ni sur le filet à 22 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,04 s | 8,05 s | — | — |
+| Remplissage | 8,09 s | 6,00 s | 20,6 ml (3,43 ml/s) | 0,38 → 0,89 bar |
+| Pré-infusion | 14,09 s | 3,10 s | 6,7 ml (2,15 ml/s) | 0,89 → 1,07 bar |
+| Infusion | 17,19 s | 18,00 s | 40,6 ml | 9,09 bar max |
+
+- Pression au repos avant l'infusion : 0,31 bar piégés.
+- Premier paquet au-dessus de 0,8 bar à 13,89 s (20,0 ml, 5,8 s après le
+  début du remplissage), passage en pré-infusion à 14,09 s : 200 ms.
+- Le firmware a vu la première goutte à 17,19 s et 27,2 ml, 0,9 s avant
+  l'échéance ; le rapport la place à 29,3 ml (≥ 0,3 g), 0,8 s plus tard.
+  Marge de remplissage : 6,6 à 8,7 ml selon la définition (6,7 ml la
+  veille à 13 h 44).
+- Montée de 4,4 s jusqu'à 8 bar, avec 4,0 g en tasse (3,8 g la veille).
+  Pompe à 100 % de 19,8 à 21,3 s. Débit en tasse sur 1 s au plus de
+  1,7 g/s, à 8 bar ; même fenêtre : 1,4 g/s la veille à 13 h 44, 1,5 g/s
+  le 8 octobre au matin, 1,9 g/s le 6 octobre.
+- Depuis 8 bar : 13,7 s, 1,27 g/s en tasse, 1,93 ml/s en amont, 21,6 g à
+  l'arrêt (au poids), 22,2 g final.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,89 ± 0,08 bar, pompe à
+  67 %, 1,26 g/s, soit **7,1 bar·s/g** (7,5 la veille, 6,3 le 6 octobre).
+- Après l'arrêt, la pression piégée tombe à 7,21 bar puis remonte à
+  9,36 bar en 4 s, comme les deux infusions précédentes.
+
+**Thermique.**
+
+| Grandeur | Mesure |
+| --- | ---: |
+| NTC pondérée par la tasse | **89,26 °C** (−0,74 °C) |
+| NTC pondérée par le volume | 90,02 °C |
+| Pic avant l'infusion | 92,12 °C, à 13,29 s (fin du remplissage) |
+| Minimum pendant l'écoulement | 87,50 °C, à l'arrêt de la pompe |
+| Minimum total | 86,55 °C à 40,2 s, ≈ 4,9 s après l'arrêt (3,38 °C sous la NTC de départ, 89,93 °C) |
+| 20 s après l'arrêt (fin de la capture) | 88,93 °C, en hausse |
+
+| Phase | Commande | SSR |
+| --- | ---: | ---: |
+| Précharge | 8,64 kJ | 9,00 kJ |
+| Remplissage | 5,49 kJ | 5,16 kJ |
+| Pré-infusion | 2,51 kJ | 2,52 kJ |
+| Infusion | 4,18 kJ | 3,60 kJ |
+| Récupération | 0,81 kJ | 1,20 kJ |
+
+La commande reste à 0 % de 17,29 à 28,89 s (**11,6 s**), puis suit le
+débit à 44–63 % pendant les 6,4 dernières secondes. 13,5 des 21,6 g en
+tasse arrivent pendant ce 0 %. De la précharge à l'arrêt : 20,8 kJ
+commandés, 20,3 kJ fournis par le SSR, pour 67,9 ml admis, soit
+0,299 kJ/ml fournis (0,289 la veille à 13 h 44). Le SSR suit la commande
+de plus près que d'habitude (−0,5 kJ contre −1,1 kJ) : en précharge, il
+fournit 0,36 kJ de plus que commandé.
+
+**Attendus vérifiés** (entrée du 8 octobre, 13 h 44) :
+
+| Attendu | Mesure |
+| --- | --- |
+| Remplissage : fin à 0,8 bar, 19 à 22 ml, ≈ 6 s | 20,6 ml, 6,0 s |
+| Pré-infusion : goutte en 2,1 à 3,4 s, 4 à 7 ml | 3,1 s, 6,7 ml |
+| Plateau : 6,4 à 7,0 bar·s/g, pompe à 68–70 % | **non** : 7,1 bar·s/g, pompe à 67 % ; juste au-dessus |
+| Depuis 8 bar : 12,5 à 14,5 s, 1,2 à 1,35 g/s | 13,7 s, 1,27 g/s |
+| Commande à 0 % : 12 à 13,5 s | **non** : 11,6 s |
+| Moyenne en tasse : 88,5 à 89,3 °C ; plus froide si l'eau du réservoir compte le matin | 89,26 °C, dans la fourchette, sans froid du matin |
+| Modèle, commande réelle : écart de −0,9 à −1,4 °C | **non** : −0,05 °C |
+| Filet à 22 g moins blond | non observé |
+
+**Lecture.**
+
+- *Mouture, mesuré.* Le pas a fait baisser la résistance au plateau de 7,5
+  à 7,1 bar·s/g, deux fois moins que le pas de midi la veille (8,3 → 7,5).
+  Rien ne dit si le pas était plus petit ou si la préparation a joué : à
+  mouture égale, la résistance a déjà varié de 8 % (5 et 6 octobre). La
+  galette reste entre le 6 octobre (trop grossière) et la veille à midi.
+- *Écart au modèle, en simulation.* Rejouée, la moyenne en tasse vaut
+  89,32 °C avec la commande et 89,35 °C avec l'énergie SSR : mesure −0,05
+  et −0,08 °C. Le minimum mesuré est 1,0 °C sous le modèle (2,9 °C la
+  veille à 13 h 44), le pic 1,3 °C au-dessus. Avec l'énergie SSR, l'écart en
+  tasse des infusions précédentes vaut −0,20 °C (6 octobre), −1,69 °C
+  (8 octobre, 8 h 43) et −0,79 °C (13 h 44).
+
+  | Infusion | 0 % pendant | Tasse sous 0 % | Mesure − modèle (commande) | Mesure − modèle (SSR) |
+  | --- | ---: | ---: | ---: | ---: |
+  | 06/10 7 h 19 | 11,5 s | 14,6 g | −0,68 °C | −0,20 °C |
+  | 09/10 7 h 01 | 11,6 s | 13,5 g | −0,05 °C | −0,08 °C |
+  | 08/10 13 h 44 | 14,0 s | 15,6 g | −1,33 °C | −0,79 °C |
+  | 08/10 8 h 43 | 15,4 s | 15,8 g | −2,14 °C | −1,69 °C |
+
+  La durée du 0 % n'explique pas tout : à 11,6 s contre 11,5 s, l'écart à
+  la commande passe de −0,68 à −0,05 °C. Avec l'énergie SSR, l'ordre se
+  tient, et la part du SSR en retrait sort de l'écart (≈ 0,5 °C le
+  6 octobre, rien ici). Ce qui reste suit encore la durée du 0 %, sur
+  quatre points.
+- *Eau du réservoir, mesuré.* Infusion du matin et tasse la plus proche du
+  modèle de la série : l'eau froide du matin ne suffit pas à expliquer
+  l'écart du 6 et du 8 octobre au matin. L'hypothèse de la veille (eau plus
+  chaude à 13 h 44) perd son appui ; la température du réservoir n'est
+  toujours pas mesurée.
+- *Tasse, mesuré.* La plus proche de la consigne depuis le remboursement
+  (−0,74 °C) : 0 % plus court, appoint repris 6,4 s avant l'arrêt (≈ 5 s
+  les deux infusions précédentes), SSR qui a suivi la commande. Ces trois
+  effets ne se séparent pas sur cette seule capture.
+- *Critère.* Tout ceci reste la NTC. Qu'une moyenne en tasse de 89,3 °C à
+  la NTC soit ≈ 89 °C dans le panier n'est pas vérifié : l'offset de
+  −10 °C (voir [chauffe-infusion.md](chauffe-infusion.md#objectif)) vient
+  d'essais au repos.
+
+**Décision.** David passe à la sonde SCACE pour vérifier ce que « consigne
+90 °C » donne réellement dans le panier. Réglages inchangés
+(`configs/261005-075907.json`), loi de chauffe inchangée : la mesure au
+panier décide avant tout changement de consigne ou de remboursement.
+
+**Attendus pour l'infusion suivante** (SCACE, même configuration) :
+
+| Point | Attendu |
+| --- | --- |
+| Préparation | `uv run firmware/tools/set_scace.py true` avant ; `scace_temperature_c` non nul pendant toute l'infusion |
+| Hydraulique | panier de simulation, trou de 0,3 mm : sans galette, ni le remplissage ni la goutte ne se comparent aux infusions ci-dessus ; débit à 9 bar estimé à 1,5 à 2 ml/s (orifice, coefficient 0,6), à relever |
+| Comparaison | SCACE et NTC sur la même capture : moyenne pondérée par la tasse des deux, écart au plateau, retard de la NTC sur la SCACE au creux |
+| Consigne | si la moyenne SCACE en tasse tombe à 90 ± 0,5 °C, l'offset de −10 °C tient pendant l'écoulement et la NTC reste un critère utilisable ; sinon, l'écart chiffre la correction de consigne |
+| Modèle, commande réelle | noter l'écart à la NTC, pour un cinquième point du tableau ci-dessus |
+
+Prolonger la capture à 40–60 s après l'arrêt : la SCACE montrera si l'eau au
+panier suit le creux de la NTC après l'arrêt.

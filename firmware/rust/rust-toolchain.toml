@@ -1,0 +1,5 @@
+# Les essais et les crates xtensa ont leur propre rust-toolchain.toml (`esp`),
+# plus proche donc prioritaire : ce fichier ne vaut que pour le workspace hôte.
+[toolchain]
+channel = "stable"
+components = ["clippy", "rustfmt"]

@@ -1,0 +1,15 @@
+[package]
+name = "protocol"
+version = "0.1.0"
+edition = "2024"
+description = "Protocole CAN, cadrage série, CRC et table de codes LOG de coffeeflow"
+build = "build.rs"
+
+[features]
+default = []
+# Le crate reste no_std dans tous les cas ; `std` ne sert qu'aux outils Mac.
+std = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive"], optional = true }

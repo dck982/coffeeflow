@@ -1,0 +1,8 @@
+# Workspace hôte (toolchain `stable`, tests sur le Mac). Les crates xtensa
+# (`screen`, `sensors`) et les essais sont autonomes : chacun a sa toolchain
+# `esp`, son `.cargo/config.toml` et son `Cargo.lock`, donc hors workspace.
+# `screen-core` et `coffeetool` s'ajoutent ici quand ils existent.
+[workspace]
+resolver = "3"
+members = ["protocol"]
+exclude = ["trials", "screen", "sensors"]

@@ -499,15 +499,9 @@ impl Presenter {
     fn fullscreen(&mut self, app: &AppWindow, s: &Snapshot, ssid: &str) {
         let (title, body, fault, progress) = if s.lockout {
             ("verrou de sécurité", "la pompe est restée en marche plus de 60 s. couper la machine à l'interrupteur principal, puis la rallumer".into(),true,false)
-        } else if !s.sensors_alive && s.screen_uptime_s >= 3 {
-            (
-                "module interne injoignable",
-                "le module interne ne répond plus. les commandes de pompe et de vanne sont coupées"
-                    .into(),
-                true,
-                false,
-            )
         } else if s.flash_active {
+            // Avant « injoignable » : un flash reste suivi même sans capteurs,
+            // c'est souvent pour les réparer qu'on flashe.
             (
                 "mise à jour",
                 format!(
@@ -522,6 +516,14 @@ impl Presenter {
                 ),
                 false,
                 true,
+            )
+        } else if !s.sensors_alive && s.screen_uptime_s >= 3 {
+            (
+                "module interne injoignable",
+                "le module interne ne répond plus. les commandes de pompe et de vanne sont coupées"
+                    .into(),
+                true,
+                false,
             )
         } else if s.screen_uptime_s < 2 {
             ("coffeeflow", String::new(), false, false)

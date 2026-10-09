@@ -9,3 +9,5 @@ pub mod ota_proxy;
 pub mod otadata;
 pub mod proxy_service;
 pub mod serial_bridge;
+
+mod serial_log;

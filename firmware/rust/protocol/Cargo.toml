@@ -16,3 +16,4 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 
 [dev-dependencies]
 embedded-storage = "0.3"
+heapless = "0.9.1"

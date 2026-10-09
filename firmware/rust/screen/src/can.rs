@@ -49,6 +49,7 @@ pub async fn task(mut twai: Twai<'static, Async>) -> ! {
     // Échéance fixe : sur un bus chargé, un délai relancé à chaque trame ne
     // lirait jamais les compteurs.
     let mut next_poll = Instant::now() + Duration::from_millis(100);
+    let mut recovering = false;
     loop {
         match select3(
             twai.receive_async(),
@@ -97,9 +98,13 @@ pub async fn task(mut twai: Twai<'static, Async>) -> ! {
             next_poll = Instant::now() + Duration::from_millis(100);
             RX_ERRORS.store(twai.receive_error_count(), Relaxed);
             TX_ERRORS.store(twai.transmit_error_count(), Relaxed);
-            if twai.is_bus_off() {
+            let bus_off = twai.is_bus_off();
+            if bus_off && !recovering {
+                // Un nouveau basculement reset relancerait le comptage des
+                // 128 séquences récessives si la récupération est déjà partie.
                 twai.initiate_recovery();
             }
+            recovering = bus_off;
         }
     }
 }

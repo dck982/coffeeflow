@@ -47,6 +47,9 @@ pour le binaire écran ; aucun flash ni moniteur n'a été lancé.
 L'assemblage et les essais physiques restent nécessaires : démarrage des
 services, interconnexion HTTP/OTA locale/NVS, débit série, bus-off réel,
 retransmission sur CAN et rollback. Les journaux texte et le cadrage série
-partagent UART0 comme le firmware de référence ; le décodeur recadre après
-le bruit, mais l'intégrité d'une trame pendant un journal concurrent doit
-être vérifiée sur carte.
+partagent UART0 comme le firmware de référence. `serial_bridge::init_logger`
+remplace le logger initial ; après lancement du transmetteur, les journaux
+passent dans une file sans allocation en tas. Un seul propriétaire écrit
+chaque journal/PDU en entier, et le zéro terminal des journaux recadre COBS.
+Une file de journaux pleine abandonne le message plutôt que bloquer la radio.
+Un test hôte vérifie que même un journal tronqué préserve la trame suivante.

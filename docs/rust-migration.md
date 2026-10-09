@@ -33,6 +33,23 @@ identifiants Wi-Fi. Une copie (`read_flash`, `parttool read_partition`,
 « sauvegarde de précaution » de NVS. La protection consiste à ne jamais
 l'écrire.
 
+**À partir de l'étape 8 (décision du 2026-10-09), la règle est levée en
+partie sur l'écran**, et sur lui seul. Il est sur le bureau, en USB, et
+coffeeflow se reconstruit depuis Git : la phase devient destructive. Sont
+alors permis, et seulement dans le cadre de l'étape 8 :
+
+- `esp-storage` et les écritures en flash depuis Rust : slot inactif,
+  `otadata`, et la zone de test NVS décrite à l'étape 8 ;
+- la réécriture du bootloader de l'écran, une fois, en USB (étape 8,
+  préalable) ;
+- `nvs` lu, effacé ou restauré **uniquement par l'outil `nvs-vault`**, qui
+  écrit la sauvegarde hors du dépôt et n'en affiche que la taille et le
+  SHA-256. Claude ne lit jamais ce fichier.
+
+`factory`, la table de partitions, `assets` et `ota_staging` restent
+intouchables. Sur `sensors`, rien ne change : on n'y écrit qu'à travers la
+chaîne OTA C++ existante (étape 9).
+
 ### Commandes interdites sur l'écran
 
 | Commande | Pourquoi |
@@ -493,7 +510,8 @@ Pistes, à trancher avant l'OTA en Rust :
 avec la radio sur le cœur 1, il faudra le suspendre le temps de chaque
 écriture.
 
-**Mesure possible, reportée (décision du 2026-10-08).** L'affichage de
+**Mesure possible, reportée (décision du 2026-10-08), puis prévue à
+l'étape 8a (décision du 2026-10-09).** L'affichage de
 l'essai 03 tournerait pendant qu'on efface puis réécrit un secteur, avec
 les compteurs de retards et de recalages, et un contrôle visuel. Cela
 confirmerait ou non que l'image se rétablit seule après une ou deux trames.
@@ -520,6 +538,7 @@ répondent en partie ; le reste se conçoit à part.
    Reste à mesurer son rendu sur notre affichage (étape 6).
 3. **La stratégie d'écriture en flash** : OTA, relais vers `ota_staging`,
    `otadata` et stockage persistant (section « Écritures en flash »).
+   Étapes 8 (écran) et 9 (`sensors`).
 
 Trois autres points à couvrir, qui ne remettent pas en cause la viabilité :
 
@@ -1428,6 +1447,148 @@ Slint + BLE + Wi-Fi tient en SRAM** : pas d'essai de bascule entre radios.
   aller-retour. Critères : ceux de l'affichage, pendant chaque changement
   de mode.
 
+### 8. `08-flash` — écritures en flash sur l'écran
+
+Décision du 2026-10-09 : l'étape 7 close, il reste la troisième question
+de viabilité, l'écriture en flash. Elle se tranche sur l'écran, en phase
+destructive (règle n° 1, levée partielle).
+
+**Le support Rust (relevé le 2026-10-09).**
+
+| Besoin | Crate | État |
+|---|---|---|
+| Lire, écrire, effacer | `esp-storage` 0.10 (esp-rs) | Fonctions de la ROM, en section critique. `multicore_auto_park` suspend l'autre cœur pendant l'opération. `read`/`write` posent un secteur de 4 Ko sur la pile. |
+| Partitions, `otadata`, OTA | `esp-bootloader-esp-idf` 0.6 (esp-rs) | `OtaUpdater`, états `New`/`PendingVerify`/`Valid`/`Invalid`/`Aborted`, changement de slot. À vérifier : `current_app_partition` prend la séquence la plus haute sans regarder l'état, là où le bootloader IDF écarte une copie `INVALID` ; l'app booté se lit par `booted_partition`. |
+| NVS | `esp-nvs` 0.6.2 (tiers, un mainteneur, depuis 2025-11) | Format d'IDF, blobs multi-pages, migration de l'ancien format, CRC vérifiés. Le maillon faible : à valider dans les deux sens contre les outils d'IDF. Repli : notre propre format, migré au premier démarrage. |
+
+**Préalable 1 : `nvs-vault`.** Script `firmware/rust/nvs-vault.sh`, sur le
+modèle de `parttool.py` :
+
+- `save <fichier>` : lit `nvs`, écrit le fichier en `chmod 600`, refuse un
+  chemin dans le dépôt, affiche la taille et le SHA-256, rien d'autre ;
+- `erase` : efface `nvs`, après `save` dans la même session ;
+- `restore <fichier>` : réécrit `nvs`, relit, compare les SHA-256.
+
+David garde le fichier ; Claude ne le lit pas. `save` passe avant toute
+écriture USB de l'étape (bootloader compris).
+
+**Préalable 2 : le bootloader de l'écran avec rollback.** Le bootloader
+installé laisse les images en `NEW` ; celui de `sensors` les fait passer en
+`PENDING_VERIFY` (relevé du 2026-10-09, plus bas). Pour répéter sur le
+bureau le mécanisme de `sensors`, on réécrit le **bootloader** (à `0x0`),
+et lui seul. Ni l'image `factory`, ni la table de partitions : la
+réécriture de `factory` se prépare à part (« Cible finale »).
+
+```sh
+source ~/.espressif/tools/activate_idf_v6.1.sh
+PORT=/dev/cu.usbmodem5B790235091
+cd firmware/screen
+# 1. Reconstruire : le bootloader.bin présent date du 2026-09-12.
+#    sdkconfig : BOOTLOADER_APP_ROLLBACK_ENABLE=y, dio, 80m, 16MB.
+idf.py bootloader
+# 2. Garder l'ancien (0x0 à 0x8000, rien de secret), hors de build/.
+esptool.py --chip esp32s3 -p $PORT read-flash 0x0 0x8000 ~/coffeeflow-bootloader-avant.bin
+# 3. Écrire le nouveau, et rien d'autre.
+esptool.py --chip esp32s3 -p $PORT write-flash --flash-mode dio \
+  --flash-freq 80m --flash-size 16MB 0x0 build/bootloader/bootloader.bin
+```
+
+`nvs-vault save` passe avant l'étape 3. Contrôle : coffeeflow redémarre
+sur `ota_1`, puis une OTA C++ de l'écran démarre en `PENDING_VERIFY`
+(`firmware.screen.ota`) et se confirme. En cas d'échec, on réécrit
+l'ancien bootloader avec la même commande. C'est aussi la correction que la
+doc prévoit avant la production (« Cible finale »).
+
+**8a. La flash et l'affichage.** L'essai 07, avec en plus l'effacement
+puis la réécriture de secteurs dans la fin du slot de test, au-delà de
+l'image, radio suspendue par `multicore_auto_park`.
+
+- **Mesures :** durée d'un effacement de secteur et d'une écriture de page
+  sur la puce de l'écran ; retards et recalages de la recopie ; contrôle
+  visuel ; liens BLE et HTTP après chaque série.
+- **Réussi si :** l'image se rétablit seule après chaque opération, sans
+  décalage permanent, et les liens tiennent. Les retards pendant une
+  opération sont attendus : on les compte, ils décident de l'UI pendant
+  une OTA (écran fixe « mise à jour » ou non).
+
+**8b. Un cycle OTA complet, Rust et C++ mêlés.** Le slot inactif porte
+coffeeflow : la Rust A l'écrase. C'est voulu, et c'est le meilleur test :
+
+1. La Rust A, dans `ota_0`, reçoit **l'image C++ de coffeeflow** par
+   `POST /firmware` (point d'accès de l'essai), l'écrit dans `ota_1`, pose
+   `otadata` en `New` et redémarre. Coffeeflow démarre en
+   `PENDING_VERIFY` et se confirme par `POST /firmware/confirm`. Rust
+   installe donc du C++.
+2. Coffeeflow installe une Rust B par sa route habituelle. La Rust B,
+   en `PENDING_VERIFY`, joue tour à tour :
+   - ne se valide pas, et redémarre après son délai : retour sur
+     coffeeflow ;
+   - panique au démarrage : retour sur coffeeflow ;
+   - se bloque, watchdog RTC armé : retour sur coffeeflow ;
+   - se valide : elle reste.
+
+   Chaque cas se rejoue par une nouvelle OTA de coffeeflow.
+
+- **Réussi si :** les quatre cas donnent le résultat attendu, `otadata`
+  reste lisible par `otatool` et par coffeeflow après chaque écriture
+  Rust, et l'affichage se comporte comme en 8a pendant la réception.
+- **À relever :** ce que fait `esp-backtrace` après une panique (il doit
+  redémarrer, pas s'arrêter), et si `esp_hal::init` coupe le watchdog RTC
+  laissé par le bootloader.
+
+**8c. NVS, d'abord sans le vrai NVS.**
+
+1. Une image NVS générée sur le Mac par `nvs_partition_gen.py` d'IDF, avec
+   de faux identifiants et les types de coffeeflow (chaînes, entiers,
+   blobs), écrite dans la fin du slot de test. `esp-nvs` doit tout relire.
+2. `esp-nvs` y écrit, modifie et efface des clés ; la zone relue sur le
+   Mac doit se décoder avec `nvs_tool.py` d'IDF.
+3. Seulement ensuite, le vrai NVS, après `nvs-vault save` : Rust lit les
+   clés de coffeeflow et n'en affiche que les noms, types et longueurs.
+   Puis Rust écrit une clé de test ; coffeeflow redémarre et doit relire
+   tous ses réglages. `nvs-vault restore` à la fin, dans tous les cas.
+
+- **Réussi si :** les deux sens se décodent sans perte, et coffeeflow
+  relit son NVS après le passage de Rust. Sinon : notre propre format,
+  avec migration au premier démarrage.
+
+### 9. `09-sensors-probe` — première image Rust sur `sensors`, sans USB
+
+Décision du 2026-10-09 : `sensors` passe à Rust par la chaîne OTA C++
+actuelle, sans jamais ouvrir la machine. L'étape vient après la 8b, qui
+aura éprouvé le même mécanisme sur l'écran.
+
+**Le bootloader de `sensors` fait le rollback (relevé du 2026-10-09).**
+`sensors` 0.3.48 journalise l'état OTA au démarrage dans `arg32` de
+`OTA_PENDING_VERIFY`. Après une OTA par l'écran :
+`OTA_PENDING_VERIFY etat=PENDING_VERIFY`, puis `CONFIRM_SENSORS_OTA` et
+`OTA_VALIDATED` en 1,1 s. Une image qui ne se valide pas et redémarre
+revient donc sur l'image précédente.
+
+**Conséquence : la sonde n'a aucun code d'écriture en flash.** La chaîne
+C++ (proxy de l'écran, `ota_staging`, récepteur de `sensors`) écrit l'image
+Rust dans le slot inactif ; l'image C++ reste dans l'autre. La sonde ne se
+valide jamais : le redémarrage la renvoie toujours sur le C++.
+
+- **Sorties sûres d'abord :** SSR, vanne et dimmer au repos, avant toute
+  autre initialisation, comme l'image C++.
+- **Watchdog RTC** armé dès le début de `main` ; une panique redémarre.
+- **CAN :** écoute, et un `LOG BOOT` puis un `LOG` toutes les 5 s, `arg32`
+  au repère `0x52555354` (« RUST ») et à l'uptime. Ni `PING` ni `PONG` :
+  l'écran voit la présence perdue, machine au repos. `CONFIRM_SENSORS_OTA`
+  est ignoré.
+- **Retour :** redémarrage volontaire après 30 s, comme le rollback C++.
+- **Image :** ≤ 1 Mo (`ota_staging`), ≤ 1 500 Ko (slot de `sensors`).
+- **Réussi si :** le moniteur `coffeetool` montre les `LOG` de la sonde,
+  puis, après 30 s, le `PING` de `sensors` 0.3.48, `OTA_VALIDATED` absent
+  (l'image C++ est déjà `VALID`), et les échos d'actionneurs reviennent.
+- **Si la sonde ne revient pas :** 30 s, puis le watchdog, puis le
+  rollback du bootloader au redémarrage suivant. Au-delà, l'image
+  `factory` de `sensors`, jamais réécrite, reste le filet.
+
+Seulement après : la vraie app Rust de `sensors`, avec sa propre
+validation par CAN et la réception FLASH en Rust.
+
 ---
 
 ## Journal
@@ -1583,3 +1744,11 @@ Résultats datés, au fil des essais.
   minimum 34,0 Ko. Rendu de l'infusion ~30 ms en moyenne sous charge.
   Rien de visible à l'écran. Décision : 20 lignes, 30 lignes non essayé.
   **Étape 7 close** : la combinaison tient en SRAM.
+- **2026-10-09 :** support Rust de la flash relevé : `esp-storage` 0.10,
+  `esp-bootloader-esp-idf` 0.6 (OTA complète), `esp-nvs` 0.6.2 (tiers,
+  format IDF). Étapes 8 (écran : flash et affichage, cycle OTA Rust et
+  C++, NVS) et 9 (sonde Rust sur `sensors` par la chaîne OTA C++) écrites.
+  Règle n° 1 levée en partie sur l'écran pour l'étape 8.
+- **2026-10-09 :** `sensors` 0.3.48 flashé par l'écran : il démarre en
+  `PENDING_VERIFY`, puis `OTA_VALIDATED`. Le bootloader installé sur
+  `sensors` fait le rollback ; celui de l'écran ne le fait pas.

@@ -43,6 +43,18 @@ def test_decode_boiler_adc_diagnostics():
     assert "interruption=1000ms" in log(44, arg16=0x48, arg32=1000)
 
 
+def test_decode_ota_pending_verify_state():
+    def log(arg32):
+        frame = RawFrame(
+            can_id=encode_can_id(CanId(MessageType.LOG, Dest.BROADCAST, Node.SENSORS)),
+            data=LogPayload(code=20, severity=1, arg16=0, arg32=arg32).pack(),
+        )
+        return decode_frame(0.0, frame)
+
+    assert "OTA_PENDING_VERIFY" in log(0) and "etat=NEW" in log(0)
+    assert "etat=PENDING_VERIFY" in log(1)
+
+
 def test_decode_unknown_type_does_not_crash():
     frame = RawFrame(can_id=0x7FF, data=b"\xff" * 8)
     line = decode_frame(0.0, frame)

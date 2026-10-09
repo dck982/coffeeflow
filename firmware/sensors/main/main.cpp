@@ -156,6 +156,9 @@ bool g_presence_lost = true;  // état de repos correct, carte seule sur la tabl
 
 // Validation OTA.
 bool g_ota_pending_verify = false;
+// État OTA de l'image au démarrage (esp_ota_img_states_t), journalisé dans
+// OTA_PENDING_VERIFY : il dit si le bootloader installé fait le rollback.
+uint32_t g_ota_boot_state = 0;
 int64_t g_ota_pending_since_us = 0;
 bool g_ota_roundtrip_confirmed = false;
 bool g_ota_screen_confirmed = false;
@@ -1248,6 +1251,7 @@ extern "C" void app_main() {
       (ota_state == ESP_OTA_IMG_PENDING_VERIFY || ota_state == ESP_OTA_IMG_NEW)) {
     g_ota_pending_verify = true;
     g_ota_pending_since_us = now_us();
+    g_ota_boot_state = static_cast<uint32_t>(ota_state);
   }
 
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(kGpioCanTx, kGpioCanRx, TWAI_MODE_NORMAL);
@@ -1266,7 +1270,7 @@ extern "C" void app_main() {
 
   send_log(common::LogCode::kBoot, common::LogSeverity::kInfo);
   if (g_ota_pending_verify) {
-    send_log(common::LogCode::kOtaPendingVerify, common::LogSeverity::kInfo);
+    send_log(common::LogCode::kOtaPendingVerify, common::LogSeverity::kInfo, 0, g_ota_boot_state);
   }
   ESP_LOGI(kTag, "boot, version %d.%d.%d, verrou=%s", common::kFirmwareVersionMajor,
            common::kFirmwareVersionMinor, common::kFirmwareVersionPatch,

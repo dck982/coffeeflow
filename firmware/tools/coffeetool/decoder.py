@@ -58,6 +58,9 @@ def _format_payload(message_type: MessageType, data: bytes) -> str:
                 a1 -= 0x10000
             return (f"{name} [{severity}] adresse={p.arg16:#04x} "
                     f"A0_brut={a0} A1_brut={a1}")
+        if name == "OTA_PENDING_VERIFY":
+            state = {0: "NEW", 1: "PENDING_VERIFY"}.get(p.arg32, f"{p.arg32:#x}")
+            return f"{name} [{severity}] etat={state}"
         if name == "BOILER_ADC_RECOVERED":
             return f"{name} [{severity}] adresse={p.arg16:#04x} interruption={p.arg32}ms"
         extra = []

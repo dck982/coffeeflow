@@ -71,7 +71,7 @@
   comment: Flash abandonné ou CRC invalide.
 - name: OTA_PENDING_VERIFY
   severity: info
-  comment: Nouvelle image démarrée, en attente de validation par ping/pong CAN.
+  comment: Nouvelle image démarrée, en attente de validation par ping/pong CAN. arg32 = état OTA au démarrage, 0 NEW (pas de rollback du bootloader) ou 1 PENDING_VERIFY (rollback actif).
 - name: OTA_VALIDATED
   severity: info
   comment: Nouvelle image validée, devient l'image courante.

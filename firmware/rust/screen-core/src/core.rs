@@ -381,6 +381,8 @@ struct Timestamps {
     heating_received_us: i64,
     heating_deadline_us: i64,
     last_sensors_message_us: i64,
+    /// Réception du dernier PING/PONG des capteurs, base de leur uptime.
+    sensors_identity_received_us: i64,
     last_flow_edge_received_us: i64,
     scale_received_us: i64,
     /// Dernière trame SCACE avec température, 0 sinon.
@@ -1273,6 +1275,7 @@ impl<S: ConfigStore> Core<S> {
         self.snapshot.sensors_version_minor = version.minor;
         self.snapshot.sensors_version_patch = version.patch;
         self.snapshot.sensors_uptime_s = identity.uptime_s;
+        self.t.sensors_identity_received_us = now;
     }
 
     /// L'écran ne demande plus STATUS_PRESSURE : la pression vient de A2. Un
@@ -2104,6 +2107,13 @@ impl<S: ConfigStore> Core<S> {
             || now - t.last_flow_edge_received_us > FLOW_SILENCE_MS * 1000
         {
             result.flow_ml_s = 0.0;
+        }
+        // Les capteurs ne donnent leur uptime qu'au PING de démarrage et aux
+        // vérifications de présence, rares en service : sans extrapolation,
+        // il resterait figé à sa valeur du démarrage. Le C++ le laissait figé.
+        if result.sensors_alive && t.sensors_identity_received_us != 0 {
+            let elapsed_s = ((now - t.sensors_identity_received_us) / 1_000_000) as u32;
+            result.sensors_uptime_s = result.sensors_uptime_s.saturating_add(elapsed_s);
         }
         result.screen_uptime_s = (now / 1_000_000) as u32;
         result

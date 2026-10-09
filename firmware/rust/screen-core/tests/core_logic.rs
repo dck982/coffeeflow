@@ -233,6 +233,11 @@ fn ping_from_sensors_gets_a_pong_and_updates_version() {
     assert_eq!(pong.node(), Some(Node::Screen));
     let s = rig.snapshot();
     assert_eq!((s.sensors_version_minor, s.sensors_uptime_s), (4, 77));
+    // Sans nouvel échange d'identité, l'uptime avance avec l'horloge de
+    // l'écran tant que les capteurs restent vivants.
+    rig.advance(2500);
+    rig.publish_actuators();
+    assert_eq!(rig.snapshot().sensors_uptime_s, 79);
     // PING hérité (DLC 0) : PONG aussi.
     rig.take_outputs();
     let legacy = Frame::new(

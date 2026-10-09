@@ -383,7 +383,7 @@ reçu, l'état de la LED, un éventuel `PING` v0.4.1, et l'instant du retour de
 d'incrément à chaque image tant que la première installation n'a pas
 abouti).
 
-État des cartes à la fin de la session :
+État des cartes à ce moment (dépassé, voir « `sensors` Rust installé ») :
 - `sensors` : C++ 0.3.48 actif et `VALID` ; l'autre slot contient l'image
   Rust `no-validate` (non validée, jamais rechoisie par le bootloader).
 - Écran : 0.4.1 dans `ota_1`, actif et confirmé ; `ota_0` = build
@@ -427,15 +427,40 @@ LED du shield Grove clignote déjà à 1 Hz ; la nôtre passe à 5 Hz.
   sur le cœur 0. Sans effet sur ce blocage, qui survient pendant
   l'initialisation, sur le cœur 0 dans les deux cas.
 
-À comparer avec une capture du C++ au repos (non relevé côté C++) :
-- `DIMMER_MAINS_FREQ` toutes les ~1 s en Rust, alors que la relecture à
-  vide est à 2 s (`DIMMER_HEALTH_PERIOD_US`) ;
-- `STATUS_HEATING` demandé à 250 ms, émis toutes les ~250-310 ms ;
-- l'écran renvoie `CONFIRM_SENSORS_OTA` à chaque seconde tant que l'image
-  est en attente (attendu en `no-validate`).
+Comparé à une capture de 0.3.48 au repos, identique au C++ :
+`DIMMER_MAINS_FREQ` toutes les 0,4 à 1 s, `STATUS_HEATING` toutes les
+~300 ms pour 250 ms demandées, `CONFIRM_SENSORS_OTA` de l'écran chaque
+seconde (même à une image déjà validée).
 
-Prochaine étape : la première installation qui se valide (sans
-`no-validate`).
+### `sensors` Rust installé et validé (2026-10-09)
+
+- Image normale 0.4.1 reçue par le C++ 0.3.48 : `OTA_VALIDATED` 1,2 s après
+  le démarrage, au premier `CONFIRM_SENSORS_OTA` ; toujours là 40 s après.
+- Écran puis `sensors` passés en **0.4.2** : écran par HTTP (`ota_0`,
+  confirmé) ; `sensors` 0.4.2 reçu par le **récepteur Rust** 0.4.1 :
+  82 blocs, `FLASH_DONE`, démarrage 0,3 s après, `OTA_VALIDATED` 1,1 s
+  après le démarrage. Le C++ n'est plus sur `sensors` : l'autre slot
+  contient le Rust 0.4.1.
+- `uptime_s` des capteurs dans `/telemetry` : les capteurs ne donnent leur
+  uptime qu'au PING de démarrage et aux vérifications de présence, rares en
+  service ; l'écran le laissait figé (0 en pratique), comme le C++. Écart
+  voulu (0.4.2) : tant que les capteurs sont vivants, l'écran ajoute le
+  temps écoulé depuis le dernier PING/PONG. La détection d'un redémarrage
+  compare toujours la valeur reçue. Vérifié : 35 s.
+- La LED à 5 Hz n'a pas été vue. Le clignotement à 1 Hz est sans doute le
+  voyant de charge du shield (sans batterie) ; la LED utilisateur du XIAO
+  (orange, GPIO21, près de l'USB-C) est petite et peut être masquée.
+- Écart connu, non corrigé : `twai_bus_errors` vaut toujours 0 en Rust
+  (`board.rs`) ; le contrôleur n'expose pas ce compteur, que le pilote IDF
+  tenait par interruption. Le diagnostic de câblage du C++ (1,2 million
+  d'erreurs relevées sous 0.3.48) est donc perdu.
+
+État des cartes :
+- `sensors` : Rust 0.4.2 actif et validé ; l'autre slot, Rust 0.4.1 validé.
+  Plus de C++ sur `sensors`.
+- Écran : 0.4.2 dans `ota_0`, actif et confirmé ; `ota_1` = 0.4.1.
+- Images : `/tmp/screen-0.4.2.{bin,elf}`, `/tmp/sensors-0.4.2.{bin,elf}`.
+  Perdues au redémarrage du Mac.
 
 ### Pour reprendre
 
@@ -449,8 +474,7 @@ Prochaine étape : la première installation qui se valide (sans
   vendorées (esp-nvs, esp-hal, esp-rtos : mesure des piles radio et
   épinglage de la tâche `timer`).
 - Défaut relevé, non corrigé : NVS est rouvert à chaque requête.
-- État des cartes : voir la fin de « Première installation de `sensors`
-  Rust ».
+- État des cartes : voir la fin de « `sensors` Rust installé et validé ».
 
 ## Référence de comportement
 

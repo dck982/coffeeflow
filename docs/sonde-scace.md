@@ -11,7 +11,7 @@ de la chauffe et permettra de recaler l'offset de −10 °C (voir
 | --- | --- |
 | Sonde | EPCOS B57861S0103F, NTC 10 kΩ ±1 % à 25 °C, courbe R/T 8016, B25/100 = 3988 K ±0,3 %. Perle de 2,41 mm, fils de 0,5 mm. |
 | Puck | `print/parts/sim_puck.py`, PETG, Ø 57 × 13,5 mm. La perle affleure au sommet, en sortie du canal incliné à 45°, scellée au silicone Loctite SI 5366. Les fils sortent sous le puck, entourés d'un joint torique. |
-| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde. |
+| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). |
 | Boîtier | `print/parts/scace_box.py` : LDO 5 V → 3,3 V, ADS1115, résistance 1 kΩ, Wago 5 et 3 pôles. Les fils de la sonde y sont prolongés en 0,25 mm². |
 | Lecteur | M5Stack Core2 sur batterie, port A (Grove) : jaune = SCL = GPIO32, blanc = SDA = GPIO33. Pull-ups de 10 kΩ sur le breakout ADS1115. |
 
@@ -266,6 +266,96 @@ TFA Dostmann 30.1061, donné à ±1 °C de −20 à 150 °C. Il lit −0,2 K à 
 pour 98,39 °C). Il est donc bien meilleur que sa fiche en ces deux points,
 mais son erreur entre les deux reste inconnue : il sert de contrôle, pas de
 référence pour B.
+
+## Calibration de la consigne chaudière
+
+But : mesurer l'eau au panier pour recaler l'offset de −10,5 °C entre la NTC
+chaudière et la température utilisateur (voir
+[chauffe-infusion.md](chauffe-infusion.md#objectif)). Le choix entre un
+offset unique, un offset et une pente sur plusieurs consignes, ou une
+séparation entre perte statique et dynamique de la loi d'infusion attend
+les données.
+
+Les purges se lancent **depuis l'écran, en mode machine** : en Wi-Fi, le BLE
+de l'écran est éteint et la capture HF n'a ni la sonde ni le poids.
+`scace_ble_log.py` tourne en parallèle sur le Mac pour couvrir l'avant et
+l'après-purge avec les codes bruts. La capture HF est ensuite téléchargée
+en Wi-Fi.
+
+### Retard de la NTC à la mise en chauffe, 9 octobre 2026
+
+Capture `monitor-heating-20261009-104655-351980.json` : chauffe activée à
+100 % depuis 31,14 °C sonde (machine froide), bruit de 0,009 K.
+
+| Repère | Après la mise en marche du SSR |
+| --- | ---: |
+| +0,05 K | 11,6 s |
+| +0,1 K | 12,1 s |
+| +1 K | 14,2 s |
+| Retard pur ajusté, plus 3 premiers ordres de 1,67 s | 9,9 s |
+| Délai moyen (asymptote de la rampe) | 14,9 s |
+
+- Le retard pur de 10 s rejoint celui des montées du 28 septembre depuis 53
+  et 80 °C (voir
+  [chauffe-chaudiere.md](chauffe-chaudiere.md#retard-de-la-ntc-28-septembre)).
+- La rampe atteint 1,37 K/s à la sonde, près du double des 0,72 K/s d'une
+  chaudière chauffée uniformément : à froid, l'eau chaude monte vers la NTC.
+  Le délai moyen est donc plus court que les 17,6 s du modèle ajusté à
+  chaud, qui reste la référence près de la consigne.
+- Conséquence pour la calibration : une NTC stable ne prouve pas
+  l'équilibre ; NTC et SCACE se comparent en moyenne ou en palier, pas
+  instant par instant.
+
+### Première purge, 9 octobre 2026
+
+Purge de 10 s à pompe 100 %, consigne de 90 °C, panier 0,3 mm. Captures
+`261009-111018.json` (HF) et `scace-20261009-110844.csv` (Mac) ; les deux
+concordent à la seconde, aucune trame perdue. Puck, panier et porte-filtre
+à l'ambiante. **Balance non connectée** : `weight_g` reste à 0, bit de
+validité absent.
+
+**L'eau coulait le long des fils** sous le panier. Si les fils sont nus
+(0,5 mm dans 0,6 mm), chaque trou laisse un anneau de 0,086 mm², soit
+0,17 mm² pour les deux contre 0,071 mm² pour le trou de mesure : la fuite
+dominerait le débit. Hypothèse, la section des fils n'a pas été vérifiée.
+
+| Instant | SCACE | NTC utilisateur | Pression | Volume amont |
+| --- | ---: | ---: | ---: | ---: |
+| Porte-filtre verrouillé (−11 s) | 23,3 °C | — | — | — |
+| Début de la purge | 40,7 °C | 89,7 °C | 0,3 bar | 0 ml |
+| 3 s | 64,1 °C | 89,7 °C | 0,3 bar | 11,6 ml |
+| Arrêt de la pompe, 10 s | 73,4 °C | 83,8 °C | 5,8 bar | 37,1 ml |
+| Maximum SCACE, 13 s | **75,3 °C** | 80,6 °C | 6,2 bar | 38,3 ml |
+| 64 s | 69,2 °C | — | — | — |
+
+- Débit amont de 4,0 ml/s pendant 5 s, puis 3,25 ml/s à l'arrêt ; la
+  pression n'atteint que 5,8 bar en 10 s (fuite et air au-dessus du puck).
+- Après l'arrêt, la pression monte encore de 5,5 à 6,9 bar en 5 s, pompe à
+  0 % et SSR à 35 %. Probablement la chaudière isolée par la vanne trois
+  voies, qui se dilate en chauffant ; non vérifié.
+- La NTC commence à baisser 5 s après le début de la purge (89,7 → 79,4 °C à
+  15 s), dans l'ordre des 6,4 s du chemin eau admise → NTC.
+- **Première piste d'offset : environ 15 K.** Au maximum de la SCACE
+  (75,3 °C à 13 s), la NTC lit 80,6 °C utilisateur, soit 91,1 °C sonde :
+  15,8 K d'écart, contre 10,5 K pour l'offset actuel. C'est l'ordre de
+  l'offset d'usine du Gicar, d'environ 15 °C (−14 °C retenus en 0.3.16 pour
+  un affichage proche de Gicar).
+- L'écart dépend de l'instant comparé :
+
+  | Instant comparé | NTC sonde | SCACE | Écart |
+  | --- | ---: | ---: | ---: |
+  | Début de la purge | 100,2 °C | 75,3 °C (maximum) | 24,9 K |
+  | Arrêt de la pompe | 94,3 °C | 73,4 °C | 20,9 K |
+  | Maximum SCACE, même instant | 91,1 °C | 75,3 °C | 15,8 K |
+
+  Deux biais de sens opposés : le puck, le panier et le porte-filtre froids
+  font lire la SCACE trop bas (elle montait encore de 0,5 K/s, sans
+  palier), ce qui gonfle l'écart ; le retard de la NTC sur l'eau admise
+  (≈ 6 s) fait comparer au même instant une NTC déjà refroidie, ce qui le
+  réduit. L'essai donne l'ordre de grandeur, pas l'incertitude.
+
+Suite, une fois l'étanchéité sèche (24 h) : purges de **15 s**, balance
+connectée, puck et porte-filtre chauffés par une ou deux purges jetées.
 
 ## Firmware `firmware/scace`
 

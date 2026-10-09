@@ -1,0 +1,101 @@
+[package]
+edition      = "2024"
+name         = "trial-07-slint-radio"
+rust-version = "1.95"
+version      = "0.1.0"
+# ble.rs et wifi.rs, à côté de main.rs, sont des modules et non des binaires.
+autobins     = false
+
+[[bin]]
+name = "trial-07-slint-radio"
+path = "./src/bin/main.rs"
+
+[dependencies]
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+
+esp-rtos = { version = "0.4.0", features = [
+  "embassy",
+  "esp-alloc",
+  "esp-radio",
+  "esp32s3",
+  "log-04",
+] }
+
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+log                    = "0.4.27"
+
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+# Sans l'allocateur global d'esp-alloc : main.rs pose le sien, qui choisit
+# la mémoire selon le cœur. `compat` fournit malloc aux blobs radio.
+esp-alloc = { version = "0.11.0", default-features = false, features = [
+  "compat",
+  "esp32s3",
+  "internal-heap-stats",
+] }
+esp-backtrace = { version = "0.20.0", features = [
+  "esp32s3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "log-04",
+  "uart",
+] }
+esp-radio = { version = "1.0.0-beta.1", features = [
+  "ble",
+  "coex",
+  "esp-alloc",
+  "esp32s3",
+  "log-04",
+  "unstable",
+  "wifi",
+] }
+bt-hci = "0.9.0"
+trouble-host = { version = "0.7.0", features = ["scan"] }
+embassy-net = { version = "0.9.0", features = [
+  "medium-ethernet",
+  "proto-ipv4",
+  "tcp",
+  "udp",
+] }
+edge-dhcp = "0.8.0"
+edge-nal = "0.7.0"
+edge-nal-embassy = "0.9.0"
+embedded-io-async = "0.7"
+heapless = "0.9.1"
+embassy-futures = "0.1"
+esp32s3 = "0.36.0"
+slint = { version = "=1.18.1", default-features = false, features = [
+  "compat-1-2",
+  "libm",
+  "renderer-software",
+  "unsafe-single-threaded",
+] }
+
+critical-section = "1.2.0"
+static_cell      = "2.1.1"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+
+# For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
+[profile.dev]
+# The default debug profile is too slow and too big for resource-constrained devices.
+# Always build with some optimizations enabled.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1     # LLVM can perform better optimizations using a single thread
+debug         = 2     # prefer slower builds but better debugging experience
+lto           = 'fat'
+opt-level     = 's'
+
+[features]
+# Bounce buffers de 30 lignes au lieu de 20 (+32 Ko de SRAM interne), une
+# fois les mesures à 20 lignes notées.
+bounce-30 = []

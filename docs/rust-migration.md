@@ -1298,12 +1298,16 @@ raisons :
 `screen` commencera après, en reprenant les essais comme référence, et non
 comme base de code.
 
-- **UI :** la maquette de l'étape 6. La **température réelle de la SCACE**
-  y remplace la valeur simulée du grand chiffre, et elle est rafraîchie à
-  **5 Hz**. Le rendu lit la dernière trame reçue ; la SCACE en envoie 10
-  par seconde. Les autres valeurs restent simulées, au rythme de
-  l'étape 6. Sonde débranchée ou lien coupé : le chiffre affiche « – »,
-  comme coffeeflow sans température.
+- **UI :** la maquette de l'étape 6, dans sa configuration retenue : rendu
+  ligne par ligne, fréquence réduite à 4 Hz. La **température réelle de la
+  SCACE** remplace le poids simulé du chiffre en 104 px de l'accueil, et la
+  température simulée de la barre du haut. Elle est rafraîchie à **4 Hz**,
+  dans le rendu de la barre du haut (décision du 2026-10-09, au lieu des
+  5 Hz prévus : 5 Hz tombe tous les 4 pas de 50 ms, et rejoindrait
+  régulièrement le rendu d'un autre groupe). Le rendu lit la dernière
+  trame reçue ; la SCACE en envoie 10 par seconde. Les autres valeurs
+  restent simulées. Sonde débranchée ou lien coupé : le chiffre affiche
+  « – », comme coffeeflow sans température.
 - **Bounce buffers :** 20 lignes au départ. L'étape 5 a montré de rares
   recopies en retard à 20 lignes sous trafic Wi-Fi ; on s'attend à les
   retrouver. Une fois les mesures à 20 lignes notées, on passe à
@@ -1326,6 +1330,95 @@ comme base de code.
   Leviers : 30 lignes, si ce n'est pas déjà fait, puis réduire les défauts
   de cache du cœur 1 (code réseau chaud en IRAM), puis la recopie par DMA
   mémoire à mémoire ou le préchargement du cache.
+**Réalisation (2026-10-09).** L'essai `07-slint-radio` réunit l'affichage
+de 06 (cœur 0) et `ble.rs`, `wifi.rs` de 05 (cœur 1). La configuration de
+Slint est fixe : rendu ligne par ligne, valeurs à 4 Hz par groupe.
+
+- **Deux tas (décision du 2026-10-09).** `esp_alloc::HEAP` ne contient que
+  la SRAM interne, 128 Ko comme le combiné de l'étape 5 : les `malloc` des
+  blobs radio y vont, et aucun ne peut déborder en PSRAM. Un second
+  `EspHeap`, en PSRAM après le code et le framebuffer, porte Slint.
+  L'allocateur global choisit selon le cœur qui alloue : PSRAM pour le
+  cœur 0, SRAM interne pour le cœur 1. La libération suit l'adresse du
+  bloc. Le tas libre minimum du rapport et de `/stats` est donc celui de la
+  radio seule, comparable aux 33,7 Ko de l'étape 5.
+- **Température** : affichée si le lien SCACE est abonné, que l'état de la
+  trame est « mesure » (1) et que la dernière trame a moins de 1 s. Sinon,
+  « – ».
+- **Point d'accès** : le SSID et le mot de passe de l'essai 05, que le
+  téléphone connaît déjà ; page de charge et `/stats` inchangés, plus
+  `rendu_max_us`.
+- **Bounce buffers** : 20 lignes par défaut, 30 avec la feature
+  `bounce-30` (12 descripteurs par buffer, pour rester sous 4 095 octets).
+- **Images** : 1 760 Ko, `bb20` et `bb30` sous `target/variants/`, avec
+  leur `.elf`. `.bss` de 192 Ko, 52 Ko de code Wi-Fi en IRAM.
+- **Clippy, `large_stack_frames`** : 28 signalements, les mêmes que sur
+  l'essai 05, où ils n'avaient pas été examinés. Les estimations de clippy
+  (jusqu'à 27 Ko) sont 4 à 15 fois au-dessus des trames réelles, relevées
+  avec `-Z emit-stack-sizes` : `ble::link` 3,1 Ko, `radio_task` 2,6 Ko,
+  `Interface::poll` de smoltcp 2,5 Ko, tâche `http` 0,7 Ko. Clippy
+  additionne toutes les variables locales sans leur recouvrement, et compte
+  dans une fonction `async` l'état de la future, qui vit dans l'arène de
+  l'exécuteur, en `.bss`. L'essai 07 les autorise : `allow` avec raison
+  dans `ble.rs`, `wifi.rs`, sur `report` et sur un module autour de
+  `radio_task` (la fonction qu'engendre `#[embassy_executor::task]` ne
+  reprend pas les attributs).
+- **Pour `screen`** : garder `large_stack_frames` et son seuil de 1 Ko,
+  utiles pour le code synchrone, et n'autoriser le lint qu'aux modules de
+  tâches `async`, avec une raison. La garde réelle reste la pile peinte de
+  chaque cœur, dans le rapport, et la mesure `-Z emit-stack-sizes` quand un
+  doute se pose : `RUSTFLAGS="-C link-arg=-nostartfiles -Z
+  emit-stack-sizes"`, dans un `CARGO_TARGET_DIR` à part, puis la section
+  `.stack_sizes` de l'ELF (adresse, puis taille en ULEB128) croisée avec
+  `nm`.
+
+**Résultat à 20 lignes (2026-10-09) : tout tient, sauf 2 recopies en
+retard sans pause.** `bb20` dans `ota_0` (`otadata` `0x61`/`0x60`, les deux
+`VALID`). Deux passes : la première sans téléphone (81 s), la seconde avec
+les deux liens abonnés, puis l'iPhone à 5 Hz et sans pause (122 s). Aucun
+défaut visible à l'écran.
+
+| Critère | Mesuré | Verdict |
+|---|---|---|
+| Recopie, à 5 Hz | 0 retard, 0 recalage, recopie la plus lente 1 121 µs | tenu |
+| Recopie, sans pause | **2 retards**, 0 recalage, recopie la plus lente 1 252 µs | échec à 20 lignes |
+| SCACE | 10 trames/s, 0 manquée, 0 invalide, 0 perte de lien | tenu |
+| Balance | ~9 notifications/s, heartbeat toutes les 2,5 s, 0 perte | tenu |
+| Page, 5 Hz | 179 requêtes, 5/s, latence 17 ms en moyenne, 60 ms au plus, 0 erreur | tenu |
+| Page, sans pause | 4 076 requêtes, 128/s, 7 ms en moyenne, 61 ms au plus, 0 erreur | tenu |
+| Rendu partiel, infusion | 14 à 26 ms en moyenne sans charge, ~30 ms sans pause ; 74 ms au plus en régime établi, 168 ms une fois sans pause | tenu en moyenne |
+| Tas interne libre minimum | 34,0 Ko (44,3 Ko avant le téléphone) | tenu, de justesse |
+| Piles | cœur 0 : 8,8 Ko sur 54,8 ; cœur 1 : 8,4 Ko sur 16 | tenu |
+
+- **Les deux retards ne sont pas des retards d'entrée.** L'interruption
+  entre à l'heure (écart de 1 220 µs, `dscr` 2 à l'entrée), mais la
+  recopie dure 1 241 et 1 252 µs, au lieu de ~900 µs : plus que la période
+  de 1 220 µs. À l'étape 5, c'était l'entrée qui prenait du retard. Ici, la
+  lecture du framebuffer en PSRAM ralentit : le cœur 1 sert 128 requêtes/s
+  avec son code en PSRAM (XIP), et le cœur 0 y écrit les lignes de Slint.
+  Le PC interrompu (`Ord::min`, `spec_fill` de Slint) montre le cœur 0 en
+  plein rendu.
+- **Ce que 30 lignes changent.** La recopie reste à ~74 % de la période
+  (900 µs sur 1 220, ~1 350 sur 1 830), mais la marge absolue passe de
+  ~320 à ~480 µs. Les deux recopies lentes dépassaient de 20 à 30 µs.
+- **Tas interne.** Le minimum tombe de 44,3 à 34,0 Ko quand les stations
+  s'associent (le rapport en compte deux). Le DHCP et le serveur HTTP
+  n'abaissent plus ce minimum ensuite. C'est l'équivalent des 33,7 Ko de
+  l'étape 5 : Slint n'y prend rien.
+- **Rendu sous charge** : environ 5 ms de plus en moyenne sans pause, et un
+  pic à 168 ms. La contention sur la PSRAM ralentit aussi Slint.
+
+**Décision du 2026-10-09 : on reste à 20 lignes, et l'étape 7 est
+close.** Les deux retards n'apparaissent qu'à ~128 requêtes/s, un cas
+limite qu'on ne rencontre qu'au téléchargement par Wi-Fi, et ils ne se
+voient pas à l'œil. Pendant une infusion, le pire trafic HTTP est un
+enregistrement de la sonde qui interroge `/telemetry` à 10 Hz, et la
+plupart du temps il n'y en a aucun. À 5 Hz, aucun retard. `bb30` n'est
+pas essayé : il ne ferait que gagner ~160 µs de marge, au prix de 32 Ko
+sur la pile du cœur 0 (13,6 Ko de marge restante, sous les 16 Ko de la
+règle). La feature `bounce-30` reste dans l'essai. **La combinaison
+Slint + BLE + Wi-Fi tient en SRAM** : pas d'essai de bascule entre radios.
+
 - **Si la combinaison ne tient pas en SRAM :** on revient au
   fonctionnement de coffeeflow, une radio à la fois. C'est acceptable
   (décision du 2026-10-08). Un essai de **bascule** s'ajoute alors. Avec
@@ -1477,3 +1570,16 @@ Résultats datés, au fil des essais.
   14 à 25 ms en moyenne, 66 ms au maximum en régime établi, 123 ms quand le
   cycle reprend. Accueil : 47 ms au maximum. Critère des 50 ms tenu en
   moyenne sur les deux écrans.
+- **2026-10-09 :** `07-slint-radio` écrit : affichage de 06 (ligne par
+  ligne, 4 Hz) sur le cœur 0, radio de 05 en combiné sur le cœur 1, deux
+  tas (SRAM interne pour la radio, PSRAM pour Slint), température SCACE à
+  l'écran. Image de 1 760 Ko. Clippy : les 28 `large_stack_frames` de 05
+  et 07 expliqués (trames réelles de 3,1 Ko au plus) et autorisés dans 07.
+- **2026-10-09 :** `07-slint-radio`, 20 lignes, dans `ota_0` (`otadata`
+  `0x61`/`0x60`, les deux `VALID`). Deux liens abonnés, SCACE à 10 trames/s
+  sans perte, page à 5 Hz puis sans pause (128 requêtes/s), 0 erreur HTTP.
+  0 recalage ; 0 retard à 5 Hz, 2 retards sans pause, par une recopie
+  ralentie (1 252 µs) et non par une entrée tardive. Tas interne libre
+  minimum 34,0 Ko. Rendu de l'infusion ~30 ms en moyenne sous charge.
+  Rien de visible à l'écran. Décision : 20 lignes, 30 lignes non essayé.
+  **Étape 7 close** : la combinaison tient en SRAM.

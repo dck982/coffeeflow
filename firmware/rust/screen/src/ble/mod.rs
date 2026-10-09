@@ -14,7 +14,7 @@ use bt_hci::{controller::ExternalController, param::Status};
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 use embassy_futures::{
-    join::{join, join3},
+    join::join3,
     select::{Either, Either3, select, select3},
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
@@ -33,11 +33,17 @@ type Client<'a> = GattClient<'a, Ctrl, DefaultPacketPool, 4>;
 type ErrText = heapless::String<64>;
 
 /// Entrées à consommer par la boucle du cœur, dans l'ordre de réception.
-pub enum Event {
+pub enum EventKind {
     ScaleConnected(bool),
     Weight(f32),
     ScaceConnected(bool),
     ScaceSample(scace::Sample),
+}
+/// Horodatage capturé avant la mise en file : un rendu lent ne rajeunit
+/// jamais une ancienne pesée ou une température SCACE.
+pub struct Event {
+    pub at_us: i64,
+    pub kind: EventKind,
 }
 pub static EVENTS: Channel<CriticalSectionRawMutex, Event, 32> = Channel::new();
 pub static LOST_EVENTS: AtomicU32 = AtomicU32::new(0);
@@ -74,8 +80,15 @@ pub fn command(command: BleCommand) -> bool {
     }
 }
 
-fn publish(event: Event) {
-    let control = matches!(event, Event::ScaleConnected(_) | Event::ScaceConnected(_));
+fn publish(kind: EventKind) {
+    let control = matches!(
+        kind,
+        EventKind::ScaleConnected(_) | EventKind::ScaceConnected(_)
+    );
+    let event = Event {
+        at_us: Instant::now().as_micros() as i64,
+        kind,
+    };
     if let Err(embassy_sync::channel::TrySendError::Full(event)) = EVENTS.try_send(event) {
         LOST_EVENTS.fetch_add(1, Relaxed);
         // Une mesure perdue vieillit naturellement. Une déconnexion perdue
@@ -179,11 +192,21 @@ pub async fn run(connector: BleConnector<'static>) {
         .set_random_address(Address::random([0xff, 0x8f, 0x1b, 0x05, 0xe4, 0xff]))
         .build();
     let mut runner = stack.runner();
-    let _ = join(
+    // Une erreur fatale de l'hôte annule les services : join attendrait leur
+    // boucle infinie et laisserait les liens annoncés connectés pour toujours.
+    let _ = select(
         runner.run_with_handler(&ScanHandler),
         join3(scan(&stack), link(&stack, SCALE), link(&stack, PROBE)),
     )
     .await;
+    SCANNING.store(false, Relaxed);
+    CONNECTING.store(0, Relaxed);
+    CONNECTED[SCALE].store(false, Relaxed);
+    CONNECTED[PROBE].store(false, Relaxed);
+    critical_section::with(|cs| *TARGETS.borrow_ref_mut(cs) = [None, None]);
+    while COMMANDS.try_receive().is_ok() {}
+    publish(EventKind::ScaleConnected(false));
+    publish(EventKind::ScaceConnected(false));
 }
 
 async fn scan(stack: &BleStack<'_>) {
@@ -323,9 +346,9 @@ async fn link(stack: &BleStack<'_>, dev: usize) {
             }
             CONNECTED[dev].store(false, Relaxed);
             publish(if dev == SCALE {
-                Event::ScaleConnected(false)
+                EventKind::ScaleConnected(false)
             } else {
-                Event::ScaceConnected(false)
+                EventKind::ScaceConnected(false)
             });
             if conn.is_connected() {
                 conn.disconnect();
@@ -366,7 +389,7 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
         }
     }
     CONNECTED[SCALE].store(true, Relaxed);
-    publish(Event::ScaleConnected(true));
+    publish(EventKind::ScaleConnected(true));
     let mut session = acaia::Session::new();
     let mut next_heartbeat_poll = Instant::now() + Duration::from_millis(50);
     loop {
@@ -386,7 +409,7 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
                     .on_notification(notification.as_ref(), Instant::now().as_micros() as i64)
                 {
                     match event {
-                        acaia::RxEvent::Weight(value) => publish(Event::Weight(value)),
+                        acaia::RxEvent::Weight(value) => publish(EventKind::Weight(value)),
                         acaia::RxEvent::Disconnected => {
                             return err_text("balance", "déconnexion demandée");
                         }
@@ -434,7 +457,7 @@ async fn probe_session(client: &Client<'_>) -> ErrText {
         Err(e) => return err_text("abonnement", e),
     };
     CONNECTED[PROBE].store(true, Relaxed);
-    publish(Event::ScaceConnected(true));
+    publish(EventKind::ScaceConnected(true));
     loop {
         if !wanted(PROBE) {
             return err_text("sonde", "arrêt demandé");
@@ -442,7 +465,7 @@ async fn probe_session(client: &Client<'_>) -> ErrText {
         match select(listener.next(), Timer::after(Duration::from_millis(50))).await {
             Either::First(notification) => {
                 if let Some(sample) = scace::parse_notification(notification.as_ref()) {
-                    publish(Event::ScaceSample(sample));
+                    publish(EventKind::ScaceSample(sample));
                 }
             }
             Either::Second(()) => {

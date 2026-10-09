@@ -10,7 +10,7 @@ idf_component_register(
 # est aussi lu en mode "script" (extraction des dépendances, avant
 # idf_component_register) et add_custom_command() n'y est pas autorisé.
 
-set(LOG_CODES_YAML "${CMAKE_CURRENT_SOURCE_DIR}/codegen/log_codes.yaml")
+set(LOG_CODES_YAML "${CMAKE_CURRENT_SOURCE_DIR}/../../../firmware/rust/protocol/log_codes.yaml")
 set(LOG_CODES_HPP "${CMAKE_CURRENT_SOURCE_DIR}/generated/log_codes.hpp")
 
 # Régénéré à chaque build : la source YAML est la seule chose qu'on édite,

@@ -1499,6 +1499,22 @@ sur `ota_1`, puis une OTA C++ de l'écran démarre en `PENDING_VERIFY`
 l'ancien bootloader avec la même commande. C'est aussi la correction que la
 doc prévoit avant la production (« Cible finale »).
 
+**Fait le 2026-10-09.** `nvs-vault save` d'abord (24 576 octets, SHA-256
+`7c1e579d…afe48c`, fichier gardé par David). Le bootloader installé datait
+du 2026-09-10, jour de l'écriture des images `factory`. Il est sauvegardé
+dans `~/coffeeflow-bootloader-avant.bin`. Il a été remplacé par celui du
+build du 2026-09-12 : `idf.py bootloader` n'a rien recompilé, et sa
+configuration a le rollback. Relecture identique au build, et coffeeflow
+0.3.47 redémarre sur `ota_1`. La console reste muette :
+`ESP_CONSOLE_NONE`, bootloader compris.
+
+Incohérence à lever au contrôle : le rollback est actif dans le `sdkconfig`
+de l'écran depuis le 2026-09-07. L'ancien bootloader l'avait donc
+probablement déjà, et l'état `NEW` observé en 0.2.64 aurait une autre
+cause. **Reste à faire, en premier à l'étape 8 :** une OTA C++ de l'écran
+doit démarrer en `PENDING_VERIFY` (`firmware.screen.ota`). Si elle démarre
+en `NEW`, la cause est ailleurs que dans le bootloader.
+
 **8a. La flash et l'affichage.** L'essai 07, avec en plus l'effacement
 puis la réécriture de secteurs dans la fin du slot de test, au-delà de
 l'image, radio suspendue par `multicore_auto_park`.
@@ -1752,3 +1768,9 @@ Résultats datés, au fil des essais.
 - **2026-10-09 :** `sensors` 0.3.48 flashé par l'écran : il démarre en
   `PENDING_VERIFY`, puis `OTA_VALIDATED`. Le bootloader installé sur
   `sensors` fait le rollback ; celui de l'écran ne le fait pas.
+- **2026-10-09 :** `firmware/rust/nvs-vault.sh` écrit (`save`, `erase`,
+  `restore`, refus testés sans la carte). NVS de l'écran sauvegardé hors
+  du dépôt. Bootloader de l'écran remplacé par celui du build IDF du
+  2026-09-12, avec rollback ; l'ancien (2026-09-10) est gardé. Coffeeflow
+  0.3.47 redémarre. Le passage en `PENDING_VERIFY` reste à contrôler par
+  une OTA C++.

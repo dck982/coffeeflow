@@ -13,3 +13,6 @@ serde = ["dep:serde"]
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
+
+[dev-dependencies]
+embedded-storage = "0.3"

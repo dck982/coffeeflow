@@ -9,8 +9,12 @@ screen-core = { path = "../screen-core" }
 bt-hci = "0.9.0"
 trouble-host = { version = "0.7.0", features = ["scan"] }
 heapless = "0.9.1"
-embassy-futures = "0.1"
 esp-radio = { version = "1.0.0-beta.1", features = ["ble", "coex", "esp-alloc", "esp32s3", "log-04", "unstable", "wifi"] }
+protocol = { path = "../protocol", default-features = false }
+embassy-futures = "0.1"
+esp-storage = { version = "0.10.0", default-features = false, features = ["esp32s3", "embedded-storage"] }
+embedded-storage = "0.3"
+esp-nvs = "0.6.2"
 esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
 
 esp-rtos = { version = "0.4.0", features = [

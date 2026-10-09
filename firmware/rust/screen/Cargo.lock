@@ -1637,6 +1637,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "911aadae41ec99104efa865bd0b6e486b4b735999f9b571963748a46d16495ab"
 
 [[package]]
+name = "esp-nvs"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe94ff32323389591a43f90589698586d7375322d8d4e3ba3bf9efc54b3f6b76"
+dependencies = [
+ "embedded-storage",
+ "strum 0.27.2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "esp-phy"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1778,6 +1789,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ef0e785f54e316f64a1e14a7a2f061a2ea0b038b284902ca71e1e1f5574cf47"
 dependencies = [
  "document-features",
+ "embedded-storage",
  "esp-hal",
  "esp-hal-procmacros",
  "esp-metadata-generated",
@@ -4791,16 +4803,20 @@ dependencies = [
  "embassy-sync 0.8.0",
  "embassy-time",
  "embedded-hal-async",
+ "embedded-storage",
  "esp-alloc",
  "esp-backtrace",
  "esp-bootloader-esp-idf",
  "esp-hal",
+ "esp-nvs",
  "esp-println",
  "esp-radio",
  "esp-rtos",
+ "esp-storage",
  "esp32s3 0.36.0",
  "heapless 0.9.3",
  "log",
+ "protocol",
  "screen-core",
  "slint",
  "slint-build",

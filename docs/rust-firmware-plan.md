@@ -456,7 +456,10 @@ seconde (même à une image déjà validée).
   d'erreurs relevées sous 0.3.48) est donc perdu.
 - Après coup : démarrage à froid de la machine sans incident ; chauffe
   régulée vérifiée (la puissance baisse à l'approche de 90 °C) ;
-  `coffeetool telemetry --record` vérifié.
+  `coffeetool telemetry --record` vérifié. Purge vérifiée
+  (`captures/261009-214844.json`) : 87 impulsions du débitmètre, pompe
+  confirmée à 100 %, fin en `cooldown` ; capture HF téléchargée. Reste
+  l'infusion.
 
 État des cartes :
 - `sensors` : Rust 0.4.2 actif et validé ; l'autre slot, Rust 0.4.1 validé.

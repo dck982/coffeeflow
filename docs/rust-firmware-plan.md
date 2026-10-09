@@ -211,13 +211,14 @@ réveils du cœur 0 depuis le cœur 1 par `Channel`).
 | `ble-scan` (scan + station) | **tient** (50 s et plus) ; tâches radio : `btController` 1 840/8 272 (22 %), `wifi` 2 992/6 736 (44 %), `timer` 1 232/8 272 (14 %, **non épinglée**, `cœur=-1`) ; pile c1 13 152/16 384 |
 | `ble-scan,xip,core0-load`, 1er passage | tient, mais charge **inactive** (alarme TIMG non réarmée : `irq=1`) |
 | idem, 2e passage | tient, mais recopie **supprimée par le compilateur** (`max=12us`, destination jamais relue) |
-| idem, 3e passage (`black_box`, `memcpy` vérifié au désassemblage) | flashé en dernier, **résultat non relevé** |
+| idem, 3e passage (`black_box`, `memcpy` vérifié au désassemblage) | **tient** ; recopie réelle `max=978us` (screen : 715 à 1 083 µs), `irq=5146`, `evenements_c0=106` au relevé |
 
 Conclusions admises : BLE scan + Wi-Fi station tiennent au minimum, avec
-XIP, PSRAM, allocateur par cœur et réveils inter-cœurs. Ce qui n'est **pas**
-établi (remarques de relecture) : que le déclencheur soit dans le LCD,
-Slint ou la logique (la charge mémoire de l'affichage n'a pas encore été
-reproduite fidèlement) ; que les piles radio aient de la marge **dans
+XIP, PSRAM, allocateur par cœur, réveils inter-cœurs et une recopie
+d'affichage synthétique de durée comparable (978 µs, PSRAM → SRAM sur
+768 Ko). Ce qui n'est **pas** établi (remarques de relecture) : que le
+déclencheur soit dans le LCD, Slint ou la logique (la charge synthétique
+n'est pas le DMA LCD ni le rendu Slint) ; que les piles radio aient de la marge **dans
 `screen`** (pile du cœur 0 six fois plus petite, interruptions en plus).
 Les points de passage ne donnent que le dernier endroit instrumenté : ils
 n'ont jamais désigné une cause.

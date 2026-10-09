@@ -139,16 +139,12 @@ pub async fn run(
     let mut pressed: Option<slint::LogicalPosition> = None;
     let mut iteration = 0u32;
     loop {
-        screen::crumb!();
         crate::watchdog::feed();
         slint::platform::update_timers_and_animations();
-        screen::crumb!();
 
         iteration = iteration.wrapping_add(1);
         if let (Some(touch), true) = (&mut touch, iteration.is_multiple_of(2)) {
-            let read = touch.read().await;
-            screen::crumb!();
-            match read {
+            match touch.read().await {
                 Ok(Touch::Unchanged) => {}
                 Ok(Touch::Pressed(x, y)) => {
                     let position = slint::LogicalPosition::new(x as f32, y as f32);
@@ -192,9 +188,7 @@ pub async fn run(
             }
         }
 
-        screen::crumb!();
         runtime.poll(&mut ui);
-        screen::crumb!();
         ui.window.draw_if_needed(|renderer| {
             // Différence saturée : voir la recopie d'affichage, le SYSTIMER lu
             // depuis les deux cœurs n'est pas strictement monotone.
@@ -209,7 +203,6 @@ pub async fn run(
             RENDER_MAX_US.fetch_max(us, Relaxed);
         });
 
-        screen::crumb!();
         Timer::after(Duration::from_millis(10)).await;
     }
 }

@@ -79,7 +79,6 @@ async fn main(spawner: Spawner) -> ! {
         .with_rx(peripherals.GPIO44)
         .into_async();
     info!("screen 0.4.0, reset: {:?}", esp_hal::system::reset_reason());
-    screen::breadcrumb::report_previous();
 
     // Le tas interne d'abord : 120 Ko pour la radio du cœur 1.
     heap::init_internal();
@@ -168,10 +167,11 @@ async fn main(spawner: Spawner) -> ! {
         .select_can(true)
         .await
         .expect("sélection CAN");
+    // esp-hal prend RX puis TX : RX = GPIO19, TX = GPIO20 (board.h du C++).
     let twai = esp_hal::twai::TwaiConfiguration::new(
         peripherals.TWAI0,
-        peripherals.GPIO20,
         peripherals.GPIO19,
+        peripherals.GPIO20,
         esp_hal::twai::BaudRate::B500K,
         esp_hal::twai::TwaiMode::Normal,
     )
@@ -219,10 +219,6 @@ async fn main(spawner: Spawner) -> ! {
 
     spawner.spawn(report::report().unwrap());
     spawner.spawn(board::ads1115_task(board.device()).unwrap());
-    // Repères directs sur l'UART : la file des journaux passe par une tâche du
-    // cœur 0, qui ne tournerait plus si la construction restait bloquée.
-    esp_println::println!("[diag] construction du cœur…");
     let runtime = runtime::Runtime::new(board.touch.is_some());
-    esp_println::println!("[diag] cœur construit");
     ui::run(ui, fb.cast::<Rgb565Pixel>(), board.touch, runtime).await
 }

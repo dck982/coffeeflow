@@ -66,7 +66,6 @@ pub async fn receive(mut rx: UartRx<'static, Async>) -> ! {
     let mut decoder = StreamDecoder::new();
     let mut bytes = [0; 64];
     loop {
-        crate::crumb!();
         match rx.read_async(&mut bytes).await {
             Ok(n) => {
                 for byte in &bytes[..n] {
@@ -92,7 +91,6 @@ pub async fn transmit(mut tx: UartTx<'static, Async>) -> ! {
     let _ = write_all(&mut tx, &[0]).await;
     let mut bytes = [0; MAX_FRAMED_SIZE];
     loop {
-        crate::crumb!();
         match select(crate::can::SERIAL.receive(), LOGS.receive()).await {
             Either::First(frame) => {
                 if !BRIDGE_CLIENT.load(Relaxed) {

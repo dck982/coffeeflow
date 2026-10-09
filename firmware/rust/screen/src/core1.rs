@@ -57,32 +57,15 @@ async fn boot(
     flash: Flash,
     layout: Layout,
 ) {
-    // Diagnostic : `DIAG_NO_BLE=1` au build laisse le BLE éteint.
-    let connector = option_env!("DIAG_NO_BLE").is_none().then(|| ble::connector(bt));
+    let connector = ble::connector(bt);
     nvs::start(spawner, flash, layout).await;
     network::start(spawner, wifi).await;
-    if let Some(connector) = connector {
-        spawner.spawn(ble_task(connector).unwrap());
-    }
+    spawner.spawn(ble_task(connector).unwrap());
     READY.signal(());
 }
 
 #[embassy_executor::task]
 async fn ble_task(connector: BleConnector<'static>) {
-    // Diagnostic : `DIAG_BLE_AFTER_STA=1` attend l'association Wi-Fi (60 s au
-    // plus) avant de lancer l'hôte BLE et son scan.
-    if option_env!("DIAG_BLE_AFTER_STA").is_some() {
-        let start = embassy_time::Instant::now();
-        while !network::STA_UP.load(core::sync::atomic::Ordering::Acquire)
-            && start.elapsed() < embassy_time::Duration::from_secs(60)
-        {
-            embassy_time::Timer::after_millis(200).await;
-        }
-        esp_println::println!(
-            "[diag] BLE lancé à {} ms",
-            embassy_time::Instant::now().as_millis()
-        );
-    }
     ble::run(connector).await;
     // Une erreur fatale de l'hôte ne laisse pas une interface connectée
     // fictive ; le bootloader conserve sa politique de rollback.

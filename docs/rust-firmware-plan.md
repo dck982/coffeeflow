@@ -115,7 +115,7 @@ Le point 10 est validé hors matériel : demander maintenant à David l'accès
 les méthodes et les résultats de `rust-migration.md` avant tout essai ; le
 premier parcours prévu reste l'écran sur le bureau, USB sans CAN, puis la machine.
 
-## Première session USB — 2026-10-09 (en cours, bloquée)
+## Première session USB — 2026-10-09
 
 Écran sur le bureau, USB, sans CAN ni ADS ; balance et SCACE éteintes.
 Image Rust installée par `parttool` dans `ota_0` puis `otatool
@@ -156,11 +156,10 @@ Les images suivantes se réécrivent dans `ota_0` sans nouvelle bascule.
 - **Watchdog RTC.** Interruption qui panique à 6 s (trace du cœur 0), reset
   à 8 s. Jamais vue se déclencher : les blocages observés masquent les
   interruptions.
-- **Points de passage.** `screen/src/breadcrumb.rs` et la macro `crumb!` :
+- **Points de passage** (retirés depuis, avec tout le code de diagnostic) :
   dernier fichier:ligne, nombre de passages et instant (ms) de chaque cœur,
-  en RAM RTC lente ; affichés au démarrage suivant (`[diag] avant reset,
-  cœur N : …`). Posés aux têtes de boucle et dans le BLE et la boucle de
-  rendu.
+  en RAM RTC lente, affichés au démarrage suivant. Ils n'ont jamais désigné
+  une cause.
 
 ### Problème ouvert : BLE + Wi-Fi station plantent ensemble
 
@@ -223,48 +222,100 @@ n'est pas le DMA LCD ni le rendu Slint) ; que les piles radio aient de la marge 
 Les points de passage ne donnent que le dernier endroit instrumenté : ils
 n'ont jamais désigné une cause.
 
-Défauts d'instrumentation à corriger :
-- `screen/src/stack_watermark.rs`, `usage()` du cœur 1 : saute tous les
-  mots non-motif sans borne ; une pile entièrement écrasée s'afficherait
-  « 0 utilisé ». Sauter une zone de taille connue (la fermeture de
-  démarrage) et signaler « invalide » sans motif restant.
-- `trials/10-sta-ble/vendor/esp-rtos/src/trial_stacks.rs` : `task_stacks()`
-  peut lire une pile libérée entre la lecture de l'adresse et le parcours
-  (sans effet tant que les tâches radio ne sont pas détruites).
-- `trials/10-sta-ble`, variante `scan-load` (sans PSRAM) : 2 avertissements
-  Clippy depuis la dernière modification de `src/load.rs`.
+Défauts d'instrumentation :
+- Corrigé : `screen/src/stack_watermark.rs`, `usage()` du cœur 1 saute au
+  plus 512 octets (la fermeture de démarrage) et rend « invalide » sans
+  motif retrouvé, au lieu de sauter sans borne.
+- Corrigé dans la copie de `screen` (`vendor/esp-rtos`), pas dans celle de
+  l'essai : `task_stacks()` pouvait mesurer une pile libérée puis
+  réattribuée pendant le parcours ; un compteur de génération par case
+  écarte la mesure.
+- Non corrigé : `trials/10-sta-ble`, variante `scan-load` (sans PSRAM) :
+  2 avertissements Clippy depuis la dernière modification de `src/load.rs`.
 
 Corrigé dans `screen` : la boucle de scan BLE attend 20 ms avant son
 `continue` quand `scan_can_start` est faux.
 
 **Prochaine piste (décidée par David) : essais directement dans `screen`.**
-Y porter le patch d'esp-rtos de l'essai (piles des tâches radio peintes,
-mesurées dans le rapport, `TRIAL_EXTRA_TASK_STACK`), contrôles de pile tous
-actifs, un ELF conservé par variante (`/tmp/screen-<variante>.elf`). Puis,
-selon la mesure : grossir les piles radio, épingler la tâche `timer`
-d'esp-radio au cœur 1, ou isoler LCD/Slint/logique.
+Fait : patch d'esp-rtos porté dans `firmware/rust/vendor/esp-rtos`
+(`radio_stacks.rs`, marqueur `// Coffeeflow :`), utilisé par `screen` ;
+lignes `[pile] <tâche> taille=… demandé=… max=… (…%) cœur=…` dans le rapport
+toutes les 10 s, et `[pile] création …` à chaque tâche créée par un blob ;
+pile supplémentaire par `RADIO_EXTRA_TASK_STACK` au build ; contrôles de pile
+d'esp-rtos tous actifs dans `screen/.cargo/config.toml` (y compris la
+vérification de plage, qui paniquait sur l'état déjà corrompu : une panique
+de ce contrôle est maintenant un résultat). Résultat : voir « Cause trouvée » ci-dessous.
+
+### Cause trouvée : tâche `timer` d'esp-radio non épinglée (2026-10-09)
+
+Essais dans `screen`, écran au bureau, rapport à 1 s (`REPORT_PERIOD_MS=1000`),
+image écrite par `espflash write-bin … 0x120000` (offset d'`ota_0`, plus
+rapide que `parttool`).
+
+| Variante (build) | Affichage | Résultat |
+|---|---|---|
+| complète | actif | panique en 2 à 10 s, à chaque démarrage |
+| `DIAG_NO_CAN`, `DIAG_NO_ADS` | actif | 3 plantages en 50 s, parfois avant l'association (1,3 s) |
+| idem + `DIAG_NO_DISPLAY` | absent | tient 128 s (mais disposition mémoire différente) |
+| complète, `timer` épinglée au cœur 1 | actif, 35 tr/s, `ret=0` | **tient 556 s**, puis 116 s sur un autre démarrage |
+| même code, `timer` non épinglée | actif | 4 plantages en 120 s |
+
+- Les piles radio ont de la marge, y compris dans le dernier relevé avant
+  plantage (RAM RTC, 12 ms avant) : `btController` 1 856/8 272,
+  `wifi` 2 976/6 736, `timer` 1 648/8 272.
+- Les plantages ont des signatures diverses, toutes d'ordonnanceur corrompu :
+  contrôle de plage d'esp-rtos sur le cœur 0 (tâche principale avec SP `0x1d`,
+  puis tâche nulle) ; garde de pile matérielle du cœur 1 en double exception,
+  SP passé d'un coup 16 Ko plus bas ; `LoadProhibited` sur le cœur 1.
+- `esp-radio-rtos-driver` 0.4.2 crée sa tâche `timer` (rappels des
+  minuteries des blobs) sans cœur : elle tourne alors sur l'un ou l'autre.
+  Correctif dans `vendor/esp-rtos/src/esp_radio/mod.rs` : une tâche `timer`
+  sans cœur est épinglée au cœur qui la crée, celui de la radio.
+- Non établi : le mécanisme exact. La recopie d'affichage (≈1 ms au niveau
+  3 toutes les 1,2 ms sur le cœur 0) semble élargir une course entre les
+  rappels exécutés sur le cœur 0 et le reste de la radio sur le cœur 1 ;
+  l'essai 10, avec une charge synthétique comparable, ne l'a pas déclenchée.
+- Faux départ à ne pas refaire : espflash attribue `0x3fce04d0` à
+  `g_shared_buffers`, symbole de la ROM ESP32-S2, sans rapport ici.
+- Les variantes `nofill` (DMA sans recopie) et une première `pin` ont tourné
+  sans affichage (`Display` lâché par erreur, `tr=0/s`) : résultats écartés.
+
+Gardé dans `screen` : `REPORT_PERIOD_MS` (10 s par défaut, piles des deux
+cœurs et des tâches radio en tête du rapport). Retiré : points de passage,
+relevé RTC des piles radio, interrupteurs `DIAG_*`, repères `[diag]`.
+
+### Premier essai sur la machine (2026-10-09)
+
+- Avec l'image ci-dessus : écran sur « module interne injoignable » après
+  1-2 s, aucune trame des capteurs. Cause : `TwaiConfiguration::new` prend
+  RX puis TX, `screen` passait GPIO20 puis GPIO19, donc RX et TX inversés
+  (C++ : TX = GPIO20, RX = GPIO19). `sensors` (RX = GPIO8, TX = GPIO7) était
+  juste. Débit, filtre et `CAN_SEL` identiques au C++.
+- Image corrigée, sans code de diagnostic, flashée par HTTP
+  (`coffeetool flash --target screen`) dans `ota_1` à la place de coffeeflow
+  C++ 0.3.48, puis confirmée. Trames capteurs reçues, `confirm` accepté.
+- Pendant l'upload, l'écran est resté sur « module interne injoignable » :
+  dans `ui/presenter.rs`, cet écran passe avant « mise à jour ». À trancher.
+- Le module capteurs signale `TWAI_ERROR_COUNTERS` arg32=1 285 623 (erreurs
+  de bus cumulées, vraisemblablement pendant l'essai à broches inversées).
 
 ### Pour reprendre
 
-- Build de diagnostic actuel, depuis `firmware/rust/screen` :
-  `ESP_RTOS_CONFIG_STACK_POINTER_RANGE_CHECK=false cargo build --release --offline`,
-  plus l'un des interrupteurs `DIAG_NO_BLE`, `DIAG_NO_WIFI`,
-  `DIAG_BLE_AFTER_STA`. La vérification de plage d'esp-rtos est coupée
-  parce qu'elle paniquait sur l'état déjà corrompu ; la garde matérielle de
-  pile reste active. Image : `espflash save-image --chip esp32s3
-  --flash-size 16mb --skip-update-check target/xtensa-esp32s3-none-elf/release/screen /tmp/screen-diag.bin`,
-  ELF copié en `/tmp/screen-diag.elf` pour `espflash monitor --elf`.
-- Le code de diagnostic (`crumb!`, `[diag]`, interrupteurs `DIAG_*`,
-  repères de construction du cœur) est à retirer une fois le problème
-  réglé ; `stack_watermark`, le watchdog en deux temps et les deux copies
-  vendorées sont à garder.
-- Défauts relevés, non corrigés : la boucle de scan BLE fait `continue` sans
-  `await` quand `scan_can_start` est faux (la tâche peut monopoliser le
-  cœur 1) ; NVS est rouvert à chaque requête.
-- Carte laissée sur l'essai 10 `scan-xip-load` dans `ota_0` (actif,
-  `otadata` `0x6a`/`0x6b`, les deux `VALID`) ; coffeeflow dans `ota_1`.
-  Images et ELF des variantes dans `/tmp/trial-10-*.{bin,elf}` et
-  `/tmp/screen-diag.{bin,elf}` (perdus au redémarrage du Mac).
+- Build, depuis `firmware/rust/screen`, après
+  `source ~/export-esp.sh` : `cargo build --release --offline`, plus au
+  besoin `REPORT_PERIOD_MS=<ms>` ou `RADIO_EXTRA_TASK_STACK=<octets>`. Image :
+  `espflash save-image --chip esp32s3 --flash-size 16mb --skip-update-check
+  target/xtensa-esp32s3-none-elf/release/screen /tmp/screen-<variante>.bin`,
+  ELF copié en `/tmp/screen-<variante>.elf` pour `espflash monitor --elf`.
+- Gardés : `stack_watermark`, le watchdog en deux temps et les trois copies
+  vendorées (esp-nvs, esp-hal, esp-rtos : mesure des piles radio et
+  épinglage de la tâche `timer`).
+- Défaut relevé, non corrigé : NVS est rouvert à chaque requête.
+- Carte sur la machine : `screen` final (`/tmp/screen-final.bin`) dans
+  `ota_1`, actif et confirmé ; `ota_0` garde l'image de diagnostic
+  `/tmp/screen-pin.bin`. Plus de coffeeflow C++ sur l'écran. Images, ELF et
+  journaux dans `/tmp/screen-*.{bin,elf,log}` (perdus au redémarrage du
+  Mac).
 
 ## Référence de comportement
 

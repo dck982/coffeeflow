@@ -75,25 +75,47 @@ unsafe fn fill(from: usize, to: usize) {
     }
 }
 
-/// Octets utilisés au plus haut, et taille totale. `None` avant le
-/// remplissage. Lire la pile de l'autre cœur pendant qu'il tourne est sans
-/// danger : on ne fait que comparer des mots.
-pub fn usage(core: usize) -> Option<(usize, usize)> {
+/// Plus haut niveau mesuré d'une pile.
+pub enum Usage {
+    /// Pas encore peinte.
+    Unpainted,
+    /// Octets utilisés au plus haut, et taille totale.
+    Used(usize, usize),
+    /// Plus aucun mot du motif là où il devrait en rester : pile débordée
+    /// jusqu'en bas, ou fermeture de démarrage plus grosse que prévu.
+    Invalid,
+}
+
+/// Fermeture de démarrage du cœur 1 qu'esp-hal dépose au bas de sa pile,
+/// juste au-dessus de la garde : ce qu'esp-rtos y capture (pile, garde) et
+/// les périphériques et la flash de `core1::start`. Majorée large.
+const CORE1_ENTRY_MAX: usize = 512;
+
+/// Lire la pile de l'autre cœur pendant qu'il tourne est sans danger : on ne
+/// fait que comparer des mots.
+pub fn usage(core: usize) -> Usage {
     let region = if core == 0 { &CORE0 } else { &CORE1 };
     let bottom = region.bottom.load(Relaxed);
     let top = region.top.load(Relaxed);
     if bottom == 0 {
-        return None;
+        return Usage::Unpainted;
     }
-    let mut p = (bottom + GUARD_SKIP) as *const u32;
-    // esp-hal dépose la fermeture de démarrage du cœur 1 au bas de sa pile,
-    // juste au-dessus de la garde : ces octets ne sont pas de la pile utilisée.
-    // On saute ce qui précède le motif, puis on mesure le motif intact.
-    while core == 1 && (p as usize) < top && unsafe { p.read_volatile() } != PATTERN {
-        p = unsafe { p.add(1) };
+    let mut p = bottom + GUARD_SKIP;
+    // Sur le cœur 1, la fermeture de démarrage a écrasé le motif au début de
+    // la zone peinte : on saute au plus CORE1_ENTRY_MAX octets de mots
+    // différents. Sans motif retrouvé dans cette fenêtre, la mesure ne vaut
+    // rien.
+    if core == 1 {
+        let limit = (p + CORE1_ENTRY_MAX).min(top);
+        while p < limit && unsafe { (p as *const u32).read_volatile() } != PATTERN {
+            p += 4;
+        }
+        if p == limit {
+            return Usage::Invalid;
+        }
     }
-    while (p as usize) < top && unsafe { p.read_volatile() } == PATTERN {
-        p = unsafe { p.add(1) };
+    while p < top && unsafe { (p as *const u32).read_volatile() } == PATTERN {
+        p += 4;
     }
-    Some((top - p as usize, top - bottom))
+    Usage::Used(top - p, top - bottom)
 }

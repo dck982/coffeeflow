@@ -178,7 +178,6 @@ pub async fn serial_task() {
     use crate::service::{self, Operation, Reply};
     use protocol::{Message, messages::FlashCtrlPayload as Ctrl};
     loop {
-        crate::crumb!();
         let frame = crate::serial_bridge::LOCAL_OTA.receive().await;
         let Ok(Message::FlashCtrl(Ctrl::Begin { image_size })) = Message::decode(&frame) else {
             continue;
@@ -236,7 +235,6 @@ async fn receive_serial(
     let mut collecting = false;
     let mut crc = protocol::Crc32Incremental::new();
     loop {
-        crate::crumb!();
         let frame = embassy_time::with_timeout(
             embassy_time::Duration::from_secs(5),
             crate::serial_bridge::LOCAL_OTA.receive(),

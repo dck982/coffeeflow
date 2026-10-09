@@ -2,7 +2,6 @@
 #![no_std]
 extern crate alloc;
 pub mod ble;
-pub mod breadcrumb;
 pub mod can;
 pub mod flash;
 mod flash_words;

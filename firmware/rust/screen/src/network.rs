@@ -50,8 +50,6 @@ static SCAN_REPLY: [embassy_sync::signal::Signal<
 >; 4] = [const { embassy_sync::signal::Signal::new() }; 4];
 const ADDRESS: Ipv4Addr = Ipv4Addr::new(192, 168, 4, 1);
 static DESIRED: AtomicU32 = AtomicU32::new(1);
-/// Diagnostic : la station a une adresse.
-pub static STA_UP: AtomicBool = AtomicBool::new(false);
 static PROVISIONING: AtomicBool = AtomicBool::new(false);
 static FORGET: AtomicBool = AtomicBool::new(false);
 static WALL_GENERATION: AtomicU32 = AtomicU32::new(0);
@@ -76,7 +74,6 @@ pub fn forget_network() {
 }
 pub fn wall_time() -> Option<i64> {
     loop {
-        crate::crumb!();
         let generation = WALL_GENERATION.load(Ordering::Acquire);
         if generation & 1 != 0 {
             core::hint::spin_loop();
@@ -136,8 +133,6 @@ pub async fn start(spawner: Spawner, wifi: WIFI<'static>) {
     service::notify(Operation::Credentials(!provisioning)).await;
     service::notify(Operation::BootTimeSyncing(!provisioning)).await;
     let config = credentials.as_ref().and_then(sta_config).or_else(ap_config);
-    // Diagnostic : `DIAG_NO_WIFI=1` au build laisse le Wi-Fi éteint.
-    let config = if option_env!("DIAG_NO_WIFI").is_some() { None } else { config };
     let Some(config) = config else {
         service::notify(Operation::Network {
             state: NetworkState::Off,
@@ -210,7 +205,6 @@ async fn connection(
 ) {
     let mut applied = if credentials.is_some() { 1 } else { 2 };
     loop {
-        crate::crumb!();
         if FORGET.swap(false, Ordering::AcqRel) && nvs::request(nvs::Operation::Forget).await.ok {
             credentials = None;
             PROVISIONING.store(true, Ordering::Release);
@@ -286,14 +280,6 @@ async fn connection(
         } else {
             NetworkState::StaConnecting
         };
-        let up = state == NetworkState::StaConnected;
-        if up != STA_UP.swap(up, Ordering::AcqRel) {
-            esp_println::println!(
-                "[diag] Wi-Fi {} à {} ms",
-                if up { "associé" } else { "perdu" },
-                embassy_time::Instant::now().as_millis()
-            );
-        }
         let ipv4 = if state == NetworkState::StaConnected {
             stack
                 .config_v4()
@@ -331,7 +317,6 @@ async fn dhcp(stack: Stack<'static>) {
     };
     let mut server = Server::<_, 8>::new_with_et(ADDRESS);
     loop {
-        crate::crumb!();
         let _ = io::server::run(
             &mut server,
             &ServerOptions::new(ADDRESS, Some(&mut gateways)),
@@ -371,7 +356,6 @@ async fn sntp(stack: Stack<'static>) {
         return;
     }
     loop {
-        crate::crumb!();
         stack.wait_config_up().await;
         let cookie = (Instant::now().as_micros()).to_be_bytes();
         let address = match stack
@@ -424,7 +408,6 @@ async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
     let mut rx = crate::heap::psram_buffer::<8192>();
     let mut tx = crate::heap::psram_buffer::<2048>();
     loop {
-        crate::crumb!();
         let stack = if PROVISIONING.load(Ordering::Acquire) {
             ap
         } else {
@@ -480,7 +463,6 @@ async fn serve(worker: usize, socket: &mut TcpSocket<'_>) -> Result<(), Broken> 
     let mut head = crate::heap::psram_buffer::<4096>();
     let mut used = 0;
     let request = loop {
-        crate::crumb!();
         match Request::parse(&head[..used]) {
             Ok(request) => break request,
             Err(screen_net::http::Error::Incomplete) if used < head.len() => {}
@@ -697,7 +679,6 @@ async fn websocket_session(
         socket.write_all(format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {key}\r\n\r\n").as_bytes()).await.map_err(|_|Broken)?;
         let mut incoming=[0;144]; let mut received=0;
         loop {
-            crate::crumb!();
             if WS_OVERFLOW.load(Ordering::Acquire)&(1<<worker)!=0 {return Err(Broken);}
             match select(WS[worker].receive(),socket.read(&mut incoming[received..])).await {
                 Either::First(frame)=>{
@@ -709,7 +690,6 @@ async fn websocket_session(
                 Either::Second(Ok(count)) => {
                     received += count;
                     loop {
-                        crate::crumb!();
                         match websocket::ClientFrame::parse(&incoming[..received]) {
                             Ok(frame) => {
                                 if frame.opcode == 8 { return Ok(()); }
@@ -818,7 +798,6 @@ async fn firmware(
         let mut written = 0;
         let mut bytes = [0; 2048];
         loop {
-            crate::crumb!();
             let data = if written == 0 && !prefix.is_empty() {
                 &prefix[..prefix.len().min(request.content_length)]
             } else {

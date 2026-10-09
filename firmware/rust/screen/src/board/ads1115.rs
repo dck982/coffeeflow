@@ -138,7 +138,6 @@ pub async fn run<I: I2c>(i2c: I) -> ! {
     let mut adc = {
         let mut i2c = i2c;
         loop {
-            screen::crumb!();
             match Ads1115::probe(i2c).await {
                 Ok(adc) => break adc,
                 Err(back) => {
@@ -155,7 +154,6 @@ pub async fn run<I: I2c>(i2c: I) -> ! {
     let mut next = Instant::now();
     let mut failures = 0u32;
     loop {
-        screen::crumb!();
         let a0 = adc.read(MUX_A0).await;
         let a1 = match a0 {
             Ok(_) => adc.read(MUX_A1).await,

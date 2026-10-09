@@ -93,6 +93,10 @@ opt-level     = 's'
 # correctif dans `vendor/esp-nvs/src/init.rs`.
 # esp-hal 1.2.2 corrigé localement : `time::now` rendu monotone entre les deux
 # cœurs (lecture du compteur sous verrou), voir `vendor/esp-hal/src/time.rs`.
+# esp-rtos 0.4.0 instrumenté : piles des tâches créées par les blobs radio
+# peintes et mesurées, agrandies de `RADIO_EXTRA_TASK_STACK` octets au build,
+# voir `vendor/esp-rtos/src/radio_stacks.rs`.
 [patch.crates-io]
 esp-nvs = { path = "../vendor/esp-nvs" }
 esp-hal = { path = "../vendor/esp-hal" }
+esp-rtos = { path = "../vendor/esp-rtos" }

@@ -1,0 +1,21 @@
+[package]
+edition = "2024"
+name    = "trial-06-sim"
+version = "0.1.0"
+
+# Hors de l'espace de travail de l'essai, qui vise l'ESP32-S3.
+[workspace]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = [
+  "backend-winit",
+  "compat-1-2",
+  "renderer-software",
+  "std",
+] }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[profile.release]
+opt-level = 3

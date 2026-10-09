@@ -1,0 +1,8 @@
+# Le simulateur tourne sur le Mac. Il annule la cible et les options de
+# l'essai, posées dans le .cargo/config.toml parent que Cargo lit aussi.
+[build]
+target = "aarch64-apple-darwin"
+
+# Prioritaire sur build.rustflags du parent (-nostartfiles).
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "debuginfo=0"]

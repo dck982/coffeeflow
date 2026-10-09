@@ -1054,6 +1054,225 @@ mesurer un redessin complet.
   dans leurs composants, `cache-rendering-hint`), puis placer le tas de
   Slint en SRAM interne plutôt qu'en PSRAM.
 
+**Réalisation (2026-10-08).** L'essai `06-slint-display` reprend 05 sans la
+radio : affichage, XIP et rapport de 04b, tout sur le cœur 0. Slint 1.18.1
+(crates.io) dessine avec `SoftwareRenderer::render(fb, 800)` dans le
+framebuffer PSRAM que lit la recopie.
+
+- **Deux écrans au lieu d'un.** La maquette reprend les deux écrans réels
+  de coffeeflow, plutôt qu'un accueil composite où les 104 px ne tiennent
+  pas avec la frise et les tuiles. L'écran d'infusion porte la barre du
+  haut, la frise, les six tuiles et la tuile de fonctionnement ; l'accueil
+  porte la barre du haut et le poids en 104 px. « accueil » et « infuser »
+  changent d'écran : l'ancien est détruit, le nouveau créé et redessiné en
+  entier. Une infusion simulée de 50 s (`src/demo.rs`) fait avancer toutes
+  les valeurs, la frise comprise, à 10 Hz.
+- **Inter** : `Inter-24pt-Regular.ttf` de `printerdemo_mcu` (OFL, sous-ensemble
+  Latin-1), en 18, 26, 28, 32 et 104 px. Slint pré-rend chaque taille en
+  alpha 8 bits, mais seulement pour l'ASCII et les caractères des littéraux
+  du `.slint` : « ° » et « É », que seul le code Rust affiche, sont portés
+  par des valeurs par défaut de `Live`. Les rodata passent à 547 Ko.
+- **Tactile** : GT911 lu en polling toutes les 20 ms, sur le bus du CH422G,
+  avec le décalage de 10 px de coffeeflow.
+- **Tas** : la région PSRAM (après le code et les framebuffers) est ajoutée
+  en premier, et esp-alloc sert chaque allocation depuis la première région
+  qui a la place : Slint vit en PSRAM. Les 72 Ko récupérés du bootloader
+  suivent. Pas de tas en `.bss`.
+- **ReusedBuffer** (par défaut) : Slint dessine dans le framebuffer
+  affiché, d'où des déchirures possibles. **SwappedBuffers** (feature
+  `swapped-buffers`) : un second framebuffer, échangé par l'interruption au
+  bloc 0 de la trame suivante ; la boucle de rendu attend l'échange avant de
+  réécrire l'ancien.
+- **Mesures du rapport** : rendus partiels (nombre, moyenne, maximum,
+  pixels redessinés) et complets (dernier, maximum) ; un changement d'écran
+  compte un rendu complet en ReusedBuffer, deux en SwappedBuffers. Puis le
+  tas PSRAM et interne, et la pile du cœur 0.
+- **Simulateur** : `sim/`, crate hôte à part (toolchain stable, cible du
+  Mac) qui compile le même `.slint` et le même `demo.rs`. `cargo run
+  --release` ouvre la fenêtre ; `snapshot` écrit une image PPM ;
+  `bench` mesure le rendu sur le Mac : 0,4 ms en complet, 0,24 ms en
+  partiel sur l'écran d'infusion, avec 157 000 pixels redessinés en
+  moyenne (41 % de l'écran). Slint fusionne les zones modifiées en
+  quelques rectangles : la frise, la barre du haut et les tuiles
+  deviennent de grandes bandes.
+- **Image** : 989 Ko en ReusedBuffer.
+
+**Résultat en ReusedBuffer (2026-10-08) : la recopie tient, le rendu de
+l'écran d'infusion est trop lent, et l'écran clignote.** Essai dans `ota_0`
+(`otadata` `0x5f`/`0x5e`), 105 s d'observation, 6 changements d'écran au
+doigt.
+
+| Critère | Mesuré | Verdict |
+|---|---|---|
+| Recopie : 0 retard, 0 recalage | 0 et 0 ; recopie la plus lente 921 µs, 31 trames/s | tenu |
+| Rendu partiel < 50 ms, infusion | moyenne 90 à 106 ms, maximum 141 ms, 190 000 à 200 000 px par rendu | échec |
+| Rendu partiel < 50 ms, accueil | moyenne 10 à 43 ms, maximum 45 ms en régime établi | tenu, de justesse |
+| Changement d'écran < 300 ms | 130 ms au premier rendu, ~72 ms ensuite | tenu |
+| Image < 3 500 Ko | 989 Ko, 16 pages de XIP | tenu |
+
+- **Clignotement.** En ReusedBuffer, Slint repeint le fond de chaque zone
+  modifiée, puis les éléments, dans le framebuffer affiché. Avec 90 à
+  140 ms par rendu sur la moitié de l'écran, la recopie envoie à l'écran
+  des zones vides ou à moitié dessinées. C'est le défaut attendu de ce mode,
+  amplifié par la lenteur du rendu.
+- **Pourquoi c'est lent.** Slint ne garde que 3 rectangles modifiés par
+  rendu (`PHYSICAL_REGION_MAX_SIZE = 3`). La barre du haut, la frise et les
+  tuiles, qui changent toutes à 10 Hz, se fusionnent en grandes bandes : la
+  moitié de l'écran par rendu, au lieu de quelques chiffres. Le débit est
+  d'environ 2 Mpx/s, dessin direct en PSRAM, crates compilées en
+  `opt-level = "s"`. Sur le Mac, `bench` mesurait le même ordre de zone
+  (157 000 px).
+- **Tactile** : 6 appuis comptés, 0 erreur.
+- **Mémoire.** Tas PSRAM : 52 Ko au plus. Tas interne : jamais utilisé.
+  Pile du cœur 0 : 8,5 Ko au plus.
+- **Défaut de l'essai, corrigé depuis.** La boucle de rendu attendait un
+  `Ticker` de 10 ms. Quand un rendu dure plus longtemps, le `Ticker` est en
+  retard, rend la main tout de suite et ne cède jamais l'exécuteur : le
+  rapport a sauté de 20 s à 44 s. Chaque tour se termine désormais par
+  `Timer::after(10 ms)`. Les chiffres relevés restent valables.
+
+**Variantes préparées pour la reprise (décision du 2026-10-08).** Trois
+leviers, chacun une feature de l'essai, mesurés avec les mêmes lignes de
+rapport que ReusedBuffer. On reprendra par ces trois variantes ; l'ordre
+reste à choisir.
+
+| Variante | Feature | Ce qu'on en attend |
+|---|---|---|
+| 1. SwappedBuffers | `swapped-buffers` | Plus de clignotement : Slint dessine hors écran. Chaque rendu reprend aussi la zone du rendu précédent, donc il devrait être plus lent. |
+| 2. Ligne par ligne | `line-by-line` | Slint compose chaque ligne dans un tampon de 1,6 Ko en SRAM interne, recopié d'un bloc dans le framebuffer affiché. Plus de clignotement avec un seul framebuffer : la recopie ne voit que des lignes anciennes ou nouvelles, au pire une déchirure. Le dessin ne lit plus la PSRAM ; la recopie de 400 Ko par rendu de 200 000 px reste à payer. Le gain de vitesse n'est pas acquis : seule la carte tranchera. |
+| 3. Fréquence réduite | `reduced-rate` | Les valeurs se mettent à jour moins souvent. Le rendu n'est pas plus rapide, mais il y en a moins, et chacun couvre moins de surface. |
+
+- **Fréquence réduite : ce que fait la variante.** La table
+  `REDUCED_RATES` de `src/demo.rs` donne une période et un décalage par
+  groupe de valeurs : barre du haut (et poids de l'accueil), frise, six
+  tuiles, tuile de fonctionnement. Par défaut, chaque groupe passe à
+  2,5 Hz, avec des décalages tels qu'un rendu ne couvre qu'un groupe.
+  Slint ne garde que trois zones modifiées par rendu : un seul groupe par
+  rendu évite la fusion en grandes bandes. **La fréquence se décidera
+  valeur par valeur** (décision métier) : en infusion, 2 à 4 Hz peuvent
+  suffire. La table sert à essayer d'autres choix, sans toucher au reste.
+- **La variante 3 se combine** avec les deux autres (`--features
+  "reduced-rate,line-by-line"`, par exemple). Les variantes 1 et 2
+  s'excluent.
+- **Sur le Mac** (`cd sim && cargo run --release -- bench`), l'écran
+  d'infusion :
+
+  | Mode | Rendu partiel moyen | Maximum | Zone moyenne |
+  |---|---|---|---|
+  | `render`, 10 Hz | 250 µs | 479 µs | 157 000 px |
+  | `render_by_line`, 10 Hz | 280 µs | 897 µs | 157 000 px |
+  | `render`, fréquence réduite | 71 µs | 342 µs | 20 000 px |
+  | `render_by_line`, fréquence réduite | 78 µs | 388 µs | 20 000 px |
+
+  Le rendu ligne par ligne coûte ~10 % de plus sur le Mac, où le
+  framebuffer est en RAM ordinaire ; sur la carte, il évite la PSRAM, donc
+  le résultat peut s'inverser. La fréquence réduite divise la zone par
+  huit. `cargo run --release -- reduced-rate` ouvre la fenêtre à
+  fréquence réduite, pour juger à l'œil.
+- **Images prêtes** sous `target/variants/` de l'essai, avec l'ELF
+  correspondant pour `espflash monitor --elf` :
+  `reused`, `swapped`, `line`, `reduced` (`.bin` et `.elf`), de 989 à
+  998 Ko. `reused` est ReusedBuffer avec le correctif du `Ticker`, et
+  `reduced` combine ReusedBuffer et la fréquence réduite. Pour une autre
+  combinaison, `cargo build --release --features "…"`, puis
+  `espflash save-image`. `target/` n'est pas versionné : après un
+  `cargo clean`, il faut reconstruire. À la reprise : relire
+  `otadata`, écrire le `.bin` choisi dans `ota_0`, basculer vers `ota_0`,
+  puis ouvrir la console avec l'`.elf` du même nom.
+- **Méthode** : celle de ReusedBuffer. Une minute sur l'écran d'infusion
+  sans toucher, environ 5 changements d'écran, une minute sur l'accueil.
+  Observer en plus le clignotement et les déchirures. En SwappedBuffers,
+  relever `attente=`, l'attente de l'échange.
+
+**Fin de session (2026-10-08) : retour sur coffeeflow.** `otadata`
+`0x5f`/`0x60`, les deux `VALID`, `ota_1` actif. L'essai reste dans `ota_0` :
+pour le reprendre, une bascule vers `ota_0` suffit.
+
+**Résultat en SwappedBuffers (2026-10-09) : plus de clignotement, mais le
+rendu de l'écran d'infusion reste trop lent.** Image reconstruite avant
+l'essai (`main.rs` plus récent que `swapped.bin`), écrite dans `ota_0`,
+`otadata` `0x61`/`0x60`, les deux `VALID`. 111 s d'observation, 8 appuis.
+
+| Critère | Mesuré | Verdict |
+|---|---|---|
+| Recopie : 0 retard, 0 recalage | 0 et 0 ; recopie la plus lente 922 µs, 31 trames/s | tenu |
+| Rendu partiel < 50 ms, infusion | moyenne 94 à 117 ms en régime établi, maximum 145 ms, 206 000 à 229 000 px par rendu | échec |
+| Rendu partiel < 50 ms, accueil | moyenne 33 à 35 ms, maximum 45 ms, ~112 000 px | tenu, de justesse |
+| Changement d'écran < 300 ms | rendu complet de 72 à 131 ms, puis au plus 32 ms d'attente de l'échange | tenu |
+
+- **Clignotement** : aucun. Slint dessine hors écran, la recopie ne voit
+  que des images finies.
+- **Zone redessinée** : ~10 % de plus qu'en ReusedBuffer sur l'écran
+  d'infusion, puisque chaque rendu reprend la zone du précédent. Sur
+  l'accueil, ~112 000 px alors que seul le poids change. Le débit ne bouge
+  pas : ~2 Mpx/s.
+- **Attente de l'échange** : jusqu'à 32 ms, une trame entière, à chaque
+  rendu. En infusion, il ne reste que ~7 rendus par seconde au lieu de 10.
+- **Tactile** : 8 appuis, 0 erreur, mais 7 changements d'écran d'après les
+  rendus complets (2 par changement, 16 au total, 2 au démarrage).
+- **Mémoire** : tas PSRAM 52 Ko au plus, tas interne jamais utilisé, pile
+  du cœur 0 8,6 Ko au plus. Comme en ReusedBuffer.
+
+**Résultat ligne par ligne (2026-10-09) : plus de clignotement, mais pas
+de gain de vitesse.** `line.bin` écrit dans `ota_0` (`otadata`
+`0x61`/`0x60`, les deux `VALID`, pas de nouvelle bascule). 112 s
+d'observation, 9 appuis.
+
+| Critère | Mesuré | Verdict |
+|---|---|---|
+| Recopie : 0 retard, 0 recalage | 0 et 0 ; recopie la plus lente 913 µs, 31 à 32 trames/s | tenu |
+| Rendu partiel < 50 ms, infusion | moyenne 92 à 108 ms en régime établi, maximum 147 ms, 188 000 à 204 000 px par rendu | échec |
+| Rendu partiel < 50 ms, accueil | moyenne 29 à 35 ms, maximum 49 ms | tenu, de justesse |
+| Changement d'écran < 300 ms | 77 ms, 133 ms au premier rendu | tenu |
+
+- **Clignotement** : aucun. Une petite cassure au milieu des grands
+  chiffres quand ils changent vite : la déchirure attendue, jugée
+  acceptable.
+- **Vitesse** : ~1,9 Mpx/s, comme en ReusedBuffer. Composer en SRAM
+  interne n'accélère pas le dessin : la PSRAM n'était pas le goulot, ou la
+  recopie des lignes reprend ce qu'on gagne. La zone est celle de
+  ReusedBuffer, sans le report de SwappedBuffers.
+- **Tactile** : 9 appuis, 9 changements d'écran (10 rendus complets, dont
+  celui du démarrage), 0 erreur.
+- **Mémoire** : tas PSRAM 77 Ko au plus (52 Ko dans les deux autres
+  modes), tas interne jamais utilisé, pile du cœur 0 8,9 Ko au plus. Un
+  seul framebuffer : 768 Ko de PSRAM de plus pour le tas qu'en
+  SwappedBuffers.
+- **Face à SwappedBuffers** : même absence de clignotement, même vitesse,
+  sans l'attente de l'échange ni le second framebuffer, au prix d'une
+  déchirure occasionnelle.
+
+**Résultat fréquence réduite + ligne par ligne (2026-10-09) : le critère
+tient.** Le levier se combine avec le rendu ligne par ligne plutôt qu'avec
+ReusedBuffer, puisque les deux dessinent à la même vitesse : la combinaison
+mesure le même gain, sans clignotement. Essai d'abord à 2,5 Hz : rendu net,
+mais trop lent à l'œil. La démo avance donc par pas de 50 ms, et chaque
+groupe change tous les 5 pas : 4 Hz, toujours un groupe par rendu, un pas
+sur cinq sans rendu. Le mode sans fréquence réduite reste à 10 Hz. 4 Hz
+est jugé tout à fait utilisable. `reduced-line.bin` dans `ota_0` (`otadata`
+`0x61`/`0x60`, les deux `VALID`), 90 s d'observation, 7 appuis.
+
+| Critère | 2,5 Hz | 4 Hz | Verdict à 4 Hz |
+|---|---|---|---|
+| Recopie : 0 retard, 0 recalage | 0 et 0, 913 µs au plus | 0 et 0, 913 µs au plus | tenu |
+| Rendu partiel < 50 ms, infusion | moyenne 16 à 27 ms, 13 000 à 28 000 px, maximum 65 ms | moyenne 14 à 25 ms, 10 000 à 26 000 px, maximum 66 ms | tenu en moyenne |
+| Rendu partiel < 50 ms, accueil | moyenne 34 à 41 ms, maximum 49 ms, ~100 000 à 125 000 px | moyenne 36 à 37 ms, maximum 47 ms, ~115 000 à 120 000 px | tenu, de justesse |
+| Changement d'écran < 300 ms | 93 ms, 133 ms au premier rendu | 77 à 81 ms, 133 ms au premier rendu | tenu |
+
+- **Rendus par seconde** : 14,7 à 15,1 sur l'écran d'infusion, pour 16
+  prévus. Les rendus de plus de 50 ms dépassent le pas : le minuteur part
+  en retard, et deux groupes tombent parfois dans le même rendu. Accueil :
+  3,8 à 3,9 par seconde, pour 4.
+- **Pics** : 123 ms quand le cycle de 50 s reprend, où la frise et toutes
+  les valeurs repartent de zéro. Une vraie infusion fera de même à son
+  départ : un rendu lent, une fois.
+- **Accueil** : chaque rendu couvre ~120 000 px, alors que seuls le poids
+  et la barre du haut changent. Le poids en 104 px et la barre du haut
+  forment une grande zone : c'est l'écran le plus près de la limite.
+- **Tactile** : 7 appuis, 7 changements d'écran, 0 erreur.
+- **Mémoire** : tas PSRAM 77 Ko au plus, tas interne jamais utilisé, pile
+  du cœur 0 8,9 Ko au plus.
+
 ### 7. `07-slint-radio` — Slint, BLE et Wi-Fi ensemble
 
 Décision du 2026-10-08 : c'est le cas réaliste qui résume les essais. Il
@@ -1216,3 +1435,45 @@ Résultats datés, au fil des essais.
   à 5 Hz. La bascule BLE ↔ Wi-Fi ne s'essaie que si l'étape 7 ne tient pas
   en SRAM. Les étapes 6 et 7 restent des essais : `screen` ne commence
   qu'ensuite.
+- **2026-10-08 :** `06-slint-display` écrit et compilé, en ReusedBuffer et
+  en SwappedBuffers, avec son simulateur sur Mac. Image de 989 Ko, rodata de
+  547 Ko, surtout les glyphes d'Inter.
+- **2026-10-08 :** `06-slint-display`, ReusedBuffer, dans `ota_0` (`otadata`
+  `0x5f`/`0x5e`, les deux `VALID` avant la bascule). Recopie : 0 retard,
+  0 recalage, recopie max 921 µs. Rendu partiel de l'écran d'infusion :
+  90 à 106 ms en moyenne, 141 ms au maximum, sur ~200 000 px. Échec du
+  critère des 50 ms, et l'écran clignote. Accueil : 45 ms au maximum.
+  Changement d'écran : 72 à 130 ms. Défaut du `Ticker` de la boucle de
+  rendu relevé. Leviers notés dans l'étape 6. Retour sur coffeeflow :
+  `otadata` `0x5f`/`0x60`, les deux `VALID`.
+- **2026-10-08 :** `06-slint-display`, trois variantes préparées pour la
+  reprise, chacune une feature : SwappedBuffers, rendu ligne par ligne en
+  SRAM interne, fréquence réduite par groupe de valeurs (2,5 Hz par défaut,
+  à décider valeur par valeur). Correctif du `Ticker`. Images de 989 à
+  998 Ko sous `target/variants/`. Sur le Mac, la fréquence réduite divise
+  par huit la zone redessinée. Rien de flashé ; coffeeflow en service.
+- **2026-10-09 :** `06-slint-display`, SwappedBuffers, dans `ota_0`
+  (`otadata` `0x5f`/`0x60` avant, `0x61`/`0x60` après la bascule, les deux
+  `VALID`). Aucun clignotement. Recopie : 0 retard, 0 recalage. Rendu
+  partiel de l'écran d'infusion : 94 à 117 ms en moyenne, 145 ms au
+  maximum, sur ~210 000 à 230 000 px. Échec du critère des 50 ms. Accueil :
+  45 ms au maximum. Attente de l'échange : jusqu'à 32 ms par rendu.
+- **2026-10-09 :** `06-slint-display`, ligne par ligne, dans `ota_0`
+  (`otadata` `0x61`/`0x60`, les deux `VALID`). Aucun clignotement, une
+  déchirure occasionnelle des grands chiffres, acceptable. Rendu partiel de
+  l'écran d'infusion : 92 à 108 ms en moyenne, 147 ms au maximum, sur
+  ~190 000 à 200 000 px : pas plus rapide qu'en ReusedBuffer, échec du
+  critère des 50 ms. Accueil : 49 ms au maximum. Tas PSRAM 77 Ko au plus.
+- **2026-10-09 :** `06-slint-display`, fréquence réduite à 2,5 Hz et ligne
+  par ligne, dans `ota_0`. Rendu net, sans clignotement, mais trop lent à
+  l'œil. Rendu partiel de l'écran d'infusion : 16 à 27 ms en moyenne, sur
+  13 000 à 28 000 px, 65 ms au maximum en régime établi, 124 ms quand le
+  cycle de 50 s reprend. Accueil : 34 à 41 ms en moyenne, 49 ms au maximum,
+  ~100 000 à 125 000 px. Fréquence réduite passée à 4 Hz : pas de la démo
+  de 50 ms, période de 5 pas, toujours un groupe par rendu.
+- **2026-10-09 :** `06-slint-display`, fréquence réduite à 4 Hz et ligne
+  par ligne, dans `ota_0` (`otadata` `0x61`/`0x60`, les deux `VALID`).
+  4 Hz jugé tout à fait utilisable. Rendu partiel de l'écran d'infusion :
+  14 à 25 ms en moyenne, 66 ms au maximum en régime établi, 123 ms quand le
+  cycle reprend. Accueil : 47 ms au maximum. Critère des 50 ms tenu en
+  moyenne sur les deux écrans.

@@ -6,7 +6,7 @@
 """Trace une capture haute fréquence CoffeeFlow enregistrée localement.
 
 Exemple :
-    uv run firmware/tools/plot_hf_capture.py captures/260917-143012.json --output capture.png
+    uv run firmware/analysis/plot_hf_capture.py captures/260917-143012.json --output capture.png
 
 Le débit de la balance est une dérivée centrée et lissée du poids. Sa valeur
 est en g/s (pratiquement ml/s pour de l'eau), afin de le comparer directement

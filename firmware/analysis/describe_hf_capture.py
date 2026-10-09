@@ -9,7 +9,7 @@ des phases et les mesures aux points clés. Il est conçu pour rester lisible
 sans devoir interpréter visuellement le graphe.
 
 Exemple :
-    uv run firmware/tools/describe_hf_capture.py captures/260927-144713.json
+    uv run firmware/analysis/describe_hf_capture.py captures/260927-144713.json
 """
 
 from __future__ import annotations

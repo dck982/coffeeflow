@@ -5,10 +5,10 @@
 """Calcule les constantes de calibration de la sonde SCACE à partir d'un palier.
 
 Exemples :
-    uv run firmware/tools/scace_calibration.py ice --capture captures/scace-….csv --start 200 --end 320
-    uv run firmware/tools/scace_calibration.py boil --capture captures/scace-….csv --start 60 --end 180 \\
+    uv run firmware/analysis/scace_calibration.py ice --capture captures/scace-….csv --start 200 --end 320
+    uv run firmware/analysis/scace_calibration.py boil --capture captures/scace-….csv --start 60 --end 180 \\
         --celsius 98.72 --fixed-ohm 999.3
-    uv run firmware/tools/scace_calibration.py convert --ratio 32.672 --fixed-ohm 999.3
+    uv run firmware/analysis/scace_calibration.py convert --ratio 32.672 --fixed-ohm 999.3
 
 Le palier vient d'une capture de scace_ble_log.py, entre --start et --end
 (secondes depuis la première trame), ou d'un rapport R_ntc / R_fixe donné

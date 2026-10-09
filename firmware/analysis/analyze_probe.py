@@ -5,8 +5,8 @@
 """Résume une ou plusieurs captures de record_probe.py.
 
 Exemple :
-    uv run firmware/tools/analyze_probe.py captures/probe-….json --reference-c 24.6
-    uv run firmware/tools/analyze_probe.py captures/probe-….json --start 30 --end 90
+    uv run firmware/analysis/analyze_probe.py captures/probe-….json --reference-c 24.6
+    uv run firmware/analysis/analyze_probe.py captures/probe-….json --start 30 --end 90
 
 Les échantillons qui relisent la même conversion ADS1115 (même instant de
 mesure, déduit de `age_ms`) sont écartés. Pour chaque capture : moyenne,

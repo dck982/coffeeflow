@@ -11,7 +11,7 @@ La moyenne pondérée par la tasse est le critère de la consigne
 (docs/chauffe-infusion.md#objectif) : chaque gramme arrivé en tasse avant
 l'arrêt de la pompe compte avec la NTC du même instant.
 
-Exemple : uv run firmware/tools/analyze_hf_capture.py captures/260925-152754.json
+Exemple : uv run firmware/analysis/analyze_hf_capture.py captures/260925-152754.json
 """
 
 from __future__ import annotations

@@ -23,9 +23,9 @@ et remplacent la précharge et la commande pendant l'écoulement. La
 récupération est simulée à 0 %, comme dans les captures de référence.
 
 Exemples :
-    uv run firmware/tools/simulate_boiler.py
-    uv run firmware/tools/simulate_boiler.py --fit
-    uv run firmware/tools/simulate_boiler.py --capture captures/260929-074002.json
+    uv run firmware/analysis/simulate_boiler.py
+    uv run firmware/analysis/simulate_boiler.py --fit
+    uv run firmware/analysis/simulate_boiler.py --capture captures/260929-074002.json
 
 La colonne « tasse » est la NTC moyenne pondérée par les grammes arrivés en
 tasse (critère de la consigne), avec la balance de la capture décalée comme

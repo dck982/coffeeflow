@@ -6,8 +6,8 @@
 """Enregistre en BLE les mesures de la sonde SCACE (Core2), pour la calibration.
 
 Exemple :
-    uv run firmware/tools/scace_ble_log.py
-    uv run firmware/tools/scace_ble_log.py --duration 600 --window 120
+    uv run firmware/analysis/scace_ble_log.py
+    uv run firmware/analysis/scace_ble_log.py --duration 600 --window 120
 
 Cherche le périphérique qui annonce le service SCACE, s'abonne à la trame de
 mesure (10 Hz) et écrit une ligne CSV par trame jusqu'à Ctrl-C (ou

@@ -15,7 +15,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
-SOURCE = ROOT / "log_codes.yaml"
+SOURCE = ROOT.parents[3] / "firmware" / "rust" / "protocol" / "log_codes.yaml"
 OUT_DIR = ROOT.parent / "generated"
 
 SEVERITIES = ["debug", "info", "warn", "error"]
@@ -56,7 +56,7 @@ def parse(text: str):
 def render_hpp(entries) -> str:
     lines = [
         "// GÉNÉRÉ — ne pas éditer à la main.",
-        "// Source : firmware/common/codegen/log_codes.yaml",
+        "// Source : firmware/rust/protocol/log_codes.yaml",
         "// Régénérer : python3 firmware/common/codegen/gen_log_codes.py",
         "#pragma once",
         "",
@@ -91,7 +91,7 @@ def render_hpp(entries) -> str:
 def render_py(entries) -> str:
     lines = [
         "# GÉNÉRÉ — ne pas éditer à la main.",
-        "# Source : firmware/common/codegen/log_codes.yaml",
+        "# Source : firmware/rust/protocol/log_codes.yaml",
         "# Régénérer : python3 firmware/common/codegen/gen_log_codes.py",
         "",
         "LOG_CODES = {",

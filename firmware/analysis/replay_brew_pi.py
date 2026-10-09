@@ -10,9 +10,9 @@ de la pression maintenu entre deux captures, période de contrôle, activation
 à ``target - margin``, saturation et anti-windup.
 
 Exemples :
-    uv run firmware/tools/replay_brew_pi.py captures/260921-081442.json
-    uv run firmware/tools/replay_brew_pi.py captures/260921-135930.json --kp 15 --ki 6
-    uv run firmware/tools/replay_brew_pi.py captures/260921-135930.json --csv /tmp/pi.csv
+    uv run firmware/analysis/replay_brew_pi.py captures/260921-081442.json
+    uv run firmware/analysis/replay_brew_pi.py captures/260921-135930.json --kp 15 --ki 6
+    uv run firmware/analysis/replay_brew_pi.py captures/260921-135930.json --csv /tmp/pi.csv
 
 Le CSV contient la pression enregistrée et la commande contrefactuelle. Il
 ne prédit pas la pression avec de nouveaux gains : cela nécessiterait aussi

@@ -12,21 +12,30 @@ configs/
 
 # ESP-IDF build artefacts et config générée localement — voir
 # firmware/IDF_VERSION.md pour la version figée.
-firmware/*/build/
-firmware/*/build-*/
-firmware/*/sdkconfig
-firmware/*/managed_components/
-firmware/*/dependencies.lock
+archive/firmware/*/build/
+archive/firmware/*/build-*/
+archive/firmware/*/sdkconfig
+archive/firmware/*/managed_components/
+archive/firmware/*/dependencies.lock
 
-# Généré depuis firmware/common/codegen/log_codes.yaml, jamais commité.
-firmware/common/generated/
+# Généré depuis firmware/rust/protocol/log_codes.yaml, jamais commité.
+archive/firmware/common/generated/
 
 # Config locale déposée par `eim` (ESP-IDF Installation Manager).
 eim_config.toml
 
 # Cache clangd local (index par projet ESP-IDF).
-firmware/*/.cache/
+archive/firmware/*/.cache/
 
 # Secrets locaux de l'écran : ne jamais versionner le mot de passe WPA de
 # l'AP de provisioning ni le jeton HTTP.
-firmware/screen/main/secrets.h
+archive/firmware/screen/main/secrets.h
+
+# Cargo
+target/
+firmware/*/build/
+firmware/*/build-*/
+firmware/*/sdkconfig
+firmware/*/managed_components/
+firmware/*/dependencies.lock
+firmware/*/.cache/

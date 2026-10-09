@@ -9,7 +9,7 @@ from scace_ble_log import (FRAME_UUID, SERVICE_UUID, LatestTemperature, Recorder
                            lost_frames, slope_per_min)
 
 
-HEADER = Path(__file__).resolve().parents[2] / "common" / "include" / "common" / "scace_ble.hpp"
+HEADER = Path(__file__).resolve().parents[3] / "archive" / "firmware" / "common" / "include" / "common" / "scace_ble.hpp"
 
 
 def frame_bytes(seq=0, probe_ms=0, a0=26416, a1=25600, centi_c=3, status=1):

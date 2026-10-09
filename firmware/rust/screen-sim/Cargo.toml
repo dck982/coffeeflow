@@ -1,0 +1,12 @@
+[package]
+name = "screen-sim"
+version = "0.4.0"
+edition = "2024"
+[workspace]
+[dependencies]
+screen-core = { path = "../screen-core" }
+slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software"] }
+protocol = { path = "../protocol" }
+png = "0.18.1"
+[build-dependencies]
+slint-build = "=1.18.1"

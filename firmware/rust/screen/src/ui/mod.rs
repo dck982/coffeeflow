@@ -5,7 +5,12 @@
 
 slint::include_modules!();
 
+pub mod presenter;
+
 use alloc::boxed::Box;
+use alloc::collections::VecDeque;
+use alloc::vec::Vec;
+use core::cell::RefCell;
 use alloc::rc::Rc;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -44,7 +49,27 @@ impl Platform for EmbassyPlatform {
 pub struct Ui {
     window: Rc<MinimalSoftwareWindow>,
     // Garde la fenêtre vivante ; l'UI réelle lui parlera par ses propriétés.
-    _app: AppWindow,
+    pub app: AppWindow,
+    pub presenter: presenter::Presenter,
+    commands: Rc<RefCell<VecDeque<(i32, slint::SharedString)>>>,
+}
+
+impl Ui {
+    /// Les callbacks déposent des gestes ; seul l'assemblage appelle le cœur.
+    pub fn take_requests(&mut self, now_us: u64, snapshot: &screen_core::snapshot::Snapshot, config: &screen_core::config::Config) -> Vec<presenter::UiRequest> {
+        let mut requests = Vec::new();
+        while let Some((id, payload)) = self.commands.borrow_mut().pop_front() {
+            if let Some(request) = self.presenter.command(id, &payload, now_us, snapshot, config) { requests.push(request); }
+        }
+        requests
+    }
+
+    /// Affiche les priorités avant le prochain rendu, puis une tranche de valeurs.
+    pub fn update(&mut self, now_us: u64, snapshot: &screen_core::snapshot::Snapshot, config: &screen_core::config::Config, provisioning_ssid: &str, clock_text: &str) {
+        self.presenter.update(&self.app, now_us, snapshot, config, provisioning_ssid, clock_text);
+    }
+
+    pub fn feedback(&mut self, reply: screen_core::core::Reply) { self.presenter.feedback(reply); }
 }
 
 /// Pose la plateforme et affiche la fenêtre.
@@ -57,7 +82,10 @@ pub fn init() -> Ui {
         .expect("plateforme Slint déjà posée");
     let app = AppWindow::new().unwrap();
     app.show().unwrap();
-    Ui { window, _app: app }
+    let commands = Rc::new(RefCell::new(VecDeque::new()));
+    let queue = commands.clone();
+    app.on_command(move |id, payload| queue.borrow_mut().push_back((id, payload)));
+    Ui { window, app, presenter: presenter::Presenter::default(), commands }
 }
 
 /// Boucle de rendu : minuteurs et animations de Slint, tactile toutes les

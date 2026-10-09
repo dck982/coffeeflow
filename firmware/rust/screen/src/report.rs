@@ -12,6 +12,7 @@ use log::info;
 use crate::board::ads1115;
 use crate::display;
 use crate::heap::PSRAM_HEAP;
+use crate::stack_watermark;
 use crate::ui;
 
 #[embassy_executor::task]
@@ -24,6 +25,7 @@ pub async fn report() {
     let mut last_frames = 0;
     loop {
         Timer::after(Duration::from_secs(10)).await;
+        screen::crumb!();
         let frames = display::FRAMES.load(Relaxed);
         info!(
             "{}s tr={}/s ret={} recal={} copie={}/{}us ecart={}us",
@@ -60,6 +62,12 @@ pub async fn report() {
             psram.size,
             psram.max_usage,
         );
+
+        // Plus haut niveau de pile de chaque cœur, utilisé/total.
+        Timer::after(Duration::from_millis(20)).await;
+        let (c0, c0_size) = stack_watermark::usage(0).unwrap_or_default();
+        let (c1, c1_size) = stack_watermark::usage(1).unwrap_or_default();
+        info!("pile c0 max={c0}/{c0_size} c1 max={c1}/{c1_size}");
 
         Timer::after(Duration::from_millis(20)).await;
         info!(

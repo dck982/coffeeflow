@@ -22,6 +22,7 @@ use screen::{
 use static_cell::StaticCell;
 
 static READY: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+// Mesuré sur carte : 8,7 Ko au plus haut, NVS corrigé et radio active.
 const STACK_BYTES: usize = 16384;
 
 pub fn start(
@@ -35,6 +36,7 @@ pub fn start(
     static STACK: StaticCell<Stack<STACK_BYTES>> = StaticCell::new();
     static EXECUTOR: StaticCell<esp_rtos::embassy::Executor> = StaticCell::new();
     let stack = STACK.init_with(Stack::new);
+    crate::stack_watermark::paint_core1(stack.mem.as_mut_ptr().cast(), STACK_BYTES);
     esp_rtos::start_second_core(cpu_ctrl, intr1, stack, move || {
         let executor = EXECUTOR.init(esp_rtos::embassy::Executor::new());
         executor.run(|spawner| {
@@ -55,15 +57,32 @@ async fn boot(
     flash: Flash,
     layout: Layout,
 ) {
-    let connector = ble::connector(bt);
+    // Diagnostic : `DIAG_NO_BLE=1` au build laisse le BLE éteint.
+    let connector = option_env!("DIAG_NO_BLE").is_none().then(|| ble::connector(bt));
     nvs::start(spawner, flash, layout).await;
     network::start(spawner, wifi).await;
-    spawner.spawn(ble_task(connector).unwrap());
+    if let Some(connector) = connector {
+        spawner.spawn(ble_task(connector).unwrap());
+    }
     READY.signal(());
 }
 
 #[embassy_executor::task]
 async fn ble_task(connector: BleConnector<'static>) {
+    // Diagnostic : `DIAG_BLE_AFTER_STA=1` attend l'association Wi-Fi (60 s au
+    // plus) avant de lancer l'hôte BLE et son scan.
+    if option_env!("DIAG_BLE_AFTER_STA").is_some() {
+        let start = embassy_time::Instant::now();
+        while !network::STA_UP.load(core::sync::atomic::Ordering::Acquire)
+            && start.elapsed() < embassy_time::Duration::from_secs(60)
+        {
+            embassy_time::Timer::after_millis(200).await;
+        }
+        esp_println::println!(
+            "[diag] BLE lancé à {} ms",
+            embassy_time::Instant::now().as_millis()
+        );
+    }
     ble::run(connector).await;
     // Une erreur fatale de l'hôte ne laisse pas une interface connectée
     // fictive ; le bootloader conserve sa politique de rollback.

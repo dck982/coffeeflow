@@ -1635,8 +1635,6 @@ dependencies = [
 [[package]]
 name = "esp-hal"
 version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e3dfd511fed638fe41fdb4595f8c7f0cbb488d0f0cf2bbc063d76d805057cf"
 dependencies = [
  "bitfield",
  "bytemuck",
@@ -1718,8 +1716,6 @@ checksum = "911aadae41ec99104efa865bd0b6e486b4b735999f9b571963748a46d16495ab"
 [[package]]
 name = "esp-nvs"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe94ff32323389591a43f90589698586d7375322d8d4e3ba3bf9efc54b3f6b76"
 dependencies = [
  "embedded-storage",
  "strum 0.27.2",

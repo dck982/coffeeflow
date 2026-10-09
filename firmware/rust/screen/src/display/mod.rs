@@ -208,8 +208,11 @@ fn dma_current(out_dscr: usize) -> usize {
 /// recharge celui-ci. Si le DMA est revenu dessus avant la fin de la
 /// recopie, le LCD a reçu des lignes périmées : c'est un retard.
 extern "C" fn on_dma_eof() {
-    let t0 = esp_hal::time::Instant::now();
-    let now = t0.duration_since_epoch().as_micros() as u32;
+    // Horodatages en µs bruts, différences saturées : lu pendant que l'autre
+    // cœur lit aussi le SYSTIMER, `Instant::now` peut rendre une valeur un peu
+    // plus ancienne que la précédente, et la soustraction d'`Instant` panique.
+    let t0 = esp_hal::time::Instant::now().duration_since_epoch().as_micros();
+    let now = t0 as u32;
     let gap = now.wrapping_sub(LAST_EOF_US.swap(now, Relaxed));
 
     dma_tx().out_int().clr().write(|w| w.out_eof().clear_bit_by_one());
@@ -217,7 +220,10 @@ extern "C" fn on_dma_eof() {
     let bb = (eof % 2) as usize;
 
     fill_bounce(bb);
-    let us = t0.elapsed().as_micros() as u32;
+    let us = esp_hal::time::Instant::now()
+        .duration_since_epoch()
+        .as_micros()
+        .saturating_sub(t0) as u32;
 
     if in_buffer(dma_current(out_dscr()), bb) {
         LATE.fetch_add(1, Relaxed);

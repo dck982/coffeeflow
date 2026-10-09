@@ -119,6 +119,7 @@ fn err_text(stage: &str, err: impl core::fmt::Debug) -> ErrText {
 struct ScanHandler;
 impl EventHandler for ScanHandler {
     fn on_adv_reports(&self, mut reports: LeAdvReportsIter<'_>) {
+        crate::crumb!();
         while let Some(Ok(report)) = reports.next() {
             let mut name = None;
             let mut uuid16 = heapless::Vec::<u16, 16>::new();
@@ -213,6 +214,7 @@ async fn scan(stack: &BleStack<'_>) {
     let mut scanner = Scanner::new(stack.central());
     let mut last_probe_us = 0;
     loop {
+        crate::crumb!();
         let inputs = scan_inputs();
         let policy = ble_policy::decide(&inputs);
         let now = Instant::now().as_micros() as i64;
@@ -232,7 +234,10 @@ async fn scan(stack: &BleStack<'_>) {
                 continue;
             }
             SCANNING.store(true, Relaxed);
-            if let Ok(session) = scanner.scan(&config).await {
+            crate::crumb!();
+            let started = scanner.scan(&config).await;
+            crate::crumb!();
+            if let Ok(session) = started {
                 if policy == ble_policy::Scan::ProbeWindow {
                     last_probe_us = now;
                 }
@@ -244,6 +249,7 @@ async fn scan(stack: &BleStack<'_>) {
                     now,
                 ) {
                     Timer::after(Duration::from_millis(20)).await;
+                    crate::crumb!();
                     let found = critical_section::with(|cs| {
                         TARGETS
                             .borrow_ref(cs)
@@ -260,7 +266,9 @@ async fn scan(stack: &BleStack<'_>) {
                         break;
                     }
                 }
+                crate::crumb!();
                 drop(session);
+                crate::crumb!();
             }
             // Même un démarrage HCI échoué peut avoir ouvert le scan avant
             // son annulation : confirmer l'arrêt dans les deux chemins.
@@ -272,9 +280,11 @@ async fn scan(stack: &BleStack<'_>) {
                     .await
                     .is_err()
                 {
+                    crate::crumb!();
                     Timer::after(Duration::from_millis(20)).await;
                 }
             }
+            crate::crumb!();
             SCANNING.store(false, Relaxed);
         }
         Timer::after(Duration::from_millis(20)).await;
@@ -283,6 +293,7 @@ async fn scan(stack: &BleStack<'_>) {
 
 async fn link(stack: &BleStack<'_>, dev: usize) {
     loop {
+        crate::crumb!();
         let target = critical_section::with(|cs| TARGETS.borrow_ref(cs)[dev]);
         if !wanted(dev)
             || target.is_none()
@@ -318,12 +329,14 @@ async fn link(stack: &BleStack<'_>, dev: usize) {
                 supervision_timeout: Duration::from_millis(2560),
             },
         };
+        crate::crumb!();
         let mut central = stack.central();
         let result = select(
             with_timeout(Duration::from_secs(10), central.connect(&config)),
             wait_unwanted(dev),
         )
         .await;
+        crate::crumb!();
         CONNECTING.store(0, Relaxed);
         if let Either::First(Ok(Ok(conn))) = result {
             let gatt = async {
@@ -368,6 +381,7 @@ async fn wait_unwanted(dev: usize) {
 
 async fn conn_events(conn: &Connection<'_, DefaultPacketPool>) -> Status {
     loop {
+        crate::crumb!();
         if let ConnectionEvent::Disconnected { reason } = conn.next().await {
             return reason;
         }
@@ -393,6 +407,7 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
     let mut session = acaia::Session::new();
     let mut next_heartbeat_poll = Instant::now() + Duration::from_millis(50);
     loop {
+        crate::crumb!();
         if !wanted(SCALE) {
             return err_text("radio", "arrêt demandé");
         }
@@ -459,6 +474,7 @@ async fn probe_session(client: &Client<'_>) -> ErrText {
     CONNECTED[PROBE].store(true, Relaxed);
     publish(EventKind::ScaceConnected(true));
     loop {
+        crate::crumb!();
         if !wanted(PROBE) {
             return err_text("sonde", "arrêt demandé");
         }

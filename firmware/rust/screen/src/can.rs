@@ -51,6 +51,7 @@ pub async fn task(mut twai: Twai<'static, Async>) -> ! {
     let mut next_poll = Instant::now() + Duration::from_millis(100);
     let mut recovering = false;
     loop {
+        crate::crumb!();
         match select3(
             twai.receive_async(),
             select(TX.receive(), BRIDGE_TX.receive()),

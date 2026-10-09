@@ -139,12 +139,16 @@ pub async fn run(
     let mut pressed: Option<slint::LogicalPosition> = None;
     let mut iteration = 0u32;
     loop {
+        screen::crumb!();
         crate::watchdog::feed();
         slint::platform::update_timers_and_animations();
+        screen::crumb!();
 
         iteration = iteration.wrapping_add(1);
         if let (Some(touch), true) = (&mut touch, iteration.is_multiple_of(2)) {
-            match touch.read().await {
+            let read = touch.read().await;
+            screen::crumb!();
+            match read {
                 Ok(Touch::Unchanged) => {}
                 Ok(Touch::Pressed(x, y)) => {
                     let position = slint::LogicalPosition::new(x as f32, y as f32);
@@ -188,16 +192,24 @@ pub async fn run(
             }
         }
 
+        screen::crumb!();
         runtime.poll(&mut ui);
+        screen::crumb!();
         ui.window.draw_if_needed(|renderer| {
-            let t0 = esp_hal::time::Instant::now();
+            // Différence saturée : voir la recopie d'affichage, le SYSTIMER lu
+            // depuis les deux cœurs n'est pas strictement monotone.
+            let t0 = esp_hal::time::Instant::now().duration_since_epoch().as_micros();
             renderer.render_by_line(LineToFb(fb));
-            let us = t0.elapsed().as_micros() as u32;
+            let us = esp_hal::time::Instant::now()
+                .duration_since_epoch()
+                .as_micros()
+                .saturating_sub(t0) as u32;
             RENDERS.fetch_add(1, Relaxed);
             RENDER_LAST_US.store(us, Relaxed);
             RENDER_MAX_US.fetch_max(us, Relaxed);
         });
 
+        screen::crumb!();
         Timer::after(Duration::from_millis(10)).await;
     }
 }

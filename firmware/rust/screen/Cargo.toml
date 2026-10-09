@@ -87,3 +87,12 @@ codegen-units = 1
 debug         = 2
 lto           = 'fat'
 opt-level     = 's'
+
+# esp-nvs 0.6.2 corrigé localement : l'ouverture lisait ses pages sur la pile
+# (trame de 12,5 Ko), trop pour la pile du cœur radio. Voir l'en-tête du
+# correctif dans `vendor/esp-nvs/src/init.rs`.
+# esp-hal 1.2.2 corrigé localement : `time::now` rendu monotone entre les deux
+# cœurs (lecture du compteur sous verrou), voir `vendor/esp-hal/src/time.rs`.
+[patch.crates-io]
+esp-nvs = { path = "../vendor/esp-nvs" }
+esp-hal = { path = "../vendor/esp-hal" }

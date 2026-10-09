@@ -29,6 +29,7 @@ impl CoreStore {
             synchronous: true,
         };
         loop {
+            crate::crumb!();
             match nvs::REQUESTS.try_send(request) {
                 Ok(()) => break,
                 Err(embassy_sync::channel::TrySendError::Full(back)) => request = back,
@@ -38,6 +39,7 @@ impl CoreStore {
         // Ne pas rendre un faux échec avec une écriture durable encore en vol :
         // la RAM doit rester cohérente avec NVS, même si le flash est lent.
         loop {
+            crate::crumb!();
             if let Ok(response) = nvs::SYNC_REPLY.try_receive() {
                 return response;
             }

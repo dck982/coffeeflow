@@ -15,6 +15,10 @@ use protocol::{Frame, MAX_FRAMED_SIZE, StreamDecoder, encode_framed};
 pub static LOCAL_OTA: Channel<CriticalSectionRawMutex, Frame, 64> = Channel::new();
 
 static FRAMED_TX_ACTIVE: AtomicBool = AtomicBool::new(false);
+/// Un client du pont (`coffeetool --usb`) a envoyé une trame valide. Avant,
+/// l'UART ne porte que du texte : sur le bureau, la console reste lisible au
+/// lieu d'être mêlée aux trames que le cœur émet même sans bus CAN.
+static BRIDGE_CLIENT: AtomicBool = AtomicBool::new(false);
 static LOGS: Channel<CriticalSectionRawMutex, heapless::Vec<u8, 256>, 16> = Channel::new();
 pub static DROPPED_LOGS: AtomicU32 = AtomicU32::new(0);
 struct Logger;
@@ -62,10 +66,12 @@ pub async fn receive(mut rx: UartRx<'static, Async>) -> ! {
     let mut decoder = StreamDecoder::new();
     let mut bytes = [0; 64];
     loop {
+        crate::crumb!();
         match rx.read_async(&mut bytes).await {
             Ok(n) => {
                 for byte in &bytes[..n] {
                     if let Some(frame) = decoder.push_byte(*byte) {
+                        BRIDGE_CLIENT.store(true, Relaxed);
                         if crate::ota_proxy::is_local_ota(&frame) {
                             LOCAL_OTA.send(frame).await;
                         } else {
@@ -86,8 +92,12 @@ pub async fn transmit(mut tx: UartTx<'static, Async>) -> ! {
     let _ = write_all(&mut tx, &[0]).await;
     let mut bytes = [0; MAX_FRAMED_SIZE];
     loop {
+        crate::crumb!();
         match select(crate::can::SERIAL.receive(), LOGS.receive()).await {
             Either::First(frame) => {
+                if !BRIDGE_CLIENT.load(Relaxed) {
+                    continue;
+                }
                 if let Some(n) = encode_framed(&frame, &mut bytes) {
                     let _ = write_all(&mut tx, &bytes[..n]).await;
                 }

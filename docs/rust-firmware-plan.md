@@ -115,6 +115,103 @@ Le point 10 est validé hors matériel : demander maintenant à David l'accès
 les méthodes et les résultats de `rust-migration.md` avant tout essai ; le
 premier parcours prévu reste l'écran sur le bureau, USB sans CAN, puis la machine.
 
+## Première session USB — 2026-10-09 (en cours, bloquée)
+
+Écran sur le bureau, USB, sans CAN ni ADS ; balance et SCACE éteintes.
+Image Rust installée par `parttool` dans `ota_0` puis `otatool
+switch_ota_partition --name ota_0` : `otadata` `0x68`/`0x69`, les deux
+`VALID`, donc pas de retour automatique. Coffeeflow 0.3.48 reste dans
+`ota_1`. Retour, console fermée :
+`otatool.py -p /dev/cu.usbmodem5B790235091 switch_ota_partition --name ota_1`.
+Les images suivantes se réécrivent dans `ota_0` sans nouvelle bascule.
+
+### Corrigé pendant la session (vérifié sur carte)
+
+- **Pile du cœur 1 et NVS.** `esp_nvs` 0.6.2 mettait trois copies d'une page
+  de 4 Ko sur la pile à l'ouverture (`scan_sectors`, trame de 12,7 Ko) :
+  débordement des 16 Ko du cœur 1. Copie vendorée dans
+  `firmware/rust/vendor/esp-nvs` (`[patch.crates-io]` de `screen`), page en
+  tas et lue en place ; 126 tests de la crate verts. Chemin NVS ~18,1 → 6,6 Ko.
+  Mesuré : cœur 1 à 8,6 Ko au plus (Wi-Fi), 6,3 Ko (BLE). Pile du cœur 1
+  laissée à 16 Ko.
+- **Pile du cœur 0.** 18,2 Ko utilisés dès le démarrage sur 20,9. Tas radio
+  interne ramené de 128 à 120 Ko : la pile du cœur 0 passe à ~29 Ko. Tas
+  interne libre minimal mesuré : 30 Ko avec Wi-Fi + BLE, 65 Ko Wi-Fi seul,
+  77 Ko BLE seul.
+- **Mesure de pile.** `screen/src/stack_watermark.rs` : motif peint au
+  démarrage, ligne `pile c0 max=…/… c1 max=…/…` dans le rapport toutes les
+  10 s. Pour le cœur 1, la fermeture de démarrage déposée par esp-hal au bas
+  de la pile est sautée (sinon la mesure dit « pleine »).
+- **Horloge non monotone entre les cœurs.** `esp_hal::time::Instant::now`,
+  lu depuis les deux cœurs, peut reculer ; `Instant - Instant` panique alors
+  (« Sub failed »), notamment dans le nettoyage de bus I2C d'esp-hal quand
+  l'ADS absent ne répond pas, et dans l'interruption de recopie. Copie
+  vendorée `firmware/rust/vendor/esp-hal` (1.2.2) : `time::now` lit le
+  compteur sous `esp_sync::RawMutex` (verrou inter-cœurs, interruptions
+  masquées, comme IDF) et ne rend jamais moins que la valeur précédente.
+  Recopie et mesure de rendu en µs saturés. Recopie mesurée ensuite : 715 à
+  1 083 µs, `ret=0`.
+- **Console lisible.** Les trames du pont série ne partent qu'après la
+  première trame valide reçue du Mac ; avant, l'UART ne porte que le texte.
+- **Watchdog RTC.** Interruption qui panique à 6 s (trace du cœur 0), reset
+  à 8 s. Jamais vue se déclencher : les blocages observés masquent les
+  interruptions.
+- **Points de passage.** `screen/src/breadcrumb.rs` et la macro `crumb!` :
+  dernier fichier:ligne, nombre de passages et instant (ms) de chaque cœur,
+  en RAM RTC lente ; affichés au démarrage suivant (`[diag] avant reset,
+  cœur N : …`). Posés aux têtes de boucle et dans le BLE et la boucle de
+  rendu.
+
+### Problème ouvert : BLE + Wi-Fi station plantent ensemble
+
+| Variante (build) | Résultat |
+|---|---|
+| Wi-Fi station seul (`DIAG_NO_BLE=1`) | stable (30 s et plus) |
+| BLE seul, scan sans appareil (`DIAG_NO_WIFI=1`) | stable (60 s et plus) |
+| BLE + station | blocage ou panique entre 1,4 et 3,7 s |
+| idem, station en `PowerSaveMode::Minimum` | identique : ce n'est pas la veille Wi-Fi |
+| BLE lancé après l'association (`DIAG_BLE_AFTER_STA=1`) | associé à 2 685 ms, BLE à 2 774 ms, plantage aussitôt : régime établi, pas la phase d'association |
+
+Les deux cœurs s'arrêtent à la même milliseconde. Panique double observée :
+cœur 1 `LoadStoreError` dans `pm_process_tim` (blob Wi-Fi, traitement du TIM
+des balises, propre au mode station), lecture d'octet à `0x42170428`, une
+adresse de la zone de code ; cœur 0 `InstrProhibited` (PC 0) dans
+`esp_rtos::TaskQueue::pop`, appelé par `cross_core_yield_handler`.
+L'ordonnanceur d'esp-rtos est corrompu.
+
+**Trou de couverture des essais :** 05, 07 et 08a combinaient BLE et Wi-Fi
+en **point d'accès** ; 08c a utilisé la station **sans BLE**. BLE + station
+n'a jamais tourné. Versions identiques à l'essai 07 et dernières publiées :
+esp-radio 1.0.0-beta.1, esp-rtos 0.4.0, esp-hal 1.2.2, trouble-host 0.7.0.
+
+**Prochaine étape proposée :** reproduire hors de `screen`, avec l'essai 07
+passé en station (même affichage, même radio), puis la même chose sans le
+remappage XIP. Ça sépare un défaut d'esp-radio/esp-rtos d'une interaction
+avec le code en PSRAM (l'adresse fautive tombe dans le code remappé) ou avec
+le placement des tampons du blob. Pistes ensuite : cœur des tâches radio
+(contrôleur BLE sur `AppCpu`, tâche Wi-Fi sur le cœur qui crée le
+contrôleur), allocations du blob (tas interne ou non).
+
+### Pour reprendre
+
+- Build de diagnostic actuel, depuis `firmware/rust/screen` :
+  `ESP_RTOS_CONFIG_STACK_POINTER_RANGE_CHECK=false cargo build --release --offline`,
+  plus l'un des interrupteurs `DIAG_NO_BLE`, `DIAG_NO_WIFI`,
+  `DIAG_BLE_AFTER_STA`. La vérification de plage d'esp-rtos est coupée
+  parce qu'elle paniquait sur l'état déjà corrompu ; la garde matérielle de
+  pile reste active. Image : `espflash save-image --chip esp32s3
+  --flash-size 16mb --skip-update-check target/xtensa-esp32s3-none-elf/release/screen /tmp/screen-diag.bin`,
+  ELF copié en `/tmp/screen-diag.elf` pour `espflash monitor --elf`.
+- Le code de diagnostic (`crumb!`, `[diag]`, interrupteurs `DIAG_*`,
+  repères de construction du cœur) est à retirer une fois le problème
+  réglé ; `stack_watermark`, le watchdog en deux temps et les deux copies
+  vendorées sont à garder.
+- Défauts relevés, non corrigés : la boucle de scan BLE fait `continue` sans
+  `await` quand `scan_can_start` est faux (la tâche peut monopoliser le
+  cœur 1) ; NVS est rouvert à chaque requête.
+- Carte laissée sur l'image de diagnostic `DIAG_BLE_AFTER_STA`, qui
+  redémarre en boucle sur `ota_0`.
+
 ## Référence de comportement
 
 Le C++ est dans `archive/firmware/` (`screen`, `sensors`, `common`, `tools`),

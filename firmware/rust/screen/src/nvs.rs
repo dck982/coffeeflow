@@ -100,6 +100,7 @@ impl Crc for Borrowed<'_> {
 #[embassy_executor::task]
 async fn storage_task() {
     loop {
+        crate::crumb!();
         let request = REQUESTS.receive().await;
         let response = {
             let mut flash = FLASH.lock().await;

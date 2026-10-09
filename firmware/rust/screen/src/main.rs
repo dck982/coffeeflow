@@ -21,6 +21,7 @@ mod core1;
 mod display;
 mod report;
 mod runtime;
+mod stack_watermark;
 mod ui;
 mod watchdog;
 mod xip;
@@ -57,6 +58,8 @@ extern "Rust" fn custom_halt() -> ! {
 )]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
+    // Avant tout le reste : le plus haut niveau de pile se mesure depuis ici.
+    stack_watermark::paint_core0();
     screen::serial_bridge::init_logger().expect("journal déjà installé");
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
@@ -76,8 +79,9 @@ async fn main(spawner: Spawner) -> ! {
         .with_rx(peripherals.GPIO44)
         .into_async();
     info!("screen 0.4.0, reset: {:?}", esp_hal::system::reset_reason());
+    screen::breadcrumb::report_previous();
 
-    // Le tas interne d'abord : 128 Ko pour la radio du cœur 1.
+    // Le tas interne d'abord : 120 Ko pour la radio du cœur 1.
     heap::init_internal();
 
     let mut flash = screen::flash::Flash::new(
@@ -215,6 +219,10 @@ async fn main(spawner: Spawner) -> ! {
 
     spawner.spawn(report::report().unwrap());
     spawner.spawn(board::ads1115_task(board.device()).unwrap());
+    // Repères directs sur l'UART : la file des journaux passe par une tâche du
+    // cœur 0, qui ne tournerait plus si la construction restait bloquée.
+    esp_println::println!("[diag] construction du cœur…");
     let runtime = runtime::Runtime::new(board.touch.is_some());
+    esp_println::println!("[diag] cœur construit");
     ui::run(ui, fb.cast::<Rgb565Pixel>(), board.touch, runtime).await
 }

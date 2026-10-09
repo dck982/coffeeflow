@@ -18,10 +18,11 @@ pub static PSRAM_HEAP: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
 /// y tombe, aucune de `esp_alloc::HEAP`.
 const PSRAM_DATA_BUS: core::ops::Range<usize> = 0x3C00_0000..0x3E00_0000;
 
-// Tas interne : 128 Ko, dont 72 récupérés du bootloader et le reste en .bss,
-// pris sur la pile du cœur 0.
+// Tas interne : 120 Ko, dont 72 récupérés du bootloader et le reste en .bss,
+// pris sur la pile du cœur 0. Les 8 Ko rendus sur les 128 des essais vont à
+// cette pile, qui atteignait 18 Ko sur 20,9 dès le démarrage.
 const HEAP_RECLAIMED: usize = 73744;
-const HEAP_TOTAL: usize = 128 * 1024;
+const HEAP_TOTAL: usize = 120 * 1024;
 
 /// Allocateur global : le cœur 0 alloue en PSRAM, le cœur 1 en SRAM interne.
 /// La libération suit l'adresse du bloc, quel que soit le cœur qui le rend.

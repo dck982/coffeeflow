@@ -6,4 +6,4 @@
 [workspace]
 resolver = "3"
 members = ["protocol", "coffeetool", "sensors-logic", "screen-core", "screen-net"]
-exclude = ["trials", "screen", "sensors"]
+exclude = ["trials", "screen", "sensors", "vendor"]

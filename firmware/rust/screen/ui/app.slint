@@ -1,0 +1,20 @@
+// Fenêtre de remplacement : fond noir et la version, le temps que l'UI
+// réelle arrive. Elle sert à vérifier toute la chaîne (police, rendu ligne
+// par ligne, recopie vers la dalle).
+
+import "fonts/Inter-24pt-Regular.ttf";
+
+export component AppWindow inherits Window {
+    width: 800px;
+    height: 480px;
+    background: #000000;
+    default-font-family: "Inter 24pt";
+
+    Text {
+        text: "coffeeflow 0.4.0";
+        color: #F2EBE3;
+        font-size: 48px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}

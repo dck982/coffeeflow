@@ -1,0 +1,120 @@
+//! UI Slint : plateforme minimale (une fenêtre, le temps d'embassy), boucle de
+//! rendu ligne par ligne et routage du toucher. Elle tourne sur le cœur 0,
+//! celui de la recopie d'affichage : les interruptions de recopie préemptent le
+//! rendu, et Slint n'est pas partagé entre cœurs.
+
+slint::include_modules!();
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
+
+use embassy_time::{Duration, Instant, Timer};
+use slint::ComponentHandle;
+use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType, Rgb565Pixel};
+use slint::platform::{Platform, PointerEventButton, WindowAdapter, WindowEvent};
+
+use crate::board::gt911::{Gt911, Touch};
+use crate::board::{Device, H_RES, V_RES};
+use crate::display::render::LineToFb;
+
+// Mesures du rendu, lues par le rapport.
+/// Rendus effectués, le plus long, et le dernier (en µs).
+pub static RENDERS: AtomicU32 = AtomicU32::new(0);
+pub static RENDER_MAX_US: AtomicU32 = AtomicU32::new(0);
+pub static RENDER_LAST_US: AtomicU32 = AtomicU32::new(0);
+pub static TOUCH_PRESSES: AtomicU32 = AtomicU32::new(0);
+pub static TOUCH_ERRORS: AtomicU32 = AtomicU32::new(0);
+
+/// Plateforme Slint minimale : une seule fenêtre, et le temps d'embassy.
+struct EmbassyPlatform {
+    window: Rc<MinimalSoftwareWindow>,
+}
+
+impl Platform for EmbassyPlatform {
+    fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, slint::PlatformError> {
+        Ok(self.window.clone())
+    }
+
+    fn duration_since_start(&self) -> core::time::Duration {
+        core::time::Duration::from_micros(Instant::now().as_micros())
+    }
+}
+
+pub struct Ui {
+    window: Rc<MinimalSoftwareWindow>,
+    // Garde la fenêtre vivante ; l'UI réelle lui parlera par ses propriétés.
+    _app: AppWindow,
+}
+
+/// Pose la plateforme et affiche la fenêtre.
+pub fn init() -> Ui {
+    // Le rendu ligne par ligne réécrit le framebuffer affiché : seule la
+    // zone modifiée est à redessiner, comme en ReusedBuffer.
+    let window = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
+    window.set_size(slint::PhysicalSize::new(H_RES as u32, V_RES as u32));
+    slint::platform::set_platform(Box::new(EmbassyPlatform { window: window.clone() }))
+        .expect("plateforme Slint déjà posée");
+    let app = AppWindow::new().unwrap();
+    app.show().unwrap();
+    Ui { window, _app: app }
+}
+
+/// Boucle de rendu : minuteurs et animations de Slint, tactile toutes les
+/// 20 ms, puis rendu de ce qui a changé. Chaque tour se termine par une pause
+/// de 10 ms, même après un rendu long : les autres tâches du cœur 0 doivent
+/// pouvoir passer. C'est aussi ici que le watchdog RTC est nourri : si le
+/// cœur 0 se fige, la carte redémarre.
+#[allow(
+    clippy::large_stack_frames,
+    reason = "futures d'embassy : clippy compte l'état de la future, qui vit dans l'arène de l'exécuteur ou la future de main, pas sur la pile"
+)]
+pub async fn run(ui: Ui, fb: *mut Rgb565Pixel, mut touch: Option<Gt911<Device>>) -> ! {
+    let mut pressed: Option<slint::LogicalPosition> = None;
+    let mut iteration = 0u32;
+    loop {
+        crate::watchdog::feed();
+        slint::platform::update_timers_and_animations();
+
+        iteration = iteration.wrapping_add(1);
+        if let (Some(touch), true) = (&mut touch, iteration.is_multiple_of(2)) {
+            match touch.read().await {
+                Ok(Touch::Unchanged) => {}
+                Ok(Touch::Pressed(x, y)) => {
+                    let position = slint::LogicalPosition::new(x as f32, y as f32);
+                    let event = match pressed.replace(position) {
+                        Some(_) => WindowEvent::PointerMoved { position },
+                        None => {
+                            TOUCH_PRESSES.fetch_add(1, Relaxed);
+                            WindowEvent::PointerPressed { position, button: PointerEventButton::Left }
+                        }
+                    };
+                    ui.window.dispatch_event(event);
+                }
+                Ok(Touch::Released) => {
+                    if let Some(position) = pressed.take() {
+                        ui.window.dispatch_event(WindowEvent::PointerReleased {
+                            position,
+                            button: PointerEventButton::Left,
+                        });
+                        ui.window.dispatch_event(WindowEvent::PointerExited);
+                    }
+                }
+                Err(_) => {
+                    TOUCH_ERRORS.fetch_add(1, Relaxed);
+                }
+            }
+        }
+
+        ui.window.draw_if_needed(|renderer| {
+            let t0 = esp_hal::time::Instant::now();
+            renderer.render_by_line(LineToFb(fb));
+            let us = t0.elapsed().as_micros() as u32;
+            RENDERS.fetch_add(1, Relaxed);
+            RENDER_LAST_US.store(us, Relaxed);
+            RENDER_MAX_US.fetch_max(us, Relaxed);
+        });
+
+        Timer::after(Duration::from_millis(10)).await;
+    }
+}

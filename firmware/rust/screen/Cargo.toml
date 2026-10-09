@@ -1,0 +1,70 @@
+[package]
+edition      = "2024"
+name         = "screen"
+rust-version = "1.95"
+version      = "0.4.0"
+
+[dependencies]
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+
+esp-rtos = { version = "0.4.0", features = [
+  "embassy",
+  "esp-alloc",
+  "esp32s3",
+  "log-04",
+] }
+
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+log                    = "0.4.27"
+
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+embassy-sync = "0.8"
+embassy-embedded-hal = "0.6.0"
+embedded-hal-async = "1.0.0"
+# Sans l'allocateur global d'esp-alloc : heap.rs pose le sien, qui choisit
+# la mémoire selon le cœur. `compat` fournit malloc aux blobs radio, qui
+# viendront avec le réseau et le BLE.
+esp-alloc = { version = "0.11.0", default-features = false, features = [
+  "compat",
+  "esp32s3",
+  "internal-heap-stats",
+] }
+# `custom-halt` : après une panique, `custom_halt` (main.rs) redémarre, au
+# lieu de la boucle infinie par défaut.
+esp-backtrace = { version = "0.20.0", features = [
+  "custom-halt",
+  "esp32s3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "log-04",
+  "uart",
+] }
+esp32s3 = "0.36.0"
+slint = { version = "=1.18.1", default-features = false, features = [
+  "compat-1-2",
+  "libm",
+  "renderer-software",
+  "unsafe-single-threaded",
+] }
+
+critical-section = "1.2.0"
+static_cell      = "2.1.1"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[profile.dev]
+# Le profil de débogage par défaut est trop lent et trop gros pour la carte.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1
+debug         = 2
+lto           = 'fat'
+opt-level     = 's'

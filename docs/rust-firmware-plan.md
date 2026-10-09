@@ -192,6 +192,57 @@ le placement des tampons du blob. Pistes ensuite : cœur des tâches radio
 (contrôleur BLE sur `AppCpu`, tâche Wi-Fi sur le cœur qui crée le
 contrôleur), allocations du blob (tas interne ou non).
 
+### Essai 10 `10-sta-ble` (2026-10-09, après le commit précédent)
+
+Reproducteur hors de `screen` : `firmware/rust/trials/10-sta-ble`, cœur 1
+radio, cœur 0 quasi vide, identifiants relus en NVS en lecture seule,
+esp-rtos 0.4.0 vendoré dans l'essai (patch `// Essai 10 :` : chaque pile de
+tâche créée par les blobs est peinte, inscrite et mesurée ; pile
+supplémentaire par `TRIAL_EXTRA_TASK_STACK` au build), contrôles de pile
+d'esp-rtos tous actifs (plage, mot témoin, garde matérielle). Features
+cumulables : `ble-controller`, `ble-host`, `ble-scan`, `no-wifi`, `ps-min`,
+`psram-heap` (PSRAM + allocateur par cœur de `screen`), `xip`,
+`core0-load` (interruption de niveau 3 à 820 Hz qui recopie 32 Ko
+PSRAM → SRAM en parcourant un tampon de 768 Ko, tâche qui alloue et calcule,
+réveils du cœur 0 depuis le cœur 1 par `Channel`).
+
+| Variante | Résultat |
+|---|---|
+| `ble-scan` (scan + station) | **tient** (50 s et plus) ; tâches radio : `btController` 1 840/8 272 (22 %), `wifi` 2 992/6 736 (44 %), `timer` 1 232/8 272 (14 %, **non épinglée**, `cœur=-1`) ; pile c1 13 152/16 384 |
+| `ble-scan,xip,core0-load`, 1er passage | tient, mais charge **inactive** (alarme TIMG non réarmée : `irq=1`) |
+| idem, 2e passage | tient, mais recopie **supprimée par le compilateur** (`max=12us`, destination jamais relue) |
+| idem, 3e passage (`black_box`, `memcpy` vérifié au désassemblage) | flashé en dernier, **résultat non relevé** |
+
+Conclusions admises : BLE scan + Wi-Fi station tiennent au minimum, avec
+XIP, PSRAM, allocateur par cœur et réveils inter-cœurs. Ce qui n'est **pas**
+établi (remarques de relecture) : que le déclencheur soit dans le LCD,
+Slint ou la logique (la charge mémoire de l'affichage n'a pas encore été
+reproduite fidèlement) ; que les piles radio aient de la marge **dans
+`screen`** (pile du cœur 0 six fois plus petite, interruptions en plus).
+Les points de passage ne donnent que le dernier endroit instrumenté : ils
+n'ont jamais désigné une cause.
+
+Défauts d'instrumentation à corriger :
+- `screen/src/stack_watermark.rs`, `usage()` du cœur 1 : saute tous les
+  mots non-motif sans borne ; une pile entièrement écrasée s'afficherait
+  « 0 utilisé ». Sauter une zone de taille connue (la fermeture de
+  démarrage) et signaler « invalide » sans motif restant.
+- `trials/10-sta-ble/vendor/esp-rtos/src/trial_stacks.rs` : `task_stacks()`
+  peut lire une pile libérée entre la lecture de l'adresse et le parcours
+  (sans effet tant que les tâches radio ne sont pas détruites).
+- `trials/10-sta-ble`, variante `scan-load` (sans PSRAM) : 2 avertissements
+  Clippy depuis la dernière modification de `src/load.rs`.
+
+Corrigé dans `screen` : la boucle de scan BLE attend 20 ms avant son
+`continue` quand `scan_can_start` est faux.
+
+**Prochaine piste (décidée par David) : essais directement dans `screen`.**
+Y porter le patch d'esp-rtos de l'essai (piles des tâches radio peintes,
+mesurées dans le rapport, `TRIAL_EXTRA_TASK_STACK`), contrôles de pile tous
+actifs, un ELF conservé par variante (`/tmp/screen-<variante>.elf`). Puis,
+selon la mesure : grossir les piles radio, épingler la tâche `timer`
+d'esp-radio au cœur 1, ou isoler LCD/Slint/logique.
+
 ### Pour reprendre
 
 - Build de diagnostic actuel, depuis `firmware/rust/screen` :
@@ -209,8 +260,10 @@ contrôleur), allocations du blob (tas interne ou non).
 - Défauts relevés, non corrigés : la boucle de scan BLE fait `continue` sans
   `await` quand `scan_can_start` est faux (la tâche peut monopoliser le
   cœur 1) ; NVS est rouvert à chaque requête.
-- Carte laissée sur l'image de diagnostic `DIAG_BLE_AFTER_STA`, qui
-  redémarre en boucle sur `ota_0`.
+- Carte laissée sur l'essai 10 `scan-xip-load` dans `ota_0` (actif,
+  `otadata` `0x6a`/`0x6b`, les deux `VALID`) ; coffeeflow dans `ota_1`.
+  Images et ELF des variantes dans `/tmp/trial-10-*.{bin,elf}` et
+  `/tmp/screen-diag.{bin,elf}` (perdus au redémarrage du Mac).
 
 ## Référence de comportement
 

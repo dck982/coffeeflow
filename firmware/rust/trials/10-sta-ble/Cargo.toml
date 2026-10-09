@@ -1,0 +1,103 @@
+[package]
+edition      = "2024"
+name         = "trial-10-sta-ble"
+rust-version = "1.95"
+version      = "0.1.0"
+
+[[bin]]
+name = "trial-10-sta-ble"
+path = "./src/main.rs"
+
+[dependencies]
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+esp-rtos = { version = "0.4.0", features = [
+  "embassy",
+  "esp-alloc",
+  "esp-radio",
+  "esp32s3",
+  "log-04",
+] }
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+esp-storage = { version = "0.10.0", default-features = false, features = ["esp32s3", "embedded-storage"] }
+esp-nvs = "0.6.2"
+embedded-storage = "0.3"
+log = "0.4.27"
+
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+embassy-sync = "0.8"
+embassy-futures = "0.1"
+embassy-net = { version = "0.9", features = ["dhcpv4", "medium-ethernet", "proto-ipv4"] }
+# Sans l'allocateur global d'esp-alloc : heap.rs pose le sien (direct vers le
+# tas interne, ou par cœur avec `psram-heap`), comme `screen`.
+esp-alloc = { version = "0.11.0", default-features = false, features = [
+  "compat",
+  "esp32s3",
+  "internal-heap-stats",
+] }
+# Registres du TIMG1 pour l'interruption de charge (`core0-load`).
+esp32s3 = { version = "0.36.0", optional = true }
+# `custom-halt` : après une panique, `custom_halt` redémarre.
+esp-backtrace = { version = "0.20.0", features = [
+  "custom-halt",
+  "esp32s3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "log-04",
+  "uart",
+] }
+# `ble` et `coex` arrivent avec la feature `ble-controller`.
+esp-radio = { version = "1.0.0-beta.1", features = [
+  "esp-alloc",
+  "esp32s3",
+  "log-04",
+  "unstable",
+  "wifi",
+] }
+bt-hci = { version = "0.9.0", optional = true }
+trouble-host = { version = "0.7.0", features = ["scan"], optional = true }
+critical-section = "1.2.0"
+heapless         = "0.9.1"
+static_cell      = "2.1.1"
+
+[profile.dev]
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1
+debug         = 2
+lto           = 'fat'
+opt-level     = 's'
+
+[features]
+# Étages BLE, cumulatifs.
+# Connecteur créé, rien d'autre.
+ble-controller = ["esp-radio/ble", "esp-radio/coex"]
+# Plus l'hôte trouble-host et son runner.
+ble-host = ["ble-controller", "dep:bt-hci", "dep:trouble-host"]
+# Plus le scan passif en boucle, comme l'écran.
+ble-scan = ["ble-host"]
+# BLE seul : le Wi-Fi n'est ni lu en NVS ni démarré.
+no-wifi = []
+# Économie d'énergie Wi-Fi minimale, comme l'écran.
+ps-min = []
+# Différences avec `screen`, une par une et cumulables.
+# Tas PSRAM pour le cœur 0 (PSRAM octale 80 MHz), tas interne pour le cœur 1.
+psram-heap = []
+# Code et rodata copiés en PSRAM puis remappés ; tas PSRAM après le code.
+xip = ["psram-heap"]
+# Charge du cœur 0 imitant `screen` sans LCD : tâche embassy, événements du
+# cœur 1, interruption de niveau 3 de recopie mémoire.
+core0-load = ["dep:esp32s3"]
+
+# esp-nvs 0.6.2 et esp-hal 1.2.2 corrigés comme pour `screen` ; esp-rtos 0.4.0
+# instrumenté pour mesurer les piles des tâches radio (`// Essai 10 :`).
+[patch.crates-io]
+esp-nvs = { path = "../../vendor/esp-nvs" }
+esp-hal = { path = "../../vendor/esp-hal" }
+esp-rtos = { path = "vendor/esp-rtos" }

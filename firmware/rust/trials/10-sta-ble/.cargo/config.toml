@@ -1,0 +1,22 @@
+# Keep compilation settings in this file and user/runtime settings in `esp-config.toml`.
+include = ["esp-config.toml"]
+
+[target.xtensa-esp32s3-none-elf]
+runner = "espflash monitor --chip esp32s3 --port /dev/cu.usbmodem5B790235091 --elf"
+
+[build]
+rustflags = [
+  "-C", "link-arg=-nostartfiles",
+]
+
+target = "xtensa-esp32s3-none-elf"
+
+[unstable]
+build-std = ["alloc", "core"]
+
+# Contrôles de pile d'esp-rtos, tous actifs : la pile d'une tâche radio qui
+# déborde doit paniquer au lieu d'abîmer le tas voisin en silence.
+[env]
+ESP_RTOS_CONFIG_STACK_POINTER_RANGE_CHECK = "true"
+ESP_RTOS_CONFIG_SW_TASK_OVERFLOW_DETECTION = "true"
+ESP_RTOS_CONFIG_HW_TASK_OVERFLOW_DETECTION = "true"

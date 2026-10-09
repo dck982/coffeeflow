@@ -231,6 +231,9 @@ async fn scan(stack: &BleStack<'_>) {
             // Le drapeau couvre aussi les commandes HCI de démarrage : aucune
             // autre future de cet exécuteur ne peut s'intercaler avant lui.
             if !control::scan_can_start(&scan_inputs(), ENABLED.load(Relaxed)) {
+                // Sans attente, la boucle garderait l'exécuteur du cœur 1 et
+                // aucune autre future ne pourrait faire changer la condition.
+                Timer::after(Duration::from_millis(20)).await;
                 continue;
             }
             SCANNING.store(true, Relaxed);

@@ -1,0 +1,18 @@
+# Keep compilation settings in this file and user/runtime settings in `esp-config.toml`.
+include = ["esp-config.toml"]
+
+[target.xtensa-esp32s3-none-elf]
+# Surveille seulement : `espflash monitor` n'écrit jamais en flash. Le port
+# série n'est pas fixé (celui du XIAO change selon la prise) : espflash le
+# demande. Le déploiement passe par l'OTA CAN de l'écran, jamais par `run`.
+runner = "espflash monitor --chip esp32s3 --elf"
+
+[build]
+rustflags = [
+  "-C", "link-arg=-nostartfiles",
+]
+
+target = "xtensa-esp32s3-none-elf"
+
+[unstable]
+build-std = ["alloc", "core"]

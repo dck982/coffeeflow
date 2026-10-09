@@ -1,8 +1,9 @@
 # Workspace hôte (toolchain `stable`, tests sur le Mac). Les crates xtensa
 # (`screen`, `sensors`) et les essais sont autonomes : chacun a sa toolchain
 # `esp`, son `.cargo/config.toml` et son `Cargo.lock`, donc hors workspace.
-# `screen-core` s'ajoute ici quand il existe.
+# `sensors-logic` est la logique du module capteurs, que `sensors` (xtensa)
+# enveloppe. `screen-core` s'ajoute ici quand il existe.
 [workspace]
 resolver = "3"
-members = ["protocol", "coffeetool"]
+members = ["protocol", "coffeetool", "sensors-logic"]
 exclude = ["trials", "screen", "sensors"]

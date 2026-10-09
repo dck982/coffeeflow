@@ -294,10 +294,87 @@ relevé RTC des piles radio, interrupteurs `DIAG_*`, repères `[diag]`.
 - Image corrigée, sans code de diagnostic, flashée par HTTP
   (`coffeetool flash --target screen`) dans `ota_1` à la place de coffeeflow
   C++ 0.3.48, puis confirmée. Trames capteurs reçues, `confirm` accepté.
-- Pendant l'upload, l'écran est resté sur « module interne injoignable » :
-  dans `ui/presenter.rs`, cet écran passe avant « mise à jour ». À trancher.
-- Le module capteurs signale `TWAI_ERROR_COUNTERS` arg32=1 285 623 (erreurs
-  de bus cumulées, vraisemblablement pendant l'essai à broches inversées).
+- Pendant l'upload, l'écran est resté sur « module interne injoignable ».
+  Tranché par David : « mise à jour » passe avant (`b099e7e`), le verrou de
+  sécurité reste en tête. Vérifié sur la machine.
+- Page diagnostic portée du C++ (pastilles d'état, erreurs CAN, poids, deux
+  colonnes de versions, ligne SRAM ; les libellés étaient centrés sur la
+  valeur faute de `y`) et version unique `protocol::FIRMWARE_VERSION`,
+  passée à 0.4.1 (`9071370`). Référence visuelle C++ :
+  `archive/firmware/screen/ui_sim/build/snapshots/`. Écran 0.4.1 flashé par
+  HTTP et confirmé.
+- Erreurs de bus côté capteurs (`twai_bus_errors`, cumul depuis le
+  démarrage du module) : 1 285 623 puis 1 295 131 à 782 s d'uptime, CAN
+  pourtant fonctionnel (~20/s). Pas comparé au C++ : à mesurer avec l'écran
+  C++ ou en regardant la source côté `sensors` 0.3.48.
+
+### Première installation de `sensors` Rust : échec (2026-10-09)
+
+Image : `firmware/rust/sensors`, `cargo build --release --features
+no-validate`, 0.4.1, 164 240 octets (`espflash save-image --chip esp32s3
+--flash-size 8mb`). Envoyée par l'écran Rust 0.4.1 :
+`coffeetool flash <image> --target sensors`.
+
+Observé dans `coffeetool monitor` :
+- Transfert complet : 82 `BLOCK_ACK`, `FLASH_PROGRESS` 164 240,
+  `FLASH_DONE`, `END`. La chaîne écran Rust → `ota_staging` → CAN →
+  récepteur C++ de `sensors` 0.3.48 fonctionne.
+- Aucune trame de l'image Rust (ni `PING` ni `LOG BOOT`, envoyés pourtant
+  par `Machine::start`).
+- 3,6 s après `FLASH_DONE`, `sensors` **0.3.48** redémarre (`BOOT`,
+  `READY`, uptime 0) : le bootloader est revenu au C++. L'écran a vu
+  `PRESENCE_LOST` puis `PRESENCE_RESTORED`.
+
+Analyse (rien de vérifié sur carte) :
+- Le C++ redémarre 50 ms après `FLASH_DONE` (`main.cpp`, après
+  `esp_ota_set_boot_partition`). Les ~3,5 s restantes correspondent au
+  watchdog RTC de l'image Rust (`sensors/src/watchdog.rs`, `TIMEOUT` = 3 s,
+  étape 0 = reset système). `no-validate` aurait tourné 30 s.
+- Donc : l'image Rust a démarré puis s'est bloquée **avant d'atteindre la
+  boucle `logic`** (qui nourrit le watchdog), ou dans son premier tour. Une
+  panique redémarrerait tout de suite (`custom_halt`), pas en 3 s. Un rejet
+  par le bootloader reviendrait au C++ sans délai. À confirmer : un
+  bootloader qui refuse l'image peut aussi la faire tenter puis échouer.
+- Comme `main` ne cède jamais la main avant `logic(machine).await`, la tâche
+  CAN ne tourne pas avant : le `PING` mis en file par `machine.start()` ne
+  part jamais si le blocage est en amont. L'absence de trame ne situe donc
+  pas le blocage.
+- En-tête d'image vérifié (`esptool image-info`) : ESP32-S3, DIO 40 MHz,
+  8 Mo, révision min v0.0, SHA valide, descripteur d'app `sensors` 0.4.1.
+  Bootloader C++ : `BOOTLOADER_APP_ROLLBACK_ENABLE=y`,
+  `BOOTLOADER_WDT_ENABLE=y` (9 s), pas de secure boot.
+- Étapes de `main` avant `logic`, candidates au blocage : `esp_hal::init`
+  (160 MHz), sorties sûres, `watchdog::arm`, `clock::init`, logger +
+  `UartTx` sur GPIO43 (esp-println `uart` attend la FIFO), `lockout::init`
+  (RAM RTC rapide), `esp_rtos::start`, `FlashOta::new` (table de
+  partitions, `booted_partition`), `pending_state` (otadata), TWAI
+  (RX GPIO8, TX GPIO7 : juste), I2C du dimmer (`unwrap`), `flow::init`
+  (interruption GPIO44, front descendant), `machine.start()`/`ready()`.
+- `sensors` utilise esp-hal, esp-rtos et esp-storage du registre, **pas**
+  les copies vendorées de `screen` (horloge monotone, piles radio) ; sans
+  radio ni second cœur, ça n'a pas été jugé nécessaire.
+
+Pistes pour la prochaine session (à choisir avec David ; pas de console USB
+sur la machine) :
+1. **Jalons sur le CAN** : initialiser le TWAI en premier (juste après les
+   sorties sûres et le watchdog) et émettre en bloquant un `LOG` par étape
+   de `main` (`arg16` = numéro d'étape) avant de passer en async. Le
+   moniteur `coffeetool` montre alors la dernière étape atteinte.
+2. **Jalons en RAM RTC** survivant au reset du watchdog : inutile seul, le
+   C++ qui reprend la main ne les lit pas.
+3. **Reproduire au bureau** sur un XIAO ESP32-S3 de rechange, console
+   esp-println en `jtag-serial` (ou `auto`) pour la voir par l'USB natif.
+4. Allonger le watchdog (ex. 8 s) pour distinguer un blocage d'une
+   lenteur.
+
+État des cartes à la fin de la session :
+- `sensors` : C++ 0.3.48 actif et `VALID` ; l'autre slot contient l'image
+  Rust `no-validate` (non validée, jamais rechoisie par le bootloader).
+- Écran : 0.4.1 dans `ota_1`, actif et confirmé ; `ota_0` = build
+  intermédiaire (priorité « mise à jour », 0.4.0). Plus de C++ sur l'écran.
+- Images : `/tmp/screen-0.4.1.{bin,elf}`, `/tmp/sensors-0.4.1.{bin,elf}`,
+  `/tmp/sensors-0.4.1-no-validate.{bin,elf}` (perdues au redémarrage du
+  Mac ; se reconstruisent depuis `9071370`).
 
 ### Pour reprendre
 
@@ -311,11 +388,8 @@ relevé RTC des piles radio, interrupteurs `DIAG_*`, repères `[diag]`.
   vendorées (esp-nvs, esp-hal, esp-rtos : mesure des piles radio et
   épinglage de la tâche `timer`).
 - Défaut relevé, non corrigé : NVS est rouvert à chaque requête.
-- Carte sur la machine : `screen` final (`/tmp/screen-final.bin`) dans
-  `ota_1`, actif et confirmé ; `ota_0` garde l'image de diagnostic
-  `/tmp/screen-pin.bin`. Plus de coffeeflow C++ sur l'écran. Images, ELF et
-  journaux dans `/tmp/screen-*.{bin,elf,log}` (perdus au redémarrage du
-  Mac).
+- État des cartes : voir la fin de « Première installation de `sensors`
+  Rust ».
 
 ## Référence de comportement
 

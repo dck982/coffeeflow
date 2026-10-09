@@ -5,6 +5,38 @@ en Rust. Les essais de `docs/rust-migration.md` sont clos : la viabilité est
 acquise (affichage, BLE + Wi-Fi ensemble, flash, OTA, NVS). Ce plan est
 supprimé une fois le travail fait.
 
+## Avancement — 2026-10-09
+
+Les statuts ci-dessous décrivent le code et les vérifications hors matériel.
+Les essais de viabilité de `rust-migration.md` ne valent pas validation du
+firmware assemblé : ils restent la référence technique pour sa mise en service.
+
+| # | Statut | Vérification / suite |
+|---|---|---|
+| 1 | Intégrée | Tests hôte et Clippy du workspace verts. |
+| 2 | Intégrée | 70 tests hôte ; Clippy propre. |
+| 3 | Intégrée | 96 tests de logique ; builds Xtensa normal et `no-validate` réussis ; image normale 164 240 octets (< 1 Mo), Clippy propre. |
+| 4 | Terminée et intégrée (`181a446`) | 117 tests + 1 doctest ; Clippy propre. Parsing serde_json sans std, sortie compatible cJSON et clés HTTP conservées. Écarts de parsing documentés dans `screen-core/README.md`. |
+| 5 | Intégrée | Carte, LCD, XIP, tactile et ADS constituent la base de l'assemblage. |
+| 6 | Intégrée (`833acdf`), derniers détails en intégration | 9 tests simulateur, Clippy propre, 24 captures RGB565 examinées. Pas de comparaison pixel par pixel avec LVGL. |
+| 7 | Intégrée (`4b43756`, `953a164`) | CAN, pont série, staging et proxy OTA compilent pour Xtensa ; tests protocole/ACK/NOR/journaux verts. Rapport : `rust-task7.md`. |
+| 8 | Intégrée (`8443b1b` et correctifs suivants) | Services GATT compilés pour Xtensa, Clippy propre ; scan, arrêt provisioning, maintien, panne de l'hôte et horodatage revus. |
+| 9 | En validation dans le worktree réseau | STA/AP, HTTP/WS, SNTP, OTA locale/USB et NVS écrits ; vérifications finales avant intégration. |
+| 10 | En cours | Liaison du cœur, de l'UI et des services ; compilation complète et contrôles finaux à faire. |
+
+La logique et l'UI tournent sur le cœur 0 ; les services radio et le propriétaire
+flash sur le cœur 1. La lecture de l'identité du slot précède le remappage XIP,
+la radio précède le LCD, et les écritures flash gardent les interruptions actives.
+Les mesures ADS ne sont publiées qu'après une nouvelle tentative de lecture ;
+les événements BLE conservent leur instant de réception. Le relâchement physique
+de la purge reste indépendant de la durée de vie du bouton Slint.
+
+**Matériel : aucun flash, moniteur ou accès à la carte pendant ces travaux.**
+Une fois le point 10 validé hors matériel, demander à David l'accès à l'écran
+en USB sur le host ou à la machine par Wi-Fi. Reprendre alors les précautions,
+les méthodes et les résultats de `rust-migration.md` avant tout essai ; le
+premier parcours prévu reste l'écran sur le bureau, USB sans CAN, puis la machine.
+
 ## Référence de comportement
 
 Le C++ est dans `archive/firmware/` (`screen`, `sensors`, `common`, `tools`),

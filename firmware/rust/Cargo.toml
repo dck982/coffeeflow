@@ -5,5 +5,5 @@
 # enveloppe. `screen-core` s'ajoute ici quand il existe.
 [workspace]
 resolver = "3"
-members = ["protocol", "coffeetool", "sensors-logic"]
+members = ["protocol", "coffeetool", "sensors-logic", "screen-core"]
 exclude = ["trials", "screen", "sensors"]

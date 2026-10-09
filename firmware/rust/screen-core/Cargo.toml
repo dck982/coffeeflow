@@ -1,0 +1,17 @@
+[package]
+name = "screen-core"
+version = "0.1.0"
+edition = "2024"
+description = "Logique de l'écran coffeeflow : cycle d'infusion, chauffe, configuration, télémétrie, sans matériel"
+
+[features]
+default = []
+
+[dependencies]
+protocol = { path = "../protocol" }
+# Fonctions flottantes absentes de `core` (log, round, floor...), en no_std.
+libm = "0.2"
+
+# Lecture JSON sans std ; visiteur ordonné pour garder les doublons de cJSON.
+serde = { version = "1", default-features = false, features = ["alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc", "float_roundtrip"] }

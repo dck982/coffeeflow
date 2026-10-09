@@ -394,6 +394,49 @@ abouti).
   `firmware/rust/sensors`, puis `espflash save-image --chip esp32s3
   --flash-size 8mb --skip-update-check`). Perdues au redémarrage du Mac.
 
+### `sensors` Rust démarre : blocage du débitmètre corrigé (2026-10-09)
+
+Trois images `no-validate` (0.4.1) envoyées par `coffeetool flash … --target
+sensors`, suivies dans `coffeetool monitor`. La LED du XIAO n'aide pas : la
+LED du shield Grove clignote déjà à 1 Hz ; la nôtre passe à 5 Hz.
+
+| Image | Dernier jalon | Retour à 0.3.48 |
+|---|---|---|
+| jalons 1-10 | 8 (`machine.start`) | 3,3 s après : watchdog |
+| `flow::init` découpé (81 gestionnaire installé, 82 pad en GPIO, …) | 81 | 3,4 s après : watchdog |
+| ordre inversé (`Input::new` avant le gestionnaire) + registres GPIO + garde-fou anti-tempête | jusqu'à 10, `PING` v0.4.1, `READY` | 30 s après : retour en arrière `no-validate` |
+
+- Cause : installer le gestionnaire d'interruption GPIO **avant** de passer
+  GPIO44 de U0RXD en GPIO bloque la carte dans `Input::new` jusqu'au
+  watchdog. Dans l'ordre inverse : gestionnaire jamais appelé en 100 ms,
+  aucune interruption GPIO en attente, `GPIO_PIN44_REG` = `0x2500` (front
+  descendant, activée vers le cœur 0). Mécanisme non établi : le garde-fou
+  n'a jamais tourné dans l'ordre fautif ; une tempête d'interruptions reste
+  l'hypothèse.
+- Correctif gardé (`flow.rs`) : pad en GPIO d'abord, puis gestionnaire et
+  `listen`. Jalons, relevés de registres et garde-fou retirés ; TWAI de
+  nouveau démarré directement en asynchrone.
+- Image propre (164 720 octets) : démarrage 0,3 s après `FLASH_DONE`,
+  `PING` v0.4.1, `BOOT`, `OTA_PENDING_VERIFY`, `READY`, `PONG` de l'écran,
+  `STATUS_FLOW` / `_ACTUATORS` / `_HEATING` servis, `CONFIRM_SENSORS_OTA`
+  ignoré, `OTA_ROLLBACK` à 30,0 s, 0.3.48 revenu. Écran sans redémarrage
+  (uptime continu) ; la perte du WebSocket vue à l'essai précédent ne s'est
+  pas reproduite.
+- `sensors` Rust tourne sur le seul cœur 0 (second cœur jamais démarré) ;
+  le C++ laisse ses trois tâches sans affinité sur deux cœurs, interruptions
+  sur le cœur 0. Sans effet sur ce blocage, qui survient pendant
+  l'initialisation, sur le cœur 0 dans les deux cas.
+
+À comparer avec une capture du C++ au repos (non relevé côté C++) :
+- `DIMMER_MAINS_FREQ` toutes les ~1 s en Rust, alors que la relecture à
+  vide est à 2 s (`DIMMER_HEALTH_PERIOD_US`) ;
+- `STATUS_HEATING` demandé à 250 ms, émis toutes les ~250-310 ms ;
+- l'écran renvoie `CONFIRM_SENSORS_OTA` à chaque seconde tant que l'image
+  est en attente (attendu en `no-validate`).
+
+Prochaine étape : la première installation qui se valide (sans
+`no-validate`).
+
 ### Pour reprendre
 
 - Build, depuis `firmware/rust/screen`, après

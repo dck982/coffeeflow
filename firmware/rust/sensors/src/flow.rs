@@ -36,10 +36,13 @@ fn on_edge() {
 /// GPIO 44 est le RX par défaut de la console UART0 : `Input::new` remet le
 /// pad en fonction GPIO, sinon il garde celle de U0RXD et l'interruption ne
 /// voit jamais rien.
+///
+/// Le pad passe en GPIO avant l'installation du gestionnaire : dans l'ordre
+/// inverse, la carte se bloquait dans `Input::new` jusqu'au watchdog.
 pub fn init(io_mux: IO_MUX<'static>, pin: GPIO44<'static>) {
+    let mut input = Input::new(pin, InputConfig::default().with_pull(Pull::None));
     let mut io = Io::new(io_mux);
     io.set_interrupt_handler(on_edge);
-    let mut input = Input::new(pin, InputConfig::default().with_pull(Pull::None));
     critical_section::with(|cs| {
         input.listen(Event::FallingEdge);
         PIN.borrow_ref_mut(cs).replace(input);

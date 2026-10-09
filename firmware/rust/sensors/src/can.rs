@@ -11,11 +11,10 @@ use embassy_futures::select::{Either3, select3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Instant, Timer, with_timeout};
-use esp_hal::{Async, Blocking};
+use esp_hal::Async;
 use esp_hal::twai::{EspTwaiFrame, Id, StandardId, Twai};
 use log::warn;
-use protocol::messages::LogPayload;
-use protocol::{Dest, Frame, LogCode, LogSeverity, Message, Node};
+use protocol::Frame;
 
 /// Trames reçues, vers la logique. Les anciennes sont gardées : la file
 /// d'esp-hal (32 trames) absorbe déjà les rafales.
@@ -39,34 +38,6 @@ fn to_frame(frame: &EspTwaiFrame) -> Option<Frame> {
 
 fn to_esp(frame: &Frame) -> Option<EspTwaiFrame> {
     EspTwaiFrame::new(StandardId::new(frame.id)?, frame.payload())
-}
-
-/// Repère de `arg32` dans les jalons : « RUST » en ASCII.
-const MILESTONE_MARK: u32 = 0x5255_5354;
-
-pub fn milestone_frame(step: u16) -> Frame {
-    let payload = LogPayload {
-        code: LogCode::Boot as u8,
-        severity: LogSeverity::Info as u8,
-        arg16: step,
-        arg32: MILESTONE_MARK,
-    };
-    Message::Log(payload).encode_routed(Node::Sensors, Dest::Broadcast)
-}
-
-/// Jalon du démarrage : `LOG BOOT`, `arg16` = étape, émis en attente active
-/// avant que l'exécuteur ne tourne. Sans console sur la machine, le dernier
-/// jalon vu par l'écran situe un blocage du démarrage. 20 ms au plus : sans
-/// acquittement sur le bus, la trame précédente occupe encore le tampon et
-/// celle-ci est perdue, sans retarder le démarrage.
-pub fn milestone(twai: &mut Twai<'static, Blocking>, step: u16) {
-    let Some(esp) = to_esp(&milestone_frame(step)) else { return };
-    let start = esp_hal::time::Instant::now();
-    while twai.transmit(&esp).is_err() {
-        if start.elapsed() > esp_hal::time::Duration::from_millis(20) {
-            return;
-        }
-    }
 }
 
 #[allow(

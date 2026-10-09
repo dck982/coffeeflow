@@ -1,0 +1,457 @@
+// Maquette de l'UI de coffeeflow pour mesurer le rendu de Slint : l'écran
+// d'infusion (barre du haut, frise, six tuiles, tuile de fonctionnement) et
+// l'accueil (barre du haut, grands chiffres en 104 px). Les valeurs viennent
+// du global `Live`, que le code Rust met à jour à 4 Hz. Le bouton en bas à
+// droite de l'infusion, et « infuser » sur l'accueil, changent d'écran : un
+// redessin complet.
+
+import "fonts/Inter-24pt-Regular.ttf";
+import { Theme } from "theme.slint";
+
+export struct Segment {
+    label: string,
+    duration: string,
+    color: color,
+    x: length,
+    width: length,
+    // Segment en cours : cerclé de blanc.
+    current: bool,
+    // Libellé sombre, sur la couleur claire de l'infusion.
+    dark-label: bool,
+}
+
+export struct Tile {
+    title: string,
+    aside: string,
+    value: string,
+    detail: string,
+    highlight: bool,
+}
+
+export struct Cell {
+    title: string,
+    value: string,
+}
+
+// Slint n'embarque que les glyphes de l'ASCII et ceux des littéraux du
+// .slint. Les valeurs par défaut ci-dessous portent les caractères que seul
+// le code Rust affiche (°, É, –), remplacés dès le premier pas de `demo`.
+export global Live {
+    in property <string> clock: "09:21";
+    in property <string> version: "v0.3.43";
+    in property <string> weight;
+    in property <string> pressure;
+    in property <string> temperature: "93,4°";
+    // Remplissage de la barre de chauffe, de 0 à 1.
+    in property <float> heat;
+
+    in property <string> phase;
+    in property <string> started: "04/10 · 09:21";
+    in property <[Segment]> segments: [{ label: "PRÉ-INFUSION" }, { label: "MONTÉE" }];
+    // Réserve des gouttes, en contour, au bout de la frise.
+    in property <bool> show-reserve;
+    in property <length> reserve-x;
+    in property <[Tile]> tiles;
+    in property <[Cell]> cells;
+
+    in property <string> hero: "–";
+    in property <string> target: "cible · pré-infusion 4 s · rampe";
+    in property <string> warning: "chaudière en chauffe";
+}
+
+component Separator inherits Rectangle {
+    width: 1px;
+    height: 28px;
+    background: Theme.hairline;
+}
+
+component StatusText inherits Text {
+    font-size: Theme.font-status;
+    vertical-alignment: center;
+}
+
+// Barre du haut, commune aux deux écrans.
+component Topbar inherits Rectangle {
+    x: 0;
+    y: 24px;
+    width: 800px;
+    height: 52px;
+
+    HorizontalLayout {
+        x: Theme.margin;
+        width: 380px;
+        spacing: 12px;
+        alignment: start;
+
+        Rectangle {
+            width: 24px;
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                border-width: 2px;
+                border-color: Theme.text-dim;
+                border-radius: 4px;
+            }
+        }
+
+        StatusText {
+            text: Live.clock;
+            color: Theme.text-dim;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Separator { }
+        }
+
+        StatusText {
+            text: Live.version;
+            color: Theme.text;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Separator { }
+        }
+    }
+
+    HorizontalLayout {
+        x: 400px;
+        width: 400px - Theme.margin;
+        spacing: 12px;
+        alignment: end;
+
+        StatusText {
+            text: Live.weight;
+            color: Theme.text;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Separator { }
+        }
+
+        StatusText {
+            text: Live.pressure;
+            color: Theme.accent;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Separator { }
+        }
+
+        StatusText {
+            min-width: 76px;
+            horizontal-alignment: right;
+            text: Live.temperature;
+            color: Theme.fault;
+        }
+    }
+
+    // Barre de chauffe sous la température.
+    Rectangle {
+        x: 695px;
+        y: 42px;
+        width: 100px;
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.surface-high;
+
+        Rectangle {
+            x: 0;
+            width: parent.width * Live.heat;
+            border-radius: 2px;
+            background: Theme.thermal-near;
+        }
+    }
+}
+
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <color> base: Theme.surface;
+    in property <color> text-color: Theme.text;
+    callback clicked;
+
+    border-radius: Theme.radius;
+    background: touch.pressed ? base.brighter(30%) : base;
+
+    Text {
+        text: root.text;
+        color: root.text-color;
+        font-size: Theme.font-button;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component BrewPage inherits Rectangle {
+    callback leave;
+
+    Text {
+        x: Theme.margin;
+        y: 84px;
+        text: Live.phase;
+        color: Theme.accent;
+        font-size: Theme.font-label;
+    }
+
+    Text {
+        x: 400px;
+        y: 84px;
+        width: 400px - Theme.margin;
+        horizontal-alignment: right;
+        text: Live.started;
+        color: Theme.text-faint;
+        font-size: Theme.font-label;
+    }
+
+    // Frise des phases, puis la durée de chaque segment dessous.
+    if Live.show-reserve: Rectangle {
+        x: Live.reserve-x;
+        y: 122px;
+        width: 800px - Theme.margin - Live.reserve-x;
+        height: 26px;
+        border-radius: 4px;
+        border-width: 2px;
+        border-color: Theme.surface-high;
+    }
+
+    for segment in Live.segments: Rectangle {
+        x: segment.x;
+        y: 122px;
+        width: segment.width;
+        height: 26px;
+        border-radius: 4px;
+        background: segment.color;
+        border-width: segment.current ? 2px : 0;
+        border-color: white;
+
+        Text {
+            text: segment.label;
+            color: segment.dark-label ? Theme.bg : #EEEEEE;
+            font-size: Theme.font-label;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    for segment in Live.segments: Text {
+        x: segment.x;
+        y: 152px;
+        text: segment.duration;
+        color: Theme.text;
+        font-size: Theme.font-button;
+    }
+
+    // Six tuiles : totaux, infusion, température.
+    for tile[i] in Live.tiles: Rectangle {
+        x: Theme.margin + Math.mod(i, 3) * 250px;
+        y: 192px + Math.floor(i / 3) * 88px;
+        width: 236px;
+        height: 76px;
+        border-radius: Theme.radius;
+        background: Theme.bg-raised;
+
+        title := Text {
+            x: 16px;
+            y: 8px;
+            text: tile.title;
+            color: Theme.text-dim;
+            font-size: Theme.font-label;
+        }
+
+        Text {
+            x: title.x + title.preferred-width + 8px;
+            y: title.y;
+            text: tile.aside;
+            color: Theme.text-dim;
+            font-size: Theme.font-label;
+        }
+
+        value := Text {
+            x: 16px;
+            y: 30px;
+            height: 40px;
+            text: tile.value;
+            color: tile.highlight ? Theme.ramp-full : Theme.text;
+            font-size: Theme.font-unit;
+            vertical-alignment: bottom;
+        }
+
+        Text {
+            x: value.x + value.preferred-width + 12px;
+            y: value.y;
+            height: value.height - 4px;
+            text: tile.detail;
+            color: Theme.text-dim;
+            font-size: Theme.font-label;
+            vertical-alignment: bottom;
+        }
+    }
+
+    // Tuile de fonctionnement : chauffe, pompe, débit balance, débit pompe.
+    Rectangle {
+        x: Theme.margin;
+        y: 376px;
+        width: 536px;
+        height: 88px;
+        border-radius: Theme.radius;
+        background: Theme.bg-raised;
+
+        for cell[i] in Live.cells: Rectangle {
+            x: 12px + i * 134px;
+            width: 134px;
+
+            if i > 0: Rectangle {
+                x: 0;
+                y: 16px;
+                width: 1px;
+                height: 56px;
+                background: Theme.hairline;
+            }
+
+            Text {
+                x: 12px;
+                y: 14px;
+                text: cell.title;
+                color: Theme.text-dim;
+                font-size: Theme.font-label;
+            }
+
+            Text {
+                x: 12px;
+                y: 44px;
+                text: cell.value;
+                color: Theme.text;
+                font-size: Theme.font-button;
+            }
+        }
+    }
+
+    Button {
+        x: 584px;
+        y: 376px;
+        width: 184px;
+        height: 88px;
+        text: "accueil";
+        base: Theme.surface-accent;
+        text-color: Theme.accent;
+        clicked => {
+            root.leave();
+        }
+    }
+}
+
+component HomePage inherits Rectangle {
+    callback leave;
+
+    Text {
+        x: 0;
+        y: 76px;
+        width: 800px;
+        horizontal-alignment: center;
+        text: Live.hero;
+        color: Theme.text;
+        font-size: Theme.font-hero-brew;
+    }
+
+    Button {
+        x: 256px;
+        y: 216px;
+        width: 136px;
+        height: 80px;
+        text: "-";
+    }
+
+    Button {
+        x: 408px;
+        y: 216px;
+        width: 136px;
+        height: 80px;
+        text: "+";
+    }
+
+    Text {
+        x: 0;
+        y: 312px;
+        width: 800px;
+        horizontal-alignment: center;
+        text: Live.target;
+        color: Theme.text-faint;
+        font-size: Theme.font-label;
+    }
+
+    Text {
+        x: 0;
+        y: 336px;
+        width: 800px;
+        horizontal-alignment: center;
+        text: Live.warning;
+        color: Theme.fault;
+        font-size: Theme.font-label;
+    }
+
+    Button {
+        x: Theme.margin;
+        y: 368px;
+        width: 288px;
+        height: 88px;
+        text: "infuser · 36 g";
+        base: Theme.surface-accent;
+        text-color: Theme.accent;
+        clicked => {
+            root.leave();
+        }
+    }
+
+    Button {
+        x: 336px;
+        y: 368px;
+        width: 200px;
+        height: 88px;
+        text: "purge";
+    }
+
+    Button {
+        x: 552px;
+        y: 368px;
+        width: 216px;
+        height: 88px;
+        text: "réglages";
+    }
+}
+
+export component MainWindow inherits Window {
+    // 0 : infusion, 1 : accueil.
+    in-out property <int> page: 0;
+
+    width: 800px;
+    height: 480px;
+    background: Theme.bg;
+    default-font-family: "Inter 24pt";
+
+    Topbar { }
+
+    if root.page == 0: BrewPage {
+        width: 800px;
+        height: 480px;
+        leave => {
+            root.page = 1;
+        }
+    }
+
+    if root.page == 1: HomePage {
+        width: 800px;
+        height: 480px;
+        leave => {
+            root.page = 0;
+        }
+    }
+}

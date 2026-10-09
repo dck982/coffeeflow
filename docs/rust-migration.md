@@ -254,6 +254,15 @@ firmware/rust/
   la réécrire. Ce sera la seule exception à « `factory` n'est jamais
   réécrite ». Elle se prépare à part, avec sa propre procédure, puisque
   la règle n° 1 interdit d'écrire dans `factory` pendant les essais.
+- **Provisioning Wi-Fi de l'écran (demande du 2026-10-09).** Sans
+  identifiants Wi-Fi, l'écran démarre en point d'accès avec une page de
+  saisie des identifiants, comme le provisioning d'IDF. Dans ce mode,
+  l'écran affiche en plein écran, par-dessus toute l'UI : « connectez-vous
+  au réseau `<SSID>` et entrez vos identifiants », et le **BLE est coupé**
+  (ni scan ni lien). Un scan BLE agressif peut en effet empêcher le
+  téléphone de s'associer (étape 8a). Sans association, pas d'identifiants,
+  donc pas de mode STA ni d'OTA, et il ne reste plus que l'USB, qui
+  impose de sortir l'écran de la machine.
 - **Ordre.** `protocol` et `coffeetool` d'abord, sans risque matériel. Puis
   `screen`, la carte la plus risquée en technique (LCD, BLE, Wi-Fi), sur
   laquelle portent les essais ci-dessous. `sensors` en dernier : c'est la
@@ -1636,30 +1645,201 @@ Un effacement de secteur déjà vierge ne prend que 2,4 ms en moyenne (cycle
 1, juste après `parttool.py write_partition`, qui efface tout le slot),
 contre 16,5 ms pour un secteur écrit.
 
-**8b. Un cycle OTA complet, Rust et C++ mêlés.** Le slot inactif porte
-coffeeflow : la Rust A l'écrase. C'est voulu, et c'est le meilleur test :
+**8b. Un cycle OTA complet, Rust et C++ mêlés.** Le slot de coffeeflow
+reçoit les images que la Rust A installe : coffeeflow y est écrasé, et c'est
+voulu.
 
-1. La Rust A, dans `ota_0`, reçoit **l'image C++ de coffeeflow** par
-   `POST /firmware` (point d'accès de l'essai), l'écrit dans `ota_1`, pose
-   `otadata` en `New` et redémarre. Coffeeflow démarre en
-   `PENDING_VERIFY` et se confirme par `POST /firmware/confirm`. Rust
-   installe donc du C++.
-2. Coffeeflow installe une Rust B par sa route habituelle. La Rust B,
-   en `PENDING_VERIFY`, joue tour à tour :
-   - ne se valide pas, et redémarre après son délai : retour sur
-     coffeeflow ;
-   - panique au démarrage : retour sur coffeeflow ;
-   - se bloque, watchdog RTC armé : retour sur coffeeflow ;
-   - se valide : elle reste.
+**Raccourci et contrainte (décision du 2026-10-09).** L'écran est soit sur
+le bureau, en USB et sans bus CAN, soit sur la machine, sur le CAN et sans
+USB. Jamais les deux : alimenter l'écran par le Mac et `sensors` par
+l'alim RECOM ne convient pas au CAN. Or coffeeflow ne confirme une OTA
+qu'avec `sensors` vivant (`confirm_pending_verify`) et refuse toute OTA tant
+qu'il est en `pending_verify` (409). Sur le bureau, il ne peut donc ni se
+confirmer ni installer la Rust B. L'étape se fait donc sur le bureau,
+et la Rust A tient le rôle de coffeeflow :
 
-   Chaque cas se rejoue par une nouvelle OTA de coffeeflow.
+1. La Rust A, dans le slot de test, reçoit **l'image C++ de coffeeflow** par
+   `POST /firmware` et l'installe dans l'autre slot (`NEW`). Coffeeflow
+   démarre en `PENDING_VERIFY` : le bootloader et IDF lisent l'`otadata`
+   écrit par Rust. Sans confirmation possible, il revient seul sur la Rust A
+   au bout de 5 min. La Rust A lit alors l'`otadata` laissé par IDF.
+2. La Rust A installe la Rust B `b-sans-validation` : redémarrage au bout
+   de 30 s, retour sur la Rust A.
+3. La Rust A installe la Rust B `b-valide` : elle se valide et reste.
+4. Par USB, sans OTA : `b-panique` puis `b-blocage`, écrites dans le slot
+   actif `VALID`. On vérifie seulement que l'image redémarre seule. Le
+   retour en arrière du bootloader est le même quelle que soit la cause du
+   redémarrage, et il est déjà éprouvé (étapes 1 et 2, contrôle de 0.3.48).
+5. Coffeeflow remis par USB.
 
-- **Réussi si :** les quatre cas donnent le résultat attendu, `otadata`
-  reste lisible par `otatool` et par coffeeflow après chaque écriture
-  Rust, et l'affichage se comporte comme en 8a pendant la réception.
-- **À relever :** ce que fait `esp-backtrace` après une panique (il doit
-  redémarrer, pas s'arrêter), et si `esp_hal::init` coupe le watchdog RTC
-  laissé par le bootloader.
+On renonce à deux vérifications : qu'IDF confirme une entrée écrite par
+Rust, et que la route d'OTA de coffeeflow installe une Rust. Risque faible :
+IDF lit déjà cette entrée à l'étape 1. La première OTA de la sonde, à
+l'étape 9, passera de toute façon par la route de coffeeflow.
+
+**Relevé dans le code des crates, avant tout essai (2026-10-09).**
+
+- **`esp-bootloader-esp-idf` 0.6 ne suit pas IDF.** `Ota` prend la
+  séquence la plus haute sans regarder l'état, là où IDF écarte les copies
+  `INVALID` et `ABORTED`
+  (`bootloader_common_ota_select_valid`). Après un retour en arrière, la
+  copie la plus haute est celle de l'image refusée : la « valider » avec
+  `Ota` relancerait cette image. L'essai a donc son propre module
+  `otadata.rs`, qui reprend la sélection et les écritures d'IDF v6.1
+  (`esp_rewrite_ota_data`, `esp_ota_current_ota_is_workable`) : copie
+  active = la sélectionnable de séquence la plus haute (copie 0 à
+  égalité), nouvelle séquence écrite dans l'autre copie, secteur effacé
+  puis réécrit, puis relu. Il servira à l'app finale.
+- **`esp_hal::init` coupe tous les watchdogs**, RTC compris (`lib.rs`
+  d'esp-hal 1.2.2). Une app Rust doit réarmer le watchdog RTC elle-même.
+- **`esp-backtrace` 0.20 ne redémarre pas après une panique.** Par défaut,
+  il boucle sans fin, interruptions masquées. Avec les watchdogs coupés,
+  une sonde qui panique sur `sensors` resterait figée jusqu'à une coupure
+  de courant, sans retour en arrière. Correction : feature `custom-halt`,
+  dont `custom_halt` redémarre après 50 ms (le temps de vider l'UART). C'est
+  ce que vérifie `b-panique`, et la sonde de l'étape 9 la reprend.
+
+**Essai `08b-ota` (écrit le 2026-10-09).** Un crate, deux binaires :
+
+- **Rust A** (`trial-08b-ota-a`) : l'essai 08a sans la charge de flash, en
+  Wi-Fi seul par défaut (le mode d'une OTA de coffeeflow ;
+  `--no-default-features` remet le BLE). `POST /firmware` : le corps est
+  l'image, `Content-Length` obligatoire. Rien n'est effacé avant que
+  l'en-tête soit reconnu (magic `0xE9`, puce ESP32-S3, SHA-256 en fin). Puis
+  chaque bloc de 64 Ko est effacé juste avant d'y écrire, et non toute
+  l'image au début comme `esp_ota_begin`, ce qui limite l'attente active à
+  83 ms d'affilée. Le SHA-256 de fin d'image est vérifié sur le flux, puis
+  sur la flash relue. Ensuite seulement, `otadata` désigne le slot en
+  `NEW`, la réponse JSON part (projet, version, durée) et la carte
+  redémarre. Le slot visé est toujours celui qui n'a pas démarré. Flash en
+  mode `comme-idf`, tout sur le cœur 1 ; le journal du cœur 1 passe par le
+  cœur 0. Au démarrage, la console donne le reset, le slot démarré et les
+  deux copies d'`otadata` (séquence, état, CRC, copie active).
+- **Rust B** (`trial-08b-ota-b`, une feature par cas) : sans affichage ni
+  radio, code exécuté depuis la flash (esp-storage avec sa section
+  critique). Elle journalise son reset, son slot, `otadata` et son propre
+  état, puis joue son cas : `b-valide` (au bout de 5 s, `PENDING_VERIFY` →
+  `VALID`, puis une ligne toutes les 10 s), `b-sans-validation`
+  (redémarrage à 30 s), `b-panique` (à 5 s), `b-blocage` (watchdog RTC armé
+  à 5 s, puis boucle interruptions masquées à 5 s).
+
+Images, dans `target/variants/` : `a.bin` (1 555 Ko), `b-valide.bin`,
+`b-sans-validation.bin`, `b-panique.bin`, `b-blocage.bin` (~100 Ko), avec
+leurs `.elf`. Vérifiées hors de la carte, comme le `screen.bin` de
+coffeeflow (`ea22254`, 1 635 Ko) : magic, puce, descripteur d'app, SHA-256
+de fin juste.
+
+**Envoi depuis le Mac : `firmware/rust/trial-upload.sh <image>`.** Le Mac
+est en Ethernet (`en0`, 192.168.2.0/24), son Wi-Fi (`en1`) est éteint. Le
+script allume le Wi-Fi, rejoint le point d'accès de l'essai et envoie
+l'image avec `curl`, puis remet le Wi-Fi dans son état de départ, même en
+cas d'erreur. La route par défaut reste sur l'Ethernet, donc ni Internet ni
+la session ne sont coupés. Le script refuse si la route par défaut passe par
+le Wi-Fi. Le point d'accès de l'essai passe en **192.168.71.1/24** : l'ancien
+192.168.2.1 tombait dans le réseau filaire. SSID et mot de passe ne
+changent pas (`coffeeflow-essai-05`).
+
+**Déroulé (bureau, USB).** Dans `firmware/rust/trials/08b-ota`, environnement
+de la section « Déployer un essai ».
+
+```sh
+V=target/variants
+# 0. Lire otadata (séquences, puis états à l'octet 24 de chaque copie).
+#    C = slot actif (coffeeflow, ou l'essai 08a s'il n'a pas été rendu),
+#    T = l'autre. Une copie INVALID est attendue : laissée par le retour
+#    de 0.3.48. On s'arrête seulement si aucune copie n'est sélectionnable.
+# 1. Rust A dans T, bascule, console ouverte pour toute la session.
+parttool.py -p $PORT write_partition --partition-name T --input $V/a.bin
+otatool.py -p $PORT switch_ota_partition --name T
+espflash monitor --chip esp32s3 --port $PORT --elf $V/a.elf
+#    Attendu : « démarré sur ota_T », copies avec crc=ok, active -> ota_T.
+# 2. Coffeeflow par la Rust A (autre terminal).
+../../trial-upload.sh ../../../screen/build/screen.bin
+#    Attendu : JSON ok, projet screen, puis coffeeflow sur C : GET
+#    /telemetry, firmware.screen.ota en pending_verify. Pas de confirm.
+#    Après 5 min, la Rust A revient : copie de C INVALID, active -> T.
+# 3. Rust B sans validation.
+../../trial-upload.sh $V/b-sans-validation.bin
+#    Attendu : Rust B, état PendingVerify, redémarrage à 30 s, puis Rust A,
+#    copie de C ABORTED.
+# 4. Rust B qui se valide.
+../../trial-upload.sh $V/b-valide.bin
+#    Attendu : « validée », copie de C VALID ; après Ctrl+R dans la
+#    console (reset), « rien à valider ». Console fermée, otatool.py
+#    read_otadata et l'état à l'octet 24 : IDF relit l'écriture de Rust.
+# 5. Panique, puis blocage, écrits dans C (actif, VALID : pas de bascule).
+parttool.py -p $PORT write_partition --partition-name C --input $V/b-panique.bin
+espflash monitor --chip esp32s3 --port $PORT --elf $V/b-panique.elf
+#    Attendu : trace, puis redémarrage toutes les ~5 s, reset logiciel.
+parttool.py -p $PORT write_partition --partition-name C --input $V/b-blocage.bin
+espflash monitor --chip esp32s3 --port $PORT --elf $V/b-blocage.elf
+#    Attendu : redémarrage ~10 s après le démarrage, reset du watchdog RTC.
+# 6. Coffeeflow remis dans C : la copie active reste C, VALID.
+parttool.py -p $PORT write_partition --partition-name C --input ../../../screen/build/screen.bin
+```
+
+**`otatool switch_ota_partition` ignore l'état des copies.** Il écrit la
+nouvelle séquence dans l'autre copie sans toucher à son état. Si cette copie
+est `INVALID` ou `ABORTED`, le bootloader l'écarte et redémarre sur l'ancien
+slot, sans rien signaler. Dans ce cas, il faut basculer deux fois : d'abord
+vers le slot actif, ce qui porte la copie écartée à la même séquence, puis
+vers le slot voulu. À égalité, otatool part de la copie 0 et écrit dans la
+copie 1, qui garde son état `VALID`. `trial-ota.sh` devra le faire, ou
+refuser. Pendant 8a, la bascule n'avait marché que parce que la copie
+réécrite était `VALID`.
+
+**Ne pas toucher au port pendant une attente de validation.** Ouvrir ou
+fermer la console redémarre la carte. Une image en `PENDING_VERIFY` qui
+redémarre est aussitôt refusée par le bootloader : on obtiendrait un retour
+en arrière, mais pas celui qu'on teste. La console s'ouvre donc à l'étape 1
+et reste ouverte jusqu'à la fin de l'étape 4. Pendant que coffeeflow tourne,
+elle affiche du binaire : les trames CAN que son pont série envoie sur
+UART0, cadrées en COBS.
+
+- **Réussi si :** chaque étape donne l'attendu, les copies écrites par Rust
+  ont un CRC juste et sont relues par le bootloader, par IDF (coffeeflow) et
+  par `otatool`, et la Rust A ne se trompe jamais de copie active après un
+  retour en arrière.
+- **Si coffeeflow ne démarre pas à l'étape 2 :** le bootloader revient sur
+  la Rust A (image `NEW` qui ne se charge pas). On relève la console et
+  `otadata`, et on s'arrête.
+- **Si la Rust B `b-valide` ne se valide pas :** elle redémarre au premier
+  reset et la Rust A revient. On relève son journal (« validation
+  impossible »).
+
+**Résultats du 2026-10-09 : 8b réussie.** Au départ : copie 0 `0x63`
+INVALID, copie 1 `0x64` VALID, coffeeflow sur `ota_1`. Rust A écrite dans
+`ota_0`, double bascule (copie 1 → `0x65` VALID).
+
+| Étape | `otadata` après | Constat |
+|---|---|---|
+| 1. Rust A démarre | c0 `0x64` INVALID, c1 `0x65` VALID, active `ota_0` | CRC d'IDF relus justes |
+| 2. Coffeeflow par la Rust A | c0 `0x66` NEW | 1 673 920 octets en 14,5 s (112 Ko/s), SHA-256 juste au flux et à la relecture. Coffeeflow 0.3.48 sur `ota_1`, `pending_verify` dans `/telemetry` |
+| Retour seul après 5 min | c0 `0x66` INVALID, active `ota_0` | coffeeflow s'invalide (reset `CpuSw`) ; la Rust A écarte la copie INVALID |
+| 3. `b-sans-validation` | c0 `0x66` NEW → PENDING_VERIFY → ABORTED | la Rust B se voit en `PendingVerify`, redémarre à 30 s, retour sur la Rust A |
+| 4. `b-valide` | c0 `0x66` VALID | validée au bout de 5 s ; après reset, redémarre sur elle-même, « rien à valider ». `otatool` relit `0x66`/`0x65`, deux copies VALID, CRC justes |
+| 5. `b-panique` (USB) | inchangé | trace, puis reset logiciel (`CoreSw`) toutes les ~5 s : `custom_halt` redémarre |
+| 5. `b-blocage` (USB) | inchangé | reset du watchdog RTC (`RTCWDT_RTC_RST`, `SysRtcWdt`) à 5 s |
+| 6. Coffeeflow remis dans `ota_1` | c0 `0x66` VALID, active `ota_1` | |
+
+- **Affichage pendant la réception :** 0 retard et 0 recalage. Le rendu
+  partiel monte à 101 ms au plus, contre environ 70 ms sans flash : c'est
+  l'attente active des effacements, déjà vue en 8a.
+- **Tas interne libre minimum :** 73 Ko (Wi-Fi seul).
+- **`b-blocage` :** le watchdog s'est déclenché pendant l'attente de 5 s
+  qui précède la boucle, faute d'être nourri. La boucle interruptions
+  masquées n'a pas été atteinte. La preuve reste la même : une image qui
+  ne nourrit plus le watchdog RTC redémarre.
+- **Débit :** 112 Ko/s, limité par la fenêtre TCP de 1 Ko du serveur de
+  l'essai. À agrandir dans l'app.
+- Le rapport BLE tourne encore en mode Wi-Fi seul (`ble init`, `coupe`).
+  C'est inoffensif.
+
+**Conclusion : Rust installe du C++ et de la Rust, se valide, et le
+retour en arrière marche dans tous les cas, avec l'`otadata` d'IDF.** À
+reprendre dans l'app : le module `otadata.rs` (jamais `Ota`
+d'esp-bootloader-esp-idf), `custom_halt` qui redémarre, et le watchdog RTC
+réarmé au début de `main`.
 
 **8c. NVS, d'abord sans le vrai NVS.**
 
@@ -1670,6 +1850,12 @@ coffeeflow : la Rust A l'écrase. C'est voulu, et c'est le meilleur test :
    Mac doit se décoder avec `nvs_tool.py` d'IDF.
 3. Seulement ensuite, le vrai NVS, après `nvs-vault save` : Rust lit les
    clés de coffeeflow et n'en affiche que les noms, types et longueurs.
+   **Preuve proposée (2026-10-09) :** une Rust en mode STA qui lit les
+   identifiants Wi-Fi à l'endroit où IDF les a rangés, rejoint le réseau de
+   la maison et répond sur le réseau local. Elle montre qu'un firmware Rust
+   exploite les identifiants existants, sans nouveau provisioning. Les
+   identifiants ne sont jamais journalisés : seuls le SSID masqué, la
+   longueur du mot de passe et le résultat de l'association le sont.
    Puis Rust écrit une clé de test ; coffeeflow redémarre et doit relire
    tous ses réglages. `nvs-vault restore` à la fin, dans tous les cas.
 
@@ -1904,3 +2090,18 @@ Résultats datés, au fil des essais.
   au lieu du scan continu. Appareils éteints, l'iPhone s'associe après deux
   échecs ; page et flash ensuite sans erreur ni retard. Tas interne libre
   minimum 29,9 Ko. Réglage fin du scan reporté.
+- **2026-10-09 :** étape 8b raccourcie et ramenée sur le bureau (USB, sans
+  CAN) : la Rust A tient le rôle de coffeeflow, panique et blocage se
+  vérifient par USB. Relevé dans le code : `Ota` d'esp-bootloader-esp-idf
+  ignore l'état des copies, `esp_hal::init` coupe le watchdog RTC, et
+  esp-backtrace ne redémarre pas après une panique. `08b-ota` écrit (Rust
+  A, Rust B en quatre cas, module `otadata` selon IDF, `custom_halt` qui
+  redémarre) avec `trial-upload.sh`. Point d'accès des essais en
+  192.168.71.1. Rien de flashé.
+- **2026-10-09 :** 8b réussie sur le bureau. La Rust A installe coffeeflow
+  (`pending_verify`, retour seul après 5 min), la Rust B sans validation
+  revient sur la Rust A (`ABORTED`), la Rust B validée reste. La panique
+  redémarre par `custom_halt`, et le watchdog RTC redémarre la carte.
+  `otatool` relit les écritures de Rust. Constat : `otatool
+  switch_ota_partition` garde l'état de la copie réécrite, d'où une double
+  bascule au départ. Coffeeflow remis dans `ota_1`.

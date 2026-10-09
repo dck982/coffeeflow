@@ -1,0 +1,135 @@
+[package]
+edition      = "2024"
+name         = "trial-08b-ota"
+rust-version = "1.95"
+version      = "0.1.0"
+# ble.rs, ota.rs et wifi.rs, à côté de main.rs, sont des modules et non des
+# binaires.
+autobins     = false
+
+# Rust A : l'essai 08a sans la charge de flash, qui reçoit une image par
+# HTTP et l'installe dans l'autre slot.
+[[bin]]
+name = "trial-08b-ota-a"
+path = "./src/bin/main.rs"
+
+# Rust B : image minimale, sans affichage ni radio, qui joue un cas de
+# validation choisi au build (features `b-*`).
+[[bin]]
+name              = "trial-08b-ota-b"
+path              = "./src/bin/b.rs"
+required-features = ["esp-storage-cs"]
+
+[dependencies]
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+
+esp-rtos = { version = "0.4.0", features = [
+  "embassy",
+  "esp-alloc",
+  "esp-radio",
+  "esp32s3",
+  "log-04",
+] }
+
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+# Sa feature `critical-section` (masquer les interruptions pendant chaque
+# opération) vient de la feature `esp-storage-cs` de l'essai, et non des
+# features par défaut : la Rust A s'en passe (comme IDF depuis la PSRAM), la
+# Rust B, qui exécute depuis la flash, en a besoin.
+esp-storage            = { version = "0.10.0", default-features = false, features = ["esp32s3"] }
+log                    = "0.4.27"
+
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-time = { version = "0.5.0", features = ["log"] }
+# Sans l'allocateur global d'esp-alloc : main.rs pose le sien, qui choisit
+# la mémoire selon le cœur. `compat` fournit malloc aux blobs radio.
+esp-alloc = { version = "0.11.0", default-features = false, features = [
+  "compat",
+  "esp32s3",
+  "internal-heap-stats",
+] }
+# `custom-halt` : après une panique, `custom_halt` (lib.rs) redémarre, au
+# lieu de la boucle infinie par défaut.
+esp-backtrace = { version = "0.20.0", features = [
+  "custom-halt",
+  "esp32s3",
+  "panic-handler",
+  "println",
+] }
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "log-04",
+  "uart",
+] }
+esp-radio = { version = "1.0.0-beta.1", features = [
+  "ble",
+  "coex",
+  "esp-alloc",
+  "esp32s3",
+  "log-04",
+  "unstable",
+  "wifi",
+] }
+bt-hci = "0.9.0"
+trouble-host = { version = "0.7.0", features = ["scan"] }
+embassy-net = { version = "0.9.0", features = [
+  "medium-ethernet",
+  "proto-ipv4",
+  "tcp",
+  "udp",
+] }
+edge-dhcp = "0.8.0"
+edge-nal = "0.7.0"
+edge-nal-embassy = "0.9.0"
+embedded-io-async = "0.7"
+heapless = "0.9.1"
+embassy-futures = "0.1"
+embassy-sync = "0.8"
+sha2 = { version = "0.11", default-features = false }
+esp32s3 = "0.36.0"
+slint = { version = "=1.18.1", default-features = false, features = [
+  "compat-1-2",
+  "libm",
+  "renderer-software",
+  "unsafe-single-threaded",
+] }
+
+critical-section = "1.2.0"
+static_cell      = "2.1.1"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+
+# For fine tuning these settings, please refer to https://doc.rust-lang.org/cargo/reference/profiles.html
+[profile.dev]
+# The default debug profile is too slow and too big for resource-constrained devices.
+# Always build with some optimizations enabled.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1     # LLVM can perform better optimizations using a single thread
+debug         = 2     # prefer slower builds but better debugging experience
+lto           = 'fat'
+opt-level     = 's'
+
+[features]
+# La Rust A en mode Wi-Fi seul, comme coffeeflow pendant une mise à jour.
+# `--no-default-features` remet le BLE.
+default = ["sans-ble"]
+# Wi-Fi seul, sans BLE : le mode Wi-Fi de coffeeflow, celui des mises à jour.
+sans-ble = []
+# esp-storage tel quel : interruptions masquées pendant chaque opération.
+# Pour la Rust B seulement ; la Rust A refuse de se construire avec.
+esp-storage-cs = ["esp-storage/critical-section"]
+# Cas joués par la Rust B, un seul par build.
+# Se valide, et reste.
+b-valide = ["esp-storage-cs"]
+# Ne se valide pas, et redémarre au bout de 30 s.
+b-sans-validation = ["esp-storage-cs"]
+# Panique au bout de 5 s.
+b-panique = ["esp-storage-cs"]
+# Arme le watchdog RTC à 5 s, puis se bloque au bout de 5 s.
+b-blocage = ["esp-storage-cs"]

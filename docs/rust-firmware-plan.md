@@ -454,6 +454,9 @@ seconde (même à une image déjà validée).
   (`board.rs`) ; le contrôleur n'expose pas ce compteur, que le pilote IDF
   tenait par interruption. Le diagnostic de câblage du C++ (1,2 million
   d'erreurs relevées sous 0.3.48) est donc perdu.
+- Après coup : démarrage à froid de la machine sans incident ; chauffe
+  régulée vérifiée (la puissance baisse à l'approche de 90 °C) ;
+  `coffeetool telemetry --record` vérifié.
 
 État des cartes :
 - `sensors` : Rust 0.4.2 actif et validé ; l'autre slot, Rust 0.4.1 validé.

@@ -233,11 +233,13 @@ Détail fil par fil, couleurs et cheminement : `docs/cablage.md`. Passage intér
 - **`boitier_dc` (XIAO ESP32-S3)** — I2C (DimmerLink, XDB401), GPIO du SSR vanne et du SSR chaudière, comptage d'impulsions du débitmètre, TWAI/CAN.
 - **UI (Waveshare ESP32-S3)** — affichage et commandes, **algorithme d'infusion** (flow control, stop on weight), Wi-Fi, BLE vers l'Acaia Lunar. L'ADS1115 sur son I2C mesure la température chaudière par une NTC.
 
-**État du firmware :** la commande diagnostique de chauffage dans `firmware/sensors` est implémentée et testée. La lecture NTC/ADS1115 dans `firmware/screen` est intégrée au code ; sa mesure reste à valider sur la machine. L'écran et `temperature.boiler.c` dans `/telemetry` utilisent la température chaudière ; le XDB401 reste disponible sous `temperature.xdb401`. Voir [le contrat firmware](docs/firmware.md) et [la calibration NTC](docs/ntc_ads1115_calibration.md).
+**Langage : Rust** (`no_std`, esp-hal, embassy) sur les deux cartes, sous `firmware/rust/` ; l'interface de l'écran est en **Slint**. Le firmware C++/ESP-IDF d'origine est archivé dans `archive/firmware/`, toujours compilable : il reste la référence de comportement sur le bus CAN et en HTTP. L'outil Mac `coffeetool` (Rust) remplace les scripts Python, archivés eux aussi.
+
+**État du firmware (2026-10-09) :** écran et module capteurs en **0.4.2**, installés et validés sur la machine, démarrage à froid compris : affichage, BLE et Wi-Fi ensemble, CAN, mise à jour de l'écran par HTTP et du module capteurs par le CAN, retour en arrière automatique. Restent à valider sur la machine : chauffe, purge et infusion. Voir [le contrat firmware](docs/firmware.md) et [la calibration NTC](docs/ntc_ads1115_calibration.md).
 
 Le mode DimmerLink retire tout besoin d'ISR zero-cross / PSM côté ESP32 : le Cortex du dimmer gère la détection de passage par zéro et le triac, le XIAO ne voit que de l'I2C. Sans **secteur** sur le dimmer, le module reste en `Calibrating...` et n'accepte pas les commandes.
 
-Conception, protocole CAN et sécurité : `docs/firmware.md`. Build, flash et banc : `docs/firmware-build.md`. Style et structure de l'interface tactile (LVGL) : `docs/ui.md`, maquette à l'échelle `docs/ui-mockup.html`.
+Conception, protocole CAN et sécurité : `docs/firmware.md`. Build, flash et banc : `docs/firmware-build.md`. Style et structure de l'interface tactile : `docs/ui.md`, maquette à l'échelle `docs/ui-mockup.html`.
 
 ## Disposition mécanique
 
@@ -284,6 +286,8 @@ Le recuit fait retirer les pièces : les cotes fit-critiques (puits d'aimant, lo
 coffeeflow/
   README.md          ← cette vue d'ensemble
   docs/              ← câblage, débitmètres, drip tray, maquettes Three.js ; datasheets/
+  firmware/rust/     ← firmwares écran et capteurs, protocole CAN, coffeetool (Rust)
+  archive/firmware/  ← firmware C++/ESP-IDF d'origine et outils Python (référence)
   print/             ← impressions 3D (nurb)
   tests/             ← scripts MicroPython de banc
   sound_test/        ← sketch Arduino de test Atom S3 (reliquat)

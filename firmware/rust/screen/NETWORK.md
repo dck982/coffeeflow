@@ -72,7 +72,7 @@ libération du mutex flash, y compris durant l'attente de l'écho STOP sensors.
 
 Les quatre workers gardent leur fenêtre RX de 8192 octets. RX/TX et en-têtes
 HTTP sont en PSRAM, pour un maximum de 56 Ko de tampons, afin de préserver la
-SRAM radio. Le tas interne reste de 128 Ko et la pile du cœur 1 de 16 Ko.
+SRAM radio. Le tas interne est de 120 Ko et la pile du cœur 1 de 16 Ko.
 `stack-budget.x` impose au moins 16 Ko de pile au cœur 0 ; le linker produit
 une carte mémoire `screen.map` dans le répertoire de sortie du build.
 

@@ -7,14 +7,24 @@ Vue d'ensemble du matériel : `../README.md`. Détail fil par fil : `cablage.md`
 Arborescence :
 
 ```
-firmware/
-  common/     protocole CAN, types de messages, table de codes LOG, CRC
-  sensors/    projet ESP-IDF, XIAO ESP32-S3
-  screen/     projet ESP-IDF, ESP32-S3-WROOM-1-N16R8
-  tools/      décodeur Mac (USB série et WebSocket)
+firmware/rust/
+  protocol/       protocole CAN, types de messages, table de codes LOG, CRC (no_std)
+  screen-core/    logique de l'écran : machine d'état, infusion, thermique, config, HTTP (no_std + alloc)
+  screen-net/     identifiants, SNTP, HTTP, WebSocket, vérification d'image
+  sensors-logic/  logique du module capteurs (bail, présence, verrou, chauffe, flash)
+  coffeetool/     outil Mac (HTTP, USB série, WebSocket, BLE de la sonde)
+  screen-sim/     simulateur de l'UI sur le Mac
+  screen/         application Waveshare, crate Xtensa autonome
+  sensors/        application XIAO, crate Xtensa autonome
+  vendor/         copies corrigées d'esp-nvs, esp-hal et esp-rtos
+  trials/         essais de viabilité (affichage, radio, flash, OTA, NVS)
+archive/firmware/
+  screen/ sensors/ common/ tools/   ancien firmware C++/ESP-IDF et outils Python
 ```
 
-**Langage : C++ sur ESP-IDF 6.1 pour les deux cartes** (version figée : `firmware/IDF_VERSION.md`), tâches FreeRTOS, pas de `loop()` Arduino. Une seule langue parce que le codec du protocole et le cadrage OTA doivent être identiques des deux côtés, et parce que l'écran (CH422G, GT911, RGB via `esp_lcd`, LVGL, client GATT BLE, `esp_http_server`, NVS) n'est documenté qu'en C. Rust sur le module capteurs reste une réécriture légitime plus tard, une fois l'image factory ennuyeuse et prouvée. Arduino-ESP32 peut être tiré comme composant IDF si une bibliothèque l'exige.
+**Langage : Rust `no_std` pour les deux cartes**, sur esp-hal 1.2.2 avec esp-rtos et embassy ; radio esp-radio, BLE par trouble-host ; UI Slint rendue ligne par ligne. Une seule langue et un seul crate `protocol` parce que le codec du protocole et le cadrage OTA doivent être identiques des deux côtés et de l'outil Mac. Le workspace hôte `firmware/rust` (`protocol`, `screen-core`, `screen-net`, `sensors-logic`, `coffeetool`) se compile et se teste sur le Mac avec la toolchain `stable` ; `screen` et `sensors` sont des crates Xtensa autonomes (toolchain `esp`, `source ~/export-esp.sh`), qui dépendent de ces crates par chemin. Les trois copies vendorées de `firmware/rust/vendor` corrigent des défauts trouvés sur carte (voir « Pièges connus » dans `firmware-build.md`).
+
+Le firmware C++ (ESP-IDF 6.1, FreeRTOS, LVGL) est archivé dans `archive/firmware/`, toujours compilable. Il reste la référence de comportement sur le bus et en HTTP : le Rust reproduit les trames au bit près et les clés HTTP à la clé près. Les outils Python sont archivés dans `archive/firmware/tools`, remplacés par `coffeetool`.
 
 ## Répartition
 
@@ -26,20 +36,30 @@ Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 �
 
 ---
 
-## État de mise en service (2026-09-16)
+## État de mise en service (2026-10-09)
 
-Les modules **capteurs** et **écran** sont montés dans la machine. Ils sont
-branchés au débitmètre, au XDB401, à la pompe et à la vanne ; les premiers
-essais portent maintenant sur l'étanchéité de la plomberie et la validation
-des capteurs en conditions réelles.
+Les modules **capteurs** et **écran** sont montés dans la machine, avec le
+firmware Rust : écran et capteurs en **0.4.2**, validés sur la machine,
+démarrage à froid compris. L'OTA de l'écran passe par HTTP ; celle des
+capteurs passe par le CAN à travers l'écran, reçue aussi bien par le C++ que
+par le Rust, et validée par `CONFIRM_SENSORS_OTA`. Le rollback à 30 s de
+`sensors` est vérifié (feature `no-validate`).
+
+**Restent à valider sur la machine** : chauffe, purge et infusion, donc le SSR
+de la vanne, le dimmer en commande, la chauffe sur GPIO 3 et le comptage réel
+du débitmètre. Écart connu : `twai_bus_errors` vaut toujours 0 en Rust, le
+contrôleur n'exposant pas ce compteur que le pilote IDF tenait par
+interruption ; le diagnostic de câblage par erreurs de bus n'existe plus.
+
+Les essais d'étanchéité de la plomberie et de validation des capteurs en
+conditions réelles suivent.
 
 Le chemin de test courant est le bouton **purge** de l'écran. Il alimente
 pompe et vanne tant qu'il est maintenu ; puissance et plafond de sécurité se
 réglent par pas de 5 % et de 5 s. Le plafond de purge reste appliqué par le
 coeur, indépendamment de l'UI. L'écran de purge normal affiche pression, débit
-calculé et puissance de pompe, mais pas le compteur brut. Le compteur cumulatif
-du débitmètre apparaît sous la forme `n=<…>` uniquement dans l'écran de
-service/diagnostic historique (`MAINTENIR PURGE`).
+calculé et puissance de pompe, mais pas le compteur brut, qu'on lit dans
+`STATUS_FLOW` (`coffeetool monitor`) ou dans `/telemetry`.
 
 Le débit calculé peut légitimement rester à `0,0 ml/s` au début : il requiert
 des fronts du débitmètre et il est remis à zéro après 3 s sans front. Pendant
@@ -58,7 +78,7 @@ calibration du facteur K.
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
 | `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |
-| `firmware` | Versions et temps de fonctionnement de `screen` et `sensors`, présence CAN `sensors.alive`, `screen.ota`, `ota_staging` et progression `flash`. |
+| `firmware` | Versions et temps de fonctionnement de `screen` et `sensors`, présence CAN `sensors.alive`, `screen.ota`, `ota_staging` et progression `flash`. Les capteurs ne donnent leur uptime qu'au PING de démarrage et aux vérifications de présence ; depuis 0.4.2, tant qu'ils sont vivants, l'écran ajoute le temps écoulé depuis le dernier PING/PONG (la détection d'un redémarrage compare toujours la valeur reçue). |
 | `network`, `inputs` | État réseau et écran tactile. |
 | `uptime_ms` | Temps de fonctionnement de l'écran en millisecondes. |
 
@@ -89,9 +109,9 @@ Exemple abrégé :
 `purge.max_s`; `POST /action` accepte
 `purge_press` et `purge_release`. Un futur script de calibration peut donc
 encadrer un essai par deux instantanés, conserver les deltas dans un JSON et
-garantir un `purge_release` en sortie d'erreur. L'outil prévu est
-`firmware/tools/calibration_purge.py`; il ne tente pas de lire le poids en
-Wi-Fi et attend sa saisie après l'essai.
+garantir un `purge_release` en sortie d'erreur. `coffeetool purge <secondes>`
+fait une purge Wi-Fi de la durée donnée (60 s au plus, exacte si multiple de
+5 s).
 
 `GET /hf-capture` exporte la dernière session d'actionneur terminée, à 10 Hz,
 sous forme JSON. Jusqu'à 0.3.30, les échantillons étaient espacés de 100 ou
@@ -121,21 +141,21 @@ n'est pas connectée ou si sa dernière mesure correcte date de plus de 300 ms
 `pressure_a2_raw`, et les outils ignorent les champs qu'ils ne connaissent
 pas.
 
-`firmware/tools/download_hf_capture.py` télécharge la capture et conserve le
-JSON brut dans `captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être
-analysé par d'autres outils ou tracé avec matplotlib :
-`COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… uv run firmware/tools/download_hf_capture.py`, puis
-`uv run firmware/tools/plot_hf_capture.py captures/YYMMDD-HHMMSS.json --output capture.png`.
+`coffeetool download-hf` télécharge la capture et conserve le JSON brut dans
+`captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être analysé par
+d'autres outils ou tracé avec matplotlib :
+`COFFEEFLOW_HTTP_TOKEN=… COFFEEFLOW_IP=… coffeetool download-hf`, puis
+`uv run firmware/analysis/plot_hf_capture.py captures/YYMMDD-HHMMSS.json --output capture.png`.
 
-**Limite actuelle :** HTTP nécessite le mode Wi-Fi, qui désinitialise le BLE
-et déconnecte la balance Acaia. Les relevés HTTP de `weight_g` ne sont donc pas
-une mesure de poids vivante pendant une purge en Wi-Fi. La première campagne
-de calibration doit soit saisir le poids lu manuellement, soit faire évoluer
-cette politique radio avant d'automatiser la comparaison débitmètre ↔ balance.
+Le Wi-Fi et le BLE tournent ensemble : la balance Acaia reste connectée
+pendant les relevés HTTP, et `weight_g` y est une mesure vivante (voir
+« Politique radio »).
 
 ---
 
 ## Module capteurs (XIAO ESP32-S3)
+
+Le firmware tourne sur le seul cœur 0 (le second cœur n'est jamais démarré). Sa logique (bail, présence, verrou, chauffe, flash) est dans le crate hôte `sensors-logic`, que le crate Xtensa `sensors` enveloppe ; les sorties sont mises en état sûr avant toute autre initialisation.
 
 Brochage Grove Shield, tel que câblé. **GPIO natif de l'ESP32-S3**, pas le
 D-number du silkscreen Seeed : le Grove Shield XIAO numérote ses ports en
@@ -168,7 +188,7 @@ GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = ferm
 
 Le matériel est câblé pour deux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → sortie absorbante **OUT4** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont alimenté en **3V3 / GND par le port Sensor AD du Waveshare** → **A0/A1 de l'ADS1115** sur son I2C. La commande du SSR est câblée **5 V → SSR `+` → SSR `−` → OUT4**. La logique est inversée : **LOW sur GPIO 3 active la chauffe**, HIGH l'arrête. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md).
 
-Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 1 s ; un renouvellement ne redémarre pas cette période. Depuis v0.3.30, l'écran peut demander une nouvelle période (flag `restart_window`) sur la première commande non nulle de la précharge et de l'écoulement d'une infusion ; sans lui, une hausse reçue après l'extinction du SSR attend la période suivante. Sous 10 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 3 est mis à HIGH (état inactif) dès son initialisation dans `app_main`, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
+Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 1 s ; un renouvellement ne redémarre pas cette période. Depuis v0.3.30, l'écran peut demander une nouvelle période (flag `restart_window`) sur la première commande non nulle de la précharge et de l'écoulement d'une infusion ; sans lui, une hausse reçue après l'extinction du SSR attend la période suivante. Sous 10 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 3 est mis à HIGH (état inactif) dès l'initialisation des sorties, avant tout le reste, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
 
 `POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating.requested`, `heating.on` (`null` sans écho frais), `heating.freshness`, `heating.capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `brew.dimmer_pct` reste un alias de `brew.pump_pct` en télémétrie.
 
@@ -176,14 +196,14 @@ Revue des noms dans le code actuel :
 
 | Endroit | Nom actuel | Sens actuel | Nom conseillé pour l'extension |
 | --- | --- | --- | --- |
-| `firmware/sensors/main/main.cpp` | `g_valve_open`, `apply_valve()`, `kGpioValve` | relais de vanne R4 | chauffage séparé sur L2 |
-| `firmware/common/include/common/messages.hpp` | `StatusActuatorsPayload::valve_open` | état de la vanne | octet CAN 0 conservé |
-| `firmware/common/include/common/messages.hpp` | `SetPayload::pump_pct` | puissance de pompe | octet CAN 0 conservé |
-| `firmware/sensors/main/main.cpp` | `g_pump_pct`, `apply_dimmer()`, registres `kDimmer*` | niveau de pompe et pilote matériel DimmerLink | pilotes DimmerLink inchangés |
-| `firmware/screen/main/core` | `snapshot.valve_open`, `snapshot.pump_pct`, `snapshot.heater_on` | vanne, pompe et chaudière | `dimmer_pct` reste un alias |
-| HTTP (`net_http.cpp`) | `set_brew_actuators` avec `pump_pct` | commande de pompe | `set_actuators` avec `dimmer` reste un alias |
+| `firmware/rust/sensors-logic/src/machine.rs`, `firmware/rust/sensors/src/board.rs` | `valve_open`, `apply_valve()`, `set_valve()` | relais de vanne R4 | chauffage séparé sur L2 (`set_heater()`) |
+| `firmware/rust/protocol/src/messages.rs` | `StatusActuatorsPayload::valve_open` | état de la vanne | octet CAN 0 conservé |
+| `firmware/rust/protocol/src/messages.rs` | `SetPayload::pump_pct` | puissance de pompe | octet CAN 0 conservé |
+| `firmware/rust/sensors-logic/src/machine.rs` | `pump_pct`, `apply_dimmer()`, registres `DIMMER_REG_*` | niveau de pompe et pilote matériel DimmerLink | pilotes DimmerLink inchangés |
+| `firmware/rust/screen-core/src/snapshot.rs` | `valve_open`, `pump_pct`, `heater_on` | vanne, pompe et chaudière | `dimmer_pct` reste un alias |
+| HTTP (`firmware/rust/screen-core/src/http.rs`) | `set_brew_actuators` avec `pump_pct` | commande de pompe | `set_actuators` avec `dimmer` reste un alias |
 
-`on_set_received()` déduit l'état de la vanne de `payload.pump_pct > 0`. Le chauffage utilise sa propre commande et son propre état. Les octets des messages CAN existants et les champs HTTP historiques gardent leur sens.
+`on_set()` (`sensors-logic`) déduit l'état de la vanne de `payload.pump_pct > 0`. Le chauffage utilise sa propre commande et son propre état. Les octets des messages CAN existants et les champs HTTP historiques gardent leur sens.
 
 ### Dimmer — pompe
 
@@ -198,7 +218,7 @@ Code de banc existant : `../tests/test_rbi2c.py`.
 
 ### Débitmètre
 
-Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 44 (D7 sur le silkscreen du Grove Shield) ; pull-up interne éteinte. Une ISR incrémente un compteur 32 bits et mémorise l'horodatage du dernier front.
+Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 44 (D7 sur le silkscreen du Grove Shield) ; pull-up interne éteinte. Une interruption GPIO incrémente un compteur 32 bits et mémorise l'horodatage du dernier front. GPIO 44 est aussi le RX par défaut de l'UART0 : le firmware le passe en fonction GPIO avant d'installer le gestionnaire d'interruption (voir « Pièges connus » dans `firmware-build.md`).
 
 **Le module capteurs ne calcule ni volume ni débit.** Il publie le compteur cumulé et la date de la dernière impulsion ; l'écran en dérive tout, avec le facteur K et la courbe de correction qu'il détient. Trois raisons :
 
@@ -225,7 +245,7 @@ même boucle que la paire NTC (A0, A1). Mesure entre la pompe et la chaudière, 
 la vanne solénoïde.
 
 - **Conversion** : `bar = (A2 − 3167,3) × 0,00075`, soit la pente d'usine de 6 bar/V
-  (`screen/main/core/calibration_machine.h`). Le zéro a été lu sonde à l'air libre : la
+  (`firmware/rust/screen-core/src/calibration.rs`). Le zéro a été lu sonde à l'air libre : la
   pression est relative. En panier aveugle, la pente d'usine rend le plateau de l'OPV à
   0,6 % de l'ancien XDB401 I2C : les consignes et captures antérieures restent
   comparables.
@@ -255,7 +275,7 @@ Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 
 | Travail | Quand ça compte |
 | --- | --- |
-| UI LVGL | toujours, surtout pendant une infusion |
+| UI Slint | toujours, surtout pendant une infusion |
 | Client BLE → Acaia Lunar | pendant une infusion (poids) |
 | Client BLE → sonde SCACE | campagnes de mesure seulement (`scace.enabled`) |
 | CAN → capteurs | pendant une infusion (commandes + télémétrie) |
@@ -264,34 +284,27 @@ Quatre travaux concurrents, qui ne sont pas chauds en même temps :
 Code de référence pour le protocole Acaia (cadrage des trames, décodage
 poids/temps/boutons, heartbeat obligatoire) : `reference/acaia-ble/`.
 C'est du code Arduino-ESP32 d'un projet antérieur, à ne pas compiler tel
-quel dans `firmware/screen` (qui est en ESP-IDF pur) — voir le `README.md`
-du dossier pour ce qui est réutilisable et ce qui ne l'est pas.
+quel : le client Rust est dans `firmware/rust/screen/src/ble` et le décodage
+Acaia dans `firmware/rust/screen-core/src/acaia.rs`. Voir le `README.md` du
+dossier pour ce qui est réutilisable et ce qui ne l'est pas.
 
 ### Sonde SCACE
 
-Depuis 0.3.47, l'écran est client BLE de deux périphériques à la fois :
-`CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2`. Cette seconde connexion ne coûte rien
-en DRAM statique (`idf.py size` identique à l'octet) : le pool de connexions
-de l'hôte NimBLE est en PSRAM (`MEM_ALLOC_MODE_EXTERNAL`) et le contrôleur
-est déjà dimensionné par `CONFIG_BT_CTRL_BLE_MAX_ACT=6`. Le code de la sonde
-ajoute 128 octets de variables statiques en DIRAM et aucune tâche. À
-l'exécution, balance et sonde connectées, l'écran de diagnostic affiche
-**80 K** de SRAM interne libre (plus gros bloc 31 K), contre 88 à 91 K avec
-la balance seule en 0.3.43–0.3.44. L'écart n'est pas encore attribué :
-probablement les tampons du contrôleur pour la seconde connexion, à
-confirmer en 0.3.47 sonde éteinte.
+Depuis 0.3.47, l'écran est client BLE de deux périphériques à la fois : la
+balance et la sonde. Le client est écrit sur trouble-host
+(`firmware/rust/screen/src/ble`) ; la politique de scan est dans
+`firmware/rust/screen-core/src/ble_policy.rs`, testée sur l'hôte.
 
-`ble_central` porte la pile NimBLE, le scan et la tâche `ble_central`
-(100 ms, ex-tâche heartbeat Acaia). `ble_scale` et `ble_scace` ne gèrent que
-leur connexion, chacun avec son callback GAP. Politique de scan
-(`ble_scan_policy.h`, testée sur l'hôte) :
+Le scan ne prend jamais plus de la moitié du temps radio (fenêtre = moitié de
+l'intervalle) : intervalle 60 ms, fenêtre 30 ms. Politique de scan :
 
 | Situation | Scan |
 | --- | --- |
-| Balance absente | continu, actif, sans déduplication, comme avant la sonde ; il trouve aussi la sonde |
-| Balance connectée, sonde voulue (`scace.enabled`) et absente | passif, 1 s toutes les 10 s, hors cycle |
+| Balance absente | 60/30 ms, actif, sans déduplication, jusqu'à la trouver ; il trouve aussi la sonde |
+| Balance connectée, sonde voulue (`scace.enabled`) et absente | passif, dédupliqué, fenêtre de 1 s toutes les 10 s, hors cycle |
 | Infusion ou purge en cours, balance connectée | aucun |
-| Connexion en cours | aucun (NimBLE n'en accepte qu'une à la fois) |
+| Connexion en cours | aucun (une seule connexion à la fois) |
+| Mode provisioning (pas d'identifiants Wi-Fi) | BLE coupé |
 
 Allumer la sonde avant l'infusion : elle est trouvée en moins de 10 s.
 `scace.enabled=false` arrête toute recherche et coupe une sonde connectée.
@@ -299,11 +312,11 @@ L'écran ne garde que la température et l'état (pas les codes ADS1115 : la
 sonde est calibrée par ailleurs). Codes `LOG` : `SCACE_FOUND`,
 `SCACE_CONNECTED` (abonné), `SCACE_DISCONNECTED`, `SCACE_ERROR`.
 
-La sonde n'est pas dans `/telemetry` : en mode Wi-Fi, le BLE de l'écran est
-éteint. Pour un relevé en direct, le Mac lit la sonde lui-même
-(`record_probe.py --scace`) ; le Core2 accepte l'écran et le Mac à la fois.
+La sonde n'est pas dans `/telemetry`. Pour un relevé en direct, le Mac lit la
+sonde lui-même (`coffeetool telemetry --record --scace`) ; le Core2 accepte
+l'écran et le Mac à la fois.
 
-Le Wi-Fi est inactif en plein shot ; BLE + CAN + LVGL ne le sont pas. LCD, LVGL et la boucle d'infusion sur le **cœur 1** (l'ISR DMA du panneau RGB doit y vivre, sinon sauts d'image — `docs/screen-issue.md`) ; TWAI, UART, pont, Wi-Fi et pile BLE sur le **cœur 0**, là où Espressif met déjà les radios. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
+Répartition des cœurs : le **cœur 0** porte la recopie d'affichage (DMA du panneau RGB vers la SRAM interne), le rendu Slint et la logique (infusion, thermique, cœur de l'écran) ; le **cœur 1** porte la radio (BLE et Wi-Fi), le réseau et le propriétaire de la flash. Deux tas : SRAM interne pour la radio, PSRAM pour le reste. Le CAN est interruption + file, vidée par la tâche qui porte le protocole.
 
 ### Les capteurs vus depuis l'écran
 
@@ -321,8 +334,17 @@ d'accueil, puis stockés en **NVS** (pas d'EEPROM sur ESP32). Leur existence
 définit le mode : absents → AP, présents → STA ; une panne STA ne réactive
 jamais l'AP, seul « oublier le réseau » efface explicitement les identifiants.
 Ils n'apparaissent jamais dans le source. Un secret HTTP partagé vit dans un
-en-tête non commité, utilisé en `Authorization`. Le serveur est en HTTP, pas
-HTTPS : le secret évite juste que le LAN soit un jouet.
+fichier non commité, `firmware/rust/screen/secrets.rs` (ignoré par Git ;
+`secrets.example.rs` est versionné), utilisé en `Authorization`. Le mot de
+passe WPA2 du point d'accès de provisioning y est aussi. Sans ce fichier, le
+build utilise l'exemple mais désactive l'authentification HTTP et le
+provisioning : le jeton `CHANGE_ME` n'autorise aucune requête, et l'écran peut
+encore rejoindre une STA existante sans exposer HTTP. Le serveur est en HTTP,
+pas HTTPS : le secret évite juste que le LAN soit un jouet. Il y a quatre
+workers HTTP et trois sessions WebSocket au plus ; le cadrage borné rejette
+les longueurs ambiguës, les en-têtes dupliqués et le chunked. Le WebSocket
+n'accepte aucune injection CAN et une session trop lente est fermée sans
+retenir le bus.
 
 Première mouture de l'API :
 
@@ -388,9 +410,9 @@ l'écran**, avec les rôles inversés. C'est la première fois que l'écran est
   incomparables les shots d'avant et d'après. Les mesures s'ajoutent sous
   leurs propres noms.
 
-La politique radio joue déjà correctement ici : le Wi-Fi est coupé pendant le
-shot, l'envoi a donc lieu après le cycle — ce que dit déjà le tableau des
-travaux concurrents.
+Le Wi-Fi reste actif pendant l'infusion (voir « Politique radio ») ; l'envoi a
+donc lieu après le cycle, comme le dit le tableau des travaux concurrents, et
+non pendant.
 
 #### `/config` — toute la configuration en un objet JSON
 
@@ -398,7 +420,7 @@ travaux concurrents.
 remplace.** Rien de configurable ne doit exister uniquement dans l'écran
 tactile : réglages d'infusion, profils, seuils de veille. Les calibrations ne
 sont pas modifiables à l'exécution : le protocole hôte les écrit dans
-`core/calibration_machine.h`, versionné avec l'image écran. Deux raisons, et
+`firmware/rust/screen-core/src/calibration.rs`, versionné avec l'image écran. Deux raisons, et
 la première suffirait :
 
 - **Sauvegarde et restauration depuis un hôte distant.** Ces valeurs vivent en
@@ -446,7 +468,7 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 `scace.enabled` (schéma 10, écran 0.3.47) autorise la recherche et la
 connexion BLE de la sonde SCACE (voir « Sonde SCACE »). Il n'a pas d'écran de
-réglage : `uv run firmware/tools/set_scace.py true|false`. Défaut `false`, et
+réglage : `coffeetool set scace on|off`. Défaut `false`, et
 `false` après la migration du schéma 9. Une sauvegarde du schéma 9 ne se
 restaure plus telle quelle (`version` refusée) : elle ne diffère du schéma 10
 que par cette section absente, et passe après avoir remplacé `"version": 9`
@@ -484,34 +506,27 @@ de la pompe, vanne ouverte. La rampe part de
 
 ### Politique radio
 
-**Wi-Fi et BLE sont des modes exclusifs du coeur.** Ils partagent la radio
-2,4 GHz et, sur cet écran RGB, leurs contrôleurs exigent aussi de la SRAM
-interne. Cette exclusivité libère leurs allocations dynamiques, mais pas le
-code IRAM lié dans l'image : ajouter le contrôleur BLE avait aussi retiré
-environ 18 Kio à la DIRAM disponible avant même son initialisation, assez pour
-faire échouer les bounce buffers LCD. Les optimisations IRAM Wi-Fi sont donc
-désactivées et NimBLE utilise son mode basse vitesse et la PSRAM lorsque
-possible. Le coeur possède un état radio explicite, pas une convention
-implicite de l'UI.
+**BLE et Wi-Fi tournent ensemble**, coexistence assurée par esp-radio. Cela
+remplace la politique exclusive du firmware C++ (mode « machine » sans Wi-Fi,
+mode « Wi-Fi » sans BLE et sans infusion).
 
-| Mode | Wi-Fi / HTTP | BLE | Actions permises |
-| --- | --- | --- | --- |
-| **machine** (défaut) | complètement désinitialisés | actif ; poids à basse cadence au repos, pleine cadence pendant un cycle | infusion, purge, tare |
-| **Wi-Fi** (bouton explicite) | actifs ; API, WebSocket et flash réseau ouverts | complètement désinitialisé | diagnostic, flash, purge de banc, envoi du dernier shot au backend ; **pas d'infusion** |
-
-L'UI ouvre ce mode comme une destination depuis l'accueil si la place le
-permet, sinon depuis les réglages. Son bouton retour est une vraie sortie de
-mode, pas seulement une navigation : il arrête et désinitialise Wi-Fi/httpd/
-netif avant de relancer BLE. Ce n'est pas un simple
-`esp_wifi_stop()` : les buffers doivent être rendus à la SRAM interne. L'UI
-affiche l'état (AP, association ou adresse IP), la dernière infusion à envoyer
-le cas échéant, et la progression d'un flash réseau. Le pont USB reste
-disponible dans les deux cas.
-
-Le mode Wi-Fi est volontairement modal : une infusion ne peut pas démarrer
-tant qu'il est actif et le coeur refuse cette action même si un client HTTP la
-demande. Une purge de banc reste autorisée pour le diagnostic. L'envoi d'un
-shot vers le backend se fait aussi dans ce mode, après la fin du cycle.
+- **Avec des identifiants Wi-Fi en NVS, l'écran est toujours en STA.** Il n'y
+  a plus de mode Wi-Fi modal et l'**infusion est permise Wi-Fi actif**. HTTP
+  garde ses refus `409` pendant infusion et purge (`/config`, `/firmware`) et
+  ne peut jamais lancer d'infusion.
+- **Icône Wi-Fi des réglages** : bascule ON/OFF du Wi-Fi pour la session, sans
+  toucher au BLE. Non mémorisée : chaque démarrage remet le Wi-Fi ON.
+  `/telemetry` publie l'état sous `network.radio_mode` (`wifi` ou `off`).
+- **Sans identifiants** : point d'accès `CoffeeFlow-XXXX` (WPA2,
+  192.168.4.1/24, DHCP) avec page de saisie, plein écran « connectez-vous au
+  réseau `<SSID>` et entrez vos identifiants » par-dessus toute l'UI, **BLE
+  coupé** pendant ce mode. Les identifiants enregistrés provoquent un
+  redémarrage.
+- **Une panne STA ne relance jamais l'AP** ; seul « oublier le réseau » le
+  fait.
+- **Scan BLE** : voir la table de « Sonde SCACE ». Au plus 50 % du temps radio.
+- Le pont USB reste disponible dans tous les cas, et la balance reste connectée
+  pendant les relevés HTTP.
 
 Le **même flux de trames** sort en USB série sur l'image factory (voir plus bas) : un seul décodeur côté Mac pour les deux transports.
 
@@ -544,7 +559,7 @@ Ce mécanisme protège contre un écran **fou** (bug qui commande en boucle), l�
 Détails qui font que ça tient :
 
 - **Rearmement.** Le compteur est un temps d'activation continu, remis à zéro par un passage OFF → ON. Deux shots de 30 s ne déclenchent rien. Pour fermer la porte à un bug qui commuterait toutes les 59 s, le rearmement exige **au moins 2 s d'arrêt** — jamais un problème pour un usage humain.
-- **Le verrou survit à un reset logiciel.** Il est tenu en mémoire RTC et n'est levé que sur un vrai démarrage à froid (`ESP_RST_POWERON`). Une commande `RESET` venue du bus ne le lève pas : sinon l'écran fou l'effacerait lui-même.
+- **Le verrou survit à un reset logiciel.** Il est tenu en mémoire RTC rapide et n'est levé que sur un vrai démarrage à froid (raison de reset `ChipPowerOn`). Une commande `RESET` venue du bus ne le lève pas : sinon l'écran fou l'effacerait lui-même.
 - **Le gros bouton de façade est le reset.** Tout le mod est alimenté depuis l'interrupteur principal de la machine : couper la machine coupe le XIAO. La procédure de sortie de verrou est celle que n'importe qui applique déjà à une machine à café.
 - **Ça vaut aussi pour la vanne.** La bobine OLAB fait 15 VA ; ouverte en continu elle mérite la même surveillance que la pompe. Même plafond.
 - **Sauf la vanne de maintenance.** Ouverte par `MAINTENANCE_VALVE`, pompe à 0, elle n'entre pas dans le compteur : chaque ouverture est bornée à 30 s par `sensors` lui-même, et une vidange en demande plusieurs d'affilée sans 2 s de pause. Un écran fou qui la rouvrirait sans fin ne peut que vider la chaudière, chauffe interdite pendant toute l'ouverture.
@@ -684,9 +699,9 @@ Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a co
 [4..7]  arg32
 ```
 
-Pas de texte sur le bus. **La table de codes est générée depuis une source unique** dans `common/`, consommée à la fois par le C++ et par le décodeur Python. Sinon la table du Mac dérive de celle du firmware, et le premier message qu'on ne comprendra plus sera celui d'un crash.
+Pas de texte sur le bus. **La table de codes est générée depuis une source unique**, `firmware/rust/protocol/log_codes.yaml`, dont `protocol/build.rs` tire le Rust (le codegen archivé dans `archive/firmware/common/codegen` lit le même fichier) ; `coffeetool` décode avec cette même table. Sinon la table du Mac dérive de celle du firmware, et le premier message qu'on ne comprendra plus sera celui d'un crash.
 
-Codes de départ : boot, prêt, reboot demandé ; bail expiré, présence perdue, **verrou 60 s déclenché** (arg32 = ms d'activation), commande refusée car verrouillée ; erreur I2C (arg16 = adresse, arg32 = `esp_err_t` quand disponible), dimmer en calibration, erreur dimmer (arg16 = registre `0x02`), timeout XDB401 (arg32 = `esp_err_t`), débitmètre muet ; début / progression / fin / échec de flash ; OTA en attente de validation, validée, rollback.
+Codes de départ : boot, prêt, reboot demandé ; bail expiré, présence perdue, **verrou 60 s déclenché** (arg32 = ms d'activation), commande refusée car verrouillée ; erreur I2C (arg16 = adresse, arg32 = code d'erreur du pilote quand disponible), dimmer en calibration, erreur dimmer (arg16 = registre `0x02`), timeout XDB401 (arg32 = code d'erreur du pilote), débitmètre muet ; début / progression / fin / échec de flash ; OTA en attente de validation, validée, rollback.
 
 ### Flash — le seul cas de réassemblage
 
@@ -718,9 +733,13 @@ ota_0      app   ota_0     courante
 ota_1      app   ota_1     suivante
 ```
 
-Tailles ajustées par puce : XIAO 8 Mo, Waveshare 16 Mo (plus une partition de données pour les ressources LVGL).
+Tailles ajustées par puce : XIAO 8 Mo, Waveshare 16 Mo (plus la partition de données `ota_staging`, tampon du proxy OTA des capteurs).
 
 ### L'image factory de l'écran est un pont USB-série ↔ CAN
+
+Les images factory sont les **images C++ de secours** figées à la v0.2.9
+(`firmware/factory-images/2026-09-09-451566c/`, voir `firmware-build.md`). Le
+firmware Rust ne les remplace pas : elles restent dans la partition `factory`.
 
 Le Waveshare reste atteignable en USB-C une fois monté : `screen_wedge` fait déboucher les canaux USB-C et UART sur la face extérieure, et à défaut la façade se démonte pour amener l'écran au Mac. C'est ce qui permet à son image factory d'être **minuscule** : TWAI, CDC, `FLASH`, ping/pong. **Ni Wi-Fi, ni HTTP, ni LVGL.**
 
@@ -736,18 +755,17 @@ L'image factory du **module capteurs** est le vrai filet : TWAI, `FLASH`, ping/p
 
 ### Flash local (l'écran)
 
-`POST /firmware?target=screen`, en-tête `Authorization`, corps `.bin`. Écriture de l'emplacement OTA inactif, marquage bootable, reset. Après redémarrage, vérifier Wi-Fi, HTTP, `GET /telemetry` et la route `/firmware`, puis appeler `POST /firmware/confirm` avec le même jeton dans les cinq minutes. La confirmation exige Wi-Fi connecté, CAN vivant et écho des actionneurs frais. Sinon l'image revient en arrière. Une panne CAN laisse l'accès au mode Wi-Fi et le flash de `screen` disponibles ; le flash de `sensors` exige toujours un écho CAN sûr.
+`POST /firmware?target=screen`, en-tête `Authorization`, corps `.bin`. Effacement par blocs de 64 Ko au fil du flux vers l'emplacement OTA inactif, puis relecture de l'image (structure ESP32-S3, checksum XOR, SHA256) ; `otadata` ne bascule qu'après cette vérification, puis réponse HTTP et reset. Après redémarrage, vérifier Wi-Fi, HTTP, `GET /telemetry` et la route `/firmware`, puis appeler `POST /firmware/confirm` avec le même jeton dans les cinq minutes. La confirmation exige Wi-Fi connecté, CAN vivant et écho des actionneurs frais. Sinon l'image revient en arrière. Une panne CAN laisse l'accès au Wi-Fi et le flash de `screen` disponibles ; le flash de `sensors` exige toujours un écho CAN sûr.
 
 `GET /telemetry` expose `firmware.screen.ota.pending_verify`, `firmware.screen.ota.running_partition`, `firmware.ota_staging.available` et `firmware.ota_staging.size` pour préparer le déploiement. Tant que l'image écran attend sa confirmation, un autre flash est refusé afin de conserver l'image de repli.
 
-Pendant `NEW` ou `PENDING_VERIFY`, `screen` démarre directement en mode Wi-Fi après l'initialisation LCD. HTTP reste ainsi accessible si le tactile échoue au premier démarrage OTA. Vérifier `inputs.touch_press_count` après un appui réel, puis confirmer ; en cas d'échec du tactile, laisser expirer le délai de rollback.
-Le bootloader actuellement installé sur l'écran a laissé l'image 0.2.64 en état `NEW` après un POST OTA (observé via `firmware.screen.ota.state`). Depuis 0.2.65, l'application traite aussi `NEW` comme une image à confirmer : elle garde le Wi-Fi actif et son délai de rollback applicatif, et `POST /firmware/confirm` peut la marquer `VALID`. Cette reprise applicative ne remplace pas le rollback du bootloader en cas de plantage avant le démarrage de l'application ; corriger le bootloader installé exigera un flash physique.
+Le Wi-Fi étant toujours actif, HTTP reste accessible pendant `NEW` ou `PENDING_VERIFY`, même si le tactile échoue au premier démarrage OTA. Vérifier `inputs.touch_press_count` après un appui réel, puis confirmer ; en cas d'échec du tactile, laisser expirer le délai de rollback. La confirmation d'une image déjà valide reste idempotente. Une image écran se flashe aussi par l'USB de l'écran (`FLASH_CTRL` / `FLASH_DATA`, blocs de 2 048 octets, CRC16 et CRC32, même vérification finale) ; l'image Rust tient sous la limite de slot de 3 584 000 octets.
 
-Attention à ce qu'IDF fait et ne fait pas : en `PENDING_VERIFY`, si l'application ne se valide pas, le bootloader revient en arrière **au prochain redémarrage** — mais rien ne redémarre tout seul. Il faut un temporisateur propre qui appelle l'invalidation-et-reboot, ou laisser le task watchdog frapper. Sans ça, une image qui démarre et ne se valide jamais reste en place indéfiniment.
+Attention à ce que le bootloader IDF fait et ne fait pas : en `PENDING_VERIFY`, si l'application ne se valide pas, il revient en arrière **au prochain redémarrage** — mais rien ne redémarre tout seul. L'écran a donc son propre délai de cinq minutes, puis invalidation et reboot ; l'accès à `otadata` passe par un module maison (`otadata.rs`), pas par l'API `Ota` d'esp-bootloader-esp-idf. Sans ça, une image qui démarre et ne se valide jamais reste en place indéfiniment.
 
 ### Flash distant (les capteurs, à travers l'écran)
 
-Même route, `target=sensors`. Le proxy utilise exclusivement la partition `ota_staging` : si la table installée ne la contient pas, il refuse le transfert sans effacer `assets`. L'écran relaie `BEGIN`, des blocs numérotés et acquittés, puis `END`. Le rejeu d'un bloc est idempotent avec `sensors` depuis v0.2.63 ; avec une ancienne image, le proxy ne retente pas un bloc sans ACK. Après redémarrage, `screen` confirme automatiquement la nouvelle image par CAN seulement après version v0.2.63 ou supérieure, échos frais de la pompe/vanne et de la chaudière, pompe et vanne au repos. Depuis v0.2.69, une chauffe régulée peut continuer pendant cette confirmation si son bail est actif ; une impulsion diagnostique doit être terminée. Depuis v0.2.65, `sensors` accepte cette confirmation en état `NEW` ou `PENDING_VERIFY`. En l'absence de confirmation, `sensors` revient en arrière après 30 s. Il n'y a pas de POST de confirmation pour `sensors`.
+Même route, `target=sensors`. Le proxy utilise exclusivement la partition `ota_staging` : si la table installée ne la contient pas, il refuse le transfert sans effacer `assets`. L'écran relaie `BEGIN`, des blocs numérotés et acquittés, puis `END`. Le rejeu d'un bloc est idempotent avec `sensors` depuis v0.2.63 ; avec une ancienne image, le proxy ne retente pas un bloc sans ACK. Après redémarrage, `screen` confirme automatiquement la nouvelle image par CAN seulement après version v0.2.63 ou supérieure, échos frais de la pompe/vanne et de la chaudière, pompe et vanne au repos. Depuis v0.2.69, une chauffe régulée peut continuer pendant cette confirmation si son bail est actif ; une impulsion diagnostique doit être terminée. Depuis v0.2.65, `sensors` accepte cette confirmation en état `NEW` ou `PENDING_VERIFY`. En l'absence de confirmation, `sensors` revient en arrière après 30 s (vérifié avec la feature `no-validate`, qui ignore `CONFIRM_SENSORS_OTA`). Il n'y a pas de POST de confirmation pour `sensors`. La réception CAN par blocs de 2 Ko acquittés est la même pour le C++ et le Rust : le récepteur C++ 0.3.48 a reçu et validé un `sensors` Rust 0.4.1, et le récepteur Rust 0.4.1 a reçu le 0.4.2. Image ≤ 1 Mo (`ota_staging`).
 
 ### Pourquoi factory + deux OTA, et pas seulement deux OTA
 
@@ -793,7 +811,8 @@ Chaque essai reste sous 60 s : au-delà la pompe chauffe et son thermique finit 
 
 | Sujet | Décision |
 | --- | --- |
-| Langage | C++ / ESP-IDF 5.x, les deux cartes, `common/` partagé |
+| Langage | Rust `no_std` (esp-hal, esp-rtos + embassy), les deux cartes, crate `protocol` partagé ; C++/ESP-IDF archivé |
+| Radio | BLE et Wi-Fi ensemble, écran toujours en STA avec identifiants, infusion permise Wi-Fi actif |
 | Encodage CAN | binaire, type dans l'ID, une trame par message |
 | Endianness | little-endian pour tous les champs multi-octets des charges utiles |
 | Réassemblage | uniquement pour `FLASH`, par blocs de 2 ko acquittés |

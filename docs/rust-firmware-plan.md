@@ -22,7 +22,7 @@ firmware assemblé : ils restent la référence technique pour sa mise en servic
 | 7 | Intégrée (`4b43756`, `953a164`) | CAN, pont série, staging/proxy OTA, journaux UART sérialisés et récupération bus-off compilés pour Xtensa ; tests protocole/ACK/NOR/journaux verts. Brochage vérifié dans `archive/firmware/screen/main/board.h` : TX GPIO20, RX GPIO19. Rapport : `rust-task7.md`. |
 | 8 | Intégrée (`8443b1b`, `4b6ec69`, `4363bc2`) | GATT compilé pour Xtensa, Clippy propre ; scan, arrêt provisioning, heartbeat, panne de l'hôte et horodatage revus. |
 | 9 | Intégrée (`92163c3`, depuis `0de6bac`) | STA/AP, provisioning, HTTP/WS, SNTP, OTA locale/USB et NVS raccordés à `screen`. `screen-net` fait partie du workspace ; ses 7 tests passent. |
-| 10 | Terminée hors matériel | UI ↔ cœur ↔ CAN/BLE/réseau/flash raccordés. Build release Xtensa complet, Clippy hôte/Xtensa et tests verts ; image OTA vérifiée et prête pour la session USB. |
+| 10 | Terminée hors matériel (`da486ae`) | UI ↔ cœur ↔ CAN/BLE/réseau/flash raccordés. Build release Xtensa complet, Clippy hôte/Xtensa et tests verts ; image OTA vérifiée et prête pour la session USB. |
 
 La logique et l'UI tournent sur le cœur 0 ; les services radio et le propriétaire
 flash sur le cœur 1. La lecture de l'identité du slot précède le remappage XIP,
@@ -76,7 +76,7 @@ pixel par pixel avec LVGL. Les tests HTTP hôte nécessitent un socket local :
 ils passent hors de la restriction réseau du sandbox.
 
 Build release Xtensa final réussi ; image IDF générée avec
-`espflash save-image` uniquement, **2 728 288 octets**, sous la limite de slot
+`espflash save-image` uniquement, **2 730 208 octets**, sous la limite de slot
 **3 584 000 octets**. Le vérificateur Rust `screen-net::image::verify` a relu
 l'image et validé structure ESP32-S3, checksum XOR et SHA256. L'image est dans
 `firmware/rust/screen/target/screen-0.4.0.bin` (artefact local non versionné).
@@ -87,19 +87,23 @@ Clippy du workspace hôte, du simulateur et du binaire/bibliothèque Xtensa est 
 modules testables sont exécutés sur l'hôte. Le linker GCC signale un segment
 RWX, attendu pour les données/instructions en RAM de cette cible.
 
-**Préparation USB :** `screen/secrets.rs` est absent dans cet environnement.
-Le build utilise l'exemple et désactive HTTP authentifié et provisioning.
-Avant les essais réseau, renseigner ce fichier local ignoré par Git depuis
-`secrets.example.rs`. Aucun secret existant n'a été lu ni modifié.
-La règle `.gitignore` manquante pour `screen/secrets.rs` a été ajoutée.
+**Préparation USB :** `screen/secrets.rs` a été généré localement depuis le
+`secrets.h` C++ par un script ponctuel dans `/tmp`, sans consultation directe
+ni affichage des valeurs. Le fichier est ignoré par Git et créé en mode 0600.
+`AGENTS.md` interdit désormais explicitement la lecture directe de ces deux
+fichiers et l'exposition de leurs valeurs. Le build release, Clippy Xtensa
+et la vérification de l'image passent aussi avec ces constantes : HTTP et
+provisioning peuvent désormais être exercés lors de la session USB.
+
 Comme en C++, le jeton HTTP et le mot de passe WPA2 AP sont embarqués au
 build ; les identifiants STA restent en NVS. Différence explicite : le C++
 refuse de compiler sans `secrets.h`, tandis que le Rust compile en mode
 réseau restreint et refuse `CHANGE_ME` comme jeton. Le code HTTP C++ ne
-rejette pas explicitement son placeholder. Les valeurs existantes peuvent
-être reprises localement pour conserver les clients, avec les correspondances
-`kHttpBearerToken` → `HTTP_BEARER_TOKEN` et `kProvisioningApPassword` →
-`PROVISIONING_AP_PASSWORD`.
+rejette pas explicitement son placeholder. Les constantes ont les
+correspondances `kHttpBearerToken` → `HTTP_BEARER_TOKEN` et
+`kProvisioningApPassword` → `PROVISIONING_AP_PASSWORD`, avec les mêmes valeurs
+pour conserver les clients existants. La règle `.gitignore` manquante pour
+`screen/secrets.rs` a été ajoutée.
 
 Restent exclusivement matériels : démarrage réel, marge de pile/tas radio,
 rendu et tactile, BLE/Wi-Fi simultanés, DHCP/reconnexion, HTTP/WS, persistance
@@ -197,9 +201,12 @@ l'affichage, fenêtre TCP agrandie pour l'OTA.
 - Pas de flash, pas de moniteur série, pas d'accès à la carte : une tâche
   s'arrête à « compile, tests hôte verts, clippy propre ». Les essais sur
   carte sont décidés par David.
-- Ne jamais lire `secrets.h` ni un fichier de secrets. Jeton HTTP et mot de
-  passe de l'AP : un `secrets.rs` ignoré par Git, avec `secrets.example.rs`
-  versionné (mêmes noms que `secrets.example.h`).
+- Ne jamais consulter directement `secrets.h`, `secrets.rs` ni un fichier
+  de secrets, ni afficher leurs valeurs. Une conversion locale explicitement
+  demandée peut passer par un script sans exposition du contenu, comme défini
+  dans `AGENTS.md`. Jeton HTTP et mot de passe de l'AP : un `secrets.rs` ignoré
+  par Git, avec `secrets.example.rs` versionné ; les correspondances des noms
+  C++/Rust sont documentées ci-dessus.
 - Un commit par tâche, sur la branche de la tâche, message en anglais.
 
 ## Tâches

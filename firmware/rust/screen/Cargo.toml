@@ -5,11 +5,18 @@ rust-version = "1.95"
 version      = "0.4.0"
 
 [dependencies]
+screen-core = { path = "../screen-core" }
+bt-hci = "0.9.0"
+trouble-host = { version = "0.7.0", features = ["scan"] }
+heapless = "0.9.1"
+embassy-futures = "0.1"
+esp-radio = { version = "1.0.0-beta.1", features = ["ble", "coex", "esp-alloc", "esp32s3", "log-04", "unstable", "wifi"] }
 esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
 
 esp-rtos = { version = "0.4.0", features = [
   "embassy",
   "esp-alloc",
+  "esp-radio",
   "esp32s3",
   "log-04",
 ] }

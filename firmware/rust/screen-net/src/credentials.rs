@@ -12,8 +12,12 @@ pub struct Credentials {
 impl Credentials {
     /// Valide les limites en octets du pilote et rejette les NUL incorporés.
     pub fn new(ssid: String, password: String) -> Option<Self> {
-        if ssid.is_empty() || ssid.len() > 32 || !(8..=63).contains(&password.len())
-            || ssid.contains('\0') || password.contains('\0') {
+        if ssid.is_empty()
+            || ssid.len() > 32
+            || !(8..=63).contains(&password.len())
+            || ssid.contains('\0')
+            || password.contains('\0')
+        {
             return None;
         }
         Some(Self { ssid, password })
@@ -46,11 +50,17 @@ impl Credentials {
 
     /// Relit un blob IDF ; une longueur ou terminaison incorrecte déclenche l'AP.
     pub fn from_blob(blob: &[u8]) -> Option<Self> {
-        if blob.len() != 97 { return None; }
+        if blob.len() != 97 {
+            return None;
+        }
         let ssid_end = blob[..33].iter().position(|b| *b == 0)?;
         let password_end = blob[33..].iter().position(|b| *b == 0)?;
-        Self::new(core::str::from_utf8(&blob[..ssid_end]).ok()?.into(),
-            core::str::from_utf8(&blob[33..33 + password_end]).ok()?.into())
+        Self::new(
+            core::str::from_utf8(&blob[..ssid_end]).ok()?.into(),
+            core::str::from_utf8(&blob[33..33 + password_end])
+                .ok()?
+                .into(),
+        )
     }
 }
 
@@ -67,6 +77,10 @@ fn decode(input: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 fn hex(b: u8) -> Option<u8> {
-    match b { b'0'..=b'9' => Some(b - b'0'), b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10), _ => None }
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
 }

@@ -67,6 +67,22 @@ slint = { version = "=1.18.1", default-features = false, features = [
 critical-section = "1.2.0"
 static_cell      = "2.1.1"
 
+protocol = { path = "../protocol" }
+screen-core = { path = "../screen-core" }
+screen-net = { path = "../screen-net" }
+esp-radio = { version = "1.0.0-beta.1", features = ["esp-alloc", "esp32s3", "log-04", "unstable", "wifi"] }
+esp-storage = { version = "0.10.0", default-features = false, features = ["embedded-storage", "esp32s3"] }
+esp-nvs = "0.6.2"
+esp-wifi-sys-esp32s3 = "0.3"
+embedded-storage = "0.3.1"
+embedded-io-async = "0.7"
+embassy-net = { version = "0.9", features = ["dhcpv4", "medium-ethernet", "proto-ipv4", "tcp", "udp", "dns"] }
+embassy-futures = "0.1"
+edge-dhcp = "0.8"
+edge-nal = "0.7"
+edge-nal-embassy = "0.9"
+heapless = "0.9"
+
 [build-dependencies]
 slint-build = "=1.18.1"
 

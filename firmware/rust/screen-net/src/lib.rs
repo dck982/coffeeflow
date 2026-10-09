@@ -7,3 +7,5 @@ pub mod credentials;
 pub mod http;
 pub mod sntp;
 pub mod websocket;
+
+pub mod image;

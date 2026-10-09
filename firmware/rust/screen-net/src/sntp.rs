@@ -12,11 +12,23 @@ pub fn request(cookie: [u8; 8]) -> [u8; 48] {
 /// Heure Unix en secondes. Les réponses non synchronisées, les KoD et les
 /// paquets d'une autre requête sont ignorés. La seconde 2036 appartient à l'ère 1.
 pub fn response(packet: &[u8], cookie: [u8; 8]) -> Option<i64> {
-    if packet.len() < 48 || packet[0] >> 6 == 3 || packet[0] & 7 != 4
-        || !matches!((packet[0] >> 3) & 7, 3 | 4) || !(1..=15).contains(&packet[1])
-        || packet[24..32] != cookie { return None; }
+    if packet.len() < 48
+        || packet[0] >> 6 == 3
+        || packet[0] & 7 != 4
+        || !matches!((packet[0] >> 3) & 7, 3 | 4)
+        || !(1..=15).contains(&packet[1])
+        || packet[24..32] != cookie
+    {
+        return None;
+    }
     let seconds = u32::from_be_bytes(packet[40..44].try_into().ok()?) as u64;
-    if packet[40..48].iter().all(|b| *b == 0) { return None; }
-    let seconds = if seconds < UNIX_OFFSET { seconds + (1u64 << 32) } else { seconds };
+    if packet[40..48].iter().all(|b| *b == 0) {
+        return None;
+    }
+    let seconds = if seconds < UNIX_OFFSET {
+        seconds + (1u64 << 32)
+    } else {
+        seconds
+    };
     Some((seconds - UNIX_OFFSET) as i64)
 }

@@ -7,3 +7,7 @@ description = "Formats réseau de l'écran, sans pile TCP ni matériel"
 [dependencies]
 sha1 = { version = "0.11", default-features = false }
 base64 = { version = "0.23", default-features = false, features = ["alloc"] }
+
+sha2 = { version = "0.11", default-features = false }
+
+protocol = { path = "../protocol" }

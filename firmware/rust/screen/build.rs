@@ -15,6 +15,19 @@ fn main() {
             .embed_resources(slint_build::EmbedResourcesKind::EmbedForSoftwareRenderer),
     )
     .unwrap();
+    println!("cargo:rerun-if-changed=secrets.rs");
+    println!("cargo:rerun-if-changed=secrets.example.rs");
+    let input = if std::path::Path::new("secrets.rs").exists() {
+        "secrets.rs"
+    } else {
+        println!("cargo:warning=No secrets.rs: authenticated HTTP and provisioning are disabled");
+        "secrets.example.rs"
+    };
+    std::fs::copy(
+        input,
+        std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("secrets.rs"),
+    )
+    .unwrap();
     check_xtensa_linker_available();
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
     println!("cargo:rustc-link-arg=-Tlinkall.x");

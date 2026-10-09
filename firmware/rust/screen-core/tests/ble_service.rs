@@ -90,3 +90,27 @@ fn live_scale_scan_yields_to_connection_and_switches_to_sparse_probe_policy() {
         20_000_010
     ));
 }
+
+#[test]
+fn initiating_connection_or_provisioning_prevents_scan_start() {
+    let mut input = Inputs {
+        scale_wanted: true,
+        ..Inputs::default()
+    };
+    assert!(control::scan_can_start(&input, true));
+    input.connecting = true;
+    assert!(!control::scan_can_start(&input, true));
+    input.connecting = false;
+    assert!(!control::scan_can_start(&input, false));
+}
+#[test]
+fn notification_stream_does_not_postpone_heartbeat_deadline() {
+    let mut scale = screen_core::acaia::Session::new();
+    let deadline = 2_500_000;
+    for now in (10_000..deadline).step_by(10_000) {
+        assert!(!control::heartbeat_poll_due(now, deadline));
+        assert!(scale.heartbeat(now as i64, true).is_empty());
+    }
+    assert!(control::heartbeat_poll_due(deadline, deadline));
+    assert_eq!(scale.heartbeat(deadline as i64, true).len(), 3);
+}

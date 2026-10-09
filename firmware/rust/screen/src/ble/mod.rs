@@ -203,8 +203,13 @@ async fn scan(stack: &BleStack<'_>) {
                 window: Duration::from_millis(params.window_ms as u64),
                 ..Default::default()
             };
+            // Le drapeau couvre aussi les commandes HCI de démarrage : aucune
+            // autre future de cet exécuteur ne peut s'intercaler avant lui.
+            if !control::scan_can_start(&scan_inputs(), ENABLED.load(Relaxed)) {
+                continue;
+            }
+            SCANNING.store(true, Relaxed);
             if let Ok(session) = scanner.scan(&config).await {
-                SCANNING.store(true, Relaxed);
                 if policy == ble_policy::Scan::ProbeWindow {
                     last_probe_us = now;
                 }
@@ -233,10 +238,21 @@ async fn scan(stack: &BleStack<'_>) {
                     }
                 }
                 drop(session);
-                // L'arrêt du scan est envoyé par le runner avant la connexion.
-                Timer::after(Duration::from_millis(40)).await;
-                SCANNING.store(false, Relaxed);
             }
+            // Même un démarrage HCI échoué peut avoir ouvert le scan avant
+            // son annulation : confirmer l'arrêt dans les deux chemins.
+            {
+                // Attendre l'acquittement HCI, plutôt qu'un délai arbitraire :
+                // la coexistence Wi-Fi peut retarder les commandes du contrôleur.
+                while stack
+                    .command(bt_hci::cmd::le::LeSetScanEnable::new(false, false))
+                    .await
+                    .is_err()
+                {
+                    Timer::after(Duration::from_millis(20)).await;
+                }
+            }
+            SCANNING.store(false, Relaxed);
         }
         Timer::after(Duration::from_millis(20)).await;
     }
@@ -254,6 +270,11 @@ async fn link(stack: &BleStack<'_>, dev: usize) {
         }
         while SCANNING.load(Relaxed) {
             Timer::after(Duration::from_millis(10)).await;
+        }
+        if !wanted(dev) {
+            CONNECTING.store(0, Relaxed);
+            critical_section::with(|cs| TARGETS.borrow_ref_mut(cs)[dev] = None);
+            continue;
         }
         let accept = [target.unwrap()];
         let config = ConnectConfig {
@@ -282,15 +303,23 @@ async fn link(stack: &BleStack<'_>, dev: usize) {
         .await;
         CONNECTING.store(0, Relaxed);
         if let Either::First(Ok(Ok(conn))) = result {
-            if let Ok(client) = Client::new(stack, &conn).await {
-                let session = async {
-                    if dev == SCALE {
-                        scale_session(&client).await
-                    } else {
-                        probe_session(&client).await
-                    }
-                };
-                let _ = select3(client.task(), session, conn_events(&conn)).await;
+            let gatt = async {
+                if let Ok(client) = Client::new(stack, &conn).await {
+                    let session = async {
+                        if dev == SCALE {
+                            scale_session(&client).await
+                        } else {
+                            probe_session(&client).await
+                        }
+                    };
+                    let _ = select3(client.task(), session, conn_events(&conn)).await;
+                }
+            };
+            // Le provisioning doit interrompre aussi MTU, découverte et CCCD,
+            // pas seulement la boucle de notifications déjà établie.
+            let _ = select(gatt, wait_unwanted(dev)).await;
+            if dev == SCALE {
+                while COMMANDS.try_receive().is_ok() {}
             }
             CONNECTED[dev].store(false, Relaxed);
             publish(if dev == SCALE {
@@ -339,6 +368,7 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
     CONNECTED[SCALE].store(true, Relaxed);
     publish(Event::ScaleConnected(true));
     let mut session = acaia::Session::new();
+    let mut next_heartbeat_poll = Instant::now() + Duration::from_millis(50);
     loop {
         if !wanted(SCALE) {
             return err_text("radio", "arrêt demandé");
@@ -346,7 +376,7 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
         match select3(
             listener.next(),
             COMMANDS.receive(),
-            Timer::after(Duration::from_millis(50)),
+            Timer::at(next_heartbeat_poll),
         )
         .await
         {
@@ -371,14 +401,15 @@ async fn scale_session(client: &Client<'_>) -> ErrText {
                     return err_text("tare", e);
                 }
             }
-            Either3::Third(()) => {
-                if !wanted(SCALE) {
-                    return err_text("radio", "arrêt demandé");
-                }
-                for frame in session.heartbeat(Instant::now().as_micros() as i64, true) {
-                    if let Err(e) = client.write_handle_without_response(handle, &frame).await {
-                        return err_text("maintien", e);
-                    }
+            Either3::Third(()) => {}
+        }
+        // Même des notifications à 100 Hz ne repoussent jamais le maintien.
+        if control::heartbeat_poll_due(Instant::now().as_micros(), next_heartbeat_poll.as_micros())
+        {
+            next_heartbeat_poll = Instant::now() + Duration::from_millis(50);
+            for frame in session.heartbeat(Instant::now().as_micros() as i64, true) {
+                if let Err(e) = client.write_handle_without_response(handle, &frame).await {
+                    return err_text("maintien", e);
                 }
             }
         }

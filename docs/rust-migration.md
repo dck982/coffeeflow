@@ -1511,9 +1511,14 @@ configuration a le rollback. Relecture identique au build, et coffeeflow
 Incohérence à lever au contrôle : le rollback est actif dans le `sdkconfig`
 de l'écran depuis le 2026-09-07. L'ancien bootloader l'avait donc
 probablement déjà, et l'état `NEW` observé en 0.2.64 aurait une autre
-cause. **Reste à faire, en premier à l'étape 8 :** une OTA C++ de l'écran
-doit démarrer en `PENDING_VERIFY` (`firmware.screen.ota`). Si elle démarre
-en `NEW`, la cause est ailleurs que dans le bootloader.
+cause. On ne le saura plus : l'ancien est remplacé.
+
+**Contrôle fait le 2026-10-09 : le rollback fonctionne.** Coffeeflow 0.3.48
+envoyé par Wi-Fi démarre dans `ota_0` en `pending_verify`. L'écran étant
+hors du bus (`sensors.alive: false`), la confirmation n'a pas été tentée :
+après le délai de cinq minutes, l'image s'invalide et redémarre, et le
+bootloader repart sur `ota_1` en 0.3.47, état `valid`. C'est le chemin dont
+dépend la sonde de l'étape 9. Cette OTA a écrasé l'essai 07 dans `ota_0`.
 
 **8a. La flash et l'affichage.** L'essai 07, avec en plus l'effacement
 puis la réécriture de secteurs dans la fin du slot de test, au-delà de
@@ -1772,5 +1777,9 @@ Résultats datés, au fil des essais.
   `restore`, refus testés sans la carte). NVS de l'écran sauvegardé hors
   du dépôt. Bootloader de l'écran remplacé par celui du build IDF du
   2026-09-12, avec rollback ; l'ancien (2026-09-10) est gardé. Coffeeflow
-  0.3.47 redémarre. Le passage en `PENDING_VERIFY` reste à contrôler par
-  une OTA C++.
+  0.3.47 redémarre.
+- **2026-10-09 :** contrôle du nouveau bootloader de l'écran. Coffeeflow
+  0.3.48 par Wi-Fi démarre dans `ota_0` en `pending_verify` ; sans
+  confirmation (écran hors du bus), retour seul sur `ota_1` en 0.3.47,
+  `valid`, après cinq minutes. Le rollback de l'écran fonctionne, comme
+  celui de `sensors`. Préalables de l'étape 8 faits.

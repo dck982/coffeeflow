@@ -11,7 +11,7 @@ de la chauffe et permettra de recaler l'offset de −10 °C (voir
 | --- | --- |
 | Sonde | EPCOS B57861S0103F, NTC 10 kΩ ±1 % à 25 °C, courbe R/T 8016, B25/100 = 3988 K ±0,3 %. Perle de 2,41 mm, fils de 0,5 mm. |
 | Puck | `print/parts/sim_puck.py`, PETG, Ø 57 × 13,5 mm. La perle affleure au sommet, en sortie du canal incliné à 45°, scellée au silicone Loctite SI 5366. Les fils sortent sous le puck, entourés d'un joint torique. |
-| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). |
+| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). Une fuite résiduelle subsiste, acceptée (voir la [purge de 15 s](#purge-de-15-s-10-octobre-2026)). |
 | Boîtier | `print/parts/scace_box.py` : LDO 5 V → 3,3 V, ADS1115, résistance 1 kΩ, Wago 5 et 3 pôles. Les fils de la sonde y sont prolongés en 0,25 mm². |
 | Lecteur | M5Stack Core2 sur batterie, port A (Grove) : jaune = SCL = GPIO32, blanc = SDA = GPIO33. Pull-ups de 10 kΩ sur le breakout ADS1115. |
 
@@ -160,9 +160,9 @@ grossier, pas de calibration.
 ## Calibration
 
 Deux points, sonde montée dans le puck comme en service, Core2 **sur
-batterie**. Chaque point s'enregistre avec `firmware/tools/scace_ble_log.py`
+batterie**. Chaque point s'enregistre avec `firmware/analysis/scace_ble_log.py`
 (voir [Serveur BLE](#serveur-ble)), puis se calcule avec
-`firmware/tools/scace_calibration.py` sur la fenêtre du palier. L'outil
+`firmware/analysis/scace_calibration.py` sur la fenêtre du palier. L'outil
 reprend la conversion du firmware ; un test vérifie que les coefficients sont
 les mêmes. Il signale un palier qui dérive de plus de 0,01 K/min.
 
@@ -176,7 +176,7 @@ les mêmes. Il signale un palier qui dérive de plus de 0,01 K/min.
    2 minutes, soit 1 200 mesures, rend le bruit de l'ADS1115 négligeable.
 
    ```sh
-   uv run firmware/tools/scace_calibration.py ice --capture captures/scace-….csv --start … --end …
+   uv run firmware/analysis/scace_calibration.py ice --capture captures/scace-….csv --start … --end …
    ```
 
    Donne `kFixedOhm = R_table(0 °C) / (R/R_fixe moyen)`, avec
@@ -189,7 +189,7 @@ les mêmes. Il signale un palier qui dérive de plus de 0,01 K/min.
    (967,7 hPa donnaient 98,72 °C).
 
    ```sh
-   uv run firmware/tools/scace_calibration.py boil --capture … --start … --end … \
+   uv run firmware/analysis/scace_calibration.py boil --capture … --start … --end … \
        --celsius 98.72 --fixed-ohm …
    ```
 
@@ -271,16 +271,37 @@ référence pour B.
 
 But : mesurer l'eau au panier pour recaler l'offset de −10,5 °C entre la NTC
 chaudière et la température utilisateur (voir
-[chauffe-infusion.md](chauffe-infusion.md#objectif)). Le choix entre un
-offset unique, un offset et une pente sur plusieurs consignes, ou une
-séparation entre perte statique et dynamique de la loi d'infusion attend
-les données.
+[chauffe-infusion.md](chauffe-infusion.md#objectif)). Résultat : un offset
+unique de −14 °C en 0.4.4 (voir [Infusions](#infusions-10-octobre-2026)).
+Une pente sur plusieurs consignes, ou une séparation entre perte statique
+et dynamique de la loi d'infusion, demanderait des mesures à d'autres
+consignes.
 
-Les purges se lancent **depuis l'écran, en mode machine** : en Wi-Fi, le BLE
-de l'écran est éteint et la capture HF n'a ni la sonde ni le poids.
-`scace_ble_log.py` tourne en parallèle sur le Mac pour couvrir l'avant et
-l'après-purge avec les codes bruts. La capture HF est ensuite téléchargée
-en Wi-Fi.
+### Procédure
+
+1. Écran en mode machine (CAN, sans USB), `coffeetool set scace on`,
+   balance connectée, chaudière stabilisée à la consigne.
+2. Sonde allumée **sur batterie** (touche A) avant la première purge :
+   l'écran ne scanne pas pendant une purge. Balance connectée, il cherche la
+   sonde 1 s toutes les 10 s.
+3. `uv run firmware/analysis/scace_ble_log.py` sur le Mac, lancé avant la
+   première purge. Il couvre l'avant et l'après-purge, au-delà des 5 s de
+   fin de la capture HF, avec les codes bruts.
+4. Une ou deux purges jetées chauffent le puck, le panier et le
+   porte-filtre. Leur capture HF sert de contrôle : `scace_temperature_c`
+   non `null` prouve que l'écran reçoit la sonde.
+5. Purges de mesure : `coffeetool purge 15` ou depuis l'écran.
+6. `coffeetool download-hf` **après chaque purge**, une fois les 5 s de fin
+   écoulées (`409` avant). L'écran ne garde que la dernière session : la
+   purge suivante l'écrase.
+
+Le Wi-Fi et le BLE de l'écran tournent ensemble : la capture HF porte la
+sonde et le poids, quelle que soit la façon de lancer la purge.
+
+Le Core2 accepte deux connexions, et l'écran en prend une. Le Mac ne lit
+donc la sonde que par un seul outil à la fois : `scace_ble_log.py`, qui
+garde les codes bruts, plutôt que `coffeetool telemetry --record --scace`,
+qui ne garde que la température.
 
 ### Retard de la NTC à la mise en chauffe, 9 octobre 2026
 
@@ -356,6 +377,130 @@ dominerait le débit. Hypothèse, la section des fils n'a pas été vérifiée.
 
 Suite, une fois l'étanchéité sèche (24 h) : purges de **15 s**, balance
 connectée, puck et porte-filtre chauffés par une ou deux purges jetées.
+
+### Purge de 15 s, 10 octobre 2026
+
+Purge de 15 s à pompe 100 %, consigne de 90 °C, panier 0,3 mm, balance
+connectée. Captures `261010-095911.json` (HF) et
+`scace-20261010-095733.csv` (Mac) : même maximum à 0,01 K et 0,1 s près,
+aucune trame perdue, sonde valide sur les 200 échantillons. Une purge de
+contrôle à vide, sonde posée à côté de la machine (`261010-095455.json`), a
+d'abord vérifié que la capture HF porte la sonde et le poids.
+
+Le puck n'a pas été chauffé par des purges jetées : porte-filtre verrouillé,
+la SCACE montait lentement de 46,9 à 52,8 °C dans les 50 s précédentes.
+
+| Instant | SCACE | NTC utilisateur | Pression | Débit amont | Tasse |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| −50 s | 46,9 °C | — | — | — | — |
+| Début de la purge | 52,8 °C | 89,8 °C | 0,3 bar | — | 0 g |
+| 5 s | 73,9 °C | 89,8 °C | 1,4 bar | 3,9 ml/s | 3,7 g |
+| 10 s | 78,2 °C | 86,6 °C | 7,5 bar | 3,4 ml/s | 24,1 g |
+| Arrêt de la pompe, 15 s | 80,2 °C | 81,5 °C | 7,8 bar | ≈ 3,7 ml/s | 41,8 g |
+| Maximum SCACE, 15,8 s | **80,4 °C** | 80,9 °C | 7,4 bar | — | 32,7 g |
+
+- La SCACE réagit avec le débit, vers 1,2 s, sans retard visible. Elle
+  monte encore de 0,3 à 0,4 K/s à l'arrêt de la pompe : **pas de palier**.
+- **La chaudière perd 10,6 K** (89,8 → 79,2 °C utilisateur à 20 s). Une
+  purge est chauffée par le régulateur de repos : 18 à 45 % de commande,
+  quand 4 ml/s d'eau du réservoir en demandent ≈ 98 %. **Une purge ne
+  reproduit pas la chauffe d'une infusion.**
+- Écart NTC sonde − SCACE, NTC sonde = utilisateur + 10,5 :
+
+  | Instant comparé | NTC sonde | SCACE | Écart | Première purge |
+  | --- | ---: | ---: | ---: | ---: |
+  | Début de la purge | 100,3 °C | 80,4 °C (maximum) | 19,9 K | 24,9 K |
+  | Arrêt de la pompe | 92,0 °C | 80,2 °C | 11,7 K | 20,9 K |
+  | Maximum SCACE, même instant | 91,4 °C | 80,4 °C | 11,0 K | 15,8 K |
+  | Maximum SCACE, NTC 6,4 s plus tôt | 97,6 °C | 80,4 °C | 17,2 K | — |
+
+  Le puck plus chaud retire ≈ 5 K à l'écart, qui dépend toujours de
+  l'instant comparé. Au maximum, la SCACE égale presque la NTC
+  utilisateur : c'est le croisement d'une SCACE qui monte et d'une NTC qui
+  descend, pas une validation de l'offset de −10,5 °C.
+- **Fuite résiduelle par les trous des fils**, malgré le silicone sous le
+  panier. Elle ne contourne pas la sonde : toute l'eau passe sur la face
+  supérieure du puck, où affleure la perle, avant les six trous ; la fuite
+  part des rainures du dessous. Elle change le débit et la pression, pas la
+  température lue. Sur le plateau, la tasse reçoit 3,35 g/s à 7,8 bar ; le
+  trou de 0,3 mm en laisserait 1,7 à 2,3 ml/s avec un coefficient de
+  décharge de 0,6 à 0,8 (non mesuré). La fuite vaudrait donc 1,2 à
+  1,8 ml/s, 35 à 50 % du débit, contre 1,4 à 2 ml/s à 9 bar dans une vraie
+  infusion. Acceptée telle quelle : pas de meilleur moyen de la réduire.
+- Après l'arrêt de la pompe, la pression remonte de 7,0 à 9,7 bar alors que
+  le poids ne bouge plus : l'eau ne passe plus par le panier. Cela conforte
+  l'hypothèse de la première purge, une chaudière isolée par la vanne trois
+  voies qui se dilate en chauffant (35 %).
+- Le poids chute de 41,8 à 33,0 g à 15,5 s, à l'arrêt de la pompe : c'est
+  la poussée du jet du trou de 0,3 mm (voir
+  [Infusions](#infusions-10-octobre-2026)).
+
+Conclusion : les purges ne fixent pas l'offset d'infusion. Essai suivant :
+une **infusion normale avec le panier SCACE** (précharge, loi au débit,
+arrêt au poids ou au temps), qui donne la SCACE pondérée par la tasse, le
+critère même de la consigne. La loi suivant le débit, la fuite y augmente
+aussi la chauffe. Limite : la pression ne suit pas le profil d'une galette.
+
+### Infusions, 10 octobre 2026
+
+Infusions normales avec le panier SCACE : précharge de 8 s, loi au débit,
+consigne de 90 °C, écran 0.4.3 (offset de −10,5 °C). Porte-filtre
+verrouillé avant chaque infusion jusqu'à ce que la dérive de la SCACE ne
+baisse plus.
+
+| Infusion | Captures | Arrêt | SCACE au départ | SCACE moyenne | NTC utilisateur | **Écart** | Maximum SCACE |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 10 h 11 | `261010-101136.json`, `scace-20261010-100930.csv` | 22 g, pompe 18,4 s | 70,0 °C | 81,69 °C (tasse) | 91,59 °C | **9,9 K** | 83,6 °C |
+| 10 h 23 | `261010-102303.json`, `scace-20261010-102125.csv` | 50 g, balance en panne | 78,5 °C | 85,6 °C (volume) | 90,4 °C | **4,8 K** | 87,9 °C |
+| 10 h 34 | `261010-103403.json`, `scace-20261010-102909.csv` | 50 g, pompe 25,6 s | 82,4 °C | 87,24 °C (tasse) | 90,68 °C | **3,4 K** | 89,0 °C |
+
+- **L'écart dépend surtout de l'état du porte-filtre et de la durée.** À
+  10 h 11, l'infusion courte (5,6 s d'infusion) part d'un porte-filtre à
+  70 °C, et la SCACE monte encore de 0,5 K/s à l'arrêt. Entre 10 h 23 et
+  10 h 34, 3,9 K de plus au départ ne retirent que 1,4 K à l'écart : il
+  tend vers 3 K environ avec un porte-filtre à l'équilibre. À 10 h 34, la
+  SCACE est presque au palier (+0,15 K/s à l'arrêt).
+- À 10 h 34, pondérée par le volume amont depuis la première goutte, la
+  SCACE donne 87,07 °C pour 90,61 °C de NTC : 3,5 K, comme par la tasse.
+- **Au repos, la dérive ne s'annule pas.** La SCACE se stabilise vers
+  0,35 à 0,45 K/min, porte-filtre verrouillé : le groupe se réchauffe à
+  chaque cycle de chauffe de la chaudière. Critère de départ retenu : une
+  dérive qui ne baisse plus, sous 0,5 K/min.
+- **Poussée du jet.** Le trou de 0,3 mm projette un jet à environ 30 à
+  40 m/s. Sa poussée sur la tasse (débit × vitesse) fait lire la balance
+  trop lourd pendant l'écoulement, et le poids chute à l'arrêt : 8,8 g à
+  7,8 bar (purge), 3,8 g à 4,8 bar (10 h 11), 8,4 g à 8,6 bar (10 h 34).
+  Le calcul donne 7 à 9 gf et 4 à 6 gf. L'arrêt au poids vient donc trop
+  tôt ; la pondération par la tasse en souffre peu, la poussée restant à
+  peu près constante sur le plateau de pression.
+- **Balance en panne à 10 h 23**, mouillée par la fuite : poids figé à
+  27,0 g pendant 5,5 s, puis un saut isolé à 60,2 g qui a déclenché l'arrêt
+  à 50 g. La pondération par la tasse y est fausse ; le volume amont la
+  remplace.
+- **Chauffe.** Le remboursement de la précharge tient la commande à 0 %
+  pendant 9 s d'écoulement à 3 à 4,5 ml/s ; la NTC descend à 84,4–84,7 °C
+  utilisateur 5 s après l'arrêt. À 10 h 11, l'infusion trop courte a
+  abandonné une partie de la dette.
+- **Pression après l'arrêt.** Elle remonte jusqu'à 8,9–9,5 bar sans débit
+  ni chauffe, et monte aussi pendant la précharge, pompe arrêtée : la
+  chaudière isolée suit sa température.
+- **Eau dans les Wago.** L'étanchéité des trous des fils a lâché à
+  10 h 34 ; l'eau coulait le long des fils jusqu'à une borne Wago, sous le
+  porte-filtre. Aucun effet visible sur la mesure : pas de saut, bruit au
+  niveau du repos.
+
+**Décision : offset de −14 °C** (écran 0.4.4), soit 10,5 + 3,5 K. Ce sont
+les −14 °C de 0.3.16, choisis alors pour un affichage proche du Gicar. Deux
+biais du montage restent hors mesure et vont dans le même sens : un débit
+de 3,4 ml/s au lieu de 1,4 à 2 ml/s et un puck préchauffé au lieu d'une
+mouture à l'ambiante font lire la SCACE plus chaud qu'un vrai café.
+L'offset réel serait donc plutôt de 14 °C ou plus.
+
+**Suite.** Souder la sonde à la rallonge au lieu des Wago, gaine thermo à
+colle sur chaque soudure, soudures décalées, puis boucle d'égouttement,
+larmier et boîtier sorti de dessous le porte-filtre. Mesures suivantes : la
+forme de la température au panier pendant l'infusion, la SCACE montant du
+début à la fin quand la NTC creuse puis remonte.
 
 ## Firmware `firmware/scace`
 
@@ -435,9 +580,10 @@ balance et horodate chaque trame à sa réception : aucune synchronisation
 d'horloge n'est nécessaire.
 
 La définition du service vit dans
-`firmware/common/include/common/scace_ble.hpp`, compilée par la sonde et par
-l'écran. Le script Mac en reprend les UUID ; un test vérifie
-qu'ils n'ont pas divergé.
+`archive/firmware/common/include/common/scace_ble.hpp` pour la sonde, et
+dans `firmware/rust/protocol/src/scace.rs` pour l'écran et `coffeetool`. Le
+script Mac reprend les UUID de l'en-tête C++ ; un test vérifie qu'ils n'ont
+pas divergé.
 
 | Élément | Valeur |
 | --- | --- |
@@ -477,8 +623,8 @@ par défaut (20 octets de valeur), sans négociation.
 ### Enregistrement sur le Mac
 
 ```sh
-uv run firmware/tools/scace_ble_log.py
-uv run firmware/tools/scace_ble_log.py --duration 600 --window 120
+uv run firmware/analysis/scace_ble_log.py
+uv run firmware/analysis/scace_ble_log.py --duration 600 --window 120
 ```
 
 Le script cherche le service, s'abonne et écrit
@@ -492,11 +638,12 @@ perdues.
 
 ### Côté écran
 
-Depuis l'écran 0.3.47, voir « Sonde SCACE » dans [firmware.md](firmware.md) :
+Voir « Sonde SCACE » dans [firmware.md](firmware.md) :
 
 - l'écran se connecte à la sonde si `scace.enabled` est vrai
-  (`uv run firmware/tools/set_scace.py true`), se reconnecte après une perte,
-  et la cherche 1 s toutes les 10 s tant que la balance est connectée ;
+  (`coffeetool set scace on`), se reconnecte après une perte, et la cherche
+  1 s toutes les 10 s tant que la balance est connectée, jamais pendant une
+  infusion ou une purge ;
 - la capture HF porte `scace_temperature_c` (température seule, au
   centième), `null` sans mesure correcte depuis 300 ms. Chaque échantillon
   prend la dernière trame reçue, sans dater par le temps sonde : le décalage
@@ -504,5 +651,5 @@ Depuis l'écran 0.3.47, voir « Sonde SCACE » dans [firmware.md](firmware.md) :
   secondes de retard pour la NTC chaudière ;
 - `analyze_hf_capture.py` et `describe_hf_capture.py` en donnent la moyenne
   pondérée par la tasse et la courbe ;
-- `record_probe.py --scace` lit la sonde en BLE depuis le Mac, en parallèle
-  de `/telemetry`.
+- `coffeetool telemetry --record --scace` lit la sonde en BLE depuis le
+  Mac, en parallèle de `/telemetry` : la sonde n'y figure pas.

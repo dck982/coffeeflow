@@ -327,6 +327,21 @@ fn purge() {
 }
 
 #[test]
+fn purge_after_weighted_brew_has_no_weight_goal() {
+    let c = config();
+    let mut machine = Machine::new();
+    let mut i = input(0.0, true, 0.0);
+    assert!(machine.start(1000, &c, &i));
+    i.weight_g = 36.0;
+    machine.tick(2000, &i);
+    assert_eq!(machine.stop_reason(), StopReason::TargetWeight);
+    assert!(machine.weight_goal());
+    // balance éteinte avant de rincer la douche
+    assert!(machine.purge_press(3000, &c));
+    assert!(!machine.weight_goal());
+}
+
+#[test]
 fn stop_and_dismiss() {
     let c = config();
     let i = input(0.0, false, 0.0);

@@ -283,6 +283,10 @@ impl Machine {
         self.started_ms = now_ms;
         self.phase_started_ms = now_ms;
         self.finished_ms = 0;
+        // Une purge n'a pas de but au poids : sans cette remise à zéro, elle
+        // hériterait de celui de l'infusion précédente et l'écran afficherait
+        // un poids, balance éteinte.
+        self.weight_goal = false;
         self.stop_reason = StopReason::None;
         self.state = State::Purge;
         true

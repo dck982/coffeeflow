@@ -73,6 +73,7 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 08/10, 13 h 44 | 8 s, mouture grossie d'un pas, encore un peu fine (15,0 s depuis 8 bar) | **88,80 °C** | 89,93 °C |
 | 09/10, 7 h 01 | 8 s, mouture grossie d'un pas de plus (13,7 s depuis 8 bar) | **89,26 °C** | 90,02 °C |
 | 10/10, 11 h 01 | 8 s, offset −14 °C (0.4.4), débit un peu élevé (9,1 s depuis 8 bar) | **87,11 °C** | 88,76 °C |
+| 10/10, 13 h 22 | 8 s, mouture affinée (13,7 s depuis 8 bar) | **88,53 °C** | 89,56 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -480,5 +481,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261008-134433.json` | 8 s | mouture grossie d'un pas (7,5 bar·s/g au plateau) ; 15,0 s depuis 8 bar ; 0 % pendant 14,0 s ; −1,20 °C en tasse, modèle à +1,33 °C ; hors ajustement |
 | `261009-070144.json` | 8 s | mouture grossie d'un pas de plus (7,1 bar·s/g au plateau) ; 13,7 s depuis 8 bar ; 0 % pendant 11,6 s ; −0,74 °C en tasse, modèle à +0,05 °C ; hors ajustement |
 | `261010-110108.json` | 8 s | première infusion avec l'offset de −14 °C (0.4.4) ; 5,9 bar·s/g au plateau, 9,1 s depuis 8 bar ; 0 % pendant 11,4 s, appoint repris 2,9 s avant l'arrêt ; −2,89 °C en tasse, modèle à +2,26 °C ; hors ajustement |
+| `261010-132259.json` | 8 s | mouture affinée (6,8 bar·s/g au plateau) ; 13,7 s depuis 8 bar ; 0 % pendant 11,9 s, appoint repris 5,7 s avant l'arrêt ; −1,47 °C en tasse, modèle à +0,72 °C ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

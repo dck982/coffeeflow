@@ -31,6 +31,7 @@ seuil de remplissage et la puissance de pré-infusion diffèrent de
 | Remplissage | pompe à 75 %, fin à **0,8 bar** (10 s au plus) | 5 octobre, 7 h 59 |
 | Pré-infusion | pompe à **50 %**, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
 | Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à 22 g ou 27 s, sans ramp-down | — |
+| Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final, référence du remplissage à 3,1 ml/s à 75 % | 10 octobre |
 
 Le numéro de firmware est celui du dernier flash connu ; la capture ne
 l'enregistre pas.
@@ -129,6 +130,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | 08/10 13 h 44 | 5,80 s, 20,3 ml, 0,83 bar | 3,40 s, 6,7 ml, goutte | 27,0 ml | 4,0 s | 15,0 s, 1,15 g/s, 1,39 ml/s | 22,2 g | 88,80 °C |
 | 09/10 7 h 01 | 6,00 s, 20,6 ml, 0,89 bar | 3,10 s, 6,7 ml, goutte | 29,3 ml | 4,4 s | 13,7 s, 1,27 g/s, 1,93 ml/s | 22,2 g | 89,26 °C |
 | **10/10 11 h 01**, offset −14 °C | 8,30 s, 24,9 ml, 0,83 bar | 0,84 s, 1,4 ml, goutte | 27,2 ml | 5,4 s | 9,1 s, 1,52 g/s, 1,98 ml/s | 22,8 g | 87,11 °C |
+| 10/10 13 h 22 | 8,28 s, 24,9 ml, 0,87 bar | 3,65 s, 7,5 ml, goutte | 32,8 ml | 4,0 s | 13,7 s, 1,27 g/s, 1,69 ml/s | 22,4 g | 88,53 °C |
 
 ## Pistes pour le goût
 
@@ -920,3 +922,98 @@ configuration) :
 | Tasse | 88 à 89 °C (−1 à −2 °C), comme le 9 octobre ramené à la consigne |
 | Goût | relever si le sous-extrait du 8 et du 9 octobre a disparu |
 
+
+### 10 octobre, 13 h 22 — `261010-132259`
+
+**Contexte.** Mouture affinée après l'infusion de 11 h 01. Écran 0.4.4
+(offset de −14 °C), réglages d'infusion inchangés
+(`configs/261005-075907.json`). Observation de David : le goût est au
+rendez-vous, le débit semble bien.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,14 s | 7,89 s | — | — |
+| Remplissage | 8,02 s | 8,28 s | 24,9 ml (3,01 ml/s) | 0,33 → 0,87 bar |
+| Pré-infusion | 16,31 s | 3,65 s | 7,5 ml | 0,87 → 1,23 bar |
+| Infusion | 19,95 s | 17,61 s | 35,4 ml | 9,33 bar max |
+
+- Remplissage identique à 11 h 01 (8,28 s et 24,9 ml) et toujours plus long
+  qu'avant : 3,01 ml/s à 75 % contre 3,2 à 3,5 ml/s du 5 au 9 octobre, sous
+  0,9 bar donc sans effet de la galette.
+- Première goutte à 32,8 ml (rapport, ≥ 0,3 g), 7,9 ml après la fin du
+  remplissage (2,3 ml à 11 h 01, 8,7 ml le 9 octobre) ; la pré-infusion
+  s'arrête à la goutte après 3,65 s.
+- Montée de 4,0 s jusqu'à 8 bar (5,4 s à 11 h 01, 4,4 s le 9 octobre).
+- Depuis 8 bar : **13,7 s**, 1,27 g/s en tasse, 1,69 ml/s en amont (9,1 s,
+  1,52 g/s et 1,98 ml/s à 11 h 01 ; 13,7 s, 1,27 g/s et 1,93 ml/s le
+  9 octobre). Arrêt au poids à 21,6 g, 22,4 g final.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,91 ± 0,08 bar, pompe à
+  67 %, 1,30 g/s, soit **6,8 bar·s/g** (5,9 à 11 h 01, 7,1 le 9 octobre).
+- Après l'arrêt, la pression remonte à 9,59 bar (9,38 à 11 h 01).
+
+**Thermique.** Même domaine (−14 °C) que 11 h 01 :
+
+| Repère | 10/10 13 h 22 | 10/10 11 h 01 |
+| --- | ---: | ---: |
+| NTC au départ | 89,44 °C | 89,87 °C |
+| Pic avant l'infusion | 90,97 °C à 11,5 s | 91,42 °C à 13,3 s |
+| **Tasse** | **88,53 °C**, −1,47 °C | 87,11 °C, −2,89 °C |
+| Minimum pendant l'écoulement | 86,56 °C, à l'arrêt | 85,98 °C, à l'arrêt |
+| Minimum total | 85,49 °C à 43,5 s | 84,77 °C à 36,5 s |
+| 20 s après l'arrêt | 88,31 °C | 86,58 °C |
+| Commande à 0 % (remboursement) | 11,9 s | 11,4 s |
+| Appoint repris avant l'arrêt | **5,7 s** | 2,9 s |
+
+- Énergie, commande / SSR : précharge 8,41 / 8,67 kJ, remplissage 6,96 /
+  6,17 kJ, pré-infusion 2,74 / 2,51 kJ, infusion 3,02 / 3,16 kJ.
+- Modèle, commande réelle : 89,29 °C en tasse, soit +0,72 °C sur la mesure
+  (+2,26 à 11 h 01, +0,05 le 9 octobre).
+
+**Attendus vérifiés** (entrée de 11 h 01) :
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | plateau vers 7 bar·s/g, 12 à 14 s depuis 8 bar | **6,8 bar·s/g, 13,7 s : atteint** |
+| | remplissage vers 6 s et 20 ml | **8,28 s et 24,9 ml : non atteint**, comme à 11 h 01 |
+| | première goutte 6 à 8 ml après le remplissage | 7,9 ml : atteint |
+| Chauffe | appoint repris 5 s ou plus avant l'arrêt | 5,7 s : atteint |
+| Tasse | 88 à 89 °C | 88,53 °C : atteint |
+| Goût | relever si le sous-extrait a disparu | « au rendez-vous » |
+
+**Lecture.**
+
+- *Tasse, mesuré.* À durée depuis 8 bar égale (13,7 s), l'infusion
+  reproduit celle du 9 octobre : appoint repris 5,7 s avant l'arrêt
+  (6,3 s), écart au critère de −1,47 °C (−0,74 °C). Ramenée au domaine de
+  l'offset, l'eau au panier gagne **+2,77 °C** sur le 9 octobre (85,76 °C),
+  pour les +3,5 °C du changement d'offset. Le gain manquant de 11 h 01
+  venait donc bien surtout de la durée d'infusion trop courte.
+- *Débit, mesuré.* La mouture plus fine remonte la résistance de 5,9 à
+  6,8 bar·s/g, juste sous le 9 octobre (7,1) ; l'écart de 0,3 est de
+  l'ordre de l'effet de viscosité estimé à 11 h 01 (≈ 6 %).
+- *Remplissage, mesuré.* Débit médian sous 1 bar, pompe à 75 % :
+  3,46 à 3,65 ml/s du 1er octobre aux infusions SCACE de 10 h 34, puis
+  **3,09 ml/s** à 11 h 01 et à 13 h 22, à pression plus basse (0,3 bar
+  contre 0,4 à 0,55) : la pompe débite moins, la cause est en amont du
+  groupe. Les purges à 100 % de la veille au soir et du matin (3,95 à
+  4,11 ml/s) étaient déjà faites avec le filtre ECM Aqua Aroma Crema dans
+  le réservoir. Le même jour, la machine a été fermée (panneaux posés) et le
+  réservoir vidé puis rempli. La cause n'est pas isolée et ne sera pas
+  recherchée : la machine est dans son état final, 3,1 ml/s à 75 % devient
+  la référence du remplissage. Les 2,3 s de remplissage en plus n'ont pas
+  d'effet visible sur la tasse.
+- *Modèle.* L'écart revient à +0,7 °C, entre le 9 octobre (+0,05) et les
+  infusions courtes à long 0 % (+2,1 à +2,3).
+
+**Décision.** Mouture, firmware 0.4.4 et réglages d'infusion conservés.
+
+**Attendus pour l'infusion suivante** (même configuration) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | répétabilité : 6,5 à 7,2 bar·s/g, 12 à 15 s depuis 8 bar |
+| Remplissage | nouvelle référence : vers 3,1 ml/s à 75 %, 8,3 s et 25 ml ; suivre la dérive sur plusieurs infusions |
+| Tasse | 88 à 89 °C, appoint repris 5 s ou plus avant l'arrêt |
+| Goût | confirmer « au rendez-vous » |

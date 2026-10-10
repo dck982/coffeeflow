@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/sensors/sensors.kicad_sch</source>
-    <date>2026-10-10T19:13:13</date>
+    <date>2026-10-10T22:22:09</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -1452,7 +1452,7 @@
     </net>
     <net code="11" name="DIM_CMD" class="Default">
       <node ref="J9" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
-      <node ref="U1" pin="3" pinfunction="D2_3" pintype="passive"/>
+      <node ref="U1" pin="1" pinfunction="D0_1" pintype="passive"/>
     </net>
     <net code="12" name="FLOW_PULSE" class="Default">
       <node ref="C12" pin="1" pintype="passive"/>
@@ -1526,7 +1526,7 @@
     </net>
     <net code="20" name="ZC" class="Default">
       <node ref="J9" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="U1" pin="1" pinfunction="D0_1" pintype="passive"/>
+      <node ref="U1" pin="3" pinfunction="D2_3" pintype="passive"/>
     </net>
     <net code="21" name="unconnected-(U1-D6-Pad7)" class="Default">
       <node ref="U1" pin="7" pinfunction="D6_7" pintype="passive+no_connect"/>

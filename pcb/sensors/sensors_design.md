@@ -76,8 +76,8 @@ Le CAN, l'I2C, FLOW et VALVE reprennent les GPIO natifs du XIAO utilisés dans
 | CAN RX | 8 | D9 | U1 / 10 |
 | CAN TX | 7 | D8 | U1 / 9 |
 | FLOW_PULSE | 44 | D7 | U1 / 8 |
-| ZC (accontrol) | 1 | D0 | U1 / 1 |
-| DIM_CMD (accontrol) | 3 | D2 | U1 / 3 |
+| DIM_CMD (accontrol) | 1 | D0 | U1 / 1 |
+| ZC (accontrol) | 3 | D2 | U1 / 3 |
 | +5V | — | 5V | U1 / 14 |
 | GND | — | GND | U1 / 13 |
 | Sortie +3V3 | — | 3V3 | U1 / 12 |
@@ -96,25 +96,27 @@ J1 sur accontrol pour qu’un câble XH droit suffise :
 |---:|---|---|---|
 | 1 | GND | GND | U1 / 13 |
 | 2 | +3V3 | 3V3 | U1 / 12 |
-| 3 | ZC | ZC | D0 / GPIO1, U1 / 1 |
-| 4 | DIM_CMD | DIM | D2 / GPIO3, U1 / 3 |
+| 3 | ZC | ZC | D2 / GPIO3, U1 / 3 |
+| 4 | DIM_CMD | DIM | D0 / GPIO1, U1 / 1 |
 | 5 | VALVE_CMD | SSR | D10 / GPIO9, U1 / 11 |
 
 - **ZC** est une entrée : accontrol la tire au 3V3 par 10 kΩ et l’EL817 la
   ramène à GND hors des passages par zéro (impulsions à 100 Hz). J9 débranché,
-  la ligne flotte : le firmware active le pull-down interne de GPIO1 pour
-  qu’aucun bruit ne passe pour un passage par zéro.
-- **DIM_CMD** est une sortie. GPIO3 est une broche de strapping (source JTAG),
-  mais elle n’est lue que si l’eFuse `STRAP_JTAG_SEL` est programmé, ce qui
-  n’est pas le cas par défaut. Au reset, GPIO3 est en haute impédance et le
-  pull-down de 4,7 kΩ côté accontrol la tient basse : la pompe ne s’amorce
-  pas pendant le démarrage. DIM_CMD est donc placée sur GPIO3, et ZC sur GPIO1.
+  la ligne flotte : le firmware active le pull-down interne de GPIO3 pour
+  qu’aucun bruit ne passe pour un passage par zéro. GPIO3 est une broche de
+  strapping (source JTAG), mais elle n’est lue que si l’eFuse
+  `STRAP_JTAG_SEL` est programmé, ce qui n’est pas le cas par défaut : le
+  niveau de ZC au reset est sans effet.
+- **DIM_CMD** est une sortie sur GPIO1, sans fonction de strapping. Au reset,
+  GPIO1 est en haute impédance et le pull-down de 4,7 kΩ côté accontrol la
+  tient basse : la pompe ne s’amorce pas pendant le démarrage. ZC et DIM_CMD
+  sont placées ainsi pour simplifier le routage.
 - **VALVE_CMD** est partagée avec J7 : la vanne se commande par J7 (SSR) ou
   par accontrol, pas les deux.
 - **+3V3** : accontrol consomme environ 12 mA par canal actif, 25 mA au plus,
   pris sur le régulateur du XIAO.
 - Le firmware actuel pilote encore la chaudière sur GPIO3 (montage HW-399) ;
-  sur cette carte, la chaudière passe sur GPIO4 et libère GPIO3 pour DIM_CMD.
+  sur cette carte, la chaudière passe sur GPIO4 et libère GPIO3 pour ZC.
 
 ## U6 / J10 — entrée pression analogique
 

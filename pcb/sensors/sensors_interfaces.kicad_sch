@@ -6818,7 +6818,7 @@
 		)
 		(uuid "50ec70de-437d-40bc-9a25-e71ebd729950")
 	)
-	(text "J9 = accontrol J1: 1 GND, 2 3V3, 3 ZC, 4 DIM, 5 SSR.\nZC: GPIO1 / D0 input, 10k pull-up on accontrol; enable internal pull-down.\nDIM_CMD: GPIO3 / D2 output, 4.7k pull-down on accontrol (low at boot).\nVALVE_CMD shared with J7: fit one valve driver only. 3V3 load <=25mA."
+	(text "J9 = accontrol J1: 1 GND, 2 3V3, 3 ZC, 4 DIM, 5 SSR.\nZC: GPIO3 / D2 input, 10k pull-up on accontrol; enable internal pull-down.\nDIM_CMD: GPIO1 / D0 output, 4.7k pull-down on accontrol (low at boot).\nVALVE_CMD shared with J7: fit one valve driver only. 3V3 load <=25mA."
 		(exclude_from_sim no)
 		(at 230 216 0)
 		(effects

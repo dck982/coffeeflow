@@ -24,6 +24,7 @@ seuil de remplissage et la puissance de pré-infusion diffèrent de
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
 | Firmware écran | 0.3.40 : remboursement de la précharge, sans coupure de fin, fin de remplissage en pression absolue | avant le 5 octobre |
+| Offset NTC | **−14 °C** (écran 0.4.4), mesuré au panier avec la SCACE ; −10,5 °C avant. Consigne bornée à 95 °C, coupure à 100 °C utilisateur (114 °C sonde) | 10 octobre |
 | Sonde de pression | XDB401 analogique sur A2 (0.3.46), loi de chauffe inchangée | 7 octobre |
 | Précharge | 8 s à 90 % | 4 octobre |
 | Consigne | 90 °C | — |
@@ -110,7 +111,9 @@ Règles :
 
 ## Synthèse
 
-Valeurs du rapport (définitions ci-dessus). Les infusions avant le
+Valeurs du rapport (définitions ci-dessus). « NTC tasse » est dans le
+domaine de l'offset de −10,5 °C jusqu'au 9 octobre, de −14 °C ensuite :
+retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 5 octobre finissaient le remplissage sur +0,1 bar au-dessus du plancher
 (schéma 8) et pré-infusaient à 60 % (35 % le 4 octobre à 13 h 24).
 
@@ -124,7 +127,8 @@ Valeurs du rapport (définitions ci-dessus). Les infusions avant le
 | 06/10 7 h 19 | 6,10 s, 21,2 ml, 0,90 bar | 2,10 s, 4,1 ml, goutte | 25,5 ml | 4,8 s | 11,8 s, 1,35 g/s, 1,89 ml/s | 22,6 g | 88,47 °C |
 | 08/10 8 h 43 | 6,30 s, 20,0 ml, 0,88 bar | 3,40 s, 6,1 ml, goutte | 26,7 ml | 4,5 s | 16,0 s, 1,07 g/s, 1,16 ml/s | 22,2 g | 87,69 °C |
 | 08/10 13 h 44 | 5,80 s, 20,3 ml, 0,83 bar | 3,40 s, 6,7 ml, goutte | 27,0 ml | 4,0 s | 15,0 s, 1,15 g/s, 1,39 ml/s | 22,2 g | 88,80 °C |
-| **09/10 7 h 01** | 6,00 s, 20,6 ml, 0,89 bar | 3,10 s, 6,7 ml, goutte | 29,3 ml | 4,4 s | 13,7 s, 1,27 g/s, 1,93 ml/s | 22,2 g | 89,26 °C |
+| 09/10 7 h 01 | 6,00 s, 20,6 ml, 0,89 bar | 3,10 s, 6,7 ml, goutte | 29,3 ml | 4,4 s | 13,7 s, 1,27 g/s, 1,93 ml/s | 22,2 g | 89,26 °C |
+| **10/10 11 h 01**, offset −14 °C | 8,30 s, 24,9 ml, 0,83 bar | 0,84 s, 1,4 ml, goutte | 27,2 ml | 5,4 s | 9,1 s, 1,52 g/s, 1,98 ml/s | 22,8 g | 87,11 °C |
 
 ## Pistes pour le goût
 
@@ -136,7 +140,7 @@ Git).
 
 | Piste | Priorité | Lecture |
 | --- | --- | --- |
-| Température | **première** | Les meilleurs cafés d'avant étaient à « 93 °C » affichés par la machine ; la consigne est aujourd'hui de 90 °C à la NTC, 88,8 °C en tasse le 8 octobre à 13 h 44. Les deux chiffres ne viennent pas du même capteur : il faut d'abord étalonner la SCACE pour savoir ce que « consigne 90 °C » donne dans la galette, puis seulement choisir une consigne |
+| Température | **première** | Les meilleurs cafés d'avant étaient à « 93 °C » affichés par la machine. Avec l'offset de −14 °C (10 octobre), la consigne désigne l'eau au panier : les infusions jusqu'au 9 octobre, 87,7 à 89,3 °C en tasse à l'ancien offset, avaient environ 84 à 86 °C au panier, 4 à 6 °C sous la consigne. Le goût un peu sous-extrait de ces infusions va dans ce sens. Reprendre à 90 °C avec 0.4.4 |
 | Pression | basse | Peu de marge attendue, mais une pression plus basse (≈ 8,5 bar) vaut un essai. Avant, 9 → 8 bar à débit égal avait donné de la rondeur, mais sur un grain avec 30 % de robusta ; sur le ViCafé, tous les bons cafés étaient à 9 bar. Les « 9 bar » d'avant venaient de la machine, ceux d'aujourd'hui du XDB401 (plateau à 8,87 bar). Essai à débit égal : baisser la pression ralentit le débit, ouvrir la mouture en même temps, sinon l'amertume du ralentissement se lit comme un effet de la pression |
 | Poids | basse | 22 g (ratio 2,75) est le point retenu pour 8 g. Avant : ratio 2,70 à 2,85 retenu, 24 g (ratio 3,00) amer à galette impeccable. Le filet blondit déjà à 22 g. Seul ajustement possible : jusqu'à ≈ 23 g si la mouture plus grosse laisse le filet encore crémeux à 22 g, une galette rapide s'épuisant plus tard |
 
@@ -793,3 +797,126 @@ panier décide avant tout changement de consigne ou de remboursement.
 
 Prolonger la capture à 40–60 s après l'arrêt : la SCACE montrera si l'eau au
 panier suit le creux de la NTC après l'arrêt.
+
+### 10 octobre — offset de −14 °C (écran 0.4.4)
+
+**Contexte.** Pas d'infusion de café : trois infusions avec le panier de
+simulation et la sonde SCACE, détaillées dans
+[sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026).
+
+**Mesure.** Moyennée par la tasse, l'eau au panier était 3,4 à 9,9 K sous
+la NTC utilisateur de l'ancien offset (−10,5 °C). L'écart tend vers 3 K
+quand le porte-filtre part chaud, ce qui est le cas en usage.
+
+**Décision.** Offset porté à **−14 °C** (écran 0.4.4) : une consigne de
+90 °C donne 104 °C à la sonde au lieu de 100,5 °C. La consigne est bornée à
+95 °C et la coupure de sécurité passe à 100 °C utilisateur, soit 114 °C à la
+sonde (115,5 °C avant). Consigne en NVS inchangée : 90 °C.
+
+**Lecture des entrées précédentes.** Les colonnes « NTC tasse » jusqu'au
+9 octobre sont dans l'ancien domaine : retirer 3,5 °C pour les comparer
+aux infusions à partir de 0.4.4. Les infusions notées « un peu trop fine »,
+au goût un peu sous-extrait, avaient donc environ 84 à 86 °C au panier pour
+une consigne de 90 °C.
+
+**Attendus pour l'infusion suivante** (café, écran 0.4.4, réglages
+inchangés) :
+
+| Point | Attendu |
+| --- | --- |
+| Tasse | NTC en tasse vers 90 °C dans le nouveau domaine, soit une chaudière 3,5 °C plus chaude qu'au 9 octobre |
+| Goût | moins sous-extrait à mouture égale ; ne corriger la mouture qu'après |
+| Pression | la chaudière plus chaude monte plus haut après l'arrêt de la pompe ; noter le maximum |
+
+### 10 octobre, 11 h 01 — `261010-110108`
+
+**Contexte.** Première infusion de café avec l'écran 0.4.4 (offset de
+−14 °C) : consigne de 90 °C, soit 104 °C à la sonde au lieu de 100,5 °C.
+Réglages d'infusion inchangés (`configs/261005-075907.json`), mouture du
+9 octobre. Observation de David : débit un peu trop élevé, peut-être lié à
+la nouvelle température. Goût bon ; la mouture plus fine devrait encore
+aider.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,14 s | 7,89 s | — | — |
+| Remplissage | 8,03 s | 8,30 s | 24,9 ml (3,04 ml/s) | 0,39 → 0,83 bar |
+| Pré-infusion | 16,32 s | 0,84 s | 1,4 ml | 0,91 → 0,94 bar |
+| Infusion | 17,16 s | 14,35 s | 34,5 ml | 8,98 bar max |
+
+- Remplissage plus long que le 9 octobre (8,30 s et 24,9 ml contre 6,00 s
+  et 20,6 ml) : la pression monte plus lentement.
+- Première goutte à 27,2 ml (rapport, ≥ 0,3 g), 2,3 ml après la fin du
+  remplissage (6,6 à 8,7 ml le 9 octobre) ; la pré-infusion s'arrête à la
+  goutte après 0,84 s.
+- Montée de 5,4 s jusqu'à 8 bar (4,4 s le 9 octobre).
+- Depuis 8 bar : **9,1 s**, 1,52 g/s en tasse, 1,98 ml/s en amont (13,7 s,
+  1,27 g/s et 1,93 ml/s le 9 octobre). Arrêt au poids à 21,7 g, 22,8 g
+  final.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,87 ± 0,06 bar, pompe à
+  70 %, 1,50 g/s, soit **5,9 bar·s/g** (7,1 le 9 octobre).
+- Après l'arrêt, la pression remonte à 9,38 bar (9,36 le 9 octobre).
+
+**Thermique.** Ce jour et le 9 octobre, dans leurs domaines respectifs :
+
+| Repère | 10/10 11 h 01 (−14 °C) | 09/10 7 h 01 (−10,5 °C) |
+| --- | ---: | ---: |
+| NTC au départ | 89,87 °C | 89,93 °C |
+| Pic avant l'infusion | 91,42 °C à 13,3 s | 92,12 °C à 13,3 s |
+| **Tasse** | **87,11 °C**, −2,89 °C | 89,26 °C, −0,74 °C |
+| Minimum pendant l'écoulement | 85,98 °C, à l'arrêt | 87,56 °C, à l'arrêt |
+| Minimum total | 84,77 °C à 36,5 s | 86,55 °C à 40,2 s |
+| 20 s après l'arrêt | 86,58 °C | 88,93 °C |
+| Commande à 0 % (remboursement) | 11,4 s | 11,6 s |
+| Appoint repris avant l'arrêt | **2,9 s** | 6,3 s |
+
+- Énergie, commande / SSR : précharge 8,52 / 8,48 kJ, remplissage 6,88 /
+  6,13 kJ, pré-infusion 0,79 / 0,74 kJ, infusion 1,89 / 2,15 kJ.
+- Modèle, commande réelle : 89,39 °C en tasse, soit +2,26 °C sur la mesure
+  (+2,14 le 8 octobre à 8 h 43, +0,05 le 9 octobre).
+
+**Attendus vérifiés** (entrée « offset de −14 °C ») :
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Tasse | vers 90 °C dans le nouveau domaine | **87,11 °C : non atteint.** Ramené au domaine de l'offset, +1,35 °C au panier par rapport au 9 octobre (85,76 °C), au lieu des +3,5 °C du changement d'offset |
+| Goût | moins sous-extrait à mouture égale | **bon** ; débit plus rapide, mouture à affiner |
+| Pression | maximum plus haut après l'arrêt | 9,38 bar contre 9,36 : pas de différence |
+
+**Lecture.**
+
+- *Tasse, mesuré.* L'infusion la plus rapide depuis le remboursement : le
+  remboursement de la précharge tient la commande à 0 % pendant 11,4 s,
+  presque toute l'infusion, et l'appoint ne reprend que 2,9 s avant
+  l'arrêt. La chaleur de l'écoulement arrive après l'arrêt : minimum à
+  84,77 °C 5 s après, puis remontée. C'est le mécanisme du 8 octobre à
+  8 h 43 (0 % pendant 15,4 s, −2,31 °C). La chaudière plus chaude n'a donc
+  apporté que +1,35 °C au panier sur les +3,5 °C attendus.
+- *Débit, estimé.* La résistance au plateau baisse de 17 % (5,9 contre
+  7,1 bar·s/g). L'eau 3,5 °C plus chaude est moins visqueuse d'environ 6 %
+  (≈ 1,7 % par kelvin vers 90 °C) : un tiers de l'écart au plus. Le reste
+  relève de la mouture, de la dose ou du tassage, que la capture ne sépare
+  pas. Remplissage plus long et goutte précoce vont dans le même sens : une
+  galette moins résistante.
+- *Loi, estimé.* La pente de l'appoint suppose 70,5 K d'élévation ; avec
+  la chaudière 3,5 °C plus chaude, le besoin réel est d'environ 5 % plus
+  fort. L'effet est faible devant les 11,4 s à 0 %.
+- *Modèle.* Il retrouve l'écart d'environ +2 °C des infusions courtes avec
+  long 0 % (8 octobre au matin) ; le facteur manquant n'est toujours pas
+  identifié.
+
+**Décision.** David affine la mouture. Firmware 0.4.4, loi et réglages
+d'infusion inchangés.
+
+**Attendus pour l'infusion suivante** (mouture plus fine, même
+configuration) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | plateau vers 7 bar·s/g, 12 à 14 s depuis 8 bar, remplissage vers 6 s et 20 ml, première goutte 6 à 8 ml après le remplissage |
+| Chauffe | appoint repris 5 s ou plus avant l'arrêt |
+| Tasse | 88 à 89 °C (−1 à −2 °C), comme le 9 octobre ramené à la consigne |
+| Goût | relever si le sous-extrait du 8 et du 9 octobre a disparu |
+

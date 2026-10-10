@@ -108,10 +108,10 @@ fn validation_bounds_and_steps() {
         Some("heating.brew_temperature_c")
     );
     assert_eq!(
-        ok(&|c| c.brew_temperature_c = 100.5),
+        ok(&|c| c.brew_temperature_c = 95.5),
         Some("heating.brew_temperature_c")
     );
-    assert_eq!(ok(&|c| c.brew_temperature_c = 100.0), None);
+    assert_eq!(ok(&|c| c.brew_temperature_c = 95.0), None);
     assert_eq!(
         ok(&|c| c.brew_preheat_time_s = 15.5),
         Some("heating.brew_preheat_time_s")
@@ -423,7 +423,7 @@ fn normalisation_of_out_of_range_values() {
     };
     let (manager, report) = ConfigManager::init(&mut store);
     let got = manager.get();
-    assert_eq!((got.brew_pump_pct, got.brew_temperature_c), (50, 100.0));
+    assert_eq!((got.brew_pump_pct, got.brew_temperature_c), (50, 95.0));
     assert!(report.normalized && !report.migrated);
     assert_eq!(store.writes, 1);
     // Écrit sur `b` : `a` est valide.

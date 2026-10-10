@@ -58,7 +58,7 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         pressure_valid: true,
         pressure_freshness: Freshness::Fresh,
         boiler_temperature_c: 90.0,
-        boiler_sensor_temperature_c: 100.5,
+        boiler_sensor_temperature_c: 104.0,
         boiler_temperature_valid: true,
         boiler_temperature_freshness: Freshness::Fresh,
         brew_temperature_ready: true,

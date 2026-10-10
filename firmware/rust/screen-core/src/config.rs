@@ -15,7 +15,8 @@ use core::ops::BitOr;
 
 pub const CONFIG_SCHEMA_VERSION: u16 = 10;
 pub const MINIMUM_BREW_TEMPERATURE_C: f32 = 50.0;
-pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 100.0;
+/// 5 °C sous la coupure de sécurité de la chaudière.
+pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 95.0;
 pub const MAXIMUM_BREW_PREHEAT_TIME_S: f32 = 15.0;
 pub const BREW_TEMPERATURE_TOLERANCE_C: f32 = 1.0;
 /// Sous cette puissance, la pompe ne maintient plus une pression d'infusion
@@ -1111,8 +1112,9 @@ impl ConfigManager {
         if normalized_brew_pump {
             selected.brew_pump_pct = MINIMUM_BREW_PUMP_PCT;
         }
-        // Un essai temporaire a autorisé 110 °C avec le même schéma NVS :
-        // ramener une consigne sauvegardée dans la plage rétablie.
+        // Un essai temporaire a autorisé 110 °C, et le maximum est passé de
+        // 100 à 95 °C, avec le même schéma NVS : ramener une consigne
+        // sauvegardée dans la plage actuelle.
         let normalized_brew_temperature = selected.brew_temperature_c > MAXIMUM_BREW_TEMPERATURE_C;
         if normalized_brew_temperature {
             selected.brew_temperature_c = MAXIMUM_BREW_TEMPERATURE_C;

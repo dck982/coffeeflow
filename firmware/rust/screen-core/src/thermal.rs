@@ -129,9 +129,9 @@ impl Controller {
     pub const PURGE_COMPENSATION_BAND_C: f32 = 5.0;
     pub const RECOVERY_POWER_LIMIT_PCT: f32 = 35.0;
     pub const RECOVERY_DURATION_MS: u64 = 30000;
-    /// L'entrée est dans le domaine utilisateur : 105 °C ici = 115,5 °C à la
-    /// sonde avec l'offset de -10,5 °C appliqué lors de la lecture NTC.
-    pub const MAXIMUM_BOILER_USER_TEMPERATURE_C: f32 = 105.0;
+    /// L'entrée est dans le domaine utilisateur : 100 °C ici = 114 °C à la
+    /// sonde avec l'offset de -14 °C appliqué lors de la lecture NTC.
+    pub const MAXIMUM_BOILER_USER_TEMPERATURE_C: f32 = 100.0;
 
     pub fn new() -> Self {
         Self {

@@ -42,8 +42,8 @@ fn permille(out: Output) -> u16 {
 fn calibration_constants() {
     assert_eq!(BOILER_NTC_R0_OHM, 47000.0);
     assert_eq!(BOILER_NTC_BETA_K, 3930.0);
-    assert_eq!(boiler_sensor_temperature_c(90.0), 100.5);
-    assert_eq!(boiler_user_temperature_c(104.5), 94.0);
+    assert_eq!(boiler_sensor_temperature_c(90.0), 104.0);
+    assert_eq!(boiler_user_temperature_c(104.5), 90.5);
 }
 
 #[test]

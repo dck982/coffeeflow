@@ -99,7 +99,7 @@ pub struct Snapshot {
     /// Ancien champ interne XDB401 ; alias HTTP = chaudière.
     pub temperature_c: f32,
     pub xdb401_temperature_c: f32,
-    /// Domaine utilisateur : sonde moins 10,5 °C.
+    /// Domaine utilisateur : sonde moins 14 °C.
     pub boiler_temperature_c: f32,
     /// Estimation locale, sans offset.
     pub boiler_sensor_temperature_c: f32,

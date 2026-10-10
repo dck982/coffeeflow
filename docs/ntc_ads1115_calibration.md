@@ -156,8 +156,11 @@ T_C = 1 / (1/T0 + ln(R_NTC/R0)/B) - 273.15
 R0 = 47000 Ω
 B  = 3930 K
 T0 = 298.15 K
-offset utilisateur = −10,5 °C
+offset utilisateur = −14 °C (−10,5 °C de 0.3.34 à 0.4.3)
 ```
+
+L'offset de −14 °C (écran 0.4.4) vient de la mesure au panier avec la sonde
+SCACE, voir [sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026).
 
 `B = 3930 K` arrondit les ajustements de l'[essai NTC sur banc](#essai-ntc-sur-banc-2-octobre-2026)
 (3 916 à 3 929 K sur trois bains, 3 923 K à l'ébullition seule). À résistance

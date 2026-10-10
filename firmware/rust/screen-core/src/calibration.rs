@@ -18,8 +18,9 @@ pub const BOILER_NTC_R0_OHM: f32 = 47000.0;
 pub const BOILER_NTC_BETA_K: f32 = 3930.0;
 pub const BOILER_NTC_T0_K: f32 = 298.15;
 /// L'offset concerne la consigne utilisateur, pas la conversion physique de
-/// la NTC.
-pub const BOILER_NTC_TEMPERATURE_OFFSET_C: f32 = -10.5;
+/// la NTC. Mesuré au panier avec la sonde SCACE le 2026-10-10 : la
+/// température utilisateur suit l'eau au panier, moyennée sur l'infusion.
+pub const BOILER_NTC_TEMPERATURE_OFFSET_C: f32 = -14.0;
 
 pub const fn boiler_user_temperature_c(sensor_c: f32) -> f32 {
     sensor_c + BOILER_NTC_TEMPERATURE_OFFSET_C

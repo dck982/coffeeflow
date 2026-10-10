@@ -71,21 +71,28 @@ Sensor AD du Waveshare. La résistance de la NTC vaut
 `R_NTC = 4676 × (A0_raw/A1_raw − 1)` en ohms ; `A0_raw` et `A1_raw`
 sont des codes ADS1115, pas des volts. Le PGA reste à ±4,096 V sur A0 et A1.
 
-Depuis **0.3.34**, la conversion utilise **47 kΩ / 3 930 K** pour estimer la
-température locale de la sonde, puis soustrait **10,5 °C** pour obtenir la
-**température utilisateur**. Le Beta vient de l'étalonnage sur banc du
-2 octobre 2026 ; l'offset passe de −10 à −10,5 °C pour qu'une même consigne
-garde la même cible physique, à 0,1 °C près entre 90 et 110 °C sonde. Les constantes sont dans
-`firmware/screen/main/core/calibration_machine.h`.
+La conversion utilise **47 kΩ / 3 930 K** pour estimer la température
+locale de la sonde, puis soustrait **14 °C** pour obtenir la **température
+utilisateur** (écran **0.4.4**). Le Beta vient de l'étalonnage sur banc du
+2 octobre 2026. L'offset vient de la sonde SCACE le 10 octobre 2026 : sur
+trois infusions, l'eau au panier, moyennée par la tasse, était 3,4 à 9,9 K
+sous la température utilisateur de l'ancien offset de −10,5 °C, l'écart se
+resserrant vers 3 K quand le porte-filtre part chaud (voir
+[sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026)). Les
+constantes sont dans `firmware/rust/screen-core/src/calibration.rs`.
 
 | Domaine | Utilisation | Exemple |
 | --- | --- | --- |
 | Utilisateur | écran, consigne, régulation, captures HF, `temperature.boiler.c`, `heating.target_c` | 90 °C |
-| Sonde | `temperature.boiler.sensor_c`, `heating.target_sensor_c` | 100,5 °C ≈ 3,28 kΩ |
+| Sonde | `temperature.boiler.sensor_c`, `heating.target_sensor_c` | 104 °C ≈ 2,97 kΩ |
 
-La coupure de chauffe à **105 °C utilisateur** représente **115,5 °C estimés
-à la sonde**, soit la même résistance qu'avec la courbe précédente à 0,1 °C
-près.
+La coupure de chauffe à **100 °C utilisateur** représente **114 °C estimés
+à la sonde** (115,5 °C jusqu'à 0.4.3). La consigne est bornée à 95 °C, 5 °C
+sous la coupure.
+
+Une consigne NVS n'est pas migrée au passage à −14 °C : 90 °C restent 90 °C
+affichés, et la cible physique monte de 3,5 °C, de 100,5 à 104 °C à la
+sonde. C'est voulu : la consigne désigne maintenant l'eau au panier.
 
 Ce réglage vient des essais de *flashing* du 27 septembre : un crépitement
 devient perceptible à partir de **94 °C affichés**. Avec 967,7 hPa de
@@ -110,7 +117,8 @@ de **91 °C**. Une consigne NVS existante n'est pas migrée : une valeur de
 | 0.3.14–0.3.15 | 47 kΩ / 4 630 K | 0 | rejoindre Gicar près de 90 °C |
 | 0.3.16–0.3.17 | 47 kΩ / 3 950 K | −14 °C | courbe sonde, affichage proche de Gicar |
 | 0.3.18–0.3.33 | 47 kΩ / 3 950 K | −10 °C | *flashing* du 27 septembre |
-| depuis 0.3.34 | 47 kΩ / 3 930 K | −10,5 °C | banc du 2 octobre ; même cible physique |
+| 0.3.34–0.4.3 | 47 kΩ / 3 930 K | −10,5 °C | banc du 2 octobre ; même cible physique |
+| depuis 0.4.4 | 47 kΩ / 3 930 K | −14 °C | sonde SCACE au panier, 10 octobre |
 
 ### Diagnostics ADS1115
 
@@ -132,7 +140,7 @@ La configuration NVS v7 contient :
 
 | Clé | Défaut | Plage | Réglage |
 | --- | --- | --- | --- |
-| `heating.brew_temperature_c` | 90 °C | 50 à 100 °C, pas de 0,5 °C | deuxième page des réglages |
+| `heating.brew_temperature_c` | 90 °C | 50 à 95 °C, pas de 0,5 °C | deuxième page des réglages |
 | `heating.brew_preheat_time_s` | 2,5 s | 0 à 15 s, pas de 0,5 s ; 0 désactive | quatrième page des réglages |
 | `heating.enabled` | `true` | — | `POST /config` uniquement |
 
@@ -145,8 +153,8 @@ reste possible quand la chauffe est désactivée.
 Toute migration depuis une configuration v1–v5 persiste
 `heating.enabled=false` avant le démarrage des tâches ; une installation neuve
 conserve `true`. Une migration v6 conserve ce choix et initialise la
-précharge à 2,5 s. Une consigne supérieure à 100 °C restée en NVS est ramenée
-à 100 °C au démarrage.
+précharge à 2,5 s. Une consigne supérieure à 95 °C restée en NVS est ramenée
+à 95 °C au démarrage (100 °C jusqu'à 0.4.3).
 
 L'infusion exige un module capteurs compatible et une mesure fraîche dans la
 bande **consigne ±1 °C** pendant **3 s** (`kBrewTemperatureToleranceC`).
@@ -182,7 +190,7 @@ La commande de base vaut `3,5 % + 8 × erreur prédite`, avec :
 L'intégrale de l'ancien régulateur n'agissait qu'au repos ; elle a été
 retirée de cette base en 0.3.29.
 
-Au-dessus de **105 °C**, sur mesure invalide ou si la chauffe est
+Au-dessus de **100 °C** utilisateur (114 °C à la sonde), sur mesure invalide ou si la chauffe est
 désactivée, la commande tombe à zéro et le contrôleur est réinitialisé. Un
 changement de consigne le réinitialise aussi.
 

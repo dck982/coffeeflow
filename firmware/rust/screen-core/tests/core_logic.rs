@@ -359,7 +359,7 @@ fn boiler_ntc_conversion_and_freshness() {
         "{}",
         s.boiler_temperature_c
     );
-    assert!((s.boiler_sensor_temperature_c - 98.5).abs() < 0.05);
+    assert!((s.boiler_sensor_temperature_c - 102.0).abs() < 0.05);
     assert_eq!(s.boiler_temperature_freshness, Freshness::Fresh);
     assert_eq!(
         (s.boiler_ntc_a0_raw, s.boiler_ntc_a1_raw != 0),

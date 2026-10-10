@@ -15,7 +15,7 @@ Deux lois de chauffe coexistent dans le firmware écran :
 
 `Controller::step()` reste le point d'entrée unique. Il applique d'abord
 les coupures générales (mesure invalide, chauffe désactivée, NTC au-delà de
-105 °C), puis, pendant la précharge et l'écoulement d'une infusion,
+100 °C), puis, pendant la précharge et l'écoulement d'une infusion,
 **délègue la commande à `BrewHeating`**. Aucun élément du régulateur de
 repos n'intervient alors : ni prédiction, ni intégrale (remise à zéro), ni
 filtre de sortie. Il enregistre seulement la commande envoyée, qui lui sert
@@ -29,12 +29,12 @@ l'historique de commande laissé par l'infusion.
 ## Objectif
 
 L'utilisateur lit la consigne comme **la température moyenne de l'eau au
-groupe pendant l'infusion**. L'offset de −10 °C entre la sonde et la
-température utilisateur (voir
-[chauffe-chaudiere.md](chauffe-chaudiere.md#conversion-actuelle)) va dans ce
-sens : environ 100 °C à la sonde pour 90 °C au groupe.
+groupe pendant l'infusion**. Depuis l'écran 0.4.4, l'offset de −14 °C entre
+la sonde et la température utilisateur (voir
+[chauffe-chaudiere.md](chauffe-chaudiere.md#conversion-actuelle)) est mesuré
+au panier : environ 104 °C à la sonde pour 90 °C au groupe.
 
-Tant qu'aucune mesure au panier n'existe, le critère est la **NTC en
+Le critère est la **NTC en
 température utilisateur, moyenne pondérée par la tasse** : chaque gramme
 arrivé en tasse avant l'arrêt de la pompe compte avec la NTC du même
 instant. Elle doit valoir la consigne. `analyze_hf_capture.py` la calcule
@@ -47,11 +47,13 @@ instant. Elle doit valoir la consigne. `analyze_hf_capture.py` la calcule
 | Jusqu'à l'arrêt de la pompe | après, la tasse peut être retirée et le poids n'est plus exploitable |
 | Creux et bosse sans critère propre | seule la moyenne est promise ; le minimum reste suivi, pour ne pas échanger un dépassement contre un creux profond |
 
-Hypothèse non vérifiée : l'offset de −10 °C vient des essais de *flashing*
-au repos. Rien ne dit qu'il tient pendant l'écoulement, avec l'inertie du
-groupe. Un panier de mesure de type Scace, en préparation, mesurera l'eau
-dans le panier. Il remplacera la NTC comme critère et permettra de recaler
-l'offset.
+L'offset de −10,5 °C, en vigueur jusqu'à 0.4.3, venait des essais de
+*flashing* au repos. La sonde SCACE l'a recalé le 10 octobre 2026 : sur
+trois infusions, la SCACE moyennée par la tasse était 3,4 à 9,9 K sous la
+NTC utilisateur, et l'écart tendait vers 3 K avec un porte-filtre chaud
+(voir [sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026)). Les
+moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
+9 octobre : leur retirer 3,5 °C pour les comparer aux suivantes.
 
 Écart au critère, consigne de 90 °C :
 
@@ -70,6 +72,7 @@ l'offset.
 | 08/10, 8 h 43 | 8 s, sonde analogique (0.3.46), mouture un peu trop fine (16,0 s depuis 8 bar) | **87,69 °C** | 89,28 °C |
 | 08/10, 13 h 44 | 8 s, mouture grossie d'un pas, encore un peu fine (15,0 s depuis 8 bar) | **88,80 °C** | 89,93 °C |
 | 09/10, 7 h 01 | 8 s, mouture grossie d'un pas de plus (13,7 s depuis 8 bar) | **89,26 °C** | 90,02 °C |
+| 10/10, 11 h 01 | 8 s, offset −14 °C (0.4.4), débit un peu élevé (9,1 s depuis 8 bar) | **87,11 °C** | 88,76 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -163,7 +166,7 @@ Seuls modifient cette commande :
 | NTC au-delà de consigne + **4 °C** (sécurité) | 0 % |
 | Pré-infusion, pompe confirmée en marche, aucune impulsion depuis 500 ms (depuis 0.3.32) | **3,5 %** : débit nul, pas inconnu |
 | Débit non mesurable (conditions ci-dessus), hors de ce cas | **45 %** (repli) |
-| Mesure invalide, chauffe désactivée, NTC > 105 °C | 0 % (coupures générales) |
+| Mesure invalide, chauffe désactivée, NTC > 100 °C | 0 % (coupures générales) |
 
 Depuis 0.3.32, la pré-infusion est une pause : pompe à 35 %, sous son seuil
 de débit, vanne ouverte. Sans la ligne « pré-infusion » du tableau, la
@@ -191,7 +194,7 @@ la commande est de **0 %** jusqu'à ce que la somme des appoints retenus
 | Dernier pas | peut rendre jusqu'à 250 ms de trop (≈ 0,27 kJ à 90 %) |
 | Pompe arrêtée avant la fin du remboursement | le reste de la dette est abandonné |
 | Précharge interrompue, cycle suivant sans précharge | dette remise à zéro au début de tout écoulement qui ne suit pas une précharge |
-| Coupure générale pendant l'écoulement (mesure invalide, chauffe désactivée, NTC > 105 °C) | régulateur remis à zéro : la dette est perdue, l'appoint reprend normalement |
+| Coupure générale pendant l'écoulement (mesure invalide, chauffe désactivée, NTC > 100 °C) | régulateur remis à zéro : la dette est perdue, l'appoint reprend normalement |
 
 Le remboursement ne dépend ni de la balance ni de la NTC : seule la fin
 de la pré-infusion le déclenche, et le montant suit le débitmètre comme
@@ -421,9 +424,10 @@ confirmer sur des infusions réelles.
 ## Limites connues
 
 - **La NTC n'est pas l'eau au groupe.** Tout ce qui précède optimise la
-  courbe de la sonde. Le panier de mesure en préparation dira si le creux
-  de la NTC est aussi celui de la tasse, et si l'offset de −10 °C tient
-  pendant l'écoulement (voir [Objectif](#objectif)).
+  courbe de la sonde. L'offset est recalé au panier (voir
+  [Objectif](#objectif)), mais sur la forme, la SCACE monte pendant toute
+  l'infusion quand la NTC creuse puis remonte : le creux de la NTC n'est
+  peut-être pas celui de la tasse. Reste à mesurer, avec une sonde soudée.
 - **Remboursement non vérifié sur infusion réelle.** La double chauffe de
   l'eau du remplissage (précharge puis appoint au débit) est traitée depuis
   0.3.37 par le [remboursement](#remboursement-de-la-précharge). Deux
@@ -475,5 +479,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261008-084342.json` | 8 s | première infusion sur la sonde analogique ; mouture un peu trop fine (16,0 s depuis 8 bar) ; 0 % pendant 15,4 s ; −2,31 °C en tasse, modèle à +2,14 °C ; hors ajustement |
 | `261008-134433.json` | 8 s | mouture grossie d'un pas (7,5 bar·s/g au plateau) ; 15,0 s depuis 8 bar ; 0 % pendant 14,0 s ; −1,20 °C en tasse, modèle à +1,33 °C ; hors ajustement |
 | `261009-070144.json` | 8 s | mouture grossie d'un pas de plus (7,1 bar·s/g au plateau) ; 13,7 s depuis 8 bar ; 0 % pendant 11,6 s ; −0,74 °C en tasse, modèle à +0,05 °C ; hors ajustement |
+| `261010-110108.json` | 8 s | première infusion avec l'offset de −14 °C (0.4.4) ; 5,9 bar·s/g au plateau, 9,1 s depuis 8 bar ; 0 % pendant 11,4 s, appoint repris 2,9 s avant l'arrêt ; −2,89 °C en tasse, modèle à +2,26 °C ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

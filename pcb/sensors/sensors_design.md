@@ -19,8 +19,19 @@ car il rétablirait la version MINI/USB/LDO.
 
 Le XIAO ESP32-S3 du stock est désormais représenté par **U1**, symbole
 `Seeed_Studio_XIAO_Series:XIAO-ESP32-S3-SMD`, avec l’empreinte
-**`Seeed_XIAO:XIAO-ESP32-S3-DIP`**. Ces deux bibliothèques sont celles installées
-localement dans `~/Projects/OPL_Kicad_Library` ; les tables du projet les référencent.
+**`Sensors_Local:XIAO-ESP32-S3-DIP-Headers`**. Le symbole vient de la bibliothèque
+installée localement dans `~/Projects/OPL_Kicad_Library` ; les tables du projet
+la référencent. L’empreinte est une copie locale de `Seeed_XIAO:XIAO-ESP32-S3-DIP`
+réduite au montage sur barrettes. Les quatorze pastilles SMD de l’original,
+prévues pour souder le module à plat par ses bords crénelés, sont retirées :
+elles n’auraient été que du cuivre nu sous le corps des barrettes. Les trous
+passent de 0,889 à **1,0 mm** de perçage, pastilles de 1,7 mm, comme
+`PinSocket_1x07_P2.54mm` : une broche carrée de 0,64 mm mesure 0,91 mm en
+diagonale. Le courtyard ne couvre plus tout le module : deux rectangles de
+18,3 × 3,05 mm entourent les barrettes (|y| de 6,1 à 9,15 mm, soit 0,25 mm
+autour de leur corps). La bande d’environ 12,2 × 18 mm entre les rangées
+accepte des composants bas, puisque le XIAO repose sur des barrettes femelles
+d’environ 8,5 mm ; rien n’y doit rester accessible une fois le module enfiché.
 
 Le symbole Seeed présente les broches 1–14 des headers et les pastilles 15–25
 accessibles sous le module. L’empreinte DIP ne possède que les numéros 1–14 :
@@ -30,14 +41,14 @@ son identité de bibliothèque ; seule son empreinte est remplacée par la varia
 Sur le PCB, U1 remplace les deux sockets J9/J10, près de leur position précédente,
 avec une rotation de 90° donnant l’USB-C vers le haut. Les broches 1–7 sont à
 gauche du haut vers le bas ; 14–8 sont à droite du haut vers le bas. L’empreinte
-Seeed possède quatorze trous et des pastilles SMD supplémentaires portant les mêmes
-numéros. Deux barrettes femelles 1×7 au pas de 2,54 mm s’y montent ; l’écartement
-entre rangées est de 15,24 mm. Le XIAO s’enfiche manuellement depuis le stock.
+ne possède que les quatorze trous. Deux barrettes femelles 1×7 au pas de 2,54 mm
+s’y montent ; l’écartement entre rangées est de 15,24 mm.
+Le XIAO s’enfiche manuellement depuis le stock.
 
 Sources locales : `../../docs/datasheets/xiao.pdf`, le schéma de la carte Seeed
 `Seeed Studio XIAO ESP32S3/ESP32S3.kicad_sch`, la bibliothèque de symboles
 `Seeed Studio XIAO Series Library/Seeed_Studio_XIAO_Series.kicad_sym`,
-et l’empreinte installée `Seeed_XIAO.pretty/XIAO-ESP32-S3-DIP.kicad_mod`.
+et l’empreinte d’origine `Seeed_XIAO.pretty/XIAO-ESP32-S3-DIP.kicad_mod`.
 
 J1 conserve l'entrée 5 V régulée : broche 1 GND, broche 2 +5V.
 Ce rail alimente le XIAO, le TJA1051 et les interfaces 5 V. La sortie 3V3 du
@@ -65,14 +76,70 @@ Le CAN, l'I2C, FLOW et VALVE reprennent les GPIO natifs du XIAO utilisés dans
 | CAN RX | 8 | D9 | U1 / 10 |
 | CAN TX | 7 | D8 | U1 / 9 |
 | FLOW_PULSE | 44 | D7 | U1 / 8 |
+| ZC (accontrol) | 1 | D0 | U1 / 1 |
+| DIM_CMD (accontrol) | 3 | D2 | U1 / 3 |
 | +5V | — | 5V | U1 / 14 |
 | GND | — | GND | U1 / 13 |
 | Sortie +3V3 | — | 3V3 | U1 / 12 |
 
-U1 / 1 (D0/GPIO1), U1 / 3 (D2/GPIO3) et U1 / 7 (D6/GPIO43) sont NC.
-GPIO2 et GPIO4 ne sont pas des broches de strapping ; GPIO3 reste inutilisé.
-GPIO43, sortie UART0 au démarrage, reste inutilisé. FLOW conserve GPIO44,
+Seule U1 / 7 (D6/GPIO43) est NC. GPIO2 et GPIO4 ne sont pas des broches de
+strapping. GPIO43, sortie UART0 au démarrage, reste inutilisé. FLOW conserve GPIO44,
 entrée UART0 par défaut : le firmware actuel le reconfigure explicitement en GPIO.
+
+## J9 — carte accontrol
+
+J9 (XH 5 broches, B5B-XH-A, LCSC C157991) prépare le passage à la carte `accontrol`, qui
+commande la vanne et la pompe sur le secteur. Son brochage reprend celui de
+J1 sur accontrol pour qu’un câble XH droit suffise :
+
+| J9 | Net sensors | accontrol J1 | XIAO |
+|---:|---|---|---|
+| 1 | GND | GND | U1 / 13 |
+| 2 | +3V3 | 3V3 | U1 / 12 |
+| 3 | ZC | ZC | D0 / GPIO1, U1 / 1 |
+| 4 | DIM_CMD | DIM | D2 / GPIO3, U1 / 3 |
+| 5 | VALVE_CMD | SSR | D10 / GPIO9, U1 / 11 |
+
+- **ZC** est une entrée : accontrol la tire au 3V3 par 10 kΩ et l’EL817 la
+  ramène à GND hors des passages par zéro (impulsions à 100 Hz). J9 débranché,
+  la ligne flotte : le firmware active le pull-down interne de GPIO1 pour
+  qu’aucun bruit ne passe pour un passage par zéro.
+- **DIM_CMD** est une sortie. GPIO3 est une broche de strapping (source JTAG),
+  mais elle n’est lue que si l’eFuse `STRAP_JTAG_SEL` est programmé, ce qui
+  n’est pas le cas par défaut. Au reset, GPIO3 est en haute impédance et le
+  pull-down de 4,7 kΩ côté accontrol la tient basse : la pompe ne s’amorce
+  pas pendant le démarrage. DIM_CMD est donc placée sur GPIO3, et ZC sur GPIO1.
+- **VALVE_CMD** est partagée avec J7 : la vanne se commande par J7 (SSR) ou
+  par accontrol, pas les deux.
+- **+3V3** : accontrol consomme environ 12 mA par canal actif, 25 mA au plus,
+  pris sur le régulateur du XIAO.
+- Le firmware actuel pilote encore la chaudière sur GPIO3 (montage HW-399) ;
+  sur cette carte, la chaudière passe sur GPIO4 et libère GPIO3 pour DIM_CMD.
+
+## U6 / J10 — entrée pression analogique
+
+U6 (ADS1115IDGSR) et J10 (XH 3 broches, B3B-XH-A, LCSC C144394) permettent de
+brancher la sonde de pression XDB401 sur sensors au lieu de screen. Le
+circuit reprend celui de `screen_sensors` :
+
+| J10 | Net | Rôle |
+|---:|---|---|
+| 1 | +3V3 | alimentation de la sonde |
+| 2 | GND | masse |
+| 3 | PRESSURE | sortie de la sonde, 0,4–2,4 V |
+
+- L’ordre de J10 est celui de J3 sur `screen_sensors` : le même câble passe
+  d’une carte à l’autre.
+- U6 est alimenté en +3V3 (C13, 100 nF, au plus près de VDD). AIN0 lit le
+  +3V3 local, AIN1 lit PRESSURE_ADC ; AIN2, AIN3 et ALERT/RDY sont NC.
+- R26 (1 kΩ) et C14 (10 µF) filtrent PRESSURE avant AIN1 : 16 Hz, 10 ms,
+  comme R3/C3 sur `screen_sensors`. C15 (100 nF) découple l’alimentation
+  de la sonde sur J10.
+- **Adresse I2C 0x49 : ADDR est relié au +3V3.** Le TMP102 occupe déjà 0x48
+  (ADD0 à GND) sur le même bus ; l’ADS1115 de `screen_sensors` est à 0x48,
+  mais sur le bus de l’écran.
+- La sortie de la XDB401 n’est pas ratiométrique : la pression se calcule sur
+  la tension absolue de AIN1, AIN0 ne sert qu’à surveiller le +3V3.
 
 ## Note pour la mise en service — HEATER_CMD
 
@@ -94,6 +161,12 @@ Toutes les connexions des composants conservés sont inchangées : TJA1051T/3
 avec VCC 5 V, VIO 3,3 V et SLNT à GND, terminaison CAN 120 Ω, deux prises I2C
 parallèles et pull-ups 4,7 kΩ, TMP102, FLOW avec pull-up 1 kΩ / filtre 10 nF,
 VALVE avec pull-down, et sortie BOILER Q3/2N7002 + Q2/AO3401A.
+La terminaison R12 est la seule résistance en **1206 / 0,25 W** (C17909,
+Basic) ; les autres sont en 0603 / 0,1 W. En service, le différentiel
+dominant d’environ 2 V n’y dissipe que 2² / 120 ≈ 33 mW. Mais si CAN_H
+est court-circuité au 5 V avec CAN_L à GND (câblage inversé, défaut de
+faisceau), R12 voit 5² / 120 ≈ 210 mW : une 0603 grillerait et laisserait
+le bus sans terminaison, alors qu’une 1206 tient.
 D2 utilise désormais **C2297 / KT-0805G**, LED vert émeraude **0805**,
 Basic chez JLCPCB (vérifié le 2026-10-07), avec l’empreinte
 `LED_SMD:LED_0805_2012Metric`. Broche 1 = cathode/GND, broche 2 = anode.

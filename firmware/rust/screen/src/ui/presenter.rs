@@ -8,7 +8,7 @@ use screen_core::{
     core::{Action, ActionCommand, ActionSource, Input, Reply},
     snapshot::{CycleState, Freshness, Snapshot},
 };
-use slint::{Color, ModelRc, SharedString, VecModel};
+use slint::{Color, Model, ModelRc, SharedString, VecModel};
 
 /// Demande locale à exécuter par l'assemblage, après le traitement des gestes.
 #[derive(Debug, Clone, PartialEq)]
@@ -77,8 +77,24 @@ fn tile(name: &str, value: String, detail: &str, enabled: bool, tone: i32) -> Ti
         tone,
     }
 }
-fn model<T: Clone + 'static>(v: Vec<T>) -> ModelRc<T> {
-    Rc::new(VecModel::from(v)).into()
+// Remplacer le modèle recrée les éléments du `for` Slint, et avec eux leur
+// TouchArea : un appui en cours pendant un rafraîchissement perdrait son clic.
+// On réécrit donc seulement les lignes changées du modèle déjà en place.
+fn sync<T: Clone + PartialEq + 'static>(
+    current: ModelRc<T>,
+    rows: Vec<T>,
+    replace: impl FnOnce(ModelRc<T>),
+) {
+    match current.as_any().downcast_ref::<VecModel<T>>() {
+        Some(m) if m.row_count() == rows.len() => {
+            for (i, row) in rows.into_iter().enumerate() {
+                if m.row_data(i).as_ref() != Some(&row) {
+                    m.set_row_data(i, row);
+                }
+            }
+        }
+        _ => replace(Rc::new(VecModel::from(rows)).into()),
+    }
 }
 fn hex(v: u32) -> Color {
     Color::from_rgb_u8((v >> 16) as u8, (v >> 8) as u8, v as u8)
@@ -841,8 +857,10 @@ impl Presenter {
             )
             .into();
         }
-        app.set_brew_values(model(brew_tiles));
-        app.set_live_values(model(alloc::vec![
+        sync(app.get_brew_values(), brew_tiles, |m| {
+            app.set_brew_values(m)
+        });
+        let live = alloc::vec![
             tile("chauffe", number(s.heating_power_pct, 0, " %"), "", true, 0),
             tile("pompe", format!("{} %", s.dimmer_pct), "", true, 0),
             tile(
@@ -853,7 +871,8 @@ impl Presenter {
                 0
             ),
             tile("débit pompe", number(s.flow_ml_s, 2, " ml/s"), "", true, 0)
-        ]));
+        ];
+        sync(app.get_live_values(), live, |m| app.set_live_values(m));
         app.set_reserve_visible(shot.active && !shot.pump_stopped());
         app.set_reserve_x(
             ((shot.axis_s - screen_core::shot_summary::ShotSummaryBuilder::DRIP_RESERVE_S) * 736.0
@@ -899,7 +918,7 @@ impl Presenter {
                 active: s.cycle_state.is_active() && (end - shot.elapsed_s).abs() < 0.3,
             });
         }
-        app.set_segments(model(segments));
+        sync(app.get_segments(), segments, |m| app.set_segments(m));
     }
     #[allow(
         clippy::large_stack_frames,
@@ -970,7 +989,7 @@ impl Presenter {
             s.sensors_version_major, s.sensors_version_minor, s.sensors_version_patch
         )
         .into();
-        app.set_diagnostics(model(alloc::vec![
+        let tiles = alloc::vec![
             diag_tile("pression", pressure, pressure_value, pressure_detail),
             diag_tile("chaudière", boiler, boiler_value, boiler_detail),
             diag_tile("débit", flow, flow_value, flow_detail),
@@ -1016,7 +1035,8 @@ impl Presenter {
                 }
             ),
             versions
-        ]));
+        ];
+        sync(app.get_diagnostics(), tiles, |m| app.set_diagnostics(m));
         app.set_diag_memory(
             format!(
                 "sram libre {} · plus gros bloc {}",
@@ -1149,7 +1169,7 @@ impl Presenter {
             };
             tiles.push(t);
         }
-        app.set_settings(model(tiles));
+        sync(app.get_settings(), tiles, |m| app.set_settings(m));
         if let Some(e) = self.editor {
             app.set_editor_title(NAMES[e].into());
             app.set_editor_unit(UNITS[e].into());
@@ -1192,7 +1212,7 @@ impl Presenter {
                     )
                 })
                 .collect();
-            app.set_choices(model(choices));
+            sync(app.get_choices(), choices, |m| app.set_choices(m));
         }
     }
 }

@@ -302,5 +302,29 @@ mod render_tests {
             std::fs::read(dir.join("keypad-time.png")).unwrap()
         );
         std::fs::remove_dir_all(dir).unwrap();
+
+        // Le présentateur rafraîchit les tuiles pendant qu'un doigt est posé :
+        // l'appui sur « chauffage » doit tout de même aboutir au relâchement.
+        // La plateforme Slint n'est installée qu'une fois par processus, d'où
+        // ce contrôle dans le même test que les captures.
+        use slint::platform::{PointerEventButton, WindowEvent};
+        let app = AppWindow::new().unwrap();
+        let (mut p, s, c) = fixture("diagnostic").unwrap();
+        for g in 0..8 {
+            p.update(&app, 1_000_000 + g * 62_500, &s, &c, "", "09:16");
+        }
+        let hit = Rc::new(RefCell::new(None));
+        let sink = hit.clone();
+        app.on_command(move |k, a| *sink.borrow_mut() = Some((k, a.to_string())));
+        let position = slint::LogicalPosition::new(640.0, 260.0);
+        let button = PointerEventButton::Left;
+        app.window()
+            .dispatch_event(WindowEvent::PointerPressed { position, button });
+        for g in 0..4 {
+            p.update(&app, 2_000_000 + g * 62_500, &s, &c, "", "09:16");
+        }
+        app.window()
+            .dispatch_event(WindowEvent::PointerReleased { position, button });
+        assert_eq!(*hit.borrow(), Some((16, "5".into())));
     }
 }

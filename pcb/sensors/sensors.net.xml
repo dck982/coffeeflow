@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/sensors/sensors.kicad_sch</source>
-    <date>2026-10-10T22:22:09</date>
+    <date>2026-10-11T19:48:41</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -657,38 +657,6 @@
         </unit>
       </units>
     </comp>
-    <comp ref="J9">
-      <value>AC CONTROL</value>
-      <footprint>Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical</footprint>
-      <description>Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
-      <fields>
-        <field name="MPN">B5B-XH-A(LF)(SN)</field>
-        <field name="LCSC">C157991</field>
-        <field name="Footprint">Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical</field>
-        <field name="Datasheet"/>
-        <field name="Description">Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
-      </fields>
-      <libsource lib="Connector_Generic" part="Conn_01x05" description="Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
-      <property name="MPN" value="B5B-XH-A(LF)(SN)"/>
-      <property name="LCSC" value="C157991"/>
-      <property name="Sheetname" value="Sensors interfaces"/>
-      <property name="Sheetfile" value="sensors_interfaces.kicad_sch"/>
-      <property name="ki_keywords" value="connector"/>
-      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
-      <sheetpath names="/Sensors interfaces/" tstamps="/75feafe7-4600-5614-9e51-33ca428cd046/"/>
-      <tstamps>833f9207-e923-4315-81e1-c8e22287f01f</tstamps>
-      <units>
-        <unit name="A">
-          <pins>
-            <pin num="1"/>
-            <pin num="2"/>
-            <pin num="3"/>
-            <pin num="4"/>
-            <pin num="5"/>
-          </pins>
-        </unit>
-      </units>
-    </comp>
     <comp ref="Q2">
       <value>AO3401A</value>
       <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
@@ -1164,26 +1132,6 @@
         <pin num="4" name="Pin_4" type="passive"/>
       </pins>
     </libpart>
-    <libpart lib="Connector_Generic" part="Conn_01x05">
-      <description>Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
-      <footprints>
-        <fp>Connector*:*_1x??_*</fp>
-      </footprints>
-      <fields>
-        <field name="Reference">J</field>
-        <field name="Value">Conn_01x05</field>
-        <field name="Footprint"/>
-        <field name="Datasheet"/>
-        <field name="Description">Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
-      </fields>
-      <pins>
-        <pin num="1" name="Pin_1" type="passive"/>
-        <pin num="2" name="Pin_2" type="passive"/>
-        <pin num="3" name="Pin_3" type="passive"/>
-        <pin num="4" name="Pin_4" type="passive"/>
-        <pin num="5" name="Pin_5" type="passive"/>
-      </pins>
-    </libpart>
     <libpart lib="Device" part="C">
       <description>Unpolarized capacitor</description>
       <footprints>
@@ -1391,7 +1339,6 @@
       <node ref="J10" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J4" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="J5" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="J9" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R11" pin="1" pintype="passive"/>
       <node ref="R13" pin="1" pintype="passive"/>
       <node ref="R14" pin="1" pintype="passive"/>
@@ -1450,17 +1397,13 @@
       <node ref="U1" pin="9" pinfunction="D8_9" pintype="passive"/>
       <node ref="U4" pin="1" pinfunction="TXD_1" pintype="input"/>
     </net>
-    <net code="11" name="DIM_CMD" class="Default">
-      <node ref="J9" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
-      <node ref="U1" pin="1" pinfunction="D0_1" pintype="passive"/>
-    </net>
-    <net code="12" name="FLOW_PULSE" class="Default">
+    <net code="11" name="FLOW_PULSE" class="Default">
       <node ref="C12" pin="1" pintype="passive"/>
       <node ref="J6" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R15" pin="2" pintype="passive"/>
       <node ref="U1" pin="8" pinfunction="D7_8" pintype="passive"/>
     </net>
-    <net code="13" name="GND" class="Default">
+    <net code="12" name="GND" class="Default">
       <node ref="C10" pin="2" pintype="passive"/>
       <node ref="C12" pin="2" pintype="passive"/>
       <node ref="C13" pin="2" pintype="passive"/>
@@ -1476,7 +1419,6 @@
       <node ref="J6" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J7" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J8" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
-      <node ref="J9" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="Q3" pin="2" pinfunction="S_2" pintype="passive"/>
       <node ref="R17" pin="2" pintype="passive"/>
       <node ref="R19" pin="2" pintype="passive"/>
@@ -1488,12 +1430,12 @@
       <node ref="U5" pin="4" pinfunction="ADD0_4" pintype="input"/>
       <node ref="U6" pin="3" pinfunction="GND_3" pintype="power_in"/>
     </net>
-    <net code="14" name="HEATER_CMD" class="Default">
+    <net code="13" name="HEATER_CMD" class="Default">
       <node ref="Q3" pin="1" pinfunction="G_1" pintype="input"/>
       <node ref="R19" pin="1" pintype="passive"/>
       <node ref="U1" pin="4" pinfunction="D3_4" pintype="passive"/>
     </net>
-    <net code="15" name="I2C_SCL" class="Default">
+    <net code="14" name="I2C_SCL" class="Default">
       <node ref="J4" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J5" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="R14" pin="2" pintype="passive"/>
@@ -1501,7 +1443,7 @@
       <node ref="U5" pin="1" pinfunction="SCL_1" pintype="input"/>
       <node ref="U6" pin="10" pinfunction="SCL_10" pintype="input"/>
     </net>
-    <net code="16" name="I2C_SDA" class="Default">
+    <net code="15" name="I2C_SDA" class="Default">
       <node ref="J4" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="J5" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R13" pin="2" pintype="passive"/>
@@ -1509,24 +1451,25 @@
       <node ref="U5" pin="6" pinfunction="SDA_6" pintype="bidirectional"/>
       <node ref="U6" pin="9" pinfunction="SDA_9" pintype="bidirectional"/>
     </net>
-    <net code="17" name="PRESSURE" class="Default">
+    <net code="16" name="PRESSURE" class="Default">
       <node ref="J10" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R26" pin="1" pintype="passive"/>
     </net>
-    <net code="18" name="PRESSURE_ADC" class="Default">
+    <net code="17" name="PRESSURE_ADC" class="Default">
       <node ref="C14" pin="1" pintype="passive"/>
       <node ref="R26" pin="2" pintype="passive"/>
       <node ref="U6" pin="5" pinfunction="AIN1_5" pintype="input"/>
     </net>
-    <net code="19" name="VALVE_CMD" class="Default">
+    <net code="18" name="VALVE_CMD" class="Default">
       <node ref="J7" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="J9" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
       <node ref="R17" pin="1" pintype="passive"/>
       <node ref="U1" pin="11" pinfunction="D10_11" pintype="passive"/>
     </net>
-    <net code="20" name="ZC" class="Default">
-      <node ref="J9" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
-      <node ref="U1" pin="3" pinfunction="D2_3" pintype="passive"/>
+    <net code="19" name="unconnected-(U1-D0-Pad1)" class="Default">
+      <node ref="U1" pin="1" pinfunction="D0_1" pintype="passive+no_connect"/>
+    </net>
+    <net code="20" name="unconnected-(U1-D2-Pad3)" class="Default">
+      <node ref="U1" pin="3" pinfunction="D2_3" pintype="passive+no_connect"/>
     </net>
     <net code="21" name="unconnected-(U1-D6-Pad7)" class="Default">
       <node ref="U1" pin="7" pinfunction="D6_7" pintype="passive+no_connect"/>

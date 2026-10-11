@@ -76,47 +76,24 @@ Le CAN, l'I2C, FLOW et VALVE reprennent les GPIO natifs du XIAO utilisés dans
 | CAN RX | 8 | D9 | U1 / 10 |
 | CAN TX | 7 | D8 | U1 / 9 |
 | FLOW_PULSE | 44 | D7 | U1 / 8 |
-| DIM_CMD (accontrol) | 1 | D0 | U1 / 1 |
-| ZC (accontrol) | 3 | D2 | U1 / 3 |
 | +5V | — | 5V | U1 / 14 |
 | GND | — | GND | U1 / 13 |
 | Sortie +3V3 | — | 3V3 | U1 / 12 |
 
-Seule U1 / 7 (D6/GPIO43) est NC. GPIO2 et GPIO4 ne sont pas des broches de
+U1 / 1 (D0/GPIO1), U1 / 3 (D2/GPIO3) et U1 / 7 (D6/GPIO43) sont NC. GPIO2 et GPIO4 ne sont pas des broches de
 strapping. GPIO43, sortie UART0 au démarrage, reste inutilisé. FLOW conserve GPIO44,
 entrée UART0 par défaut : le firmware actuel le reconfigure explicitement en GPIO.
 
-## J9 — carte accontrol
+## Pas de connecteur pour une carte AC
 
-J9 (XH 5 broches, B5B-XH-A, LCSC C157991) prépare le passage à la carte `accontrol`, qui
-commande la vanne et la pompe sur le secteur. Son brochage reprend celui de
-J1 sur accontrol pour qu’un câble XH droit suffise :
+La carte `accontrol` a été mise de côté le 11 octobre 2026 : la vanne et la
+pompe restent sur le SSR M5Stack (J7) et le dimmer RobotDyn (Grove I2C). J9,
+qui lui était destiné, est retiré, et GPIO1 et GPIO3 restent libres.
 
-| J9 | Net sensors | accontrol J1 | XIAO |
-|---:|---|---|---|
-| 1 | GND | GND | U1 / 13 |
-| 2 | +3V3 | 3V3 | U1 / 12 |
-| 3 | ZC | ZC | D2 / GPIO3, U1 / 3 |
-| 4 | DIM_CMD | DIM | D0 / GPIO1, U1 / 1 |
-| 5 | VALVE_CMD | SSR | D10 / GPIO9, U1 / 11 |
-
-- **ZC** est une entrée : accontrol la tire au 3V3 par 10 kΩ et l’EL817 la
-  ramène à GND hors des passages par zéro (impulsions à 100 Hz). J9 débranché,
-  la ligne flotte : le firmware active le pull-down interne de GPIO3 pour
-  qu’aucun bruit ne passe pour un passage par zéro. GPIO3 est une broche de
-  strapping (source JTAG), mais elle n’est lue que si l’eFuse
-  `STRAP_JTAG_SEL` est programmé, ce qui n’est pas le cas par défaut : le
-  niveau de ZC au reset est sans effet.
-- **DIM_CMD** est une sortie sur GPIO1, sans fonction de strapping. Au reset,
-  GPIO1 est en haute impédance et le pull-down de 4,7 kΩ côté accontrol la
-  tient basse : la pompe ne s’amorce pas pendant le démarrage. ZC et DIM_CMD
-  sont placées ainsi pour simplifier le routage.
-- **VALVE_CMD** est partagée avec J7 : la vanne se commande par J7 (SSR) ou
-  par accontrol, pas les deux.
-- **+3V3** : accontrol consomme environ 12 mA par canal actif, 25 mA au plus,
-  pris sur le régulateur du XIAO.
-- Le firmware actuel pilote encore la chaudière sur GPIO3 (montage HW-399) ;
-  sur cette carte, la chaudière passe sur GPIO4 et libère GPIO3 pour ZC.
+Une future carte AC unique prendrait la place du dimmer I2C et de VALVE sur J7 :
+un XH 5 broches (GND, 3V3, DIM, ZC, SSR) avec DIM sur GPIO1, ZC sur GPIO3 et
+SSR sur GPIO9. ZC demande alors le pull-down interne de GPIO3, pour que la ligne
+débranchée ne passe pas pour un passage par zéro.
 
 ## U6 / J10 — entrée pression analogique
 

@@ -30,7 +30,7 @@ seuil de remplissage et la puissance de pré-infusion diffèrent de
 | Consigne | 90 °C | — |
 | Remplissage | pompe à 75 %, fin à **0,8 bar** (10 s au plus) | 5 octobre, 7 h 59 |
 | Pré-infusion | pompe à **50 %**, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
-| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à 22 g ou 27 s, sans ramp-down | — |
+| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **23 g** ou 27 s, sans ramp-down | 11 octobre, 13 h 40 (22 g avant) |
 | Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final. Remplissage à 3,6 ml/s à 75 % (3,1 ml/s le 10 octobre seulement) | 10 octobre |
 
 Le numéro de firmware est celui du dernier flash connu ; la capture ne
@@ -132,6 +132,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | **10/10 11 h 01**, offset −14 °C | 8,30 s, 24,9 ml, 0,83 bar | 0,84 s, 1,4 ml, goutte | 27,2 ml | 5,4 s | 9,1 s, 1,52 g/s, 1,98 ml/s | 22,8 g | 87,11 °C |
 | 10/10 13 h 22 | 8,28 s, 24,9 ml, 0,87 bar | 3,65 s, 7,5 ml, goutte | 32,8 ml | 4,0 s | 13,7 s, 1,27 g/s, 1,69 ml/s | 22,4 g | 88,53 °C |
 | 11/10 9 h 47 | 6,67 s, 23,5 ml, 0,90 bar | 3,56 s, 6,7 ml, goutte | 30,1 ml | 3,7 s | 13,3 s, 1,32 g/s, 2,23 ml/s | 22,5 g | 87,38 °C |
+| **11/10 13 h 40**, cible 23 g | 6,07 s, 21,2 ml, 0,85 bar | 2,34 s, 4,6 ml, goutte | 25,8 ml | 4,6 s | 11,9 s, 1,39 g/s, 1,98 ml/s | 23,7 g | 87,29 °C |
 
 ## Pistes pour le goût
 
@@ -1120,3 +1121,106 @@ cible 23 g) :
 | Remplissage | 3,5 à 3,6 ml/s à 75 %, 6,5 à 7 s et 23 à 24 ml ; noter si la baisse du 10 octobre revient |
 | Tasse | 87,5 à 88,5 °C, appoint repris 7 s ou plus avant l'arrêt |
 | Goût | amertume relevée |
+
+
+### 11 octobre, 13 h 40 — `261011-134059`
+
+**Contexte.** Première infusion avec l'arrêt au poids à **23 g** (22 g
+avant). Mouture inchangée depuis le 10 octobre à 13 h 22 : l'affinage
+prévu n'a pas été fait. Écran 0.4.4, réglages de chauffe et de remplissage
+inchangés. Observations de David : débit un peu élevé, le tassage est à
+travailler ; moins d'amertume.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,14 s | 7,93 s | — | — |
+| Remplissage | 8,07 s | 6,07 s | 21,2 ml (3,49 ml/s) | 0,40 → 0,85 bar |
+| Pré-infusion | 14,14 s | 2,34 s | 4,6 ml | 0,85 → 1,08 bar |
+| Infusion | 16,47 s | 16,44 s | 38,6 ml | 9,00 bar max |
+
+- Remplissage : débit médian sous 1 bar de **3,59 ml/s** à 75 %, comme le
+  matin, mais fin à 0,8 bar après 21,2 ml au lieu de 23,5 ml (6,07 s
+  contre 6,67 s).
+- Première goutte à 25,8 ml (rapport, ≥ 0,3 g), 4,6 ml après la fin du
+  remplissage (6,6 ml le matin) ; la pré-infusion s'arrête à la goutte
+  après 2,34 s.
+- Montée de 4,6 s jusqu'à 8 bar (3,7 s le matin).
+- Depuis 8 bar : **11,9 s**, 1,39 g/s en tasse, 1,98 ml/s en amont
+  (13,3 s, 1,32 g/s et 2,23 ml/s le matin). Arrêt au poids à 23,0 g,
+  23,7 g final : 0,7 g de gouttes (0,8 g le matin).
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,85 ± 0,08 bar, pompe à
+  68 %, 1,44 g/s, soit **6,2 bar·s/g** (7,0 le matin).
+- Sur la phase d'infusion, la tasse reçoit 0,58 g par ml admis (0,52 le
+  matin). Après l'arrêt, la pression remonte à 9,37 bar.
+
+**Thermique.**
+
+| Repère | 11/10 13 h 40 | 11/10 9 h 47 |
+| --- | ---: | ---: |
+| NTC au départ | 89,64 °C | 89,60 °C |
+| Pic avant l'infusion | 91,58 °C à 13,9 s | 90,84 °C à 11,3 s |
+| **Tasse** | **87,29 °C**, −2,71 °C | 87,38 °C, −2,62 °C |
+| Minimum pendant l'écoulement | 85,24 °C, à l'arrêt | 85,75 °C, à l'arrêt |
+| Minimum total | 84,28 °C à 37,9 s | 84,61 °C à 40,1 s |
+| 20 s après l'arrêt | 87,67 °C | 88,36 °C |
+| Commande à 0 % (remboursement) | 10,6 s | 11,1 s |
+| Appoint repris avant l'arrêt | 5,9 s | 5,7 s |
+
+- Énergie, commande / SSR : précharge 8,45 / 8,28 kJ, remplissage 5,42 /
+  4,72 kJ, pré-infusion 1,95 / 1,71 kJ, infusion 3,59 / 3,53 kJ. Total
+  fourni par le SSR : 18,24 kJ pour 64,6 ml admis à l'arrêt (20,15 kJ pour
+  70,7 ml le matin).
+- Trou de commande au début du remplissage : 6 % de 8,4 à 9,4 s, et le SSR
+  reste coupé ≈ 1,8 s, comme le matin.
+- Modèle : 88,81 °C en tasse avec la commande réelle, soit +1,52 °C sur la
+  mesure (+1,82 le matin) ; 88,39 °C avec l'énergie SSR, +1,10 °C (+0,98
+  le matin).
+
+**Attendus vérifiés** (entrée du 11 octobre, 9 h 47, prévus pour une
+mouture affinée qui n'a pas été faite) :
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 7,4 à 8,0 bar·s/g ; 15 à 17 s depuis 8 bar | **6,2 bar·s/g, 11,9 s : non atteint**, mouture inchangée et résistance en baisse |
+| Rendement | ≈ 23,5 g final | 23,7 g : atteint |
+| Remplissage | 3,5 à 3,6 ml/s à 75 %, 6,5 à 7 s et 23 à 24 ml | 3,59 ml/s : atteint ; **6,07 s et 21,2 ml : non atteint** |
+| Tasse | 87,5 à 88,5 °C | **87,29 °C : non atteint** |
+| | appoint repris 7 s ou plus avant l'arrêt | **5,9 s : non atteint** |
+| Goût | amertume relevée | moins d'amertume |
+
+**Lecture.**
+
+- *Débit, mesuré.* À mouture égale, la résistance au plateau passe de 7,0
+  à 6,2 bar·s/g (−11 %) : c'est la plus faible depuis le 10 octobre à
+  11 h 01 (5,9). Le temps depuis 8 bar baisse de 1,4 s alors que la tasse
+  reçoit 1,3 g de plus.
+- *Tassage, estimé.* À débit de pompe égal (3,59 ml/s), le remplissage
+  atteint 0,8 bar 2,3 ml plus tôt et la première goutte vient 2,0 ml plus
+  tôt après lui. Moins d'espace au-dessus de la galette et une galette
+  plus perméable vont avec un tassage plus léger, qui laisse la galette
+  plus haute. Hypothèse non testée : une dose plus forte réduirait aussi
+  l'espace, mais ralentirait le débit.
+- *Tasse, mesuré et simulé.* Moyenne en tasse égale à celle du matin
+  (−0,09 °C). Le modèle avec l'énergie SSR donne la même tasse aux deux
+  infusions (88,39 et 88,38 °C) : le remplissage plus court (1,9 kJ de
+  moins fournis) compense l'eau en moins. L'appoint reprend 5,9 s avant
+  l'arrêt : l'attendu de 7 s supposait 15 à 17 s depuis 8 bar.
+- *Goût.* L'amertume baisse, mais le poids (+1 g) et la résistance (−11 %)
+  ont changé ensemble ; rien ne sépare leurs effets sur le goût.
+
+**Décision.** Firmware 0.4.4, chauffe, mouture et cible de 23 g
+conservées. David travaille le tassage pour retrouver la résistance du
+matin.
+
+**Attendus pour l'infusion suivante** (même mouture, cible 23 g, tassage
+corrigé) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | 6,7 à 7,2 bar·s/g ; 13,5 à 15,5 s depuis 8 bar |
+| Rendement | ≈ 23,7 g final |
+| Remplissage | 3,5 à 3,6 ml/s à 75 % ; 6,5 à 7 s et 23 à 24 ml si le tassage est la cause de l'écart du jour |
+| Tasse | 87 à 88 °C, appoint repris 6,5 s ou plus avant l'arrêt |
+| Goût | amertume au moins aussi basse qu'aujourd'hui ; si elle remonte avec la résistance, c'est le débit qui l'avait réduite, pas le poids |

@@ -137,11 +137,11 @@ for ref,y in [('J1',55),('J2',85.09)]:
 p.part('Device:R','R1','4.7k',105,45,{'1':'SCL','2':'+3V3'},RF,mpn='0603 4.7k 1%')
 p.part('Device:R','R2','4.7k',140,45,{'1':'SDA','2':'+3V3'},RF,mpn='0603 4.7k 1%')
 p.part('Device:R','R3','1k',185,45,{'1':'+3V3','2':'LED_A'},RF,mpn='0603 1k 1%')
-p.part('Device:LED','D1','GREEN',185,80,{'1':'GND','2':'LED_A'},'LED_SMD:LED_0603_1608Metric',angle=90,mpn='KT-0603YG')
+p.part('Device:LED','D1','RED',185,80,{'1':'GND','2':'LED_A'},'LED_SMD:LED_0603_1608Metric',angle=90,mpn='KT-0603R')
 for ref,x in [('H1',45),('H2',100)]:
     p.part('Mechanical:MountingHole',ref,'M2.5',x,110,{},'MountingHole:MountingHole_2.7mm_M2.5',mpn='M2.5 / 2.7mm')
 p.text('J1/J2: 1=SCL, 2=SDA, 3=3V3, 4=GND.\nBoth ports are wired in parallel, pin for pin.\nOne shared pair of 4.7k pull-ups.\nLED indicates 3.3V power, not I2C traffic.\nTwo M2.5 mounting holes, 2.7mm NPTH.',25,140)
-sourcing={'J1':'C722737','J2':'C722737','R1':'C23162','R2':'C23162','R3':'C21190','D1':'C2289'}
+sourcing={'J1':'C722737','J2':'C722737','R1':'C23162','R2':'C23162','R3':'C21190','D1':'C2286'}
 for item in p.items:
     if key(item)!='symbol':continue
     props={e[1]:e for e in item if key(e)=='property'}

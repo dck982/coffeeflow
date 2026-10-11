@@ -7,7 +7,7 @@ J1 and J2: CAX HY-4A / C722737, vertical, 2mm pitch, 1.0mm drills.
 Placement centres use the numbered pin-row midpoint; rotation offset -90deg
 matches the supplier CAD and the sensors project's verified convention.
 J1 and J2 are connected pin for pin: 1=SCL, 2=SDA, 3=3V3, 4=GND.
-One shared pair of 4.7k pull-ups; green LED indicates 3.3V power.
+One shared pair of 4.7k pull-ups; red LED indicates 3.3V power.
 Mounting holes are 2.7mm NPTH for M2.5, excluded from assembly files.
 All routing is on F.Cu, without vias. No GND copper plane.
 Check both Grove orientations and LED pad 1 (cathode, GND) in the assembly preview.

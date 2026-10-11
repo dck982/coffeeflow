@@ -11,10 +11,10 @@
   "AssemblyReferenceAliases": {},
   "ReferenceAliases": {},
   "SourceSHA256": {
-    "sensors.kicad_pcb": "aca6ff95c86b2cd58b778bd5591c247fe50b2ab5d3a23dd4799b86f46510a502",
+    "sensors.kicad_pcb": "407a68c1b7ad80f33e917824f87be70f045e3373308bec8cf4c55ea966740cbf",
     "sensors_sourcing.json": "ac95027f26654cb97379c3450e60ff44543f92d2ab7ca74acf7107bd8751c6cc",
-    "generate_bom.py": "d5fac8911bb26bb4266a34fef6e9e8fdc86e6396b1c9598ee05fc18e0e1fee76",
-    "sensors.kicad_sch": "9e703bd729fd327056ce0d8167fa29b705d065995068135842fed3a4d947e9d3",
+    "generate_bom.py": "dacb33864d461a4e2fe270880884e0c99c3343be18b6da2168940dbcde837ffc",
+    "sensors.kicad_sch": "722735b3fd57bcce877ffb5ce8277b53041c26919ce03b8cf0544a2b1e0091c9",
     "sensors_interfaces.kicad_sch": "5b1d2441e6bf60b71e076d21db7d378ccf6e89b61cd966a592618b3aa8a23167"
   }
 }

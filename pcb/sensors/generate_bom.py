@@ -41,6 +41,9 @@ def main():
             # Symbols kept off the board, like the XIAO plugged into J11/J12.
             if children(symbol, 'on_board') and first(symbol, 'on_board')[1] == 'no':
                 continue
+            # Mounting holes are drilled, never sourced.
+            if children(symbol, 'in_bom') and first(symbol, 'in_bom')[1] == 'no':
+                continue
             symbols[first(symbol, 'uuid')[1]] = (symbol, props, path.name)
 
     board = parse_sexpr(sources[0].read_text())

@@ -1,10 +1,20 @@
 # CoffeeFlow AC control board
 
+**Shelved on October 11, 2026; not to be manufactured.** The machine keeps
+the RobotDyn dimmer and the M5Stack Unit SSR. A single board does not fit the
+AC enclosure (`print/parts/boitier_ac.py`, 68 × 31.6 × 25.4 mm inside): two
+channels, the zero-cross sense and F1 need about 80 × 30 mm laid out as a
+strip, like the RobotDyn dimmer, while the M5Stack standing on edge takes
+almost no floor space. The only gain sought, a single cable to the sensors
+board, did not justify a home-made 230 V board. This file, the schematic and
+the partial layout stay as a reference.
+
 The connected schematic is `accontrol.kicad_sch`; `accontrol.pdf` is a
-generated review copy. `accontrol.kicad_pcb` has the footprints imported from
-the schematic, not yet placed or routed. `accontrol_bom.csv` lists values,
-footprints and design notes. D3, Q2 and Q4 have their JLCPCB parts; the other
-MPN and LCSC fields are still to fill.
+generated review copy. `accontrol.kicad_pcb` has a first placement and a
+partial routing of the valve channel, with clearance violations left open.
+`accontrol_bom.csv` lists values, footprints and design notes.
+D3, F1, J2–J4, Q2 and Q4 have their JLCPCB parts; the other MPN and LCSC
+fields are still to fill.
 
 The board switches the two original 230 V actuators from 3.3 V logic: the
 solenoid valve (OLAB coil, 15 VA, about 65 mA) and the vibration pump (OLAB
@@ -18,17 +28,34 @@ the zero-cross signal and times the pump firing itself.
 
 | Connector | Type | Pin 1 | Pin 2 | Pin 3 | Pin 4 | Pin 5 |
 |---|---|---|---|---|---|---|
-| J1, control | JST XH 5 | GND | 3V3 | ZC | DIM | SSR |
-| J2, mains in | JST VH 2 | L | N | — | — | — |
-| J3, valve | JST VH 2 | L switched | N | — | — | — |
-| J4, pump | JST VH 2 | L switched | N | — | — | — |
+| J1, control | JST XH 5 | GND | 3V3 | DIM | ZC | SSR |
+| J2, mains in | HT396R 2 | L | N | — | — | — |
+| J3, valve | HT396R 2 | L switched | N | — | — | — |
+| J4, pump | HT396R 2 | L switched | N | — | — | — |
+
+J2, J3 and J4 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
+clone). Their footprint and 3D model come from LCSC, in `Accontrol_Local`;
+the courtyard was enlarged to cover the pads and the body. The pins sit at
+the back of the body, which extends 10 mm forward: place the connectors with
+the pins inside the board and the mating face at the edge.
 
 Only L is switched. N goes straight from J2 to J3 and J4 pin 2. On the board,
 the zero-cross bridge is the only circuit connected to N.
 
-F1 (2 A fast, 250 V) is in series with L right after J2 and protects the whole
-mains side. The BOM footprint is 2512, while the planned fuse is a 2410 part.
-Check the footprint against the chosen fuse before layout.
+F1 (2 A fast, 250 V) is in series with L right after J2 (net L_IN between
+them) and protects the whole mains side. It is an AEM MF2410F2.000TM (LCSC
+C83797), assembled by JLCPCB on the LCSC `F2410` footprint in
+`Accontrol_Local`, whose courtyard was enlarged to cover the pads. The pads
+leave 3 mm between L_IN and L.
+
+- Fast-acting: it clears 20 A (10 In) in 1 to 10 ms. The valve and pump
+  draw no inrush that would call for a time-lag fuse.
+- Breaking capacity: 100 A at 250 VAC. A short after F1 on a household
+  outlet can exceed that (230 V / 0.5 Ω loop ≈ 460 A); the circuit breaker
+  then clears it (a 10 A type B breaker trips magnetically from 50 A).
+- Its melting I²t (3 A²s) is about that of a BT136S, so F1 does not save a
+  triac from a shorted load. It protects the board and the wiring.
+- Soldered, not replaceable. If it blows, something else has already failed.
 
 ## Low-voltage side: SSR and DIM inputs
 
@@ -98,7 +125,14 @@ half-cycle.
   current rises slowly because the pump is inductive, so the gate must stay
   driven for a while after firing. See the firmware rules below.
 - R13 (39 Ω) + C3 (10 nF, 1 kV) form the snubber across Q4, as on the valve
-  channel.
+  channel. Q4 fires mid half-cycle, so C3 dumps its charge through R13 at
+  each firing: up to 325 V / 39 Ω ≈ 8.3 A for about 0.4 µs (RC = 390 ns),
+  and ½CV² ≈ 0.53 mJ, 100 times per second. With the recharge, R13
+  dissipates about 0.1 W at worst. R13 is therefore a 1210 (Yageo
+  RC1210JR-0739RL, LCSC C728404, 0.5 W), like the RobotDyn snubber
+  resistor. Its datasheet gives no pulse rating; anti-surge 1210 parts
+  (ROHM ESR25, Panasonic ERJ-P14) were out of stock at JLCPCB. R7 stays a
+  1206: Q2 fires at the zero crossing, when C2 is nearly empty.
 
 ## Triac dissipation
 
@@ -118,7 +152,10 @@ D3 feeds the U3 LED (EL817C). The U3 phototransistor pulls ZC to GND, and R16
   operation.
 - The LED current is |V| / 240 kΩ, at most 325 / 240k ≈ 1.35 mA. The two
   resistors split the voltage and power: 160 V peak and 0.11 W each, which a
-  single 1206 resistor could not take (0.22 W, 325 V). D3 is rated 600 V
+  single resistor could not take (0.22 W, 325 V). They dissipate whenever
+  the machine is on, so they are 1210 parts (UNI-ROYAL 1210W2F1203T5E, LCSC
+  C422421: 0.5 W, 200 V working), at 22 % of their rating, as on the RobotDyn
+  dimmer. D3 is rated 600 V
   repetitive reverse voltage and carries only these microamps to milliamps.
 - **ZC is low most of the time and goes high in a pulse centred on each zero
   crossing, at 100 Hz.** Near zero, the line voltage is too low for the LED to
@@ -201,11 +238,42 @@ surge the way a varistor does, which is why it is accepted here.
 U1, U2 and U3 are the only parts that cross the barrier between 3V3 and mains.
 Their datasheets guarantee at least 7 mm of external creepage and clearance;
 on the SMD footprints, about 7.5 mm separates the low-voltage pads from the
-mains pads. When laying out the PCB:
+mains pads.
+
+The board sits in a closed box at the bottom of the machine, in the cold zone
+away from steam: pollution degree 2. At 250 V RMS on FR4, IEC 60664-1 then
+asks for 2.5 mm of creepage between mains nets and 5 mm (reinforced) between
+mains and 3V3. In a steamy spot (pollution degree 3), these would rise to
+4 mm and 8 mm.
+
+`accontrol.kicad_dru` enforces this in the DRC: 1.5 mm minimum for the AC net
+class (L_IN, L, N, L_VALVE, L_PUMP, single 1 oz layer for the 2 A
+of F1), 2.5 mm between mains nets, and 7 mm between mains and 3V3. Pads of
+one part keep their footprint spacing, and a mains track may come to 1.25 mm
+of a neighbouring mains pad inside a courtyard, as it enters its own pad.
+
+U1, U2 and U3 use `Accontrol_Local` copies of the SMDIP footprints with a
+1 mm routed slot between the pad rows, extending 1 mm past each end of the
+body, as on the RobotDyn dimmer. It cuts the surface creepage path under the
+package against dust or residue.
+
+When laying out the PCB:
 
 - Keep at least 7 mm between any 3V3/GND copper and any mains copper, on both
-  layers. Add a routed slot under the optocouplers if the layout brings the
-  two sides closer elsewhere.
+  layers.
+- Run N on the bottom layer and L on the top. They may cross through the
+  board: L to N is functional insulation, and the FR4 is far beyond 325 V.
+  Along the connectors, N runs under their bodies, between the pins and the
+  edge, at least 4.45 mm from the pin axis, and reaches each N pin from that
+  side; the L traces leave the pins towards the inside of the board.
+- The output pin of each triac is trapped between its gate trace and the L
+  feed of its optotriac (R5, R12): L_VALVE and L_PUMP leave pin 1 through
+  two vias (0.8/0.4 mm, about 1.5 to 2 A each) and reach J3 and J4 on the
+  bottom layer. No rotation avoids it, since rotating a part keeps the order
+  of its pads.
+- D3.1 (+) reaches U3.1 under the D3 body, between its pad columns, which
+  avoids crossing D3.2 to U3.2 without a via.
+  Keep L_IN, between J2.1 and F1, short; F1 does not protect it.
 - Do not pour GND under the mains side.
 - Keep the L, L_VALVE, L_PUMP and N traces short and wide enough for F1's 2 A
   rating.
@@ -222,12 +290,11 @@ mains pads. When laying out the PCB:
 - D3 is the Hongjiacheng ABS6 (LCSC C48642435) on
   `Diode_SMD:Diode_Bridge_Diotec_ABS` (4 mm pitch, + on pad 1, + and − on the
   same side). Check the bridge polarity in JLCPCB's assembly preview.
-- F1 footprint, see Connectors.
 
 ## Assembly and maintenance
 
 Fill the remaining BOM MPN and LCSC columns, confirm JLCPCB stock for the
-optotriacs and the EL817C, and settle the F1 footprint before layout.
+optotriacs and the EL817C.
 The manufacturing export (`uv run ../generate_manufacturing.py .`) requires
 the LCSC column and a placed, DRC-clean PCB.
 
@@ -236,4 +303,5 @@ References, in `../../docs/datasheets/`:
 - `MOC3043M-D.PDF`, `MOC3023M-D.PDF`, `MOC3163M-D.PDF`, `MOC3052M-D.PDF`
   (onsemi optotriacs; the last covers the MOC3053M).
 - `bt136.pdf` (JCST BT136S, LCSC C23427, the M5Stack Unit SSR part),
-  `el817.pdf` (Everlight), `abs6.pdf` (Hongjiacheng ABS6, LCSC C48642435).
+  `el817.pdf` (Everlight), `abs6.pdf` (Hongjiacheng ABS6, LCSC C48642435),
+  `mf2410.pdf` (AEM MF2410 fuses, F1).

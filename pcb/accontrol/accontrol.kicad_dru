@@ -1,0 +1,42 @@
+(version 1)
+
+# Mains copper is the AC net class (load current) plus the Mains net class:
+# the low-current nets at mains potential (gates, snubbers, optotriac
+# outputs, zero-cross input). Every other connected net is 3V3-side. A mains
+# net that loses its class after a schematic change falls on the 3V3 side
+# and trips the 7 mm rule, so the classes cannot go stale silently. An
+# unparsable rule makes KiCad drop this whole file, so run the DRC after
+# editing it and check these rules still report.
+
+# Mains load current, up to the 2 A of F1, on a single 1 oz layer.
+(rule "AC track width"
+	(condition "A.hasNetclass('AC')")
+	(constraint track_width (min 1.5mm)))
+
+# Gate and snubber pulses are tiny, but a wider track is sturdier.
+(rule "Mains track width"
+	(condition "A.hasNetclass('Mains')")
+	(constraint track_width (min 0.5mm)))
+
+# Creepage between mains nets: 250 V RMS, pollution degree 2, FR4.
+(rule "mains to mains"
+	(condition "(A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.hasNetclass('AC') || B.hasNetclass('Mains'))")
+	(constraint clearance (min 2.5mm)))
+
+# Isolation barrier, as guaranteed by the U1, U2 and U3 optocouplers.
+(rule "mains to low voltage"
+	(condition "(A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.Net != '' && B.NetName != 'unconnected-*' && !(B.hasNetclass('AC') || B.hasNetclass('Mains')))")
+	(constraint clearance (min 7mm)))
+
+# A track entering a pad comes close to the next pad of the same part. Inside
+# courtyards, allow 1.25 mm: a 1.5 mm track ending on a D3 pad comes 1.39 mm
+# from the next pad. The 7 mm barrier still applies there. The interactive
+# router does not apply this rule; route these fan-outs in highlight mode.
+(rule "track into a pad"
+	(condition "(A.Type == 'Track' || A.Type == 'Arc') && B.Type == 'Pad' && A.intersectsCourtyard('*') && (A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.hasNetclass('AC') || B.hasNetclass('Mains'))")
+	(constraint clearance (min 1.25mm)))
+
+# Pads of one part keep the spacing of its footprint.
+(rule "pads of one part"
+	(condition "A.Type == 'Pad' && B.Type == 'Pad' && A.Parent == B.Parent")
+	(constraint clearance (min 0.2mm)))

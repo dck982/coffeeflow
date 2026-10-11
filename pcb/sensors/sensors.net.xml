@@ -2,7 +2,7 @@
 <export version="E">
   <design>
     <source>/Users/davidclerc/Projects/coffeeflow/pcb/sensors/sensors.kicad_sch</source>
-    <date>2026-10-11T19:48:41</date>
+    <date>2026-10-11T20:54:24</date>
     <tool>Eeschema 10.0.6</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -218,6 +218,74 @@
         </unit>
       </units>
     </comp>
+    <comp ref="J11">
+      <value>XIAO D0-D6</value>
+      <footprint>Sensors_Local:XIAO_Socket_1x07_P2.54mm_Vertical</footprint>
+      <description>Female 1x7 socket for XIAO pins 1-7 (D0-D6)</description>
+      <fields>
+        <field name="MPN">HX PM2.54-1x7P ZC-Y</field>
+        <field name="LCSC">C22438157</field>
+        <field name="Footprint">Sensors_Local:XIAO_Socket_1x07_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Female 1x7 socket for XIAO pins 1-7 (D0-D6)</field>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x07" description="Generic connector, single row, 01x07, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="MPN" value="HX PM2.54-1x7P ZC-Y"/>
+      <property name="LCSC" value="C22438157"/>
+      <property name="Sheetname" value="sensors"/>
+      <property name="Sheetfile" value="sensors.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1a80d589-050a-48d5-8bd2-902565d200a1</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J12">
+      <value>XIAO D7-5V</value>
+      <footprint>Sensors_Local:XIAO_Socket_1x07_P2.54mm_Vertical</footprint>
+      <description>Female 1x7 socket for XIAO pins 8-14 (D7-D10, 3V3, GND, 5V)</description>
+      <fields>
+        <field name="MPN">HX PM2.54-1x7P ZC-Y</field>
+        <field name="LCSC">C22438157</field>
+        <field name="Footprint">Sensors_Local:XIAO_Socket_1x07_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Female 1x7 socket for XIAO pins 8-14 (D7-D10, 3V3, GND, 5V)</field>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x07" description="Generic connector, single row, 01x07, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="MPN" value="HX PM2.54-1x7P ZC-Y"/>
+      <property name="LCSC" value="C22438157"/>
+      <property name="Sheetname" value="sensors"/>
+      <property name="Sheetfile" value="sensors.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>7c2baaf8-a8a7-4149-a1e6-0f46a1eb4b43</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
     <comp ref="R25">
       <value>1k</value>
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
@@ -279,17 +347,19 @@
     <comp ref="U1">
       <value>XIAO ESP32-S3 / SOCKETED</value>
       <footprint>Sensors_Local:XIAO-ESP32-S3-DIP-Headers</footprint>
-      <description>XIAO ESP32-S3 plugged into two female 1x7 sockets; bottom-only pads unused</description>
+      <description>XIAO ESP32-S3 plugged by hand into J11/J12; not placed on the board; bottom-only pads unused</description>
       <fields>
         <field name="MPN">Seeed Studio XIAO ESP32-S3</field>
         <field name="Footprint">Sensors_Local:XIAO-ESP32-S3-DIP-Headers</field>
         <field name="Datasheet"/>
-        <field name="Description">XIAO ESP32-S3 plugged into two female 1x7 sockets; bottom-only pads unused</field>
+        <field name="Description">XIAO ESP32-S3 plugged by hand into J11/J12; not placed on the board; bottom-only pads unused</field>
       </fields>
       <libsource lib="Seeed_Studio_XIAO_Series" part="XIAO-ESP32-S3-SMD" description=""/>
       <property name="MPN" value="Seeed Studio XIAO ESP32-S3"/>
       <property name="Sheetname" value="sensors"/>
       <property name="Sheetfile" value="sensors.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <property name="exclude_from_board"/>
       <sheetpath names="/" tstamps="/"/>
       <tstamps>9e807058-af4b-5d01-9102-6f5de5ce08dd</tstamps>
       <units>
@@ -1132,6 +1202,28 @@
         <pin num="4" name="Pin_4" type="passive"/>
       </pins>
     </libpart>
+    <libpart lib="Connector_Generic" part="Conn_01x07">
+      <description>Generic connector, single row, 01x07, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x07</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Generic connector, single row, 01x07, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+        <pin num="7" name="Pin_7" type="passive"/>
+      </pins>
+    </libpart>
     <libpart lib="Device" part="C">
       <description>Unpolarized capacitor</description>
       <footprints>
@@ -1337,6 +1429,7 @@
       <node ref="C15" pin="1" pintype="passive"/>
       <node ref="C9" pin="1" pintype="passive"/>
       <node ref="J10" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="J12" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
       <node ref="J4" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="J5" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R11" pin="1" pintype="passive"/>
@@ -1353,6 +1446,7 @@
     <net code="2" name="+5V" class="POWER,Default">
       <node ref="C8" pin="1" pintype="passive"/>
       <node ref="J1" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="J12" pin="7" pinfunction="Pin_7_7" pintype="passive"/>
       <node ref="J6" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="J7" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="Q2" pin="2" pinfunction="S_2" pintype="passive"/>
@@ -1361,6 +1455,7 @@
       <node ref="U4" pin="3" pinfunction="VCC_3" pintype="power_in"/>
     </net>
     <net code="3" name="/STATUS_LED" class="Default">
+      <node ref="J11" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R25" pin="1" pintype="passive"/>
       <node ref="U1" pin="2" pinfunction="D1_2" pintype="passive"/>
     </net>
@@ -1389,16 +1484,19 @@
       <node ref="R21" pin="2" pintype="passive"/>
     </net>
     <net code="9" name="CAN_RX" class="Default">
+      <node ref="J12" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="U1" pin="10" pinfunction="D9_10" pintype="passive"/>
       <node ref="U4" pin="4" pinfunction="RXD_4" pintype="output"/>
     </net>
     <net code="10" name="CAN_TX" class="Default">
+      <node ref="J12" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R11" pin="2" pintype="passive"/>
       <node ref="U1" pin="9" pinfunction="D8_9" pintype="passive"/>
       <node ref="U4" pin="1" pinfunction="TXD_1" pintype="input"/>
     </net>
     <net code="11" name="FLOW_PULSE" class="Default">
       <node ref="C12" pin="1" pintype="passive"/>
+      <node ref="J12" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J6" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R15" pin="2" pintype="passive"/>
       <node ref="U1" pin="8" pinfunction="D7_8" pintype="passive"/>
@@ -1414,6 +1512,7 @@
       <node ref="D2" pin="1" pinfunction="K_1" pintype="passive"/>
       <node ref="J1" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J10" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="J12" pin="6" pinfunction="Pin_6_6" pintype="passive"/>
       <node ref="J4" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
       <node ref="J5" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
       <node ref="J6" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
@@ -1431,11 +1530,13 @@
       <node ref="U6" pin="3" pinfunction="GND_3" pintype="power_in"/>
     </net>
     <net code="13" name="HEATER_CMD" class="Default">
+      <node ref="J11" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
       <node ref="Q3" pin="1" pinfunction="G_1" pintype="input"/>
       <node ref="R19" pin="1" pintype="passive"/>
       <node ref="U1" pin="4" pinfunction="D3_4" pintype="passive"/>
     </net>
     <net code="14" name="I2C_SCL" class="Default">
+      <node ref="J11" pin="6" pinfunction="Pin_6_6" pintype="passive"/>
       <node ref="J4" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="J5" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
       <node ref="R14" pin="2" pintype="passive"/>
@@ -1444,6 +1545,7 @@
       <node ref="U6" pin="10" pinfunction="SCL_10" pintype="input"/>
     </net>
     <net code="15" name="I2C_SDA" class="Default">
+      <node ref="J11" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
       <node ref="J4" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="J5" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
       <node ref="R13" pin="2" pintype="passive"/>
@@ -1461,62 +1563,72 @@
       <node ref="U6" pin="5" pinfunction="AIN1_5" pintype="input"/>
     </net>
     <net code="18" name="VALVE_CMD" class="Default">
+      <node ref="J12" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
       <node ref="J7" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
       <node ref="R17" pin="1" pintype="passive"/>
       <node ref="U1" pin="11" pinfunction="D10_11" pintype="passive"/>
     </net>
-    <net code="19" name="unconnected-(U1-D0-Pad1)" class="Default">
+    <net code="19" name="unconnected-(J11-Pin_1-Pad1)" class="Default">
+      <node ref="J11" pin="1" pinfunction="Pin_1_1" pintype="passive+no_connect"/>
+    </net>
+    <net code="20" name="unconnected-(J11-Pin_3-Pad3)" class="Default">
+      <node ref="J11" pin="3" pinfunction="Pin_3_3" pintype="passive+no_connect"/>
+    </net>
+    <net code="21" name="unconnected-(J11-Pin_7-Pad7)" class="Default">
+      <node ref="J11" pin="7" pinfunction="Pin_7_7" pintype="passive+no_connect"/>
+    </net>
+    <net code="22" name="unconnected-(U1-D0-Pad1)" class="Default">
       <node ref="U1" pin="1" pinfunction="D0_1" pintype="passive+no_connect"/>
     </net>
-    <net code="20" name="unconnected-(U1-D2-Pad3)" class="Default">
+    <net code="23" name="unconnected-(U1-D2-Pad3)" class="Default">
       <node ref="U1" pin="3" pinfunction="D2_3" pintype="passive+no_connect"/>
     </net>
-    <net code="21" name="unconnected-(U1-D6-Pad7)" class="Default">
+    <net code="24" name="unconnected-(U1-D6-Pad7)" class="Default">
       <node ref="U1" pin="7" pinfunction="D6_7" pintype="passive+no_connect"/>
     </net>
-    <net code="22" name="unconnected-(U1-EN-Pad17)" class="Default">
+    <net code="25" name="unconnected-(U1-EN-Pad17)" class="Default">
       <node ref="U1" pin="17" pinfunction="EN_17" pintype="passive+no_connect"/>
     </net>
-    <net code="23" name="unconnected-(U1-GND-Pad18)" class="Default">
+    <net code="26" name="unconnected-(U1-GND-Pad18)" class="Default">
       <node ref="U1" pin="18" pinfunction="GND_18" pintype="passive+no_connect"/>
     </net>
-    <net code="24" name="unconnected-(U1-GND-Pad24)" class="Default">
+    <net code="27" name="unconnected-(U1-GND-Pad24)" class="Default">
       <node ref="U1" pin="24" pinfunction="GND_24" pintype="passive+no_connect"/>
     </net>
-    <net code="25" name="unconnected-(U1-MTCK-Pad20)" class="Default">
+    <net code="28" name="unconnected-(U1-MTCK-Pad20)" class="Default">
       <node ref="U1" pin="20" pinfunction="MTCK_20" pintype="passive+no_connect"/>
     </net>
-    <net code="26" name="unconnected-(U1-MTDI-Pad15)" class="Default">
+    <net code="29" name="unconnected-(U1-MTDI-Pad15)" class="Default">
       <node ref="U1" pin="15" pinfunction="MTDI_15" pintype="passive+no_connect"/>
     </net>
-    <net code="27" name="unconnected-(U1-MTDO-Pad16)" class="Default">
+    <net code="30" name="unconnected-(U1-MTDO-Pad16)" class="Default">
       <node ref="U1" pin="16" pinfunction="MTDO_16" pintype="passive+no_connect"/>
     </net>
-    <net code="28" name="unconnected-(U1-MTMS-Pad19)" class="Default">
+    <net code="31" name="unconnected-(U1-MTMS-Pad19)" class="Default">
       <node ref="U1" pin="19" pinfunction="MTMS_19" pintype="passive+no_connect"/>
     </net>
-    <net code="29" name="unconnected-(U1-PAD-Pad25)" class="Default">
+    <net code="32" name="unconnected-(U1-PAD-Pad25)" class="Default">
       <node ref="U1" pin="25" pinfunction="PAD_25" pintype="passive+no_connect"/>
     </net>
-    <net code="30" name="unconnected-(U1-USB_DN-Pad21)" class="Default">
+    <net code="33" name="unconnected-(U1-USB_DN-Pad21)" class="Default">
       <node ref="U1" pin="21" pinfunction="USB_DN_21" pintype="passive+no_connect"/>
     </net>
-    <net code="31" name="unconnected-(U1-USB_DP-Pad22)" class="Default">
+    <net code="34" name="unconnected-(U1-USB_DP-Pad22)" class="Default">
       <node ref="U1" pin="22" pinfunction="USB_DP_22" pintype="passive+no_connect"/>
     </net>
-    <net code="32" name="unconnected-(U1-VBAT-Pad23)" class="Default">
+    <net code="35" name="unconnected-(U1-VBAT-Pad23)" class="Default">
       <node ref="U1" pin="23" pinfunction="VBAT_23" pintype="passive+no_connect"/>
     </net>
-    <net code="33" name="unconnected-(U5-ALERT-Pad3)" class="Default">
+    <net code="36" name="unconnected-(U5-ALERT-Pad3)" class="Default">
       <node ref="U5" pin="3" pinfunction="ALERT_3" pintype="open_collector+no_connect"/>
     </net>
-    <net code="34" name="unconnected-(U6-AIN2-Pad6)" class="Default">
+    <net code="37" name="unconnected-(U6-AIN2-Pad6)" class="Default">
       <node ref="U6" pin="6" pinfunction="AIN2_6" pintype="input+no_connect"/>
     </net>
-    <net code="35" name="unconnected-(U6-AIN3-Pad7)" class="Default">
+    <net code="38" name="unconnected-(U6-AIN3-Pad7)" class="Default">
       <node ref="U6" pin="7" pinfunction="AIN3_7" pintype="input+no_connect"/>
     </net>
-    <net code="36" name="unconnected-(U6-ALERT/RDY-Pad2)" class="Default">
+    <net code="39" name="unconnected-(U6-ALERT/RDY-Pad2)" class="Default">
       <node ref="U6" pin="2" pinfunction="ALERT/RDY_2" pintype="output+no_connect"/>
     </net>
   </nets>

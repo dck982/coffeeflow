@@ -38,6 +38,9 @@ def main():
             props = {p[1]: p[2] for p in children(symbol, 'property')}
             if props['Reference'].startswith('#'):
                 continue
+            # Symbols kept off the board, like the XIAO plugged into J11/J12.
+            if children(symbol, 'on_board') and first(symbol, 'on_board')[1] == 'no':
+                continue
             symbols[first(symbol, 'uuid')[1]] = (symbol, props, path.name)
 
     board = parse_sexpr(sources[0].read_text())

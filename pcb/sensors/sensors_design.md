@@ -4,14 +4,11 @@ Révision schématique B, 2026-10-07. `sensors.kicad_sch` est la feuille princip
 `sensors_interfaces.kicad_sch` contient les interfaces. `sensors.pdf` et
 `sensors.net.xml` reflètent ce schéma. Ouvrir le projet `sensors.kicad_pro`.
 
-Le PCB a été mis à jour par l’utilisateur après la simplification du schéma.
-J9/J10 ont ensuite été remplacés par une empreinte XIAO unique U1 ; les autres
-éléments du PCB ont été conservés exactement. Le placement et le routage restent
-à terminer. Les BOM, le sourcing, les positions et les archives de fabrication
-existants décrivent encore la version MINI et ne représentent pas la nouvelle
-version XIAO. Les scripts
-`generate_bom.py` et `generate_manufacturing.py` vérifieront la concordance avec
-le PCB ; attendre sa mise à jour avant de régénérer les fichiers de commande.
+Le PCB est placé et routé. Le 2026-10-11, U1 a été sorti du PCB au profit de
+deux barrettes J11/J12 soudées par JLCPCB (voir ci-dessous), puis le sourcing, les
+BOM et les archives de fabrication ont été régénérés pour cette version XIAO :
+`uv run sensors/generate_bom.py`, puis `uv run generate_manufacturing.py sensors`
+depuis `pcb/`. Les choix de pièces sont dans `sensors_bom_notes.md`.
 `generate_schematic.py` est un ancien générateur : ne pas le lancer sur ce schéma,
 car il rétablirait la version MINI/USB/LDO.
 
@@ -38,12 +35,19 @@ accessibles sous le module. L’empreinte DIP ne possède que les numéros 1–1
 les pastilles 15–25 sont donc marquées NC dans le schéma. Le symbole conserve
 son identité de bibliothèque ; seule son empreinte est remplacée par la variante DIP.
 
-Sur le PCB, U1 remplace les deux sockets J9/J10, près de leur position précédente,
-avec une rotation de 90° donnant l’USB-C vers le haut. Les broches 1–7 sont à
-gauche du haut vers le bas ; 14–8 sont à droite du haut vers le bas. L’empreinte
-ne possède que les quatorze trous. Deux barrettes femelles 1×7 au pas de 2,54 mm
-s’y montent ; l’écartement entre rangées est de 15,24 mm.
-Le XIAO s’enfiche manuellement depuis le stock.
+Sur le PCB, U1 n’est plus placé (`on_board no`, `in_bom no`) : il reste dans le
+schéma pour son brochage. Les deux barrettes femelles 1×7 au pas de 2,54 mm sont
+des composants à part, que JLCPCB soude en traversant : **J11** porte les broches
+1–7 du XIAO (J11 broche n = U1 broche n) et **J12** les broches 8–14 (J12 broche n
+= U1 broche n+7). Ce sont des hanxia HX PM2.54-1x7P ZC-Y (C22438157), 8,5 mm de
+haut, sur `Sensors_Local:XIAO_Socket_1x07_P2.54mm_Vertical` : le
+`PinSocket_1x07_P2.54mm_Vertical` de KiCad, sans son contour de sérigraphie et avec
+le courtyard de 0,25 mm de l’ancienne empreinte U1. Leurs pads occupent les
+quatorze trous de U1, avec les mêmes nets : le routage n’a pas changé. Le contour du
+XIAO (languette USB-C, repère de la broche 1) est dessiné en sérigraphie sur la
+carte. L’empreinte `XIAO-ESP32-S3-DIP-Headers` reste dans `Sensors_Local` mais
+n’est plus utilisée sur le PCB. Le XIAO s’enfiche à la main ; pour souder les
+barrettes soi-même, désélectionner J11/J12 à la commande.
 
 Sources locales : `../../docs/datasheets/xiao.pdf`, le schéma de la carte Seeed
 `Seeed Studio XIAO ESP32S3/ESP32S3.kicad_sch`, la bibliothèque de symboles
@@ -154,8 +158,7 @@ R25 reste à 1 kΩ : GPIO2 HIGH allume la LED. La fiche catalogue donne
 Vf = 2,6–3,1 V à 5 mA ; sous 3,3 V avec 1 kΩ, le courant sera inférieur
 à celui de la précédente LED jaune-verte. L’estimation avec cette plage
 de Vf est 0,2–0,7 mA ; le courant réel dépend de Vf à faible courant.
-Vérifier la luminosité au montage. Le PCB et ses fichiers de sourcing/BOM
-conservent l’ancienne LED C2289/0603 jusqu’à la refonte du PCB.
+Vérifier la luminosité au montage.
 
 **Le firmware n'a pas été modifié.** Il doit continuer à fonctionner sur le
 montage actuel pendant la fabrication du futur PCB. Pour la nouvelle carte,
@@ -168,10 +171,8 @@ pas de migration des GPIO par rapport au XIAO actuel.
 
 ## Vérification
 
-ERC KiCad 10.0.6 : zéro violation. Comparaison des netlists avant/après :
-toutes les appartenances aux nets des composants conservés sont identiques,
-et chaque broche utilisée de U1 correspond au tableau ci-dessus, dans le schéma
-et sur le PCB. Les 14 trous et l’écartement entre rangées ont été vérifiés.
-PDF exporté sur deux pages ; première page vérifiée visuellement. Export SVG
-du PCB réussi. Tous les éléments PCB autres que J9/J10/U1 sont inchangés ;
-le routage existant n’a pas été retouché. Le firmware reste inchangé.
+2026-10-11, KiCad 10.0.6 : ERC sans violation. DRC avec parité schéma/PCB :
+zéro violation, zéro connexion manquante, zéro écart de parité. Les broches 1–14
+de U1 et leurs nets se retrouvent à l’identique sur J11/J12, et chaque pad de
+J11/J12 tombe à moins de 1 µm du trou de U1 qu’il remplace. L’export de
+fabrication passe : 34 composants, 23,5 × 60 mm. Le firmware reste inchangé.

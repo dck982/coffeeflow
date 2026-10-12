@@ -76,6 +76,7 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 10/10, 13 h 22 | 8 s, mouture affinée (13,7 s depuis 8 bar) | **88,53 °C** | 89,56 °C |
 | 11/10, 9 h 47 | 8 s, même mouture, remplissage plus rapide (13,3 s depuis 8 bar) | **87,38 °C** | 88,58 °C |
 | 11/10, 13 h 40 | 8 s, cible 23 g, tassage à reprendre (11,9 s depuis 8 bar) | **87,29 °C** | 88,98 °C |
+| 12/10, 9 h 12 | 8 s, mouture affinée (18,7 s depuis 8 bar) | **88,75 °C** | 89,38 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -486,5 +487,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261010-132259.json` | 8 s | mouture affinée (6,8 bar·s/g au plateau) ; 13,7 s depuis 8 bar ; 0 % pendant 11,9 s, appoint repris 5,7 s avant l'arrêt ; −1,47 °C en tasse, modèle à +0,72 °C ; hors ajustement |
 | `261011-094749.json` | 8 s | même mouture (7,0 bar·s/g au plateau), remplissage à 3,6 ml/s ; 13,3 s depuis 8 bar ; 0 % pendant 11,1 s, appoint repris 5,7 s avant l'arrêt ; −2,62 °C en tasse, modèle à +1,82 °C (+0,98 °C avec l'énergie SSR) ; hors ajustement |
 | `261011-134059.json` | 8 s | cible 23 g, même mouture, tassage à reprendre (6,2 bar·s/g au plateau) ; 11,9 s depuis 8 bar ; 0 % pendant 10,6 s, appoint repris 5,9 s avant l'arrêt ; −2,71 °C en tasse, modèle à +1,52 °C (+1,10 °C avec l'énergie SSR) ; hors ajustement |
+| `261012-091234.json` | 8 s | mouture affinée (8,5 bar·s/g au plateau), pré-infusion finie à l'échéance ; 18,7 s depuis 8 bar ; 0 % pendant 12,5 s, rebond à 89,58 °C puis −0,24 °C/s pendant l'appoint, repris 9,5 s avant l'arrêt ; −1,25 °C en tasse, modèle à +0,44 °C (+0,06 °C avec l'énergie SSR) ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

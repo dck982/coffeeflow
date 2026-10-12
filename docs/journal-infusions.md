@@ -133,6 +133,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | 10/10 13 h 22 | 8,28 s, 24,9 ml, 0,87 bar | 3,65 s, 7,5 ml, goutte | 32,8 ml | 4,0 s | 13,7 s, 1,27 g/s, 1,69 ml/s | 22,4 g | 88,53 °C |
 | 11/10 9 h 47 | 6,67 s, 23,5 ml, 0,90 bar | 3,56 s, 6,7 ml, goutte | 30,1 ml | 3,7 s | 13,3 s, 1,32 g/s, 2,23 ml/s | 22,5 g | 87,38 °C |
 | **11/10 13 h 40**, cible 23 g | 6,07 s, 21,2 ml, 0,85 bar | 2,34 s, 4,6 ml, goutte | 25,8 ml | 4,6 s | 11,9 s, 1,39 g/s, 1,98 ml/s | 23,7 g | 87,29 °C |
+| **12/10 9 h 12**, mouture affinée | 5,35 s, 18,6 ml, 0,89 bar | 4,03 s, 8,7 ml, échéance | 30,1 ml | 3,3 s | 18,7 s, 1,04 g/s, 1,85 ml/s | 23,3 g | 88,75 °C |
 
 ## Pistes pour le goût
 
@@ -1224,3 +1225,158 @@ corrigé) :
 | Remplissage | 3,5 à 3,6 ml/s à 75 % ; 6,5 à 7 s et 23 à 24 ml si le tassage est la cause de l'écart du jour |
 | Tasse | 87 à 88 °C, appoint repris 6,5 s ou plus avant l'arrêt |
 | Goût | amertume au moins aussi basse qu'aujourd'hui ; si elle remonte avec la résistance, c'est le débit qui l'avait réduite, pas le poids |
+
+
+### 12 octobre, 9 h 12 — `261012-091234`
+
+**Contexte.** Mouture affinée. Cible de 23 g, écran 0.4.4, réglages de
+chauffe et de remplissage inchangés. Tassage manuel jugé bon, peut-être
+un peu plus appuyé que la veille. Hygrométrie de 50 %, la même que la
+veille ; elle baisse ces jours-ci (nuits froides, journées douces).
+Observations de David : très bon résultat gustatif ; le café est apparu
+sous le panier plus tard, et la première goutte est tombée pile à la fin
+de la pré-infusion. Pour une fois, la pré-infusion s'est faite au bon
+moment, quand les trous du panier se remplissent de café. Galette
+parfaite à la sortie, sans aucune dégradation.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,14 s | 7,91 s | — | — |
+| Remplissage | 8,04 s | 5,35 s | 18,6 ml (3,47 ml/s) | 0,71 → 0,89 bar |
+| Pré-infusion | 13,39 s | 4,03 s | 8,7 ml | 0,89 → 1,46 bar |
+| Infusion | 17,43 s | 21,89 s | 44,3 ml | 9,39 bar max |
+
+- Pression avant la pompe : 0,58 à 0,66 bar (0,24 à 0,43 bar du 9 au
+  11 octobre). Elle tombe dès le remplissage à 0,34 bar, comme la veille.
+  Le remplissage part donc du même point bas.
+- Remplissage : débit médian sous 1 bar de **3,59 ml/s** à 75 %. Fin à
+  0,8 bar après 18,6 ml (21,2 ml la veille, 23,5 ml le 11 octobre au
+  matin).
+- Pré-infusion : la première goutte n'arrive pas dans les 4 s, et la phase
+  s'arrête sur l'**échéance**, pour la première fois depuis le 4 octobre.
+  La balance voit la goutte à 30,1 ml (rapport, ≥ 0,3 g), 1,0 s après la
+  fin de la pré-infusion ; à l'œil, elle tombe à la fin de la
+  pré-infusion. La marge de remplissage est de **11,5 ml** (4,6 ml la
+  veille).
+- Montée de 3,3 s jusqu'à 8 bar (4,6 s la veille).
+- Depuis 8 bar : **18,7 s**, 1,04 g/s en tasse, 1,85 ml/s en amont (11,9 s,
+  1,39 g/s et 1,98 ml/s la veille). Arrêt au poids à 22,8 g, 23,3 g final,
+  soit 0,5 g de gouttes (23,0 g, 23,7 g et 0,7 g la veille).
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,98 ± 0,06 bar, pompe à
+  66 %, 1,06 g/s, soit **8,5 bar·s/g** (6,2 la veille). C'est la plus forte
+  résistance depuis l'offset de −14 °C.
+- Sur la phase d'infusion, la tasse reçoit 0,51 g par ml admis (0,58 la
+  veille). Après l'arrêt, la pression remonte à 9,34 bar.
+
+**Thermique.**
+
+| Repère | 12/10 9 h 12 | 11/10 13 h 40 |
+| --- | ---: | ---: |
+| NTC au départ | 89,77 °C | 89,64 °C |
+| Pic avant l'infusion | 91,46 °C à 13,9 s | 91,58 °C à 13,9 s |
+| Creux au début de l'infusion | 88,24 °C à 18,9 s | — |
+| Rebond, commande à 0 % | 89,58 °C à 23,5 s | — |
+| **Tasse** | **88,75 °C**, −1,25 °C | 87,29 °C, −2,71 °C |
+| Minimum pendant l'écoulement | 87,22 °C, à l'arrêt | 85,24 °C, à l'arrêt |
+| Minimum total | 86,78 °C à 43,7 s | 84,28 °C à 37,9 s |
+| 20 s après l'arrêt | 89,49 °C | 87,67 °C |
+| Commande à 0 % (remboursement) | 12,5 s | 10,6 s |
+| Appoint repris avant l'arrêt | 9,5 s | 5,9 s |
+| Pente de la NTC pendant l'appoint | −0,24 °C/s | −0,08 °C/s |
+
+- Énergie, commande / SSR : précharge 8,40 / 8,49 kJ, remplissage 4,72 /
+  4,07 kJ, pré-infusion 3,19 / 2,87 kJ, infusion 5,56 / 4,83 kJ. Total
+  fourni par le SSR : 20,26 kJ pour 71,6 ml admis à l'arrêt (18,24 kJ pour
+  64,6 ml la veille).
+- Appoint, de sa reprise à l'arrêt : commande moyenne de 50 %, SSR actif
+  44 % du temps. Le besoin calculé pour 1,88 ml/s est aussi de 50 %. La
+  veille, l'appoint était de 51 % de commande et 50 % de SSR, pour un
+  besoin de 51 %.
+- La tasse reçoit 12,2 g avant la reprise de l'appoint, NTC moyenne
+  89,2 °C, et 10,6 g après, NTC moyenne 88,3 °C.
+- Trou de commande au début du remplissage : 5 % de 8,5 à 9,3 s ; le SSR
+  reste coupé 2,0 s (1,8 s la veille).
+- Modèle : 89,19 °C en tasse avec la commande réelle, soit +0,44 °C sur la
+  mesure (+1,52 la veille) ; 88,81 °C avec l'énergie SSR, soit +0,06 °C
+  (+1,10 la veille).
+
+**Attendus vérifiés** (entrée du 11 octobre, 13 h 40, prévus pour la même
+mouture avec un tassage corrigé ; la mouture a changé) :
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 6,7 à 7,2 bar·s/g ; 13,5 à 15,5 s depuis 8 bar | **8,5 bar·s/g, 18,7 s : dépassé**, mouture affinée |
+| Rendement | ≈ 23,7 g final | **23,3 g : non atteint** (−0,4 g) |
+| Remplissage | 3,5 à 3,6 ml/s à 75 % | 3,59 ml/s : atteint |
+| | 6,5 à 7 s et 23 à 24 ml si le tassage expliquait l'écart | **5,35 s et 18,6 ml : non atteint**, plus court encore |
+| Tasse | 87 à 88 °C | **88,75 °C : dépassé**, plus près de la consigne |
+| | appoint repris 6,5 s ou plus avant l'arrêt | 9,5 s : atteint |
+| Goût | amertume au moins aussi basse | très bon résultat |
+
+**Lecture.**
+
+- *Débit, mesuré.* La résistance au plateau passe de 6,2 à 8,5 bar·s/g
+  (+37 %). Elle dépasse les 7,4 à 8,0 bar·s/g attendus le 11 octobre au
+  matin pour un cran plus fin. Le tassage, peut-être plus appuyé, a pu
+  changer avec la mouture, et rien ne sépare leurs effets. L'hygrométrie
+  est la même que la veille (50 %) et n'explique pas l'écart entre ces
+  deux infusions. Sa baisse pendant les jours précédents a pu jouer sur la
+  série. La galette sort intacte, sans canal visible : le plateau régulier
+  (± 0,06 bar) va dans ce sens.
+- *Remplissage, estimé.* À débit de pompe égal (3,59 ml/s) et depuis le
+  même point bas (0,34 bar), 0,8 bar arrive après 18,6 ml. Avec une galette
+  plus fine, la pression monte plus tôt pour le même volume. Le remplissage
+  laisse donc plus d'eau à la pré-infusion, qui finit à l'échéance avant la
+  goutte. La pression résiduelle plus haute avant la pompe n'y est pour
+  rien : elle tombe dès le début du remplissage.
+- *Pré-infusion, observé et mesuré.* La goutte tombe à l'œil à la fin
+  de la pré-infusion ; la balance la voit 1,0 s plus tard, sur un débit
+  qui démarre. Les 4 s à 50 % ont donc rempli la galette jusqu'aux trous
+  du panier sans écoulement. Aux infusions précédentes, la pré-infusion
+  finissait sur une goutte déjà tombée, après 0,8 à 3,7 s. Hypothèse non
+  testée : avec la mouture du jour, l'échéance de 4 s coïncide avec la
+  saturation de la galette ; une mouture plus grosse la ferait de nouveau
+  finir à la goutte.
+- *Rendement, estimé.* Le seuil d'arrêt est le même. La balance dépasse
+  moins ce seuil à 1,04 g/s qu'à 1,39 g/s, et le volume de gouttes baisse
+  (0,5 g au lieu de 0,7 g). D'où 23,3 g au lieu de 23,7 g.
+- *Chauffe, mesuré.* L'infusion longue montre en entier la réponse de la
+  chaudière à la loi :
+  1. Creux à 88,24 °C, dû à l'eau froide de la pré-infusion.
+  2. Rebond à 89,58 °C à 23,5 s, alors que la commande est à 0 % depuis
+     6 s : la chaleur de la précharge et du remplissage arrive avec le
+     retard de la chaudière.
+  3. Baisse régulière de 89,33 à 87,22 °C pendant les 9,5 s d'appoint.
+     L'appoint couvre pourtant le besoin calculé pour l'eau admise.
+
+  La veille, la même phase d'appoint ne baissait que de 0,08 °C/s, mais
+  elle partait de 85,8 °C et ne durait que 5,9 s.
+- *Baisse finale, simulé.* Le modèle rejoue la mesure à +0,06 °C avec
+  l'énergie SSR, creux et rebond compris. La baisse de la fin s'explique
+  ainsi en simulation : les 12,5 s à 0 % arrivent à la NTC avec ≈ 8,5 s de
+  retard (constantes de chauffe du modèle), et tombent dans les dernières
+  secondes de l'écoulement. L'appoint compense l'eau admise, pas ce déficit.
+  Sur une infusion courte, ce déficit tombait après l'arrêt : le minimum de
+  la veille vient 4,9 s après l'arrêt.
+- *Tasse, mesuré.* 88,75 °C, la moyenne la plus proche de la consigne
+  depuis l'offset de −14 °C (88,53 °C le 10 octobre à 13 h 22). Plus de la
+  moitié du poids (12,2 g) arrive pendant le rebond, à 89,2 °C en moyenne.
+- *Goût.* La mouture change le débit et la température en tasse
+  (+1,46 °C) en même temps. Rien ne sépare leurs effets sur le goût.
+
+**Décision.** Aucun réglage n'est changé : mouture du jour, cible de 23 g,
+firmware 0.4.4 et chauffe conservés.
+
+**Attendus pour l'infusion suivante** (mêmes réglages) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | 8,0 à 9,0 bar·s/g ; 17 à 20 s depuis 8 bar |
+| Rendement | ≈ 23,3 g final |
+| Remplissage | 3,5 à 3,6 ml/s à 75 % ; 5 à 6 s et 18 à 20 ml |
+| Pré-infusion | fin à l'échéance de 4 s ; goutte visible à la fin de la pré-infusion, vue par la balance dans la seconde suivante |
+| Tasse | 88,2 à 89,2 °C, appoint repris 8 s ou plus avant l'arrêt |
+| Chauffe | rebond au-dessus de 89 °C avec la commande à 0 % ; NTC à l'arrêt ≈ 87,2 °C |
+| Goût | même résultat ; s'il change, comparer d'abord la résistance au plateau |

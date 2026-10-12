@@ -429,9 +429,18 @@ confirmer sur des infusions réelles.
 
 - **La NTC n'est pas l'eau au groupe.** Tout ce qui précède optimise la
   courbe de la sonde. L'offset est recalé au panier (voir
-  [Objectif](#objectif)), mais sur la forme, la SCACE monte pendant toute
-  l'infusion quand la NTC creuse puis remonte : le creux de la NTC n'est
-  peut-être pas celui de la tasse. Reste à mesurer, avec une sonde soudée.
+  [Objectif](#objectif)) et confirmé à environ 1 K près le 12 octobre. Sur
+  la forme, le creux de la NTC n'est pas celui de l'eau au panier : au
+  débit de la SCACE (2,8 ml/s), 8 à 12 K de creux à la NTC ne donnent que
+  0,5 à 1 K de baisse au-dessus du puck, avant la galette (voir
+  [sonde-scace.md](sonde-scace.md#infusions-12-octobre-2026)). La cause
+  n'est pas départagée : masse du groupe, mélange au-dessus du puck ou
+  NTC qui exagère le creux. L'effet d'une vraie galette n'est pas mesuré.
+- **Le critère dépend de la durée de l'infusion.** La NTC moyenne pondère
+  le creux par le temps passé dedans : le 12 octobre, elle variait de
+  2,6 K entre trois infusions de 30 à 35 s, quand l'eau au panier ne
+  variait que de 0,5 K. Une infusion longue est donc jugée plus froide
+  que l'eau réelle.
 - **Remboursement non vérifié sur infusion réelle.** La double chauffe de
   l'eau du remplissage (précharge puis appoint au débit) est traitée depuis
   0.3.37 par le [remboursement](#remboursement-de-la-précharge). Deux

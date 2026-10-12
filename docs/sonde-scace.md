@@ -11,7 +11,7 @@ de la chauffe et permettra de recaler l'offset de −10 °C (voir
 | --- | --- |
 | Sonde | EPCOS B57861S0103F, NTC 10 kΩ ±1 % à 25 °C, courbe R/T 8016, B25/100 = 3988 K ±0,3 %. Perle de 2,41 mm, fils de 0,5 mm. |
 | Puck | `print/parts/sim_puck.py`, PETG, Ø 57 × 13,5 mm. La perle affleure au sommet, en sortie du canal incliné à 45°, scellée au silicone Loctite SI 5366. Les fils sortent sous le puck, entourés d'un joint torique. |
-| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). Une fuite résiduelle subsiste, acceptée (voir la [purge de 15 s](#purge-de-15-s-10-octobre-2026)). |
+| Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). Une fuite résiduelle subsiste, acceptée (voir la [purge de 15 s](#purge-de-15-s-10-octobre-2026) et les [limites du montage](#limites-du-montage)). |
 | Boîtier | `print/parts/scace_box.py` : LDO 5 V → 3,3 V, ADS1115, résistance 1 kΩ, Wago 5 et 3 pôles. Les fils de la sonde y sont prolongés en 0,25 mm². |
 | Lecteur | M5Stack Core2 sur batterie, port A (Grove) : jaune = SCL = GPIO32, blanc = SDA = GPIO33. Pull-ups de 10 kΩ sur le breakout ADS1115. |
 
@@ -272,7 +272,9 @@ référence pour B.
 But : mesurer l'eau au panier pour recaler l'offset de −10,5 °C entre la NTC
 chaudière et la température utilisateur (voir
 [chauffe-infusion.md](chauffe-infusion.md#objectif)). Résultat : un offset
-unique de −14 °C en 0.4.4 (voir [Infusions](#infusions-10-octobre-2026)).
+unique de −14 °C en 0.4.4 (voir [Infusions](#infusions-10-octobre-2026)),
+confirmé à environ 1 K près le 12 octobre (voir
+[Infusions](#infusions-12-octobre-2026)).
 Une pente sur plusieurs consignes, ou une séparation entre perte statique
 et dynamique de la loi d'infusion, demanderait des mesures à d'autres
 consignes.
@@ -496,11 +498,74 @@ de 3,4 ml/s au lieu de 1,4 à 2 ml/s et un puck préchauffé au lieu d'une
 mouture à l'ambiante font lire la SCACE plus chaud qu'un vrai café.
 L'offset réel serait donc plutôt de 14 °C ou plus.
 
-**Suite.** Souder la sonde à la rallonge au lieu des Wago, gaine thermo à
-colle sur chaque soudure, soudures décalées, puis boucle d'égouttement,
-larmier et boîtier sorti de dessous le porte-filtre. Mesures suivantes : la
-forme de la température au panier pendant l'infusion, la SCACE montant du
-début à la fin quand la NTC creuse puis remonte.
+### Infusions, 12 octobre 2026
+
+Cinq infusions normales avec le panier SCACE : précharge de 8 s, loi au
+débit, consigne de 90 °C (NTC à 89,8 °C au repos), écran 0.4.4 (offset de
+−14 °C), pompe à 100 % sur le plateau. **Sans balance** : le joint ne tient
+plus la pression et l'eau s'échappe à l'horizontale, une partie hors de la
+tasse. Les moyennes sont pondérées par le volume amont.
+
+| Infusion | Captures | SCACE au départ | Pompe | Maximum SCACE | Pente à l'arrêt | SCACE moyenne | NTC moyenne | Minimum NTC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 h 32 | `261012-103244.json`, `scace-20261012-103055.csv` | 74,3 °C | 25,9 s | 89,2 °C (à l'arrêt) | +0,14 K/s | 84,88 °C | 88,27 °C | 81,3 °C |
+| 10 h 36 | `261012-103619.json`, `scace-20261012-103237.csv` | 79,8 °C | 25,9 s | 91,1 °C (à l'arrêt) | +0,16 K/s | 87,41 °C | 89,11 °C | 82,5 °C |
+| 10 h 41 | `261012-104136.json`, `scace-20261012-103622.csv` | 83,1 °C | 34,9 s | 92,4 °C à 33,9 s | −0,12 K/s | **89,88 °C** | 86,84 °C | 80,0 °C |
+| 10 h 49 | `261012-104924.json`, `scace-20261012-104233.csv` | 82,9 °C | 30,0 s | 92,9 °C à 36,4 s | +0,04 K/s | **89,49 °C** | 89,42 °C | 82,7 °C |
+| 10 h 51 | `261012-105158.json`, `scace-20261012-105026.csv` | 84,0 °C | 34,9 s | 92,5 °C à 35,8 s | −0,07 K/s | **90,00 °C** | 86,97 °C | 80,9 °C |
+
+Moyennes du début à l'arrêt de la pompe ; NTC en température utilisateur.
+
+- **Palier atteint dans les trois dernières.** Parties à 83–84 °C, elles
+  plafonnent à 92,4–92,9 °C et redescendent légèrement avant l'arrêt. Leur
+  moyenne SCACE tient en 0,5 K (89,5–90,0 °C). Les deux premières, parties
+  à 74 et 80 °C, montaient encore à l'arrêt.
+- **L'offset de −14 °C est confirmé à environ 1 K près.** À 90 °C de
+  consigne, l'eau au panier vaut en moyenne 89,5 à 90 °C. Recalée de
+  +3,5 K sur l'offset actuel, l'infusion de 10 h 34 le 10 octobre donnerait
+  environ 90,7 °C. Les biais du montage (débit de 2,8 ml/s, puck préchauffé)
+  font toujours lire la SCACE plus chaud qu'un café : ces mesures ne
+  justifient ni un offset plus faible, ni un offset plus fort.
+- **Le creux de la NTC n'arrive presque pas au panier.** La NTC perd 8 à
+  12 K pendant la pompe ; au-dessus du puck, la SCACE ne baisse que de 0,5
+  à 1 K après son plateau. La perle mesure l'eau avant qu'elle traverse le
+  puck : l'atténuation vient d'en amont. Trois causes possibles, non
+  départagées : la masse du groupe et de la douchette, le mélange dans
+  l'espace au-dessus du puck, une NTC placée là où le creux est plus
+  profond que dans l'eau qui part vers le groupe. Garder 2,8 ml/s d'eau
+  5 K plus chaude demande ≈ 60 W, soit ≈ 0,9 kJ en 15 s : environ 2 K sur
+  1 kg de laiton, ordre de grandeur plausible. L'effet d'une vraie galette,
+  en aval de la perle, n'est pas mesuré.
+- **La NTC moyenne dépend de la durée, pas l'eau au panier.** Entre les
+  trois infusions à l'équilibre, la NTC moyenne varie de 2,6 K, la SCACE de
+  0,5 K : une pompe de 35 s pèse davantage sur le creux qu'une pompe de
+  30 s.
+- **Retard non mesuré.** Ajustée sur la NTC décalée de 0 à 20 s, la SCACE ne
+  fait ressortir aucun retard net : sa forme est dominée par le
+  réchauffement du groupe et du puck.
+- **Débit et pression.** Les deux premières plafonnent vers 8,3 bar à 3,6 à
+  4 ml/s, les trois dernières vers 7 bar à 2,8 ml/s. La pression qui baisse
+  cadre avec le joint qui lâche un peu plus à chaque essai ; le débit amont
+  qui baisse avec elle reste inexpliqué.
+
+### Limites du montage
+
+**Les essais avec ce montage s'arrêtent au 12 octobre 2026** : ces infusions
+sont le mieux qu'il puisse donner.
+
+- **Câblage.** Depuis le 10 octobre, les fils de la sonde sont soudés à la
+  rallonge, sans Wago sous le porte-filtre, avec une boucle d'égouttement.
+  L'eau ne remonte plus jusqu'aux connexions.
+- **Étanchéité des deux trous de 0,6 mm.** C'est la limite qui reste : le
+  silicone tient mal sur le métal du panier, et une étanchéité qui tienne
+  9 bar y est très difficile. Le silicone, renforcé le 10 octobre et laissé
+  durcir 24 h, tient bien mieux que lors des infusions du 10 octobre, mais il reste une fuite de surface, entre le silicone et le
+  métal, qui part en jet horizontal.
+- **Pas de balance.** Une partie du jet tombe hors de la tasse, contre la
+  façade de la machine : le poids ne mesure plus ce qui passe par le
+  panier, et les moyennes se pondèrent par le volume amont.
+- **Le joint cède un peu à chaque essai.** Le débit reste à peu près stable
+  au cours d'une infusion, mais il change d'un essai à l'autre.
 
 ## Firmware `firmware/scace`
 

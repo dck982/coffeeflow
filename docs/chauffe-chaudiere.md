@@ -78,7 +78,11 @@ utilisateur** (écran **0.4.4**). Le Beta vient de l'étalonnage sur banc du
 trois infusions, l'eau au panier, moyennée par la tasse, était 3,4 à 9,9 K
 sous la température utilisateur de l'ancien offset de −10,5 °C, l'écart se
 resserrant vers 3 K quand le porte-filtre part chaud (voir
-[sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026)). Les
+[sonde-scace.md](sonde-scace.md#infusions-10-octobre-2026)). Le
+12 octobre, avec un porte-filtre à l'équilibre et l'offset de −14 °C,
+l'eau au panier valait en moyenne 89,5 à 90 °C pour une consigne de
+90 °C : l'offset est confirmé à environ 1 K près (voir
+[sonde-scace.md](sonde-scace.md#infusions-12-octobre-2026)). Les
 constantes sont dans `firmware/rust/screen-core/src/calibration.rs`.
 
 | Domaine | Utilisation | Exemple |

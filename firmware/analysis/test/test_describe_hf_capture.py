@@ -103,3 +103,66 @@ def test_text_phase_table_integrates_heating_per_phase():
     assert lines[1].split()[-3:] == ["180", "2.16", "2.40"]
     assert lines[2].split()[-3:] == ["150", "1.80", "0.00"]
     assert "pression ≥ 2 bar                    2.00     6.0    2.30  remplissage" in text_events(samples)
+
+
+def _guided_capture(**extra):
+    samples = [{"t_ms": t * 1000, "mode": "thermal_preheat" if t < 2 else "filling", "flags": 0x0F,
+                "heating_power_pct": 0, "heater_on": False, "pressure_bar": 1.0,
+                "volume_ml": 0.0, "weight_g": 0.0, "boiler_temperature_c": 90.0}
+               for t in range(6)]
+    return {"schema": "coffeeflow.hf_capture.v2", "origin": "brew", "samples": samples,
+            "started_at_us": 0, "ended_at_us": 5_000_000, **extra}
+
+
+GUIDED_SESSION = {
+    "opened_ms": -412300, "opened_at_unix_s": 0, "setpoint_c": 92.0, "ntc_open_c": 88.1,
+    "purges": [
+        {"start_ms": -301200, "duration_ms": 5000, "volume_ml": 24.9, "weight_g": None,
+         "ntc_start_c": 91.2, "ntc_min_c": 84.0, "ntc_end_c": 84.6, "pressure_max_bar": 0.4},
+        {"start_ms": -279400, "duration_ms": 5000, "volume_ml": 24.6, "weight_g": 23.1,
+         "ntc_start_c": 85.9, "ntc_min_c": 74.2, "ntc_end_c": 74.8, "pressure_max_bar": 0.5},
+    ],
+    "wait": {"ntc_min_c": 74.0, "setpoint_reached_ms": -233800, "heater_on_ms": 31200,
+             "early_removals": 0},
+    "cup_removed_ms": -118900, "cup_returned_ms": -21400, "start_pressed_ms": 0,
+    "scale_lost_ms": 0,
+}
+
+
+def test_session_durations_follow_the_recorded_instants():
+    from describe_hf_capture import session_durations
+
+    durations = session_durations(GUIDED_SESSION)
+    assert abs(durations["setpoint_return_s"] - 40.6) < 1e-9
+    assert abs(durations["holder_in_place_s"] - 114.9) < 1e-9
+    assert abs(durations["preparation_s"] - 118.9) < 1e-9
+
+
+def test_report_shows_the_guided_session_block():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    page = render_report(_guided_capture(session=GUIDED_SESSION), Path("brew.json"))
+    assert "Infusion guidée" in page
+    assert "Rinçage 2" in page and "85.9 → 74.2 → 74.8 °C" in page
+    assert "40.6 s" in page and "114.9 s" in page and "118.9 s" in page
+
+
+def test_report_has_no_guided_block_without_a_session():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    assert "Infusion guidée" not in render_report(_guided_capture(), Path("brew.json"))
+    assert "Infusion guidée" not in render_report(_guided_capture(session=None), Path("brew.json"))
+
+
+def test_guided_block_tolerates_unknown_values():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    session = {**GUIDED_SESSION, "purges": GUIDED_SESSION["purges"][:1],
+               "wait": {**GUIDED_SESSION["wait"], "setpoint_reached_ms": None,
+                        "ntc_min_c": None},
+               "cup_removed_ms": None}
+    page = render_report(_guided_capture(session=session), Path("brew.json"))
+    assert "Infusion guidée" in page and "—" in page

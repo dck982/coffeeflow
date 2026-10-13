@@ -887,6 +887,68 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
 </script>"""
 
 
+def session_span_s(start_ms: Any, end_ms: Any) -> float:
+    """Durée en secondes entre deux instants en ms, NaN si l'un manque."""
+    return (number(end_ms) - number(start_ms)) / 1000
+
+
+def session_durations(session: dict[str, Any]) -> dict[str, float]:
+    """Les trois durées du déroulé guidé, en secondes (NaN si inconnue).
+
+    Le retour à la consigne part de la fin du second rinçage ; le porte-filtre
+    reste en place de la consigne atteinte au retrait de la tasse ; la
+    préparation va du retrait de la tasse à l'appui sur démarrer.
+    """
+    purges = session.get("purges")
+    purges = purges if isinstance(purges, list) else []
+    second = purges[1] if len(purges) > 1 and isinstance(purges[1], dict) else {}
+    rinse_end_ms = number(second.get("start_ms")) + number(second.get("duration_ms"))
+    wait = session.get("wait") if isinstance(session.get("wait"), dict) else {}
+    reached_ms = wait.get("setpoint_reached_ms")
+    return {
+        "setpoint_return_s": session_span_s(rinse_end_ms, reached_ms),
+        "holder_in_place_s": session_span_s(reached_ms, session.get("cup_removed_ms")),
+        "preparation_s": session_span_s(session.get("cup_removed_ms"),
+                                        session.get("start_pressed_ms")),
+    }
+
+
+def guided_session_block(capture: dict[str, Any]) -> str:
+    """Bloc HTML de l'infusion guidée, vide sans session dans la capture."""
+    session = capture.get("session")
+    if not isinstance(session, dict):
+        return ""
+    durations = session_durations(session)
+    rows = []
+    purges = session.get("purges")
+    for index, purge in enumerate(purges if isinstance(purges, list) else [], start=1):
+        purge = purge if isinstance(purge, dict) else {}
+        rows.append(
+            f"<tr><td>Rinçage {index}</td><td>{fmt(number(purge.get('duration_ms')) / 1000, 1)} s</td>"
+            f"<td>{fmt(purge.get('volume_ml'), 1)} ml</td><td>{fmt(purge.get('weight_g'), 1)} g</td>"
+            f"<td>{fmt(purge.get('ntc_start_c'), 1)} → {fmt(purge.get('ntc_min_c'), 1)} → "
+            f"{fmt(purge.get('ntc_end_c'), 1)} °C</td></tr>")
+    wait = session.get("wait") if isinstance(session.get("wait"), dict) else {}
+    cards = [
+        metric_card("Retour à la consigne", f"{fmt(durations['setpoint_return_s'], 1)} s",
+                    f"consigne {fmt(session.get('setpoint_c'), 1)} °C, minimum {fmt(wait.get('ntc_min_c'), 1)} °C"),
+        metric_card("Porte-filtre en place", f"{fmt(durations['holder_in_place_s'], 1)} s",
+                    "de la consigne atteinte au retrait de la tasse"),
+        metric_card("Préparation", f"{fmt(durations['preparation_s'], 1)} s",
+                    "du retrait de la tasse à démarrer"),
+    ]
+    return f"""
+  <section aria-labelledby="guided-title">
+    <h2 id="guided-title">Infusion guidée</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Rinçage</th><th>Durée</th><th>Volume</th><th>Poids</th><th>NTC départ → minimum → arrêt</th></tr></thead>
+      <tbody>{''.join(rows)}</tbody>
+    </table></div>
+    <div class="metrics">{''.join(cards)}</div>
+  </section>
+"""
+
+
 def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: float = 2.0,
                   target_pressure_bar: float = 9.0) -> str:
     samples: list[dict[str, Any]] = capture["samples"]
@@ -1009,7 +1071,7 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     <div class="metrics hero-metrics">{''.join(hero_cards)}</div>
     <div class="metrics">{''.join(diagnostic_cards)}</div>
   </header>
-
+{guided_session_block(capture)}
   <section aria-labelledby="graph-title">
     <h2 id="graph-title">Mesures</h2>
     <p><small>Survolez pour lire les valeurs, tirez horizontalement pour zoomer et double-cliquez pour réinitialiser. Les segments rouges pointillés relient deux mesures de pression valides séparées par une indisponibilité ; ils ne représentent pas des mesures intermédiaires. Les légendes sont cliquables.</small></p>

@@ -101,11 +101,24 @@ export component AppWindow inherits Window {
     in property <bool> full-visible: false;
     in property <bool> full-fault: false;
     in property <bool> full-progress: false;
+    in property <bool> brew-choice-visible: false;
+    in property <bool> brew-direct-enabled: false;
+    in property <string> brew-direct-reason;
+    in property <int> guided-step: 0;
+    in property <int> guided-image: 0;
+    in property <string> guided-hint;
+    in property <bool> guided-hint-long: false;
+    in property <string> guided-value;
+    in property <bool> guided-value-hot: false;
+    in property <string> guided-aside;
+    in property <bool> guided-purging: false;
+    in property <bool> guided-enabled: false;
+    in property <string> guided-refusal;
     in property <bool> dimmed: false;
     in property <bool> standby: false;
     in property <int> standby-offset: 0;
 
-    if root.page == 0 || root.page == 1 || root.page == 2: Rectangle {
+    if root.page == 0 || root.page == 1 || root.page == 2 || root.page == 8: Rectangle {
         x: 32px; y: 24px; width: 736px; height: 52px; background: transparent;
         Label { x: 40px; width: 82px; text: root.clock; color: Theme.dim; font-size: 28px; }
         Label { x: 142px; width: 104px; text: root.version; font-size: 28px; }
@@ -127,7 +140,7 @@ export component AppWindow inherits Window {
         Key { x: 408px; y: 216px; width: 136px; height: 80px; label: "+"; content-size: 40px; enabled: root.plus-enabled; clicked => { root.command(7, ""); } }
         Label { y: 312px; height: 24px; width: 800px; font-size: 18px; text: root.detail; color: Theme.faint; horizontal-alignment: center; }
         Label { y: 336px; height: 24px; width: 800px; font-size: 18px; text: root.warning; color: Theme.fault; horizontal-alignment: center; }
-        Key { x: 32px; y: 368px; width: 288px; height: 88px; primary: true; icon: 1; label: root.brew-label; enabled: root.brew-enabled; clicked => { root.command(1, ""); } }
+        Key { x: 32px; y: 368px; width: 288px; height: 88px; primary: true; icon: 1; label: root.brew-label; enabled: root.brew-enabled; clicked => { root.command(21, ""); } }
         Key { x: 336px; y: 368px; width: 200px; height: 88px; icon: 2; label: "purge"; held(down) => { root.command(down ? 2 : 3, ""); } }
         Key { x: 552px; y: 368px; width: 216px; height: 88px; icon: 3; label: "réglages"; clicked => { root.command(8, ""); } }
     }
@@ -165,6 +178,24 @@ export component AppWindow inherits Window {
         Rectangle { x: 190px; y: 282px; width: 420px; height: 2px; background: Theme.hairline; Rectangle { width: parent.width * root.progress; height: 2px; background: Theme.accent; } }
         Label { y: 304px; height: 48px; width: 800px; text: root.purge-detail; color: Theme.dim; font-size: 40px; horizontal-alignment: center; }
         Key { x: 240px; y: 368px; width: 320px; height: 88px; primary: true; label: root.finished ? root.close-label : "arrêter"; enabled: !root.finished || root.close-enabled; clicked => { root.command(root.phase == "purge" ? 3 : 9, ""); } }
+    }
+    if root.page == 8: Rectangle {
+        background: transparent;
+        if root.guided-image == 0: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-rinse.svg"); colorize: Theme.dim; }
+        if root.guided-image == 1: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-portafilter.svg"); colorize: Theme.dim; }
+        if root.guided-image == 2: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-wait.svg"); colorize: Theme.dim; }
+        if root.guided-image == 3: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-prepare.svg"); colorize: Theme.dim; }
+        for n in 3: Rectangle { x: 32px + n * 78px; y: 308px; width: 44px; height: 44px; border-radius: 22px;
+            background: n < root.guided-step ? Theme.success : n == root.guided-step ? Theme.accent : Theme.high;
+            Label { text: "" + (n + 1); horizontal-alignment: center; color: n > root.guided-step ? Theme.faint : Theme.bg; }
+        }
+        Label { x: 264px; y: 92px; width: 504px; height: 32px; text: "infusion guidée"; color: Theme.dim; }
+        Text { x: 264px; y: 130px; width: 504px; height: 128px; text: root.guided-hint; color: Theme.text; font-size: root.guided-hint-long ? 26px : 32px; wrap: word-wrap; overflow: elide; vertical-alignment: top; }
+        Label { x: 264px; y: 262px; width: 250px; height: 92px; text: root.guided-value; font-size: 76px; color: root.guided-value-hot ? root.temperature-color : Theme.text; }
+        Text { x: 520px; y: 280px; width: 248px; height: 64px; text: root.guided-aside; color: Theme.faint; font-size: 18px; wrap: word-wrap; vertical-alignment: center; }
+        Label { x: 32px; y: 346px; width: 736px; height: 24px; text: root.guided-refusal; font-size: 18px; color: Theme.fault; horizontal-alignment: right; }
+        Key { x: 32px; y: 376px; width: 216px; height: 88px; label: root.guided-purging ? "arrêter" : "quitter"; clicked => { root.command(25, ""); } }
+        Key { x: 464px; y: 376px; width: 304px; height: 88px; primary: true; label: root.guided-step == 2 ? "démarrer" : "suivant"; enabled: root.guided-enabled && !root.guided-purging; clicked => { root.command(24, ""); } }
     }
     if root.page >= 3 && root.page <= 6: Rectangle {
         background: transparent;
@@ -226,6 +257,16 @@ export component AppWindow inherits Window {
             Label { x: 28px; y: 92px; width: 480px; height: 40px; text: root.confirm-body; font-size: 18px; color: Theme.dim; }
             Key { x: 28px; y: 138px; width: 216px; height: 80px; label: "annuler"; clicked => { root.command(19, "0"); } }
             Key { x: 276px; y: 138px; width: 216px; height: 80px; label: "valider"; primary: true; clicked => { root.command(19, "1"); } }
+        }
+    }
+    if root.brew-choice-visible: Rectangle { background: #16110cb3;
+        Rectangle { x: 60px; y: 100px; width: 680px; height: 280px; background: Theme.raised; border-radius: 8px; border-width: 2px; border-color: Theme.hairline;
+            Rectangle { x: 0px; y: 0px; width: 4px; height: 280px; background: Theme.accent; }
+            Label { x: 28px; y: 24px; width: 620px; height: 56px; text: "infuser"; font-size: 40px; color: Theme.accent; }
+            Key { x: 28px; y: 104px; width: 200px; height: 88px; label: "directe"; primary: true; enabled: root.brew-direct-enabled; clicked => { root.command(1, ""); } }
+            Key { x: 240px; y: 104px; width: 200px; height: 88px; label: "guidée"; primary: true; clicked => { root.command(22, ""); } }
+            Key { x: 452px; y: 104px; width: 200px; height: 88px; label: "annuler"; clicked => { root.command(23, ""); } }
+            Label { x: 28px; y: 216px; width: 624px; height: 28px; text: root.brew-direct-reason; font-size: 18px; color: Theme.fault; }
         }
     }
     if root.full-visible: Rectangle { background: Theme.bg;

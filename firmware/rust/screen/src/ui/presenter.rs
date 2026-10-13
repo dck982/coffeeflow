@@ -5,7 +5,8 @@ use super::{AppWindow, Segment, Tile};
 use alloc::{format, rc::Rc, string::String, vec::Vec};
 use screen_core::{
     config::{self, Config, PreinfusionMode, RampdownMode},
-    core::{Action, ActionCommand, ActionSource, Input, Reply},
+    core::{Action, ActionCommand, ActionSource, ActionStatus, Input, Reply},
+    guided::{Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot, brew_ready},
 };
 use slint::{Color, Model, ModelRc, SharedString, VecModel};
@@ -51,6 +52,8 @@ pub struct Presenter {
     choice: usize,
     menu: usize,
     confirm: bool,
+    /// Fenêtre de choix entre l'infusion directe et l'infusion guidée.
+    brew_choice: bool,
     last_touch_us: u64,
     pub refresh: Refresh,
 }
@@ -66,6 +69,71 @@ fn number(v: f32, digits: usize, unit: &str) -> String {
         return "-".into();
     }
     format!("{v:.digits$}{unit}").replace('.', ",")
+}
+/// Une purge serait acceptée : capteurs vivants, pas de verrou, dimmer prêt,
+/// pas de cycle ni de capture en récupération. La chauffe n'entre pas en
+/// compte : le guide attend lui-même la température.
+fn purge_ready(s: &Snapshot) -> bool {
+    s.sensors_alive
+        && !s.lockout
+        && s.dimmer_ready
+        && s.dimmer_valid
+        && s.cycle_state == CycleState::Idle
+        && !s.capture_cooldown
+}
+/// Raison pour laquelle l'infusion directe ne part pas, vide si elle peut.
+fn brew_warning(s: &Snapshot, c: &Config) -> &'static str {
+    if s.dimmer_error_active {
+        "erreur dimmer"
+    } else if !s.dimmer_ready {
+        "dimmer en calibration — vérifier le secteur"
+    } else if !c.heating_enabled {
+        "chauffage désactivé"
+    } else if !s.brew_temperature_ready {
+        "chaudière en chauffe"
+    } else {
+        ""
+    }
+}
+fn refusal_text(status: ActionStatus) -> &'static str {
+    match status {
+        ActionStatus::Locked => "verrou de sécurité",
+        ActionStatus::DimmerNotReady => "dimmer pas prêt",
+        ActionStatus::BusLost | ActionStatus::Unavailable => "module interne injoignable",
+        ActionStatus::CycleActive => "un cycle est en cours",
+        _ => "commande refusée",
+    }
+}
+/// Température sans décimale quand elle est entière : « 87 », « 87,5 ».
+fn degrees(v: f32) -> String {
+    if (v - (v + 0.5) as i32 as f32).abs() < 0.05 {
+        format!("{v:.0}")
+    } else {
+        number(v, 1, "")
+    }
+}
+/// Texte de la consigne ; `ConnectScale` change de verbe selon que la
+/// balance est attendue pour la première fois ou qu'elle a été perdue.
+fn hint_text(hint: Hint, screen: Screen, c: &Config) -> String {
+    match hint {
+        Hint::ConnectScale if screen == Screen::Rinse1 => "connectez la balance".into(),
+        Hint::ConnectScale => "reconnectez la balance".into(),
+        Hint::WaitRinseTemp => format!("attendez {} °C", degrees(c.brew_temperature_c - 5.0)),
+        Hint::PlaceCup => "placez une tasse, sans porte-filtre, pour le premier rinçage".into(),
+        Hint::PressNextRinse1 => "appuyez sur suivant pour lancer le rinçage".into(),
+        Hint::ReplaceCup => "replacez la tasse".into(),
+        Hint::InstallPortafilter => {
+            "installez le porte-filtre, puis appuyez sur suivant pour le rinçage du porte-filtre"
+                .into()
+        }
+        Hint::CupRemovedEarly => "avez-vous enlevé la tasse ? replacez-la pour continuer".into(),
+        Hint::WaitSetpoint => {
+            "laissez la tasse et le porte-filtre en place, attendez la consigne".into()
+        }
+        Hint::Prepare => "videz et rincez la tasse, séchez le porte-filtre, préparez la galette, replacez le porte-filtre et la tasse vide".into(),
+        Hint::WaitBrewTemp => "attendez la consigne".into(),
+        Hint::PressStart => "appuyez sur démarrer".into(),
+    }
 }
 fn tile(name: &str, value: String, detail: &str, enabled: bool, tone: i32) -> Tile {
     Tile {
@@ -319,11 +387,14 @@ impl Presenter {
         {
             return None;
         }
-        if s.cycle_state.is_active() && !matches!(id, 9 | 20) {
+        if s.cycle_state.is_active() && !matches!(id, 9 | 20 | 25) {
             return None;
         }
         match id {
-            1 => Some(core_action(Action::StartBrew)),
+            1 => {
+                self.brew_choice = false;
+                Some(core_action(Action::StartBrew))
+            }
             2 => Some(core_action(Action::PurgePress)),
             4 => {
                 self.page = 4;
@@ -481,6 +552,20 @@ impl Presenter {
                 }
             }
             20 => None,
+            21 => {
+                self.brew_choice = purge_ready(s);
+                None
+            }
+            22 => {
+                self.brew_choice = false;
+                Some(core_action(Action::GuidedOpen))
+            }
+            23 => {
+                self.brew_choice = false;
+                None
+            }
+            24 => Some(core_action(Action::GuidedNext)),
+            25 => Some(core_action(Action::GuidedQuit)),
             _ => None,
         }
     }
@@ -520,16 +605,24 @@ impl Presenter {
         provisioning_ssid: &str,
         wall_clock_text: &str,
     ) {
-        let cycle = match s.cycle_state {
-            CycleState::Purge => Some(2),
-            CycleState::Idle => None,
-            _ if s.shot.active => Some(1),
-            _ => Some(2),
+        // Le guide prime sur la page de purge : ses rinçages sont des purges.
+        let cycle = if s.guided.active {
+            Some(8)
+        } else {
+            match s.cycle_state {
+                CycleState::Purge => Some(2),
+                CycleState::Idle => None,
+                _ if s.shot.active => Some(1),
+                _ => Some(2),
+            }
         };
         if let Some(page) = cycle {
             self.page = page;
-        } else if matches!(self.page, 1 | 2) {
+        } else if matches!(self.page, 1 | 2 | 8) {
             self.page = 0;
+        }
+        if self.page != 0 || !purge_ready(s) {
+            self.brew_choice = false;
         }
         app.set_page(self.page);
         app.set_settings_page(self.settings_page as i32);
@@ -543,6 +636,7 @@ impl Presenter {
         app.set_standby(dim && idle_s >= c.standby_after_s as u64);
         app.set_standby_offset(((idle_s % 120) as i32 - 60).abs() - 30);
         app.set_confirm_visible(self.confirm);
+        app.set_brew_choice_visible(self.brew_choice);
         app.set_confirm_title("réinitialiser le réseau".into());
         app.set_confirm_body("effacer les identifiants wifi enregistrés ?".into());
         match self.refresh.due(now_us) {
@@ -667,6 +761,59 @@ impl Presenter {
             s.network_state == screen_core::snapshot::NetworkState::StaConnected,
         );
     }
+    /// Page du guide : illustration, étape, consigne et valeur utile.
+    fn guided(&self, app: &AppWindow, s: &Snapshot, c: &Config) {
+        let v = &s.guided;
+        let temperature = number(s.boiler_temperature_c, 1, "°");
+        let weight = if s.scale_present {
+            number(s.weight_g, 1, " g")
+        } else {
+            String::new()
+        };
+        let hint = hint_text(v.hint, v.screen, c);
+        app.set_guided_step(match v.screen {
+            Screen::Rinse1 => 0,
+            Screen::Rinse2 => 1,
+            Screen::Wait => 2,
+        });
+        app.set_guided_image(match (v.screen, v.hint) {
+            (Screen::Rinse1, _) => 0,
+            (Screen::Rinse2, _) => 1,
+            (Screen::Wait, Hint::Prepare | Hint::WaitBrewTemp | Hint::PressStart) => 3,
+            (Screen::Wait, _) => 2,
+        });
+        app.set_guided_hint_long(hint.chars().count() > 60);
+        app.set_guided_hint(hint.into());
+        let hot = matches!(
+            v.hint,
+            Hint::WaitRinseTemp | Hint::WaitSetpoint | Hint::WaitBrewTemp | Hint::PressStart
+        );
+        app.set_guided_value(if v.purging {
+            number(v.purge_elapsed_ms as f32 / 1000.0, 1, " s").into()
+        } else if v.hint == Hint::ConnectScale {
+            SharedString::default()
+        } else if hot {
+            temperature.into()
+        } else {
+            weight.into()
+        });
+        app.set_guided_value_hot(hot && !v.purging);
+        app.set_guided_aside(
+            if v.screen == Screen::Wait && v.hint == Hint::WaitSetpoint {
+                format!(
+                    "depuis le rinçage\n{}:{:02}",
+                    v.since_rinse_s / 60,
+                    v.since_rinse_s % 60
+                )
+                .into()
+            } else {
+                SharedString::default()
+            },
+        );
+        app.set_guided_purging(v.purging);
+        app.set_guided_enabled(v.button_enabled);
+        app.set_guided_refusal(v.refusal.map_or("", refusal_text).into());
+    }
     #[allow(
         clippy::large_stack_frames,
         reason = "documents Slint et instantanés temporaires, moins de 4 Ko par appel sur une pile d’au moins 16 Ko"
@@ -682,7 +829,10 @@ impl Presenter {
         } else {
             format!("infuser · {} s", c.target_time_s).into()
         });
-        app.set_brew_enabled(brew_ready(s, c));
+        app.set_brew_enabled(purge_ready(s));
+        app.set_brew_direct_enabled(brew_ready(s, c));
+        app.set_brew_direct_reason(brew_warning(s, c).into());
+        self.guided(app, s, c);
         app.set_minus_enabled(if s.scale_present {
             c.target_weight_g > 10.0
         } else {
@@ -693,20 +843,7 @@ impl Presenter {
         } else {
             c.target_time_s < 60
         });
-        app.set_warning(
-            if s.dimmer_error_active {
-                "erreur dimmer"
-            } else if !s.dimmer_ready {
-                "dimmer en calibration — vérifier le secteur"
-            } else if !c.heating_enabled {
-                "chauffage désactivé"
-            } else if !s.brew_temperature_ready {
-                "chaudière en chauffe"
-            } else {
-                ""
-            }
-            .into(),
-        );
+        app.set_warning(brew_warning(s, c).into());
         app.set_detail(if s.scale_present {
             format!("cible · pré-infusion {} s · rampe", c.preinfusion_time_s).into()
         } else {
@@ -1268,6 +1405,50 @@ mod tests {
             Some(core_action(Action::PurgeRelease))
         );
         assert!(p.command(1, "", 0, &s, &Config::default()).is_none());
+    }
+    #[test]
+    fn brew_button_opens_the_choice_and_direct_sends_start_brew() {
+        let mut p = Presenter::default();
+        let mut s = ready();
+        s.dimmer_ready = true;
+        s.dimmer_valid = true;
+        let c = Config::default();
+        assert!(p.command(21, "", 0, &s, &c).is_none());
+        assert!(p.brew_choice);
+        assert_eq!(p.command(1, "", 0, &s, &c), Some(core_action(Action::StartBrew)));
+        assert!(!p.brew_choice);
+        p.command(21, "", 0, &s, &c);
+        assert_eq!(p.command(22, "", 0, &s, &c), Some(core_action(Action::GuidedOpen)));
+        assert!(!p.brew_choice);
+        p.command(21, "", 0, &s, &c);
+        assert!(p.command(23, "", 0, &s, &c).is_none());
+        assert!(!p.brew_choice);
+    }
+    #[test]
+    fn guided_quit_passes_the_active_cycle_filter() {
+        let mut p = Presenter::default();
+        let mut s = ready();
+        s.cycle_state = CycleState::Purge;
+        let c = Config::default();
+        assert_eq!(p.command(25, "", 0, &s, &c), Some(core_action(Action::GuidedQuit)));
+        assert!(p.command(24, "", 0, &s, &c).is_none());
+    }
+    #[test]
+    fn rinse_threshold_text_follows_the_setpoint() {
+        let mut c = Config::default();
+        c.brew_temperature_c = 92.0;
+        assert_eq!(
+            hint_text(Hint::WaitRinseTemp, Screen::Rinse1, &c),
+            "attendez 87 °C"
+        );
+        assert_eq!(
+            hint_text(Hint::ConnectScale, Screen::Rinse1, &c),
+            "connectez la balance"
+        );
+        assert_eq!(
+            hint_text(Hint::ConnectScale, Screen::Wait, &c),
+            "reconnectez la balance"
+        );
     }
     #[test]
     fn wifi_is_session_input_and_never_navigation() {

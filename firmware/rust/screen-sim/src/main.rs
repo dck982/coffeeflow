@@ -7,6 +7,7 @@ mod rig;
 use presenter::{Presenter, UiRequest};
 use screen_core::{
     config::Config,
+    guided::{self, Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot},
 };
 use slint::{
@@ -41,7 +42,31 @@ const SCENARIOS: &[&str] = &[
     "bus",
     "provisioning",
     "standby",
+    "choice",
+    "choice-heating",
+    "guided-connect",
+    "guided-rinse1-temp",
+    "guided-rinse1-ready",
+    "guided-purge",
+    "guided-rinse2-replace",
+    "guided-wait",
+    "guided-early-removal",
+    "guided-prepare",
+    "guided-start",
+    "guided-refused",
 ];
+
+/// Remplit l'état du guide comme le cœur le ferait à l'écran donné.
+fn guided_view(s: &mut Snapshot, screen: Screen, hint: Hint, enabled: bool) {
+    s.guided = guided::View {
+        active: true,
+        screen,
+        hint,
+        button_enabled: enabled,
+        rinse_min_c: 87.0,
+        ..guided::View::default()
+    };
+}
 fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
     let c = Config::default();
     let mut p = Presenter::default();
@@ -157,6 +182,62 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             s.ble_enabled = false;
         }
         "standby" => {}
+        "choice" | "choice-heating" => {
+            s.boiler_temperature_c = c.brew_temperature_c;
+            if name == "choice-heating" {
+                s.boiler_temperature_c = 68.5;
+                s.brew_temperature_ready = false;
+            }
+            p.command(21, "", 1, &s, &c);
+        }
+        "guided-connect" => {
+            s.scale_present = false;
+            guided_view(&mut s, Screen::Rinse1, Hint::ConnectScale, false);
+        }
+        "guided-rinse1-temp" => {
+            s.boiler_temperature_c = 61.4;
+            guided_view(&mut s, Screen::Rinse1, Hint::WaitRinseTemp, false);
+        }
+        "guided-rinse1-ready" => {
+            s.weight_g = 48.3;
+            guided_view(&mut s, Screen::Rinse1, Hint::PressNextRinse1, true);
+        }
+        "guided-purge" => {
+            s.weight_g = 48.3;
+            s.cycle_state = CycleState::Purge;
+            s.cycle_elapsed_ms = 2300;
+            guided_view(&mut s, Screen::Rinse1, Hint::PressNextRinse1, true);
+            s.guided.purging = true;
+            s.guided.purge_elapsed_ms = 2300;
+        }
+        "guided-rinse2-replace" => {
+            s.weight_g = -0.2;
+            guided_view(&mut s, Screen::Rinse2, Hint::ReplaceCup, false);
+        }
+        "guided-wait" => {
+            s.boiler_temperature_c = 88.3;
+            s.weight_g = 24.1;
+            guided_view(&mut s, Screen::Wait, Hint::WaitSetpoint, false);
+            s.guided.since_rinse_s = 134;
+        }
+        "guided-early-removal" => {
+            s.weight_g = 0.1;
+            guided_view(&mut s, Screen::Wait, Hint::CupRemovedEarly, false);
+            s.guided.since_rinse_s = 95;
+        }
+        "guided-prepare" => {
+            s.weight_g = 0.1;
+            guided_view(&mut s, Screen::Wait, Hint::Prepare, false);
+        }
+        "guided-start" => {
+            s.weight_g = 0.1;
+            guided_view(&mut s, Screen::Wait, Hint::PressStart, true);
+        }
+        "guided-refused" => {
+            s.weight_g = 0.1;
+            guided_view(&mut s, Screen::Wait, Hint::PressStart, true);
+            s.guided.refusal = Some(screen_core::core::ActionStatus::DimmerNotReady);
+        }
         _ => return Err(format!("scénario inconnu : {name}")),
     }
     Ok((p, s, c))
@@ -300,6 +381,14 @@ mod render_tests {
         assert_ne!(
             std::fs::read(dir.join("keypad-weight.png")).unwrap(),
             std::fs::read(dir.join("keypad-time.png")).unwrap()
+        );
+        assert_ne!(
+            std::fs::read(dir.join("choice.png")).unwrap(),
+            std::fs::read(dir.join("choice-heating.png")).unwrap()
+        );
+        assert_ne!(
+            std::fs::read(dir.join("guided-rinse1-ready.png")).unwrap(),
+            std::fs::read(dir.join("guided-purge.png")).unwrap()
         );
         std::fs::remove_dir_all(dir).unwrap();
 

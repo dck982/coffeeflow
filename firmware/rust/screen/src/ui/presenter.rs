@@ -770,7 +770,13 @@ impl Presenter {
         } else {
             String::new()
         };
-        let hint = hint_text(v.hint, v.screen, c);
+        // Pendant le rinçage, la consigne de l'écran inviterait encore à
+        // appuyer sur suivant.
+        let hint = match (v.purging, v.screen) {
+            (true, Screen::Rinse1) => "premier rinçage en cours".into(),
+            (true, _) => "rinçage du porte-filtre en cours".into(),
+            (false, _) => hint_text(v.hint, v.screen, c),
+        };
         app.set_guided_step(match v.screen {
             Screen::Rinse1 => 0,
             Screen::Rinse2 => 1,

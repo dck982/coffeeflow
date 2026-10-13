@@ -354,6 +354,14 @@ Après la réponse, le worker envoie son FIN et attend que le client ferme
 0.4.6, un RST suivait chaque réponse, et environ une requête sur 1 000 à
 5 Hz échouait en `Connection reset by peer`.
 
+Une seule socket écoute à la fois : un worker garde le verrou d'écoute
+jusqu'à la fin de la poignée de main, puis le passe et sert sa connexion en
+parallèle des autres. smoltcp confie un SYN à toute socket en écoute, même
+quand une autre est déjà en `SynReceived` pour ce client. Jusqu'à 0.4.7, un
+SYN retransmis par le client (macOS en renvoie toutes les 30 ms) pouvait
+ouvrir une seconde connexion, avec un autre numéro de séquence initial, qui
+répondait à la requête par un RST.
+
 Première mouture de l'API :
 
 - `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)

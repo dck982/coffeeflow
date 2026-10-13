@@ -20,7 +20,9 @@ use embassy_net::{
     Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4,
     tcp::{State, TcpSocket},
 };
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex,
+};
 use embassy_time::{Duration, Instant, Timer, with_timeout};
 use embedded_io_async::Write;
 use esp_hal::{peripherals::WIFI, rng::Rng};
@@ -411,6 +413,7 @@ async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
     let mut rx = crate::heap::psram_buffer::<8192>();
     let mut tx = crate::heap::psram_buffer::<2048>();
     loop {
+        let listening = LISTENING.lock().await;
         let stack = if PROVISIONING.load(Ordering::Acquire) {
             ap
         } else {
@@ -422,12 +425,21 @@ async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
             Ok(result) => result.is_ok(),
             Err(_) => handshake_completes(&socket).await,
         };
-        if accepted {
-            let _ = serve(worker, &mut socket).await;
+        if !accepted {
+            close_gracefully(&mut socket).await;
+            continue;
         }
+        drop(listening);
+        let _ = serve(worker, &mut socket).await;
         close_gracefully(&mut socket).await;
     }
 }
+/// Une seule socket en écoute sur le port 80 à la fois, jusqu'à la fin de sa
+/// poignée de main. smoltcp confie un SYN à toute socket en écoute, même si
+/// une autre est déjà en `SynReceived` pour ce client : un SYN retransmis
+/// ouvrait alors une seconde connexion, avec un autre numéro de séquence
+/// initial, et celle-ci répondait par un RST à la requête du client.
+static LISTENING: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 /// Envoie le FIN et attend que le client ferme à son tour, borné à 3 s. Un
 /// RST juste après la réponse peut arriver avant que le client ait lu le
 /// corps : il le perd alors avec « Connection reset by peer ». Le RST ne

@@ -79,20 +79,29 @@ sonde.
 À chaque pas (250 ms) :
 
 ```
-pertes      = 0,45 W/K × (NTC − 24,5 °C) / 12 J par %·s      (2,45 % à 90 °C)
-en_attente  = Σ sur les 23,5 dernières s de (commande − pertes) × dt × 12 / 1 280
+pertes      = 0,45 W/K × (NTC sonde − 34,5 °C) / 12 J par %·s  (2,61 % à 90 °C utilisateur)
+en_attente  = Σ sur les 23,5 dernières s de (commande − pertes − intégrale) × dt × 12 / 1 280
 erreur      = consigne − (NTC + en_attente)
 commande    = pertes + 6 × erreur + intégrale, bornée à 0–100 %
 ```
 
+- **Pertes à la sonde** : depuis l'écran 0.4.6, elles sont calculées sur
+  la température à la sonde, pas sur la température utilisateur. Le modèle
+  a été ajusté avec l'offset de −10 °C : 24,5 °C utilisateur valaient
+  34,5 °C à la sonde. Un changement d'offset ne déplace plus les pertes
+  modélisées.
+
 - **Prédicteur de retard** : `en_attente` est l'élévation de température
   que produira la chaleur déjà commandée mais pas encore visible à la NTC.
-  La pente de la NTC n'est plus utilisée.
+  La pente de la NTC n'est plus utilisée. Depuis 0.4.6, la part de la
+  commande due à l'intégrale n'y est pas comptée : elle compense des pertes
+  que le modèle ignore, elle n'élève pas la température.
 - **Intégrale** : gain 0,05 % par °C·s sur l'erreur prédite, bornée à
   −10…+35 %. Elle corrige l'erreur du modèle de pertes, peut donc être
   négative, et n'est plus remise à zéro au-dessus de la consigne. Elle
-  n'intègre que si la NTC est à moins de 8 °C de la consigne, et pas dans
-  le sens d'une sortie saturée (0 % ou 100 %). Elle est conservée pendant
+  n'intègre que si la NTC est à moins de 8 °C de la consigne, si l'erreur
+  prédite est inférieure à 0,5 °C (depuis 0.4.6), et pas dans le sens
+  d'une sortie saturée (0 % ou 100 %). Elle est conservée pendant
   les infusions et purges ; un changement de consigne, une mesure
   invalide ou la chauffe désactivée la remettent à zéro.
 - **Pas de filtre de sortie** au repos.
@@ -103,11 +112,12 @@ commande    = pertes + 6 × erreur + intégrale, bornée à 0–100 %
 | --- | --- | --- |
 | `kIdleDelayS` | 23,5 s | ajustement sur les captures de repos |
 | `kIdleHeatGainCPerPctSecond` | 12 / 1 280 °C par %·s | capacité de 1,28 kJ/K |
-| `kIdleLossPctPerK`, `kAmbientC` | 0,45 / 12 % par K, 24,5 °C | pertes ajustées |
+| `IDLE_LOSS_PCT_PER_K`, `IDLE_LOSS_ZERO_SENSOR_C` | 0,45 / 12 % par K, 34,5 °C sonde | pertes ajustées |
 | `kIdleProportionalPctPerC` | 6 % par °C | simulation (ci-dessous) |
 | `kIdleIntegralPctPerCSecond` | 0,05 % par °C·s | simulation |
 | `kIdleIntegralMinPct`, `kIdleIntegralMaxPct` | −10 %, +35 % | — |
 | `kIdleIntegralBandC` | 8 °C | ancien régulateur |
+| `IDLE_INTEGRAL_PREDICTED_BAND_C` | 0,5 °C | simulation du 13 octobre |
 
 ## Simulation
 
@@ -183,6 +193,48 @@ Si un cycle subsiste, sa période indique le retard réel : une période
 d'environ 4 fois le retard suggère de recaler `kIdleDelayS`. Une moyenne
 décalée de la consigne indique une erreur de pertes ; l'intégrale devrait
 la résorber en quelques minutes.
+
+## Erreur statique (13 octobre, 0.4.5)
+
+`probe-20261013-082124-103856.json` : consigne 92 °C (106 °C sonde),
+6 min de repos après une infusion. La NTC se stabilise entre 91,75 et
+91,85 °C avec 3,5 à 4 % de commande, sans jamais atteindre la consigne.
+
+Les pertes réelles (≈ 3,7 %) dépassaient les pertes modélisées (2,52 %).
+Le prédicteur comptait cet écart comme de la chaleur en route : 0,22 °C
+par point, soit 0,27 à 0,30 °C ici. L'intégrale annulait l'erreur
+**prédite**, NTC + chaleur en route, à 92,0–92,1 °C ; l'erreur mesurée
+restait. Avant 0.4.4, l'erreur du modèle de pertes était faible et l'effet,
+invisible. L'offset de −14 °C l'a creusé : le même point physique se lit
+3,5 °C plus bas, et 92 °C utilisateur valent 106 °C à la sonde.
+
+0.4.6 retire l'intégrale de la chaleur en route. Seule, cette correction
+laissait l'intégrale gonfler pendant une montée, sans que le prédicteur
+la compte : dépassement de 0,7 à 1 °C en simulation. L'intégrale n'apprend
+donc plus que si l'erreur prédite est inférieure à 0,5 °C.
+
+Simulation en boucle fermée, retard pur de 23,5 s, pertes réelles de 3,7 %
+à 106 °C sonde, consigne 92 °C :
+
+| Loi | Maximum depuis 89,1 °C | Maximum depuis 70 °C | Régime établi | ±0,1 °C atteint |
+| --- | ---: | ---: | ---: | ---: |
+| 0.4.5 | 91,94 °C | 91,83 °C | **91,74 °C** | jamais |
+| Pertes à la sonde seules | 91,99 °C | 91,88 °C | 91,77 °C | jamais |
+| Sans l'intégrale dans la chaleur en route | 92,70 °C | 92,38 °C | 92,00 °C | ≈ 280 s |
+| **0.4.6** (bande de 0,5 °C) | **92,00 °C** | **92,00 °C** | **92,00 °C** | **150–185 s** |
+
+Avec la loi 0.4.6, un retard réel de 18 s ou des pertes réelles 30 % plus
+faibles ou 25 % plus fortes restent sous 92,2 °C. Un retard réel de 30 s
+donne 93,6 °C depuis 70 °C, comme la loi 0.4.5. Une bande de 0,3 °C
+ralentit l'arrivée (196–229 s) ; une bande de 1 °C l'accélère
+(102–135 s) avec 92,06 °C au maximum.
+
+Sur la machine, `probe-20261013-083917-326909.json` démarre 7 s après le
+redémarrage sur 0.4.6 (intégrale à zéro), suivi d'une purge à 5 s. La NTC
+creuse à 90,63 °C (31 s), atteint 91,5 °C vers 57 s puis 92,00 °C vers
+150 s, avec 92,04 °C au maximum. Dix minutes plus tard,
+`probe-20261013-084901-512198.json` lit 91,99 °C en moyenne
+(91,95–92,01 °C) pour 3,2 à 3,4 % de commande.
 
 ## Limites
 

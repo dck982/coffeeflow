@@ -9,6 +9,7 @@
 //! prédiction par la pente et la chaleur en transit.
 
 use crate::brew_heating::BrewHeating;
+use crate::calibration::boiler_sensor_temperature_c;
 use crate::config::BREW_TEMPERATURE_TOLERANCE_C;
 
 /// `Brew` : remplissage et pré-infusion ; `Infusion` : infusion, rampe de fin
@@ -102,7 +103,10 @@ impl Controller {
     pub const IDLE_DELAY_S: f32 = 23.5;
     pub const IDLE_HEAT_GAIN_C_PER_PCT_SECOND: f32 = 12.0 / 1280.0;
     pub const IDLE_LOSS_PCT_PER_K: f32 = 0.45 / 12.0;
-    pub const AMBIENT_C: f32 = 24.5;
+    /// Les pertes suivent la température à la sonde, pas la consigne
+    /// utilisateur. Ajustées avec l'offset de -10 °C alors en vigueur : 24,5 °C
+    /// utilisateur, soit 34,5 °C à la sonde.
+    pub const IDLE_LOSS_ZERO_SENSOR_C: f32 = 34.5;
     pub const IDLE_PROPORTIONAL_PCT_PER_C: f32 = 6.0;
     pub const IDLE_INTEGRAL_PCT_PER_C_SECOND: f32 = 0.05;
     /// L'intégrale corrige l'erreur du modèle de pertes : elle peut être
@@ -110,6 +114,9 @@ impl Controller {
     pub const IDLE_INTEGRAL_MIN_PCT: f32 = -10.0;
     pub const IDLE_INTEGRAL_MAX_PCT: f32 = 35.0;
     pub const IDLE_INTEGRAL_BAND_C: f32 = 8.0;
+    /// L'intégrale n'apprend que près de l'équilibre : en montée, sa chaleur
+    /// n'est pas comptée comme en route et provoquerait un dépassement.
+    pub const IDLE_INTEGRAL_PREDICTED_BAND_C: f32 = 0.5;
 
     // Purge et récupération.
     pub const PREDICTION_HORIZON_S: f32 = 20.0;
@@ -309,10 +316,17 @@ impl Controller {
             // Repos : prédicteur de retard. La chaleur commandée pendant les
             // `IDLE_DELAY_S` dernières secondes n'est pas encore visible à la
             // NTC ; elle est ajoutée à la mesure au lieu d'extrapoler la
-            // pente, qui reflète des commandes passées.
+            // pente, qui reflète des commandes passées. L'intégrale corrige
+            // le modèle de pertes : la chaleur qu'elle commande compense des
+            // pertes et n'est pas en route. La compter laisserait la NTC sous
+            // la consigne d'autant.
             let loss_pct = Self::idle_loss_pct(temperature_c);
-            let pending_c = self.command_pct_seconds(now_ms, Self::IDLE_DELAY_S, loss_pct, false)
-                * Self::IDLE_HEAT_GAIN_C_PER_PCT_SECOND;
+            let pending_c = self.command_pct_seconds(
+                now_ms,
+                Self::IDLE_DELAY_S,
+                loss_pct + self.idle_integral_pct,
+                false,
+            ) * Self::IDLE_HEAT_GAIN_C_PER_PCT_SECOND;
             let predicted_error = target_c - (temperature_c + pending_c);
             let unclamped_pct = loss_pct
                 + Self::IDLE_PROPORTIONAL_PCT_PER_C * predicted_error
@@ -321,7 +335,11 @@ impl Controller {
             // saturée.
             let saturated = (unclamped_pct >= 100.0 && predicted_error > 0.0)
                 || (unclamped_pct <= 0.0 && predicted_error < 0.0);
-            if libm::fabsf(error) < Self::IDLE_INTEGRAL_BAND_C && dt_s > 0.0 && !saturated {
+            if libm::fabsf(error) < Self::IDLE_INTEGRAL_BAND_C
+                && libm::fabsf(predicted_error) < Self::IDLE_INTEGRAL_PREDICTED_BAND_C
+                && dt_s > 0.0
+                && !saturated
+            {
                 self.idle_integral_pct = (self.idle_integral_pct
                     + Self::IDLE_INTEGRAL_PCT_PER_C_SECOND * predicted_error * dt_s)
                     .clamp(Self::IDLE_INTEGRAL_MIN_PCT, Self::IDLE_INTEGRAL_MAX_PCT);
@@ -453,7 +471,9 @@ impl Controller {
     }
 
     fn idle_loss_pct(temperature_c: f32) -> f32 {
-        (Self::IDLE_LOSS_PCT_PER_K * (temperature_c - Self::AMBIENT_C)).max(0.0)
+        (Self::IDLE_LOSS_PCT_PER_K
+            * (boiler_sensor_temperature_c(temperature_c) - Self::IDLE_LOSS_ZERO_SENSOR_C))
+            .max(0.0)
     }
 
     fn clear_command_history(&mut self) {

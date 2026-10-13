@@ -16,7 +16,10 @@ use core::{
 };
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
-use embassy_net::{Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4, tcp::TcpSocket};
+use embassy_net::{
+    Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4,
+    tcp::{State, TcpSocket},
+};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 use embassy_time::{Duration, Instant, Timer, with_timeout};
 use embedded_io_async::Write;
@@ -415,16 +418,28 @@ async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
         };
         let mut socket = TcpSocket::new(stack, &mut rx[..], &mut tx[..]);
         socket.set_timeout(Some(Duration::from_secs(10)));
-        if with_timeout(Duration::from_secs(1), socket.accept(80))
-            .await
-            .is_ok_and(|v| v.is_ok())
-        {
+        let accepted = match with_timeout(Duration::from_secs(1), socket.accept(80)).await {
+            Ok(result) => result.is_ok(),
+            Err(_) => handshake_completes(&socket).await,
+        };
+        if accepted {
             let _ = serve(worker, &mut socket).await;
         }
         socket.close();
         let _ = with_timeout(Duration::from_secs(1), socket.flush()).await;
         socket.abort();
     }
+}
+/// Une connexion arrivée juste avant l'échéance de `accept` a déjà reçu son
+/// SYN-ACK : le client la croit établie et envoie sa requête. L'abandonner
+/// enverrait un RST (« Connection reset by peer »). Attendre la fin de la
+/// poignée de main, bornée à 2 s.
+async fn handshake_completes(socket: &TcpSocket<'_>) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while socket.state() == State::SynReceived && Instant::now() < deadline {
+        Timer::after_millis(5).await;
+    }
+    matches!(socket.state(), State::Established | State::CloseWait)
 }
 struct Broken;
 async fn send(

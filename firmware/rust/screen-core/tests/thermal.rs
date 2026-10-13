@@ -77,17 +77,17 @@ fn idle_basics_and_ready() {
 
 #[test]
 fn idle_losses_and_proportional() {
-    // Repos : pertes 0,45 W/K au-dessus de 24,5 °C (2,45 % à 90 °C), plus
-    // 6 % par °C d'erreur prédite.
+    // Repos : pertes 0,45 W/K au-dessus de 34,5 °C à la sonde (2,61 % à
+    // 90 °C utilisateur), plus 6 % par °C d'erreur prédite.
     let mut fine = Controller::new();
     assert_eq!(
         permille(step(&mut fine, 1000, 89.925, 90.0, Mode::Idle)),
-        29
+        31
     );
     fine.reset();
     assert_eq!(
         permille(step(&mut fine, 1000, 89.875, 90.0, Mode::Idle)),
-        32
+        34
     );
     let mut above = Controller::new();
     assert_eq!(permille(step(&mut above, 1000, 90.5, 90.0, Mode::Idle)), 0);
@@ -97,9 +97,38 @@ fn idle_losses_and_proportional() {
     let mut now = 1000;
     while now <= 60000 {
         let out = step(&mut hold, now, 90.0, 90.0, Mode::Idle);
-        assert!((23..=26).contains(&out.power_permille), "{now}");
+        assert!((25..=28).contains(&out.power_permille), "{now}");
         now += 250;
     }
+}
+
+#[test]
+fn idle_reaches_target_when_losses_exceed_model() {
+    // Chaudière à retard pur de 23,5 s dont les pertes réelles (3,7 % à
+    // 106 °C sonde, capture du 13 octobre) dépassent le modèle d'un point :
+    // l'intégrale doit ramener la NTC à la consigne, sans dépassement.
+    const STEP_MS: u64 = 250;
+    let delay_steps = (Controller::IDLE_DELAY_S * 1000.0) as usize / STEP_MS as usize;
+    let mut c = Controller::new();
+    let mut in_transit = std::collections::VecDeque::from(vec![0.0f32; delay_steps]);
+    let mut temperature = 89.1f32;
+    let mut max_temperature = temperature;
+    let mut now = 1000;
+    while now <= 900_000 {
+        let out = step(&mut c, now, temperature, 92.0, Mode::Idle);
+        in_transit.push_back(f32::from(out.power_permille) / 10.0);
+        let arriving_pct = in_transit.pop_front().unwrap();
+        let loss_pct = 0.0442 * (boiler_sensor_temperature_c(temperature) - 22.0);
+        temperature += (arriving_pct - loss_pct)
+            * Controller::IDLE_HEAT_GAIN_C_PER_PCT_SECOND
+            * (STEP_MS as f32 / 1000.0);
+        max_temperature = max_temperature.max(temperature);
+        if now >= 600_000 {
+            assert!((temperature - 92.0).abs() < 0.05, "{now} : {temperature}");
+        }
+        now += STEP_MS;
+    }
+    assert!(max_temperature < 92.2, "{max_temperature}");
 }
 
 #[test]

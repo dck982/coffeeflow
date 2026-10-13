@@ -346,6 +346,12 @@ les longueurs ambiguës, les en-têtes dupliqués et le chunked. Le WebSocket
 n'accepte aucune injection CAN et une session trop lente est fermée sans
 retenir le bus.
 
+Chaque worker recrée sa socket d'écoute toutes les secondes pour suivre la
+bascule entre point d'accès et STA. Une connexion en pleine poignée de main
+à cette échéance est menée à terme (2 s au plus) au lieu d'être abandonnée :
+jusqu'à 0.4.5, elle recevait un RST, et environ une requête sur 1 000 à
+5 Hz échouait en `Connection reset by peer`.
+
 Première mouture de l'API :
 
 - `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)

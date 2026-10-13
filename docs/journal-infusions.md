@@ -140,7 +140,14 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 
 ## Pistes pour le goût
 
-Recette : grain ViCafé (100 % arabica), 8,0 g en panier. Les pistes
+Recette : grain ViCafé (100 % arabica), 8,0 g en panier. Routine de
+David avant chaque infusion : purge de 5 à 6 s sans porte-filtre dans la
+tasse (rinçage du circuit, tasse chauffée), puis aussitôt une seconde
+purge de 5 à 6 s avec le porte-filtre, dans la même tasse ; attente que
+la NTC revienne à la consigne, porte-filtre en place avec l'eau restée
+dedans ; porte-filtre vidé et séché, galette préparée, tasse vidée et
+rincée, infusion. La durée de l'attente à la consigne varie et n'est pas
+enregistrée. Les pistes
 ci-dessous attendent que la chauffe soit stabilisée ; on n'en change
 qu'une à la fois. Les repères « avant » viennent du journal de dégustation
 tenu avant la modification de la machine (juillet–août 2026, local, hors
@@ -1673,8 +1680,10 @@ température.
 ### 13 octobre, 13 h 29 — `261013-132935`
 
 **Contexte.** Cible ramenée de 23 à **22 g** ; consigne de 92 °C,
-mouture, écran 0.4.4 et chauffe inchangés depuis 8 h 18. Observation de
-David : résultat gustatif impeccable.
+mouture, écran 0.4.4 et chauffe inchangés depuis 8 h 18. Observations
+de David : résultat gustatif impeccable ; porte-filtre resté sur le groupe
+plus longtemps qu'à l'habitude avant l'infusion, la machine étant à la
+consigne (durée non relevée).
 
 **Hydraulique.**
 
@@ -1773,13 +1782,16 @@ David : résultat gustatif impeccable.
   restants ne viennent ni de la commande ni du SSR, qui fournit 1,1 kJ de
   plus avant l'infusion pour 3,8 ml de plus admis, soit l'équivalent.
 - *Chauffe, hypothèse non testée.* Le modèle tombe sous la mesure dès le
-  remplissage, comme si l'eau admise était plus chaude que les 24,5 °C
-  supposés (≈ 62 K d'écart au lieu de 70,5 K, soit une eau vers 33 °C).
-  Un réservoir réchauffé par la machine fermée, allumée depuis le matin,
-  ou de l'eau tiède restée dans le circuit entre la pompe et la chaudière
-  iraient dans ce sens. Le 12 octobre à 13 h 34, le modèle était au
-  contraire à +0,23 °C : l'heure seule ne suffit pas. Rien dans la capture
-  ne mesure l'eau entrante.
+  remplissage, comme si l'écoulement retirait moins de chaleur que prévu
+  (≈ 62 K d'écart d'eau froide au lieu de 70,5 K). Cause la plus
+  probable, rapportée par David : une attente plus longue à la consigne,
+  porte-filtre en place. Le groupe et le porte-filtre, plus chauds,
+  prennent moins de chaleur à l'eau et à la chaudière ; le départ à
+  +0,10 °C, au lieu de −0,39 °C, va dans le même sens. Autre cause
+  possible, non exclue : une eau de réservoir plus chaude que 24,5 °C.
+  Le 12 octobre à 13 h 34, le modèle était à +0,23 °C : l'heure seule ne
+  suffit pas. La capture ne contient ni la durée de l'attente ni la
+  température de l'eau entrante, et l'eau au panier n'est pas mesurée.
 - *Remplissage, mesuré.* La pression au repos, plus basse que le matin
   (0,33 à 0,45 bar), fait partir le remplissage du même point bas, mais
   la pression reste vers 0,4 bar jusqu'à 15,9 ml, et le remplissage
@@ -1795,8 +1807,8 @@ David : résultat gustatif impeccable.
   d'infusion (15,6 s contre 18,5 s depuis 8 bar) ; rien ne sépare l'une
   de l'autre sur cette infusion.
 
-**Décision.** Aucun changement annoncé : consigne de 92 °C, cible de
-22 g, mouture, firmware 0.4.4 et chauffe conservés.
+**Décision** (David). Réglages conservés : consigne de 92 °C, cible de
+22 g, mouture, firmware 0.4.4 et chauffe.
 
 **Attendus pour l'infusion suivante** (mêmes réglages) :
 
@@ -1807,5 +1819,5 @@ David : résultat gustatif impeccable.
 | Remplissage | 3,5 à 3,6 ml/s à 75 % ; 5 à 6,5 s et 17 à 22 ml ; marge positive |
 | Pré-infusion | fin sur la goutte sous ≈ 7,5 bar·s/g, à l'échéance au-dessus |
 | Tasse | 89,7 à 92,0 °C, entre les deux infusions du jour ; au critère si la NTC dépasse à nouveau la consigne de ≈ 2 °C à la fin du remplissage |
-| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C de la mesure ; s'il est de nouveau sous la mesure dès le remplissage, relever la température de l'eau du réservoir avant l'infusion |
+| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C de la mesure ; s'il est de nouveau sous la mesure dès le remplissage, rapprocher l'écart de la durée d'attente à la consigne (à noter, même approximative), puis de la température de l'eau du réservoir |
 | Goût | même résultat ; s'il change, comparer d'abord la résistance au plateau puis la NTC tasse |

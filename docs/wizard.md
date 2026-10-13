@@ -48,6 +48,12 @@ pendant la chauffe. Il ouvre une fenêtre à trois boutons : **directe**,
 Le seuil de −5 g plutôt que 0 g évite qu'une oscillation de la balance
 autour de zéro passe pour un retrait.
 
+Une tare met un instant à revenir de la balance. Après chaque tare, le
+guide ignore le poids jusqu'à lire une valeur entre −2 et +2 g, ou pendant
+2 s au plus, et n'envoie pas de nouvelle tare dans cet intervalle. Une tare
+refusée par le cœur (balance non inscriptible) se traite comme une balance
+absente : « reconnectez la balance ».
+
 ## Écrans
 
 Chaque écran a le bandeau d'état habituel (heure, poids, pression,

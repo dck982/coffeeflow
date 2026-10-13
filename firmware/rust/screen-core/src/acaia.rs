@@ -121,7 +121,8 @@ pub fn decode_weight(data: &[u8]) -> f32 {
         4 => weight /= 10000.0,
         _ => {}
     }
-    // Bit à confirmer par tare puis masse négative sur la Lunar réelle.
+    // Bit de signe : la Lunar réelle affiche bien un poids négatif quand on
+    // retire la tasse après une tare.
     if data[5] & 0x02 != 0 { -weight } else { weight }
 }
 

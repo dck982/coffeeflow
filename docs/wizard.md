@@ -118,8 +118,10 @@ ressort ensuite de la plage :
 **Démarrer** est actif quand la balance est là, que la tasse a été
 **retirée puis replacée depuis la consigne atteinte** (poids > 30 g après
 la tare à vide), et que la consigne est atteinte au moment de l'appui.
-L'appui tare la balance, puis lance l'infusion. L'écran d'infusion
-habituel prend alors le relais.
+L'appui tare la balance ; l'infusion part une fois la tare absorbée
+(lecture entre −2 et +2 g, ou 2 s au plus), car la machine retient le poids
+au départ comme référence. Le bouton est inactif entre-temps. L'écran
+d'infusion habituel prend alors le relais.
 
 Le retrait est exigé après la consigne : sans lui, la tasse encore pleine
 des rinçages (environ 50 g) passerait pour la tasse vide.
@@ -198,7 +200,7 @@ ignorent les champs qu'ils ne connaissent pas (précédent :
 | `wait.heater_on_ms` | temps de SSR actif entre la fin du second rinçage et **démarrer** ; ×1 200 W donne l'énergie fournie |
 | `wait.early_removals` | retraits de la tasse à l'écran 3 avant la consigne |
 | `cup_removed_ms`, `cup_returned_ms` | premier retrait après la consigne, et retour qui active **démarrer** |
-| `start_pressed_ms` | appui accepté sur **démarrer** ; vaut 0 ou presque, car la capture commence à cet appui |
+| `start_pressed_ms` | départ réel de l'infusion, une fois la tare absorbée ; vaut 0 ou presque, car la capture commence à ce départ |
 | `scale_lost_ms` | durée cumulée sans balance, de l'ouverture à **démarrer** |
 
 Durées lues dans le journal :

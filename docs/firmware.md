@@ -141,6 +141,14 @@ n'est pas connectée ou si sa dernière mesure correcte date de plus de 300 ms
 `pressure_a2_raw`, et les outils ignorent les champs qu'ils ne connaissent
 pas.
 
+Pour une capture `origin: brew`, l'export porte aussi une clé `session`, avant
+`samples` : le déroulé de l'infusion guidée (ouverture, deux rinçages, attente,
+retrait et retour de la tasse, appui sur **démarrer**, durée sans balance),
+en millisecondes relatives au début de la capture. Elle vaut `null` pour une
+infusion directe et n'existe pas pour une purge. Le schéma reste v2 : les
+outils ignorent les champs qu'ils ne connaissent pas. Champs et lecture dans
+[wizard.md](wizard.md).
+
 `coffeetool download-hf` télécharge la capture et conserve le JSON brut dans
 `captures/YYMMDD-HHMMSS.json`. Le fichier peut ensuite être analysé par
 d'autres outils ou tracé avec matplotlib :

@@ -68,12 +68,21 @@ calibration, chauffage désactivé, chaudière en chauffe.
 
 Trois boutons en bas :
 
-- **infuser · 36 g** (ou `· 28 s`), principal, grisé tant que les conditions
-  ne sont pas réunies (capteurs vivants, pas de verrou, dimmer prêt, chauffage
-  activé, températures et puissance de chauffe fraîches, chaudière à moins
-  d'un degré de la consigne et prête, pas de délai de capture) ;
+- **infuser · 36 g** (ou `· 28 s`), principal, qui ouvre la fenêtre de choix
+  ci-dessous. Il est actif dès que la machine accepterait une purge (capteurs
+  vivants, pas de verrou, pas de cycle, dimmer prêt), même pendant la chauffe ;
 - **purge**, qui pompe tant que le doigt reste appuyé ;
 - **réglages**.
+
+La fenêtre de choix se superpose à l'accueil, avec trois boutons :
+
+- **directe** lance l'infusion comme avant. Elle est grisée tant que ses
+  conditions ne sont pas réunies (chaudière à moins d'un degré de la
+  consigne et prête, chauffage activé, températures et puissance de chauffe
+  fraîches, pas de délai de capture) ; la raison s'affiche en rouge dessous ;
+- **guidée** est toujours active et ouvre l'infusion guidée ;
+- **annuler** ferme la fenêtre. Elle se ferme aussi d'elle-même si l'écran
+  quitte l'accueil ou si la purge n'est plus possible.
 
 La veille a deux niveaux, réglés par `dim_after_s` et `standby_after_s` de la
 configuration : l'écran s'assombrit, puis passe sur un fond uni portant
@@ -127,6 +136,43 @@ doigt depuis l'accueil, elle s'arrête au relâchement.
 Cette page sert aussi à un cycle d'infusion sans suivi de tir (`shot.active`
 faux). Si le cycle vise un poids, le compteur se scinde alors en deux colonnes,
 poids écoulé et temps écoulé ; une fois terminé, il affiche le dernier poids.
+
+## Infusion guidée
+
+La page 8 du présentateur affiche le guide. Elle prime sur la page de purge,
+car les deux rinçages du guide sont des purges. La veille s'y applique : un
+appui réveille l'écran sur l'étape en cours. Le déroulé, les conditions de chaque
+écran et les cas limites sont dans [wizard.md](wizard.md) ; ce qui suit
+décrit la page.
+
+À gauche, une illustration de 200 × 200 px selon l'étape : rinçage, porte-filtre,
+attente, préparation (la dernière sert aux consignes « videz et rincez… »,
+« attendez la consigne » et « appuyez sur démarrer »). Trois pastilles
+numérotées marquent l'étape : faite en vert, en cours en accent, à venir en
+gris. À droite, la consigne en 32 px (26 px au-delà de 60 caractères), puis en
+grand une valeur : la température quand la consigne est d'attendre la chauffe
+(en couleur de température), sinon le poids, et rien tant que la balance est
+absente. Pendant l'attente de l'écran 3, une note à côté indique le temps
+écoulé depuis le rinçage. Une ligne rouge, au-dessus des boutons, donne la
+raison d'un refus du cœur.
+
+Deux boutons : **quitter** à gauche, et à droite **suivant** (écrans 1 et 2)
+ou **démarrer** (écran 3), grisé tant que le cœur ne le dit pas actif. Les
+gestes deviennent des actions sans logique d'étape : fenêtre de choix
+(id 21 ouvre, 22 choisit guidée, 23 annule), **suivant** et **démarrer**
+(24), **quitter** (25).
+
+Pendant un rinçage :
+
+- la consigne devient « premier rinçage en cours » (écran 1) ou « rinçage du
+  porte-filtre en cours » (écran 2) ;
+- la valeur en grand est le compteur de la purge, en secondes ;
+- **arrêter** remplace **quitter** et coupe la purge, le bouton de droite est
+  grisé.
+
+Sur **démarrer**, l'écran tare la balance. L'infusion part une fois la tare
+absorbée (lecture entre −2 et +2 g, ou 2 s au plus) ; la page d'infusion
+habituelle prend alors le relais.
 
 ## Réglages
 

@@ -55,7 +55,7 @@ NTC utilisateur, et l'écart tendait vers 3 K avec un porte-filtre chaud
 moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 9 octobre : leur retirer 3,5 °C pour les comparer aux suivantes.
 
-Écart au critère, consigne de 90 °C :
+Écart au critère, consigne de 90 °C sauf mention :
 
 | Infusion | Précharge | Tasse | Volume amont |
 | --- | ---: | ---: | ---: |
@@ -78,6 +78,7 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 11/10, 13 h 40 | 8 s, cible 23 g, tassage à reprendre (11,9 s depuis 8 bar) | **87,29 °C** | 88,98 °C |
 | 12/10, 9 h 12 | 8 s, mouture affinée (18,7 s depuis 8 bar) | **88,75 °C** | 89,38 °C |
 | 12/10, 13 h 34 | 8 s, même mouture, tassage variable (14,4 s depuis 8 bar) | **87,96 °C** | 89,04 °C |
+| 13/10, 8 h 18 | 8 s, **consigne de 92 °C** (18,5 s depuis 8 bar) | **89,71 °C** | 90,76 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -499,5 +500,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261011-134059.json` | 8 s | cible 23 g, même mouture, tassage à reprendre (6,2 bar·s/g au plateau) ; 11,9 s depuis 8 bar ; 0 % pendant 10,6 s, appoint repris 5,9 s avant l'arrêt ; −2,71 °C en tasse, modèle à +1,52 °C (+1,10 °C avec l'énergie SSR) ; hors ajustement |
 | `261012-091234.json` | 8 s | mouture affinée (8,5 bar·s/g au plateau), pré-infusion finie à l'échéance ; 18,7 s depuis 8 bar ; 0 % pendant 12,5 s, rebond à 89,58 °C puis −0,24 °C/s pendant l'appoint, repris 9,5 s avant l'arrêt ; −1,25 °C en tasse, modèle à +0,44 °C (+0,06 °C avec l'énergie SSR) ; hors ajustement |
 | `261012-133429.json` | 8 s | même mouture, tassage variable (7,0 bar·s/g au plateau), pré-infusion finie sur la goutte ; 14,4 s depuis 8 bar ; 0 % pendant 10,9 s, palier à 89,4 °C sans rebond, appoint repris 7,6 s avant l'arrêt ; −2,04 °C en tasse, modèle à +0,75 °C (+0,23 °C avec l'énergie SSR) ; hors ajustement |
+| `261013-081846.json` | 8 s | consigne de 92 °C, même mouture (8,0 bar·s/g au plateau), pré-infusion finie à l'échéance ; 18,5 s depuis 8 bar ; 0 % pendant 12,0 s, palier à 90,4 °C sans rebond, appoint repris 9,6 s avant l'arrêt ; −2,29 °C en tasse, modèle à +1,25 °C (+0,43 °C avec l'énergie SSR, +0,16 °C avec un écart d'eau froide de 72,5 K) ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

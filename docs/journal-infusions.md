@@ -1787,11 +1787,11 @@ consigne (durée non relevée).
   probable, rapportée par David : une attente plus longue à la consigne,
   porte-filtre en place. Le groupe et le porte-filtre, plus chauds,
   prennent moins de chaleur à l'eau et à la chaudière ; le départ à
-  +0,10 °C, au lieu de −0,39 °C, va dans le même sens. Autre cause
-  possible, non exclue : une eau de réservoir plus chaude que 24,5 °C.
-  Le 12 octobre à 13 h 34, le modèle était à +0,23 °C : l'heure seule ne
-  suffit pas. La capture ne contient ni la durée de l'attente ni la
-  température de l'eau entrante, et l'eau au panier n'est pas mesurée.
+  +0,10 °C, au lieu de −0,39 °C, va dans le même sens. Le réservoir est
+  exclu : David y avait ajouté de l'eau du robinet avant l'infusion, donc
+  plus froide, pas plus chaude. Le 12 octobre à 13 h 34, le modèle était à +0,23 °C : l'heure seule ne
+  suffit pas. La capture ne contient pas la durée de l'attente, et l'eau
+  au panier n'est pas mesurée.
 - *Remplissage, mesuré.* La pression au repos, plus basse que le matin
   (0,33 à 0,45 bar), fait partir le remplissage du même point bas, mais
   la pression reste vers 0,4 bar jusqu'à 15,9 ml, et le remplissage
@@ -1819,5 +1819,5 @@ consigne (durée non relevée).
 | Remplissage | 3,5 à 3,6 ml/s à 75 % ; 5 à 6,5 s et 17 à 22 ml ; marge positive |
 | Pré-infusion | fin sur la goutte sous ≈ 7,5 bar·s/g, à l'échéance au-dessus |
 | Tasse | 89,7 à 92,0 °C, entre les deux infusions du jour ; au critère si la NTC dépasse à nouveau la consigne de ≈ 2 °C à la fin du remplissage |
-| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C de la mesure ; s'il est de nouveau sous la mesure dès le remplissage, rapprocher l'écart de la durée d'attente à la consigne (à noter, même approximative), puis de la température de l'eau du réservoir |
+| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C de la mesure ; s'il est de nouveau sous la mesure dès le remplissage, rapprocher l'écart de la durée d'attente à la consigne (à noter, même approximative) |
 | Goût | même résultat ; s'il change, comparer d'abord la résistance au plateau puis la NTC tasse |

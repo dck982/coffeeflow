@@ -91,7 +91,9 @@ entrée UART0 par défaut : le firmware actuel le reconfigure explicitement en G
 ## Pas de connecteur pour une carte AC
 
 La carte `accontrol` a été mise de côté le 11 octobre 2026 : la vanne et la
-pompe restent sur le SSR M5Stack (J7) et le dimmer RobotDyn (Grove I2C). J9,
+pompe restent sur le SSR M5Stack (J7) et le dimmer RobotDyn (Grove I2C).
+Le 13 octobre 2026, elle est reprise sous le nom `combined` (`../combined/`),
+qui réunit sur une seule carte la partie AC et ce schéma, sans J4, J5 ni J7. J9,
 qui lui était destiné, est retiré, et GPIO1 et GPIO3 restent libres.
 
 Une future carte AC unique prendrait la place du dimmer I2C et de VALVE sur J7 :

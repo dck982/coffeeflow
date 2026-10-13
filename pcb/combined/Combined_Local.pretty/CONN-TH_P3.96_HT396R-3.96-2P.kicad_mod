@@ -24,7 +24,7 @@
 	(fp_line (start -4.21 -1.45) (end 4.21 -1.45) (layer F.CrtYd) (width 0.05))
 	(fp_line (start 4.21 -1.45) (end 4.21 10.25) (layer F.CrtYd) (width 0.05))
 	(fp_line (start 4.21 10.25) (end -4.21 10.25) (layer F.CrtYd) (width 0.05))
-	(model "${KIPRJMOD}/Accontrol_Local.3dshapes/CONN-TH_P3.96_HT396R-3.96-2P.wrl"
+	(model "${KIPRJMOD}/Combined_Local.3dshapes/CONN-TH_P3.96_HT396R-3.96-2P.wrl"
 		(offset (xyz 0.000 0.000 0.000))
 		(scale (xyz 1 1 1))
 		(rotate (xyz 0 0 0))

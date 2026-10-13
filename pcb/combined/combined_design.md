@@ -1,40 +1,55 @@
-# CoffeeFlow AC control board
+# CoffeeFlow combined board
 
-**Shelved on October 11, 2026; not to be manufactured.** The machine keeps
-the RobotDyn dimmer and the M5Stack Unit SSR. A single board does not fit the
-AC enclosure (`print/parts/boitier_ac.py`, 68 × 31.6 × 25.4 mm inside): two
-channels, the zero-cross sense and F1 need about 80 × 30 mm laid out as a
-strip, like the RobotDyn dimmer, while the M5Stack standing on edge takes
-almost no floor space. The only gain sought, a single cable to the sensors
-board, did not justify a home-made 230 V board. This file, the schematic and
-the partial layout stay as a reference.
+**Combined on October 13, 2026:** the former `accontrol` project now also
+carries the sensors controller, so one board holds both the 230 V side
+(valve and pump) and the low-voltage side (XIAO ESP32-S3, CAN, sensors,
+boiler SSR output). The AC board alone had been shelved on October 11: it did
+not fit the AC enclosure (`print/parts/boitier_ac.py`, 68 × 31.6 × 25.4 mm
+inside), and a single cable to the sensors board did not justify it. Merging
+both boards removes that cable altogether; the enclosure remains to be
+decided (see Open points).
 
-The connected schematic is `accontrol.kicad_sch`; `accontrol.pdf` is a
-generated review copy. `accontrol.kicad_pcb` has a first placement and a
-partial routing of the valve channel, with clearance violations left open.
-`accontrol_bom.csv` lists values, footprints and design notes.
-D3, F1, J2–J4, Q2 and Q4 have their JLCPCB parts; the other MPN and LCSC
-fields are still to fill.
+The schematic has three sheets. `combined.kicad_sch` is the AC side, as
+below. `combined_controller.kicad_sch` (XIAO, 5 V input, status LED, pressure
+ADC) and `combined_interfaces.kicad_sch` (CAN, I2C pull-ups and TMP102,
+flowmeter, boiler SSR output) come from `../sensors/`, whose design notes in
+`sensors_design.md` still apply to those circuits, with the references
+renumbered as listed in "Low-voltage side from sensors". `combined.pdf` is a
+generated review copy. `combined.kicad_pcb` has a first placement and a
+partial routing of the valve channel, with clearance violations left open;
+it does not have the sensors footprints yet (Update PCB from Schematic).
+`combined_bom.csv` lists values, footprints and design notes.
+D3, F1, J2–J4, Q2 and Q4 have their JLCPCB parts, as do all the sensors
+parts; the other MPN and LCSC fields of the AC side are still to fill.
 
 The board switches the two original 230 V actuators from 3.3 V logic: the
 solenoid valve (OLAB coil, 15 VA, about 65 mA) and the vibration pump (OLAB
 Silent Green 35 W, about 0.15 A RMS). It replaces the M5Stack Unit SSR on the
 valve and the RBDimmer 4 A on the pump. Both channels reuse those modules'
 circuits. The pump channel follows the RobotDyn dimmer. Unlike the RBDimmer in
-DimmerLink mode, this board has no microcontroller: the controller receives
-the zero-cross signal and times the pump firing itself.
+DimmerLink mode, the pump channel has no microcontroller of its own: the
+XIAO receives the zero-cross signal and times the pump firing itself.
 
 ## Connectors
 
-| Connector | Type | Pin 1 | Pin 2 | Pin 3 | Pin 4 | Pin 5 |
-|---|---|---|---|---|---|---|
-| J1, control | JST XH 5 | GND | 3V3 | DIM | ZC | SSR |
-| J2, mains in | HT396R 2 | L | N | — | — | — |
-| J3, valve | HT396R 2 | L switched | N | — | — | — |
-| J4, pump | HT396R 2 | L switched | N | — | — | — |
+| Connector | Type | Pin 1 | Pin 2 | Pin 3 |
+|---|---|---|---|---|
+| J1, 5 V power | JST XH 2 | GND | +5V | — |
+| J2, mains in | HT396R 2 | L | N | — |
+| J3, valve | HT396R 2 | L switched | N | — |
+| J4, pump | HT396R 2 | L switched | N | — |
+| J5, CAN | JST XH 2 | CAN_L | CAN_H | — |
+| J6, flow | JST XH 3 | GND | +5V | FLOW_PULSE |
+| J8, boiler SSR | JST XH 2 | GND | BOILER_5V | — |
+| J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE |
+
+The former 5-pin control header (GND, 3V3, DIM, ZC, SSR) is gone: DIM, ZC
+and SSR run as tracks to the XIAO sockets, and 3V3 comes from the XIAO.
+The sensors board's two Grove I2C headers and its VALVE header are not
+carried over either: the dimmer and the valve SSR are now on board.
 
 J2, J3 and J4 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
-clone). Their footprint and 3D model come from LCSC, in `Accontrol_Local`;
+clone). Their footprint and 3D model come from LCSC, in `Combined_Local`;
 the courtyard was enlarged to cover the pads and the body. The pins sit at
 the back of the body, which extends 10 mm forward: place the connectors with
 the pins inside the board and the mating face at the edge.
@@ -45,7 +60,7 @@ the zero-cross bridge is the only circuit connected to N.
 F1 (2 A fast, 250 V) is in series with L right after J2 (net L_IN between
 them) and protects the whole mains side. It is an AEM MF2410F2.000TM (LCSC
 C83797), assembled by JLCPCB on the LCSC `F2410` footprint in
-`Accontrol_Local`, whose courtyard was enlarged to cover the pads. The pads
+`Combined_Local`, whose courtyard was enlarged to cover the pads. The pads
 leave 3 mm between L_IN and L.
 
 - Fast-acting: it clears 20 A (10 In) in 1 to 10 ms. The valve and pump
@@ -62,12 +77,13 @@ leave 3 mm between L_IN and L.
 Both channels share the same input stage. The valve channel uses Q1, R1–R4, D1
 and U1; the pump channel uses Q3, R8–R11, D2 and U2.
 
-- R2 / R9 (4.7 kΩ) pull the input to GND, so the channel stays off when J1 is
-  unplugged or the controller pin floats during boot.
+- R2 / R9 (4.7 kΩ) pull the input to GND, so the channel stays off while the
+  XIAO is unplugged or its pin floats during boot. They replace the 10 kΩ
+  VALVE pull-down of the sensors board, which is not carried over.
 - R1 / R8 (1 kΩ) limit the base current of Q1 / Q3: about 2.5 mA from a
   3.3 V GPIO. The transistor turns on above about 0.85 V on the input.
 - Q1 / Q3 (SS8050) are low-side switches. They sink the optotriac LED current
-  and the indicator LED current. That current comes from the 3V3 pin of J1,
+  and the indicator LED current. That current comes from the XIAO 3V3 output,
   not from the GPIO, which only supplies the base current. With 2.5 mA of base
   current for about 12 mA of collector current, the transistor saturates.
 - R3 / R10 (180 Ω) set the optotriac LED current:
@@ -79,7 +95,7 @@ and U1; the pump channel uses Q3, R8–R11, D2 and U2.
   command, not whether the load is actually conducting.
 
 Load on the 3V3 rail: about 12 mA per active channel, plus 0.25 mA for the ZC
-pull-up. That is 25 mA with both channels on. C1 (1 µF) decouples 3V3 at J1.
+pull-up. That is 25 mA with both channels on. C1 (1 µF) decouples 3V3 for this side.
 
 ## Mains side: valve channel (zero-cross)
 
@@ -178,7 +194,7 @@ D3 feeds the U3 LED (EL817C). The U3 phototransistor pulls ZC to GND, and R16
 
 ## Pump firing in firmware
 
-The controller replaces the DimmerLink timing:
+The XIAO replaces the DimmerLink timing:
 
 1. Timestamp both edges of each ZC pulse. The zero crossing is their midpoint.
 2. Raise DIM after the firing delay for the requested power: short delay =
@@ -191,9 +207,53 @@ The controller replaces the DimmerLink timing:
    firing again at the start of the next half-cycle.
 4. Full power: hold DIM high continuously; U2 then fires at the start of each
    half-cycle. Off: hold DIM low.
-5. If ZC pulses stop (mains missing or J1 unplugged), hold DIM low.
+5. If ZC pulses stop (mains missing), hold DIM low.
 
 SSR needs no timing: U1 does its own zero-cross synchronisation.
+
+## Low-voltage side from sensors
+
+Everything on the sensors board except its Grove I2C headers (J4, J5) and its
+VALVE header (J7, with its R17 pull-down) is copied with unchanged values and
+connections. The 4.7 kΩ SDA/SCL pull-ups stay: the TMP102 and the ADS1115
+are on the bus. References that clashed with the AC side were renumbered:
+
+| sensors | combined | Part |
+|---|---|---|
+| U1 | U7 | XIAO ESP32-S3 (schematic only, plugs into J11/J12) |
+| D2 | D4 | Green status LED |
+| J3 | J5 | CAN connector |
+| Q2 | Q5 | AO3401A, boiler output |
+| Q3 | Q6 | 2N7002, boiler output |
+| R11 | R17 | TJA1051 TXD pull-up |
+| R12 | R18 | CAN termination, 120 Ω 1206 |
+| R13, R14 | R20, R23 | SDA, SCL pull-ups |
+| R15 | R24 | FLOW pull-up |
+
+The other references (C8–C15, H1, J1, J6, J8, J10–J12, R19, R21, R22, R25,
+R26, U4–U6) keep their sensors numbers. The XIAO footprint and its socket
+footprint are copied into `Combined_Local`; `sym-lib-table` points to the
+local Seeed XIAO symbol library, as in sensors.
+
+XIAO pins used by the AC side, following the plan already noted in
+`sensors_design.md`:
+
+| Signal | GPIO | Seeed name | U7 / J11–J12 pin |
+|---|---:|---|---|
+| DIM | 1 | D0 | U7 / 1, J11 / 1 |
+| ZC | 3 | D2 | U7 / 3, J11 / 3 |
+| SSR | 9 | D10 | U7 / 11, J12 / 4 (former VALVE_CMD) |
+
+The other pins keep their sensors assignments; only D6/GPIO43 stays free.
+ZC is hard-wired to the U3 phototransistor and R16, so it needs no internal
+pull-down. GPIO3 is a JTAG strapping pin, read only when the
+`STRAP_JTAG_SEL` eFuse is burnt, which it is not by default; U3 may then
+drive it at boot. SSR stays on GPIO9, active HIGH, as VALVE_CMD was. DIM and
+ZC replace the I2C link to the RobotDyn dimmer: the firmware must time the
+pump itself (see "Pump firing in firmware") before the board is used.
+
+The XIAO 3V3 output now also supplies the AC-side logic: up to 25 mA with
+both channels on, on top of the sensors load.
 
 ## Overvoltage protection decision
 
@@ -246,13 +306,13 @@ asks for 2.5 mm of creepage between mains nets and 5 mm (reinforced) between
 mains and 3V3. In a steamy spot (pollution degree 3), these would rise to
 4 mm and 8 mm.
 
-`accontrol.kicad_dru` enforces this in the DRC: 1.5 mm minimum for the AC net
+`combined.kicad_dru` enforces this in the DRC: 1.5 mm minimum for the AC net
 class (L_IN, L, N, L_VALVE, L_PUMP, single 1 oz layer for the 2 A
 of F1), 2.5 mm between mains nets, and 7 mm between mains and 3V3. Pads of
 one part keep their footprint spacing, and a mains track may come to 1.25 mm
 of a neighbouring mains pad inside a courtyard, as it enters its own pad.
 
-U1, U2 and U3 use `Accontrol_Local` copies of the SMDIP footprints with a
+U1, U2 and U3 use `Combined_Local` copies of the SMDIP footprints with a
 1 mm routed slot between the pad rows, extending 1 mm past each end of the
 body, as on the RobotDyn dimmer. It cuts the surface creepage path under the
 package against dust or residue.
@@ -282,6 +342,11 @@ When laying out the PCB:
 
 ## Open points
 
+- Enclosure and board outline: the AC side alone did not fit the AC box.
+  The combined board needs its outline, and the place where it sits in the
+  machine, decided before the layout. Its low-voltage side must keep 7 mm
+  from every mains net, including the new sensors nets.
+
 - The gate, latching and holding values above come from the Philips BT136S
   datasheet (standard -600 gate), the worst case for gate current. The chosen
   JCST BT136S (LCSC C23427, the part in the M5Stack Unit SSR) has a more
@@ -293,7 +358,9 @@ When laying out the PCB:
 
 ## Assembly and maintenance
 
-Fill the remaining BOM MPN and LCSC columns, confirm JLCPCB stock for the
+Update the PCB from the schematic (replaces the 5-pin J1 with the 5 V
+header, adds the sensors footprints),
+fill the remaining BOM MPN and LCSC columns, confirm JLCPCB stock for the
 optotriacs and the EL817C.
 The manufacturing export (`uv run ../generate_manufacturing.py .`) requires
 the LCSC column and a placed, DRC-clean PCB.

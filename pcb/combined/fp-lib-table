@@ -1,1 +1,1 @@
-(fp_lib_table (version 7) (lib (name "Accontrol_Local") (type "KiCad") (uri "${KIPRJMOD}/Accontrol_Local.pretty") (options "") (descr "AC control board footprints")))
+(fp_lib_table (version 7) (lib (name "Combined_Local") (type "KiCad") (uri "${KIPRJMOD}/Combined_Local.pretty") (options "") (descr "Combined board footprints")))

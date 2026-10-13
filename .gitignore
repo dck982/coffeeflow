@@ -40,3 +40,6 @@ firmware/*/sdkconfig
 firmware/*/managed_components/
 firmware/*/dependencies.lock
 firmware/*/.cache/
+
+# Paid IEC standards: local reference only, licence forbids redistribution.
+docs/datasheets/iec*.pdf

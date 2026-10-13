@@ -30,7 +30,7 @@ seuil de remplissage et la puissance de pré-infusion diffèrent de
 | Consigne | **92 °C** | 13 octobre, 8 h 18 (90 °C avant) |
 | Remplissage | pompe à 75 %, fin à **0,8 bar** (10 s au plus) | 5 octobre, 7 h 59 |
 | Pré-infusion | pompe à **50 %**, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
-| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, sans ramp-down | après le 13 octobre, 8 h 18 (23 g depuis le 11 octobre, 13 h 40) |
+| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, sans ramp-down | 13 octobre, 13 h 29 (23 g du 11 octobre, 13 h 40 au 13 octobre, 8 h 18) |
 | Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final. Remplissage à 3,6 ml/s à 75 % (3,1 ml/s le 10 octobre seulement) | 10 octobre |
 
 Le numéro de firmware est celui du dernier flash connu ; la capture ne
@@ -136,6 +136,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | **12/10 9 h 12**, mouture affinée | 5,35 s, 18,6 ml, 0,89 bar | 4,03 s, 8,7 ml, échéance | 30,1 ml | 3,3 s | 18,7 s, 1,04 g/s, 1,85 ml/s | 23,3 g | 88,75 °C |
 | 12/10 13 h 34 | 5,43 s, 18,6 ml, 0,86 bar | 2,47 s, 6,4 ml, goutte | 25,5 ml | 4,3 s | 14,4 s, 1,26 g/s, 1,99 ml/s | 23,3 g | 87,96 °C |
 | **13/10 8 h 18**, consigne 92 °C | 5,12 s, 17,7 ml, 0,96 bar | 4,00 s, 8,1 ml, échéance | 28,7 ml | 3,2 s | 18,5 s, 1,09 g/s, 2,03 ml/s | 23,6 g | 89,71 °C |
+| **13/10 13 h 29**, cible 22 g | 6,35 s, 21,7 ml, 0,98 bar | 3,28 s, 7,8 ml, goutte | 30,1 ml | 3,2 s | 15,6 s, 1,18 g/s, 2,06 ml/s | 22,4 g | 91,96 °C |
 
 ## Pistes pour le goût
 
@@ -147,9 +148,9 @@ Git).
 
 | Piste | Priorité | Lecture |
 | --- | --- | --- |
-| Température | **première** | Les meilleurs cafés d'avant étaient à « 93 °C » affichés par la machine. Avec l'offset de −14 °C (10 octobre), la consigne désigne l'eau au panier : les infusions jusqu'au 9 octobre, 87,7 à 89,3 °C en tasse à l'ancien offset, avaient environ 84 à 86 °C au panier, 4 à 6 °C sous la consigne. Le goût un peu sous-extrait de ces infusions va dans ce sens. Reprendre à 90 °C avec 0.4.4. Le 13 octobre, 92 °C ne donne que +1,0 °C en NTC tasse (besoin de l'eau calculé pour 90 °C), avec un peu d'amertume |
+| Température | **première** | Les meilleurs cafés d'avant étaient à « 93 °C » affichés par la machine. Avec l'offset de −14 °C (10 octobre), la consigne désigne l'eau au panier : les infusions jusqu'au 9 octobre, 87,7 à 89,3 °C en tasse à l'ancien offset, avaient environ 84 à 86 °C au panier, 4 à 6 °C sous la consigne. Le goût un peu sous-extrait de ces infusions va dans ce sens. Reprendre à 90 °C avec 0.4.4. Le 13 octobre, 92 °C ne donne que +1,0 °C en NTC tasse (besoin de l'eau calculé pour 90 °C), avec un peu d'amertume. L'après-midi, à 22 g, la NTC tasse arrive au critère (91,96 °C, cause non identifiée) et le goût est impeccable : la température n'était pas la cause de l'amertume |
 | Pression | basse | Peu de marge attendue, mais une pression plus basse (≈ 8,5 bar) vaut un essai. Avant, 9 → 8 bar à débit égal avait donné de la rondeur, mais sur un grain avec 30 % de robusta ; sur le ViCafé, tous les bons cafés étaient à 9 bar. Les « 9 bar » d'avant venaient de la machine, ceux d'aujourd'hui du XDB401 (plateau à 8,87 bar). Essai à débit égal : baisser la pression ralentit le débit, ouvrir la mouture en même temps, sinon l'amertume du ralentissement se lit comme un effet de la pression |
-| Poids | basse | 22 g (ratio 2,75) est le point retenu pour 8 g. Avant : ratio 2,70 à 2,85 retenu, 24 g (ratio 3,00) amer à galette impeccable. Le filet blondit déjà à 22 g. Seul ajustement possible : jusqu'à ≈ 23 g si la mouture plus grosse laisse le filet encore crémeux à 22 g, une galette rapide s'épuisant plus tard. 23 g essayé du 11 au 13 octobre ; à 92 °C, filet fin et blond à la fin : retour à 22 g |
+| Poids | basse | 22 g (ratio 2,75) est le point retenu pour 8 g. Avant : ratio 2,70 à 2,85 retenu, 24 g (ratio 3,00) amer à galette impeccable. Le filet blondit déjà à 22 g. Seul ajustement possible : jusqu'à ≈ 23 g si la mouture plus grosse laisse le filet encore crémeux à 22 g, une galette rapide s'épuisant plus tard. 23 g essayé du 11 au 13 octobre ; à 92 °C, filet fin et blond à la fin : retour à 22 g, impeccable le 13 octobre à 13 h 29 |
 
 ## Entrées
 
@@ -1668,3 +1669,143 @@ température.
 | Tasse | 89,4 à 90,4 °C ; la coupe à 22 g retire ≈ 0,1 °C de grammes froids (estimé sur cette capture) |
 | Chauffe | palier vers 90,4 °C après le début de l'infusion, sans rebond au-dessus de 91 °C ; modèle avec l'énergie SSR à +0,2 à +0,5 °C de la mesure, tant qu'il suppose 70,5 K |
 | Goût | moins d'amertume, filet moins blond à la fin ; sinon la température est la variable restante |
+
+### 13 octobre, 13 h 29 — `261013-132935`
+
+**Contexte.** Cible ramenée de 23 à **22 g** ; consigne de 92 °C,
+mouture, écran 0.4.4 et chauffe inchangés depuis 8 h 18. Observation de
+David : résultat gustatif impeccable.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,14 s | 7,89 s | — | — |
+| Remplissage | 8,02 s | 6,35 s | 21,7 ml (3,43 ml/s) | 0,45 → 0,98 bar |
+| Pré-infusion | 14,37 s | 3,28 s | 7,8 ml | 0,98 → 1,40 bar |
+| Infusion | 17,65 s | 18,86 s | 41,7 ml | 9,33 bar max |
+
+- Pression avant la pompe : 0,33 à 0,45 bar (0,88 à 1,07 bar à 8 h 18,
+  0,45 à 0,51 bar le 12 octobre à 13 h 34).
+- Remplissage : débit médian sous 1 bar de **3,56 ml/s** à 75 %. La
+  pression reste vers 0,4 bar jusqu'à 12,7 s et 15,9 ml. Premier paquet
+  au-dessus de 0,8 bar à 14,12 s (0,87 bar), passage en pré-infusion à
+  14,37 s, après **21,7 ml** (17,7 ml à 8 h 18, 18,6 ml le 12 octobre).
+- Pré-infusion : finie sur la **goutte** (firmware, 0,1 g à 17,65 s). Le
+  repère du rapport suit 0,47 s après, à 30,1 ml. La marge de remplissage
+  est de **8,4 ml** (11,0 ml à 8 h 18, 7,0 ml le 12 octobre à 13 h 34).
+- Montée de 3,2 s jusqu'à 8 bar (3,2 s à 8 h 18, 4,3 s le 12 octobre à
+  13 h 34).
+- Depuis 8 bar : **15,6 s**, 1,18 g/s en tasse, 2,06 ml/s en amont (18,5 s,
+  1,09 g/s et 2,03 ml/s à 8 h 18). Arrêt au poids à 21,8 g, 22,4 g final,
+  soit 0,6 g de gouttes.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,88 ± 0,08 bar, pompe à
+  67 %, 1,23 g/s, soit **7,2 bar·s/g** (8,0 à 8 h 18, 7,1 le 12 octobre à
+  13 h 34).
+- Sur la phase d'infusion, la tasse reçoit 0,52 g par ml admis (0,47 à
+  8 h 18, 0,53 le 12 octobre à 13 h 34). Après l'arrêt, la pression remonte
+  à 9,71 bar.
+
+**Thermique.** L'infusion du 12 octobre à 13 h 34 a la même hydraulique
+(goutte, 7,1 bar·s/g) à 90 °C ; celle de 8 h 18, la même consigne.
+
+| Repère | 13/10 13 h 29, 92 °C | 13/10 8 h 18, 92 °C | 12/10 13 h 34, 90 °C |
+| --- | ---: | ---: | ---: |
+| NTC au départ | 92,10 °C, +0,10 °C | 91,61 °C, −0,39 °C | 89,55 °C, −0,45 °C |
+| Pic avant l'infusion | **94,01 °C** à 13,8 s, +2,01 °C | 92,93 °C à 12,5 s, +0,93 °C | 91,15 °C à 12,9 s, +1,15 °C |
+| Creux au début de l'infusion | 91,99 °C à 20,6 s | —, baisse continue jusqu'à 90,40 °C à 22,2 s | 89,39 °C à 18,6 s |
+| Rebond, commande à 0 % | **92,71 °C** à 23,4 s | 90,45 °C à 23,5 s, palier | 89,43 °C à 20,0 s, palier |
+| **Tasse** | **91,96 °C**, −0,04 °C | 89,71 °C, −2,29 °C | 87,96 °C, −2,04 °C |
+| Minimum pendant l'écoulement | 90,77 °C, à l'arrêt | 87,72 °C, à l'arrêt | 85,81 °C, à l'arrêt |
+| Minimum total | 89,67 °C à 41,8 s | 87,32 °C à 42,9 s | 85,18 °C à 39,0 s |
+| 20 s après l'arrêt | 92,14 °C | 90,97 °C | 88,60 °C |
+| Commande à 0 % (remboursement) | 12,1 s | 12,0 s | 10,9 s |
+| Appoint repris avant l'arrêt | 6,6 s | 9,6 s | 7,6 s |
+| Pente de la NTC pendant l'appoint | −0,18 °C/s | −0,26 °C/s | −0,25 °C/s |
+
+- Énergie, commande / SSR : précharge 8,40 / 8,33 kJ, remplissage 5,82 /
+  4,90 kJ, pré-infusion 2,74 / 2,52 kJ, infusion 4,70 / 4,66 kJ. Total
+  fourni par le SSR : 20,41 kJ pour 71,3 ml admis à l'arrêt (20,42 kJ pour
+  73,9 ml à 8 h 18). Jusqu'au début de l'infusion, le SSR fournit
+  15,75 kJ (14,63 kJ à 8 h 18), pour 29,6 ml admis (25,8 ml).
+- Pendant les 12,1 s à 0 %, 27,0 ml entrent dans la chaudière (27,8 ml à
+  8 h 18).
+- Appoint, de sa reprise à l'arrêt : commande moyenne de 58 %, SSR actif
+  59 % du temps. Le besoin calculé pour 2,36 ml/s est de 62 %.
+- La tasse reçoit 13,5 g avant la reprise de l'appoint, NTC moyenne
+  92,2 °C, et 8,3 g après, NTC moyenne 91,5 °C (11,8 g à 90,5 °C et
+  11,0 g à 88,9 °C à 8 h 18).
+- Trou de commande au début du remplissage : 5 % de 8,4 à 9,0 s ; le SSR
+  reste coupé 1,8 s, comme à 8 h 18.
+- Modèle : 91,43 °C en tasse avec la commande réelle, soit **−0,53 °C**
+  sur la mesure (+1,25 à 8 h 18) ; 90,81 °C avec l'énergie SSR, soit
+  **−1,15 °C** (+0,43 à 8 h 18) ; 90,55 °C avec un écart d'eau froide de
+  72,5 K. Avec l'énergie SSR, le modèle passe sous la mesure dès le
+  remplissage (−0,93 °C 3 s après son début, −0,34 °C à 8 h 18) et y
+  reste jusqu'à la fin (−1,7 à −0,7 °C). Il faudrait un écart d'eau
+  froide de ≈ 62 K, au lieu de 70,5, pour retrouver la tasse mesurée.
+
+**Attendus vérifiés** (entrée de 8 h 18).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 7,0 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar | 7,2 bar·s/g, 15,6 s : atteint |
+| Rendement | 22,3 à 22,6 g final | 22,4 g : atteint |
+| Remplissage | 3,5 à 3,6 ml/s à 75 % ; 5 à 6 s et 17 à 20 ml | 3,56 ml/s ; **6,35 s et 21,7 ml : non atteint** |
+| Pré-infusion | fin sur la goutte sous ≈ 7,5 bar·s/g, à l'échéance au-dessus | goutte à 7,2 bar·s/g : atteint |
+| Tasse | 89,4 à 90,4 °C | **91,96 °C : non atteint** (+1,56 °C au-dessus de la plage) |
+| Chauffe | palier vers 90,4 °C après le début de l'infusion, sans rebond au-dessus de 91 °C | **creux à 91,99 °C, rebond à 92,71 °C : non atteint** |
+| | modèle avec l'énergie SSR à +0,2 à +0,5 °C de la mesure | **−1,15 °C : non atteint** |
+| Goût | moins d'amertume, filet moins blond à la fin | impeccable : atteint ; filet non rapporté |
+
+**Lecture.**
+
+- *Tasse, mesuré.* À consigne égale, la NTC tasse gagne **+2,25 °C** sur
+  8 h 18 et arrive au critère (−0,04 °C). Tout l'écart est déjà là avant
+  l'infusion : départ plus haut de 0,49 °C, puis la NTC monte de 1,67 °C
+  pendant le remplissage (92,24 → 93,91 °C) et le pic dépasse la consigne
+  de 2,01 °C. Le remboursement (12,1 s à 0 %) est le même ; l'appoint
+  reprend plus tard (6,6 s avant l'arrêt) parce que l'infusion est plus
+  courte, et seuls 8,3 g arrivent après sa reprise.
+- *Tasse, simulé.* Le modèle, rejoué sur les deux captures du jour,
+  n'explique que +0,67 °C de l'écart avec l'énergie SSR (+0,47 °C avec la
+  commande) : départ plus haut et infusion plus courte. Les ≈ 1,6 °C
+  restants ne viennent ni de la commande ni du SSR, qui fournit 1,1 kJ de
+  plus avant l'infusion pour 3,8 ml de plus admis, soit l'équivalent.
+- *Chauffe, hypothèse non testée.* Le modèle tombe sous la mesure dès le
+  remplissage, comme si l'eau admise était plus chaude que les 24,5 °C
+  supposés (≈ 62 K d'écart au lieu de 70,5 K, soit une eau vers 33 °C).
+  Un réservoir réchauffé par la machine fermée, allumée depuis le matin,
+  ou de l'eau tiède restée dans le circuit entre la pompe et la chaudière
+  iraient dans ce sens. Le 12 octobre à 13 h 34, le modèle était au
+  contraire à +0,23 °C : l'heure seule ne suffit pas. Rien dans la capture
+  ne mesure l'eau entrante.
+- *Remplissage, mesuré.* La pression au repos, plus basse que le matin
+  (0,33 à 0,45 bar), fait partir le remplissage du même point bas, mais
+  la pression reste vers 0,4 bar jusqu'à 15,9 ml, et le remplissage
+  admet 4,0 ml de plus qu'à 8 h 18 à débit égal. L'espace au-dessus de la
+  galette a pris plus d'eau avant de monter en pression ; la cause n'est
+  pas identifiée. La marge reste de 8,4 ml.
+- *Hydraulique, mesuré.* Galette plus rapide qu'à 8 h 18 (7,2 contre
+  8,0 bar·s/g), dans la plage du tassage variable du 12 octobre.
+- *Goût, mesuré et hypothèse.* L'amertume de 8 h 18 disparaît alors que
+  la NTC tasse monte de 2,25 °C : la température n'en est pas la cause,
+  ce que la décision de 8 h 18 voulait séparer. La coupe à 22 g et la
+  galette plus rapide retirent toutes deux de l'extraction en fin
+  d'infusion (15,6 s contre 18,5 s depuis 8 bar) ; rien ne sépare l'une
+  de l'autre sur cette infusion.
+
+**Décision.** Aucun changement annoncé : consigne de 92 °C, cible de
+22 g, mouture, firmware 0.4.4 et chauffe conservés.
+
+**Attendus pour l'infusion suivante** (mêmes réglages) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | 7,0 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar |
+| Rendement | 22,3 à 22,6 g final |
+| Remplissage | 3,5 à 3,6 ml/s à 75 % ; 5 à 6,5 s et 17 à 22 ml ; marge positive |
+| Pré-infusion | fin sur la goutte sous ≈ 7,5 bar·s/g, à l'échéance au-dessus |
+| Tasse | 89,7 à 92,0 °C, entre les deux infusions du jour ; au critère si la NTC dépasse à nouveau la consigne de ≈ 2 °C à la fin du remplissage |
+| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C de la mesure ; s'il est de nouveau sous la mesure dès le remplissage, relever la température de l'eau du réservoir avant l'infusion |
+| Goût | même résultat ; s'il change, comparer d'abord la résistance au plateau puis la NTC tasse |

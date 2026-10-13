@@ -348,8 +348,10 @@ retenir le bus.
 
 Chaque worker recrée sa socket d'écoute toutes les secondes pour suivre la
 bascule entre point d'accès et STA. Une connexion en pleine poignée de main
-à cette échéance est menée à terme (2 s au plus) au lieu d'être abandonnée :
-jusqu'à 0.4.5, elle recevait un RST, et environ une requête sur 1 000 à
+à cette échéance est menée à terme (2 s au plus) au lieu d'être abandonnée.
+Après la réponse, le worker envoie son FIN et attend que le client ferme
+(3 s au plus) ; il n'envoie un RST qu'à un client qui ne ferme pas. Jusqu'à
+0.4.6, un RST suivait chaque réponse, et environ une requête sur 1 000 à
 5 Hz échouait en `Connection reset by peer`.
 
 Première mouture de l'API :

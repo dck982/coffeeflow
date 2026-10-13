@@ -425,9 +425,24 @@ async fn server(worker: usize, sta: Stack<'static>, ap: Stack<'static>) {
         if accepted {
             let _ = serve(worker, &mut socket).await;
         }
-        socket.close();
-        let _ = with_timeout(Duration::from_secs(1), socket.flush()).await;
+        close_gracefully(&mut socket).await;
+    }
+}
+/// Envoie le FIN et attend que le client ferme à son tour, borné à 3 s. Un
+/// RST juste après la réponse peut arriver avant que le client ait lu le
+/// corps : il le perd alors avec « Connection reset by peer ». Le RST ne
+/// part qu'en dernier recours, pour un client qui ne ferme pas.
+async fn close_gracefully(socket: &mut TcpSocket<'_>) {
+    socket.close();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let closed =
+        |socket: &TcpSocket<'_>| matches!(socket.state(), State::Closed | State::TimeWait);
+    while !closed(socket) && Instant::now() < deadline {
+        Timer::after_millis(5).await;
+    }
+    if !closed(socket) {
         socket.abort();
+        let _ = with_timeout(Duration::from_millis(500), socket.flush()).await;
     }
 }
 /// Une connexion arrivée juste avant l'échéance de `accept` a déjà reçu son

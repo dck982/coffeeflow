@@ -69,7 +69,13 @@
           "thermal_relief_spoke_width": 0.5
         }
       },
-      "diff_pair_dimensions": [],
+      "diff_pair_dimensions": [
+        {
+          "gap": 0.0,
+          "via_gap": 0.0,
+          "width": 0.0
+        }
+      ],
       "drc_exclusions": [],
       "meta": {
         "version": 2
@@ -203,7 +209,9 @@
           "td_width_to_size_filter_ratio": 0.9
         }
       ],
-      "track_widths": [],
+      "track_widths": [
+        0.0
+      ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
           "corner_radius_percentage": 80,
@@ -230,7 +238,12 @@
           "spacing": 0.6
         }
       },
-      "via_dimensions": [],
+      "via_dimensions": [
+        {
+          "diameter": 0.0,
+          "drill": 0.0
+        }
+      ],
       "zones_allow_external_fillets": false
     },
     "ipc2581": {
@@ -516,7 +529,6 @@
         "bus_width": 12,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
-        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
         "line_style": 0,
         "microvia_diameter": 0.3,
@@ -535,7 +547,6 @@
         "bus_width": 12,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
-        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
         "line_style": 0,
         "microvia_diameter": 0.3,
@@ -624,6 +635,10 @@
       {
         "netclass": "Mains",
         "pattern": "Net-(R12-Pad1)"
+      },
+      {
+        "netclass": "Mains",
+        "pattern": "Net-(R12-Pad2)"
       },
       {
         "netclass": "Mains",
@@ -777,13 +792,26 @@
       {
         "filename": "combined.kicad_sch",
         "name": "combined",
-        "uuid": "00000000-0000-0000-0000-000000000000"
+        "uuid": "a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
       }
     ],
     "used_designators": "",
     "variants": []
   },
-  "sheets": [],
+  "sheets": [
+    [
+      "a3ee807d-f8aa-4db3-ad94-73a886b6ed37",
+      "combined"
+    ],
+    [
+      "a559a4b4-f0a6-43cb-a3de-d40c2438cf59",
+      "Controller"
+    ],
+    [
+      "75feafe7-4600-5614-9e51-33ca428cd046",
+      "Interfaces"
+    ]
+  ],
   "text_variables": {},
   "tuning_profiles": {
     "meta": {

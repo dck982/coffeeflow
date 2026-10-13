@@ -4,7 +4,12 @@
 	(generator_version "10.0")
 	(uuid "07272dd8-484b-5552-bd20-3ba6181817bb")
 	(paper "A3")
-	(title_block (title "Combined - CAN, I2C, flowmeter and boiler SSR output") (date "2026-10-13") (rev "A") (company "CoffeeFlow"))
+	(title_block
+		(title "Combined - CAN, I2C, flowmeter and boiler SSR output")
+		(date "2026-10-13")
+		(rev "A")
+		(company "CoffeeFlow")
+	)
 	(lib_symbols
 		(symbol "Connector_Generic:Conn_01x02"
 			(pin_names
@@ -5908,5 +5913,4 @@
 			(page "2")
 		)
 	)
-	
 )

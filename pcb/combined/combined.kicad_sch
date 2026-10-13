@@ -3499,16 +3499,6 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 62.23) (xy 77.47 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1bf03061-ed7c-425c-ab98-41675727ed40")
-	)
-	(wire
-		(pts
 			(xy 251.46 83.82) (xy 238.76 83.82)
 		)
 		(stroke
@@ -3659,16 +3649,6 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 36.83) (xy 167.64 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5e546e0c-d0d5-49d9-a13d-9b26e326ecca")
-	)
-	(wire
-		(pts
 			(xy 147.32 59.69) (xy 147.32 62.23)
 		)
 		(stroke
@@ -3689,7 +3669,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 36.83) (xy 157.48 36.83)
+			(xy 147.32 36.83) (xy 167.64 36.83)
 		)
 		(stroke
 			(width 0)
@@ -3739,16 +3719,6 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 40.64) (xy 45.72 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "744f216a-3b98-4a6e-8fe8-805431c88651")
-	)
-	(wire
-		(pts
 			(xy 132.08 142.24) (xy 111.76 142.24)
 		)
 		(stroke
@@ -3779,7 +3749,7 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 62.23) (xy 157.48 62.23)
+			(xy 147.32 62.23) (xy 167.64 62.23)
 		)
 		(stroke
 			(width 0)
@@ -3809,16 +3779,6 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 55.88) (xy 45.72 52.07)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "889c15aa-d5b0-4c19-a33e-2dcb7d64d9ba")
-	)
-	(wire
-		(pts
 			(xy 96.52 46.99) (xy 93.98 46.99)
 		)
 		(stroke
@@ -3839,13 +3799,23 @@
 	)
 	(wire
 		(pts
-			(xy 129.54 96.52) (xy 129.54 86.36)
+			(xy 129.54 96.52) (xy 129.54 95.25)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "984d17b2-b9d0-4b79-b981-9e0f324aafb2")
+	)
+	(wire
+		(pts
+			(xy 129.54 87.63) (xy 129.54 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d6cab594-d34b-444b-a25f-d113d4be6510")
 	)
 	(wire
 		(pts
@@ -3959,16 +3929,6 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 62.23) (xy 167.64 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c9da9fa2-e29c-43f1-aa6b-1e4807d52144")
-	)
-	(wire
-		(pts
 			(xy 147.32 97.79) (xy 147.32 101.6)
 		)
 		(stroke
@@ -4009,26 +3969,6 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 111.76) (xy 77.47 111.76)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e721f358-51cf-4ad2-8f9b-3a7456d5d448")
-	)
-	(wire
-		(pts
-			(xy 104.14 46.99) (xy 104.14 46.99)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eb723179-f793-4d86-b0d3-26da451b06f8")
-	)
-	(wire
-		(pts
 			(xy 132.08 162.56) (xy 111.76 162.56)
 		)
 		(stroke
@@ -4066,16 +4006,6 @@
 			(type default)
 		)
 		(uuid "f334d666-f16d-4d8f-9abf-c0de9e8b4e17")
-	)
-	(wire
-		(pts
-			(xy 104.14 96.52) (xy 104.14 96.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f7130676-e6db-457a-9715-15d22248c5de")
 	)
 	(wire
 		(pts
@@ -4386,7 +4316,7 @@
 				)
 			)
 		)
-		(property "MPN" "MOC3023M"
+		(property "MPN" "MOC3023SR2M"
 			(at 111.76 99.06 0)
 			(hide yes)
 			(show_name no)
@@ -4397,7 +4327,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C40701"
 			(at 111.76 99.06 0)
 			(hide yes)
 			(show_name no)
@@ -4961,7 +4891,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF4701T5E"
 			(at 66.04 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -4972,7 +4902,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C23162"
 			(at 66.04 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -5074,7 +5004,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF4701T5E"
 			(at 66.04 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -5085,7 +5015,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C23162"
 			(at 66.04 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -5187,7 +5117,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "1206W4F390JT5E"
 			(at 147.32 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -5198,7 +5128,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C22198"
 			(at 147.32 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -5374,7 +5304,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "KT-0603R"
 			(at 85.09 97.79 90)
 			(hide yes)
 			(show_name no)
@@ -5385,7 +5315,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C2286"
 			(at 85.09 97.79 90)
 			(hide yes)
 			(show_name no)
@@ -5563,7 +5493,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1001T5E"
 			(at 85.09 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -5574,7 +5504,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C21190"
 			(at 85.09 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -5797,7 +5727,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C2912100"
 			(at 101.6 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -5873,7 +5803,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+		(property "Footprint" "Capacitor_SMD:C_1812_4532Metric"
 			(at 147.32 105.41 0)
 			(hide yes)
 			(show_name no)
@@ -5905,7 +5835,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "FV43X103K102EFG"
 			(at 147.32 105.41 0)
 			(hide yes)
 			(show_name no)
@@ -5916,7 +5846,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C394164"
 			(at 147.32 105.41 0)
 			(hide yes)
 			(show_name no)
@@ -6016,7 +5946,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "KT-0603R"
 			(at 85.09 48.26 90)
 			(hide yes)
 			(show_name no)
@@ -6027,7 +5957,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C2286"
 			(at 85.09 48.26 90)
 			(hide yes)
 			(show_name no)
@@ -6216,7 +6146,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C2150"
 			(at 82.55 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -6251,119 +6181,6 @@
 			(project "combined"
 				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
 					(reference "Q3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
-		(at 45.72 48.26 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "7802b5c8-0d1f-4a48-81c7-4ff96f8b23ad")
-		(property "Reference" "C1"
-			(at 48.26 46.99 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 48.26 49.53 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 45.72 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 45.72 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 45.72 48.26 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 45.72 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 45.72 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "3V3 decoupling at J1"
-			(at 45.72 48.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d9698082-b339-4956-84ab-4340c3ba1a5d")
-		)
-		(pin "2"
-			(uuid "d48ad2f9-cccb-46dc-8b23-d164b5dd5e6b")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
-					(reference "C1")
 					(unit 1)
 				)
 			)
@@ -6432,7 +6249,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "1206W4F3600T5E"
 			(at 125.73 46.99 90)
 			(hide yes)
 			(show_name no)
@@ -6443,7 +6260,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C17932"
 			(at 125.73 46.99 90)
 			(hide yes)
 			(show_name no)
@@ -6589,7 +6406,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+		(property "Footprint" "Capacitor_SMD:C_1812_4532Metric"
 			(at 147.32 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -6621,7 +6438,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "FV43X103K102EFG"
 			(at 147.32 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -6632,7 +6449,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C394164"
 			(at 147.32 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -6745,7 +6562,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C2150"
 			(at 82.55 62.23 0)
 			(hide yes)
 			(show_name no)
@@ -6964,7 +6781,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1800T5E"
 			(at 100.33 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -6975,7 +6792,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C22828"
 			(at 100.33 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -7075,7 +6892,7 @@
 				)
 			)
 		)
-		(property "MPN" "MOC3043M"
+		(property "MPN" "MOC3043SR2M"
 			(at 111.76 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -7086,7 +6903,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C41809"
 			(at 111.76 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -7313,7 +7130,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1002T5E"
 			(at 88.9 143.51 0)
 			(hide yes)
 			(show_name no)
@@ -7324,7 +7141,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C25804"
 			(at 88.9 143.51 0)
 			(hide yes)
 			(show_name no)
@@ -7537,7 +7354,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1001T5E"
 			(at 85.09 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -7548,7 +7365,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C21190"
 			(at 85.09 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -7648,7 +7465,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1800T5E"
 			(at 100.33 46.99 90)
 			(hide yes)
 			(show_name no)
@@ -7659,7 +7476,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C22828"
 			(at 100.33 46.99 90)
 			(hide yes)
 			(show_name no)
@@ -7870,7 +7687,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "1206W4F3300T5E"
 			(at 125.73 52.07 90)
 			(hide yes)
 			(show_name no)
@@ -7881,7 +7698,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C17930"
 			(at 125.73 52.07 90)
 			(hide yes)
 			(show_name no)
@@ -8134,7 +7951,7 @@
 				)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "510"
 			(at 125.73 99.06 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8176,7 +7993,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "1206W4F5100T5E"
 			(at 125.73 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -8187,7 +8004,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C17991"
 			(at 125.73 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -8198,7 +8015,7 @@
 				)
 			)
 		)
-		(property "Note" "MT2 series resistor, gate driven directly (RobotDyn design)"
+		(property "Note" "MT2 series resistor with R27, 2 x 510R: each 1206 sees at most 163 V of the 325 V firing pulse"
 			(at 125.73 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -8219,6 +8036,119 @@
 			(project "combined"
 				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
 					(reference "R12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 129.54 91.44 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d9514ae2-3a87-4b20-8eb1-61019b85ad9a")
+		(property "Reference" "R27"
+			(at 131.572 90.17 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "510"
+			(at 131.572 92.71 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
+			(at 129.54 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 129.54 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 129.54 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "1206W4F5100T5E"
+			(at 129.54 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17991"
+			(at 129.54 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "MT2 series resistor with R12, 2 x 510R: each 1206 sees at most 163 V of the 325 V firing pulse"
+			(at 129.54 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "fe27d5ab-869b-4008-8615-01c99036bb95")
+		)
+		(pin "2"
+			(uuid "eafc4786-b5ce-43a9-a01b-9f93cbecbc3d")
+		)
+		(instances
+			(project "combined"
+				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
+					(reference "R27")
 					(unit 1)
 				)
 			)
@@ -8341,82 +8271,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 45.72 55.88 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c61fb714-04f7-4e95-8abf-dc665e3a37a4")
-		(property "Reference" "#PWR04"
-			(at 45.72 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 45.72 60.96 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 45.72 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 45.72 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 45.72 55.88 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b82d288d-938f-4365-bf69-11bd412291f5")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
-					(reference "#PWR04")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 73.66 62.23 90)
 		(unit 1)
@@ -8479,7 +8333,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1001T5E"
 			(at 73.66 62.23 90)
 			(hide yes)
 			(show_name no)
@@ -8490,7 +8344,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C21190"
 			(at 73.66 62.23 90)
 			(hide yes)
 			(show_name no)
@@ -8701,7 +8555,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "0603WAF1001T5E"
 			(at 73.66 111.76 90)
 			(hide yes)
 			(show_name no)
@@ -8712,7 +8566,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
+		(property "LCSC" "C21190"
 			(at 73.66 111.76 90)
 			(hide yes)
 			(show_name no)
@@ -8744,82 +8598,6 @@
 			(project "combined"
 				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
 					(reference "R8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 45.72 40.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "dcfa75a9-66fb-4c30-aa0e-8716f0cb3e7a")
-		(property "Reference" "#PWR03"
-			(at 45.72 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 45.72 36.83 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 45.72 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 45.72 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 45.72 40.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "1414537e-19ab-4169-95b2-d648ddb625fc")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37"
-					(reference "#PWR03")
 					(unit 1)
 				)
 			)
@@ -9072,4 +8850,5 @@
 			(page "1")
 		)
 	)
+	(embedded_fonts no)
 )

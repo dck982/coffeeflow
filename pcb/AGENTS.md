@@ -42,9 +42,12 @@ uv run ../generate_manufacturing.py .
 Pass a project directory containing exactly one board, or an explicit PCB file.
 The matching schematic and `<board>_bom.csv` must exist. Outputs default to the
 project's `manufacturing/` directory; `--output` overrides it. The current exporter
-supports two-layer rectangular boards with top-side assembly and requires BOM
-columns `Reference`, `Value`, `Footprint`, `DNP`, and `LCSC`. Physical DRC findings
-and unapproved schematic parity differences stop exports.
+supports two-layer boards with top-side assembly and an outline of lines,
+rectangles or straight-edged polygons. It requires BOM columns `Reference`,
+`Value`, `Footprint`, `DNP`, and `LCSC`, and each row's Value, Footprint and
+LCSC must match the PCB footprint's fields: keep the BOM and the schematic
+symbol fields in sync. Any DRC finding, warnings included, and unapproved
+schematic parity differences stop exports.
 
 An optional project-local `customize-manufacturing.py` is loaded automatically.
 It can define `REFERENCE_ALIASES`, `ROTATION_OFFSETS`, `PLACEMENT_REVISION`, and

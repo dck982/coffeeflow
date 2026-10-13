@@ -15,12 +15,10 @@ ADC) and `combined_interfaces.kicad_sch` (CAN, I2C pull-ups and TMP102,
 flowmeter, boiler SSR output) come from `../sensors/`, whose design notes in
 `sensors_design.md` still apply to those circuits, with the references
 renumbered as listed in "Low-voltage side from sensors". `combined.pdf` is a
-generated review copy. `combined.kicad_pcb` has a first placement and a
-partial routing of the valve channel, with clearance violations left open;
-it does not have the sensors footprints yet (Update PCB from Schematic).
+generated review copy. `combined.kicad_pcb` is placed and routed, and
+passes the DRC with schematic parity.
 `combined_bom.csv` lists values, footprints and design notes.
-D3, F1, J2–J4, Q2 and Q4 have their JLCPCB parts, as do all the sensors
-parts; the other MPN and LCSC fields of the AC side are still to fill.
+Every fitted part has its JLCPCB part.
 
 The board switches the two original 230 V actuators from 3.3 V logic: the
 solenoid valve (OLAB coil, 15 VA, about 65 mA) and the vibration pump (OLAB
@@ -52,7 +50,9 @@ J2, J3 and J4 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
 clone). Their footprint and 3D model come from LCSC, in `Combined_Local`;
 the courtyard was enlarged to cover the pads and the body. The pins sit at
 the back of the body, which extends 10 mm forward: place the connectors with
-the pins inside the board and the mating face at the edge.
+the pins inside the board and the mating face at the edge. The pads, holes
+and the slot between the pins are set for isolation; see "Isolation and
+layout".
 
 Only L is switched. N goes straight from J2 to J3 and J4 pin 2. On the board,
 the zero-cross bridge is the only circuit connected to N.
@@ -95,7 +95,8 @@ and U1; the pump channel uses Q3, R8–R11, D2 and U2.
   command, not whether the load is actually conducting.
 
 Load on the 3V3 rail: about 12 mA per active channel, plus 0.25 mA for the ZC
-pull-up. That is 25 mA with both channels on. C1 (1 µF) decouples 3V3 for this side.
+pull-up. That is 25 mA with both channels on, drawn from the XIAO 3V3 without a
+local bulk capacitor.
 
 ## Mains side: valve channel (zero-cross)
 
@@ -120,11 +121,11 @@ Q2 connects L to L_VALVE.
   inductive, the current zero comes after the voltage zero. Q2 actually drops
   out when the current falls below its holding current (15 mA max), about
   0.5 ms before the current zero at the valve's 92 mA peak.
-- R7 (39 Ω) + C2 (10 nF, 1 kV) form a snubber across Q2. At turn-off on an
-  inductive load, the voltage across the triac jumps quickly. The snubber
-  limits that dV/dt so Q2 does not re-trigger on its own. At 50 Hz, C2 lets
-  about 0.7 mA through the valve while it is off (230 V / 318 kΩ). A solenoid
-  ignores this.
+- R7 (39 Ω) + C2 (10 nF, 1 kV X7R 1812, PSA FV43X103K102EFG) form a
+  snubber across Q2. At turn-off on an inductive load, the voltage across the
+  triac jumps quickly. The snubber limits that dV/dt so Q2 does not
+  re-trigger on its own. At 50 Hz, C2 lets about 0.7 mA through the valve
+  while it is off (230 V / 318 kΩ). A solenoid ignores this.
 
 ## Mains side: pump channel (phase control)
 
@@ -132,16 +133,18 @@ U2 (MOC3023M) has no zero-cross detection: it fires Q4 as soon as DIM goes
 high. Q4 then conducts until the load current reaches zero at the end of the
 half-cycle.
 
-- Gate path: L → R12 (1 kΩ) → U2 pins 6–4 → Q4 gate directly, as in the
-  RobotDyn design. Firing at the voltage peak is normal operation here:
-  325 V / 1 kΩ ≈ 0.33 A for the few microseconds before Q4 turns on. U2 is
-  rated for repeated 1 A pulses of 100 µs at 120 per second.
+- Gate path: L → R27 + R12 (2 × 510 Ω) → U2 pins 6–4 → Q4 gate directly,
+  as in the RobotDyn design, which uses a single 1 kΩ. Firing at the voltage
+  peak is normal operation here: 325 V / 1.02 kΩ ≈ 0.32 A for the few
+  microseconds before Q4 turns on. U2 is rated for repeated 1 A pulses of
+  100 µs at 120 per second. A 1206 is rated for 200 V; split in two, each
+  resistor sees at most 163 V of that pulse.
 - Q4 only stays on once the load current exceeds its latching current: 20 mA
   max at 25 °C in the quadrants used, about 30 % more at 0 °C. The pump
   current rises slowly because the pump is inductive, so the gate must stay
   driven for a while after firing. See the firmware rules below.
-- R13 (39 Ω) + C3 (10 nF, 1 kV) form the snubber across Q4, as on the valve
-  channel. Q4 fires mid half-cycle, so C3 dumps its charge through R13 at
+- R13 (39 Ω) + C3 (10 nF, 1 kV, 1812) form the snubber across Q4, as on the
+  valve channel. Q4 fires mid half-cycle, so C3 dumps its charge through R13 at
   each firing: up to 325 V / 39 Ω ≈ 8.3 A for about 0.4 µs (RC = 390 ns),
   and ½CV² ≈ 0.53 mJ, 100 times per second. With the recharge, R13
   dissipates about 0.1 W at worst. R13 is therefore a 1210 (Yageo
@@ -221,7 +224,7 @@ are on the bus. References that clashed with the AC side were renumbered:
 | sensors | combined | Part |
 |---|---|---|
 | U1 | U7 | XIAO ESP32-S3 (schematic only, plugs into J11/J12) |
-| D2 | D4 | Green status LED |
+| D2 | D4 | Status LED, red 0603 here (green 0805 on sensors) |
 | J3 | J5 | CAN connector |
 | Q2 | Q5 | AO3401A, boiler output |
 | Q3 | Q6 | 2N7002, boiler output |
@@ -275,7 +278,7 @@ M5Stack Unit SSR) was removed on October 10, 2026. The optotriacs stay at
   would take the rest of the machine with it anyway.
 - If a spike exceeds 400 V, the most likely result is that the optotriac
   breaks over and runs the load for one half-cycle (10 ms). The current stays
-  limited by R5 + R6 or R12. Fast edges below 400 V are not a particular
+  limited by R5 + R6 or R27 + R12. Fast edges below 400 V are not a particular
   weakness: both optotriacs withstand at least 1000 V/µs.
 - A varistor across a triac usually fails short after repeated surges, which
   would leave the load permanently on. F1 would not blow, because the load
@@ -301,16 +304,57 @@ on the SMD footprints, about 7.5 mm separates the low-voltage pads from the
 mains pads.
 
 The board sits in a closed box at the bottom of the machine, in the cold zone
-away from steam: pollution degree 2. At 250 V RMS on FR4, IEC 60664-1 then
-asks for 2.5 mm of creepage between mains nets and 5 mm (reinforced) between
-mains and 3V3. In a steamy spot (pollution degree 3), these would rise to
-4 mm and 8 mm.
+away from steam: pollution degree 2, overvoltage category II (2.5 kV
+impulse), FR4 in material group IIIa. IEC 60335-1 then asks:
 
-`combined.kicad_dru` enforces this in the DRC: 1.5 mm minimum for the AC net
-class (L_IN, L, N, L_VALVE, L_PUMP, single 1 oz layer for the 2 A
-of F1), 2.5 mm between mains nets, and 7 mm between mains and 3V3. Pads of
-one part keep their footprint spacing, and a mains track may come to 1.25 mm
-of a neighbouring mains pad inside a courtyard, as it enters its own pad.
+- Between mains nets (functional insulation), 2.0 mm of creepage at
+  125–250 V (Table 18), 1.1 mm up to 50 V, and 1.5 mm of clearance
+  (Table 16). Creepage follows the long-term RMS voltage across it;
+  transients are neglected (IEC 60664-1, 5.2.2.2).
+- Between mains and 3V3 (reinforced insulation), twice the 2.5 mm of basic
+  insulation (Table 17): 5 mm.
+
+In a steamy spot (pollution degree 3), these would rise to 3.2 mm between
+mains nets and 8 mm to 3V3.
+
+`combined.kicad_dru` enforces this in the DRC: 1.5 mm minimum width for the
+AC net class (L_IN, L, N, L_VALVE, L_PUMP, single 1 oz layer for the 2 A
+of F1), 2.2 mm between mains nets, and 7 mm between mains and 3V3. The
+0.2 mm over Table 18 covers etching tolerance. Some mains nets stay within a
+few volts of each other and may come closer:
+
+- L side: L, L_IN, and the far ends of R5, R27 + R12, R7 and R13 (the gate
+  resistors and the snubber resistors). R5 drops at most 13 V for 0.3 ms per
+  half-cycle; R27 + R12 and R13 see up to 325 V for a few microseconds when
+  Q4 fires, a few volts RMS. 1.5 mm, the clearance.
+- Each gate with its triac's output: Q2's gate and R6 with L_VALVE, Q4's
+  gate with L_PUMP. 1.5 mm.
+- D3+, D3- and the R14 input of D3 differ by the LED and diode drops, about
+  3 V. 1.1 mm.
+
+Pads of one part keep their footprint spacing. A mains track may come to
+1.25 mm of a mains pad of the part it enters, inside that part's courtyard,
+and two mains tracks ending on the pads of R5, R6, R12, R13, R14, R15 or R27
+may come to 1.8 mm, the pad gap of a 1206 or 1210; these resistors see little
+voltage. C2 and C3 have the full mains across them when their triac is off,
+so they are 1812s: 2.7 mm between pads.
+
+H2, the second M2.5 mounting hole, sits on the mains side, left of the
+notch, 6.3 mm from the nearest mains copper. It takes a nylon screw and a
+nylon standoff of at least 5 mm, screwed into a brass insert of the
+enclosure: the insert stays at least 5 mm from the board, the reinforced
+distance, so it cannot bridge the mains to H1 and the 3V3 side. H3, in the
+top-left corner of the low-voltage side, has no such constraint.
+
+J2, J3 and J4 (Kefa HT396R-3.96) are rated 320 V at
+overvoltage category II and pollution degree 2 by their IEC data, with 1 mm
+pins in 1.6 mm holes (`../../docs/datasheets/C577799.pdf`). They have L and N
+on adjacent pins. Their 2.0 × 2.8 mm oval pads leave 1.96 mm of air, above
+the 1.5 mm clearance, and 0.2 mm of copper around the hole; a 1 mm
+milled slot between the pins lengthens the creepage path around it; a groove
+counts from 1 mm wide at pollution degree 2 (IEC 60664-1, 6.2). The pads
+come 0.48 mm from their slot, which the DRC allows for these three parts
+only.
 
 U1, U2 and U3 use `Combined_Local` copies of the SMDIP footprints with a
 1 mm routed slot between the pad rows, extending 1 mm past each end of the
@@ -325,9 +369,10 @@ When laying out the PCB:
   board: L to N is functional insulation, and the FR4 is far beyond 325 V.
   Along the connectors, N runs under their bodies, between the pins and the
   edge, at least 4.45 mm from the pin axis, and reaches each N pin from that
-  side; the L traces leave the pins towards the inside of the board.
+  side, or from the side away from the slot; the L traces leave the pins
+  towards the inside of the board.
 - The output pin of each triac is trapped between its gate trace and the L
-  feed of its optotriac (R5, R12): L_VALVE and L_PUMP leave pin 1 through
+  feed of its optotriac (R5, R27 + R12): L_VALVE and L_PUMP leave pin 1 through
   two vias (0.8/0.4 mm, about 1.5 to 2 A each) and reach J3 and J4 on the
   bottom layer. No rotation avoids it, since rotating a part keeps the order
   of its pads.
@@ -358,12 +403,11 @@ When laying out the PCB:
 
 ## Assembly and maintenance
 
-Update the PCB from the schematic (replaces the 5-pin J1 with the 5 V
-header, adds the sensors footprints),
-fill the remaining BOM MPN and LCSC columns, confirm JLCPCB stock for the
-optotriacs and the EL817C.
-The manufacturing export (`uv run ../generate_manufacturing.py .`) requires
-the LCSC column and a placed, DRC-clean PCB.
+U1–U3 are the surface-mount lead-bend options (MOC3043SR2M, MOC3023SR2M,
+EL817S1(C)(TU)-F); the plain part numbers are through-hole DIPs and do not
+fit the SMDIP footprints. The manufacturing export
+(`uv run ../generate_manufacturing.py .`) requires the LCSC column, matching
+fields in the schematic, and a DRC-clean PCB.
 
 References, in `../../docs/datasheets/`:
 - `m5stack-unit-ssr.md` (valve channel origin), `KS53_EN.pdf` (boiler SSR).

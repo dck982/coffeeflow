@@ -2,7 +2,8 @@
 """Generate JLCPCB files from the saved board. Requires KiCad 10's kicad-cli.
 
 Run: uv run generate_manufacturing.py path/to/project
-Supports two-layer rectangular boards with top-side assembly.
+Supports two-layer boards with top-side assembly and an outline of lines,
+rectangles or straight-edged polygons.
 Requires <board>_bom.csv with Reference, Value, Footprint, DNP, and LCSC columns.
 Optional project-local customize-manufacturing.py supplies settings and hooks.
 No Python dependencies. Does not modify the source PCB or schematic.
@@ -186,17 +187,29 @@ def main():
                   and not (children(fp, "dnp") and first(fp, "dnp")[1] == "yes")}
     if fitted != electrical:
         raise ValueError(f"BOM/PCB reference mismatch: {fitted ^ electrical}")
-    outline = [s for kind in ("gr_rect", "gr_line") for s in children(tree, kind)
-               if first(s, "layer")[1] == "Edge.Cuts"]
-    points = [tuple(map(float, first(s, endpoint)[1:3]))
-              for s in outline for endpoint in ("start", "end")]
-    if len(outline) == 4 and all(s[0] == "gr_line" for s in outline):
-        if any(points.count(p) != 2 for p in points) or any(
-                points[i][0] != points[i + 1][0] and points[i][1] != points[i + 1][1]
-                for i in range(0, len(points), 2)):
-            raise ValueError("Expected a closed rectangular outline")
-    elif len(outline) != 1 or outline[0][0] != "gr_rect":
-        raise ValueError("Expected a rectangular outline; update dimension handling")
+    # The board size is the bounding box of the board-level outline. Slots drawn
+    # inside footprints stay within it. Arcs and circles would need their bulge
+    # in the box, so they are refused rather than measured wrong.
+    outline = [s for s in tree[1:] if isinstance(s, list) and s and str(s[0]).startswith("gr_")
+               and children(s, "layer") and first(s, "layer")[1] == "Edge.Cuts"]
+    unsupported = sorted({s[0] for s in outline} - {"gr_rect", "gr_line", "gr_poly"})
+    if unsupported:
+        raise ValueError(f"Unsupported outline shapes {unsupported}; update dimension handling")
+    points, line_ends = [], []
+    for shape in outline:
+        if shape[0] == "gr_poly":
+            vertices = first(shape, "pts")[1:]
+            if any(v[0] != "xy" for v in vertices):
+                raise ValueError("Outline polygon has arcs; update dimension handling")
+            points += [tuple(map(float, v[1:3])) for v in vertices]
+        else:
+            ends = [tuple(map(float, first(shape, end)[1:3])) for end in ("start", "end")]
+            points += ends
+            if shape[0] == "gr_line":
+                line_ends += ends
+    # Every line end must meet another one, or the outline is open.
+    if not points or any(line_ends.count(p) % 2 for p in line_ends):
+        raise ValueError("Expected a closed board outline")
     size = [max(p[i] for p in points) - min(p[i] for p in points) for i in (0, 1)]
     source_paths = [board, schematic, source_bom]
     if (root / "customize-manufacturing.py").is_file():

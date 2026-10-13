@@ -765,7 +765,7 @@ pub fn handle_get_hf_capture<S: ConfigStore>(
         CaptureStatus::Complete => {}
     }
     HfCaptureReply::Stream {
-        header: hf_capture::export_header(&info, view),
+        header: hf_capture::export_header(&info, view, core.hf_capture_session()),
         view,
         count: info.count,
     }

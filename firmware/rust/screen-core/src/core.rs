@@ -58,6 +58,7 @@ use crate::config::{
     LoadReport,
 };
 use crate::events::{EventKind, EventLog};
+use crate::guided::{Guided, Press, Request, Session};
 use crate::hf_capture::{self, Capture, Origin, SampleMode};
 use crate::machine::{self, Machine};
 use crate::ntc;
@@ -151,6 +152,12 @@ pub enum Action {
     /// l'ouverture.
     OpenMaintenanceValve,
     CloseMaintenanceValve,
+    /// Ouvre l'infusion guidée. Réservée à l'UI, comme `StartBrew`.
+    GuidedOpen,
+    /// Bouton d'action du guide : rinçage ou infusion selon l'écran.
+    GuidedNext,
+    /// Abandonne le guide, rinçage en cours coupé.
+    GuidedQuit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -547,6 +554,9 @@ pub struct Core<S: ConfigStore> {
     shot_start_unix_s: i64,
     shot_summary_pending: bool,
     hf: Capture,
+    guided: Guided,
+    /// Déroulé du guide attaché à la capture HF de l'infusion qu'il a lancée.
+    hf_session: Option<Session>,
     shot_builder: ShotSummaryBuilder,
     last_shot: LastShot,
     scace_centi_c: i16,
@@ -593,6 +603,8 @@ impl<S: ConfigStore> Core<S> {
             shot_start_unix_s: 0,
             shot_summary_pending: false,
             hf: Capture::new(),
+            guided: Guided::new(),
+            hf_session: None,
             shot_builder: ShotSummaryBuilder::new(),
             last_shot: LastShot::default(),
             scace_centi_c: 0,
@@ -749,7 +761,7 @@ impl<S: ConfigStore> Core<S> {
     fn capture_profile(&self) -> TelemetryProfile {
         if self.flash_active {
             TelemetryProfile::Suspended
-        } else if self.machine.active() || self.hf.active {
+        } else if self.machine.active() || self.hf.active || self.guided.active() {
             TelemetryProfile::Active
         } else {
             TelemetryProfile::Idle
@@ -788,6 +800,7 @@ impl<S: ConfigStore> Core<S> {
             capture.complete = false;
             capture.actuator_seen_on = false;
             capture.cooldown = false;
+            self.hf_session = None;
             self.snapshot.capture_cooldown = false;
             // Seule une infusion a un résumé ; une purge ou une commande de
             // banc l'efface pour que l'écran ne montre pas un cycle étranger.
@@ -1060,6 +1073,7 @@ impl<S: ConfigStore> Core<S> {
         }
         self.tick_machine();
         self.tick_thermal();
+        self.tick_guided();
         self.tick_hf_capture();
     }
 
@@ -1107,7 +1121,7 @@ impl<S: ConfigStore> Core<S> {
         }
         let profile = if self.flash_active {
             TelemetryProfile::Suspended
-        } else if active || capture_active {
+        } else if active || capture_active || self.guided.active() {
             TelemetryProfile::Active
         } else {
             TelemetryProfile::Idle
@@ -1459,6 +1473,7 @@ impl<S: ConfigStore> Core<S> {
         self.enter(clock);
         self.snapshot.weight_g = weight_g;
         self.t.scale_received_us = self.now();
+        self.guided.on_weight(self.now(), weight_g);
     }
 
     /// Le client BLE peut-il écrire sur la balance (abonnement actif) ? Sans
@@ -1494,6 +1509,7 @@ impl<S: ConfigStore> Core<S> {
 
     pub fn note_touch_press(&mut self) {
         self.snapshot.touch_press_count = self.snapshot.touch_press_count.wrapping_add(1);
+        self.guided.note_press(self.now());
     }
 
     /// Tas interne : valeurs du moment, fournies par la plateforme.
@@ -1683,6 +1699,15 @@ impl<S: ConfigStore> Core<S> {
         let result = |status| ActionResult::of(status);
         if command.action == Action::StartBrew && source == ActionSource::Http {
             return result(St::Unavailable);
+        }
+        if matches!(
+            command.action,
+            Action::GuidedOpen | Action::GuidedNext | Action::GuidedQuit
+        ) {
+            if source == ActionSource::Http {
+                return result(St::Unavailable);
+            }
+            return self.guided_action(clock, command.action);
         }
         if command.action == Action::Tare {
             let present = self.snapshot_now().scale_present;
@@ -1941,6 +1966,168 @@ impl<S: ConfigStore> Core<S> {
         result(St::Ok)
     }
 
+    // --- Infusion guidée ------------------------------------------------------------------
+
+    fn guided_action(&mut self, clock: Clock, action: Action) -> ActionResult {
+        use ActionStatus as St;
+        let result = |status| ActionResult::of(status);
+        let now = self.now();
+        let config = self.config.get();
+        let s = self.snapshot_now();
+        match action {
+            Action::GuidedOpen => {
+                if self.guided.active() {
+                    return result(St::Ok);
+                }
+                // Les conditions d'une purge, sans celle de la chauffe : le
+                // guide attend la température lui-même.
+                let status = if self.flash_active || self.pending_flash.is_some() {
+                    St::CycleActive
+                } else if !s.sensors_alive {
+                    St::BusLost
+                } else if s.lockout {
+                    St::Locked
+                } else if s.maintenance_valve_open || s.cycle_state.is_active() {
+                    St::CycleActive
+                } else if !s.dimmer_ready || !s.dimmer_valid {
+                    St::DimmerNotReady
+                } else {
+                    St::Ok
+                };
+                if status == St::Ok {
+                    let wall_s = if s.time_known {
+                        clock.wall_unix_s.unwrap_or(0)
+                    } else {
+                        0
+                    };
+                    self.guided.open(now, wall_s, &s, &config);
+                    let profile = self.capture_profile();
+                    self.set_telemetry_profile(profile);
+                }
+                result(status)
+            }
+            Action::GuidedQuit => {
+                self.guided_close(clock);
+                result(St::Ok)
+            }
+            _ => {
+                if !self.guided.active() {
+                    return result(St::NoCycle);
+                }
+                match self.guided.press(now, &s, &config) {
+                    Press::Ignored => result(if self.guided.purging() {
+                        St::CycleActive
+                    } else {
+                        St::Unavailable
+                    }),
+                    Press::Rinse { tare } => {
+                        if tare && !self.guided_tare(clock) {
+                            return result(St::Unavailable);
+                        }
+                        let status = self
+                            .perform_action(
+                                clock,
+                                &ActionCommand::new(Action::PurgePress),
+                                ActionSource::Ui,
+                            )
+                            .status;
+                        if status == St::Ok {
+                            let s = self.snapshot_now();
+                            self.guided.purge_started(now, tare, &s);
+                        } else {
+                            self.guided.refused(now, status);
+                        }
+                        result(status)
+                    }
+                    Press::Start => {
+                        // L'infusion part dès que la tare est absorbée
+                        // (`tick_guided`) ; un refus du cœur s'affiche alors.
+                        if !self.guided_tare(clock) {
+                            return result(St::Unavailable);
+                        }
+                        self.guided.start_requested();
+                        result(St::Ok)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Lance l'infusion du guide, balance tarée.
+    fn guided_start(&mut self, clock: Clock) {
+        let now = self.now();
+        let status = self
+            .perform_action(
+                clock,
+                &ActionCommand::new(Action::StartBrew),
+                ActionSource::Ui,
+            )
+            .status;
+        if status == ActionStatus::Ok {
+            // La capture de l'infusion vient de s'ouvrir et a effacé le
+            // déroulé précédent : on attache celui du guide.
+            self.hf_session = Some(self.guided.started(now));
+            let profile = self.capture_profile();
+            self.set_telemetry_profile(profile);
+        } else {
+            self.guided.refused(now, status);
+        }
+    }
+
+    /// Tare demandée par le guide ; un refus (balance absente ou non
+    /// inscriptible) bloque le guide comme une balance perdue.
+    fn guided_tare(&mut self, clock: Clock) -> bool {
+        let ok = self
+            .perform_action(clock, &ActionCommand::new(Action::Tare), ActionSource::Ui)
+            .status
+            == ActionStatus::Ok;
+        if ok {
+            self.guided.tare_sent(self.now());
+        } else {
+            self.guided.tare_refused();
+        }
+        ok
+    }
+
+    /// Termine le guide, après avoir relâché un rinçage en cours.
+    fn guided_close(&mut self, clock: Clock) {
+        if self.guided.purging() {
+            self.perform_action(
+                clock,
+                &ActionCommand::new(Action::PurgeRelease),
+                ActionSource::Ui,
+            );
+        }
+        self.guided.close();
+        let profile = self.capture_profile();
+        self.set_telemetry_profile(profile);
+    }
+
+    fn tick_guided(&mut self) {
+        if !self.guided.active() {
+            return;
+        }
+        let clock = self.clock;
+        let config = self.config.get();
+        let s = self.snapshot_now();
+        match self.guided.tick(self.now(), &s, &config) {
+            Some(Request::Tare) => {
+                self.guided_tare(clock);
+            }
+            Some(Request::PurgeRelease) => {
+                self.perform_action(
+                    clock,
+                    &ActionCommand::new(Action::PurgeRelease),
+                    ActionSource::Ui,
+                );
+                self.guided.release_sent(self.now());
+            }
+            Some(Request::Start) => self.guided_start(clock),
+            Some(Request::Abandon) => self.guided_close(clock),
+            None => {}
+        }
+    }
+
     // --- Mise à jour OTA ----------------------------------------------------------------
 
     /// Démarre une mise à jour (écran ou capteurs). Refusée pendant un cycle,
@@ -2116,7 +2303,13 @@ impl<S: ConfigStore> Core<S> {
             result.sensors_uptime_s = result.sensors_uptime_s.saturating_add(elapsed_s);
         }
         result.screen_uptime_s = (now / 1_000_000) as u32;
+        result.guided = self.guided.view(now, &result, &self.config.get());
         result
+    }
+
+    /// Déroulé du guide attaché à la capture HF courante, s'il y en a un.
+    pub fn hf_capture_session(&self) -> Option<&Session> {
+        self.hf_session.as_ref()
     }
 
     /// Instantané de la capture HF.

@@ -6,7 +6,7 @@ use alloc::{format, rc::Rc, string::String, vec::Vec};
 use screen_core::{
     config::{self, Config, PreinfusionMode, RampdownMode},
     core::{Action, ActionCommand, ActionSource, Input, Reply},
-    snapshot::{CycleState, Freshness, Snapshot},
+    snapshot::{CycleState, Freshness, Snapshot, brew_ready},
 };
 use slint::{Color, Model, ModelRc, SharedString, VecModel};
 
@@ -682,20 +682,7 @@ impl Presenter {
         } else {
             format!("infuser · {} s", c.target_time_s).into()
         });
-        app.set_brew_enabled(
-            s.sensors_alive
-                && !s.lockout
-                && s.dimmer_ready
-                && s.dimmer_valid
-                && c.heating_enabled
-                && s.boiler_temperature_valid
-                && s.boiler_temperature_freshness == Freshness::Fresh
-                && s.heating_power_capable
-                && s.heating_freshness == Freshness::Fresh
-                && (s.boiler_temperature_c - c.brew_temperature_c).abs() <= 1.0
-                && s.brew_temperature_ready
-                && !s.capture_cooldown,
-        );
+        app.set_brew_enabled(brew_ready(s, c));
         app.set_minus_enabled(if s.scale_present {
             c.target_weight_g > 10.0
         } else {

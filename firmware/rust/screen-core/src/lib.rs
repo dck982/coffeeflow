@@ -28,6 +28,7 @@ pub mod config;
 pub mod config_json;
 pub mod core;
 pub mod events;
+pub mod guided;
 pub mod hf_capture;
 pub mod http;
 pub mod json;

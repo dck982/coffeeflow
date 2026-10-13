@@ -2,6 +2,8 @@
 //! le WebSocket le lisent, aucun consommateur ne lit l'état interne champ par
 //! champ.
 
+use crate::config::{BREW_TEMPERATURE_TOLERANCE_C, Config};
+use crate::guided;
 use crate::shot_summary::ShotSummary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -220,6 +222,28 @@ pub struct Snapshot {
     pub last_shot_duration_ms: u32,
     pub last_shot_flow_ml_s: f32,
     pub last_shot_unix_s: i64,
+    /// Infusion guidée : écran, consigne et bouton.
+    pub guided: guided::View,
+}
+
+/// L'infusion peut partir : capteurs vivants, pas de verrou, dimmer prêt,
+/// chauffage actif et chaudière à la consigne (mesure fraîche, à
+/// [`BREW_TEMPERATURE_TOLERANCE_C`] près et prête), pas de capture en
+/// récupération.
+pub fn brew_ready(s: &Snapshot, c: &Config) -> bool {
+    s.sensors_alive
+        && !s.lockout
+        && s.dimmer_ready
+        && s.dimmer_valid
+        && c.heating_enabled
+        && s.boiler_temperature_valid
+        && s.boiler_temperature_freshness == Freshness::Fresh
+        && s.heating_power_capable
+        && s.heating_freshness == Freshness::Fresh
+        && libm::fabsf(s.boiler_temperature_c - c.brew_temperature_c)
+            <= BREW_TEMPERATURE_TOLERANCE_C
+        && s.brew_temperature_ready
+        && !s.capture_cooldown
 }
 
 impl Default for Snapshot {
@@ -324,6 +348,7 @@ impl Default for Snapshot {
             last_shot_duration_ms: 0,
             last_shot_flow_ml_s: 0.0,
             last_shot_unix_s: 0,
+            guided: guided::View::default(),
         }
     }
 }

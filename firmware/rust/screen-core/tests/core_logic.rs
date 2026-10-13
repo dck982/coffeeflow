@@ -1137,7 +1137,7 @@ fn hf_capture_records_the_cycle_then_completes() {
     );
     assert!(samples.iter().any(|s| s.pump_pct_commanded == 100));
     // Document d'export : en-tête et pied.
-    let doc = hf_capture::export(&info, samples, hf_capture::View::Both);
+    let doc = hf_capture::export(&info, samples, hf_capture::View::Both, None);
     assert!(doc.starts_with(
         "{\"schema\":\"coffeeflow.hf_capture.v2\",\"origin\":\"brew\",\"view\":\"both\""
     ));

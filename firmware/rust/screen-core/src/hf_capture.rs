@@ -9,6 +9,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
+use crate::guided::Session;
 use crate::json::format_g;
 
 /// Période d'échantillonnage.
@@ -252,13 +253,22 @@ impl View {
     }
 }
 
-/// Début du document : tout jusqu'à `"samples":[` inclus.
-pub fn export_header(info: &Info, view: View) -> String {
+/// Début du document : tout jusqu'à `"samples":[` inclus. Une infusion porte
+/// la clé `session` juste avant : le déroulé du guide, ou `null` pour une
+/// infusion directe. Les autres origines n'ont pas cette clé.
+pub fn export_header(info: &Info, view: View, session: Option<&Session>) -> String {
+    let session = match (info.origin, session) {
+        (Origin::Brew, Some(session)) => {
+            format!("\"session\":{},", session.to_json(info.started_at_us))
+        }
+        (Origin::Brew, None) => "\"session\":null,".to_string(),
+        _ => String::new(),
+    };
     format!(
         "{{\"schema\":\"coffeeflow.hf_capture.v2\",\"origin\":\"{}\",\"view\":\"{}\",\
 \"started_at_us\":{},\"ended_at_us\":{},\"started_at_unix_s\":{},\
 \"ended_at_unix_s\":{},\"sample_period_ms\":{},\"sample_count\":{},\
-\"dropped_samples\":{},\"samples\":[",
+\"dropped_samples\":{},{session}\"samples\":[",
         info.origin.text(),
         view.text(),
         info.started_at_us,
@@ -379,8 +389,8 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
 }
 
 /// Document complet.
-pub fn export(info: &Info, samples: &[Sample], view: View) -> String {
-    let mut out = export_header(info, view);
+pub fn export(info: &Info, samples: &[Sample], view: View, session: Option<&Session>) -> String {
+    let mut out = export_header(info, view, session);
     for (i, sample) in samples.iter().enumerate() {
         out.push_str(&export_sample(sample, view, i == 0));
     }

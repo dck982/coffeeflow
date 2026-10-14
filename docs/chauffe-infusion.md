@@ -80,6 +80,7 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 12/10, 13 h 34 | 8 s, même mouture, tassage variable (14,4 s depuis 8 bar) | **87,96 °C** | 89,04 °C |
 | 13/10, 8 h 18 | 8 s, **consigne de 92 °C** (18,5 s depuis 8 bar) | **89,71 °C** | 90,76 °C |
 | 13/10, 13 h 29 | 8 s, consigne de 92 °C, cible 22 g (15,6 s depuis 8 bar) | **91,96 °C** | 92,52 °C |
+| 14/10, 9 h 42 | 8 s, consigne de 92 °C, mode guidé (16,1 s depuis 8 bar) | **90,89 °C** | 91,88 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -503,5 +504,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261012-133429.json` | 8 s | même mouture, tassage variable (7,0 bar·s/g au plateau), pré-infusion finie sur la goutte ; 14,4 s depuis 8 bar ; 0 % pendant 10,9 s, palier à 89,4 °C sans rebond, appoint repris 7,6 s avant l'arrêt ; −2,04 °C en tasse, modèle à +0,75 °C (+0,23 °C avec l'énergie SSR) ; hors ajustement |
 | `261013-081846.json` | 8 s | consigne de 92 °C, même mouture (8,0 bar·s/g au plateau), pré-infusion finie à l'échéance ; 18,5 s depuis 8 bar ; 0 % pendant 12,0 s, palier à 90,4 °C sans rebond, appoint repris 9,6 s avant l'arrêt ; −2,29 °C en tasse, modèle à +1,25 °C (+0,43 °C avec l'énergie SSR, +0,16 °C avec un écart d'eau froide de 72,5 K) ; hors ajustement |
 | `261013-132935.json` | 8 s | consigne de 92 °C, cible 22 g (7,2 bar·s/g au plateau), pré-infusion finie sur la goutte ; 15,6 s depuis 8 bar ; NTC +1,67 °C pendant le remplissage, pic à 94,01 °C ; 0 % pendant 12,1 s, rebond à 92,71 °C, appoint repris 6,6 s avant l'arrêt ; −0,04 °C en tasse, modèle à −0,53 °C (−1,15 °C avec l'énergie SSR), sous la mesure dès le remplissage ; hors ajustement |
+| `261014-094256.json` | 8 s | première routine guidée (62,4 s à la consigne porte-filtre en place, 142,8 s de préparation) ; consigne de 92 °C, cible 22 g (8,1 bar·s/g au plateau), pré-infusion finie sur la goutte ; 16,1 s depuis 8 bar ; pic à 93,67 °C, creux à 90,36 °C ; 0 % pendant 11,3 s, appoint repris 8,5 s avant l'arrêt ; −1,11 °C en tasse, modèle à −0,01 °C (+0,06 °C avec l'énergie SSR) ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

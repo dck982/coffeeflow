@@ -2,7 +2,7 @@ import "fonts/Inter-24pt-Regular.ttf";
 import { Theme } from "theme.slint";
 
 export struct Tile { name: string, value: string, detail: string, aside: string, enabled: bool, tone: int }
-export struct Segment { x: float, width: float, name: string, value: string, tone: int, active: bool }
+export struct Segment { x: float, width: float, name: string, short: string, value: string, tone: int, active: bool }
 
 component Label inherits Text {
     color: Theme.text;
@@ -150,7 +150,9 @@ export component AppWindow inherits Window {
         Label { x: 468px; y: 84px; width: 300px; height: 30px; text: root.started; font-size: 18px; horizontal-alignment: right; color: Theme.faint; }
         if root.reserve-visible: Rectangle { x: 32px + root.reserve-x * 1px; y: 122px; width: (736 - root.reserve-x) * 1px; height: 26px; border-width: 2px; border-color: Theme.faint; border-radius: 4px; background: transparent; }
         for segment in root.segments: Rectangle { x: 32px + segment.x * 1px; y: 122px; width: segment.width * 1px; height: 24px; border-radius: 4px; border-width: segment.active ? 2px : 0px; border-color: Theme.text; background: segment.tone == 0 ? Theme.fault : segment.tone == 1 ? Theme.thermal : segment.tone == 2 ? Theme.high : segment.tone == 3 ? Theme.low : segment.tone == 4 ? Theme.accent : Theme.faint;
-            Label { text: segment.name; font-size: 18px; horizontal-alignment: center; color: segment.tone == 4 ? Theme.bg : #eeeeee; }
+            // Nom complet s'il tient avec 4 px de marge de chaque côté, sinon l'abréviation, sinon rien.
+            full := Label { visible: self.preferred-width <= parent.width - 8px; text: segment.name; font-size: 16px; horizontal-alignment: center; color: segment.tone == 4 ? Theme.bg : #eeeeee; }
+            Label { visible: !full.visible && self.preferred-width <= parent.width - 8px; text: segment.short; font-size: 16px; horizontal-alignment: center; color: segment.tone == 4 ? Theme.bg : #eeeeee; }
             Label { x: 0px; y: 32px; text: segment.value; font-size: 26px; }
         }
         for tile[i] in root.brew-values: Rectangle { x: 32px + mod(i, 3) * 250px; y: 192px + floor(i / 3) * 88px; width: 234px; height: 76px; background: Theme.raised; border-radius: 8px;

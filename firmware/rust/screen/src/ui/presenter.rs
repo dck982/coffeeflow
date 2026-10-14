@@ -1010,16 +1010,16 @@ impl Presenter {
             .clamp(0.0, 734.0),
         );
         let names = [
-            "PRÉ-CHAUFFE",
-            "REMPLISSAGE",
-            "PRÉ-INFUSION",
-            "MONTÉE",
-            "INFUSION",
-            "GOUTTES",
+            ("PRÉ-CHAUFFE", "CHAUF."),
+            ("REMPLISSAGE", "REMPL."),
+            ("PRÉ-INFUSION", "PRÉ-INF."),
+            ("MONTÉE", "MONT."),
+            ("INFUSION", "INF."),
+            ("GOUTTES", "GOUTT."),
         ];
         let mut segments = Vec::new();
         let scale = 736.0 / shot.axis_s.max(1.0);
-        for (i, name) in names.iter().enumerate() {
+        for (i, (name, short)) in names.iter().enumerate() {
             let start = shot.segment_start_s[i];
             let end = shot.segment_end_s[i];
             if !start.is_finite() || !end.is_finite() || end <= start {
@@ -1030,11 +1030,8 @@ impl Presenter {
             segments.push(Segment {
                 x,
                 width,
-                name: if width > name.len() as f32 * 9.0 {
-                    (*name).into()
-                } else {
-                    "".into()
-                },
+                name: (*name).into(),
+                short: (*short).into(),
                 value: if width > 40.0 {
                     if i == 5 {
                         format!("+{}", number(shot.drip_gain_g, 1, " g")).into()

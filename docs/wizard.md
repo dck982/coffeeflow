@@ -219,6 +219,59 @@ Durées lues dans le journal :
 `describe_hf_capture.py` affiche le déroulé en tête du rapport HTML, avec
 ces trois durées. Ce sont les sources des entrées du journal.
 
+## Piste : temps minimal sur le groupe
+
+Envisagée le 14 octobre 2026, pas codée. Le guide garderait « laissez la
+tasse et le porte-filtre en place » jusqu'à ce que la consigne soit
+atteinte **et** qu'une durée minimale soit écoulée depuis la fin du second
+rinçage, même consigne atteinte. Le chrono part de la fin du second
+rinçage : c'est depuis cet instant que le porte-filtre chauffe sur le
+groupe, et l'écran 3 affiche déjà ce temps.
+
+Origine : à galette et chauffe égales, les deux premières routines
+guidées diffèrent de 0,76 °C en NTC tasse, dont 0,34 °C seulement viennent
+du modèle de chaudière. Le reste suit l'état du porte-filtre :
+
+| Routine | Sur le groupe après le rinçage 2 | Préparation | Écart du modèle (énergie SSR) | NTC tasse |
+| --- | ---: | ---: | ---: | ---: |
+| 14/10 9 h 42 | 148 s | 143 s | +0,06 °C | 90,89 °C |
+| 14/10 14 h 48 | 642 s | 70 s | −0,50 °C | 91,65 °C |
+
+Un modèle sous la mesure veut dire une eau moins refroidie que ne le
+prévoit la chaudière seule : porte-filtre et groupe plus chauds. Les deux
+durées ont varié ensemble, en sens inverse ; rien ne les sépare encore.
+
+**Quantification par les captures.** Chaque entrée du journal relève, pour
+une routine guidée, la durée sur le groupe (retour à la consigne plus
+porte-filtre en place après la consigne), la préparation, la résistance au
+plateau, l'écart du modèle avec l'énergie SSR et la NTC tasse. Une capture
+compte si les réglages sont ceux en cours et la galette entre 7,0 et
+8,5 bar·s/g. On ne force pas les durées : on note celles de la routine du
+jour.
+
+- **Lecture** : l'écart du modèle en fonction de la durée sur le groupe,
+  à préparation de 60 à 150 s. Le temps minimal est la plus courte durée
+  au-delà de laquelle l'écart ne baisse plus de plus de 0,2 °C.
+- **Effet confirmé** : au moins trois captures de 4 min ou moins sur le
+  groupe et trois de 6 min ou plus, dont les écarts moyens diffèrent d'au
+  moins 0,4 °C sans que les deux groupes se chevauchent.
+- **Effet écarté** : mêmes effectifs, écarts moyens à moins de 0,2 °C. Pas
+  de temps minimal.
+- **La préparation à la place** : si l'écart suit la préparation et non la
+  durée sur le groupe, le levier est la préparation ; un temps minimal ne
+  suffirait pas.
+
+**Bascule sur la sonde SCACE** si, au **28 octobre**, l'un des deux groupes
+compte moins de trois captures, ou si les groupes se chevauchent sans
+écart net. Protocole, sans pompe (le joint qui fuit sous pression ne gêne
+pas) : porte-filtre SCACE, les deux rinçages du guide, verrouillage,
+10 min d'enregistrement ; puis retrait de 70 s et de 150 s, porte-filtre
+posé comme pendant une préparation, et reverrouillage. Le temps minimal
+est alors le temps, depuis la fin du second rinçage, pour que la dérive
+de la SCACE passe sous 0,5 K/min (critère de départ retenu le 10 octobre
+dans [sonde-scace.md](sonde-scace.md)) ; les retraits chiffrent ce que
+la préparation reprend.
+
 ## Répartition du code
 
 | Partie | Rôle |

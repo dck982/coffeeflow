@@ -67,6 +67,7 @@ Toujours avec ces définitions, pour que les entrées restent comparables :
 | Infusion | durée **depuis 8 bar** et débits moyens (tasse en g/s, amont en ml/s) depuis 8 bar ; la durée de la phase « infusion » (fin de pré-infusion → arrêt) est notée à part, c'est celle des tableaux de `chauffe-infusion.md` |
 | Rendement | poids en tasse à l'arrêt de la pompe et poids final (gouttes comprises) |
 | Thermique | NTC pondérée par la tasse (`analyze_hf_capture.py`, critère de la consigne) ; minimum pendant l'écoulement ; minimum total et son instant ; NTC à l'arrêt et 20 s après |
+| Routine guidée | durée du porte-filtre sur le groupe (retour à la consigne + porte-filtre en place après la consigne, depuis la fin du second rinçage) et préparation, rapprochées de l'écart du modèle avec l'énergie SSR ; voir [wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe) |
 | Énergie | commande et SSR par phase ; l'écart entre les deux dit ce que le simulateur surestime |
 
 ### Simulation
@@ -2124,11 +2125,14 @@ routine diffère. 13 h 29 la veille garde les mêmes réglages.
   à 0,1 g près : 22,7 g, au-dessus de la plage d'un dixième, sans effet
   au goût.
 
-**Décision** (par défaut, à confirmer par David). Rien ne change :
-consigne de 92 °C, cible de 22 g, mouture, chauffe et routine guidée
-conservées. Les routines suivantes donnent la durée sur le groupe et la
-durée de préparation à rapprocher de l'écart du modèle et de la NTC
-tasse.
+**Décision** (David). Rien ne change : consigne de 92 °C, cible de
+22 g, mouture, chauffe et routine guidée conservées. Idée retenue : un
+**temps minimal du porte-filtre sur le groupe**, que le guide imposerait
+même consigne atteinte. Chaque capture suivante est lue sous cet angle
+(durée sur le groupe, préparation, écart du modèle) ; si elles ne
+suffisent pas au 28 octobre, la sonde SCACE le mesure sans pompe. Règles
+de lecture et de bascule dans
+[wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe).
 
 **Attendus pour l'infusion suivante** (mêmes réglages, routine guidée) :
 

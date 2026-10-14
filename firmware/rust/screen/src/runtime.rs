@@ -7,7 +7,7 @@ use crate::{
 use core::sync::atomic::Ordering::Relaxed;
 use screen::{ble, can, network, proxy_service, service};
 use screen_core::{
-    core::{Action, ActionCommand, ActionSource, Clock, Core, Input, Output},
+    core::{Clock, Core, Input, Output},
     snapshot::Snapshot,
 };
 
@@ -46,13 +46,10 @@ impl Runtime {
     }
 
     /// Une transition Slint peut détruire le bouton maintenu avant son
-    /// PointerReleased. Le relâchement physique garde donc sa propre voie.
+    /// PointerReleased. Le relâchement physique garde donc sa propre voie,
+    /// qui ne vaut que pour le bouton purge.
     pub fn purge_release(&mut self) {
-        self.core.perform_action(
-            clock(),
-            &ActionCommand::new(Action::PurgeRelease),
-            ActionSource::Ui,
-        );
+        self.core.release_held_purge(clock());
     }
 
     fn outputs(&mut self) {

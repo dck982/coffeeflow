@@ -314,16 +314,29 @@ fn purge() {
     let c = config();
     let i = valid(0.0, false, 0.40);
     let mut purge = Machine::new();
-    assert!(purge.purge_press(1000, &c));
+    assert!(purge.purge_press(1000, &c, 20_000));
     assert_eq!(purge.tick(2000, &i).dimmer, 100);
     assert!(purge.purge_release(2000));
     assert_eq!(purge.tick(2001, &i).dimmer, 0);
     assert_eq!(purge.stop_reason(), StopReason::PurgeReleased);
     assert_eq!(purge.elapsed_ms(2001), 1000);
     assert_eq!(purge.elapsed_ms(10000), 1000);
-    assert!(purge.purge_press(3000, &c));
+    assert!(purge.purge_press(3000, &c, 20_000));
+    assert_eq!(purge.tick(22999, &i).dimmer, 100);
     assert_eq!(purge.tick(23000, &i).dimmer, 0);
     assert_eq!(purge.stop_reason(), StopReason::PurgeTimeout);
+}
+
+#[test]
+fn purge_duration_is_set_by_the_press() {
+    let c = config();
+    let i = valid(0.0, false, 0.40);
+    let mut purge = Machine::new();
+    assert!(purge.purge_press(1000, &c, 5000));
+    assert_eq!(purge.tick(5999, &i).dimmer, 100);
+    assert_eq!(purge.tick(6000, &i).dimmer, 0);
+    assert_eq!(purge.stop_reason(), StopReason::PurgeTimeout);
+    assert_eq!(purge.elapsed_ms(6000), 5000);
 }
 
 #[test]
@@ -337,7 +350,7 @@ fn purge_after_weighted_brew_has_no_weight_goal() {
     assert_eq!(machine.stop_reason(), StopReason::TargetWeight);
     assert!(machine.weight_goal());
     // balance éteinte avant de rincer la douche
-    assert!(machine.purge_press(3000, &c));
+    assert!(machine.purge_press(3000, &c, 20_000));
     assert!(!machine.weight_goal());
 }
 

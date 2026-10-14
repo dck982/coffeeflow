@@ -128,9 +128,12 @@ des rinçages (environ 50 g) passerait pour la tasse vide.
 
 ## Cas tranchés
 
-- **Purge de 5 s** : le cœur envoie `purge_press`, puis `purge_release`
-  à 5,0 s, à la puissance `purge.pump_pct`. La durée est une constante du
-  guide, pas un réglage. Le garde-fou `purge.max_s` reste actif.
+- **Purge de 5 s** : le cœur lance une purge dont la durée, 5,0 s, est
+  fixée au départ ; le cycle s'arrête seul, à la puissance
+  `purge.pump_pct`, comme `coffeetool purge`. La durée est une constante
+  du guide, pas un réglage, et remplace `purge.max_s` pour ce rinçage. Le
+  relâchement physique de l'écran ne vaut que pour le bouton purge : le
+  doigt qui se lève après **suivant** ne coupe pas le rinçage.
 - **Pendant une purge du guide**, un retrait de tasse ou la perte de la
   balance n'arrêtent pas la pompe : 5 s d'eau finissent au pire dans le
   bac. **Arrêter** coupe la purge et ramène à l'accueil.

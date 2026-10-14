@@ -58,7 +58,7 @@ use crate::config::{
     LoadReport,
 };
 use crate::events::{EventKind, EventLog};
-use crate::guided::{Guided, Press, Request, Session};
+use crate::guided::{Guided, Press, RINSE_US, Request, Session};
 use crate::hf_capture::{self, Capture, Origin, SampleMode};
 use crate::machine::{self, Machine};
 use crate::ntc;
@@ -205,6 +205,8 @@ pub struct ActionCommand {
     pub action: Action,
     pub brew: BrewActuatorsCommand,
     pub heating: HeatingCommand,
+    /// Durée d'une `PurgePress` ; 0 pour `purge.max_s`.
+    pub purge_duration_ms: u32,
 }
 
 impl ActionCommand {
@@ -219,6 +221,7 @@ impl ActionCommand {
                 on: false,
                 duration_ms: 0,
             },
+            purge_duration_ms: 0,
         }
     }
 }
@@ -1661,6 +1664,20 @@ impl<S: ConfigStore> Core<S> {
 
     // --- Actions ----------------------------------------------------------------------
 
+    /// Relâchement physique de l'écran tactile : n'arrête que la purge du
+    /// bouton maintenu. Un rinçage du guide part d'un clic, donc d'un
+    /// relâchement, et s'arrête seul au bout de sa durée.
+    pub fn release_held_purge(&mut self, clock: Clock) {
+        if self.guided.purging() {
+            return;
+        }
+        self.perform_action(
+            clock,
+            &ActionCommand::new(Action::PurgeRelease),
+            ActionSource::Ui,
+        );
+    }
+
     /// Compatibilité avec l'écran de service : purge à pression maintenue.
     pub fn set_diagnostic_purge(
         &mut self,
@@ -1915,7 +1932,13 @@ impl<S: ConfigStore> Core<S> {
                 let input = self.machine_input(now);
                 self.machine.start(self.now_ms(), &machine_config, &input)
             } else {
-                self.machine.purge_press(self.now_ms(), &machine_config)
+                let duration_ms = if command.purge_duration_ms > 0 {
+                    command.purge_duration_ms
+                } else {
+                    u32::from(machine_config.purge_max_s) * 1000
+                };
+                self.machine
+                    .purge_press(self.now_ms(), &machine_config, duration_ms)
             };
             if ok && command.action == Action::StartBrew {
                 self.shot_start_unix_s = if self.snapshot.time_known { wall_s } else { 0 };
@@ -2024,12 +2047,10 @@ impl<S: ConfigStore> Core<S> {
                         if tare && !self.guided_tare(clock) {
                             return result(St::Unavailable);
                         }
+                        let mut command = ActionCommand::new(Action::PurgePress);
+                        command.purge_duration_ms = (RINSE_US / 1000) as u32;
                         let status = self
-                            .perform_action(
-                                clock,
-                                &ActionCommand::new(Action::PurgePress),
-                                ActionSource::Ui,
-                            )
+                            .perform_action(clock, &command, ActionSource::Ui)
                             .status;
                         if status == St::Ok {
                             let s = self.snapshot_now();
@@ -2113,14 +2134,6 @@ impl<S: ConfigStore> Core<S> {
         match self.guided.tick(self.now(), &s, &config) {
             Some(Request::Tare) => {
                 self.guided_tare(clock);
-            }
-            Some(Request::PurgeRelease) => {
-                self.perform_action(
-                    clock,
-                    &ActionCommand::new(Action::PurgeRelease),
-                    ActionSource::Ui,
-                );
-                self.guided.release_sent(self.now());
             }
             Some(Request::Start) => self.guided_start(clock),
             Some(Request::Abandon) => self.guided_close(clock),

@@ -122,6 +122,8 @@ pub struct Machine {
     started_ms: u64,
     phase_started_ms: u64,
     finished_ms: u64,
+    /// Durée de la purge en cours, au bout de laquelle la pompe s'arrête.
+    purge_duration_ms: u64,
     starting_weight_g: f32,
     preinfusion_pressure_start_bar: f32,
     weight_goal: bool,
@@ -153,6 +155,7 @@ impl Machine {
             started_ms: 0,
             phase_started_ms: 0,
             finished_ms: 0,
+            purge_duration_ms: 0,
             starting_weight_g: 0.0,
             preinfusion_pressure_start_bar: 0.0,
             weight_goal: false,
@@ -275,11 +278,14 @@ impl Machine {
         true
     }
 
-    pub fn purge_press(&mut self, now_ms: u64, config: &Config) -> bool {
+    /// Démarre une purge qui s'arrête seule après `duration_ms`, sauf
+    /// relâchement plus tôt ; `true` aussi si une purge est déjà en cours.
+    pub fn purge_press(&mut self, now_ms: u64, config: &Config, duration_ms: u32) -> bool {
         if self.active() {
             return self.state == State::Purge;
         }
         self.config = *config;
+        self.purge_duration_ms = u64::from(duration_ms);
         self.started_ms = now_ms;
         self.phase_started_ms = now_ms;
         self.finished_ms = 0;
@@ -351,7 +357,7 @@ impl Machine {
     /// Avance le cycle ; renvoie la commande de pompe à émettre.
     pub fn tick(&mut self, now_ms: u64, input: &Input) -> Output {
         if self.state == State::Purge {
-            if now_ms.wrapping_sub(self.started_ms) >= u64::from(self.config.purge_max_s) * 1000 {
+            if now_ms.wrapping_sub(self.started_ms) >= self.purge_duration_ms {
                 self.finish(StopReason::PurgeTimeout, now_ms);
             } else {
                 return Output {

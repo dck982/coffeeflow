@@ -202,7 +202,7 @@ fn next_needs_scale_cup_and_rinse_temperature() {
 }
 
 #[test]
-fn rinse1_tares_first_releases_at_five_seconds_and_waits_for_the_real_end() {
+fn rinse1_tares_first_stops_at_five_seconds_and_waits_for_the_real_end() {
     let mut b = Bench::new();
     b.weigh(CUP_BACK, 500);
     assert_eq!(b.act(Action::GuidedOpen), ActionStatus::Ok);
@@ -256,6 +256,36 @@ fn purge_stopped_elsewhere_ends_the_rinse_early() {
     assert_eq!(b.view().screen, Screen::Rinse2);
     let session = b.rig.core.snapshot(b.rig.clock());
     assert!(!session.guided.purging);
+}
+
+#[test]
+fn screen_touch_release_spares_the_rinse_but_stops_the_held_purge() {
+    let mut b = Bench::new();
+    b.weigh(CUP_BACK, 500);
+    b.act(Action::GuidedOpen);
+    b.act(Action::GuidedNext);
+    // Le doigt qui se lève après **suivant** ne coupe pas le rinçage.
+    for _ in 0..3 {
+        let clock = b.rig.clock();
+        b.rig.core.release_held_purge(clock);
+        b.weigh(0.0, 50);
+    }
+    assert_eq!(b.rig.snapshot().cycle_state, CycleState::Purge);
+    b.weigh(0.0, 5500);
+    assert_eq!(b.view().screen, Screen::Rinse2);
+    let started = b.logs(LogCode::PurgeStarted);
+    let stopped = b.logs(LogCode::PurgeStopped);
+    assert_eq!(stopped.len(), 1);
+    let elapsed_ms = (stopped[0] - started[0]) / 1000;
+    assert!((5000..=5100).contains(&elapsed_ms), "{elapsed_ms}");
+
+    // Le bouton purge maintenu, guide fermé, s'arrête au relâchement.
+    assert_eq!(b.act(Action::GuidedQuit), ActionStatus::Ok);
+    assert_eq!(b.act(Action::PurgePress), ActionStatus::Ok);
+    b.weigh(0.0, 500);
+    let clock = b.rig.clock();
+    b.rig.core.release_held_purge(clock);
+    assert_ne!(b.rig.snapshot().cycle_state, CycleState::Purge);
 }
 
 // --- Écran 2 ------------------------------------------------------------------------------------

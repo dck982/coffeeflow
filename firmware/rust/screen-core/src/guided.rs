@@ -4,8 +4,7 @@
 //!
 //! La machine à états est pure : [`Guided`] reçoit l'heure monotone, les
 //! pesées horodatées, l'instantané et la configuration, et rend des
-//! [`Request`] que [`crate::core::Core`] exécute (tare, relâchement de la
-//! purge, abandon). Les actions soumises au cœur (purge, infusion) et leurs
+//! [`Request`] que [`crate::core::Core`] exécute (tare, infusion, abandon). Les actions soumises au cœur (purge, infusion) et leurs
 //! refus sont orchestrés par le cœur, qui rend compte par les méthodes
 //! `purge_started`, `refused`, `tare_sent`... Rien ici n'alloue : les deux
 //! rinçages tiennent dans un tableau fixe.
@@ -22,7 +21,7 @@ use crate::core::ActionStatus;
 use crate::json::format_g;
 use crate::snapshot::{CycleState, Snapshot, brew_ready};
 
-/// Durée d'un rinçage.
+/// Durée d'un rinçage, confiée au cycle de purge qui s'arrête seul.
 pub const RINSE_US: i64 = 5_000_000;
 /// Poids au-dessus duquel une tasse est posée.
 pub const CUP_PLACED_G: f32 = 30.0;
@@ -103,8 +102,6 @@ pub struct View {
 pub enum Request {
     /// Tarer la balance vide.
     Tare,
-    /// Couper le rinçage en cours (5 s écoulées).
-    PurgeRelease,
     /// Lancer l'infusion : la tare demandée par **démarrer** est absorbée.
     Start,
     /// Abandonner le guide (défaut, mise à jour, inactivité...).
@@ -268,7 +265,6 @@ struct Rinse {
     index: usize,
     started_us: i64,
     start_volume_ml: f32,
-    release_sent_us: Option<i64>,
 }
 
 /// Lecture de poids différée de 2 s après l'arrêt d'un rinçage.
@@ -523,15 +519,7 @@ impl Guided {
             index,
             started_us: now_us,
             start_volume_ml: s.volume_ml,
-            release_sent_us: None,
         });
-    }
-
-    /// Le cœur a relâché le rinçage à la demande de [`Request::PurgeRelease`].
-    pub fn release_sent(&mut self, now_us: i64) {
-        if let Some(rinse) = &mut self.rinse {
-            rinse.release_sent_us = Some(now_us);
-        }
     }
 
     /// La tare de **démarrer** est partie : l'infusion suivra.
@@ -703,9 +691,7 @@ impl Guided {
             self.settling_since_us = None;
         }
         self.read_pending_weights(now_us, s);
-        if let Some(request) = self.step_rinse(now_us, s) {
-            return Some(request);
-        }
+        self.step_rinse(now_us, s);
         if self.screen == Screen::Wait && self.rinse.is_none() {
             self.step_wait(step, s, c);
         }
@@ -740,8 +726,10 @@ impl Guided {
         }
     }
 
-    fn step_rinse(&mut self, now_us: i64, s: &Snapshot) -> Option<Request> {
-        let rinse = self.rinse?;
+    fn step_rinse(&mut self, now_us: i64, s: &Snapshot) {
+        let Some(rinse) = self.rinse else {
+            return;
+        };
         let record = &mut self.session.purges[rinse.index];
         let ntc = ntc_of(s);
         record.ntc_min_c = lowest(record.ntc_min_c, ntc);
@@ -749,15 +737,17 @@ impl Guided {
             record.pressure_max_bar = s.pressure_bar;
         }
         if s.cycle_state == CycleState::Purge {
-            if rinse.release_sent_us.is_none() && now_us - rinse.started_us >= RINSE_US {
-                return Some(Request::PurgeRelease);
-            }
-            return None;
+            return;
         }
-        // Le cœur a arrêté la pompe (relâchement, durée maximale ou refus des
-        // capteurs) : le rinçage est fini, l'écran suivant s'ouvre.
-        let end_us = rinse.release_sent_us.unwrap_or(now_us);
-        record.duration_us = end_us - rinse.started_us;
+        // Le cœur a arrêté la pompe (durée écoulée, relâchement ou refus des
+        // capteurs) : le rinçage est fini, l'écran suivant s'ouvre. La durée
+        // vient du cycle quand il la fige, au pas près sinon.
+        record.duration_us = if s.cycle_state == CycleState::Finished {
+            i64::from(s.cycle_elapsed_ms) * 1000
+        } else {
+            now_us - rinse.started_us
+        };
+        let end_us = rinse.started_us + record.duration_us;
         record.volume_ml = s.volume_ml - rinse.start_volume_ml;
         record.ntc_end_c = ntc;
         record.ntc_min_c = lowest(record.ntc_min_c, ntc);
@@ -773,7 +763,6 @@ impl Guided {
             self.rinse_end_us = end_us;
             Screen::Wait
         };
-        None
     }
 
     fn step_wait(&mut self, step_us: i64, s: &Snapshot, c: &Config) {

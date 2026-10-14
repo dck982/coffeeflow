@@ -1472,7 +1472,7 @@ checksum = "f8e4abf97879f4e80db69a9fba7bd64998e9bdad25f58ef045a778e191172fd4"
 
 [[package]]
 name = "sensors"
-version = "0.4.9"
+version = "0.4.10"
 dependencies = [
  "critical-section",
  "embassy-executor",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "sensors-logic"
-version = "0.4.9"
+version = "0.4.10"
 dependencies = [
  "log",
  "protocol",

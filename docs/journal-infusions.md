@@ -1986,8 +1986,10 @@ préparation à rapprocher de l'écart du modèle et de la NTC tasse.
 
 **Contexte.** Seconde routine guidée, réglages inchangés depuis 9 h 42 :
 consigne de 92 °C, cible de 22 g, mouture et chauffe identiques. Le guide
-s'ouvre sur une machine **sous la consigne** (NTC à 84,4 °C). Observation
-de David : **très bonne infusion, très satisfait**.
+s'ouvre sur une machine **sous la consigne** (NTC à 84,4 °C) : David
+l'avait laissée chauffer en faisant autre chose, puis a fait autre chose
+pendant l'attente de la consigne, porte-filtre en place. Observation de
+David : **très bonne infusion, très satisfait**.
 
 La capture contient un échantillon NTC marqué invalide à 18,10 s (âge de
 200 ms, valeur tenue à 92,14 °C, voisins à 92,14 et 92,12 °C) :
@@ -2008,9 +2010,10 @@ inférieur à 0,01 °C.
 | Routine entière | 13 min 5 s | 5 min 41 s |
 
 - Les deux rinçages ont lieu 4 à 5 °C sous la consigne : la machine
-  n'était pas revenue à la consigne à l'ouverture du guide (cause non
-  relevée). Le porte-filtre passe ensuite plus de 6 min sur le groupe à
-  la consigne, et la préparation est deux fois plus courte qu'à 9 h 42.
+  chauffait encore à l'ouverture du guide. Le porte-filtre reste
+  642 s sur le groupe après le second rinçage (148 s à 9 h 42), dont
+  374 s à la consigne, et la préparation est deux fois plus courte
+  qu'à 9 h 42.
 - Les rinçages donnent 1,46 et 1,38 g par ml compté (1,66 et 1,27 à
   9 h 42) : le rapport varie d'un rinçage à l'autre, la pesée à 2 s
   après l'arrêt ne le fixe pas.

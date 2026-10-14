@@ -96,9 +96,10 @@ pub fn subscribe_frames() -> [Vec<u8>; 3] {
     ]
 }
 
-/// Commande TARE.
+/// Commande TARE : commande 4, sans longueur en tête. La Lunar legacy ignore
+/// la variante 0x0F à longueur préfixée.
 pub fn tare_frame() -> Vec<u8> {
-    encode_frame(0x0F, &[0], true).unwrap_or_default()
+    encode_frame(0x04, &[0], false).unwrap_or_default()
 }
 
 /// Poids d'une sous-trame de type 5 (6 octets : entier 32 bits, puissance de

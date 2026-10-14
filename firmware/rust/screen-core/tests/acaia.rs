@@ -12,7 +12,7 @@ fn notification(raw: u32, exponent: u8, sign: u8) -> Vec<u8> {
 
 #[test]
 fn command_bytes_and_checksums_are_identical_to_cpp() {
-    assert_eq!(tare_frame(), [0xEF, 0xDD, 0x0F, 2, 0, 2, 0]);
+    assert_eq!(tare_frame(), [0xEF, 0xDD, 0x04, 0, 0, 0]);
     let frames = subscribe_frames();
     assert_eq!(
         frames[0],

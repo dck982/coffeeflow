@@ -19,7 +19,7 @@ aujourd'hui.
   **démarrer**. **Quitter** est toujours présent.
 - La balance et la température ne font qu'**activer** ce bouton ; elles ne
   font jamais avancer le guide seules.
-- La tare est envoyée par l'écran en BLE (commande Acaia `0x0F`, déjà
+- La tare est envoyée par l'écran en BLE (commande Acaia `0x04`, déjà
   utilisée par l'action `tare`). La tare automatique de la Lunar peut donc
   être désactivée.
 

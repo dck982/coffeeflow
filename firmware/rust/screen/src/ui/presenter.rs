@@ -55,6 +55,9 @@ pub struct Presenter {
     /// Fenêtre de choix entre l'infusion directe et l'infusion guidée.
     brew_choice: bool,
     last_touch_us: u64,
+    /// Page et cycle du rendu précédent, pour rafraîchir le contenu dès le
+    /// premier rendu d'une nouvelle page plutôt qu'au passage de son groupe.
+    shown: Option<(i32, CycleState)>,
     pub refresh: Refresh,
 }
 
@@ -639,12 +642,20 @@ impl Presenter {
         app.set_brew_choice_visible(self.brew_choice);
         app.set_confirm_title("réinitialiser le réseau".into());
         app.set_confirm_body("effacer les identifiants wifi enregistrés ?".into());
-        match self.refresh.due(now_us) {
+        let shown = (self.page, s.cycle_state);
+        let changed = self.shown.replace(shown) != Some(shown);
+        let due = self.refresh.due(now_us);
+        match due {
             Some(0) => self.status(app, s, c, wall_clock_text),
             Some(1) => self.content(app, s, c),
             Some(2) => self.diagnostics(app, s, c),
             Some(3) => self.settings(app, c),
             _ => {}
+        }
+        // Sinon la page de purge garde un instant le poids calculé à l'arrêt,
+        // celui d'une balance perdue tasse retirée : un grand nombre négatif.
+        if changed && due != Some(1) {
+            self.content(app, s, c);
         }
     }
     fn fullscreen(&mut self, app: &AppWindow, s: &Snapshot, ssid: &str) {

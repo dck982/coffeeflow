@@ -415,5 +415,19 @@ mod render_tests {
         app.window()
             .dispatch_event(WindowEvent::PointerReleased { position, button });
         assert_eq!(*hit.borrow(), Some((16, "5".into())));
+
+        // Balance perdue tasse retirée après une infusion au poids : la purge
+        // ne doit pas montrer, même une image, le poids négatif de l'arrêt.
+        let (mut p, mut s, c) = fixture("home").unwrap();
+        s.cycle_weight_goal = true;
+        s.cycle_start_weight_g = 0.4;
+        s.weight_g = -310.2;
+        for g in 0..4 {
+            p.update(&app, 3_000_000 + g * 62_500, &s, &c, "", "09:16");
+        }
+        assert_eq!(app.get_purge_time(), "-310,6 g");
+        s.cycle_state = CycleState::Purge;
+        p.update(&app, 3_200_000, &s, &c, "", "09:16");
+        assert_eq!((app.get_page(), app.get_purge_time().as_str()), (2, "0 s"));
     }
 }

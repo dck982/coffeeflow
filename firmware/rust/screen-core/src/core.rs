@@ -2043,8 +2043,8 @@ impl<S: ConfigStore> Core<S> {
                     } else {
                         St::Unavailable
                     }),
-                    Press::Rinse { tare } => {
-                        if tare && !self.guided_tare(clock) {
+                    Press::Rinse => {
+                        if !self.guided_tare(clock) {
                             return result(St::Unavailable);
                         }
                         let mut command = ActionCommand::new(Action::PurgePress);
@@ -2054,7 +2054,7 @@ impl<S: ConfigStore> Core<S> {
                             .status;
                         if status == St::Ok {
                             let s = self.snapshot_now();
-                            self.guided.purge_started(now, tare, &s);
+                            self.guided.purge_started(now, &s);
                         } else {
                             self.guided.refused(now, status);
                         }

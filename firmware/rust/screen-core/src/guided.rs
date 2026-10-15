@@ -1,13 +1,14 @@
-//! Infusion guidée : la routine d'avant-infusion (deux rinçages, attente de la
-//! consigne, préparation du porte-filtre) suivie écran par écran, avec le
-//! déroulé enregistré pour la capture HF.
+//! Infusion guidée : la routine d'avant-infusion (rinçage du porte-filtre,
+//! attente de la consigne, préparation) suivie écran par écran, avec le
+//! déroulé enregistré pour la capture HF. La purge sans porte-filtre qui
+//! précède se fait hors du guide : sans porte-filtre, l'eau gicle autour de
+//! la tasse et mouille la balance.
 //!
 //! La machine à états est pure : [`Guided`] reçoit l'heure monotone, les
 //! pesées horodatées, l'instantané et la configuration, et rend des
 //! [`Request`] que [`crate::core::Core`] exécute (tare, infusion, abandon). Les actions soumises au cœur (purge, infusion) et leurs
 //! refus sont orchestrés par le cœur, qui rend compte par les méthodes
-//! `purge_started`, `refused`, `tare_sent`... Rien ici n'alloue : les deux
-//! rinçages tiennent dans un tableau fixe.
+//! `purge_started`, `refused`, `tare_sent`... Rien ici n'alloue.
 //!
 //! Les boutons ne sont que des préconditions : la balance et la température
 //! activent **suivant** ou **démarrer**, elles ne font jamais avancer le guide
@@ -48,14 +49,15 @@ const MAX_STEP_US: i64 = 250_000;
 const RINSE_MARGIN_C: f32 = 5.0;
 /// Pesées gardées pour juger de la stabilité (plusieurs secondes à 10 Hz).
 const WEIGHT_WINDOW: usize = 32;
-/// Nombre de rinçages du guide.
-pub const RINSES: usize = 2;
+/// Écart au poids de la tasse pesée au rinçage sous lequel la tasse revenue
+/// est reconnue. Fixe plutôt que proportionnel : il couvre les gouttes
+/// d'une tasse rincée, quelle que soit la tasse.
+pub const CUP_MATCH_G: f32 = 1.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Screen {
     #[default]
-    Rinse1,
-    Rinse2,
+    Rinse,
     Wait,
 }
 
@@ -67,9 +69,7 @@ pub enum Hint {
     ConnectScale,
     WaitRinseTemp,
     PlaceCup,
-    PressNextRinse1,
-    ReplaceCup,
-    InstallPortafilter,
+    PressNextRinse,
     CupRemovedEarly,
     WaitSetpoint,
     Prepare,
@@ -91,8 +91,10 @@ pub struct View {
     pub purge_elapsed_ms: u32,
     /// Température minimale d'un rinçage (consigne moins 5 °C).
     pub rinse_min_c: f32,
-    /// Secondes depuis la fin du second rinçage.
+    /// Secondes depuis la fin du rinçage.
     pub since_rinse_s: u32,
+    /// La tasse revenue avant l'infusion pèse le poids relevé au rinçage.
+    pub cup_recognized: bool,
     /// Refus du cœur à afficher en rouge sous le bouton.
     pub refusal: Option<ActionStatus>,
 }
@@ -113,15 +115,15 @@ pub enum Request {
 pub enum Press {
     /// Bouton inactif ou rinçage en cours : rien à faire.
     Ignored,
-    /// Lancer un rinçage, après une tare si `tare`.
-    Rinse { tare: bool },
+    /// Tarer la balance, tasse sur le plateau, puis lancer le rinçage.
+    Rinse,
     /// Tarer, puis lancer l'infusion une fois la tare absorbée. Lancée avant,
     /// l'infusion garderait le poids de la tasse comme poids de départ et
     /// verrait la tare comme une balance qui recule.
     Start,
 }
 
-/// Un rinçage enregistré. Les valeurs inconnues sont NaN.
+/// Le rinçage enregistré. Les valeurs inconnues sont NaN.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PurgeRecord {
     pub start_us: i64,
@@ -155,8 +157,9 @@ pub struct Session {
     pub opened_at_unix_s: i64,
     pub setpoint_c: f32,
     pub ntc_open_c: f32,
-    pub purges: [PurgeRecord; RINSES],
-    pub purge_count: u8,
+    /// Poids de la tasse vide à l'appui sur **suivant** ; NaN avant.
+    pub cup_g: f32,
+    pub rinse: PurgeRecord,
     pub wait_ntc_min_c: f32,
     pub setpoint_reached_us: Option<i64>,
     pub heater_on_us: i64,
@@ -174,8 +177,8 @@ impl Session {
             opened_at_unix_s: 0,
             setpoint_c: 0.0,
             ntc_open_c: f32::NAN,
-            purges: [PurgeRecord::EMPTY; RINSES],
-            purge_count: 0,
+            cup_g: f32::NAN,
+            rinse: PurgeRecord::EMPTY,
             wait_ntc_min_c: f32::NAN,
             setpoint_reached_us: None,
             heater_on_us: 0,
@@ -193,36 +196,29 @@ impl Session {
     pub fn to_json(&self, capture_start_us: i64) -> String {
         let rel = |t: i64| ms(t - capture_start_us).to_string();
         let rel_opt = |t: Option<i64>| t.map_or_else(|| "null".to_string(), rel);
-        let mut purges = String::new();
-        for (i, p) in self.purges[..usize::from(self.purge_count)]
-            .iter()
-            .enumerate()
-        {
-            if i > 0 {
-                purges.push(',');
-            }
-            purges.push_str(&format!(
-                "{{\"start_ms\":{},\"duration_ms\":{},\"volume_ml\":{},\"weight_g\":{},\
+        let p = &self.rinse;
+        let rinse = format!(
+            "{{\"start_ms\":{},\"duration_ms\":{},\"volume_ml\":{},\"weight_g\":{},\
 \"ntc_start_c\":{},\"ntc_min_c\":{},\"ntc_end_c\":{},\"pressure_max_bar\":{}}}",
-                rel(p.start_us),
-                ms(p.duration_us),
-                num(p.volume_ml),
-                num(p.weight_g),
-                num(p.ntc_start_c),
-                num(p.ntc_min_c),
-                num(p.ntc_end_c),
-                num(p.pressure_max_bar),
-            ));
-        }
+            rel(p.start_us),
+            ms(p.duration_us),
+            num(p.volume_ml),
+            num(p.weight_g),
+            num(p.ntc_start_c),
+            num(p.ntc_min_c),
+            num(p.ntc_end_c),
+            num(p.pressure_max_bar),
+        );
         format!(
             "{{\"opened_ms\":{},\"opened_at_unix_s\":{},\"setpoint_c\":{},\"ntc_open_c\":{},\
-\"purges\":[{purges}],\"wait\":{{\"ntc_min_c\":{},\"setpoint_reached_ms\":{},\
+\"cup_g\":{},\"rinse\":{rinse},\"wait\":{{\"ntc_min_c\":{},\"setpoint_reached_ms\":{},\
 \"heater_on_ms\":{},\"early_removals\":{}}},\"cup_removed_ms\":{},\"cup_returned_ms\":{},\
 \"start_pressed_ms\":{},\"scale_lost_ms\":{}}}",
             rel(self.opened_us),
             self.opened_at_unix_s,
             num(self.setpoint_c),
             num(self.ntc_open_c),
+            num(round_tenth(self.cup_g)),
             num(self.wait_ntc_min_c),
             rel_opt(self.setpoint_reached_us),
             ms(self.heater_on_us),
@@ -238,6 +234,11 @@ impl Session {
 /// Microsecondes en millisecondes entières, arrondies au plus proche.
 fn ms(us: i64) -> i64 {
     libm::round(us as f64 / 1000.0) as i64
+}
+
+/// Au dixième de gramme, la résolution de la balance.
+fn round_tenth(value: f32) -> f32 {
+    libm::roundf(value * 10.0) / 10.0
 }
 
 fn num(value: f32) -> String {
@@ -262,17 +263,10 @@ enum Cup {
 /// Rinçage en cours.
 #[derive(Debug, Clone, Copy)]
 struct Rinse {
-    index: usize,
     started_us: i64,
     start_volume_ml: f32,
 }
 
-/// Lecture de poids différée de 2 s après l'arrêt d'un rinçage.
-#[derive(Debug, Clone, Copy)]
-struct PendingWeight {
-    due_us: i64,
-    baseline_g: f32,
-}
 
 #[derive(Debug, Clone, Copy)]
 struct Reading {
@@ -289,19 +283,27 @@ pub struct Guided {
     last_press_us: i64,
     last_step_us: i64,
     rinse: Option<Rinse>,
-    pending_weight: [Option<PendingWeight>; RINSES],
-    /// Poids de départ de chaque rinçage : zéro après une tare, sinon le
-    /// dernier poids lu.
-    rinse_baseline_g: [f32; RINSES],
+    /// Instant de lecture du poids gagné, 2 s après l'arrêt du rinçage. La
+    /// balance a été tarée tasse posée : le poids lu est l'eau du rinçage.
+    weight_due_us: Option<i64>,
     rinse_end_us: i64,
     last_weight: Option<Reading>,
     window: [Reading; WEIGHT_WINDOW],
     window_len: usize,
     window_next: usize,
-    /// Le suivi du retrait de la tasse commence après la tare du premier
-    /// rinçage.
+    /// Une tare d'ouverture est due : à l'ouverture, et à l'écran du
+    /// rinçage chaque fois que la balance revient, car on ne sait pas ce qui
+    /// a été posé entre-temps.
+    open_tare: bool,
+    /// Le suivi du retrait de la tasse commence avec la tare d'ouverture.
     tracking: bool,
     cup: Cup,
+    /// Une tare à vide a suivi un retrait depuis la consigne atteinte : le
+    /// poids lu est celui de la tasse revenue.
+    empty_tare_after_setpoint: bool,
+    /// La tasse était reconnue à l'appui sur **démarrer** ; gardé pendant
+    /// la tare qui précède l'infusion.
+    cup_recognized_at_start: bool,
     settling_since_us: Option<i64>,
     /// Une tare a été refusée : traité comme une balance absente jusqu'à
     /// ce qu'elle se reconnecte.
@@ -322,13 +324,12 @@ impl Guided {
     pub const fn new() -> Self {
         Self {
             active: false,
-            screen: Screen::Rinse1,
+            screen: Screen::Rinse,
             session: Session::new(),
             last_press_us: 0,
             last_step_us: 0,
             rinse: None,
-            pending_weight: [None; RINSES],
-            rinse_baseline_g: [0.0; RINSES],
+            weight_due_us: None,
             rinse_end_us: 0,
             last_weight: None,
             window: [Reading {
@@ -337,8 +338,11 @@ impl Guided {
             }; WEIGHT_WINDOW],
             window_len: 0,
             window_next: 0,
+            open_tare: false,
             tracking: false,
             cup: Cup::Present,
+            empty_tare_after_setpoint: false,
+            cup_recognized_at_start: false,
             settling_since_us: None,
             tare_blocked: false,
             blocked_saw_absence: false,
@@ -357,10 +361,11 @@ impl Guided {
     }
 
     /// Ouvre le guide à l'écran 1. `wall_unix_s` vaut 0 si l'heure murale
-    /// n'est pas connue.
+    /// n'est pas connue. La tare d'ouverture part au pas suivant.
     pub fn open(&mut self, now_us: i64, wall_unix_s: i64, s: &Snapshot, c: &Config) {
         *self = Self::new();
         self.active = true;
+        self.open_tare = true;
         self.last_press_us = now_us;
         self.last_step_us = now_us;
         self.last_weight = self.last_weight_of(s);
@@ -479,6 +484,9 @@ impl Guided {
         self.window_next = 0;
         if self.cup == Cup::Removed {
             self.cup = Cup::TaredEmpty;
+            if self.screen == Screen::Wait && self.session.setpoint_reached_us.is_some() {
+                self.empty_tare_after_setpoint = true;
+            }
         }
     }
 
@@ -494,29 +502,18 @@ impl Guided {
         self.refusal = Some((status, now_us));
     }
 
-    /// Le cœur a accepté le rinçage demandé par [`Press::Rinse`].
-    pub fn purge_started(&mut self, now_us: i64, tared: bool, s: &Snapshot) {
+    /// Le cœur a accepté le rinçage demandé par [`Press::Rinse`], balance
+    /// tarée tasse posée.
+    pub fn purge_started(&mut self, now_us: i64, s: &Snapshot) {
         self.refusal = None;
-        let index = usize::from(self.screen == Screen::Rinse2);
-        self.rinse_baseline_g[index] = if tared {
-            0.0
-        } else {
-            self.last_weight.map_or(0.0, |r| r.weight_g)
-        };
-        if index == 0 {
-            // La tasse est sur le plateau et tarée : le retrait se détecte
-            // à partir d'ici.
-            self.tracking = true;
-            self.cup = Cup::Present;
-        }
+        // La tasse est sur le plateau et tarée : un retrait passe sous zéro.
+        self.cup = Cup::Present;
         let mut record = PurgeRecord::EMPTY;
         record.start_us = now_us;
         record.ntc_start_c = ntc_of(s);
         record.ntc_min_c = ntc_of(s);
-        self.session.purges[index] = record;
-        self.session.purge_count = (index + 1) as u8;
+        self.session.rinse = record;
         self.rinse = Some(Rinse {
-            index,
             started_us: now_us,
             start_volume_ml: s.volume_ml,
         });
@@ -525,6 +522,22 @@ impl Guided {
     /// La tare de **démarrer** est partie : l'infusion suivra.
     pub fn start_requested(&mut self) {
         self.start_pending = true;
+    }
+
+    /// La tasse revenue pèse, à [`CUP_MATCH_G`] près, celle pesée au
+    /// rinçage. Seulement après une tare à vide qui suit la consigne : avant,
+    /// la balance compte encore la tasse tarée au rinçage.
+    fn cup_recognized(&self) -> bool {
+        if self.start_pending {
+            return self.cup_recognized_at_start;
+        }
+        self.screen == Screen::Wait
+            && self.empty_tare_after_setpoint
+            && self.settling_since_us.is_none()
+            && self.session.cup_g.is_finite()
+            && self.last_weight.is_some_and(|reading| {
+                libm::fabsf(reading.weight_g - self.session.cup_g) <= CUP_MATCH_G
+            })
     }
 
     /// L'infusion est partie : fige et rend le déroulé. Le guide se termine.
@@ -554,8 +567,11 @@ impl Guided {
         let scale = self.scale_ok(s);
         let rinse_ok = self.rinse_possible(s, c);
         match self.screen {
-            Screen::Rinse1 => {
-                let placed = self.cup_placed();
+            Screen::Rinse => {
+                // Tant que la tare d'ouverture n'est pas absorbée, le poids
+                // lu ne pèse pas encore la tasse.
+                let tared = !self.open_tare && self.settling_since_us.is_none();
+                let placed = tared && self.cup_placed();
                 let hint = if !scale {
                     Hint::ConnectScale
                 } else if !rinse_ok {
@@ -563,22 +579,9 @@ impl Guided {
                 } else if !placed {
                     Hint::PlaceCup
                 } else {
-                    Hint::PressNextRinse1
+                    Hint::PressNextRinse
                 };
                 (hint, scale && placed && rinse_ok)
-            }
-            Screen::Rinse2 => {
-                let cup = self.cup == Cup::Present;
-                let hint = if !scale {
-                    Hint::ConnectScale
-                } else if !cup {
-                    Hint::ReplaceCup
-                } else if !rinse_ok {
-                    Hint::WaitRinseTemp
-                } else {
-                    Hint::InstallPortafilter
-                };
-                (hint, scale && cup && rinse_ok)
             }
             Screen::Wait => {
                 let cup = self.cup == Cup::Present;
@@ -634,6 +637,7 @@ impl Guided {
             purge_elapsed_ms,
             rinse_min_c: c.brew_temperature_c - RINSE_MARGIN_C,
             since_rinse_s,
+            cup_recognized: self.cup_recognized(),
             refusal: self.refusal.map(|(status, _)| status),
         }
     }
@@ -650,9 +654,16 @@ impl Guided {
         }
         self.refusal = None;
         match self.screen {
-            Screen::Rinse1 => Press::Rinse { tare: true },
-            Screen::Rinse2 => Press::Rinse { tare: false },
-            Screen::Wait => Press::Start,
+            Screen::Rinse => {
+                // Le poids avant la tare du rinçage est celui de la tasse
+                // vide, depuis la tare d'ouverture.
+                self.session.cup_g = self.last_weight.map_or(f32::NAN, |r| r.weight_g);
+                Press::Rinse
+            }
+            Screen::Wait => {
+                self.cup_recognized_at_start = self.cup_recognized();
+                Press::Start
+            }
         }
     }
 
@@ -673,6 +684,9 @@ impl Guided {
         self.last_step_us = now_us;
         if !s.scale_present {
             self.session.scale_lost_us += step;
+            if self.screen == Screen::Rinse && self.rinse.is_none() {
+                self.open_tare = true;
+            }
             if self.tare_blocked {
                 self.blocked_saw_absence = true;
             }
@@ -690,13 +704,22 @@ impl Guided {
         {
             self.settling_since_us = None;
         }
-        self.read_pending_weights(now_us, s);
+        self.read_rinse_weight(now_us, s);
         self.step_rinse(now_us, s);
         if self.screen == Screen::Wait && self.rinse.is_none() {
             self.step_wait(step, s, c);
         }
         if self.start_pending && self.settling_since_us.is_none() {
             return Some(Request::Start);
+        }
+        // Tare d'ouverture : le plateau compte pour vide. Une tasse déjà
+        // posée lit alors près de zéro ; la soulever passe sous le seuil de
+        // retrait et tare à vide.
+        if self.open_tare && self.settling_since_us.is_none() && self.scale_ok(s) {
+            self.open_tare = false;
+            self.tracking = true;
+            self.cup = Cup::TaredEmpty;
+            return Some(Request::Tare);
         }
         // Tare à vide d'une tasse retirée, une fois la balance stable. Aucune
         // nouvelle tare tant que la précédente n'a pas été absorbée.
@@ -711,18 +734,16 @@ impl Guided {
         None
     }
 
-    fn read_pending_weights(&mut self, now_us: i64, s: &Snapshot) {
-        for index in 0..RINSES {
-            let Some(pending) = self.pending_weight[index] else {
-                continue;
-            };
-            if now_us < pending.due_us {
-                continue;
-            }
-            self.pending_weight[index] = None;
-            if let (true, Some(reading)) = (s.scale_present, self.last_weight) {
-                self.session.purges[index].weight_g = reading.weight_g - pending.baseline_g;
-            }
+    fn read_rinse_weight(&mut self, now_us: i64, s: &Snapshot) {
+        let Some(due_us) = self.weight_due_us else {
+            return;
+        };
+        if now_us < due_us {
+            return;
+        }
+        self.weight_due_us = None;
+        if let (true, Some(reading)) = (s.scale_present, self.last_weight) {
+            self.session.rinse.weight_g = reading.weight_g;
         }
     }
 
@@ -730,7 +751,7 @@ impl Guided {
         let Some(rinse) = self.rinse else {
             return;
         };
-        let record = &mut self.session.purges[rinse.index];
+        let record = &mut self.session.rinse;
         let ntc = ntc_of(s);
         record.ntc_min_c = lowest(record.ntc_min_c, ntc);
         if s.pressure_valid && s.pressure_bar > record.pressure_max_bar {
@@ -751,18 +772,11 @@ impl Guided {
         record.volume_ml = s.volume_ml - rinse.start_volume_ml;
         record.ntc_end_c = ntc;
         record.ntc_min_c = lowest(record.ntc_min_c, ntc);
-        self.pending_weight[rinse.index] = Some(PendingWeight {
-            due_us: end_us + WEIGHT_READ_DELAY_US,
-            baseline_g: self.rinse_baseline_g[rinse.index],
-        });
+        self.weight_due_us = Some(end_us + WEIGHT_READ_DELAY_US);
         self.rinse = None;
         self.refusal = None;
-        self.screen = if rinse.index == 0 {
-            Screen::Rinse2
-        } else {
-            self.rinse_end_us = end_us;
-            Screen::Wait
-        };
+        self.rinse_end_us = end_us;
+        self.screen = Screen::Wait;
     }
 
     fn step_wait(&mut self, step_us: i64, s: &Snapshot, c: &Config) {

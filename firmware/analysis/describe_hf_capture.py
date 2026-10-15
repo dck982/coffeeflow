@@ -892,17 +892,32 @@ def session_span_s(start_ms: Any, end_ms: Any) -> float:
     return (number(end_ms) - number(start_ms)) / 1000
 
 
+def session_rinses(session: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Rinçages du déroulé, avec leur nom ; le dernier est celui du porte-filtre.
+
+    Depuis le 15 octobre 2026, le guide ne fait que le rinçage du porte-filtre
+    (`rinse`). Les captures antérieures portent `purges` : la purge sans
+    porte-filtre, puis le rinçage du porte-filtre.
+    """
+    rinse = session.get("rinse")
+    if isinstance(rinse, dict):
+        return [("Rinçage du porte-filtre", rinse)]
+    purges = session.get("purges")
+    purges = [p if isinstance(p, dict) else {} for p in purges] if isinstance(purges, list) else []
+    names = ["Purge sans porte-filtre"] * (len(purges) - 1) + ["Rinçage du porte-filtre"]
+    return list(zip(names, purges))
+
+
 def session_durations(session: dict[str, Any]) -> dict[str, float]:
     """Les trois durées du déroulé guidé, en secondes (NaN si inconnue).
 
-    Le retour à la consigne part de la fin du second rinçage ; le porte-filtre
-    reste en place de la consigne atteinte au retrait de la tasse ; la
-    préparation va du retrait de la tasse à l'appui sur démarrer.
+    Le retour à la consigne part de la fin du rinçage du porte-filtre ; le
+    porte-filtre reste en place de la consigne atteinte au retrait de la
+    tasse ; la préparation va du retrait de la tasse à l'appui sur démarrer.
     """
-    purges = session.get("purges")
-    purges = purges if isinstance(purges, list) else []
-    second = purges[1] if len(purges) > 1 and isinstance(purges[1], dict) else {}
-    rinse_end_ms = number(second.get("start_ms")) + number(second.get("duration_ms"))
+    rinses = session_rinses(session)
+    last = rinses[-1][1] if rinses else {}
+    rinse_end_ms = number(last.get("start_ms")) + number(last.get("duration_ms"))
     wait = session.get("wait") if isinstance(session.get("wait"), dict) else {}
     reached_ms = wait.get("setpoint_reached_ms")
     return {
@@ -920,11 +935,9 @@ def guided_session_block(capture: dict[str, Any]) -> str:
         return ""
     durations = session_durations(session)
     rows = []
-    purges = session.get("purges")
-    for index, purge in enumerate(purges if isinstance(purges, list) else [], start=1):
-        purge = purge if isinstance(purge, dict) else {}
+    for name, purge in session_rinses(session):
         rows.append(
-            f"<tr><td>Rinçage {index}</td><td>{fmt(number(purge.get('duration_ms')) / 1000, 1)} s</td>"
+            f"<tr><td>{name}</td><td>{fmt(number(purge.get('duration_ms')) / 1000, 1)} s</td>"
             f"<td>{fmt(purge.get('volume_ml'), 1)} ml</td><td>{fmt(purge.get('weight_g'), 1)} g</td>"
             f"<td>{fmt(purge.get('ntc_start_c'), 1)} → {fmt(purge.get('ntc_min_c'), 1)} → "
             f"{fmt(purge.get('ntc_end_c'), 1)} °C</td></tr>")
@@ -937,6 +950,9 @@ def guided_session_block(capture: dict[str, Any]) -> str:
         metric_card("Préparation", f"{fmt(durations['preparation_s'], 1)} s",
                     "du retrait de la tasse à démarrer"),
     ]
+    if "cup_g" in session:
+        cards.append(metric_card("Tasse", f"{fmt(session.get('cup_g'), 1)} g",
+                                 "tasse vide, pesée au rinçage"))
     return f"""
   <section aria-labelledby="guided-title">
     <h2 id="guided-title">Infusion guidée</h2>

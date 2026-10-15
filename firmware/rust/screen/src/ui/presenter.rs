@@ -119,16 +119,11 @@ fn degrees(v: f32) -> String {
 /// balance est attendue pour la première fois ou qu'elle a été perdue.
 fn hint_text(hint: Hint, screen: Screen, c: &Config) -> String {
     match hint {
-        Hint::ConnectScale if screen == Screen::Rinse1 => "connectez la balance".into(),
+        Hint::ConnectScale if screen == Screen::Rinse => "connectez la balance".into(),
         Hint::ConnectScale => "reconnectez la balance".into(),
         Hint::WaitRinseTemp => format!("attendez {} °C", degrees(c.brew_temperature_c - 5.0)),
-        Hint::PlaceCup => "placez une tasse, sans porte-filtre, pour le premier rinçage".into(),
-        Hint::PressNextRinse1 => "appuyez sur suivant pour lancer le rinçage".into(),
-        Hint::ReplaceCup => "replacez la tasse".into(),
-        Hint::InstallPortafilter => {
-            "installez le porte-filtre, puis appuyez sur suivant pour le rinçage du porte-filtre"
-                .into()
-        }
+        Hint::PlaceCup => "installez le porte-filtre et placez une tasse pour le rinçage".into(),
+        Hint::PressNextRinse => "appuyez sur suivant pour le rinçage du porte-filtre".into(),
         Hint::CupRemovedEarly => "avez-vous enlevé la tasse ? replacez-la pour continuer".into(),
         Hint::WaitSetpoint => {
             "laissez la tasse et le porte-filtre en place, attendez la consigne".into()
@@ -783,22 +778,21 @@ impl Presenter {
         };
         // Pendant le rinçage, la consigne de l'écran inviterait encore à
         // appuyer sur suivant.
-        let hint = match (v.purging, v.screen) {
-            (true, Screen::Rinse1) => "premier rinçage en cours".into(),
-            (true, _) => "rinçage du porte-filtre en cours".into(),
-            (false, _) => hint_text(v.hint, v.screen, c),
+        let hint = if v.purging {
+            "rinçage du porte-filtre en cours".into()
+        } else {
+            hint_text(v.hint, v.screen, c)
         };
         app.set_guided_step(match v.screen {
-            Screen::Rinse1 => 0,
-            Screen::Rinse2 => 1,
-            Screen::Wait => 2,
+            Screen::Rinse => 0,
+            Screen::Wait => 1,
         });
         app.set_guided_image(match (v.screen, v.hint) {
-            (Screen::Rinse1, _) => 0,
-            (Screen::Rinse2, _) => 1,
-            (Screen::Wait, Hint::Prepare | Hint::WaitBrewTemp | Hint::PressStart) => 3,
-            (Screen::Wait, _) => 2,
+            (Screen::Rinse, _) => 0,
+            (Screen::Wait, Hint::Prepare | Hint::WaitBrewTemp | Hint::PressStart) => 2,
+            (Screen::Wait, _) => 1,
         });
+        app.set_guided_cup_recognized(v.cup_recognized);
         app.set_guided_hint_long(hint.chars().count() > 60);
         app.set_guided_hint(hint.into());
         let hot = matches!(
@@ -1452,11 +1446,11 @@ mod tests {
         let mut c = Config::default();
         c.brew_temperature_c = 92.0;
         assert_eq!(
-            hint_text(Hint::WaitRinseTemp, Screen::Rinse1, &c),
+            hint_text(Hint::WaitRinseTemp, Screen::Rinse, &c),
             "attendez 87 °C"
         );
         assert_eq!(
-            hint_text(Hint::ConnectScale, Screen::Rinse1, &c),
+            hint_text(Hint::ConnectScale, Screen::Rinse, &c),
             "connectez la balance"
         );
         assert_eq!(

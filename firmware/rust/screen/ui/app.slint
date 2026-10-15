@@ -112,6 +112,7 @@ export component AppWindow inherits Window {
     in property <bool> guided-value-hot: false;
     in property <string> guided-aside;
     in property <bool> guided-purging: false;
+    in property <bool> guided-cup-recognized: false;
     in property <bool> guided-enabled: false;
     in property <string> guided-refusal;
     in property <bool> dimmed: false;
@@ -183,11 +184,11 @@ export component AppWindow inherits Window {
     }
     if root.page == 8: Rectangle {
         background: transparent;
-        if root.guided-image == 0: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-rinse.svg"); colorize: Theme.dim; }
-        if root.guided-image == 1: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-portafilter.svg"); colorize: Theme.dim; }
-        if root.guided-image == 2: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-wait.svg"); colorize: Theme.dim; }
-        if root.guided-image == 3: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-prepare.svg"); colorize: Theme.dim; }
-        for n in 3: Rectangle { x: 32px + n * 78px; y: 308px; width: 44px; height: 44px; border-radius: 22px;
+        if root.guided-image == 0: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-portafilter.svg"); colorize: Theme.dim; }
+        if root.guided-image == 1: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-wait.svg"); colorize: Theme.dim; }
+        if root.guided-image == 2: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-prepare.svg"); colorize: Theme.dim; }
+        if root.guided-image == 2: Image { x: 32px; y: 96px; width: 200px; height: 200px; source: @image-url("icons/guided-cup.svg"); colorize: root.guided-cup-recognized ? Theme.success : Theme.dim; }
+        for n in 2: Rectangle { x: 71px + n * 78px; y: 308px; width: 44px; height: 44px; border-radius: 22px;
             background: n < root.guided-step ? Theme.success : n == root.guided-step ? Theme.accent : Theme.high;
             Label { text: "" + (n + 1); horizontal-alignment: center; color: n > root.guided-step ? Theme.faint : Theme.bg; }
         }
@@ -197,7 +198,7 @@ export component AppWindow inherits Window {
         Text { x: 520px; y: 280px; width: 248px; height: 64px; text: root.guided-aside; color: Theme.faint; font-size: 18px; wrap: word-wrap; vertical-alignment: center; }
         Label { x: 32px; y: 346px; width: 736px; height: 24px; text: root.guided-refusal; font-size: 18px; color: Theme.fault; horizontal-alignment: right; }
         Key { x: 32px; y: 376px; width: 216px; height: 88px; label: root.guided-purging ? "arrêter" : "quitter"; clicked => { root.command(25, ""); } }
-        Key { x: 464px; y: 376px; width: 304px; height: 88px; primary: true; label: root.guided-step == 2 ? "démarrer" : "suivant"; enabled: root.guided-enabled && !root.guided-purging; clicked => { root.command(24, ""); } }
+        Key { x: 464px; y: 376px; width: 304px; height: 88px; primary: true; label: root.guided-step == 1 ? "démarrer" : "suivant"; enabled: root.guided-enabled && !root.guided-purging; clicked => { root.command(24, ""); } }
     }
     if root.page >= 3 && root.page <= 6: Rectangle {
         background: transparent;

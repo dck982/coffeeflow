@@ -45,14 +45,14 @@ const SCENARIOS: &[&str] = &[
     "choice",
     "choice-heating",
     "guided-connect",
-    "guided-rinse1-temp",
-    "guided-rinse1-ready",
+    "guided-rinse-temp",
+    "guided-rinse-ready",
     "guided-purge",
-    "guided-rinse2-replace",
     "guided-wait",
     "guided-early-removal",
     "guided-prepare",
     "guided-start",
+    "guided-start-other-cup",
     "guided-refused",
 ];
 
@@ -192,27 +192,23 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         }
         "guided-connect" => {
             s.scale_present = false;
-            guided_view(&mut s, Screen::Rinse1, Hint::ConnectScale, false);
+            guided_view(&mut s, Screen::Rinse, Hint::ConnectScale, false);
         }
-        "guided-rinse1-temp" => {
+        "guided-rinse-temp" => {
             s.boiler_temperature_c = 61.4;
-            guided_view(&mut s, Screen::Rinse1, Hint::WaitRinseTemp, false);
+            guided_view(&mut s, Screen::Rinse, Hint::WaitRinseTemp, false);
         }
-        "guided-rinse1-ready" => {
-            s.weight_g = 48.3;
-            guided_view(&mut s, Screen::Rinse1, Hint::PressNextRinse1, true);
+        "guided-rinse-ready" => {
+            s.weight_g = 41.3;
+            guided_view(&mut s, Screen::Rinse, Hint::PressNextRinse, true);
         }
         "guided-purge" => {
-            s.weight_g = 48.3;
+            s.weight_g = 11.2;
             s.cycle_state = CycleState::Purge;
             s.cycle_elapsed_ms = 2300;
-            guided_view(&mut s, Screen::Rinse1, Hint::PressNextRinse1, true);
+            guided_view(&mut s, Screen::Rinse, Hint::PressNextRinse, true);
             s.guided.purging = true;
             s.guided.purge_elapsed_ms = 2300;
-        }
-        "guided-rinse2-replace" => {
-            s.weight_g = -0.2;
-            guided_view(&mut s, Screen::Rinse2, Hint::ReplaceCup, false);
         }
         "guided-wait" => {
             s.boiler_temperature_c = 88.3;
@@ -230,7 +226,12 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             guided_view(&mut s, Screen::Wait, Hint::Prepare, false);
         }
         "guided-start" => {
-            s.weight_g = 0.1;
+            s.weight_g = 41.6;
+            guided_view(&mut s, Screen::Wait, Hint::PressStart, true);
+            s.guided.cup_recognized = true;
+        }
+        "guided-start-other-cup" => {
+            s.weight_g = 87.9;
             guided_view(&mut s, Screen::Wait, Hint::PressStart, true);
         }
         "guided-refused" => {
@@ -387,8 +388,12 @@ mod render_tests {
             std::fs::read(dir.join("choice-heating.png")).unwrap()
         );
         assert_ne!(
-            std::fs::read(dir.join("guided-rinse1-ready.png")).unwrap(),
+            std::fs::read(dir.join("guided-rinse-ready.png")).unwrap(),
             std::fs::read(dir.join("guided-purge.png")).unwrap()
+        );
+        assert_ne!(
+            std::fs::read(dir.join("guided-start.png")).unwrap(),
+            std::fs::read(dir.join("guided-start-other-cup.png")).unwrap()
         );
         std::fs::remove_dir_all(dir).unwrap();
 

@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-from analyze_hf_capture import cup_weighted_temperature
+from analyze_hf_capture import boiler_temperature_usable, cup_weighted_temperature
 
 PHASE_STYLE = {
     "thermal_preheat": ("chauffe", "#4a9bb5"),
@@ -103,7 +103,7 @@ def mode_label(mode: Any) -> str:
 def valid(sample: dict[str, Any], signal: str) -> bool:
     if signal == "boiler":
         if "boiler_temperature_valid" in sample:
-            return sample.get("boiler_temperature_valid") is True
+            return boiler_temperature_usable(sample)
         if "temperature_c" in sample:  # schéma v1 : XDB401, sans bit chaudière dédié
             return math.isfinite(number(sample.get("temperature_c")))
     bit, _label = VALIDITY_FLAGS[signal]

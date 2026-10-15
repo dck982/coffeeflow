@@ -24,6 +24,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 
+from analyze_hf_capture import boiler_temperature_usable
+
 
 PHASE_STYLE = {
     "thermal_preheat": ("précharge thermique", "#4a9bb5"),
@@ -111,7 +113,7 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
     v2 = capture["schema"] == "coffeeflow.hf_capture.v2"
     if v2:
         temperature = [float(sample["boiler_temperature_c"])
-                       if sample.get("boiler_temperature_valid") and sample.get("boiler_temperature_c") is not None
+                       if boiler_temperature_usable(sample)
                        else float("nan")
                        for sample in samples]
         # La sonde XDB401 n'est pas celle de la chaudière et écrase son échelle.

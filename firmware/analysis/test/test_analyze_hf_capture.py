@@ -38,3 +38,20 @@ def test_scace_cup_mean_uses_the_basket_probe_and_skips_missing_frames():
 
 def test_scace_cup_mean_without_probe_is_none():
     assert cup_weighted_temperature([sample(0.0, 90.0), sample(2.0, 90.0)], 1, "scace") is None
+
+
+def test_a_slightly_stale_boiler_reading_still_counts():
+    samples = [sample(0.0, 90.0), sample(1.0, 90.0),
+               dict(sample(3.0, 94.0), boiler_temperature_valid=False, boiler_temperature_age_ms=315)]
+    cup_g, average_c = cup_weighted_temperature(samples, 2)
+    assert cup_g == pytest.approx(3.0)
+    assert average_c == pytest.approx((1 * 90 + 2 * 92) / 3)
+
+
+def test_an_old_or_faulty_boiler_reading_is_skipped():
+    for age_ms in (150, 1500):
+        samples = [sample(0.0, 90.0), sample(1.0, 90.0),
+                   dict(sample(3.0, 94.0), boiler_temperature_valid=False, boiler_temperature_age_ms=age_ms)]
+        cup_g, average_c = cup_weighted_temperature(samples, 2)
+        assert cup_g == pytest.approx(1.0)
+        assert average_c == pytest.approx(90.0)

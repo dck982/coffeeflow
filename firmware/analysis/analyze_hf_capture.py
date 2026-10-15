@@ -30,6 +30,26 @@ def finite_number(value: Any, field: str, index: int) -> float:
     return float(value)
 
 
+# L'écran marque la NTC périmée au-delà de 200 ms (deux cycles de lecture),
+# alors que son âge atteint déjà 175 à 190 ms en temps normal (l'âge exporté,
+# tronqué à la milliseconde, peut valoir 200). Un échantillon
+# un peu plus vieux garde la dernière lecture, juste à une seconde près ; un
+# échantillon invalide plus jeune vient d'une lecture en défaut et reste exclu.
+BOILER_STALE_AFTER_MS = 200
+BOILER_TOLERATED_AGE_MS = 1000
+
+
+def boiler_temperature_usable(sample: dict[str, Any]) -> bool:
+    if sample.get("boiler_temperature_valid") is True:
+        return True
+    age = sample.get("boiler_temperature_age_ms")
+    temperature = sample.get("boiler_temperature_c")
+    return (isinstance(age, (int, float)) and not isinstance(age, bool)
+            and BOILER_STALE_AFTER_MS <= age <= BOILER_TOLERATED_AGE_MS
+            and isinstance(temperature, (int, float)) and not isinstance(temperature, bool)
+            and math.isfinite(temperature))
+
+
 def pump_stop_index(samples: list[dict[str, Any]]) -> int | None:
     pump_was_running = False
     for index, sample in enumerate(samples):
@@ -52,7 +72,7 @@ def volume_weighted_temperature(samples: list[dict[str, Any]], end_index: int) -
             raise ValueError(f"échantillon {index} : volume_ml diminue")
         if delta_volume <= 0:
             continue
-        if before.get("boiler_temperature_valid") is not True or after.get("boiler_temperature_valid") is not True:
+        if not boiler_temperature_usable(before) or not boiler_temperature_usable(after):
             raise ValueError(f"échantillon {index} : température NTC invalide pendant un écoulement")
         previous_temperature = finite_number(before.get("boiler_temperature_c"), "boiler_temperature_c", index - 1)
         current_temperature = finite_number(after.get("boiler_temperature_c"), "boiler_temperature_c", index)
@@ -73,7 +93,7 @@ def sample_temperature(sample: dict[str, Any], source: str, index: int) -> float
     panier, ``null`` quand elle est absente ou sans mesure fraîche.
     """
     if source == "boiler":
-        if sample.get("boiler_temperature_valid") is not True:
+        if not boiler_temperature_usable(sample):
             return None
         return finite_number(sample.get("boiler_temperature_c"), "boiler_temperature_c", index)
     value = sample.get("scace_temperature_c")

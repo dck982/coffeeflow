@@ -277,14 +277,55 @@ jour.
 
 **Bascule sur la sonde SCACE** si, au **28 octobre**, l'un des deux groupes
 compte moins de trois captures, ou si les groupes se chevauchent sans
-écart net. Protocole, sans pompe (le joint qui fuit sous pression ne gêne
-pas) : purge sans porte-filtre, porte-filtre SCACE, rinçage du guide,
-verrouillage, 10 min d'enregistrement ; puis retrait de 70 s et de 150 s,
-porte-filtre posé comme pendant une préparation, et reverrouillage. Le
-temps minimal est alors le temps, depuis la fin du rinçage, pour que la dérive
-de la SCACE passe sous 0,5 K/min (critère de départ retenu le 10 octobre
-dans [sonde-scace.md](sonde-scace.md)) ; les retraits chiffrent ce que
-la préparation reprend.
+écart net. La procédure ci-dessous peut aussi être menée avant.
+
+*Avec eau.* L'air entre la douchette et le puck ne pèse presque rien
+(≈ 13 cm³, 0,015 J/K, contre ≈ 42 J/K pour les 10 premiers ml d'eau et
+≈ 190 J/K pour le porte-filtre), et une perle dans l'air suit mal le métal
+autour. L'eau du rinçage, retenue au-dessus du puck par le panier aveugle,
+couvre la perle et la relie à la douchette et au panier : c'est l'état
+réel de l'attente, et celui où le critère de 0,5 K/min a été retenu le
+10 octobre ([sonde-scace.md](sonde-scace.md)).
+
+*Hors du guide.* Avec le panier SCACE, la pression monte dès que la pompe
+tourne (5,8 bar en 10 s le 10 octobre ; 2 à 3 bar attendus en 5 s) et le
+joint fuit : la balance reste à l'abri, et le guide, qui l'exige, n'est pas
+utilisé. Chaque rinçage est un `coffeetool purge 5`, la purge du guide.
+
+*Préparation.* Machine à la consigne de 92 °C depuis 30 min au moins,
+porte-filtre habituel en place. Core2 chargé, pont sous tension (touche
+A). Sur le Mac, `coffeetool telemetry --record --scace`, arrêté par
+Ctrl-C à la fin : un seul fichier, à 5 Hz, porte la NTC chaudière, la
+résistance, la pression et la SCACE, attentes comprises. Balance retirée
+ou protégée, une tasse sous le porte-filtre. Noter l'heure de chaque
+geste, surtout les déverrouillages et reverrouillages, que rien
+n'enregistre. Après chaque purge, `coffeetool download-hf` (fin des 5 s
+attendue, `409` avant) donne en plus la capture à 10 Hz ; facultatif.
+
+| Étape | Geste | Mesure |
+| --- | --- | --- |
+| A. Temps sur le groupe | purge de 5 s sans porte-filtre au bouton purge ; porte-filtre SCACE verrouillé, `coffeetool purge 5` ; **10 min** sans toucher | remontée de l'eau au-dessus du puck depuis la fin du rinçage |
+| B. Référence | sans déverrouiller, `coffeetool purge 5` | première eau, porte-filtre à l'équilibre |
+| C. Préparation de 70 s | 10 min après B, qui sert de rinçage : déverrouiller, vider, essuyer, tenir **70 s** comme pendant une préparation, reverrouiller, `coffeetool purge 5` aussitôt | ce qu'une préparation courte reprend |
+| D. Préparation de 150 s | 10 min après C : même geste, **150 s** hors du groupe | ce qu'une préparation longue reprend |
+| E. Croisement, facultatif | rinçage, **2,5 min** sur le groupe, préparation de 70 s, purge | durée sur le groupe courte, préparation courte |
+
+Environ 50 min.
+
+*Lecture.*
+
+- **Temps minimal** : dans A, le temps depuis la fin du rinçage pour que la
+  pente de la SCACE sur 60 s passe sous **0,5 K/min**. Au repos, elle ne
+  descend pas sous 0,35 à 0,45 K/min, les cycles de chauffe réchauffant le
+  groupe. Relever aussi la SCACE à 148 et 274 s, durées des routines du
+  14 octobre à 9 h 42 et du 15 octobre à 9 h 08.
+- **Préparation** : SCACE moyenne pendant les 5 s de purge de B, C et D.
+  C et D à plus de ≈ 1 K sous B, D plus bas que C : la préparation est le
+  levier, et le guide en bornerait la durée plutôt que d'imposer un temps
+  sur le groupe. Les trois à moins de 0,5 K : la préparation ne compte pas,
+  seul le temps minimal de A reste. Entre les deux : refaire C et D.
+- Les seuils sont des ordres de grandeur : la SCACE lit l'eau au puck, pas
+  en tasse, et les écarts en tasse à expliquer sont de 0,5 à 0,8 °C.
 
 ## Répartition du code
 

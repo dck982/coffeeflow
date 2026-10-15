@@ -76,6 +76,16 @@ fn idle_basics_and_ready() {
 }
 
 #[test]
+fn starting_flow_heats_at_the_cap() {
+    let mut c = Controller::new();
+    let out = c.step(1000, 90.0, 90.0, true, true, Mode::Brew, Flow::STARTING);
+    assert_eq!(out.power_permille, 900);
+    // Débit lu mais trop faible : l'appoint suit la mesure.
+    let out = flow(&mut c, 1250, 90.0, 90.0, Mode::Brew, 0.1, true);
+    assert!(out.power_permille < 100, "{}", out.power_permille);
+}
+
+#[test]
 fn idle_losses_and_proportional() {
     // Repos : pertes 0,45 W/K au-dessus de 34,5 °C à la sonde (2,61 % à
     // 90 °C utilisateur), plus 6 % par °C d'erreur prédite.

@@ -420,12 +420,16 @@ fn flow_from_pulses() {
         }))
     };
     send(&mut rig, 0, 100);
-    send(&mut rig, 5, 600);
-    // Moins de 10 impulsions d'écart : pas de débit.
+    send(&mut rig, 2, 350);
+    // Moins de 3 impulsions depuis le début de l'écoulement : pas de débit.
     assert_eq!(rig.snapshot().flow_ml_s, 0.0);
+    send(&mut rig, 5, 600);
+    // Dès 3 impulsions, fenêtre courte : 5 impulsions en 500 ms.
+    let early = 5.0 * 1_000_000.0 / (3450.0 * 500.0);
+    assert!((rig.snapshot().flow_ml_s - early).abs() < 1e-3);
     send(&mut rig, 12, 1100);
-    // 12 impulsions en 1000 ms → 12 * 1e6 / (3450 * 1000).
-    let expected = 12.0 * 1_000_000.0 / (3450.0 * 1000.0);
+    // Fenêtre de 10 impulsions : de 2 à 12, en 750 ms.
+    let expected = 10.0 * 1_000_000.0 / (3450.0 * 750.0);
     let s = rig.snapshot();
     assert!((s.flow_ml_s - expected).abs() < 1e-3, "{}", s.flow_ml_s);
     assert!((s.volume_ml - 12.0 * 1000.0 / 3450.0).abs() < 1e-3);
@@ -438,6 +442,58 @@ fn flow_from_pulses() {
     // Compteur qui recule : redémarrage des capteurs, l'historique repart.
     send(&mut rig, 2, 200);
     assert_eq!(rig.snapshot().flow_pulse_count, 2);
+}
+
+#[test]
+fn a_new_flow_ignores_the_pulses_of_the_previous_one() {
+    let mut rig = Rig::new();
+    let send = |rig: &mut Rig, pulses: u32, edge_ms: u16| {
+        rig.rx(Message::StatusFlow(StatusFlowPayload {
+            pulse_count: pulses,
+            last_edge_ms: edge_ms,
+            flags: 1,
+        }))
+    };
+    for i in 0..=20u16 {
+        send(&mut rig, u32::from(i) * 2, 100 + i * 50);
+        rig.now_us += 50_000;
+    }
+    // 70 s de silence : l'horodatage 16 bits a rebouclé. Ancré sur l'ancien
+    // écoulement, le débit vaudrait 10 impulsions en ≈ 4,5 s.
+    rig.now_us += 70_000_000;
+    let edge = (1100u32 + 70_000) as u16;
+    send(&mut rig, 41, edge);
+    send(&mut rig, 42, edge.wrapping_add(80));
+    assert_eq!(rig.snapshot().flow_ml_s, 0.0);
+    send(&mut rig, 44, edge.wrapping_add(240));
+    let expected = 3.0 * 1_000_000.0 / (3450.0 * 240.0);
+    assert!((rig.snapshot().flow_ml_s - expected).abs() < 1e-3);
+}
+
+#[test]
+fn filling_heats_at_the_cap_until_its_flow_is_measured() {
+    let mut rig = prepared_rig();
+    // Écoulement précédent, puis 70 s de silence.
+    for _ in 0..20 {
+        rig.pulses += 2;
+        rig.advance(100);
+    }
+    rig.advance(70_000);
+    assert_eq!(start(&mut rig, ActionSource::Ui), ActionStatus::Ok);
+    assert_eq!(rig.snapshot().cycle_state, CycleState::Filling);
+    // Pas encore d'impulsion : plafond, pas le repli de 45 %.
+    rig.advance(300);
+    assert_eq!(rig.snapshot().heating_power_pct, 90.0);
+    // Deux impulsions : le débit n'est pas encore lu, la chauffe reste au
+    // plafond au lieu de tomber à ≈ 5 %.
+    rig.pulses += 1;
+    rig.advance(100);
+    rig.pulses += 1;
+    rig.advance(300);
+    let s = rig.snapshot();
+    assert_eq!(s.cycle_state, CycleState::Filling);
+    assert_eq!(s.flow_ml_s, 0.0);
+    assert_eq!(s.heating_power_pct, 90.0);
 }
 
 #[test]

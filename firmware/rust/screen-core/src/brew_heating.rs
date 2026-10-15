@@ -28,6 +28,10 @@ impl BrewHeating {
     /// %·s.
     pub const WATER_HEAT_PCT_PER_ML_S: f32 = 4.18 * 70.5 / 12.0;
     pub const POWER_LIMIT_PCT: f32 = 90.0;
+    /// Débit qui porte l'appoint au plafond (≈ 3,5 ml/s, celui du remplissage
+    /// à 75 %).
+    pub const CAP_FLOW_ML_S: f32 =
+        (Self::POWER_LIMIT_PCT - Self::HOLD_POWER_PCT) / Self::WATER_HEAT_PCT_PER_ML_S;
     /// Sans mesure de débit fraîche, reprendre l'ancien plancher d'infusion.
     pub const FLOW_FALLBACK_PCT: f32 = 45.0;
     /// Sécurité seulement. Une coupure proche de la consigne recréerait le

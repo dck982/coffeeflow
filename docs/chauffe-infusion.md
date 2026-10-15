@@ -167,13 +167,17 @@ Pendant le remplissage, la pré-infusion et l'infusion :
 La commande suit le débit **sans filtre, dans les deux sens**. Le débit est
 celui du débitmètre (en amont de la pompe), accepté seulement si la mesure
 est fraîche, si la dernière impulsion date de 500 ms au plus et si la pompe
-est confirmée en marche.
+est confirmée en marche. Il se lit sur les 10 dernières impulsions de
+l'écoulement en cours, ou dès 3 impulsions à son début (depuis 0.4.13) ;
+une impulsion après plus d'une seconde de silence ouvre un nouvel
+écoulement.
 
 Seuls modifient cette commande :
 
 | Condition | Commande |
 | --- | --- |
 | NTC au-delà de consigne + **4 °C** (sécurité) | 0 % |
+| Remplissage, moins de 3 impulsions depuis le début de l'écoulement (depuis 0.4.13) | **90 %** : l'eau entre, le débit n'est pas encore lu |
 | Pré-infusion, pompe confirmée en marche, aucune impulsion depuis 500 ms (depuis 0.3.32) | **3,5 %** : débit nul, pas inconnu |
 | Débit non mesurable (conditions ci-dessus), hors de ce cas | **45 %** (repli) |
 | Mesure invalide, chauffe désactivée, NTC > 100 °C | 0 % (coupures générales) |
@@ -462,8 +466,16 @@ confirmer sur des infusions réelles.
   de 0 pendant la première seconde environ (≈ 0,07 ml/s alors que 2 ml sont
   déjà passés) : la commande y tombe vers 5 %, après la précharge. D'autres
   fois, les premières impulsions sont lues à 10–71 ml/s (14 h 25 le
-  30 septembre) et la commande passe au plafond. Cela dépend de la phase
-  des premières impulsions. Les simulations incluent ces écarts, puisqu'elles
+  30 septembre) et la commande passe au plafond. Correction du 15 octobre :
+  pendant les 10 premières impulsions, le débit est calculé depuis une
+  impulsion de l'écoulement précédent, dont l'horodatage sur 16 bits
+  reboucle toutes les 65,5 s ; la valeur lue dépend donc du temps écoulé
+  depuis cet écoulement, modulo 65,5 s. Le SSR, éteint, attend ensuite la
+  fenêtre suivante : 1,7 à 2,0 s de coupure sur la plupart des infusions
+  depuis le 10 octobre, ≈ 1,9 kJ et ≈ 1 °C en tasse en simulation.
+  Corrigé en 0.4.13 : le débit ne s'ancre plus que sur l'écoulement en
+  cours, et la chauffe reste à 90 % jusqu'à ce qu'il soit lu. Les
+  simulations des captures antérieures incluent ces écarts, puisqu'elles
   utilisent le débit mesuré.
 - **Température de l'eau admise** : constante, non mesurée.
 - **Énergie fournie inférieure à la commande.** Le module capteurs ne

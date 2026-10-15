@@ -28,6 +28,8 @@ pub enum Mode {
 pub struct Flow {
     pub ml_s: f32,
     pub valid: bool,
+    /// Début du remplissage, débit pas encore lu.
+    pub starting: bool,
 }
 
 impl Flow {
@@ -35,10 +37,23 @@ impl Flow {
     pub const NONE: Self = Self {
         ml_s: 0.0,
         valid: false,
+        starting: false,
+    };
+
+    /// L'eau entre mais le débitmètre n'a pas encore assez d'impulsions :
+    /// la loi d'infusion chauffe au plafond.
+    pub const STARTING: Self = Self {
+        ml_s: 0.0,
+        valid: false,
+        starting: true,
     };
 
     pub const fn new(ml_s: f32, valid: bool) -> Self {
-        Self { ml_s, valid }
+        Self {
+            ml_s,
+            valid,
+            starting: false,
+        }
     }
 }
 
@@ -279,12 +294,17 @@ impl Controller {
             let power = if preheating {
                 self.brew.preheat_pct(now_ms, temperature_c, target_c)
             } else {
+                let (ml_s, measured) = if flow.starting {
+                    (BrewHeating::CAP_FLOW_ML_S, true)
+                } else {
+                    (flow_ml_s, flow_valid)
+                };
                 self.brew.flow_pct(
                     now_ms,
                     temperature_c,
                     target_c,
-                    flow_ml_s,
-                    flow_valid,
+                    ml_s,
+                    measured,
                     mode == Mode::Infusion,
                 )
             };

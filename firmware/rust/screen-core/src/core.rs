@@ -72,6 +72,14 @@ use crate::thermal::{self, Controller, Flow};
 
 /// Lissage du débitmètre Digmesa : nombre d'impulsions de la fenêtre.
 const FLOW_WINDOW_PULSES: u32 = 10;
+/// Au début d'un écoulement, le débit se lit dès 3 impulsions (≈ 0,25 s à
+/// 3,5 ml/s), sur une fenêtre plus courte.
+const FLOW_MIN_PULSES: u32 = 3;
+/// Une impulsion après plus d'une seconde de silence ouvre un nouvel
+/// écoulement. L'historique précédent ne sert plus d'ancre : son horodatage
+/// sur 16 bits reboucle toutes les 65,5 s, et le débit qu'il donnait tombait
+/// au hasard entre 0,04 et 60 ml/s.
+const FLOW_RUN_GAP_MS: i64 = 1000;
 const FLOW_SILENCE_MS: i64 = 3000;
 /// Pas de la tâche de télémétrie.
 pub const TELEMETRY_TICK_MS: u32 = 50;
@@ -1182,6 +1190,9 @@ impl<S: ConfigStore> Core<S> {
         // sans impulsion, le débit est nul et non inconnu. Ailleurs, le repli
         // à 45 % couvre un débitmètre muet pendant l'écoulement.
         let paused = s.cycle_state == CycleState::Preinfusion && flowmeter_live && !flow_recent;
+        // Au début du remplissage, tant que le débit n'est pas lu, l'eau entre
+        // déjà : la chauffe reste au plafond au lieu de tomber au repli.
+        let starting = s.cycle_state == CycleState::Filling && !self.flow_measured(now);
         let output = self.thermal.step(
             now_ms_of(now),
             s.boiler_temperature_c,
@@ -1189,10 +1200,14 @@ impl<S: ConfigStore> Core<S> {
             s.boiler_temperature_valid && s.boiler_temperature_freshness == Freshness::Fresh,
             can_heat,
             mode,
-            Flow::new(
-                if paused { 0.0 } else { s.flow_ml_s },
-                flowmeter_live && (flow_recent || paused),
-            ),
+            if starting {
+                Flow::STARTING
+            } else {
+                Flow::new(
+                    if paused { 0.0 } else { s.flow_ml_s },
+                    flowmeter_live && (flow_recent || paused),
+                )
+            },
         );
         self.snapshot.heating_power_pct = f32::from(output.power_permille) / 10.0;
         self.snapshot.brew_temperature_ready = output.ready;
@@ -1319,6 +1334,12 @@ impl<S: ConfigStore> Core<S> {
         if !self.flow_history.is_empty() && payload.pulse_count < self.snapshot.flow_pulse_count {
             self.flow_history.clear(); // redémarrage du XIAO
         }
+        if changed
+            && self.t.last_flow_edge_received_us != 0
+            && now - self.t.last_flow_edge_received_us > FLOW_RUN_GAP_MS * 1000
+        {
+            self.flow_history.clear();
+        }
         self.snapshot.flow_pulse_count = payload.pulse_count;
         self.snapshot.volume_ml =
             payload.pulse_count as f32 * 1000.0 / calibration::FLOW_PULSES_PER_LITER;
@@ -1335,6 +1356,19 @@ impl<S: ConfigStore> Core<S> {
         }
     }
 
+    /// L'écoulement en cours a assez d'impulsions pour que son débit soit lu.
+    fn flow_measured(&self, now: i64) -> bool {
+        let recent = self.t.last_flow_edge_received_us != 0
+            && now - self.t.last_flow_edge_received_us <= FLOW_RUN_GAP_MS * 1000;
+        recent
+            && match (self.flow_history.first(), self.flow_history.last()) {
+                (Some(first), Some(last)) => {
+                    last.pulses.wrapping_sub(first.pulses) >= FLOW_MIN_PULSES
+                }
+                _ => false,
+            }
+    }
+
     fn compute_flow_ml_s(&self) -> f32 {
         let count = self.flow_history.len();
         if count < 2 {
@@ -1348,6 +1382,10 @@ impl<S: ConfigStore> Core<S> {
                 break;
             }
         }
+        let first = self.flow_history[0];
+        let anchor = anchor.or_else(|| {
+            (latest.pulses.wrapping_sub(first.pulses) >= FLOW_MIN_PULSES).then_some(first)
+        });
         let Some(anchor) = anchor else {
             return 0.0;
         };

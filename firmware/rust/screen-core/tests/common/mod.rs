@@ -49,6 +49,9 @@ pub struct Rig {
     pub pulses: u32,
     pub wall_unix_s: Option<i64>,
     ntc_a1: i16,
+    /// Comme le module capteurs, l'horodatage ne bouge qu'avec une impulsion.
+    published_pulses: u32,
+    last_edge_ms: u16,
     ticks: u64,
 }
 
@@ -72,6 +75,8 @@ impl Rig {
             pulses: 0,
             wall_unix_s: None,
             ntc_a1: ntc_a1_for(90.0),
+            published_pulses: 0,
+            last_edge_ms: 1000,
             ticks: 0,
         };
         rig.collect();
@@ -158,9 +163,13 @@ impl Rig {
     }
 
     pub fn publish_flow(&mut self) {
+        if self.pulses != self.published_pulses {
+            self.published_pulses = self.pulses;
+            self.last_edge_ms = (self.now_us / 1000) as u16;
+        }
         self.rx(Message::StatusFlow(StatusFlowPayload {
             pulse_count: self.pulses,
-            last_edge_ms: (self.now_us / 1000) as u16,
+            last_edge_ms: self.last_edge_ms,
             flags: 1,
         }));
     }

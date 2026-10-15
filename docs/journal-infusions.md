@@ -141,6 +141,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | **14/10 9 h 42**, mode guidé | 7,08 s, 24,3 ml, 0,92 bar | 1,76 s, 4,9 ml, goutte | 31,0 ml | 3,9 s | 16,1 s, 1,10 g/s, 2,04 ml/s | 22,5 g | 90,89 °C |
 | 14/10 14 h 48 | 6,88 s, 24,1 ml, 0,87 bar | 2,84 s, 7,2 ml, goutte | 32,2 ml | 3,9 s | 16,0 s, 1,10 g/s, 2,13 ml/s | 22,7 g | 91,65 °C |
 | 15/10 9 h 08 | 7,34 s, **26,1 ml**, 0,89 bar | 4,18 s, 9,3 ml, goutte ou échéance | 36,5 ml | 2,9 s | 16,2 s, 1,16 g/s, 2,26 ml/s | 22,8 g | 90,63 °C |
+| **15/10 14 h 46**, guide à un rinçage | 6,92 s, 24,1 ml, 0,81 bar | 3,01 s, 6,4 ml, goutte | 32,2 ml | 3,8 s | 14,8 s, 1,21 g/s, 2,25 ml/s | 22,9 g | 90,76 °C |
 
 ## Pistes pour le goût
 
@@ -2330,3 +2331,174 @@ la préparation ; le montage de la machine a atteint son objectif.
 | Tasse | 90,6 à 92,0 °C ; modèle avec l'énergie SSR, plus l'écart attendu ci-dessous |
 | Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C. À préparation de 130 à 150 s, un écart entre −0,2 et +0,2 °C quelle que soit la durée sur le groupe confirme la préparation comme levier ; un écart de −0,4 °C ou moins avec 6 min ou plus sur le groupe et cette préparation relance le groupe |
 | Goût | équilibré. Une acidité avec moins de ≈ 5 ml de pré-infusion soutiendrait la piste du volume de pré-infusion ; une acidité au-delà de ≈ 7 ml l'infirmerait |
+
+### 15 octobre, 14 h 46 — `261015-144651`
+
+**Contexte.** Première routine du guide à un seul rinçage (écran 0.4.12) :
+la purge sans porte-filtre se fait avant, au bouton purge, et la session
+ne l'enregistre pas. Réglages inchangés : consigne de 92 °C, cible de
+22 g, mouture et chauffe identiques. Le guide s'ouvre **sous la consigne**
+(NTC à 87,7 °C), comme le 14 à 14 h 48. Tasse de 125,5 g, pesée par le
+guide. Observation de David : café **assez bon**, galette un peu
+dégradée, **filet par sursauts sur la fin**.
+
+La capture contient trois échantillons NTC marqués invalides, à 36,61,
+36,67 et 41,05 s (âges de 258, 315 et 201 ms, valeurs tenues égales à
+leurs voisins) : `analyze_hf_capture.py` refuse la capture. Les chiffres
+viennent d'une copie où ils sont rendus valides.
+
+**Routine** (clé `session` de la capture) :
+
+| Étape | 15/10 14 h 46 | 15/10 9 h 08 | 14/10 14 h 48 |
+| --- | --- | --- | --- |
+| NTC à l'ouverture du guide | **87,7 °C** | 88,8 °C | 84,4 °C |
+| Rinçage du porte-filtre | 5,00 s, 19,7 ml, 32,5 g ; NTC 88,7 → 88,9 °C | 5,00 s, 19,4 ml, 25,2 g ; 88,5 → 88,9 °C | 5,03 s, 19,7 ml, 27,2 g ; 87,1 → 87,4 °C |
+| Retour à la consigne | 153,7 s ; minimum 82,3 °C ; résistance active 43,7 s | 103,8 s ; 85,5 °C ; 23,5 s | 268,7 s ; 82,2 °C ; 50,6 s |
+| Porte-filtre en place à la consigne | 419,1 s | 170,3 s | 373,6 s |
+| **Sur le groupe après le rinçage** | **573 s** | 274 s | 642 s |
+| **Préparation** | **102,2 s** | 133,6 s | 70,2 s |
+| Routine entière | 11 min 44 s | 7 min 51 s | 13 min 5 s |
+
+- Le rinçage a lieu 3,3 °C sous la consigne, et le porte-filtre reste
+  9,5 min sur le groupe : la routine ressemble à celle du 14 à 14 h 48,
+  avec une préparation de 102 s au lieu de 70 s.
+- La tasse revient 7,5 s avant **démarrer**. La balance n'a pas manqué.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,02 s | — | — |
+| Remplissage | 8,02 s | 6,92 s | 24,1 ml (3,48 ml/s) | 0,50 → 0,81 bar |
+| Pré-infusion | 14,94 s | 3,01 s | 6,4 ml | 0,81 → 1,23 bar |
+| Infusion | 17,95 s | 18,53 s | 46,4 ml | 9,22 bar max |
+
+- Pression avant le départ de la pompe : 0,41 à 0,50 bar (0,34 à
+  0,43 bar le matin) ; plancher de 0,34 bar pendant le remplissage
+  (0,29 bar le matin).
+- Remplissage : débit médian sous 1 bar de **3,59 ml/s** à 75 %. Premier
+  paquet au-dessus de 0,8 bar à 14,67 s (0,80 bar), passage en
+  pré-infusion à 14,94 s, après **24,1 ml** : de retour dans la plage
+  après les 26,1 ml du matin.
+- Pré-infusion : finie sur la **goutte** à 3,01 s (firmware, 0,1 g à
+  17,95 s). Le repère du rapport suit à 18,59 s, à 32,2 ml. Marge de
+  remplissage de **8,1 ml** (10,4 ml le matin).
+- Montée de 3,8 s jusqu'à 8 bar (2,9 s le matin, 3,9 s le 14).
+- Depuis 8 bar : **14,8 s**, 1,21 g/s en tasse, 2,25 ml/s en amont (16,2 s,
+  1,16 g/s et 2,26 ml/s le matin). Arrêt au poids à 21,5 g, 22,9 g final,
+  soit **1,5 g de gouttes**, le plus de la série (1,3 g le matin).
+- Fin d'écoulement : la tasse passe de 1,2–1,3 g/s à **2,1 g/s** de 34,5
+  à 35,5 s, puis 1,8 g/s jusqu'à l'arrêt, à pression égale (8,85 à
+  9,0 bar). Le matin, elle ne dépasse pas 1,5 g/s.
+- Plateau (de 8 bar + 2 s à l'arrêt − 0,5 s) : 8,96 ± 0,06 bar, pompe à
+  68 %, 1,24 g/s, soit **7,2 bar·s/g** (7,6 le matin, 8,1 le 14).
+- Sur la phase d'infusion, la tasse reçoit 0,46 g par ml admis. Après
+  l'arrêt, la pression remonte à 9,28 bar.
+
+**Thermique.**
+
+| Repère | 15/10 14 h 46 | 15/10 9 h 08 | 14/10 14 h 48 |
+| --- | ---: | ---: | ---: |
+| NTC au départ | 92,11 °C, +0,11 °C | 91,89 °C, −0,11 °C | 91,95 °C, −0,05 °C |
+| Pic avant l'infusion | 93,74 °C à 12,3 s, +1,74 °C | 93,13 °C à 11,5 s, +1,13 °C | 93,41 °C à 13,2 s, +1,41 °C |
+| Creux au début de l'infusion | palier à 91,40 °C, de 19,6 à 21,1 s | 90,34 °C à 22,0 s | aucun : 92,14 °C à 18,1 s |
+| Rebond, commande à 0 % | 91,65 °C à 24,3 s, puis descente à 90,84 °C à la reprise | 91,07 °C à 30,7 s | 92,48 °C à 22,9 s |
+| **Tasse** | **90,76 °C**, −1,24 °C | 90,63 °C, −1,37 °C | 91,65 °C, −0,35 °C |
+| Minimum pendant l'écoulement | 88,94 °C, à l'arrêt | 89,68 °C, à l'arrêt | 90,27 °C, à l'arrêt |
+| Minimum total | 88,76 °C à 38,5 s | 88,83 °C à 42,9 s | 89,98 °C à 39,5 s |
+| 20 s après l'arrêt | 91,73 °C | 91,74 °C | 91,98 °C |
+| Commande à 0 % (remboursement) | 10,9 s | 11,2 s | 11,4 s |
+| Appoint repris avant l'arrêt | 7,6 s | 7,8 s | 8,3 s |
+| Pente de la NTC pendant l'appoint | **−0,31 °C/s** | −0,19 °C/s | −0,19 °C/s |
+
+- Énergie, commande / SSR : précharge 8,46 / 8,30 kJ, remplissage 6,33 /
+  **5,41** kJ, pré-infusion 2,45 / 2,31 kJ, infusion 5,73 / 5,45 kJ.
+  Total fourni par le SSR : 21,48 kJ pour 76,8 ml admis à l'arrêt
+  (23,19 kJ pour 80,9 ml le matin). Jusqu'au début de l'infusion, le SSR
+  fournit 16,02 kJ pour 30,4 ml admis (17,66 kJ pour 35,4 ml le matin).
+- Trou de commande au début du remplissage : 6,0 à 6,4 % de 8,39 à
+  9,34 s ; le SSR reste coupé de 8,53 à 10,47 s, **≈ 1,9 s**, comme le
+  matin (≈ 2,0 s). Le remplissage perd 0,92 kJ entre commande et SSR.
+- Pendant les 10,9 s à 0 %, 27,8 ml entrent dans la chaudière.
+- Appoint, de sa reprise à l'arrêt : commande moyenne de 63 %, SSR actif
+  56 % du temps.
+- La tasse reçoit 11,5 g avant la reprise de l'appoint, NTC moyenne
+  91,4 °C, et 10,0 g après, NTC moyenne 90,0 °C (11,7 g à 90,8 °C et
+  9,8 g à 90,4 °C le matin).
+- Modèle : 91,22 °C en tasse avec la commande réelle, soit **+0,46 °C**
+  sur la mesure ; 90,71 °C avec l'énergie SSR, soit **−0,06 °C** (−0,06
+  le matin, −0,50 le 14 à 14 h 48) ; 90,43 °C avec un écart d'eau froide
+  de 72,5 K.
+
+**Attendus vérifiés** (entrée du 15 octobre, 9 h 08).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 7,0 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar | 7,2 bar·s/g, 14,8 s : atteint, en bas de plage |
+| Rendement | 22,3 à 22,9 g final (gouttes de 0,7 à 1,3 g) | 22,9 g : atteint, en limite ; **1,5 g de gouttes : non atteint** |
+| Remplissage | 3,5 à 3,7 ml/s à 75 % ; 5 à 7,5 s et 17 à 26 ml ; marge positive | 3,59 ml/s, 6,92 s, 24,1 ml, marge de 8,1 ml : atteint ; pas de second volume au-dessus de 26 ml |
+| Pré-infusion | goutte jusqu'à ≈ 8,5 ml de marge, échéance à partir de ≈ 11 ml | goutte à 8,1 ml : atteint |
+| Tasse | 90,6 à 92,0 °C ; modèle avec l'énergie SSR plus l'écart attendu | 90,76 °C : atteint ; modèle à 90,71 °C |
+| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C ; règles de lecture à préparation de 130 à 150 s | −0,06 °C : atteint ; préparation de 102 s, hors des règles |
+| Goût | une acidité sous ≈ 5 ml de pré-infusion soutiendrait la piste du volume ; au-delà de ≈ 7 ml, l'infirmerait | assez bon, sans acidité relevée, à 6,4 ml : ni soutenue ni infirmée |
+
+**Lecture.**
+
+- *Chauffe, mesuré.* Le SSR coupé ≈ 1,9 s au début du remplissage est
+  le cas courant, pas l'exception : 1,7 à 2,0 s sur presque toutes les
+  infusions depuis le 10 octobre ; le 14 (1,0 et 0,4 s) faisait exception.
+  Cause relevée dans le code de l'écran : pendant les 10 premières
+  impulsions d'un écoulement, le débit est calculé depuis une impulsion de
+  l'écoulement précédent, avec un horodatage sur 16 bits qui reboucle
+  toutes les 65,5 s. Le débit lu tombe au hasard entre 0,04 et 60 ml/s :
+  bas, la commande descend à 5–6 % pendant ≈ 0,9 s ; haut, elle reste au
+  plafond. Une fois éteint, le SSR ne se rallume pas avant la fenêtre de
+  1 s suivante du module capteurs, d'où ≈ 1 s de plus.
+- *Chauffe, simulé.* Le SSR tenu à 90 % pendant ces ≈ 2 s fournit
+  1,94 kJ de plus et donne **+1,02 °C** en tasse (+1,11 °C sur la capture
+  du matin). Ce trou est une source de variation d'environ 1 °C d'une
+  infusion à l'autre, tirée au hasard.
+- *Chauffe, mesuré.* La NTC descend à −0,31 °C/s pendant l'appoint (−0,19
+  le matin) et l'infusion est plus rapide (7,2 bar·s/g) : les 10,0 g de
+  fin arrivent à 90,0 °C.
+- *Porte-filtre, mesuré.* 573 s sur le groupe, presque autant que les
+  642 s du 14 à 14 h 48, ne donnent qu'un écart de −0,06 °C, contre
+  −0,50 °C ce jour-là. Sur quatre routines, l'écart ne suit pas la durée
+  sur le groupe (148 s : +0,06 ; 274 s : −0,06 ; 573 s : −0,06 ; 642 s :
+  −0,50). Il reste ordonné par la préparation (143 s : +0,06 ; 134 s :
+  −0,06 ; 102 s : −0,06 ; 70 s : −0,50), mais seul 14 h 48 s'écarte.
+- *Porte-filtre, hypothèse.* Un temps minimal sur le groupe perd son
+  appui : au-delà de ≈ 2,5 min, rien ne bouge. Restent deux lectures,
+  non séparées : une préparation très courte (≈ 1 min) laisse le
+  porte-filtre plus chaud, ou 14 h 48 est un écart isolé. La durée de
+  préparation n'est pas seule en jeu : la façon de sécher le porte-filtre
+  compte aussi, et ni l'une ni l'autre n'est contrôlée. Pour la règle
+  de [wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe), la
+  capture rejoint le groupe de 6 min ou plus, qui compte deux captures
+  (−0,50 et −0,06 °C) contre une à 4 min ou moins (+0,06 °C) : les
+  groupes se chevauchent.
+- *Remplissage, mesuré.* 24,1 ml avec une pression avant la pompe de
+  0,41 à 0,50 bar : le volume du matin ne se répète pas.
+- *Galette, mesuré.* Plateau le plus rapide de la série à 92 °C
+  (1,24 g/s), poussée à 2,1 g/s sur la fin à pression constante et 1,5 g
+  de gouttes : la résistance cède en fin d'infusion, ce qui rejoint la
+  galette dégradée et les sursauts du filet vus par David.
+
+**Décision** (David). Réglages inchangés. La préparation (durée,
+séchage) reste libre : on n'est pas au laboratoire, et elle ne devient
+pas un levier. Trou de chauffe du remplissage : corrigé dans l'écran
+0.4.13 (débit ancré sur l'écoulement en cours, 90 % jusqu'à ce qu'il soit
+lu). Échantillons NTC invalides : les outils d'analyse acceptent une
+lecture vieille de 200 ms à 1 s, sans copie de la capture.
+
+**Attendus pour l'infusion suivante** (mêmes réglages, routine guidée) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | 7,0 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar |
+| Rendement | 22,3 à 23,0 g final (gouttes de 0,7 à 1,5 g) ; plus de gouttes avec un plateau plus rapide |
+| Remplissage | 3,5 à 3,7 ml/s à 75 % ; 5 à 7,5 s et 17 à 26 ml ; marge positive |
+| Pré-infusion | goutte jusqu'à ≈ 8,5 ml de marge, échéance à partir de ≈ 11 ml |
+| Tasse | avec 0.4.13, 91,2 à 92,2 °C, vers 91,7 °C (+1 °C en simulation sans trou de chauffe) ; avec 0.4.12, 90,6 à 92,0 °C ; modèle avec l'énergie SSR à ± 0,2 °C si la préparation dépasse ≈ 100 s |
+| Chauffe | modèle avec l'énergie SSR entre −1,2 et +0,5 °C ; avec 0.4.13, commande à 90 % sans interruption de la fin de la précharge à la fin du remplissage, SSR jamais coupé plus de 0,2 s, et ≈ 1,9 kJ de plus au SSR sur le remplissage (≈ 7,3 kJ) |
+| Goût | une acidité sous ≈ 5 ml de pré-infusion soutiendrait la piste du volume ; au-delà de ≈ 7 ml, l'infirmerait |

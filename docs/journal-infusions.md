@@ -67,7 +67,7 @@ Toujours avec ces définitions, pour que les entrées restent comparables :
 | Infusion | durée **depuis 8 bar** et débits moyens (tasse en g/s, amont en ml/s) depuis 8 bar ; la durée de la phase « infusion » (fin de pré-infusion → arrêt) est notée à part, c'est celle des tableaux de `chauffe-infusion.md` |
 | Rendement | poids en tasse à l'arrêt de la pompe et poids final (gouttes comprises) |
 | Thermique | NTC pondérée par la tasse (`analyze_hf_capture.py`, critère de la consigne) ; minimum pendant l'écoulement ; minimum total et son instant ; NTC à l'arrêt et 20 s après |
-| Routine guidée | durée du porte-filtre sur le groupe (retour à la consigne + porte-filtre en place après la consigne, depuis la fin du second rinçage) et préparation, rapprochées de l'écart du modèle avec l'énergie SSR ; voir [wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe) |
+| Routine guidée | durée du porte-filtre sur le groupe (retour à la consigne + porte-filtre en place après la consigne, depuis la fin du rinçage du porte-filtre) et préparation, rapprochées de l'écart du modèle avec l'énergie SSR ; voir [wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe) |
 | Énergie | commande et SSR par phase ; l'écart entre les deux dit ce que le simulateur surestime |
 
 ### Simulation
@@ -151,8 +151,11 @@ purge de 5 à 6 s avec le porte-filtre, dans la même tasse ; attente que
 la NTC revienne à la consigne, porte-filtre en place avec l'eau restée
 dedans ; porte-filtre vidé et séché, galette préparée, tasse vidée et
 rincée, infusion. La durée de l'attente à la consigne varie ; depuis le
-14 octobre, le mode guidé de l'écran suit cette routine (deux rinçages
-de 5,0 s) et la capture enregistre ses durées. Les pistes
+14 octobre, le mode guidé de l'écran suit cette routine et la capture
+enregistre ses durées. Depuis le 15 octobre, la purge sans porte-filtre
+se fait au bouton purge, avant d'ouvrir le guide (elle giclait autour de
+la tasse et mouillait la balance) ; le guide ne mène plus que le rinçage
+du porte-filtre, de 5,0 s. Les pistes
 ci-dessous attendent que la chauffe soit stabilisée ; on n'en change
 qu'une à la fois. Les repères « avant » viennent du journal de dégustation
 tenu avant la modification de la machine (juillet–août 2026, local, hors

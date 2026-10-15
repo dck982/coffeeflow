@@ -140,32 +140,34 @@ poids écoulé et temps écoulé ; une fois terminé, il affiche le dernier poid
 ## Infusion guidée
 
 La page 8 du présentateur affiche le guide. Elle prime sur la page de purge,
-car les deux rinçages du guide sont des purges. La veille s'y applique : un
+car le rinçage du guide est une purge. La veille s'y applique : un
 appui réveille l'écran sur l'étape en cours. Le déroulé, les conditions de chaque
 écran et les cas limites sont dans [wizard.md](wizard.md) ; ce qui suit
 décrit la page.
 
-À gauche, une illustration de 200 × 200 px selon l'étape : rinçage, porte-filtre,
+À gauche, une illustration de 200 × 200 px selon l'étape : porte-filtre,
 attente, préparation (la dernière sert aux consignes « videz et rincez… »,
-« attendez la consigne » et « appuyez sur démarrer »). Trois pastilles
+« attendez la consigne » et « appuyez sur démarrer »). Dans l'illustration
+de préparation, la tasse est un calque à part, `guided-cup.svg`, posé sur le
+reste : elle passe en vert (`Theme.success`) quand le cœur signale la tasse
+reconnue, sinon elle reste en gris comme le reste. Deux pastilles
 numérotées marquent l'étape : faite en vert, en cours en accent, à venir en
 gris. À droite, la consigne en 32 px (26 px au-delà de 60 caractères), puis en
 grand une valeur : la température quand la consigne est d'attendre la chauffe
 (en couleur de température), sinon le poids, et rien tant que la balance est
-absente. Pendant l'attente de l'écran 3, une note à côté indique le temps
+absente. Pendant l'attente de l'écran 2, une note à côté indique le temps
 écoulé depuis le rinçage. Une ligne rouge, au-dessus des boutons, donne la
 raison d'un refus du cœur.
 
-Deux boutons : **quitter** à gauche, et à droite **suivant** (écrans 1 et 2)
-ou **démarrer** (écran 3), grisé tant que le cœur ne le dit pas actif. Les
+Deux boutons : **quitter** à gauche, et à droite **suivant** (écran 1)
+ou **démarrer** (écran 2), grisé tant que le cœur ne le dit pas actif. Les
 gestes deviennent des actions sans logique d'étape : fenêtre de choix
 (id 21 ouvre, 22 choisit guidée, 23 annule), **suivant** et **démarrer**
 (24), **quitter** (25).
 
 Pendant un rinçage :
 
-- la consigne devient « premier rinçage en cours » (écran 1) ou « rinçage du
-  porte-filtre en cours » (écran 2) ;
+- la consigne devient « rinçage du porte-filtre en cours » ;
 - la valeur en grand est le compteur de la purge, en secondes ;
 - **arrêter** remplace **quitter** et coupe la purge, le bouton de droite est
   grisé.

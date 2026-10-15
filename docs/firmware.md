@@ -142,7 +142,7 @@ n'est pas connectée ou si sa dernière mesure correcte date de plus de 300 ms
 pas.
 
 Pour une capture `origin: brew`, l'export porte aussi une clé `session`, avant
-`samples` : le déroulé de l'infusion guidée (ouverture, deux rinçages, attente,
+`samples` : le déroulé de l'infusion guidée (ouverture, poids de la tasse, rinçage du porte-filtre, attente,
 retrait et retour de la tasse, appui sur **démarrer**, durée sans balance),
 en millisecondes relatives au début de la capture. Elle vaut `null` pour une
 infusion directe et n'existe pas pour une purge. Le schéma reste v2 : les

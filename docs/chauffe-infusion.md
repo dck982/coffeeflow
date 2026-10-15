@@ -82,6 +82,7 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 13/10, 13 h 29 | 8 s, consigne de 92 °C, cible 22 g (15,6 s depuis 8 bar) | **91,96 °C** | 92,52 °C |
 | 14/10, 9 h 42 | 8 s, consigne de 92 °C, mode guidé (16,1 s depuis 8 bar) | **90,89 °C** | 91,88 °C |
 | 14/10, 14 h 48 | 8 s, consigne de 92 °C, mode guidé, porte-filtre 374 s sur le groupe (16,0 s depuis 8 bar) | **91,65 °C** | 92,10 °C |
+| 15/10, 9 h 08 | 8 s, consigne de 92 °C, mode guidé, porte-filtre 274 s sur le groupe, 134 s de préparation (16,2 s depuis 8 bar) | **90,63 °C** | 91,48 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -507,5 +508,6 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261013-132935.json` | 8 s | consigne de 92 °C, cible 22 g (7,2 bar·s/g au plateau), pré-infusion finie sur la goutte ; 15,6 s depuis 8 bar ; NTC +1,67 °C pendant le remplissage, pic à 94,01 °C ; 0 % pendant 12,1 s, rebond à 92,71 °C, appoint repris 6,6 s avant l'arrêt ; −0,04 °C en tasse, modèle à −0,53 °C (−1,15 °C avec l'énergie SSR), sous la mesure dès le remplissage ; hors ajustement |
 | `261014-094256.json` | 8 s | première routine guidée (62,4 s à la consigne porte-filtre en place, 142,8 s de préparation) ; consigne de 92 °C, cible 22 g (8,1 bar·s/g au plateau), pré-infusion finie sur la goutte ; 16,1 s depuis 8 bar ; pic à 93,67 °C, creux à 90,36 °C ; 0 % pendant 11,3 s, appoint repris 8,5 s avant l'arrêt ; −1,11 °C en tasse, modèle à −0,01 °C (+0,06 °C avec l'énergie SSR) ; hors ajustement |
 | `261014-144853.json` | 8 s | routine guidée sur machine sous la consigne (373,6 s à la consigne porte-filtre en place, 70,2 s de préparation) ; consigne de 92 °C, cible 22 g (8,1 bar·s/g au plateau), pré-infusion finie sur la goutte ; 16,0 s depuis 8 bar ; pic à 93,41 °C, sans creux au début de l'infusion ; 0 % pendant 11,4 s, rebond à 92,48 °C, appoint repris 8,3 s avant l'arrêt ; −0,35 °C en tasse, modèle à −0,44 °C (−0,50 °C avec l'énergie SSR) ; un échantillon NTC invalide (200 ms) rendu valide pour l'analyse ; hors ajustement |
+| `261015-090846.json` | 8 s | routine guidée à deux rinçages (274 s sur le groupe après le rinçage du porte-filtre, 133,6 s de préparation) ; consigne de 92 °C, cible 22 g (7,6 bar·s/g au plateau), remplissage de 26,1 ml, pré-infusion finie à 4,18 s sur la goutte ou l'échéance ; 16,2 s depuis 8 bar ; SSR coupé ≈ 2 s au début du remplissage, pic à 93,13 °C, creux à 90,34 °C ; 0 % pendant 11,2 s, appoint repris 7,8 s avant l'arrêt ; −1,37 °C en tasse, modèle à +0,33 °C (−0,06 °C avec l'énergie SSR) ; un échantillon NTC invalide (211 ms) rendu valide pour l'analyse ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

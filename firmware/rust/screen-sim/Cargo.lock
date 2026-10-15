@@ -3499,7 +3499,7 @@ dependencies = [
 
 [[package]]
 name = "screen-sim"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "png",
  "protocol",

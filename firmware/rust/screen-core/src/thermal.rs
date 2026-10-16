@@ -101,6 +101,8 @@ pub struct Controller {
     brew: BrewHeating,
     restarted_phase: WindowPhase,
     recovery_until_ms: u64,
+    /// Début de la lecture NTC manquante en cours pendant l'infusion, 0 sinon.
+    reading_lost_since_ms: u64,
     command_history: [CommandSample; COMMAND_HISTORY_CAPACITY],
     command_history_count: usize,
     command_history_next: usize,
@@ -154,6 +156,12 @@ impl Controller {
     /// L'entrée est dans le domaine utilisateur : 100 °C ici = 114 °C à la
     /// sonde avec l'offset de -14 °C appliqué lors de la lecture NTC.
     pub const MAXIMUM_BOILER_USER_TEMPERATURE_C: f32 = 100.0;
+    /// Pendant la précharge et l'écoulement, une lecture NTC manquante coupe
+    /// la chauffe sans effacer la loi d'infusion jusqu'à cette durée. Une
+    /// trame arrivée quelques ms après le seuil de fraîcheur effaçait sinon la
+    /// dette de précharge, et l'infusion chauffait l'eau du remplissage une
+    /// seconde fois.
+    pub const BREW_READING_GAP_MAX_MS: u64 = 1000;
 
     pub fn new() -> Self {
         Self {
@@ -171,6 +179,7 @@ impl Controller {
             brew: BrewHeating::new(),
             restarted_phase: WindowPhase::None,
             recovery_until_ms: 0,
+            reading_lost_since_ms: 0,
             command_history: [CommandSample {
                 at_ms: 0,
                 power_pct: 0.0,
@@ -182,7 +191,8 @@ impl Controller {
 
     /// Un pas de régulation. `valid` : mesure fraîche ; `enabled` : chauffage
     /// autorisé. L'un ou l'autre faux, ou une température hors plage, remet
-    /// tout à zéro et coupe.
+    /// tout à zéro et coupe, sauf une lecture manquante brève pendant
+    /// l'infusion (`BREW_READING_GAP_MAX_MS`), qui coupe seulement.
     #[allow(clippy::too_many_arguments)]
     pub fn step(
         &mut self,
@@ -196,6 +206,22 @@ impl Controller {
     ) -> Output {
         let flow_ml_s = flow.ml_s;
         let flow_valid = flow.valid;
+        let reading_lost = !valid || !temperature_c.is_finite();
+        let brew_phase = matches!(mode, Mode::ThermalPreheat | Mode::Brew | Mode::Infusion)
+            && (self.was_preheating || self.was_flowing);
+        if reading_lost && enabled && target_c == self.target_c && brew_phase {
+            if self.reading_lost_since_ms == 0 {
+                self.reading_lost_since_ms = now_ms;
+            }
+            if now_ms.saturating_sub(self.reading_lost_since_ms) <= Self::BREW_READING_GAP_MAX_MS {
+                self.brew.pause(now_ms);
+                self.record_command(now_ms, 0.0);
+                return Output::default();
+            }
+        }
+        if !reading_lost {
+            self.reading_lost_since_ms = 0;
+        }
         if !valid
             || !enabled
             || !temperature_c.is_finite()
@@ -487,6 +513,7 @@ impl Controller {
         self.brew.reset();
         self.restarted_phase = WindowPhase::None;
         self.recovery_until_ms = 0;
+        self.reading_lost_since_ms = 0;
         self.clear_command_history();
     }
 

@@ -184,6 +184,7 @@ Seuls modifient cette commande :
 | Mesure invalide, chauffe désactivée, NTC > 100 °C | 0 % (coupures générales) |
 
 Depuis 0.3.32, la pré-infusion est une pause : pompe à 35 %, sous son seuil
+| Lecture NTC manquante pendant la précharge ou l'écoulement, 1 s au plus (depuis 0.4.14) | 0 % pour ces pas, loi d'infusion et dette conservées |
 de débit, vanne ouverte. Sans la ligne « pré-infusion » du tableau, la
 commande serait restée au repli de 45 % pendant toute la pause. La pompe
 n'est pas mise à 0 % : la vanne 3 voies se fermerait et viderait le
@@ -209,7 +210,8 @@ la commande est de **0 %** jusqu'à ce que la somme des appoints retenus
 | Dernier pas | peut rendre jusqu'à 250 ms de trop (≈ 0,27 kJ à 90 %) |
 | Pompe arrêtée avant la fin du remboursement | le reste de la dette est abandonné |
 | Précharge interrompue, cycle suivant sans précharge | dette remise à zéro au début de tout écoulement qui ne suit pas une précharge |
-| Coupure générale pendant l'écoulement (mesure invalide, chauffe désactivée, NTC > 100 °C) | régulateur remis à zéro : la dette est perdue, l'appoint reprend normalement |
+| Lecture NTC manquante 1 s au plus, pendant la précharge ou l'écoulement (depuis 0.4.14) | chauffe coupée pour ces pas, qui n'ajoutent rien à la dette ; la dette reste. Avant 0.4.14, une seule trame arrivée après le seuil de fraîcheur de 200 ms effaçait la dette (16 octobre, 9 h 34) |
+| Coupure générale pendant l'écoulement (lecture manquante plus de 1 s, chauffe désactivée, NTC > 100 °C) | régulateur remis à zéro : la dette est perdue, l'appoint reprend normalement |
 
 Le remboursement ne dépend ni de la balance ni de la NTC : seule la fin
 de la pré-infusion le déclenche, et le montant suit le débitmètre comme
@@ -279,6 +281,7 @@ Variantes écartées, même simulation :
 | Durée maximale imputée à une commande (dette) | `BrewHeating::kMaximumStepMs` | 1 s |
 | Sécurité au-dessus de la consigne | `BrewHeating::kSafetyAboveTargetC` | +4 °C |
 
+| Lecture NTC manquante tolérée pendant l'infusion | `Controller::BREW_READING_GAP_MAX_MS` | 1 s |
 Les 70,5 K supposent une eau du réservoir à 24,5 °C et une chaudière à
 ≈ 95 °C réels. Une consigne très différente de 90 °C affichés, ou une eau plus
 froide, changerait cette pente d'environ 1,4 % par kelvin.

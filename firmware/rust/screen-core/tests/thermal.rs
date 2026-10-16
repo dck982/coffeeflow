@@ -369,6 +369,56 @@ fn preheat_debt_is_repaid_by_the_infusion() {
 }
 
 #[test]
+fn brief_reading_loss_keeps_the_preheat_debt() {
+    // Même cycle que le remboursement ci-dessus, avec une lecture NTC manquante
+    // en pré-infusion : la chauffe est coupée pour ce pas, la dette reste.
+    let lost = |c: &mut Controller, now: u64, mode: Mode| {
+        c.step(now, 90.0, 90.0, false, true, mode, Flow::new(3.6, true))
+    };
+    let run = |loss_steps: u64| {
+        let mut c = Controller::new();
+        let mut now = 1000;
+        while now < 6500 {
+            step(&mut c, now, 90.0, 90.0, Mode::ThermalPreheat);
+            now += 250;
+        }
+        while now < 9250 {
+            flow(&mut c, now, 90.0, 90.0, Mode::Brew, 3.6, true);
+            now += 250;
+        }
+        for _ in 0..loss_steps {
+            assert_eq!(permille(lost(&mut c, now, Mode::Brew)), 0);
+            now += 250;
+        }
+        let mut withheld = 0;
+        while permille(flow(&mut c, now, 90.0, 90.0, Mode::Infusion, 2.0, true)) == 0 {
+            withheld += 1;
+            now += 250;
+        }
+        withheld
+    };
+    assert_eq!(run(1), 38);
+    assert_eq!(run(4), 38);
+    // Au-delà d'une seconde, la loi repart de zéro : plus rien à rendre.
+    assert_eq!(run(6), 0);
+
+    // En précharge, le pas sans lecture ne compte pas dans la dette.
+    let mut c = Controller::new();
+    step(&mut c, 1000, 90.0, 90.0, Mode::ThermalPreheat);
+    lost(&mut c, 1250, Mode::ThermalPreheat);
+    step(&mut c, 1500, 90.0, 90.0, Mode::ThermalPreheat);
+    flow(&mut c, 1750, 90.0, 90.0, Mode::Brew, 3.6, true);
+    let mut withheld = 0;
+    let mut now = 2000;
+    while permille(flow(&mut c, now, 90.0, 90.0, Mode::Infusion, 2.0, true)) == 0 {
+        withheld += 1;
+        now += 250;
+    }
+    // 2 pas de 250 ms à 90 % : 45 %·s, rendus en 4 pas de 13,15 %·s.
+    assert_eq!(withheld, 4);
+}
+
+#[test]
 fn debt_counts_real_command_duration() {
     // La dette se compte sur la durée réelle de chaque commande ; la sécurité,
     // déjà à 0 %, ne rembourse rien.

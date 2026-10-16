@@ -85,6 +85,12 @@ impl BrewHeating {
         law_pct - self.last_withheld_pct
     }
 
+    /// Pas sans commande (lecture NTC manquante) : la commande précédente est
+    /// imputée jusqu'ici, rien ensuite ; la dette est conservée.
+    pub fn pause(&mut self, now_ms: u64) {
+        self.settle(now_ms);
+    }
+
     /// Énergie de précharge encore à rendre, en %·s (12 J par %·s).
     pub fn debt_pct_s(&self) -> f32 {
         self.debt_pct_s

@@ -84,6 +84,8 @@ moyennes en tasse ci-dessous sont dans l'ancien domaine jusqu'au
 | 14/10, 14 h 48 | 8 s, consigne de 92 °C, mode guidé, porte-filtre 374 s sur le groupe (16,0 s depuis 8 bar) | **91,65 °C** | 92,10 °C |
 | 15/10, 9 h 08 | 8 s, consigne de 92 °C, mode guidé, porte-filtre 274 s sur le groupe, 134 s de préparation (16,2 s depuis 8 bar) | **90,63 °C** | 91,48 °C |
 | 15/10, 14 h 46 | 8 s, consigne de 92 °C, guide à un rinçage, porte-filtre 573 s sur le groupe, 102 s de préparation (14,8 s depuis 8 bar) | **90,76 °C** | 91,68 °C |
+| 16/10, 9 h 34 | 8 s, consigne de 92 °C, écran 0.4.13, **dette effacée par une lecture NTC tardive** (14,7 s depuis 8 bar) | **93,16 °C** | 93,07 °C |
+| 16/10, 14 h 10 | 8 s, consigne de 92 °C, écran 0.4.13, porte-filtre 550 s sur le groupe, 93 s de préparation (13,2 s depuis 8 bar) | **90,77 °C** | 91,73 °C |
 
 Depuis le 5 octobre, chaque infusion est analysée dans
 [journal-infusions.md](journal-infusions.md).
@@ -182,9 +184,9 @@ Seuls modifient cette commande :
 | Pré-infusion, pompe confirmée en marche, aucune impulsion depuis 500 ms (depuis 0.3.32) | **3,5 %** : débit nul, pas inconnu |
 | Débit non mesurable (conditions ci-dessus), hors de ce cas | **45 %** (repli) |
 | Mesure invalide, chauffe désactivée, NTC > 100 °C | 0 % (coupures générales) |
+| Lecture NTC manquante pendant la précharge ou l'écoulement, 1 s au plus (depuis 0.4.14) | 0 % pour ces pas, loi d'infusion et dette conservées |
 
 Depuis 0.3.32, la pré-infusion est une pause : pompe à 35 %, sous son seuil
-| Lecture NTC manquante pendant la précharge ou l'écoulement, 1 s au plus (depuis 0.4.14) | 0 % pour ces pas, loi d'infusion et dette conservées |
 de débit, vanne ouverte. Sans la ligne « pré-infusion » du tableau, la
 commande serait restée au repli de 45 % pendant toute la pause. La pompe
 n'est pas mise à 0 % : la vanne 3 voies se fermerait et viderait le
@@ -279,9 +281,9 @@ Variantes écartées, même simulation :
 | Plafond pendant l'écoulement | `BrewHeating::kPowerLimitPct` | 90 % |
 | Repli sans débit | `BrewHeating::kFlowFallbackPct` | 45 % |
 | Durée maximale imputée à une commande (dette) | `BrewHeating::kMaximumStepMs` | 1 s |
+| Lecture NTC manquante tolérée pendant l'infusion | `Controller::BREW_READING_GAP_MAX_MS` | 1 s |
 | Sécurité au-dessus de la consigne | `BrewHeating::kSafetyAboveTargetC` | +4 °C |
 
-| Lecture NTC manquante tolérée pendant l'infusion | `Controller::BREW_READING_GAP_MAX_MS` | 1 s |
 Les 70,5 K supposent une eau du réservoir à 24,5 °C et une chaudière à
 ≈ 95 °C réels. Une consigne très différente de 90 °C affichés, ou une eau plus
 froide, changerait cette pente d'environ 1,4 % par kelvin.
@@ -526,5 +528,7 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 | `261014-144853.json` | 8 s | routine guidée sur machine sous la consigne (373,6 s à la consigne porte-filtre en place, 70,2 s de préparation) ; consigne de 92 °C, cible 22 g (8,1 bar·s/g au plateau), pré-infusion finie sur la goutte ; 16,0 s depuis 8 bar ; pic à 93,41 °C, sans creux au début de l'infusion ; 0 % pendant 11,4 s, rebond à 92,48 °C, appoint repris 8,3 s avant l'arrêt ; −0,35 °C en tasse, modèle à −0,44 °C (−0,50 °C avec l'énergie SSR) ; un échantillon NTC invalide (200 ms) rendu valide pour l'analyse ; hors ajustement |
 | `261015-090846.json` | 8 s | routine guidée à deux rinçages (274 s sur le groupe après le rinçage du porte-filtre, 133,6 s de préparation) ; consigne de 92 °C, cible 22 g (7,6 bar·s/g au plateau), remplissage de 26,1 ml, pré-infusion finie à 4,18 s sur la goutte ou l'échéance ; 16,2 s depuis 8 bar ; SSR coupé ≈ 2 s au début du remplissage, pic à 93,13 °C, creux à 90,34 °C ; 0 % pendant 11,2 s, appoint repris 7,8 s avant l'arrêt ; −1,37 °C en tasse, modèle à +0,33 °C (−0,06 °C avec l'énergie SSR) ; un échantillon NTC invalide (211 ms) rendu valide pour l'analyse ; hors ajustement |
 | `261015-144651.json` | 8 s | guide à un rinçage, ouvert sous la consigne (573 s sur le groupe après le rinçage, 102,2 s de préparation) ; consigne de 92 °C, cible 22 g (7,2 bar·s/g au plateau), pré-infusion finie sur la goutte ; 14,8 s depuis 8 bar ; SSR coupé ≈ 1,9 s au début du remplissage, pic à 93,74 °C, palier à 91,40 °C au début de l'infusion ; 0 % pendant 10,9 s, appoint repris 7,6 s avant l'arrêt ; −1,24 °C en tasse, modèle à +0,46 °C (−0,06 °C avec l'énergie SSR) ; trois échantillons NTC invalides (201 à 315 ms) rendus valides pour l'analyse ; hors ajustement |
+| `261016-093425.json` | 8 s | écran 0.4.13 : chauffe à 90 % sur tout le remplissage, SSR coupé 0,19 s au plus ; routine guidée (808 s sur le groupe après le rinçage, 92,1 s de préparation) ; consigne de 92 °C, cible 22 g (7,2 bar·s/g au plateau), pré-infusion finie sur la goutte ; 14,7 s depuis 8 bar ; lecture NTC de 204 ms à 15,06 s : régulateur remis à zéro, dette de précharge effacée, aucun pas à 0 % pendant l'infusion, 12,40 kJ au SSR ; +1,16 °C en tasse, NTC à 99,61 °C 17 s après l'arrêt ; modèle à −0,79 °C (−0,76 °C avec l'énergie SSR) ; hors ajustement |
+| `261016-141025.json` | 8 s | écran 0.4.13, remboursement complet ; routine guidée (550 s sur le groupe après le rinçage, 93,5 s de préparation) ; consigne de 92 °C, cible 22 g (6,9 bar·s/g au plateau), pré-infusion finie sur la goutte ; 13,2 s depuis 8 bar ; 1,87 kJ de plus au SSR sur le remplissage que le 15 à 14 h 46, tasse identique ; 0 % pendant 10,3 s, appoint repris 6,9 s avant l'arrêt ; −1,23 °C en tasse, modèle à +0,58 °C (+0,50 °C avec l'énergie SSR) ; hors ajustement |
 | `monitor-heating-20260928-095631-275212.json` | — | ajustement ; montée sans écoulement depuis 80 °C |
 | `260928-083730.json` | 5 s | exclue (fenêtre SSR de 5 s) |

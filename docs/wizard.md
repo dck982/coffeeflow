@@ -308,22 +308,47 @@ attendue, `409` avant) donne en plus la capture à 10 Hz ; facultatif.
 | B. Référence | sans déverrouiller, `coffeetool purge 5` | première eau, porte-filtre à l'équilibre |
 | C. Préparation de 70 s | 10 min après B, qui sert de rinçage : déverrouiller, vider, essuyer, tenir **70 s** comme pendant une préparation, reverrouiller, `coffeetool purge 5` aussitôt | ce qu'une préparation courte reprend |
 | D. Préparation de 150 s | 10 min après C : même geste, **150 s** hors du groupe | ce qu'une préparation longue reprend |
-| E. Croisement, facultatif | rinçage, **2,5 min** sur le groupe, préparation de 70 s, purge | durée sur le groupe courte, préparation courte |
+| E. Croisement | 10 min après D : déverrouiller, vider, reverrouiller, `coffeetool purge 5`, qui sert de rinçage ; **140 s** sur le groupe ; préparation de **70 s** ; reverrouiller, `coffeetool purge 5` | durée sur le groupe courte, préparation courte |
 
-Environ 50 min.
+Environ 55 min, six purges de 5 s.
+
+*Pression sur le panier SCACE.* Le joint de la sonde fuit sous pression
+([sonde-scace.md](sonde-scace.md#limites-du-montage)). Aucune étape
+n'infuse : chaque purge de 5 s monte à 2 à 3 bar, puis la pression
+retombe par la vanne 3 voies à l'arrêt de la pompe. Pour exposer la
+sonde le moins possible, faire **A seule** : une purge, qui répond à
+« 140 s sur le groupe suffisent-elles ? ». B à E ajoutent cinq purges et
+répondent à la préparation ; ne les faire que si A ne montre pas plus de
+≈ 1 K entre 140 et 274 s (voir la lecture). Arrêter l'essai si la fuite mouille la balance ou les
+fils : la mesure de la purge en cours reste lisible, pas les suivantes.
 
 *Lecture.*
 
 - **Temps minimal** : dans A, le temps depuis la fin du rinçage pour que la
   pente de la SCACE sur 60 s passe sous **0,5 K/min**. Au repos, elle ne
   descend pas sous 0,35 à 0,45 K/min, les cycles de chauffe réchauffant le
-  groupe. Relever aussi la SCACE à 148 et 274 s, durées des routines du
-  14 octobre à 9 h 42 et du 15 octobre à 9 h 08.
+  groupe. Relever aussi la SCACE à 140, 148, 274 et 339 s, durées des
+  routines du 17 octobre à 13 h 57 (clairement acide), du 14 octobre à
+  9 h 42 (légèrement acide), du 15 octobre à 9 h 08 (le plus équilibré) et
+  du 17 octobre à 10 h 36 (satisfaisant).
+- **140 s, trop court ?** SCACE à 140 s plus de ≈ 1 K sous celle à
+  274 s : la durée sur le groupe suffit à expliquer l'acidité des deux
+  routines les plus courtes, et le temps minimal se lit sur A. Moins de
+  0,5 K : elle ne l'explique pas ; la préparation (B à E) ou le
+  remplissage long du 17 octobre à 13 h 57 (28,4 ml) restent les
+  candidats. Entre les deux, elle n'en explique qu'une partie. Dans ces
+  deux cas, faire B à E.
 - **Préparation** : SCACE moyenne pendant les 5 s de purge de B, C et D.
   C et D à plus de ≈ 1 K sous B, D plus bas que C : la préparation est le
   levier, et le guide en bornerait la durée plutôt que d'imposer un temps
   sur le groupe. Les trois à moins de 0,5 K : la préparation ne compte pas,
   seul le temps minimal de A reste. Entre les deux : refaire C et D.
+- **Croisement** : E à moins de 0,5 K de C (même préparation de 70 s) :
+  140 s sur le groupe ne refroidissent pas l'eau au-delà de ce que fait
+  la préparation, le levier est la préparation. E plus de ≈ 1 K sous C :
+  la durée sur le groupe compte même avec une préparation courte. Les deux
+  routines acides cumulaient 140 à 148 s sur le groupe et 139 à 143 s de
+  préparation ; seule E sépare les deux causes.
 - Les seuils sont des ordres de grandeur : la SCACE lit l'eau au puck, pas
   en tasse, et les écarts en tasse à expliquer sont de 0,5 à 0,8 °C.
 

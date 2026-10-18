@@ -146,6 +146,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | 16/10 14 h 10 | 6,63 s, 23,2 ml, 0,92 bar | 1,71 s, 4,1 ml, goutte | 29,0 ml | 4,3 s | 13,2 s, 1,31 g/s, 2,14 ml/s | 22,7 g | 90,77 °C |
 | **17/10 10 h 36**, écran 0.4.14 | 7,24 s, 24,9 ml, 0,85 bar | 3,10 s, 6,7 ml, goutte | 33,0 ml | 3,7 s | 13,4 s, 1,32 g/s, 2,40 ml/s | 22,9 g | 92,42 °C |
 | 17/10 13 h 57 | 8,24 s, **28,4 ml**, 0,94 bar | 3,07 s, 7,0 ml, goutte | 36,2 ml | 3,6 s | 13,8 s, 1,29 g/s, 2,41 ml/s | 22,7 g | 90,50 °C |
+| **18/10 12 h 40**, porte-filtre à bec | 7,30 s, 25,2 ml, 0,87 bar | 3,79 s, 8,1 ml, goutte | 33,3 ml | 3,9 s | **8,4 s, 1,71 g/s**, 2,53 ml/s | 23,6 g | 90,44 °C |
 
 ## Pistes pour le goût
 
@@ -2999,3 +3000,158 @@ guidée) :
 | Chauffe | 90 % sur le remplissage ; 0 % pendant 10 à 12,5 s dès l'infusion ; si une lecture NTC invalide tombe sur un pas pendant la précharge ou l'écoulement : 0 % sur ce pas, loi et dette conservées ; modèle avec l'énergie SSR entre −1,2 et +0,8 °C |
 | Tasse | 90,4 à 92,6 °C ; maximum après l'arrêt sous ≈ 94 °C |
 | Goût | une acidité après plus de ≈ 4,5 min sur le groupe infirmerait la piste du porte-filtre ; une tasse acide de nouveau sous ≈ 2,5 min la soutiendrait |
+
+### 18 octobre, 12 h 40 — `261018-124031`
+
+**Contexte.** Troisième infusion de l'écran 0.4.14. Réglages inchangés.
+Premier essai d'un **porte-filtre à bec**, avec le même panier que le
+porte-filtre sans fond. Le porte-filtre sans fond se pose à plat sur le
+tapis de tassage ; celui à bec demande un support troué, et le tassage
+peut être un peu moins fort (David). Guide à un rinçage, ouvert sous la
+consigne (NTC à 86,9 °C). Observations de David : la pompe n'a tourné que
+23 s ; café **légèrement plus acide**.
+
+**Routine** : rinçage de 5,02 s, 19,1 ml, 24,4 g (NTC 89,9 → 89,6 °C) ;
+retour à la consigne en 118,7 s (minimum 84,2 °C, résistance active
+27,2 s) ; porte-filtre en place 124,6 s à la consigne, **243 s sur le
+groupe** après le rinçage ; **préparation de 168,6 s**, la plus longue
+des routines guidées. La balance a manqué 0,1 s pendant la routine.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,01 s | — | — |
+| Remplissage | 8,01 s | 7,30 s | 25,2 ml (3,46 ml/s) | 0,39 → 0,87 bar |
+| Pré-infusion | 15,31 s | 3,79 s | 8,1 ml | 0,87 → 1,42 bar |
+| Infusion | 19,09 s | **12,17 s** | 33,6 ml | 8,90 bar max |
+
+- Remplissage dans la plage : 1 bar à 26,7 ml, en pré-infusion.
+- Pré-infusion finie sur la goutte ; première goutte (0,3 g) à 33,3 ml,
+  marge de **8,1 ml**.
+- Montée de 3,9 s jusqu'à 8 bar, avec **6,7 g** déjà en tasse (3,5 g le
+  17 à 13 h 57).
+- Depuis 8 bar : **8,4 s**, 1,71 g/s en tasse, 2,53 ml/s en amont.
+  21,6 g à l'arrêt, 23,6 g final, **2,0 g de gouttes**.
+- Plateau : 8,72 bar, pompe à 72 %, 1,78 g/s, soit **4,9 bar·s/g**, la
+  galette la moins résistante depuis le 10 octobre à 11 h 01 (5,9).
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 20 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 18/10 12 h 40 (bec) | **0,7 s** | 3,3 s | 5,9 s | 11,4 s |
+  | 17/10 13 h 57 | 1,3 s | 4,5 s | 8,8 s | 16,3 s |
+  | 17/10 10 h 36 | 1,7 s | 4,9 s | 8,9 s | 16,1 s |
+  | 16/10 14 h 10 | 1,8 s | 4,7 s | 8,7 s | 16,3 s |
+
+- Pompe en marche 23,3 s (28,7 s le 17 à 13 h 57) : la différence est
+  entièrement dans l'infusion, 5,4 s depuis 8 bar.
+
+**Thermique.**
+
+| Repère | 18/10 12 h 40 | 17/10 13 h 57 | 17/10 10 h 36 |
+| --- | ---: | ---: | ---: |
+| NTC au départ | 91,83 °C | 91,75 °C | 92,06 °C |
+| Pic avant l'infusion | 93,15 °C à 12,3 s | 92,75 °C à 11,0 s | 93,14 °C à 11,3 s |
+| NTC au début de l'infusion | **88,36 °C** | 90,25 °C | 92,62 °C |
+| Commande à 0 % (remboursement) | **9,8 s** | 10,7 s | 10,6 s |
+| Appoint repris avant l'arrêt | 2,4 s | 6,5 s | 6,3 s |
+| Pente de la NTC pendant l'appoint | −0,14 °C/s | −0,22 °C/s | −0,32 °C/s |
+| **Tasse** | **90,44 °C**, −1,56 °C | 90,50 °C | 92,42 °C |
+| Minimum | 88,36 °C, au début de l'infusion | 89,02 °C | 89,87 °C |
+| 20 s après l'arrêt | 91,37 °C, encore en hausse | 91,55 °C | 92,63 °C |
+
+- Énergie, commande / SSR : précharge 8,32 / 8,55 kJ, remplissage 7,79 /
+  7,75 kJ, pré-infusion 2,82 / 2,33 kJ, infusion 1,90 / 1,70 kJ. Total
+  SSR jusqu'à l'arrêt : 20,33 kJ, dont 18,63 kJ avant l'infusion
+  (19,24 kJ la veille).
+- Remplissage : commande à 90 %, SSR coupé moins de 0,3 s. NTC
+  92,30 → 91,73 °C.
+- Pré-infusion : la NTC perd **3,37 °C en 3,79 s** (91,73 → 88,36 °C),
+  contre 1,08 °C en 3,07 s la veille. L'eau admise avant l'infusion est
+  pourtant plus faible : 33,3 ml contre 35,4 ml.
+- Cinq lectures NTC invalides : 229 ms à 0,21 s, 205 ms à 15,72 s,
+  267 et 323 ms à 19,22–19,28 s, 216 ms à 31,68 s. Celle de 15,72 s tombe
+  sur un pas de pré-infusion : **commande à 0 % sur ce pas**, puis reprise
+  à 79,2 % sur la pente de la loi (88,1 % avant). Le remboursement a lieu
+  ensuite en entier : la dette est conservée. Celle de 0,21 s est
+  compatible avec un premier pas de précharge sauté (90 % à 0,32 s, contre
+  0,15 s la veille ; précharge de 8,32 kJ contre 8,58 kJ). Celles de 19,2 s
+  tombent pendant le 0 % du remboursement.
+- Modèle : 91,80 °C avec la commande réelle, 91,83 °C avec l'énergie SSR,
+  soit **−1,39 °C** sous le modèle (−0,50 °C la veille). L'écart se creuse
+  pendant la pré-infusion : −1,25 °C à 16 s, **−3,05 °C** à 20 s, puis
+  −0,62 °C à 30 s.
+
+**Attendus vérifiés** (entrée du 17 octobre, 13 h 57).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 6,5 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar | **4,9 bar·s/g, 8,4 s : non atteint** |
+| Rendement | 22,3 à 23,0 g final (gouttes de 0,7 à 1,5 g) | **23,6 g, 2,0 g : non atteint** |
+| Remplissage | 3,4 à 3,7 ml/s à 75 % ; 5 à 8,5 s et 17 à 29 ml ; marge positive | 3,46 ml/s, 7,30 s, 25,2 ml, 8,1 ml : atteint |
+| Pré-infusion | goutte jusqu'à ≈ 8,5 ml de marge, échéance à partir de ≈ 11 ml | goutte à 8,1 ml : atteint |
+| Chauffe | 90 % sur le remplissage ; 0 % pendant 10 à 12,5 s dès l'infusion ; lecture invalide sur un pas : 0 %, loi et dette conservées ; modèle avec l'énergie SSR entre −1,2 et +0,8 °C | 90 % : atteint ; **9,8 s : non atteint** de 0,2 s ; lecture à 15,72 s : **atteint**, première vérification ; **−1,39 °C : non atteint** |
+| Tasse | 90,4 à 92,6 °C ; maximum après l'arrêt sous ≈ 94 °C | 90,44 °C : atteint de justesse ; 91,37 °C en fin de capture : atteint |
+| Goût | une acidité après plus de ≈ 4,5 min sur le groupe infirmerait la piste du porte-filtre ; une tasse acide de nouveau sous ≈ 2,5 min la soutiendrait | 243 s sur le groupe, entre les deux seuils, et porte-filtre changé : **non concluant** |
+
+**Lecture.**
+
+- *Durée de pompe, mesuré.* La pompe s'arrête au poids en tasse. Un bec
+  qui retarde l'arrivée du café en tasse allongerait donc l'infusion. Ici,
+  le café arrive **plus tôt** que les jours précédents (1 g à 0,7 s contre
+  1,3 à 1,8 s), et la pré-infusion, finie sur la goutte, ne dure que 0,7 s
+  de plus que la veille, à marge comparable (8,1 ml ; 9,3 ml le 15 à
+  9 h 08). Le bec n'explique pas les 23 s. Elles viennent de la galette :
+  1,78 g/s au plateau contre 1,30 g/s, à pression et pompe égales.
+- *Bec, mesuré.* Le bec retient du café et le rend après l'arrêt : 2,0 g
+  de gouttes contre 1,2 à 1,3 g avec le porte-filtre sans fond, d'où
+  23,6 g final pour 21,6 g à l'arrêt.
+- *Tassage, hypothèse de David.* Le panier étant le même, un tassage moins
+  fort sur le support troué est la cause la plus probable. Les deux
+  galettes les plus rapides avant celle-ci ont la même signature : 5,9
+  bar·s/g et 9,1 s depuis 8 bar le 10 octobre à 11 h 01 (débit trop
+  élevé), 6,2 bar·s/g et 11,9 s le 11 octobre à 13 h 40 (« tassage à
+  travailler »). Au plateau, le rapport du débit en tasse au débit amont
+  vaut 0,69 g/ml, comme ces deux infusions (0,77 et 0,73), contre 0,52 à
+  0,58 du 13 au 17 octobre : il suit la perméabilité de la galette, il ne
+  signale pas un défaut du débitmètre. Le tassage n'est pas mesuré ; non
+  testé.
+- *Goût, estimé.* 8,4 s depuis 8 bar, contre 13 à 16 s pour les tasses
+  jugées bonnes : l'extraction courte suffit à expliquer l'acidité. La
+  NTC tasse (90,44 °C) est dans la plage des tasses bonnes à impeccable
+  (90,63 à 90,77 °C) : la température seule ne l'explique pas.
+- *Porte-filtre sur le groupe, non concluant.* 243 s sur le groupe, entre
+  les seuils de 2,5 et 4,5 min, avec un autre porte-filtre et une galette
+  hors plage : cette infusion ne compte pas pour la piste.
+- *Chute de la NTC en pré-infusion, mesuré.* 3,37 °C perdus en pré-infusion
+  avec moins d'eau admise que la veille et une énergie SSR comparable :
+  l'écart au modèle, −3,05 °C à 20 s, est le plus grand des routines
+  guidées. Le modèle ne connaît que l'eau comptée par le débitmètre et la
+  chaleur de la résistance ; la chute vient d'ailleurs. Hypothèse de
+  David : le porte-filtre à bec, plus lourd, a une inertie thermique plus
+  grande ; il tirerait plus de chaleur du groupe, d'autant plus après
+  168,6 s de préparation. La capture ne mesure pas le porte-filtre. Les galettes
+  rapides du 10 et du 11 octobre étaient aussi plus de 1 °C sous le modèle
+  (modèle à +2,26 °C le 10, à +1,10 °C avec l'énergie SSR le 11) ; rien ne dit que la cause est la même. Non testé.
+- *Remboursement, mesuré.* 9,8 s à 0 %, 0,5 s de moins que le plus court
+  jusqu'ici (10,3 s le 16 à 14 h 10). Le remboursement suit le débitmètre :
+  2,76 ml/s sur la phase d'infusion contre 2,60 ml/s la veille, et une
+  dette un peu plus faible (précharge de 8,32 kJ contre 8,58 kJ). Il finit
+  donc plus tôt, comme le prévoit la loi.
+
+**Décision.** Aucune annoncée par David : écran 0.4.14, réglages
+inchangés.
+
+**Attendus pour l'infusion suivante** (0.4.14, mêmes réglages, routine
+guidée, porte-filtre à bec tassé sur son support) :
+
+| Point | Attendu |
+| --- | --- |
+| Hydraulique | 6,5 à 8,5 bar·s/g ; 13 à 18 s depuis 8 bar. Sous 6 bar·s/g avec un tassage soigné, le tassage ne suffirait plus à expliquer la galette rapide |
+| Rendement | 21,6 g à l'arrêt ; ≈ 2 g de gouttes avec le bec, soit 23,0 à 24,0 g final (22,3 à 23,0 g sans fond) |
+| Remplissage | 3,4 à 3,7 ml/s à 75 % ; 5 à 8,5 s et 17 à 29 ml ; marge positive |
+| Pré-infusion | goutte jusqu'à ≈ 8,5 ml de marge, échéance à partir de ≈ 11 ml |
+| Chauffe | 90 % sur le remplissage ; 0 % pendant 9,5 à 12,5 s dès l'infusion (élargi après 9,8 s à débit fort) ; lecture NTC invalide sur un pas : 0 % sur ce pas, loi et dette conservées ; modèle avec l'énergie SSR entre −1,2 et +0,8 °C. Une chute de la NTC de plus de 2 °C en pré-infusion avec le bec, à galette dans la plage, désignerait le porte-filtre |
+| Tasse | 90,4 à 92,6 °C ; maximum après l'arrêt sous ≈ 94 °C |
+| Goût | acidité absente à galette dans la plage : tassage ; acidité restée à galette dans la plage : chercher du côté du porte-filtre (masse, température) |

@@ -173,7 +173,7 @@ def _add_floor_components(body, side_width, north_y, seat_y, floor, wall):
 @part
 def screen_base(
     wedge_width=126.1,
-    seat_height=18.0,
+    seat_height=24.0,
     backing=WEDGE_LENGTH,
     tilt=45.0,
     wall=2.0,
@@ -192,7 +192,7 @@ def screen_base(
     back_opening_width=16.0,
     back_opening_height=16.0,
     back_opening_from_left=25.0,
-    back_opening_below_top=40.0-27,
+    back_opening_below_top=40.72,
     back_opening_chamfer=4.0,
     second_opening_width=6.0,
     second_opening_height=6.0,
@@ -247,8 +247,8 @@ def screen_base(
     back_opening_width: width of the port cut through the back face
     back_opening_height: height of the port cut through the back face
     back_opening_from_left: distance from the base's left edge to the port's centre
-    back_opening_below_top: distance down from the top of the back face to the
-        port's centre
+    back_opening_below_top: distance down from the box's flat top, flush with
+        the machine's top, to the port's centre
     back_opening_chamfer: size of the 45deg cut on the port's top two corners,
         standing in for a circle without the overhang a round hole would print
     second_opening_width: width of a second, smaller port through the back
@@ -755,18 +755,16 @@ def screen_base(
     #     chamfer there: cutting it back exposes the wedge behind it, since
     #     the wedge fills right up to that corner too. screen_wedge drops its
     #     own chamfer on that same edge so the two land flush with no reveal.
+    #     Past the wedge's top corner the panel runs flat back to the back
+    #     face, level with screen_wedge's own flat top extension.
     #     Added after the notch relief above so that cut never touches it. ---
     press_half = wedge_width / 2 + side_panel_fit / 2
     notch_out = notch + n * side_panel_depth
     ridge_out = ridge + n * side_panel_depth
-    # Extend the outer panel edge along the seat slope until it reaches the
-    # base's rear-most Y.  `up` is unit length, so this finds the distance
-    # needed in Y and preserves the slope (45° at the default tilt) in Z.
-    panel_back_top = ridge_out + up * ((north_y - ridge_out.Y) / up.Y)
     side_panel_profile = Plane.YZ * Polygon(
         (seat_y, seat_height),
         (north_y, north_height),
-        (panel_back_top.Y, panel_back_top.Z),
+        (north_y, ridge_out.Z),
         (ridge_out.Y, ridge_out.Z),
         (notch_out.Y, notch_out.Z),
         align=None,
@@ -907,11 +905,24 @@ def screen_base(
                 return True
         return False
 
+    def on_machine_top(edge):
+        # the panels' top back edge, level with the machine's top: the back
+        # face follows the machine's face right up to it, as screen_wedge's
+        # bare tip does between the panels.
+        b = edge.bounding_box()
+        return (
+            abs(b.min.Y - north_y) < 0.05
+            and abs(b.max.Y - north_y) < 0.05
+            and abs(b.min.Z - ridge_out.Z) < 0.05
+            and abs(b.max.Z - ridge_out.Z) < 0.05
+        )
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
     keep = keep.filter_by(
         lambda e: not seating(e)
+        and not on_machine_top(e)
         and not on_magnet_well(e)
         and not on_magnet_slot(e)
         and not on_back_opening(e)

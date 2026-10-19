@@ -779,7 +779,7 @@ def back_face_layout(
     channel_fit=0.4,
     rail_width=2.0,
     back_opening_from_left=25.0,
-    back_opening_below_top=40.0-27,
+    back_opening_below_top=40.72,
     second_opening_offset_x=20.0,
 ):
     """screen_base's back face: its own size, and its two openings' centres,
@@ -796,8 +796,10 @@ def back_face_layout(
     seat_y = wedge_thickness * s
     north_height = seat_height + backing * s
     north_y = seat_y + backing * c
+    # The flat top over the wedge's own thickness, flush with the machine's top.
+    top_height = north_height + wedge_thickness * c
     back_opening_x = -outer_half + back_opening_from_left
-    back_opening_z = north_height - back_opening_below_top
+    back_opening_z = top_height - back_opening_below_top
     second_opening_x = back_opening_x + second_opening_offset_x
     second_opening_z = back_opening_z
     return dict(
@@ -805,6 +807,7 @@ def back_face_layout(
         outer_half=outer_half,
         north_y=north_y,
         north_height=north_height,
+        top_height=top_height,
         back_opening_x=back_opening_x,
         back_opening_z=back_opening_z,
         second_opening_x=second_opening_x,

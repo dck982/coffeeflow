@@ -15,7 +15,7 @@ from system import back_face_layout
 def screen_assembly(
     slide=0.0,
     tilt=45.0,
-    seat_height=18.0,
+    seat_height=24.0,
     show_machine_face=True,
     machine_face_thickness=2.0,
     machine_face_overhang=10.0,
@@ -88,7 +88,11 @@ def screen_assembly(
         plate_width = layout["width"] + machine_face_overhang
         plate_height = layout["north_height"] + 27.72
         plate_x = machine_face_overhang / 2
-        plate_z = (layout["north_height"] + 27.72) / 2
+        plate_z = plate_height / 2
+        # The box hangs with its flat top level with the machine's top, so it
+        # sits this much higher than its own frame; the panel's openings are
+        # where the box's land once it is lifted.
+        lift = Pos(0, 0, plate_height - layout["top_height"])
         plate_y = layout["north_y"] + machine_face_thickness / 2
         plate = Pos(plate_x, plate_y, plate_z) * Box(
             plate_width, machine_face_thickness, plate_height
@@ -98,7 +102,7 @@ def screen_assembly(
             (layout["second_opening_x"], layout["second_opening_z"], 6.0),
         ):
             hole_plane = Plane(origin=(ox, layout["north_y"], oz), x_dir=(1, 0, 0), z_dir=(0, 1, 0))
-            plate -= hole_plane * Cylinder(
+            plate -= lift * hole_plane * Cylinder(
                 dia / 2, machine_face_thickness, align=(Align.CENTER, Align.CENTER, Align.MIN)
             )
         obstacle(plate, name="espresso machine rear panel")
@@ -159,8 +163,8 @@ def screen_assembly(
                 cle_longueur=back_wall_thickness,
                 fut_longueur=machine_face_thickness + 2.0,
             )
-            return base + placed, plate, gland, ecrou, pin
+            return lift * (base + placed), plate, lift * gland, lift * ecrou, lift * pin
 
-        return base + placed, plate
+        return lift * (base + placed), plate
 
     return base + placed

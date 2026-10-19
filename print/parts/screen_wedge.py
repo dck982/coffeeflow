@@ -349,7 +349,7 @@ def screen_wedge(
 
     # 45 degrees triangle at the top to get the wedge against the machine's edge
     top_extension_z = body.bounding_box().size.Z
-    top_extension_pts = [(0,0),(top_extension_z,top_extension_z),(0,top_extension_z)]
+    top_extension_pts = [(0,0),(top_extension_z/2,top_extension_z/2),(0,top_extension_z)]
     body += (
         Pos(body.bounding_box().min.X,body.bounding_box().max.Y,0) 
         * extrude(Plane.YZ*Polygon(*top_extension_pts,align=None),body.bounding_box().size.X)
@@ -415,6 +415,19 @@ def screen_wedge(
             and b.max.Y < -pocket_h / 2 + glass_lip_depth + 0.05
         )
 
+    def on_flat_top(edge):
+        # The extension's descending face is the assembly's flat top, level
+        # with screen_base's side panels on either side. A chamfer on its two
+        # side edges digs a groove along each join, and one on the tip leaves
+        # a groove along the top of the machine's face. The bare tip prints:
+        # it closes a 45 deg overhang onto an upward face, with no ceiling.
+        b = edge.bounding_box()
+        crest = outer_h / 2 + top_extension_z
+        return (
+            abs(b.min.Y + b.max.Z - crest) < 0.05
+            and abs(b.max.Y + b.min.Z - crest) < 0.05
+        )
+
     bed = body.bounding_box().min.Z
     keep = body.edges().filter_by(lambda e: e.bounding_box().min.Z > bed + 0.05)
     keep = keep - concave_edges(body)
@@ -424,5 +437,6 @@ def screen_wedge(
         and not in_relief(e)
         and not on_glass_lip(e)
         and not on_outer_rim(e)
+        and not on_flat_top(e)
     )
     return polish(body, keep, 1.0)

@@ -1177,6 +1177,18 @@ impl Presenter {
             )
             .into(),
         );
+        app.set_enclosure(
+            if s.enclosure_valid {
+                format!(
+                    "boîtier {} · {} %",
+                    number(s.enclosure_temperature_c, 1, " °C"),
+                    number(s.enclosure_humidity_pct, 0, "")
+                )
+            } else {
+                "boîtier -".into()
+            }
+            .into(),
+        );
         match self.menu {
             3 => {
                 app.set_menu_title("dimmerlink".into());

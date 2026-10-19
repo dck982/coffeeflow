@@ -5,6 +5,7 @@
 pub mod ads1115;
 pub mod ch422g;
 pub mod gt911;
+pub mod sht40;
 
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -98,4 +99,14 @@ pub async fn init(
 )]
 pub async fn ads1115_task(i2c: Device) -> ! {
     ads1115::run(i2c).await
+}
+
+/// Lecture du SHT40 du boîtier toutes les secondes, sur l'exécuteur du cœur 0.
+#[embassy_executor::task]
+#[allow(
+    clippy::large_stack_frames,
+    reason = "futures d'embassy : clippy compte l'état de la future, qui vit dans l'arène de l'exécuteur ou la future de main, pas sur la pile"
+)]
+pub async fn sht40_task(i2c: Device) -> ! {
+    sht40::run(i2c).await
 }

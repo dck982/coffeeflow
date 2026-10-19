@@ -223,6 +223,7 @@ async fn main(spawner: Spawner) -> ! {
 
     spawner.spawn(report::report().unwrap());
     spawner.spawn(board::ads1115_task(board.device()).unwrap());
+    spawner.spawn(board::sht40_task(board.device()).unwrap());
     let runtime = runtime::Runtime::new(board.touch.is_some());
     ui::run(ui, fb.cast::<Rgb565Pixel>(), board.touch, runtime).await
 }

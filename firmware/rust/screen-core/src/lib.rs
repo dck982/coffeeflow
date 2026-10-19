@@ -27,6 +27,7 @@ pub mod can_link;
 pub mod config;
 pub mod config_json;
 pub mod core;
+pub mod enclosure;
 pub mod events;
 pub mod guided;
 pub mod hf_capture;

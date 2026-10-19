@@ -1,7 +1,7 @@
 //! Un propriétaire du cœur sur l'exécuteur 0. Les services du cœur 1
 //! échangent des messages, jamais des références mutables vers la machine.
 use crate::{
-    board::ads1115,
+    board::{ads1115, sht40},
     ui::{Ui, presenter::UiRequest},
 };
 use core::sync::atomic::Ordering::Relaxed;
@@ -15,6 +15,7 @@ pub struct Runtime {
     core: Core<service::CoreStore>,
     next_tick_us: u64,
     ads_samples: u32,
+    sht_samples: u32,
 }
 
 fn clock() -> Clock {
@@ -38,6 +39,7 @@ impl Runtime {
             core,
             next_tick_us: 0,
             ads_samples: 0,
+            sht_samples: 0,
         }
     }
 
@@ -105,6 +107,13 @@ impl Runtime {
             );
             self.core
                 .on_pressure_a2_reading(clock, ads1115::raw(2), ads1115::A2_OK.load(Relaxed));
+        }
+        let samples = sht40::SAMPLES.load(Relaxed);
+        if samples != self.sht_samples {
+            self.sht_samples = samples;
+            let (t_raw, rh_raw) = sht40::raw();
+            self.core
+                .on_enclosure_reading(clock, t_raw, rh_raw, sht40::OK.load(Relaxed));
         }
         while let Ok(progress) = proxy_service::PROGRESS.try_receive() {
             match progress {

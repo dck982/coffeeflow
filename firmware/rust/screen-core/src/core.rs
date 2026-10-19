@@ -57,6 +57,7 @@ use crate::config::{
     BREW_TEMPERATURE_TOLERANCE_C, Config, ConfigManager, ConfigResult, ConfigStatus, ConfigStore,
     LoadReport,
 };
+use crate::enclosure;
 use crate::events::{EventKind, EventLog};
 use crate::guided::{Guided, Press, RINSE_US, Request, Session};
 use crate::hf_capture::{self, Capture, Origin, SampleMode};
@@ -393,6 +394,8 @@ struct PendingFlash {
 struct Timestamps {
     pressure_received_us: i64,
     boiler_received_us: i64,
+    /// Dernière lecture valide du SHT40 du boîtier.
+    enclosure_received_us: i64,
     pressure_last_valid_us: i64,
     flow_received_us: i64,
     actuators_received_us: i64,
@@ -1486,6 +1489,18 @@ impl<S: ConfigStore> Core<S> {
         reading.valid
     }
 
+    /// SHT40 du boîtier de l'écran : codes bruts de température et d'humidité.
+    /// Une lecture en erreur invalide la mesure sans rajeunir l'ancienne.
+    pub fn on_enclosure_reading(&mut self, clock: Clock, t_raw: u16, rh_raw: u16, read_ok: bool) {
+        self.enter(clock);
+        self.snapshot.enclosure_valid = read_ok;
+        if read_ok {
+            self.snapshot.enclosure_temperature_c = enclosure::temperature_c(t_raw);
+            self.snapshot.enclosure_humidity_pct = enclosure::humidity_pct(rh_raw);
+            self.t.enclosure_received_us = self.now();
+        }
+    }
+
     /// Code A2 (XDB401 analogique), lu avec la paire NTC.
     pub fn on_pressure_a2_reading(&mut self, clock: Clock, raw: i16, read_ok: bool) {
         self.enter(clock);
@@ -2314,6 +2329,15 @@ impl<S: ConfigStore> Core<S> {
         };
         if result.boiler_temperature_freshness != Freshness::Fresh {
             result.boiler_temperature_valid = false;
+        }
+        result.enclosure_age_ms = age_ms(t.enclosure_received_us, now);
+        result.enclosure_freshness = if result.enclosure_valid {
+            freshness(t.enclosure_received_us, 1000, now)
+        } else {
+            Freshness::Missing
+        };
+        if result.enclosure_freshness != Freshness::Fresh {
+            result.enclosure_valid = false;
         }
         result.flow_age_ms = age_ms(t.flow_received_us, now);
         result.actuators_age_ms = age_ms(t.actuators_received_us, now);

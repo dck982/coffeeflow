@@ -379,6 +379,23 @@ fn boiler_ntc_conversion_and_freshness() {
 }
 
 #[test]
+fn enclosure_reading_ingestion() {
+    let mut rig = Rig::new();
+    let clock = rig.clock();
+    rig.core.on_enclosure_reading(clock, 26_051, 25_638, true);
+    let s = rig.snapshot();
+    assert!(s.enclosure_valid);
+    assert!((s.enclosure_temperature_c - 24.56).abs() < 0.01);
+    assert!((s.enclosure_humidity_pct - 42.9).abs() < 0.1);
+    assert_eq!(s.enclosure_freshness, Freshness::Fresh);
+    // Une lecture en erreur invalide la mesure sans la rajeunir.
+    rig.core.on_enclosure_reading(clock, 0, 0, false);
+    let s = rig.snapshot();
+    assert!(!s.enclosure_valid);
+    assert_eq!(s.enclosure_freshness, Freshness::Missing);
+}
+
+#[test]
 fn boiler_ntc_rejects_bad_readings() {
     let mut rig = Rig::new();
     let clock = rig.clock();

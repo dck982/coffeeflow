@@ -74,6 +74,7 @@ calibration du facteur K.
 | --- | --- |
 | `temperature.boiler` | Température chaudière `c`, validité, fraîcheur, âge et codes NTC `ntc_a0_raw` / `ntc_a1_raw`. |
 | `temperature.xdb401` | Héritée du XDB401 I2C : `c` vaut toujours `null` depuis 0.3.46, `raw` reste le dernier code reçu par `STATUS_PRESSURE`. |
+| `enclosure.screen` | SHT40 du boîtier de l'écran (depuis 0.4.15) : température `c` et humidité `rh_pct` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur (lecture à 1 s) et âge. Le capteur du module sensors ira dans `enclosure.sensors`. |
 | `pressure` | Pression `bar` tirée de A2, validité, fraîcheur et âge (voir « XDB401 — pression »). `a2_raw` : code ADS1115 de A2 (125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. `raw` : dernier code reçu par `STATUS_PRESSURE`, que l'écran ne demande plus. |
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |

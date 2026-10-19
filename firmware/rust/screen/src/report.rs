@@ -9,7 +9,7 @@ use core::sync::atomic::Ordering::Relaxed;
 use embassy_time::{Duration, Instant, Timer};
 use log::info;
 
-use crate::board::ads1115;
+use crate::board::{ads1115, sht40};
 use crate::display;
 use crate::heap::PSRAM_HEAP;
 use crate::stack_watermark;
@@ -122,6 +122,15 @@ pub async fn report() {
             if ads1115::A2_OK.load(Relaxed) { "" } else { " (perime)" },
             ads1115::CYCLES.load(Relaxed),
             ads1115::ERRORS.load(Relaxed),
+        );
+        let (t_raw, rh_raw) = sht40::raw();
+        info!(
+            "sht40 t={} rh={}{} lectures={} err={}",
+            t_raw,
+            rh_raw,
+            if sht40::OK.load(Relaxed) { "" } else { " (perime)" },
+            sht40::SAMPLES.load(Relaxed),
+            sht40::ERRORS.load(Relaxed),
         );
     }
 }

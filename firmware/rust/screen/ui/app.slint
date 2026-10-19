@@ -64,6 +64,7 @@ export component AppWindow inherits Window {
     in property <[Tile]> settings;
     in property <[Tile]> diagnostics;
     in property <string> diag-memory;
+    in property <string> enclosure;
     in property <[Tile]> brew-values;
     in property <[Tile]> live-values;
     in property <[Segment]> segments;
@@ -205,6 +206,7 @@ export component AppWindow inherits Window {
         Rectangle { y: 0px; height: 88px; background: Theme.raised;
             Back { x: 16px; y: 4px; width: 80px; height: 80px; clicked => { root.command(10, ""); } }
             Label { x: 112px; width: 310px; text: root.page == 3 ? "réglages" : root.page == 4 ? "diagnostic" : root.editor-title; }
+            if root.page == 4: Label { x: 432px; width: 352px; height: 88px; text: root.enclosure; horizontal-alignment: right; vertical-alignment: center; font-size: 22px; color: Theme.dim; }
             if root.page == 3: Rectangle { background: transparent;
                 Key { x: 360px; y: 4px; width: 80px; height: 80px; label: ""; primary: root.wifi-enabled; clicked => { root.command(11, ""); }
                     Image { x: 24px; y: 26px; width: 32px; height: 28px; source: @image-url("icons/wifi.svg"); colorize: root.wifi-enabled ? Theme.text : Theme.faint; } }

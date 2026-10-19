@@ -141,6 +141,11 @@ pub const TELEMETRY_KEYS: &[&str] = &[
     "temperature.boiler.ntc_a1_raw",
     "temperature.xdb401.c",
     "temperature.xdb401.raw",
+    "enclosure.screen.c",
+    "enclosure.screen.rh_pct",
+    "enclosure.screen.valid",
+    "enclosure.screen.freshness",
+    "enclosure.screen.age_ms",
     "pressure.bar",
     "pressure.raw",
     "pressure.a2_raw",
@@ -269,6 +274,22 @@ pub fn encode_telemetry(
     temperature.push("boiler", boiler);
     temperature.push("xdb401", xdb401);
     root.push("temperature", temperature);
+
+    // enclosure
+    let mut screen = Json::object();
+    if snapshot.enclosure_age_ms == u32::MAX {
+        screen.push_null("c");
+        screen.push_null("rh_pct");
+    } else {
+        screen.push_number("c", num(snapshot.enclosure_temperature_c));
+        screen.push_number("rh_pct", num(snapshot.enclosure_humidity_pct));
+    }
+    screen.push_bool("valid", snapshot.enclosure_valid);
+    screen.push_str("freshness", snapshot.enclosure_freshness.text());
+    push_age(&mut screen, "age_ms", snapshot.enclosure_age_ms);
+    let mut enclosure = Json::object();
+    enclosure.push("screen", screen);
+    root.push("enclosure", enclosure);
 
     let mut pressure = Json::object();
     pressure.push_number("bar", num(snapshot.pressure_bar));

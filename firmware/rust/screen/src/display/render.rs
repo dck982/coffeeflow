@@ -23,7 +23,10 @@ impl LineBufferProvider for LineToFb {
     ) {
         // Seule la boucle de rendu touche LINE. `&mut LINE` est refusé sur un
         // `static mut` (édition 2024), d'où le passage par le pointeur brut.
-        #[allow(clippy::deref_addrof, reason = "&mut LINE est refusé sur un static mut")]
+        #[allow(
+            clippy::deref_addrof,
+            reason = "&mut LINE est refusé sur un static mut"
+        )]
         let line_buf = unsafe { &mut *(&raw mut LINE) };
         let buf = &mut line_buf[range.clone()];
         render_fn(buf);

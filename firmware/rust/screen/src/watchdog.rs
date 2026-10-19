@@ -27,9 +27,11 @@ pub fn arm(rtc_timer: RTC_TIMER<'static>) {
     let mut rtc = Rtc::new(rtc_timer);
     rtc.rwdt.enable();
     rtc.rwdt.set_timeout(RwdtStage::Stage0, WARNING);
-    rtc.rwdt.set_stage_action(RwdtStage::Stage0, RwdtStageAction::Interrupt);
+    rtc.rwdt
+        .set_stage_action(RwdtStage::Stage0, RwdtStageAction::Interrupt);
     rtc.rwdt.set_timeout(RwdtStage::Stage1, RESET_AFTER_WARNING);
-    rtc.rwdt.set_stage_action(RwdtStage::Stage1, RwdtStageAction::ResetSystem);
+    rtc.rwdt
+        .set_stage_action(RwdtStage::Stage1, RwdtStageAction::ResetSystem);
     rtc.set_interrupt_handler(on_starving);
     rtc.rwdt.listen();
     rtc.rwdt.feed();

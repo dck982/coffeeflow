@@ -65,15 +65,20 @@ pub async fn init(
     touch_irq: GPIO4<'static>,
 ) -> Board {
     let touch_irq = Output::new(touch_irq, Level::Low, OutputConfig::default());
-    let i2c = I2c::new(i2c0, I2cConfig::default().with_frequency(Rate::from_khz(400)))
-        .unwrap()
-        .with_sda(sda)
-        .with_scl(scl)
-        .into_async();
+    let i2c = I2c::new(
+        i2c0,
+        I2cConfig::default().with_frequency(Rate::from_khz(400)),
+    )
+    .unwrap()
+    .with_sda(sda)
+    .with_scl(scl)
+    .into_async();
     static BUS: StaticCell<Bus> = StaticCell::new();
     let bus: &'static Bus = BUS.init(Mutex::new(i2c));
 
-    let mut expander = Ch422g::new(I2cDevice::new(bus)).await.expect("CH422G absent");
+    let mut expander = Ch422g::new(I2cDevice::new(bus))
+        .await
+        .expect("CH422G absent");
     expander.set_bit(EXIO_LCD_RST, false).await.expect("CH422G");
     expander.set_bit(EXIO_TP_RST, false).await.expect("CH422G");
     Timer::after(Duration::from_millis(100)).await;
@@ -88,7 +93,12 @@ pub async fn init(
         None => info!("GT911 absent : pas de toucher"),
     }
 
-    Board { bus, expander, touch, _touch_irq: touch_irq }
+    Board {
+        bus,
+        expander,
+        touch,
+        _touch_irq: touch_irq,
+    }
 }
 
 /// Cycle de lecture A0, A1, A2 de l'ADS1115, sur l'exécuteur du cœur 0.

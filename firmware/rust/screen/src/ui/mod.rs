@@ -192,7 +192,9 @@ pub async fn run(
         ui.window.draw_if_needed(|renderer| {
             // Différence saturée : voir la recopie d'affichage, le SYSTIMER lu
             // depuis les deux cœurs n'est pas strictement monotone.
-            let t0 = esp_hal::time::Instant::now().duration_since_epoch().as_micros();
+            let t0 = esp_hal::time::Instant::now()
+                .duration_since_epoch()
+                .as_micros();
             renderer.render_by_line(LineToFb(fb));
             let us = esp_hal::time::Instant::now()
                 .duration_since_epoch()

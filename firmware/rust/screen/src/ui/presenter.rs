@@ -1059,7 +1059,11 @@ impl Presenter {
     fn diagnostics(&self, app: &AppWindow, s: &Snapshot, c: &Config) {
         let measure = |valid: bool, value: String, fresh: Freshness| {
             let state = diag_state(valid, fresh);
-            let value = if state == DIAG_ERROR { "-".into() } else { value };
+            let value = if state == DIAG_ERROR {
+                "-".into()
+            } else {
+                value
+            };
             (state, value, diag_detail(state))
         };
         let (pressure, pressure_value, pressure_detail) = measure(
@@ -1072,8 +1076,11 @@ impl Presenter {
             number(s.boiler_temperature_c, 1, "°"),
             s.boiler_temperature_freshness,
         );
-        let (flow, flow_value, flow_detail) =
-            measure(s.flow_valid, number(s.flow_ml_s, 1, " ml/s"), s.flow_freshness);
+        let (flow, flow_value, flow_detail) = measure(
+            s.flow_valid,
+            number(s.flow_ml_s, 1, " ml/s"),
+            s.flow_freshness,
+        );
         let pump = if s.dimmer_error_active || !s.sensors_alive || !s.dimmer_valid {
             DIAG_ERROR
         } else if !s.dimmer_ready {
@@ -1109,7 +1116,11 @@ impl Presenter {
             + u64::from(s.sensors_twai_bus_errors);
         let mut versions = diag_tile(
             "versions",
-            if s.sensors_alive { DIAG_VALID } else { DIAG_WARN },
+            if s.sensors_alive {
+                DIAG_VALID
+            } else {
+                DIAG_WARN
+            },
             format!(
                 "{}.{}.{}",
                 s.screen_version_major, s.screen_version_minor, s.screen_version_patch
@@ -1148,13 +1159,21 @@ impl Presenter {
             ),
             diag_tile(
                 "bus can",
-                if s.sensors_alive { DIAG_VALID } else { DIAG_ERROR },
+                if s.sensors_alive {
+                    DIAG_VALID
+                } else {
+                    DIAG_ERROR
+                },
                 if s.sensors_alive { "OK" } else { "ERREUR" }.into(),
                 &error_count(can_errors)
             ),
             diag_tile(
                 "balance",
-                if s.scale_present { DIAG_VALID } else { DIAG_ERROR },
+                if s.scale_present {
+                    DIAG_VALID
+                } else {
+                    DIAG_ERROR
+                },
                 if s.scale_present {
                     number(s.weight_g, 1, " g")
                 } else {
@@ -1435,10 +1454,16 @@ mod tests {
         let c = Config::default();
         assert!(p.command(21, "", 0, &s, &c).is_none());
         assert!(p.brew_choice);
-        assert_eq!(p.command(1, "", 0, &s, &c), Some(core_action(Action::StartBrew)));
+        assert_eq!(
+            p.command(1, "", 0, &s, &c),
+            Some(core_action(Action::StartBrew))
+        );
         assert!(!p.brew_choice);
         p.command(21, "", 0, &s, &c);
-        assert_eq!(p.command(22, "", 0, &s, &c), Some(core_action(Action::GuidedOpen)));
+        assert_eq!(
+            p.command(22, "", 0, &s, &c),
+            Some(core_action(Action::GuidedOpen))
+        );
         assert!(!p.brew_choice);
         p.command(21, "", 0, &s, &c);
         assert!(p.command(23, "", 0, &s, &c).is_none());
@@ -1450,7 +1475,10 @@ mod tests {
         let mut s = ready();
         s.cycle_state = CycleState::Purge;
         let c = Config::default();
-        assert_eq!(p.command(25, "", 0, &s, &c), Some(core_action(Action::GuidedQuit)));
+        assert_eq!(
+            p.command(25, "", 0, &s, &c),
+            Some(core_action(Action::GuidedQuit))
+        );
         assert!(p.command(24, "", 0, &s, &c).is_none());
     }
     #[test]

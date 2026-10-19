@@ -55,7 +55,9 @@ impl<I: I2c> Gt911<I> {
             let y = u16::from_le_bytes([p[2], p[3]]) as i32 + Y_OFFSET;
             Touch::Pressed(x.min(H_RES as i32 - 1), y.min(V_RES as i32 - 1))
         };
-        self.i2c.write(self.addr, &[STATUS[0], STATUS[1], 0]).await?;
+        self.i2c
+            .write(self.addr, &[STATUS[0], STATUS[1], 0])
+            .await?;
         Ok(touch)
     }
 }

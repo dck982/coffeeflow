@@ -27,7 +27,10 @@ impl<I: I2c> Ch422g<I> {
     /// désélectionné et les broches USB gardent leur rôle.
     pub async fn new(mut i2c: I) -> Result<Self, I::Error> {
         i2c.write(MODE_ADDR, &[MODE_OUTPUTS]).await?;
-        let mut expander = Self { i2c, out: EXIO_DISP };
+        let mut expander = Self {
+            i2c,
+            out: EXIO_DISP,
+        };
         expander.write().await?;
         Ok(expander)
     }
@@ -47,7 +50,10 @@ impl<I: I2c> Ch422g<I> {
 
     /// Bascule les GPIO19/20 entre l'USB (bas) et le transceiver CAN (haut).
     /// Le bureau ne monte que l'USB, la machine que le CAN.
-    #[allow(dead_code, reason = "appelée par la tâche CAN, qui n'existe pas encore")]
+    #[allow(
+        dead_code,
+        reason = "appelée par la tâche CAN, qui n'existe pas encore"
+    )]
     pub async fn select_can(&mut self, can: bool) -> Result<(), I::Error> {
         self.set_bit(EXIO_CAN_SEL, can).await
     }

@@ -28,7 +28,11 @@ fn crc8(data: [u8; 2]) -> u8 {
     for byte in data {
         crc ^= byte;
         for _ in 0..8 {
-            crc = if crc & 0x80 != 0 { (crc << 1) ^ 0x31 } else { crc << 1 };
+            crc = if crc & 0x80 != 0 {
+                (crc << 1) ^ 0x31
+            } else {
+                crc << 1
+            };
         }
     }
     crc
@@ -37,7 +41,9 @@ fn crc8(data: [u8; 2]) -> u8 {
 /// Lance une mesure, rend le bus pendant sa durée, puis lit les codes bruts
 /// (température, humidité).
 async fn read<I: I2c>(i2c: &mut I) -> Result<(u16, u16), Error<I::Error>> {
-    i2c.write(ADDRESS, &[CMD_MEASURE_HIGH]).await.map_err(Error::I2c)?;
+    i2c.write(ADDRESS, &[CMD_MEASURE_HIGH])
+        .await
+        .map_err(Error::I2c)?;
     Timer::after(MEASURE_TIME).await;
     let mut frame = [0u8; 6];
     i2c.read(ADDRESS, &mut frame).await.map_err(Error::I2c)?;

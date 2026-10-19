@@ -101,7 +101,12 @@ fn ring_ptr(i: usize) -> *mut DmaDescriptor {
 }
 
 fn bounce_ptr(bb: usize) -> *mut u8 {
-    unsafe { (&raw mut BOUNCE).cast::<[u32; BB_BYTES / 4]>().add(bb).cast() }
+    unsafe {
+        (&raw mut BOUNCE)
+            .cast::<[u32; BB_BYTES / 4]>()
+            .add(bb)
+            .cast()
+    }
 }
 
 /// Anneau de descripteurs : 8 par bounce buffer, EOF sur le dernier de
@@ -211,11 +216,16 @@ extern "C" fn on_dma_eof() {
     // Horodatages en µs bruts, différences saturées : lu pendant que l'autre
     // cœur lit aussi le SYSTIMER, `Instant::now` peut rendre une valeur un peu
     // plus ancienne que la précédente, et la soustraction d'`Instant` panique.
-    let t0 = esp_hal::time::Instant::now().duration_since_epoch().as_micros();
+    let t0 = esp_hal::time::Instant::now()
+        .duration_since_epoch()
+        .as_micros();
     let now = t0 as u32;
     let gap = now.wrapping_sub(LAST_EOF_US.swap(now, Relaxed));
 
-    dma_tx().out_int().clr().write(|w| w.out_eof().clear_bit_by_one());
+    dma_tx()
+        .out_int()
+        .clr()
+        .write(|w| w.out_eof().clear_bit_by_one());
     let eof = EOF_COUNT.fetch_add(1, Relaxed);
     let bb = (eof % 2) as usize;
 
@@ -242,7 +252,9 @@ extern "C" fn on_dma_eof() {
 /// suivante. Sinon, on relance le DMA en phase pendant le blanking vertical
 /// (~2,9 ms), comme lcd_rgb_panel_try_restart_transmission() d'IDF.
 extern "C" fn on_vsync() {
-    lcd_regs().lc_dma_int_clr().write(|w| w.lcd_vsync_int_clr().set_bit());
+    lcd_regs()
+        .lc_dma_int_clr()
+        .write(|w| w.lcd_vsync_int_clr().set_bit());
     FRAMES.fetch_add(1, Relaxed);
 
     let requested = RESTART_REQUESTED.swap(false, Relaxed);
@@ -320,7 +332,24 @@ pub struct Display {
 )]
 pub fn start(lcd_cam: LCD_CAM<'static>, dma: DMA_CH0<'static>, pins: Pins, fb: *mut u8) -> Display {
     FB.store(fb as u32, Relaxed);
-    let [d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15] = pins.data;
+    let [
+        d0,
+        d1,
+        d2,
+        d3,
+        d4,
+        d5,
+        d6,
+        d7,
+        d8,
+        d9,
+        d10,
+        d11,
+        d12,
+        d13,
+        d14,
+        d15,
+    ] = pins.data;
     let dpi_config = DpiConfig::default()
         .with_frequency(Rate::from_mhz(16))
         // Données émises sur le front descendant (pclk_active_neg d'IDF).
@@ -402,7 +431,9 @@ pub fn start(lcd_cam: LCD_CAM<'static>, dma: DMA_CH0<'static>, pins: Pins, fb: *
     restart_in_phase();
     EOF_COUNT.store(0, Relaxed);
     LAST_EOF_US.store(
-        esp_hal::time::Instant::now().duration_since_epoch().as_micros() as u32,
+        esp_hal::time::Instant::now()
+            .duration_since_epoch()
+            .as_micros() as u32,
         Relaxed,
     );
     dma_tx()
@@ -412,9 +443,14 @@ pub fn start(lcd_cam: LCD_CAM<'static>, dma: DMA_CH0<'static>, pins: Pins, fb: *
     lcd_regs()
         .lc_dma_int_clr()
         .write(|w| w.lcd_vsync_int_clr().set_bit());
-    dma_tx().out_int().ena().modify(|_, w| w.out_eof().set_bit());
+    dma_tx()
+        .out_int()
+        .ena()
+        .modify(|_, w| w.out_eof().set_bit());
     lcd_regs()
         .lc_dma_int_ena()
         .modify(|_, w| w.lcd_vsync_int_ena().set_bit());
-    Display { _transfer: transfer }
+    Display {
+        _transfer: transfer,
+    }
 }

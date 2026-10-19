@@ -267,7 +267,6 @@ struct Rinse {
     start_volume_ml: f32,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 struct Reading {
     at_us: i64,

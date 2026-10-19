@@ -255,8 +255,9 @@ afficher les trames avec retard lorsqu'il rattrape un buffer important.
   préserver la SRAM radio. Le rapport de `screen` donne `pile c0 max=…/… c1
   max=…/…`.
 - **`cargo clippy` sur Xtensa** : `--lib --bin screen`, pas `--all-targets`.
-- **Pas de `cargo fmt` sur `screen`** : il reformate des fichiers non touchés ;
-  mettre en forme à la main.
+- **`cargo fmt`** : à lancer dans le workspace et dans chaque crate autonome
+  (`screen`, `sensors`, `screen-sim`) ; `cargo fmt --all --check` doit passer
+  partout avant un commit.
 - **CAN.** `TwaiConfiguration::new` prend RX puis TX. Sur l'écran, TX = GPIO20
   et RX = GPIO19 : passer GPIO20 puis GPIO19 inverse les deux et laisse l'écran
   sur « module interne injoignable » sans aucune trame des capteurs.

@@ -42,7 +42,10 @@ pub static FLASH_END: AtomicU32 = AtomicU32::new(0);
 
 /// Entrées MMU valides qui pointent encore vers la flash, y compris la
 /// dernière, que `run` laisse au bootloader.
-#[allow(dead_code, reason = "contrôle de la tâche OTA, avant d'écrire la flash")]
+#[allow(
+    dead_code,
+    reason = "contrôle de la tâche OTA, avant d'écrire la flash"
+)]
 pub fn flash_mappings() -> u32 {
     (0..MMU_ENTRIES)
         .filter(|&entry| {
@@ -79,7 +82,10 @@ pub fn run(psram: *mut u8, psram_size: usize) -> usize {
         flash_end = flash_end.max(((value & MMU_PAGE_NUMBER) + 1) * PAGE_BYTES as u32);
     }
     FLASH_END.store(flash_end, Relaxed);
-    assert!(n * PAGE_BYTES <= psram_size / 2, "code trop gros pour la PSRAM");
+    assert!(
+        n * PAGE_BYTES <= psram_size / 2,
+        "code trop gros pour la PSRAM"
+    );
 
     // Copie, caches actifs : la page k de la PSRAM reçoit la page de flash
     // vue à travers le bus de données, puis tout est réécrit en PSRAM.

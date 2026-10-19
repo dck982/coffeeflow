@@ -119,7 +119,11 @@ pub async fn report() {
             ads1115::raw(0),
             ads1115::raw(1),
             ads1115::raw(2),
-            if ads1115::A2_OK.load(Relaxed) { "" } else { " (perime)" },
+            if ads1115::A2_OK.load(Relaxed) {
+                ""
+            } else {
+                " (perime)"
+            },
             ads1115::CYCLES.load(Relaxed),
             ads1115::ERRORS.load(Relaxed),
         );
@@ -128,7 +132,11 @@ pub async fn report() {
             "sht40 t={} rh={}{} lectures={} err={}",
             t_raw,
             rh_raw,
-            if sht40::OK.load(Relaxed) { "" } else { " (perime)" },
+            if sht40::OK.load(Relaxed) {
+                ""
+            } else {
+                " (perime)"
+            },
             sht40::SAMPLES.load(Relaxed),
             sht40::ERRORS.load(Relaxed),
         );

@@ -20,9 +20,7 @@ use embassy_net::{
     Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4,
     tcp::{State, TcpSocket},
 };
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex,
-};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer, with_timeout};
 use embedded_io_async::Write;
 use esp_hal::{peripherals::WIFI, rng::Rng};
@@ -447,8 +445,7 @@ static LISTENING: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 async fn close_gracefully(socket: &mut TcpSocket<'_>) {
     socket.close();
     let deadline = Instant::now() + Duration::from_secs(3);
-    let closed =
-        |socket: &TcpSocket<'_>| matches!(socket.state(), State::Closed | State::TimeWait);
+    let closed = |socket: &TcpSocket<'_>| matches!(socket.state(), State::Closed | State::TimeWait);
     while !closed(socket) && Instant::now() < deadline {
         Timer::after_millis(5).await;
     }

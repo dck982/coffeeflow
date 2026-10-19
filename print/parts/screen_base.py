@@ -7,7 +7,9 @@ from system import (
     puit_couche,
     AMIN,
     add_well,
+    add_heat_insert,
     INSERT_M25,
+    INSERT_M3,
     surplomb
 )
 
@@ -34,9 +36,10 @@ ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's f
 def _block(x0,y0,z0,dx,dy,dz):
     return Pos(x0,y0,z0)*Box(dx,dy,dz,align=AMIN)
 
-def _cable_tie_tower(body, tx, ty, th, floor):
+def _cable_tie_tower(body, tx, center_y, th, floor):
     tower_w = 2.0
     bridge_w = 3.0
+    ty = center_y - tower_w
     body += _block(tx, ty, floor, tower_w, tower_w*2, th)
     body += _block(tx + tower_w + bridge_w, ty, floor, tower_w, tower_w*2, th)
     body += _block(tx, ty, floor+th-tower_w, tower_w*2 + bridge_w, tower_w*2, tower_w)
@@ -45,135 +48,79 @@ def _cable_tie_tower(body, tx, ty, th, floor):
 def _add_floor_components(body, side_width, north_y, seat_y, floor, wall):
     # Fond, nord est, de gauche à droite
     # Marge pour espace depuis ventilation
-    # ADS1115, trous au nord
-    # 2x WAGO 221-423 l'un sur l'autre à plat
-    # AMS1117 LDO, connecteur au sud
-    side_margin = 8.0
+    # module screen_sensors, 4 supports M3
+    side_margin = 15.0
     north_y -= wall
-    ads1115 = (measured("ads1115_largeur"),measured("ads1115_longueur"),measured("ads1115_pcb_width"))
-    pcb_height = 3.0
-    ads1115_east = body.bounding_box().max.X - side_width - side_margin - wall
-    ads1115_west = ads1115_east - ads1115[0]
-    # ADS1115, mur est, ouest, sud
-    body += _block(
-        ads1115_east,north_y-ads1115[1]-wall,floor,
-        wall,ads1115[1]+wall,pcb_height+ads1115[2])
-    body += _block(
-        ads1115_west-wall,north_y-ads1115[1]-wall,floor,
-        wall,ads1115[1]+wall,pcb_height+ads1115[2])
-    body += _block(
-        ads1115_west,north_y-ads1115[1]-wall,floor,
-        ads1115[0],wall,pcb_height+ads1115[2])
-    # barre de soutien
-    ads1115_support_y = north_y-ads1115[1]/3-wall
-    body += _block(ads1115_west,ads1115_support_y,floor,ads1115[0],wall,pcb_height)
-    wago_width = measured("wago_423_largeur")-0.15
-    wago_length = measured("wago_profondeur")
-    wago_height = measured("wago_epaisseur")*2
-    wago_west_x = ads1115_west-wall-wago_width
-    # mur est, ouest wago
-    surplomb_w = 1.0
-    surplomb_l = 8.0
-    body += _block(
-        wago_west_x+wago_width,north_y-wago_length-wall,floor,
-        wall, wago_length+wall, wago_height + surplomb_w)
-    body += _block(
-        wago_west_x-wall,north_y-wago_length-wall,floor,
-        wall, wago_length+wall, wago_height + surplomb_w)
-    # seuil
-    body += _block(
-        wago_west_x-wall,north_y-wago_length-wall,floor,
-        wago_width+2*wall,wall,1.0
-    )
-    # surplomb
-    body += surplomb(
-        wago_west_x+wago_width,north_y-surplomb_l,wago_height+floor,
-        surplomb_w,surplomb_l
-    )
-    body += surplomb(
-        wago_west_x,north_y,wago_height+floor,
-        surplomb_w,surplomb_l,inverse=True
-    )
-    # LDO
-    ldo = (measured("ldo_width"),measured("ldo_length"),measured("ldo_pcb_width"))
-    # Add 1.5 for the XH connector
-    ldo_west_x = wago_west_x-wall-ldo[0]-1.5
-    # mur est, ouest, sud
-    body += _block(
-        ldo_west_x+ldo[0],north_y-ldo[1]-wall,floor,
-        wall,ldo[1]+wall,pcb_height+ldo[2]
-    )
-    body += _block(
-        ldo_west_x-wall,north_y-ldo[1]-wall,floor,
-        wall,ldo[1]+wall,pcb_height+ldo[2]
-    )
-    body += _block(
-        ldo_west_x-wall,north_y-ldo[1]-wall,floor,
-        ldo[0]+2*wall,wall,pcb_height+ldo[2]
-    )
-    # mur de soutien
-    body += _block(
-        ldo_west_x-wall,north_y-ldo[1]/2-wall,floor,
-        ldo[0]+2*wall,wall,pcb_height
-    )
-    
-    # WAGO 221-423 contre mur ouest, 
+    # PCB 30x30, trous M3 à 3,5 du bord est et à 26,4 (bord ouest à 3,6),
+    # 3,5 des bords nord et sud ; dessous sans composant.
+    # Décalé au sud-ouest pour dégager l'accès vertical aux inserts :
+    # le plot nord-ouest sortait sous le puits d'aimant en rampe.
+    pcb_east = body.bounding_box().max.X - side_width - side_margin - 8.0
+    pcb_north = north_y - 5.0
+    pcb_standoff = INSERT_M3.profondeur_min + 1.0
+    hole_xs = (pcb_east - 3.5, pcb_east - 26.4)
+    hole_ys = (pcb_north - 3.5, pcb_north - 26.5)
+    bounds = body.bounding_box()
+    outer = Pos(bounds.center()) * Box(*bounds.size)
+    for hole_x in hole_xs:
+        for hole_y in hole_ys:
+            body = add_heat_insert(
+                body, outer, hole_x, hole_y, floor, pcb_standoff, INSERT_M3
+            )
+
+
+    # 2x WAGO 221-412 sur la tranche contre le mur ouest, côte à côte en Y,
     # un peu au nord de seat_y pour eviter de toucher le bas du wedge
     inner_west = body.bounding_box().min.X + side_width
     wago_south = seat_y+2.0+wall
+    wago_length = measured("wago_profondeur")
     wago_height = measured("wago_epaisseur")
-    wago_415 = measured("wago_415_largeur")
+    bay_width = 2*wago_height
+    bay_height = measured("wago_412_largeur")
+    bay_center_y = wago_south + bay_width/2
+    surplomb_w = 1.0
+    surplomb_l = 8.0
+
     # murs sud, nord
-    body += _block(
-        inner_west, wago_south-wall, floor,
-        wago_length+wall, wall, wago_height
-    )
-    # base pour WAGO 415 qui vient dessus
-    body += _block(
-        inner_west, wago_south+wago_width, floor,
-        wago_length+wall, wall+wago_415-wago_width, wago_height
-    )
+    for wall_y in (wago_south-wall, wago_south+bay_width):
+        body += _block(
+            inner_west, wall_y, floor,
+            wago_length+wall, wall, bay_height+surplomb_w
+        )
     # seuil
     body += _block(
         inner_west + wago_length, wago_south-wall, floor,
-        wall, wago_width+2*wall, 1.0
-    )
-    # WAGO 221-415 par dessus
-    # murs sud, nord
-    body += _block(
-        inner_west, wago_south-wall, floor,
-        wago_length+wall, wall, wago_height*2+surplomb_w
-    )
-    body += _block(
-        inner_west, wago_south+wago_415, floor,
-        wago_length+wall, wall, wago_height*2+surplomb_w
-    )
-    # seuil
-    body += _block(
-        inner_west + wago_length, wago_south+wago_width, floor+wago_height,
-        wall, wago_415-wago_width, 1.0
+        wall, bay_width+2*wall, 1.0
     )
     # surplomb
     body += surplomb(
-        wago_south,inner_west,wago_height*2+floor,
+        wago_south,inner_west,bay_height+floor,
         surplomb_w,surplomb_l,plane=Plane.YZ,inverse=True
     )
     body += surplomb(
-        wago_south + wago_415,inner_west+surplomb_l,wago_height*2+floor,
+        wago_south+bay_width,inner_west+surplomb_l,bay_height+floor,
         surplomb_w,surplomb_l,plane=Plane.YZ
     )
 
     body = _cable_tie_tower(body, 
-        inner_west + measured("tower_res_x"), wago_south, wago_height, floor)
-    body = _cable_tie_tower(body, 
-        inner_west + measured("tower_res_x") + measured("tower_res_dx"), wago_south, wago_height, floor)
+        inner_west + measured("tower_res_x"), bay_center_y-5, wago_height, floor)
+    body = _cable_tie_tower(body,
+        inner_west + measured("tower_res_x") + measured("tower_res_dx"), bay_center_y-5, wago_height, floor)
+    body = _cable_tie_tower(body,
+        inner_west + measured("tower_res_x") + measured("tower_res_dx")*2, bay_center_y-5, wago_height, floor)
+
+    body = _cable_tie_tower(body,
+        inner_west + measured("tower_res_x"), bay_center_y+10, wago_height, floor)
+
+    body = _cable_tie_tower(body,
+        inner_west + measured("tower_res_x") + measured("tower_res_dx")*2+5, bay_center_y+10, wago_height, floor)
 
     return body
 
 @part
 def screen_base(
     wedge_width=126.1,
-    seat_height=24.0,
+    seat_height=25.0,
     backing=WEDGE_LENGTH,
     tilt=45.0,
     wall=2.0,

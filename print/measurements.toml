@@ -20,6 +20,16 @@
 # Bambu Studio: prefer 3MF from `nurb export` (printer.toml). Spec 1.41 may
 # warn in Studio; the object still imports. STL via `--formats stl` if needed.
 
+[wago_2411_largeur]
+value = 8.0
+unit = "mm"
+how = "user: WAGO 221-2411 single pass through 2 poles with 0.1 margin"
+
+[wago_2411_epaisseur]
+value = 8.6
+unit = "mm"
+how = "user: WAGO 221-2411 depth"
+
 [wago_423_largeur]
 value = 18.8
 unit = "mm"
@@ -39,6 +49,11 @@ how = "user: WAGO 221-415 across the five levers"
 value = 18.6
 unit = "mm"
 how = "user: Wago 221-423 body in the wire-entry direction. Matches WAGO datasheet depth 18.6 mm."
+
+[wago_2411_longueur]
+value = 36.5
+unti = "mm"
+how = "user: longueur Wago 221-2411"
 
 [wago_epaisseur]
 value = 8.4
@@ -813,6 +828,46 @@ how = "user 2026-08-31: largeur interne de l'encoche en X."
 value = 15.0
 unit = "mm"
 how = "user 2026-08-31: largeur interne de l'encoche en Z."
+
+[pcb_sensors_space_y]
+value = 6.5
+unit = "mm"
+how = "user 2026-10-21: espace au sud du PCB"
+
+[pcb_sensors_space_z]
+value = 5.0
+unit = "mm"
+how = "user 2026-10-21: espace sous le PCB"
+
+[pcb_sensors_depth]
+value = 1.7
+unit = "mm"
+how = "user 2026-10-21: PCB board depth with 0.1mm margin"
+
+[pcb_sensors_dx]
+value = 25.0
+unit = "mm"
+how = "user 2026-10-21: largeur du PCB sensors"
+
+[pcb_sensors_dy]
+value = 61.0
+unit = "mm"
+how = "user 2026-10-21: longueur du PCB sensors"
+
+[pcb_sensors_dz]
+value = 21.0
+unit = "mm"
+how = "user 2026-10-21: hauteur du PCB sensors, avec XIAO"
+
+[pcb_sensors_hole_cx]
+value = 12.5
+unit = "mm"
+how = "user 2025-10-21: cx du trou M2.5"
+
+[pcb_sensors_hole_cy]
+value = 2.90
+unit = "mm"
+how = "user 2025-10-21: cy du trou M2.5"
 
 [boitier_ac_puit_depuis_cote]
 value = 10.0

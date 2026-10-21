@@ -37,6 +37,7 @@ from nurb import (
     extrude,
     make_face,
     measured,
+    mirror,
     polish,
     reject,
     sweep,
@@ -813,3 +814,48 @@ def back_face_layout(
         second_opening_x=second_opening_x,
         second_opening_z=second_opening_z,
     )
+
+
+def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth):
+    """Flat lid for a box outline: plate, inner rim, screw holes, mirrored in X.
+
+    The rim sits `wall + jeu` inside `pts` and is cut `corbel_jeu` around each
+    corbel pad. The result is mirrored about the outline's X centre so that
+    flipping the lid about a north-south axis lands it on the box.
+    """
+    corbel_jeu = 1.3
+    plate = extrude(Polygon(*pts, align=None), floor)
+    outer = offset_in(pts, wall + jeu)
+    inner = offset_in(pts, wall + jeu + rim_width)
+    rim = Pos(0, 0, floor) * (
+        extrude(Polygon(*outer, align=None), rim_depth)
+        - extrude(Polygon(*inner, align=None), rim_depth)
+    )
+    body = plate + rim
+
+    for cx, cy, diameter, pad in corbels:
+        body = body - Pos(cx, cy, 0) * Cylinder(diameter / 2, floor, align=CMIN)
+        body = body - Pos(
+            pad.min.X - corbel_jeu, pad.min.Y - corbel_jeu, floor
+        ) * Box(
+            pad.size.X + 2 * corbel_jeu,
+            pad.size.Y + 2 * corbel_jeu,
+            rim_depth,
+            align=AMIN,
+        )
+
+    xs = [x for x, _ in pts]
+    mid_x = (min(xs) + max(xs)) / 2.0
+    mirror_x = Plane(origin=(mid_x, 0.0, 0.0), x_dir=(0.0, 1.0, 0.0), z_dir=(1.0, 0.0, 0.0))
+    return mirror(body, about=mirror_x)
+
+
+def polish_couvercle(body, wall, rim_depth):
+    """Chamfer the vertical edges of a lid, keeping those at the rim tip sharp for fit."""
+    bed = body.bounding_box().min.Z
+
+    def keep(edge):
+        bb = edge.bounding_box()
+        return bb.min.Z <= bed + 0.05 or bb.min.Z >= wall + rim_depth - 0.05
+
+    return polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 0.6)

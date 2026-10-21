@@ -28,8 +28,6 @@ def corbels(wall):
     corbel_diameter = INSERT_M3.diametre_percage
     corbel_wall = INSERT_M3.epaisseur_paroi_min
     corbel_mid = corbel_wall + corbel_diameter / 2
-    corbel_plat = corbel_diameter + corbel_wall
-    corbel_along = corbel_diameter + 2 * corbel_wall
     bb = bb_overall()
     return [
         (

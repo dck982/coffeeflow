@@ -1,13 +1,13 @@
 from nurb import *
 
 from system import (
-    INSERT_M2,
     INSERT_M25,
     INSERT_M3,
     CMIN, AMIN,
     _fuse_one,
     add_wall,
     add_corbel,
+    add_well,
     offset_in,
     add_heat_insert,
     bbox,
@@ -15,272 +15,126 @@ from system import (
     surplomb_xz,
 )
 
-from parts.boitier_ac import ssr_dc_opening, dimmer_dc_opening
+ANGLE_OPENING_W = 7.0
+ANGLE_OPENING_Z0 = 10.0
 
 # Overall dimensions
-def bb_overall():
-    return bbox(0, 0, measured("boitier_int_aile_x"), measured("boitier_int_y"))
+def bb_overall(wall):
+    dx = 3*wall + measured("pcb_sensors_dx") + measured("wago_2411_largeur")
+    west_x = measured("boitier_int_marche_x")
+    dy = 2*wall+measured("pcb_sensors_dy")+measured("pcb_sensors_space_y")
+    south_y = measured("boitier_int_aile_y")+measured("magnet_spacer_ac_dans_boitier")-dy
+    return bbox(west_x,south_y,dx,dy)
 
-# Dimensions of the top area after the marche
-def bb_top():
-    return bbox(
-        measured("boitier_int_marche_x"), 
-        measured("boitier_int_marche_y"),
-        measured("boitier_int_aile_x")-measured("boitier_int_marche_x"),
-        measured("boitier_int_y")-measured("boitier_int_marche_y")
-        )
-
-def bb_bottom():
-    return bbox(0,0,measured("boitier_int_aile_x"),measured("boitier_int_marche_y"))
+def corbel_dimensions():
+    corbel_diameter = INSERT_M3.diametre_percage
+    corbel_wall = INSERT_M3.epaisseur_paroi_min
+    return (
+        # plat
+        corbel_diameter + corbel_wall,
+        # along
+        corbel_diameter + 2 * corbel_wall
+    )
 
 def corbels(wall):
     """Hole (cx, cy, d) and XY bbox of the pad, same origins as `add_corbel`."""
+    (corbel_plat, corbel_along) = corbel_dimensions()
     corbel_diameter = INSERT_M3.diametre_percage
     corbel_wall = INSERT_M3.epaisseur_paroi_min
     corbel_mid = corbel_wall + corbel_diameter / 2
-    corbel_half = (corbel_diameter + corbel_wall) / 2
-    corbel_plat = corbel_diameter + corbel_wall
-    corbel_along = corbel_diameter + 2 * corbel_wall
-    x_marche = bb_top().min.X + wall
-    y_marche = bb_top().min.Y - wall
-    x_sw = measured("boitier_int_chanfrein")
-    y_sw = bb_overall().min.Y + wall
-
-    wago_bb = bb_wago_north_west(bb_top(), wall)
+    bb = bb_overall(wall)
     return [
         (
-            wago_bb.max.X - wall + corbel_half,
-            wago_bb.min.Y + corbel_mid,
+            bb.min.X + wall + corbel_plat/2,
+            bb.min.Y + wall + corbel_along/2,
             3,
-            bbox(wago_bb.max.X - wall, wago_bb.min.Y, corbel_plat, corbel_along),
+            bbox(bb.min.X + wall, bb.min.Y + wall, corbel_plat, corbel_along),
         ),
         (
-            x_sw + corbel_mid,
-            y_sw + corbel_half,
+            bb.max.X - wall - corbel_plat/2,
+            bb.max.Y - wall - corbel_along/2 - ANGLE_OPENING_W,
             3,
-            bbox(x_sw, y_sw, corbel_along, corbel_plat),
+            bbox(bb.max.X - wall - corbel_plat, bb.max.Y - wall - ANGLE_OPENING_W - corbel_along, corbel_plat, corbel_along),
         ),
-    ]
 
-def dc_contour():
-    bb = bb_overall()
-    bbtop = bb_top()
-    chanfrein = measured("boitier_int_chanfrein")
+    ]    
+
+def dc_contour(wall):
+    bb = bb_overall(wall)
     return ([
-        (bb.min.X, chanfrein),
-        (chanfrein, bb.min.Y),
+        (bb.min.X, bb.min.Y),
         (bb.max.X, bb.min.Y),
         (bb.max.X, bb.max.Y),
-        (bbtop.min.X, bb.max.Y),
-        (bbtop.min.X, bbtop.min.Y),
-        (bb.min.X, bbtop.min.Y),
+        (bb.min.X, bb.max.Y),
     ], bb)
 
-def _add_xiao_pin(body, outer, cx, cy, z0, height):
-    # 3mm wide pin to support the M2 hole
-    pin_sw = Pos(cx, cy, z0) * Cylinder(
-        1.5, height, align=CMIN
+def add_east_wago(body,outer,inner_east_x,inner_south_y,floor,wall,surplomb_len,height):
+    x0 = inner_east_x-measured("wago_2411_largeur")-wall
+    dy = measured("wago_2411_longueur")
+    dz = measured("wago_2411_epaisseur")*2
+    surplomb_w = 1.0
+    body = add_wall(
+        body, 
+        outer, 
+        x0,
+        inner_south_y,
+        wall,
+        dy,
+        floor,
+        dz+surplomb_w
     )
-    return body + pin_sw.intersect(outer)
-
-# XIAO elements: two heat inserts, two pins, a thin separation wall
-def _xiao_area(body, outer, east_x, south_y, z0):
-    xiao_len = measured("xiao_board_len") 
-    xiao_width = measured("xiao_board_width")
-    xiao_height = measured("xiao_board_height")
-    xiao_z0 = 5.0
-
-    # two M2 heat inserts at the top
-    hole_dx = measured("xiao_board_hole_dx")
-    hole_dy = measured("xiao_board_hole_dy")
-    hole_east_x = east_x - hole_dx
-    hole_west_x = east_x - xiao_width + hole_dx
-    hole_y = south_y + xiao_len - hole_dy
-    body = add_heat_insert(body, outer, 
-        hole_east_x, hole_y, z0, xiao_z0, INSERT_M2, ring_factor=1.25)
-    body = add_heat_insert(body, outer, 
-        hole_west_x, hole_y, z0, xiao_z0, INSERT_M2)
-
-    # two pillars lower
-    pillars_dy = measured("xiao_board_pillars_dy")
-    pin_y = hole_y - pillars_dy
-    body = _add_xiao_pin(body, outer, hole_west_x, pin_y, z0, xiao_z0)
-    body = _add_xiao_pin(body, outer, hole_east_x, pin_y, z0, xiao_z0)
-
-    # a separation wall on the west, thinnest possible
-    thin_wall = 1.26
-    body = add_wall(body, outer, 
-        east_x - xiao_width - thin_wall, pin_y+3, 
-        thin_wall, hole_y-pin_y-3-INSERT_M2.encombrement/2, 
-        z0, xiao_height)
-
-    return body
-
-def canpal_bb(wall, z0):
-    bbtop = bb_top()
-    wago_bb = bb_wago_north_west(bbtop, wall)
-    # leave room for the SLNT wire that hooks through the top terminal block
-    canpal_dy = measured("can_pal_length") + wall
-    return bbox(
-        wago_bb.max.X, 
-        bbtop.max.Y-wall-canpal_dy-measured("can_pal_slnt_room"),
-        bbtop.max.X-wall-wago_bb.max.X,
-        canpal_dy,
-        z0=z0,h=5.0
-        )
-
-# CAN Pal in the NE corner
-def _canpal_area(body, outer, z0, wall):
-
-    bb = canpal_bb(wall, z0)
-
-    module_w = measured("can_pal_width")
-    module_l = measured("can_pal_length")
-    # place the module 5mm above floor (heat inserts need 4)
-    module_z0 = bb.size.Z 
-    h2e = measured("can_pal_hole_to_edge")
-    
-    # center the module
-    center_x = bb.center().X
-    west_edge_x = center_x - module_w/2.0
-    east_edge_x = center_x + module_w/2.0
-
-    # then place the two M2.5 inserts
-    # First in the NE corner
-    # Left hole is same distance from left edge
-    # Add two walls direction south to support the
-    # module over 50% of its length
-    for cx in (east_edge_x-h2e,west_edge_x+h2e):
-        cy = bb.max.Y - h2e
-        body = add_heat_insert(body, outer,
-            cx, cy, z0, module_z0, INSERT_M25
-            )
-        # half insert
-        hi = INSERT_M25.encombrement/2
-        body = add_wall(body, outer, 
-            cx-wall/2, cy-hi-module_l/2,
-            wall, module_l/2, z0, module_z0)
-    
-    # Add a perpendicular wall to stop the module on the south
-    # Make it use only the center 1/3 of the width, to not
-    # block the cable coming from the AC box
-    pcb_h = measured("can_pal_pcb_height")
-    stop_bar_x0 = west_edge_x + module_w/3
-    body = add_wall(body, outer,
-        stop_bar_x0, bb.min.Y,
-        module_w/3, wall, z0, module_z0 + pcb_h)
-    # Then a little overhang to hold the PCB
-    body = add_wall(body, outer,
-        stop_bar_x0, bb.min.Y,
-        module_w/3, wall+1.0, z0 + module_z0 + pcb_h, 1.0)
-
-    return body
-
-def _bb_wago_nw(bb, area_dx, wall):
-    # In Y: a wago and a stop wall
-    area_dy = measured("wago_profondeur") + wall
-    # In X: a wago and a side wall
-    area_dx = area_dx + wall
-    # Get inner bounds (add/subtract wall)
-    return bbox(bb.min.X + wall, bb.max.Y - wall - area_dy, area_dx, area_dy)
-
-# Definition of a compartment for wago connectors laying on their side, in a NW corner
-def _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall, count=1):
-    bb = _bb_wago_nw(container_bb, area_dx, wall)
-    
-    area_dy = measured("wago_profondeur")
-    area_dz = area_dz+wago_raise
-
-    # Add a wall on the east side to press the WAGO
-    body = add_wall(body, outer,
-        bb.max.X - wall, bb.min.Y,
-        wall, area_dy+wall,
-        z0, area_dz + surplomb_w)
-
-    # Add a parallel wall in the middle to raise the WAGO
-    wx = bb.min.X
-    for widx in range(count):
-        dwx = (area_dx - wall) / (count+1)
-        wx += dwx
-        body = add_wall(body, outer,
-            wx, bb.min.Y+wall,
-            wall, area_dy,
-            z0, wago_raise)
-
-    # Add a perpendicular wall to stop the WAGO from sliding out
-    catch_height = 1.0
-    body = add_wall(body, outer,
-        bb.min.X, bb.min.Y,
-        area_dx, wall,
-        z0, wago_raise + catch_height)
-
-    # Surplomb (catch): 1mm return from the muret toward the WAGO
-    # with its vertical face starting at the Wago top and its 45° lead-in
-    # starting 1mm below.    
+    # surplomb catch
     body = body + surplomb_xz(
-        bb.max.X - wall, 
-        bb.max.Y,
-        area_dz, 
+        x0+wall,
+        inner_south_y+surplomb_len,
+        dz,
         surplomb_w, 
         surplomb_len, 
-        z0).intersect(outer)
-
-    return body
-
-def bb_wago_south_west(container_bb, wall):
-    return _bb_wago_nw(container_bb, measured("wago_epaisseur")*2, wall)
-
-
-def magnet_spacer_pins(wall):
-    """Centres (x, y) des deux plots, et hauteur z même repère que boitier_dc."""
-    bb = bb_bottom()
-    wago = bb_wago_south_west(bb, wall)
-    py = wago.min.Y + wago.size.Y / 4
-    inner_west_x = bb.min.X + wall
-    inner_east_x = bb.max.X - wall
-    return (
-        (inner_west_x + wall + 1.5, py, 0.6),
-        (inner_east_x - wall * 1.5, py, 0.6),
-    )
-
-# A compartment for a 221-412 wago connector in the marche corner
-def _wago_south_west(body, outer, container_bb, wago_raise, surplomb_len, surplomb_w, z0, wall):
-    # A 221-412 on its side
-    area_dx = measured("wago_epaisseur")*2
-    dz_412 = measured("wago_412_largeur")
-    dz_423 = measured("wago_423_largeur")
-    body = body + _wago_nw(body, outer, 
-        container_bb, area_dx, dz_412, 
-        wago_raise, surplomb_len, surplomb_w, z0, wall, count=2)
-    # add a surplomb on the left for the 423
-    body = body + surplomb_xz(
-        container_bb.min.X+wall, 
-        container_bb.max.Y-wall, 
-        dz_423+wago_raise, 
-        surplomb_w, 
-        surplomb_len, 
-        z0, 
+        floor, 
         inverse=True)
-
+    # opening
+    catch = 1.0
+    body -= Pos(
+        inner_east_x-measured("wago_2411_largeur")+catch,
+        inner_south_y-wall,
+        floor+catch) * Box(
+            measured("wago_2411_largeur")-2*catch,
+            wall,
+            height-catch,
+            align=AMIN
+        )
     return body
 
-# For ensemble_boitiers
-def bb_wago_north_west(container_bb, wall):
-    return _bb_wago_nw(container_bb, measured("wago_epaisseur"), wall)
+def add_pcb(body,outer,x0,y0,floor,wall):
+    z0 = measured("pcb_sensors_space_z")
+    # heat insert for M2.5 PCB hole
+    body = add_heat_insert(
+        body, 
+        outer, 
+        x0+measured("pcb_sensors_hole_cx"),
+        y0+measured("pcb_sensors_hole_cy"),
+        floor,
+        z0,
+        INSERT_M25
+        )
+    # bar to hold the PCB up north
+    bar_w = 1.0
+    y1 = y0 + measured("pcb_sensors_dy")
+    body = add_wall(
+        body,outer,
+        x0,y1-bar_w,
+        measured("pcb_sensors_dx"),bar_w,
+        floor+z0+measured("pcb_sensors_depth"),bar_w)
+    # and bar to support
+    body = add_wall(body,outer,x0,y1-bar_w,measured("pcb_sensors_dx"),bar_w,floor,z0)
 
-# A compartment for a 221-423 wago connector in the NW corner
-def _wago_north_west(body, outer, container_bb, wago_raise, surplomb_len, surplomb_w, z0, wall):
-    # A 221-423 on its side
-    area_dx = measured("wago_epaisseur")
-    area_dz = measured("wago_423_largeur")
-    return _wago_nw(body, outer, container_bb, area_dx, area_dz, wago_raise, surplomb_len, surplomb_w, z0, wall)
+    return body
 
 @part
 def boitier_dc(
-    hauteur=27.0,
+    hauteur=25.0,
     epaisseur_paroi=1.68,
     epaisseur_fond=1.6,
-    wago_raise=3.0,
     wago_surplomb=6.0,
     draft=False,
 ):
@@ -289,7 +143,6 @@ def boitier_dc(
     hauteur: hauteur hors-tout depuis le lit (murs compris)
     epaisseur_paroi: épaisseur des murs, vers l'intérieur
     epaisseur_fond: épaisseur du fond vers le haut
-    wago_raise: de combien monter les logements WAGO
     wago_surplomb: longueur du surplomb WAGO
     """
     wall = epaisseur_paroi
@@ -316,141 +169,70 @@ def boitier_dc(
             "raise it",
             param="hauteur",
         )
-    if wago_raise < 3:
-        reject(
-            f"wago_raise {wago_raise} is under the magnet well height 3mm: raise it",
-            param="wago_raise"
-        )
 
     # outer and inner polygon
-    outer_pts, bb = dc_contour()
+    outer_pts, bb = dc_contour(wall)
     inner_pts = offset_in(outer_pts, wall)
 
     # compute inner angles coords
     inner_west_x = bb.min.X + wall
-    inner_west_marche_x = bb_top().min.X + wall
-    inner_north_marche_y = bb_top().min.Y - wall
     inner_east_x = bb.max.X - wall
     inner_south_y = bb.min.Y + wall
     inner_north_y = bb.max.Y - wall
 
-    # we need to fit 
-    # - a Unit CAN on its side
-    # - a 1.6mm wire channel 
-    # - a thin wall (1.26mm)
-    # - the XIAO 
-    # in the upper width (marche)
-    if inner_west_marche_x + measured("unit_can_height") + 1.6 + 1.26 + measured("xiao_board_width") > inner_east_x:
-        reject(
-            f"pas la place pour Unit CAN, cable, mur fin et XIAO en X dans la partie supérieure du boitier",
-            param="epaisseur_paroi"
-        )
-
-    # we need to fit in Y
-    # - a XIAO board
-    # - a 221-415 WAGO
-    if inner_south_y + measured("xiao_board_len") + measured("wago_415_largeur") > inner_north_y:
-        reject(
-            f"pas la place pour XIAO et WAGO en Y dans le boitier",
-            param="epaisseur_paroi"
-        )
-
     # Empty box
-    outer = extrude(Polygon(*outer_pts, align=None), hauteur)
+    outer = Pos(bb.min.X,bb.min.Y,0) * Box(bb.size.X,bb.size.Y,hauteur,align=AMIN)
     cavity = Pos(0, 0, floor) * extrude(
         Polygon(*inner_pts, align=None), hauteur + 0.2
     )
     body = outer - cavity
 
-    # Pillars / heat inserts for XIAO ESP32, tuck in the south east corner
-    body = _xiao_area(body, outer, inner_east_x, inner_south_y, floor)
+    # two wago 2411 stacked on the right
+    body = add_east_wago(body,outer,inner_east_x,inner_south_y,floor,wall,wago_surplomb,hauteur)
 
-    # Wago south east: one Wago 221-423 for 5V + one Wago 221-412 for GND connection
-    wago_surplomb_w = 1.0
-    body = _wago_south_west(body, outer, 
-        bb_bottom(),
-        wago_raise, wago_surplomb, wago_surplomb_w, 
-        floor, wall)
+    # PCB sensors
+    body = add_pcb(body,outer,inner_west_x,inner_south_y+measured("pcb_sensors_space_y"),floor,wall)
 
-    # Wago north east: one Wago 221-423 for 5V connection
-    body = _wago_north_west(body, outer, 
-        bb_top(),
-        wago_raise, wago_surplomb, wago_surplomb_w, 
-        floor, wall)
-
-    # CAN Pal
-    body = _canpal_area(body, outer, floor, wall)
-
-    # Two M3 corbel heat inserts: same recipe as boitier_ps's wall corbels,
-    # an overhang from the wall's inner face near the rim (not a tower from
-    # the floor) to spend minimum material. Thin at z_corbel_45, full
-    # `corbel_plat` thick from z_corbel to the rim; the bore drills down
-    # `corbel_profondeur` from the rim.
-    chanfrein = measured("boitier_int_chanfrein")
-    wago_bb = bb_wago_north_west(bb_top(), wall)
-    body = add_corbel(body, wago_bb.max.X-wall+0.4, wago_bb.min.Y, hauteur, insert=INSERT_M3)
-    body = add_corbel(body, chanfrein, inner_south_y, hauteur, insert=INSERT_M3, plane=Plane.YZ)
-
-    # Chamfer wall (0, 20) → (20, 0): open the low-X half, leftmost
-    # corner to the midpoint. Floor stays.
-    s2 = 2.0 ** 0.5
-    tx, ty = 1.0 / s2, -1.0 / s2
-    nx, ny = 1.0 / s2, 1.0 / s2
-    ax, ay = 0.0, chanfrein
-    mx, my = chanfrein / 2.0, chanfrein / 2.0
-    past = 1.0
-    inn = wall + 2.0
-    margin = 0
-    body = body - (
-        Pos(0, 0, floor)
-        * extrude(
-            Polygon(        
-                (ax - past * tx - margin * nx, ay - past * ty - margin * ny),
-                (mx + margin * tx - margin * nx, my + margin * ty - margin * ny),
-                (mx + margin * tx + inn * nx, my + margin * ty + inn * ny),
-                (ax - past * tx + inn * nx, ay - past * ty + inn * ny),
-                align=None,
-            ),
-            hauteur + 0.2,
-        )
-    )
-
-    # Two holes for magnet_spacer locating pins
-    pd = measured("magnet_spacer_pin_d") + measured("magnet_spacer_pin_jeu")
-    for px, py, _ in magnet_spacer_pins(wall):
-        body = body - (
-            Pos(px, py, 0) * Cylinder(pd / 2, floor, align=CMIN)
-        )
-
-    # East-face slots matching AC west: dimmer (north module) and SSR (south).
-    # Y from y_max so the north faces stay aligned; Z from AC (open to the top).
-    (do_y0, do_z0, do_dy, do_dz) = dimmer_dc_opening(wall, floor, hauteur)
-    body = body - Pos(inner_east_x, do_y0, do_z0) * Box(
+    # Opening north west
+    body -= Pos(inner_east_x,inner_north_y-ANGLE_OPENING_W,ANGLE_OPENING_Z0)*Box(
         wall,
-        do_dy,
-        do_dz,
-        align=AMIN,
+        ANGLE_OPENING_W,
+        hauteur-ANGLE_OPENING_Z0,
+        align=AMIN
     )
-    (ss_y0, ss_z0, ss_dy, ss_dz) = ssr_dc_opening(wall, floor, hauteur)
-    body = body - Pos(inner_east_x, ss_y0, ss_z0) * Box(
+    body -= Pos(inner_east_x-ANGLE_OPENING_W+wall,inner_north_y,ANGLE_OPENING_Z0)*Box(
+        ANGLE_OPENING_W,
         wall,
-        ss_dy,
-        ss_dz,
-        align=AMIN,
+        hauteur-ANGLE_OPENING_Z0,
+        align=AMIN
     )
+
+    # Magnet well
+    dx = inner_east_x-inner_west_x
+    dy = inner_north_y-inner_south_y
+    body = add_well(body,outer,inner_west_x+dx/2,inner_south_y+dy/3)
+    body = add_well(body,outer,inner_west_x+dx/2,inner_south_y+dy*2/3)
+
+    # Corbels
+    corbels_data = corbels(wall)
+    (corbel_plat, corbel_along) = corbel_dimensions()
+    body = add_corbel(body, 
+        corbels_data[0][0] - corbel_plat/2, corbels_data[0][1] - corbel_along/2, hauteur, 
+        insert=INSERT_M3, reverse=False)
+    body = add_corbel(body, 
+        corbels_data[1][0] + corbel_plat/2, corbels_data[1][1] - corbel_along/2, hauteur, 
+        insert=INSERT_M3, reverse=True)
 
     body = _fuse_one(body)
+
     if draft:
         return body
 
     def keep(edge):
+        bb = bb_overall(wall)
         c = edge.center()
-        if c.Y < chanfrein and c.X < chanfrein:
-            return True
-        if c.X < inner_west_x - (wall/2):
-            return True
-        if (c.X < inner_west_marche_x - (wall/2)) and (c.Y>inner_north_y):
-            return True
-        return False
+        if c.X<bb.max.X and c.X>bb.min.X:
+            return False
+        return True
 
     return polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 1.0)

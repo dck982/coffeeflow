@@ -13,7 +13,6 @@ def ensemble_boitier_pid(open=10.0, push=0.0):
         reject(f"open {open} is negative: raise it to 0 or more", param="open")
 
     box = use("boitier_pid")
-    lid = use("couvercle_pid")
     cache = use("cache_pid")
     plaque = use("cache_pid",plaque=1)
     goujon_a = use("goujon_pid")
@@ -26,18 +25,10 @@ def ensemble_boitier_pid(open=10.0, push=0.0):
     # the north channel wall stands `hauteur` on `epaisseur_fond`.
     box_bb = box.bounding_box()
     mid_x = box_bb.size.X / 2.0
-    z_top = box.bounding_box().size.Z
     plate = 1.6
-    lid = (
-        Pos(0, 0, z_top + plate + open)
-        * Pos(mid_x, 0, 0)
-        * Rot(0, 180, 0)
-        * Pos(-mid_x, 0, 0)
-        * lid
-    )
     machine_plate = plaque.bounding_box().size.Z
     opening_dy = measured("boitier_pid_ouverture_hauteur")
-    opening_y = measured("boitier_pid_ouverture_y")
+    opening_y = 5
     cache_bb = cache.bounding_box()
     cache = (
         Rot(180,0,0)
@@ -66,4 +57,6 @@ def ensemble_boitier_pid(open=10.0, push=0.0):
     goujon_a = Pos(goujon_coords[0][0],goujon_coords[0][1],goujon_coords[0][2])*goujon_a
     goujon_b = Pos(goujon_coords[1][0],goujon_coords[1][1],goujon_coords[0][2])*goujon_b
 
-    return (box, lid, cache, goujon_a, goujon_b, plaque)
+    box = Rot(0,180,0) * Pos(-box_bb.size.X,0,-plate) * box
+
+    return (box, cache, goujon_a, goujon_b, plaque)

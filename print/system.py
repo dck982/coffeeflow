@@ -237,9 +237,12 @@ def add_heat_insert(body, outer, cx, cy, z0, height, insert_def, ring_factor=1.0
         insert_def.diametre_percage/2, height, align=CMIN
     )
     ring = outer_pad - inner_void
-    clipped = ring.intersect(outer)
-    if clipped is not None:
-        body = body + clipped
+    if outer is not None:
+        clipped = ring.intersect(outer)
+        if clipped is not None:
+            body = body + clipped
+    else:
+        body += ring
     return body - inner_void
 
 def add_wall(body, outer, x, y, dx, dy, z0, height):
@@ -816,7 +819,7 @@ def back_face_layout(
     )
 
 
-def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth):
+def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openings=[], extra_v_rims=[]):
     """Flat lid for a box outline: plate, inner rim, screw holes, mirrored in X.
 
     The rim sits `wall + jeu` inside `pts` and is cut `corbel_jeu` around each
@@ -843,7 +846,11 @@ def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth):
             rim_depth,
             align=AMIN,
         )
-
+    for o_x0,o_y0,o_w,o_h in openings:
+        body -= Pos(o_x0,o_y0,0)*Box(o_w,o_h,floor+rim_depth,align=AMIN)
+    for r_x0,r_y0,r_h in extra_v_rims:
+        body += Pos(r_x0,r_y0,floor)*Box(rim_width,r_h,rim_depth,align=AMIN)
+    
     xs = [x for x, _ in pts]
     mid_x = (min(xs) + max(xs)) / 2.0
     mirror_x = Plane(origin=(mid_x, 0.0, 0.0), x_dir=(0.0, 1.0, 0.0), z_dir=(1.0, 0.0, 0.0))

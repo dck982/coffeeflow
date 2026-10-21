@@ -126,7 +126,7 @@ def add_pcb(body,outer,x0,y0,floor,wall):
         measured("pcb_sensors_dx"),bar_w,
         floor+z0+measured("pcb_sensors_depth"),bar_w)
     # and bar to support
-    body = add_wall(body,outer,x0,y1-bar_w,measured("pcb_sensors_dx"),bar_w,floor,z0)
+    body = add_wall(body,outer,x0,y1-bar_w*3,measured("pcb_sensors_dx"),bar_w*3,floor,z0)
 
     return body
 

@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import AMIN
+from system import AMIN, add_heat_insert, INSERT_M3
 
 def _block(x0,y0,z0,dx,dy,dz):
     return Pos(x0,y0,z0)*Box(dx,dy,dz,align=AMIN)
@@ -49,6 +49,12 @@ def cache_pid(wall=1.68, plaque=0, draft=False):
         body -= _block(
             goujon_coords[0][0]+goujon_w,aimant_cy,aimant_skin,
             aimant_cx[1]-(goujon_coords[0][0]+goujon_w),aimant_w,goujon_z-aimant_skin)
+    else:
+        body = add_heat_insert(
+            body, None, 
+            body.bounding_box().center().X, body.bounding_box().center().Y, 
+            plaque_dims[2], 5.0, INSERT_M3
+            )
     
     if draft or plaque>0:
         return body

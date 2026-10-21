@@ -1,8 +1,7 @@
 from nurb import *
 
-from system import couvercle_corps, polish_couvercle
+from system import couvercle_corps, polish_couvercle, AMIN
 from parts.boitier_dc import dc_contour, corbels
-
 
 @part
 def couvercle_dc(
@@ -30,11 +29,22 @@ def couvercle_dc(
             param="gouttiere_epaisseur",
         )
 
-    pts, _ = dc_contour(epaisseur_paroi)
+    pts, bb = dc_contour(epaisseur_paroi)
+    openings = [
+        (bb.min.X,bb.min.Y+35,15,20),
+        (bb.max.X-10,bb.min.Y+45,10,10),
+        (bb.min.X+22,bb.min.Y+10,5,5)
+    ]
+    extra_v_rims = [
+        (bb.center().X+5,bb.center().Y-5,30),
+        (bb.center().X,bb.center().Y-5,30)
+    ]
     body = couvercle_corps(
         pts, corbels(epaisseur_paroi), epaisseur_paroi, epaisseur_fond,
         gouttiere_jeu, gouttiere_epaisseur, gouttiere_profondeur,
+        openings, extra_v_rims
     )
+
     if draft:
         return body
     return polish_couvercle(body, epaisseur_fond, gouttiere_profondeur)

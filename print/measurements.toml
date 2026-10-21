@@ -1132,11 +1132,6 @@ value = 25
 unit = "mm"
 how = "user 2026-09-20: hauteur de l'ouverture, alignée au bas du boitier (Y)"
 
-[boitier_pid_ouverture_y]
-value = 12.5
-unit = "mm"
-how = "user 2026-09-20: distance de l'ouverture depuis le sud du boitier"
-
 [boitier_pid_goujon_x]
 value = 20.0
 unit = "mm"

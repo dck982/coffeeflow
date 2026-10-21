@@ -126,21 +126,20 @@ circuit reprend celui de `screen_sensors` :
 - La sortie de la XDB401 n’est pas ratiométrique : la pression se calcule sur
   la tension absolue de AIN1, AIN0 ne sert qu’à surveiller le +3V3.
 
-## Note pour la mise en service — HEATER_CMD
+## Mise en service — firmware
 
-**Modifier le firmware sensors seulement lors du passage au nouveau PCB.**
-Le montage actuel reste sur `kGpioHeater = GPIO_NUM_3` (D2, HW-399).
-La nouvelle carte utilise **HEATER_CMD sur GPIO4/D3, broche 4 de U1** :
-il faudra définir `kGpioHeater = GPIO_NUM_4` et `kHeaterActiveLevel = 1`
-(commande active HIGH pour Q3/Q2, au lieu de LOW pour le HW-399).
-Précharger LOW avant de configurer la sortie et désactiver son pull-up.
+Le firmware `sensors` 0.4.16 (2026-10-21) suit ce brochage :
+**HEATER_CMD sur GPIO4/D3, actif HIGH** (Q3/Q2), préchargé LOW sans pull-up ;
+R19/R21/R22 maintiennent la sortie BOILER coupée tant que le GPIO flotte.
+La LED D2 (GPIO2) est fixe 1 s au démarrage, puis clignote à 4 Hz si U5 ou
+U6 ne répondent pas, à 1 Hz si le dimmer ne répond pas, et sinon s’allume
+50 ms à chaque trame CAN reçue. CAN, I2C, FLOW et VALVE gardent leurs GPIO.
 
-HEATER_CMD et STATUS_LED ont été échangés pour faciliter le routage :
-la LED externe utilise désormais **GPIO2/D1, broche 2 de U1**. GPIO2 et GPIO4
-ne sont pas des broches de strapping. Le firmware n’est pas modifié dans
-cette révision matérielle ; le changement sera nécessaire avant la mise en service.
+L’image `factory` C++ (v0.2.9) n’a pas besoin d’être refaite pour cette
+carte : elle ne pilote que GPIO3 (désormais NC) pour la chauffe, que R19
+laisse coupée, et garde CAN, VALVE et la réception OTA sur les mêmes GPIO.
 
-## Circuits conservés et futur firmware
+## Circuits conservés
 
 Toutes les connexions des composants conservés sont inchangées : TJA1051T/3
 avec VCC 5 V, VIO 3,3 V et SLNT à GND, terminaison CAN 120 Ω, deux prises I2C
@@ -162,19 +161,10 @@ Vf = 2,6–3,1 V à 5 mA ; sous 3,3 V avec 1 kΩ, le courant sera inférieur
 de Vf est 0,2–0,7 mA ; le courant réel dépend de Vf à faible courant.
 Vérifier la luminosité au montage.
 
-**Le firmware n'a pas été modifié.** Il doit continuer à fonctionner sur le
-montage actuel pendant la fabrication du futur PCB. Pour la nouvelle carte,
-il faudra ultérieurement passer BOILER de GPIO3 à GPIO4 et surtout passer la
-commande de **active LOW (HW-399 actuel) à active HIGH (montage MOSFET conservé)**.
-Précharger LOW avant d'activer la sortie et désactiver le pull-up du chauffage.
-R19/R21/R22 maintiennent la sortie BOILER coupée lorsque le GPIO est flottant.
-Ajouter la commande LED sur GPIO2 si souhaitée. CAN/I2C/FLOW/VALVE ne demandent
-pas de migration des GPIO par rapport au XIAO actuel.
-
 ## Vérification
 
 2026-10-11, KiCad 10.0.6 : ERC sans violation. DRC avec parité schéma/PCB :
 zéro violation, zéro connexion manquante, zéro écart de parité. Les broches 1–14
 de U1 et leurs nets se retrouvent à l’identique sur J11/J12, et chaque pad de
 J11/J12 tombe à moins de 1 µm du trou de U1 qu’il remplace. L’export de
-fabrication passe : 34 composants, 23,5 × 60 mm. Le firmware reste inchangé.
+fabrication passe : 34 composants, 23,5 × 60 mm.

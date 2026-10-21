@@ -17,10 +17,17 @@ use crate::flash::FlashOta;
 use crate::flow;
 use crate::lockout;
 
-/// Niveaux du SSR chaudière : le HW-399 (sortie OUT4 absorbante) fait de LOW
-/// le niveau qui chauffe, HIGH celui qui arrête.
-pub const HEATER_ACTIVE: Level = Level::Low;
-pub const HEATER_INACTIVE: Level = Level::High;
+/// Niveaux de HEATER_CMD : HIGH ouvre Q3, qui ouvre Q2 et envoie le 5 V au
+/// SSR chaudière par J8.
+pub const HEATER_ACTIVE: Level = Level::High;
+pub const HEATER_INACTIVE: Level = Level::Low;
+
+/// TMP102 de la carte (ADD0 à GND) et son registre de température.
+pub const TMP102_ADDR: u8 = 0x48;
+pub const TMP102_REG_TEMPERATURE: u8 = 0x00;
+/// ADS1115 de la carte (ADDR au +3V3).
+pub const ADS1115_ADDR: u8 = 0x49;
+pub const ADS1115_REG_CONFIG: u8 = 0x01;
 
 pub struct Board {
     pub valve: Output<'static>,

@@ -87,7 +87,7 @@ pub trait Hw: FlashSink {
     fn now_us(&self) -> i64;
     /// Vanne : sortie haute = ouverte.
     fn set_valve(&mut self, open: bool);
-    /// Chauffe : `true` = SSR actif (broche basse).
+    /// Chauffe : `true` = SSR actif.
     fn set_heater(&mut self, on: bool);
     /// Écrit `[reg, value]` sur le dimmer. `false` si l'adresse n'acquitte pas.
     fn dimmer_write(&mut self, reg: u8, value: u8) -> bool;

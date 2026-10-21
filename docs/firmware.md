@@ -46,7 +46,7 @@ par le Rust, et validée par `CONFIRM_SENSORS_OTA`. Le rollback à 30 s de
 `sensors` est vérifié (feature `no-validate`).
 
 **Restent à valider sur la machine** : chauffe, purge et infusion, donc le SSR
-de la vanne, le dimmer en commande, la chauffe sur GPIO 3 et le comptage réel
+de la vanne, le dimmer en commande, la chauffe sur GPIO 4 et le comptage réel
 du débitmètre. Écart connu : `twai_bus_errors` vaut toujours 0 en Rust, le
 contrôleur n'exposant pas ce compteur que le pilote IDF tenait par
 interruption ; le diagnostic de câblage par erreurs de bus n'existe plus.
@@ -166,38 +166,45 @@ pendant les relevés HTTP, et `weight_g` y est une mesure vivante (voir
 
 Le firmware tourne sur le seul cœur 0 (le second cœur n'est jamais démarré). Sa logique (bail, présence, verrou, chauffe, flash) est dans le crate hôte `sensors-logic`, que le crate Xtensa `sensors` enveloppe ; les sorties sont mises en état sûr avant toute autre initialisation.
 
-Brochage Grove Shield, tel que câblé. **GPIO natif de l'ESP32-S3**, pas le
-D-number du silkscreen Seeed : le Grove Shield XIAO numérote ses ports en
-`Dn`, et `Dn` ne vaut **pas** `GPIOn` au-delà de D5 (D6/D7 partent sur
-GPIO43/44 pour l'UART0, ce qui décale tout ce qui suit — D8→GPIO7,
-D9→GPIO8, D10→GPIO9). Confirmé au multimètre le 2026-09-08 après un
-bring-up phase 2 en échec faute de cette traduction :
+Depuis la 0.4.16, le XIAO est enfiché sur la carte `pcb/sensors` (conception :
+`pcb/sensors/sensors_design.md`), qui remplace le Grove Shield. **GPIO natif de
+l'ESP32-S3**, pas le D-number Seeed (D6/D7 sont GPIO43/44, D8→GPIO7,
+D9→GPIO8, D10→GPIO9) :
 
-| Port | Périphérique | Bus | D-number (silkscreen) | GPIO natif |
+| Connecteur | Périphérique | Bus | D-number | GPIO natif |
 | --- | --- | --- | --- | --- |
-| R1 | Module Grove de pull-ups (2 × 4,7 kΩ vers 3,3 V), à la place de l'ancien XDB401 I2C | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
-| L4 | Dimmer RBDimmer DimmerLink | I2C (même bus) | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
-| R2 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
-| R3 | Adafruit CAN Pal (TJA1051T/3) | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
-| R4 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
-| L2 | HW-399 → SSR chaudière Keysolu/Maxwell | sortie GPIO | D2 | **GPIO 3** |
+| J4, J5 | Dimmer RBDimmer DimmerLink ; TMP102 (0x48) et ADS1115 (0x49) sur la carte | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
+| J6 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
+| J3 | TJA1051T/3 de la carte | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
+| J7 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
+| J8 | Q3/Q2 → SSR chaudière Keysolu/Maxwell | sortie GPIO, active haut | D3 | **GPIO 4** |
+| — | LED D2 de la carte | sortie GPIO, active haut | D1 | **GPIO 2** |
 
-**CAN Pal validé de bout en bout le 2026-09-09**, après rework de la broche `SLNT`
+**LED d'état.** Fixe pendant 1 s au démarrage. Ensuite, un défaut relevé au
+démarrage la fait clignoter jusqu'au redémarrage suivant : **4 Hz** si le
+TMP102 ou l'ADS1115 de la carte ne répondent pas (XIAO mal enfiché, bus I2C
+en défaut), **1 Hz** si le dimmer ne répond pas. Sans défaut, elle s'allume
+50 ms à chaque trame CAN reçue : éteinte, le bus est muet.
+
+**Console.** Sur l'USB-C du XIAO quand un hôte y est branché, sinon sur
+GPIO43 (non câblé).
+
+**CAN Pal validé de bout en bout le 2026-09-09** (montage Grove Shield), après rework de la broche `SLNT`
 (tirée au GND — le clone la laissait flottante sous les connecteurs rapportés,
 d'où un mode Silent permanent). Un M5Stack Unit CAN avait servi de contournement pendant
 l'investigation ; il n'est plus utilisé côté capteurs.
 
-**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique. Ses seules pull-ups sont les 4,7 kΩ du module Grove sur R1 : le retirer rend le dimmer muet, et la pompe ne démarre plus, sans autre symptôme. Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
+**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique commandé ; le TMP102 et l'ADS1115 de la carte ne sont lus qu'au démarrage, pour la LED. Ses seules pull-ups sont les 4,7 kΩ de la carte (R13/R14). Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
 
 ### SSR — vanne solénoïde
 
-GPIO 9 (D10 sur le silkscreen du Grove Shield), HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
+GPIO 9 (D10), HIGH = vanne ouverte, LOW = fermée. Le Unit SSR est zero-crossing (MOC3043) : pas d'ISR de passage par zéro, pas de timing. Défaut et repli : LOW, y compris au boot. Le 5 V du module vient de la Wago, pas du port Grove.
 
 ### Commande diagnostique de chaudière
 
-Le matériel est câblé pour deux chemins : **GPIO 3 / D2 / L2** du XIAO → **IN4 du HW-399** → sortie absorbante **OUT4** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont alimenté en **3V3 / GND par le port Sensor AD du Waveshare** → **A0/A1 de l'ADS1115** sur son I2C. La commande du SSR est câblée **5 V → SSR `+` → SSR `−` → OUT4**. La logique est inversée : **LOW sur GPIO 3 active la chauffe**, HIGH l'arrête. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md).
+Le matériel est câblé pour deux chemins : **GPIO 4 / D3** du XIAO → **Q3 (2N7002) puis Q2 (AO3401A)** de la carte → 5 V sur **J8** → entrée DC du **SSR chaudière Keysolu/Maxwell KS53 D-24Z20N-LQ** ; et **NTC G1/8** → pont alimenté en **3V3 / GND par le port Sensor AD du Waveshare** → **A0/A1 de l'ADS1115** sur son I2C. **HIGH sur GPIO 4 active la chauffe**, LOW l'arrête ; R19 garde la sortie coupée tant que le GPIO flotte. Jusqu'à la 0.4.15, le Grove Shield passait par un HW-399 sur GPIO 3, commande inversée. Schéma et calibration : [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md).
 
-Depuis v0.2.63, le firmware commande GPIO 3 via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 1 s ; un renouvellement ne redémarre pas cette période. Depuis v0.3.30, l'écran peut demander une nouvelle période (flag `restart_window`) sur la première commande non nulle de la précharge et de l'écoulement d'une infusion ; sans lui, une hausse reçue après l'extinction du SSR attend la période suivante. Sous 10 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 3 est mis à HIGH (état inactif) dès l'initialisation des sorties, avant tout le reste, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à LOW pour chauffer. Avant l'initialisation logicielle, notamment durant reset, l'état dépend du matériel et doit être vérifié. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67. GPIO 3 est aussi une broche de strapping pour le choix JTAG dans certaines configurations eFuse ; vérifier le chemin de récupération de la carte avec le HW-399 raccordé.
+Depuis v0.2.63, le firmware commande la chauffe via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 1 s ; un renouvellement ne redémarre pas cette période. Depuis v0.3.30, l'écran peut demander une nouvelle période (flag `restart_window`) sur la première commande non nulle de la précharge et de l'écoulement d'une infusion ; sans lui, une hausse reçue après l'extinction du SSR attend la période suivante. Sous 10 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 4 est mis à LOW (état inactif) dès l'initialisation des sorties, avant tout le reste, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à HIGH pour chauffer. Avant l'initialisation logicielle, notamment durant reset, R19 tient la grille de Q3 basse. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67.
 
 `POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating.requested`, `heating.on` (`null` sans écho frais), `heating.freshness`, `heating.capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `brew.dimmer_pct` reste un alias de `brew.pump_pct` en télémétrie.
 
@@ -227,7 +234,7 @@ Code de banc existant : `../tests/test_rbi2c.py`.
 
 ### Débitmètre
 
-Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre RC du shield (1 kΩ vers 3,3 V, 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 44 (D7 sur le silkscreen du Grove Shield) ; pull-up interne éteinte. Une interruption GPIO incrémente un compteur 32 bits et mémorise l'horodatage du dernier front. GPIO 44 est aussi le RX par défaut de l'UART0 : le firmware le passe en fonction GPIO avant d'installer le gestionnaire d'interruption (voir « Pièges connus » dans `firmware-build.md`).
+Digmesa 932-9525-B, buse 1,00 mm, **2382 impulsions par litre** (0,42 ml par impulsion), collecteur ouvert NPN. Le filtre de la carte (R15 1 kΩ vers 3,3 V, C12 10 nF vers GND) fournit un front descendant 3,3 V sur GPIO 44 (D7) ; pull-up interne éteinte. Une interruption GPIO incrémente un compteur 32 bits et mémorise l'horodatage du dernier front. GPIO 44 est aussi le RX par défaut de l'UART0 : le firmware le passe en fonction GPIO avant d'installer le gestionnaire d'interruption (voir « Pièges connus » dans `firmware-build.md`).
 
 **Le module capteurs ne calcule ni volume ni débit.** Il publie le compteur cumulé et la date de la dernière impulsion ; l'écran en dérive tout, avec le facteur K et la courbe de correction qu'il détient. Trois raisons :
 

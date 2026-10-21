@@ -2,7 +2,7 @@
 edition      = "2024"
 name         = "sensors"
 rust-version = "1.95"
-version      = "0.4.15"
+version      = "0.4.16"
 
 [features]
 default = []
@@ -41,11 +41,11 @@ esp-backtrace = { version = "0.20.0", features = [
   "println",
 ] }
 esp-println = { version = "0.18.0", default-features = false, features = [
+  "auto",
   "colors",
   "critical-section",
   "esp32s3",
   "log-04",
-  "uart",
 ] }
 sha2 = { version = "0.11", default-features = false }
 

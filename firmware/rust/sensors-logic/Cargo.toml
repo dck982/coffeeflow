@@ -1,6 +1,6 @@
 [package]
 name = "sensors-logic"
-version = "0.4.15"
+version = "0.4.16"
 edition = "2024"
 description = "Logique pure du module capteurs : chauffe modulée, garde du dimmer, bail, présence, verrou 60 s, réception FLASH"
 

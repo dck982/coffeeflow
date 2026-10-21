@@ -301,8 +301,8 @@ afficher les trames avec retard lorsqu'il rattrape un buffer important.
   deux transactions séparées ; une lecture groupée donne des pressions
   incohérentes. Appliquer la formule du fabricant à l'ordre big-endian des
   registres, même si le PDU est little-endian.
-- **Pull-ups I2C.** Elles sont dans le module Grove R1 : le débrancher rend le
-  dimmer muet.
+- **Pull-ups I2C.** Ce sont R13/R14 sur la carte `sensors` ; un dimmer muet
+  au démarrage fait clignoter la LED à 1 Hz.
 - **Dimmer.** Il lui faut le secteur pour devenir prêt : sans 230 V, son
   erreur de calibration est normale. Les flags viennent de `STATUS`
   (READY/ERROR), pas du seul registre `ERROR` ; `AC_FREQ` est informatif. Ne
@@ -335,4 +335,4 @@ afficher les trames avec retard lorsqu'il rattrape un buffer important.
   C++ est perdu.
 - **NVS est rouvert à chaque requête** de l'écran.
 - **Restent à valider sur la machine** : chauffe, purge, infusion (SSR vanne,
-  dimmer en commande, chauffe GPIO3, comptage réel du débitmètre).
+  dimmer en commande, chauffe GPIO4, comptage réel du débitmètre).

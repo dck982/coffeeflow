@@ -1,7 +1,7 @@
 //! Débitmètre Digmesa sur GPIO 44 : front descendant, sans pull-up interne
-//! (le filtre RC du shield fournit un 3,3 V propre). Une interruption
-//! incrémente le compteur et date le dernier front ; la boucle de sécurité le
-//! lit pour `STATUS_FLOW`.
+//! (la pull-up de 1 kΩ et le filtre de la carte fournissent un 3,3 V
+//! propre). Une interruption incrémente le compteur et date le dernier
+//! front ; la boucle de sécurité le lit pour `STATUS_FLOW`.
 
 use core::cell::{Cell, RefCell};
 

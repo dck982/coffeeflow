@@ -176,6 +176,10 @@ branche sur le PCB du Waveshare. Le transceiver TJA1051T/3 y est intégré : CAN
 
 ## Ports Grove du XIAO
 
+Depuis le 2026-10-21, le XIAO est enfiché sur la carte `pcb/sensors`, qui remplace le
+Grove Shield ; brochage dans `pcb/sensors/sensors_design.md`. Cette section décrit
+l'ancien montage.
+
 Shield tenu XIAO en bas : colonne **gauche = L**, colonne **droite = R**, port **1** au plus
 près du XIAO, **4** au plus loin.
 

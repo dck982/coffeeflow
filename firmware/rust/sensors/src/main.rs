@@ -20,6 +20,7 @@ mod can;
 mod clock;
 mod flash;
 mod flow;
+mod led;
 mod lockout;
 mod otadata;
 mod watchdog;
@@ -34,7 +35,7 @@ use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::twai::{BaudRate, TwaiConfiguration, TwaiMode};
 use log::{info, warn};
-use sensors_logic::machine::TICK_PERIOD_US;
+use sensors_logic::machine::{DIMMER_ADDR, DIMMER_REG_STATUS, TICK_PERIOD_US};
 use sensors_logic::{Action, Config, Machine};
 use static_cell::StaticCell;
 
@@ -66,30 +67,28 @@ static MACHINE: StaticCell<Machine<Board>> = StaticCell::new();
 async fn main(spawner: Spawner) -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::_160MHz));
 
-    // Sorties sûres avant tout le reste, CAN compris. Le latch du SSR
-    // chaudière est préchargé à l'état inactif (HIGH, le niveau bas chauffe)
-    // avant que le pilote de sortie ne s'active, avec la pull-up du chemin
-    // HW-399 ; la vanne est basse. `Output::new` pose le niveau avant
-    // d'activer la sortie.
+    // Sorties sûres avant tout le reste, CAN compris. La chauffe (HEATER_CMD)
+    // et la vanne sont basses ; `Output::new` pose le niveau avant d'activer
+    // la sortie. Pas de pull-up sur la chauffe : sans le GPIO, la résistance
+    // de grille de Q3 tient la sortie BOILER coupée.
     let heater = Output::new(
-        peripherals.GPIO3,
+        peripherals.GPIO4,
         HEATER_INACTIVE,
-        OutputConfig::default().with_pull(Pull::Up),
+        OutputConfig::default().with_pull(Pull::None),
     );
     let valve = Output::new(peripherals.GPIO9, Level::Low, OutputConfig::default());
-    // LED du XIAO, allumée au niveau bas, visible du haut de la machine sans
-    // console : fixe dès ici, elle clignote à 5 Hz une fois la boucle de
-    // logique lancée (la LED du shield Grove clignote déjà à 1 Hz). Fixe puis
-    // éteinte au bout de 3 s : blocage, puis watchdog.
-    let led = Output::new(peripherals.GPIO21, Level::Low, OutputConfig::default());
+    // LED d'état de la carte, allumée dès ici (voir `led`).
+    let led = Output::new(peripherals.GPIO2, Level::High, OutputConfig::default());
 
     // esp_hal::init a coupé les watchdogs : on réarme celui du RTC tout de suite.
     watchdog::arm(peripherals.RTC_TIMER);
     clock::init();
+    let boot_us = clock::now_us();
 
-    // U0TXD sur GPIO43 (D6 du shield), pour la console. GPIO44, le RX de
-    // l'UART0, est le débitmètre : on ne le branche pas. Le pilote vit
-    // jusqu'à la fin de main, qui ne rend jamais la main.
+    // Console sur l'USB du XIAO quand un hôte y est branché, sinon sur
+    // U0TXD (GPIO43, non câblé sur la carte). GPIO44, le RX de l'UART0, est
+    // le débitmètre : on ne le branche pas. Le pilote vit jusqu'à la fin de
+    // main, qui ne rend jamais la main.
     esp_println::logger::init_logger_from_env();
     let _console = esp_hal::uart::UartTx::new(peripherals.UART0, esp_hal::uart::Config::default())
         .unwrap()
@@ -128,8 +127,8 @@ async fn main(spawner: Spawner) -> ! {
     .start();
     spawner.spawn(can::task(twai).unwrap());
 
-    // Bus I2C du dimmer. Ses seules pull-ups sont les 4,7 kΩ du module Grove
-    // branché sur R1 : ni pull-up interne ni autre jeu en plus, d'où des
+    // Bus I2C du dimmer et des puces de la carte. Ses seules pull-ups sont
+    // les 4,7 kΩ de la carte (R13/R14) : ni pull-up interne en plus, d'où des
     // broches `Flex` configurées à la main (le pilote n'y touche plus).
     let mut sda = Flex::new(peripherals.GPIO5);
     let mut scl = Flex::new(peripherals.GPIO6);
@@ -141,7 +140,7 @@ async fn main(spawner: Spawner) -> ! {
         pin.set_output_enable(true);
         pin.set_high();
     }
-    let i2c = I2c::new(
+    let mut i2c = I2c::new(
         peripherals.I2C0,
         I2cConfig::default()
             .with_frequency(Rate::from_khz(100))
@@ -152,6 +151,7 @@ async fn main(spawner: Spawner) -> ! {
     .unwrap()
     .with_sda(sda)
     .with_scl(scl);
+    let led = led::Led::new(led, boot_fault(&mut i2c), boot_us);
 
     let board = Board {
         valve,
@@ -174,19 +174,45 @@ async fn main(spawner: Spawner) -> ! {
     logic(machine, led).await
 }
 
+/// Une lecture de registre par puce, pour la LED : les puces de la carte
+/// d'abord, puis le dimmer (son registre STATUS, comme sa relecture
+/// périodique).
+fn boot_fault(i2c: &mut I2c<'static, esp_hal::Blocking>) -> Option<led::BootFault> {
+    let mut buf = [0u8; 2];
+    let tmp102 = i2c
+        .write_read(
+            board::TMP102_ADDR,
+            &[board::TMP102_REG_TEMPERATURE],
+            &mut buf,
+        )
+        .is_ok();
+    let ads1115 = i2c
+        .write_read(board::ADS1115_ADDR, &[board::ADS1115_REG_CONFIG], &mut buf)
+        .is_ok();
+    let dimmer = i2c
+        .write_read(DIMMER_ADDR as u8, &[DIMMER_REG_STATUS], &mut buf[..1])
+        .is_ok();
+    let fault = if !(tmp102 && ads1115) {
+        Some(led::BootFault::Board)
+    } else if !dimmer {
+        Some(led::BootFault::Dimmer)
+    } else {
+        None
+    };
+    info!("i2c : tmp102 {tmp102}, ads1115 {ads1115}, dimmer {dimmer} -> led {fault:?}");
+    fault
+}
+
 /// Reçoit les trames, déroule le tick de sécurité et exécute les
 /// redémarrages demandés.
-async fn logic(machine: &'static mut Machine<Board>, mut led: Output<'static>) -> ! {
+async fn logic(machine: &'static mut Machine<Board>, mut led: led::Led) -> ! {
     let mut next_tick_us = clock::now_us() + TICK_PERIOD_US;
-    let mut next_blink_us = clock::now_us();
     loop {
-        if clock::now_us() >= next_blink_us {
-            led.toggle();
-            next_blink_us = clock::now_us() + 100_000;
-        }
+        led.update(clock::now_us());
         // Réveil toutes les 10 ms au plus : c'est la cadence de la tâche
         // pression du C++, et la précision du tick de sécurité.
         if let Ok(frame) = with_timeout(Duration::from_millis(10), can::RX.receive()).await {
+            led.on_frame(clock::now_us());
             machine.on_frame(&frame);
             while let Ok(frame) = can::RX.try_receive() {
                 machine.on_frame(&frame);

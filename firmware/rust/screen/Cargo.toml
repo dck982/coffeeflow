@@ -2,7 +2,7 @@
 edition      = "2024"
 name         = "screen"
 rust-version = "1.95"
-version      = "0.4.17"
+version      = "0.4.19"
 
 [dependencies]
 screen-core = { path = "../screen-core" }

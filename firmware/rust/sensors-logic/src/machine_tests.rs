@@ -26,6 +26,7 @@ struct Mock {
     dimmer_error: u8,
     dimmer_writes: Vec<(u8, u8)>,
     enclosure_raw: Option<i16>,
+    pressure_raw: Option<i16>,
     sent: Vec<Frame>,
     flow: FlowCounter,
     lockout_stored: Vec<bool>,
@@ -48,6 +49,7 @@ impl Mock {
             dimmer_error: 0,
             dimmer_writes: vec![],
             enclosure_raw: Some(0x1F0),
+            pressure_raw: None,
             sent: vec![],
             flow: FlowCounter::new(),
             lockout_stored: vec![],
@@ -119,6 +121,9 @@ impl Hw for Mock {
     }
     fn enclosure_temperature_raw(&mut self) -> Option<i16> {
         self.enclosure_raw
+    }
+    fn pressure_raw(&mut self) -> Option<i16> {
+        self.pressure_raw
     }
     fn store_lockout(&mut self, active: bool) {
         self.lockout_stored.push(active);
@@ -1180,6 +1185,37 @@ fn pressure_is_published_without_a_sensor_with_a_100_ms_floor() {
     m.hw.now += S;
     m.tick_pressure();
     assert_eq!(m.hw.sent.len(), 2);
+}
+
+#[test]
+fn pressure_is_valid_only_inside_the_probe_window() {
+    let mut m = present();
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPressure, 100)),
+    );
+    let publish = |m: &mut Machine<Mock>, raw: Option<i16>| {
+        m.hw.pressure_raw = raw;
+        m.hw.now += 100 * MS;
+        m.hw.sent.clear();
+        m.tick_pressure();
+        let Message::StatusPressure(p) = decoded(&m.hw.sent[0]) else {
+            panic!()
+        };
+        (p.pressure_raw, p.flags)
+    };
+    // Sonde au repos (0 bar), puis à 9 bar.
+    assert_eq!(publish(&mut m, Some(3167)), (3167, 1));
+    assert_eq!(publish(&mut m, Some(15_167)), (15_167, 1));
+    // Vide d'une chaudière refroidie (−0,47 bar), puis bornes de la fenêtre.
+    assert_eq!(publish(&mut m, Some(2534)), (2534, 1));
+    assert_eq!(publish(&mut m, Some(2230)), (2230, 1));
+    assert_eq!(publish(&mut m, Some(20_800)), (20_800, 1));
+    // Entrée à la masse, saturée, négative ou ADS1115 muet : invalide.
+    assert_eq!(publish(&mut m, Some(2229)), (0, 0));
+    assert_eq!(publish(&mut m, Some(20_801)), (0, 0));
+    assert_eq!(publish(&mut m, Some(-5)), (0, 0));
+    assert_eq!(publish(&mut m, None), (0, 0));
 }
 
 #[test]

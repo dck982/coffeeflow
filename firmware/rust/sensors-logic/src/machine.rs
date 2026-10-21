@@ -52,6 +52,12 @@ pub const PRESSURE_PERIOD_FLOOR_MS: u16 = 100;
 /// Plancher des publications `STATUS_ENCLOSURE` : le TMP102 convertit toutes
 /// les 250 ms.
 pub const ENCLOSURE_PERIOD_FLOOR_MS: u16 = 250;
+/// Codes ADS1115 (±4,096 V, 125 µV par code) acceptés comme sortie d'une
+/// sonde XDB401 branchée sur J10, soit 0,279–2,60 V. En bas, −0,70 bar : au
+/// repos, la chaudière purgée chaude puis refroidie tire le circuit fermé
+/// jusqu'à −0,47 bar environ. Hors de cette fenêtre, la sonde est tenue pour
+/// absente.
+pub const PRESSURE_PLAUSIBLE_CODES: core::ops::RangeInclusive<i16> = 2230..=20800;
 
 pub const LEASE_DEFAULT_US: i64 = 500 * 1000;
 pub const PRESENCE_SILENCE_BEFORE_CHECK_US: i64 = 1500 * 1000;
@@ -105,6 +111,9 @@ pub trait Hw: FlashSink {
     /// Température du TMP102 de la carte, en 1/16 °C. `None` s'il ne répond
     /// pas.
     fn enclosure_temperature_raw(&mut self) -> Option<i16>;
+    /// Dernier code de l'ADS1115 sur la sonde de pression (AIN1). `None`
+    /// si la transaction échoue.
+    fn pressure_raw(&mut self) -> Option<i16>;
     /// Écrit le verrou 60 s en mémoire RTC persistante.
     fn store_lockout(&mut self, active: bool);
     /// `esp_ota_mark_app_valid_cancel_rollback` : l'image courante passe
@@ -176,6 +185,9 @@ pub struct Machine<H: Hw> {
 
     pressure_period_ms: u16,
     pressure_last_sent_us: i64,
+    /// Dernier état publié de la sonde, pour ne journaliser que les
+    /// changements.
+    pressure_present: bool,
     flow_period_ms: u16,
     flow_last_sent_us: i64,
     actuators_period_ms: u16,
@@ -228,6 +240,7 @@ impl<H: Hw> Machine<H> {
             ota_screen_confirmed: false,
             pressure_period_ms: 0,
             pressure_last_sent_us: 0,
+            pressure_present: false,
             flow_period_ms: 0,
             flow_last_sent_us: 0,
             actuators_period_ms: 0,
@@ -364,12 +377,27 @@ impl<H: Hw> Machine<H> {
         self.send_message(Message::StatusHeating(payload), Dest::Screen);
     }
 
-    /// Aucun capteur de pression branché : la valeur reste invalide
-    /// (drapeaux à 0), publiée telle quelle si un REQSTATUS la demande. Une
-    /// sonde rebranchée sur ce module se lirait ici, juste avant l'envoi.
+    /// Sonde analogique sur J10, lue juste avant l'envoi. Le code brut part
+    /// tel quel dans `pressure_raw` : l'écran lui applique la calibration de
+    /// son A2, même ADS1115, même pleine échelle. Bit 0 seulement si le code
+    /// est plausible ; sinon la valeur reste invalide (drapeaux à 0).
     fn send_status_pressure(&mut self) {
+        let raw = self.hw.pressure_raw();
+        let present = raw.is_some_and(|code| PRESSURE_PLAUSIBLE_CODES.contains(&code));
+        if present != self.pressure_present {
+            self.pressure_present = present;
+            log::info!(
+                "sonde de pression {}, code {raw:?}",
+                if present { "présente" } else { "absente" }
+            );
+        }
         let payload = StatusPressurePayload {
+            pressure_raw: match raw {
+                Some(code) if present => code as u32,
+                _ => 0,
+            },
             timestamp_ms: ((self.hw.now_us() / 1000) & 0xFFFF) as u16,
+            flags: u8::from(present),
             ..StatusPressurePayload::default()
         };
         self.send_message(Message::StatusPressure(payload), Dest::Screen);

@@ -5,6 +5,7 @@
 
 use protocol::messages::{
     NodeIdentityPayload, StatusActuatorsPayload, StatusFlowPayload, StatusHeatingPayload,
+    StatusPressurePayload,
 };
 use protocol::{Dest, Frame, Message, Node, Version};
 use screen_core::config::{Config, MemoryConfigStore};
@@ -178,8 +179,19 @@ impl Rig {
         let clock = self.clock();
         let a1 = self.ntc_a1;
         self.core.on_boiler_ntc_reading(clock, 28000, a1, true);
-        let raw = (self.pressure_bar / 0.00075 + 3167.3) as i16;
-        self.core.on_pressure_a2_reading(clock, raw, true);
+        if self.sensors_online {
+            self.publish_pressure();
+        }
+    }
+
+    /// Sonde de pression sur J10 des capteurs.
+    pub fn publish_pressure(&mut self) {
+        let raw = (self.pressure_bar / 0.00075 + 3167.3) as u32;
+        self.rx(Message::StatusPressure(StatusPressurePayload {
+            pressure_raw: raw,
+            flags: 0x01,
+            ..StatusPressurePayload::default()
+        }));
     }
 
     /// Avance de `ms` par pas de 50 ms ; tous les 100 ms, les mesures locales

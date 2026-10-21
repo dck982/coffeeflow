@@ -2,7 +2,7 @@
 //! Aucune action UI n'est simulée en contournant les contrôles de sécurité.
 use protocol::messages::{
     NodeIdentityPayload, StatusActuatorsPayload, StatusEnclosurePayload, StatusFlowPayload,
-    StatusHeatingPayload,
+    StatusHeatingPayload, StatusPressurePayload,
 };
 use protocol::{Dest, Message, Node, Version};
 use screen_core::{
@@ -116,11 +116,11 @@ impl Rig {
             .on_enclosure_reading(self.clock(), 27_224, 31_281, true);
         self.core
             .on_boiler_ntc_reading(self.clock(), 28000, self.ntc_a1, true);
-        self.core.on_pressure_a2_reading(
-            self.clock(),
-            if self.pump > 0 { 15_167 } else { 3567 },
-            true,
-        );
+        self.rx(Message::StatusPressure(StatusPressurePayload {
+            pressure_raw: if self.pump > 0 { 15_167 } else { 3567 },
+            flags: 0x01,
+            ..StatusPressurePayload::default()
+        }));
         self.core.update_scale_weight(self.clock(), self.weight);
         self.core.tick(self.clock());
     }

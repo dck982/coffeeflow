@@ -27,13 +27,22 @@ pub const TMP102_ADDR: u8 = 0x48;
 pub const TMP102_REG_TEMPERATURE: u8 = 0x00;
 /// ADS1115 de la carte (ADDR au +3V3).
 pub const ADS1115_ADDR: u8 = 0x49;
+pub const ADS1115_REG_CONVERSION: u8 = 0x00;
 pub const ADS1115_REG_CONFIG: u8 = 0x01;
+/// Conversion continue de AIN1 (sonde de pression) contre GND, ±4,096 V
+/// (125 µV par code), 16 SPS comme l'A2 de l'écran : 62,5 ms d'intégration
+/// lissent l'ondulation de la pompe vibrante. Comparateur coupé.
+/// OS 1, MUX 101, PGA 001, MODE 0, DR 010, COMP 0 0 0, QUE 11.
+const ADS1115_CONFIG_AIN1: u16 = 0xD243;
 
 pub struct Board {
     pub valve: Output<'static>,
     pub heater: Output<'static>,
     pub i2c: I2c<'static, Blocking>,
     pub ota: FlashOta,
+    /// L'ADS1115 a reçu sa configuration depuis sa dernière erreur : après
+    /// une coupure, il serait revenu en mode coup par coup sur AIN0.
+    pub ads_configured: bool,
 }
 
 impl FlashSink for Board {
@@ -113,6 +122,30 @@ impl Hw for Board {
             .ok()?;
         // 12 bits cadrés à gauche, en 1/16 °C : le décalage garde le signe.
         Some(i16::from_be_bytes(value) >> 4)
+    }
+
+    fn pressure_raw(&mut self) -> Option<i16> {
+        if !self.ads_configured {
+            let [hi, lo] = ADS1115_CONFIG_AIN1.to_be_bytes();
+            if self
+                .i2c
+                .write(ADS1115_ADDR, &[ADS1115_REG_CONFIG, hi, lo])
+                .is_err()
+            {
+                return None;
+            }
+            self.ads_configured = true;
+        }
+        let mut value = [0u8; 2];
+        if self
+            .i2c
+            .write_read(ADS1115_ADDR, &[ADS1115_REG_CONVERSION], &mut value)
+            .is_err()
+        {
+            self.ads_configured = false;
+            return None;
+        }
+        Some(i16::from_be_bytes(value))
     }
 
     fn store_lockout(&mut self, active: bool) {

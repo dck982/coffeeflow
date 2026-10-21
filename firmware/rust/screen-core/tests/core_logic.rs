@@ -436,20 +436,34 @@ fn boiler_ntc_rejects_bad_readings() {
 }
 
 #[test]
-fn pressure_a2_conversion() {
+fn pressure_comes_from_the_sensors_probe() {
     let mut rig = Rig::new();
-    let clock = rig.clock();
-    rig.core.on_pressure_a2_reading(clock, 3167, true);
+    let status = |pressure_raw, flags| {
+        Message::StatusPressure(protocol::messages::StatusPressurePayload {
+            pressure_raw,
+            flags,
+            ..Default::default()
+        })
+    };
+    rig.rx(status(3167, 0x01));
     let s = rig.snapshot();
-    assert!(s.pressure_valid && s.pressure_a2_valid);
+    assert!(s.pressure_valid);
+    assert_eq!(s.pressure_freshness, Freshness::Fresh);
     assert!((s.pressure_bar - (3167.0 - 3167.3) * 0.00075).abs() < 1e-6);
-    rig.core.on_pressure_a2_reading(clock, 6000, true);
-    assert!((rig.snapshot().pressure_bar - (6000.0 - 3167.3) * 0.00075).abs() < 1e-5);
-    // Échec de lecture : invalide, la dernière valeur reste lisible.
-    rig.core.on_pressure_a2_reading(clock, 0, false);
+    rig.rx(status(15_167, 0x01));
+    assert!((rig.snapshot().pressure_bar - (15_167.0 - 3167.3) * 0.00075).abs() < 1e-4);
+    // Sonde absente : invalide, la dernière valeur reste lisible.
+    rig.rx(status(0, 0x00));
     let s = rig.snapshot();
-    assert!(!s.pressure_valid && !s.pressure_a2_valid);
-    assert!((s.pressure_bar - (6000.0 - 3167.3) * 0.00075).abs() < 1e-5);
+    assert!(!s.pressure_valid);
+    assert_eq!(s.pressure_freshness, Freshness::Missing);
+    assert!((s.pressure_bar - (15_167.0 - 3167.3) * 0.00075).abs() < 1e-4);
+    // L'A2 de l'écran flotte : il ne reste qu'au diagnostic.
+    let clock = rig.clock();
+    rig.core.on_pressure_a2_reading(clock, 6000, true);
+    let s = rig.snapshot();
+    assert!(!s.pressure_valid && s.pressure_a2_valid);
+    assert_eq!(s.pressure_a2_raw, 6000);
 }
 
 #[test]
@@ -1403,6 +1417,7 @@ fn status_requests_follow_the_profile() {
             (MessageType::StatusFlow as u8, 1000),
             (MessageType::StatusActuators as u8, 1000),
             (MessageType::StatusHeating as u8, 250),
+            (MessageType::StatusPressure as u8, 100),
             (MessageType::StatusEnclosure as u8, 1000),
         ]
     );
@@ -1410,7 +1425,7 @@ fn status_requests_follow_the_profile() {
     rig.core.tick(Clock::new(rig.now_us + 100_000));
     assert!(req_periods(&rig.collect()).is_empty());
     rig.core.tick(Clock::new(rig.now_us + 1_100_000));
-    assert_eq!(req_periods(&rig.collect()).len(), 4);
+    assert_eq!(req_periods(&rig.collect()).len(), 5);
 }
 
 #[test]

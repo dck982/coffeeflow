@@ -45,6 +45,13 @@ capteurs passe par le CAN à travers l'écran, reçue aussi bien par le C++ que
 par le Rust, et validée par `CONFIRM_SENSORS_OTA`. Le rollback à 30 s de
 `sensors` est vérifié (feature `no-validate`).
 
+**Cartes (2026-10-21).** Le XIAO du module **capteurs** est enfiché sur la carte
+`pcb/sensors`, qui remplace le Grove Shield (firmware depuis 0.4.16, CAN vérifié sur la
+machine). Le module **écran** est relié à la carte `pcb/screen_sensors`. La **sonde de
+pression** est branchée sur J10 de `pcb/sensors` (depuis 0.4.18) ; le connecteur J3 de
+`pcb/screen_sensors` permet de la ramener un jour sur l'écran, dont l'A2 reste lu pour
+le diagnostic (voir « XDB401 — pression »).
+
 **Restent à valider sur la machine** : chauffe, purge et infusion, donc le SSR
 de la vanne, le dimmer en commande, la chauffe sur GPIO 4 et le comptage réel
 du débitmètre. Écart connu : `twai_bus_errors` vaut toujours 0 en Rust, le
@@ -76,7 +83,7 @@ calibration du facteur K.
 | `temperature.xdb401` | Héritée du XDB401 I2C : `c` vaut toujours `null` depuis 0.3.46, `raw` reste le dernier code reçu par `STATUS_PRESSURE`. |
 | `enclosure.screen` | SHT40 du boîtier de l'écran (depuis 0.4.15) : température `c` et humidité `rh_pct` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur (lecture à 1 s) et âge. |
 | `enclosure.sensors` | TMP102 de la carte des capteurs (depuis 0.4.17), reçu par `STATUS_ENCLOSURE` à 1 s : température `c` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur et âge. |
-| `pressure` | Pression `bar` tirée de A2, validité, fraîcheur et âge (voir « XDB401 — pression »). `a2_raw` : code ADS1115 de A2 (125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. `raw` : dernier code reçu par `STATUS_PRESSURE`, que l'écran ne demande plus. |
+| `pressure` | Pression `bar` reçue des capteurs par `STATUS_PRESSURE`, validité, fraîcheur et âge (voir « XDB401 — pression »). `raw` : dernier code ADS1115 de la sonde sur J10. `a2_raw` : code A2 de l'écran (125 µV par code), entrée sans sonde depuis 0.4.18, gardé pour le diagnostic ; `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. |
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
 | `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |
@@ -256,29 +263,33 @@ Avec l'OPV réglée à 11 bar pour un fonctionnement à 9 bar, **elle ne s'ouvre
 
 ### XDB401 — pression
 
-Depuis 0.3.46, la pression vient d'un XDB401 **analogique** 0–12 bar (0,4–2,4 V, sortie
-non ratiométrique), alimenté en 3,3 V et lu par l'écran sur **A2 de l'ADS1115**, dans la
-même boucle que la paire NTC (A0, A1). Mesure entre la pompe et la chaudière, en amont de
-la vanne solénoïde.
+La pression vient d'un XDB401 **analogique** 0–12 bar (0,4–2,4 V, sortie non
+ratiométrique), alimenté en 3,3 V. Mesure entre la pompe et la chaudière, en amont de la
+vanne solénoïde. De 0.3.46 à 0.4.17, l'écran la lisait sur **A2 de son ADS1115** ;
+depuis 0.4.18, la sonde est branchée sur **J10 de la carte des capteurs**, côté arrivée
+d'eau froide et loin des câbles AC. L'ADS1115 de cette carte (U6, 0x49) convertit AIN1 en
+continu, avec la même pleine échelle (±4,096 V) et la même cadence que l'ancien A2 :
+l'écran demande `STATUS_PRESSURE` toutes les 100 ms et applique la même calibration au
+code reçu. L'A2 de l'écran reste lu, pour le diagnostic seulement.
 
 - **Conversion** : `bar = (A2 − 3167,3) × 0,00075`, soit la pente d'usine de 6 bar/V
   (`firmware/rust/screen-core/src/calibration.rs`). Le zéro a été lu sonde à l'air libre : la
   pression est relative. En panier aveugle, la pente d'usine rend le plateau de l'OPV à
   0,6 % de l'ancien XDB401 I2C : les consignes et captures antérieures restent
   comparables.
-- **Cadence et filtrage** : A2 est converti à **16 SPS**. La conversion intègre 62,5 ms,
+- **Cadence et filtrage** : la sonde est convertie à **16 SPS**. La conversion intègre 62,5 ms,
   soit ~3 impulsions de la pompe vibrante ; à 128 SPS, l'ondulation de la pompe ajoutait
-  jusqu'à ±0,2 bar. Le cycle A0/A1/A2 dure ~100 ms, une mesure de pression arrive donc à
-  ~10 Hz.
-- **Validité** : `pressure_valid` suit la dernière lecture de A2. La fraîcheur se juge sur
-  la période de la paire NTC (100 ms). La boucle de pression tient la dernière mesure
+  jusqu'à ±0,2 bar. Les capteurs publient le dernier code toutes les 100 ms.
+- **Validité** : `pressure_valid` suit le bit0 du dernier `STATUS_PRESSURE` : code entre
+  0,279 et 2,60 V, soit −0,70 bar en bas. J10 n'a pas de pull-down : une entrée débranchée flotte et peut passer
+  pour une sonde. La fraîcheur se juge sur la période de 100 ms. La boucle de pression tient la dernière mesure
   valide 300 ms au plus.
+- **Pression négative au repos : normale.** Circuit fermé, l'eau de la chaudière qui
+  refroidit se contracte et tire le circuit sous la pression atmosphérique : la sonde lit
+  par exemple −0,47 bar (code 2534, 0,317 V). Ouvrir la vanne solénoïde la ramène à 0 bar
+  (code ~3170). Une pression négative n'indique donc ni une sonde absente ni un défaut de
+  câblage. Le plancher physique est −1 bar, soit le code ~1834 (0,23 V).
 - La sonde analogique ne donne pas de température.
-
-Le canal `STATUS_PRESSURE` reste dans le protocole et dans `sensors`, sans capteur : le
-module publie une pression invalide si on la lui demande, et l'écran ne la demande plus.
-Une sonde rebranchée sur le module capteurs se lirait dans sa tâche pression, juste avant
-l'envoi.
 
 ---
 
@@ -682,12 +693,12 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 
 **Convention `flags` — bit0 « capteur valide ».** Chaque `STATUS_*` qui porte une lecture de capteur réserve un bit à la même question : est-ce que cette valeur vient d'être obtenue avec succès ? Le sens est générique, mais la capacité de détecter une absence ne l'est pas :
 
-- **Pression** : aucun capteur sur le module depuis 0.3.46, ce bit reste à 0.
+- **Pression** : depuis 0.4.18, bit à 1 si le code de l'ADS1115 sur J10 tombe dans la plage de la sonde (0,279–2,60 V, codes 2230–20800, soit −0,70 bar en bas). J10 n'a pas de pull-down : une entrée flottante peut passer pour une sonde.
 - **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
 - **Boîtier (TMP102, I2C)** : détection réelle, le bit suit le succès de chaque lecture.
 - **Dimmer (I2C)** : détection réelle, une transaction I2C qui échoue met l'état à jour — voir `STATUS_ACTUATORS` ci-dessous.
 
-`STATUS_PRESSURE` (0x20) — format hérité du XDB401 I2C (recopie du registre `0x06`), sans capteur depuis 0.3.46
+`STATUS_PRESSURE` (0x20) — format hérité du XDB401 I2C. Depuis 0.4.18, `pression brute` porte le code ADS1115 de AIN1 (sonde sur J10, ±4,096 V, 16 SPS), à convertir comme l'A2 de l'écran ; 0 et bit0 à 0 hors plage
 
 ```
 [0..2]  pression brute      24 bits

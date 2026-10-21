@@ -96,6 +96,9 @@ const FLOW_HISTORY_CAPACITY: usize = 16;
 const HEATING_POWER_LEASE_MS: u16 = 1500;
 const HEATING_STATUS_PERIOD_MS: u16 = 250;
 const ENCLOSURE_STATUS_PERIOD_MS: u16 = 1000;
+/// La sonde de pression est sur J10 des capteurs : son ADS1115 convertit à
+/// 16 SPS, et 100 ms est leur plancher.
+const PRESSURE_STATUS_PERIOD_MS: u16 = 100;
 /// Vie maximale d'une demande `set_heating`.
 pub const SET_HEATING_MAX_MS: u16 = 30000;
 
@@ -1042,6 +1045,7 @@ impl<S: ConfigStore> Core<S> {
             self.send_request(MessageType::StatusFlow, p.flow);
             self.send_request(MessageType::StatusActuators, p.actuators);
             self.send_request(MessageType::StatusHeating, HEATING_STATUS_PERIOD_MS);
+            self.send_request(MessageType::StatusPressure, PRESSURE_STATUS_PERIOD_MS);
             self.send_request(MessageType::StatusEnclosure, ENCLOSURE_STATUS_PERIOD_MS);
             self.profile_dirty = false;
             self.last_request_us = now;
@@ -1318,11 +1322,21 @@ impl<S: ConfigStore> Core<S> {
         self.t.sensors_identity_received_us = now;
     }
 
-    /// L'écran ne demande plus STATUS_PRESSURE : la pression vient de A2. Un
-    /// paquet reçu quand même ne garde que ses codes bruts, pour le
-    /// diagnostic.
+    /// Sonde de pression sur J10 des capteurs : code ADS1115 brut, même
+    /// pleine échelle que l'A2 de l'écran, donc même calibration. Une valeur
+    /// invalide garde la dernière pression lisible sans la rajeunir.
     fn on_status_pressure(&mut self, payload: &protocol::messages::StatusPressurePayload) {
-        self.t.last_sensors_message_us = self.now();
+        let now = self.now();
+        self.t.last_sensors_message_us = now;
+        self.t.pressure_received_us = now;
+        let valid = payload.flags & 0x01 != 0;
+        self.snapshot.pressure_valid = valid;
+        if valid {
+            // Les capteurs ne valident que des codes de 2400 à 20800.
+            let code = i16::try_from(payload.pressure_raw).unwrap_or(i16::MAX);
+            self.snapshot.pressure_bar = ntc::pressure_bar_from_a2(code);
+            self.t.pressure_last_valid_us = now;
+        }
         self.snapshot.pressure_raw = payload.pressure_raw;
         self.snapshot.temperature_raw = payload.temperature_raw;
         self.snapshot.xdb401_temperature_raw = payload.temperature_raw;
@@ -1519,17 +1533,14 @@ impl<S: ConfigStore> Core<S> {
         }
     }
 
-    /// Code A2 (XDB401 analogique), lu avec la paire NTC.
+    /// Code A2 de l'ADS1115 de l'écran, lu avec la paire NTC. La sonde est
+    /// passée sur les capteurs : l'entrée A2 flotte, son code ne reste qu'au
+    /// diagnostic et ne fait plus la pression.
     pub fn on_pressure_a2_reading(&mut self, clock: Clock, raw: i16, read_ok: bool) {
         self.enter(clock);
-        let now = self.now();
-        self.t.pressure_received_us = now;
         self.snapshot.pressure_a2_valid = read_ok;
-        self.snapshot.pressure_valid = read_ok;
         if read_ok {
             self.snapshot.pressure_a2_raw = raw;
-            self.snapshot.pressure_bar = ntc::pressure_bar_from_a2(raw);
-            self.t.pressure_last_valid_us = now;
         }
     }
 
@@ -2379,7 +2390,7 @@ impl<S: ConfigStore> Core<S> {
             result.heating_lease_remaining_ms = 0;
         }
         result.pressure_freshness = if result.pressure_valid {
-            freshness(t.pressure_received_us, BOILER_PAIR_PERIOD_MS as u16, now)
+            freshness(t.pressure_received_us, PRESSURE_STATUS_PERIOD_MS, now)
         } else {
             Freshness::Missing
         };

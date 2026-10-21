@@ -158,6 +158,7 @@ async fn main(spawner: Spawner) -> ! {
         heater,
         i2c,
         ota,
+        ads_configured: false,
     };
     let machine = MACHINE.init(Machine::new(
         board,

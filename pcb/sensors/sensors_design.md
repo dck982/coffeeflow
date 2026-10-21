@@ -123,6 +123,11 @@ circuit reprend celui de `screen_sensors` :
 - **Adresse I2C 0x49 : ADDR est relié au +3V3.** Le TMP102 occupe déjà 0x48
   (ADD0 à GND) sur le même bus ; l’ADS1115 de `screen_sensors` est à 0x48,
   mais sur le bus de l’écran.
+- **Prochaine révision : ajouter un pull-down d’environ 1 MΩ sur PRESSURE**
+  (J10 broche 3 vers GND). Sans lui, une entrée débranchée flotte derrière
+  R26/C14 et peut tomber dans la fenêtre 0,279–2,60 V que le firmware prend
+  pour une sonde présente ; avec lui, elle lit 0 V. La sonde ne fournit
+  que 2,4 µA de plus. Même remarque pour R3/C3 de `screen_sensors`.
 - La sortie de la XDB401 n’est pas ratiométrique : la pression se calcule sur
   la tension absolue de AIN1, AIN0 ne sert qu’à surveiller le +3V3.
 

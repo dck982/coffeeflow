@@ -106,6 +106,15 @@ impl Hw for Board {
         })
     }
 
+    fn enclosure_temperature_raw(&mut self) -> Option<i16> {
+        let mut value = [0u8; 2];
+        self.i2c
+            .write_read(TMP102_ADDR, &[TMP102_REG_TEMPERATURE], &mut value)
+            .ok()?;
+        // 12 bits cadrés à gauche, en 1/16 °C : le décalage garde le signe.
+        Some(i16::from_be_bytes(value) >> 4)
+    }
+
     fn store_lockout(&mut self, active: bool) {
         if active {
             lockout::set();

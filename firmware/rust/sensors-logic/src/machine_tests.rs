@@ -3,7 +3,7 @@
 use protocol::messages::{
     DimmerCommand, DimmerCommandPayload, FlashCtrlPayload, FlashDataPayload,
     MaintenanceValvePayload, ReqStatusPayload, SetHeatingPayload, SetHeatingPowerPayload,
-    SetPayload, StatusActuatorsPayload, StatusHeatingPayload,
+    SetPayload, StatusActuatorsPayload, StatusEnclosurePayload, StatusHeatingPayload,
 };
 use protocol::{
     Dest, FIRMWARE_VERSION, Frame, LogCode, LogSeverity, Message, MessageType, Node, crc16_ccitt,
@@ -25,6 +25,7 @@ struct Mock {
     dimmer_status: u8,
     dimmer_error: u8,
     dimmer_writes: Vec<(u8, u8)>,
+    enclosure_raw: Option<i16>,
     sent: Vec<Frame>,
     flow: FlowCounter,
     lockout_stored: Vec<bool>,
@@ -46,6 +47,7 @@ impl Mock {
             dimmer_status: 0x01,
             dimmer_error: 0,
             dimmer_writes: vec![],
+            enclosure_raw: Some(0x1F0),
             sent: vec![],
             flow: FlowCounter::new(),
             lockout_stored: vec![],
@@ -114,6 +116,9 @@ impl Hw for Mock {
             tx_errors: 5,
             bus_errors: 7,
         })
+    }
+    fn enclosure_temperature_raw(&mut self) -> Option<i16> {
+        self.enclosure_raw
     }
     fn store_lockout(&mut self, active: bool) {
         self.lockout_stored.push(active);
@@ -1175,6 +1180,51 @@ fn pressure_is_published_without_a_sensor_with_a_100_ms_floor() {
     m.hw.now += S;
     m.tick_pressure();
     assert_eq!(m.hw.sent.len(), 2);
+}
+
+#[test]
+fn enclosure_is_published_with_a_250_ms_floor() {
+    fn enclosures(m: &Machine<Mock>) -> Vec<StatusEnclosurePayload> {
+        m.hw.sent
+            .iter()
+            .filter_map(|f| match decoded(f) {
+                Message::StatusEnclosure(p) => Some(p),
+                _ => None,
+            })
+            .collect()
+    }
+    let mut m = present();
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusEnclosure, 100)),
+    );
+    m.hw.sent.clear();
+    m.tick_safety();
+    let first = enclosures(&m);
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].temperature_c(), 31.0);
+    assert_eq!(first[0].flags, StatusEnclosurePayload::FLAG_VALID);
+    let frame =
+        m.hw.sent
+            .iter()
+            .find(|f| decoded(f).message_type() == MessageType::StatusEnclosure);
+    assert_eq!(frame.unwrap().len, 5);
+
+    m.hw.sent.clear();
+    m.hw.enclosure_raw = None;
+    advance(&mut m, 1000 * MS, true);
+    // Ticks de 100 ms : 250 ms se publient toutes les 300 ms.
+    let next = enclosures(&m);
+    assert_eq!(next.len(), 3);
+    assert!(next.iter().all(|p| p.flags == 0));
+
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusEnclosure, 0)),
+    );
+    m.hw.sent.clear();
+    advance(&mut m, 1000 * MS, true);
+    assert!(enclosures(&m).is_empty());
 }
 
 #[test]

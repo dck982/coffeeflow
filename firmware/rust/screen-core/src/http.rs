@@ -146,6 +146,10 @@ pub const TELEMETRY_KEYS: &[&str] = &[
     "enclosure.screen.valid",
     "enclosure.screen.freshness",
     "enclosure.screen.age_ms",
+    "enclosure.sensors.c",
+    "enclosure.sensors.valid",
+    "enclosure.sensors.freshness",
+    "enclosure.sensors.age_ms",
     "pressure.bar",
     "pressure.raw",
     "pressure.a2_raw",
@@ -287,8 +291,18 @@ pub fn encode_telemetry(
     screen.push_bool("valid", snapshot.enclosure_valid);
     screen.push_str("freshness", snapshot.enclosure_freshness.text());
     push_age(&mut screen, "age_ms", snapshot.enclosure_age_ms);
+    let mut sensors = Json::object();
+    if snapshot.sensors_enclosure_age_ms == u32::MAX {
+        sensors.push_null("c");
+    } else {
+        sensors.push_number("c", num(snapshot.sensors_enclosure_temperature_c));
+    }
+    sensors.push_bool("valid", snapshot.sensors_enclosure_valid);
+    sensors.push_str("freshness", snapshot.sensors_enclosure_freshness.text());
+    push_age(&mut sensors, "age_ms", snapshot.sensors_enclosure_age_ms);
     let mut enclosure = Json::object();
     enclosure.push("screen", screen);
+    enclosure.push("sensors", sensors);
     root.push("enclosure", enclosure);
 
     let mut pressure = Json::object();

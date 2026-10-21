@@ -379,6 +379,32 @@ fn boiler_ntc_conversion_and_freshness() {
 }
 
 #[test]
+fn sensors_enclosure_status_ingestion() {
+    let mut rig = Rig::new();
+    let status = |temperature_raw, flags| {
+        Message::StatusEnclosure(protocol::messages::StatusEnclosurePayload {
+            temperature_raw,
+            timestamp_ms: 0,
+            flags,
+        })
+    };
+    // -2,5 °C : le code signé du TMP102 passe tel quel.
+    rig.rx(status(-40, 0x01));
+    let s = rig.snapshot();
+    assert!(s.sensors_enclosure_valid);
+    assert_eq!(s.sensors_enclosure_temperature_c, -2.5);
+    assert_eq!(s.sensors_enclosure_freshness, Freshness::Fresh);
+    rig.rx(status(500, 0x01));
+    assert_eq!(rig.snapshot().sensors_enclosure_temperature_c, 31.25);
+    // Une lecture en erreur invalide la mesure sans la rajeunir.
+    rig.rx(status(0, 0x00));
+    let s = rig.snapshot();
+    assert!(!s.sensors_enclosure_valid);
+    assert_eq!(s.sensors_enclosure_temperature_c, 31.25);
+    assert_eq!(s.sensors_enclosure_freshness, Freshness::Missing);
+}
+
+#[test]
 fn enclosure_reading_ingestion() {
     let mut rig = Rig::new();
     let clock = rig.clock();
@@ -1377,13 +1403,14 @@ fn status_requests_follow_the_profile() {
             (MessageType::StatusFlow as u8, 1000),
             (MessageType::StatusActuators as u8, 1000),
             (MessageType::StatusHeating as u8, 250),
+            (MessageType::StatusEnclosure as u8, 1000),
         ]
     );
     // Rien de plus dans la seconde qui suit ; renouvelé ensuite.
     rig.core.tick(Clock::new(rig.now_us + 100_000));
     assert!(req_periods(&rig.collect()).is_empty());
     rig.core.tick(Clock::new(rig.now_us + 1_100_000));
-    assert_eq!(req_periods(&rig.collect()).len(), 3);
+    assert_eq!(req_periods(&rig.collect()).len(), 4);
 }
 
 #[test]

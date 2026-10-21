@@ -95,6 +95,7 @@ const FLOW_HISTORY_CAPACITY: usize = 16;
 /// Largeur d'une commande de chauffe, en ms.
 const HEATING_POWER_LEASE_MS: u16 = 1500;
 const HEATING_STATUS_PERIOD_MS: u16 = 250;
+const ENCLOSURE_STATUS_PERIOD_MS: u16 = 1000;
 /// Vie maximale d'une demande `set_heating`.
 pub const SET_HEATING_MAX_MS: u16 = 30000;
 
@@ -396,6 +397,8 @@ struct Timestamps {
     boiler_received_us: i64,
     /// Dernière lecture valide du SHT40 du boîtier.
     enclosure_received_us: i64,
+    /// Dernière lecture valide du TMP102 du boîtier des capteurs.
+    sensors_enclosure_received_us: i64,
     pressure_last_valid_us: i64,
     flow_received_us: i64,
     actuators_received_us: i64,
@@ -1039,6 +1042,7 @@ impl<S: ConfigStore> Core<S> {
             self.send_request(MessageType::StatusFlow, p.flow);
             self.send_request(MessageType::StatusActuators, p.actuators);
             self.send_request(MessageType::StatusHeating, HEATING_STATUS_PERIOD_MS);
+            self.send_request(MessageType::StatusEnclosure, ENCLOSURE_STATUS_PERIOD_MS);
             self.profile_dirty = false;
             self.last_request_us = now;
         }
@@ -1272,6 +1276,7 @@ impl<S: ConfigStore> Core<S> {
             Message::StatusFlow(payload) => self.on_status_flow(&payload),
             Message::StatusActuators(payload) => self.on_status_actuators(&payload),
             Message::StatusHeating(payload) => self.on_status_heating(&payload),
+            Message::StatusEnclosure(payload) => self.on_status_enclosure(&payload),
             Message::Log(payload) => self.on_log(&payload),
             Message::FlashCtrl(payload) => self.out.push(Output::SensorsFlashCtrl(payload)),
             _ => {}
@@ -1321,6 +1326,19 @@ impl<S: ConfigStore> Core<S> {
         self.snapshot.pressure_raw = payload.pressure_raw;
         self.snapshot.temperature_raw = payload.temperature_raw;
         self.snapshot.xdb401_temperature_raw = payload.temperature_raw;
+    }
+
+    /// Comme le SHT40 : une lecture invalide invalide la mesure sans rajeunir
+    /// l'ancienne.
+    fn on_status_enclosure(&mut self, payload: &protocol::messages::StatusEnclosurePayload) {
+        let now = self.now();
+        self.t.last_sensors_message_us = now;
+        let valid = payload.flags & protocol::messages::StatusEnclosurePayload::FLAG_VALID != 0;
+        self.snapshot.sensors_enclosure_valid = valid;
+        if valid {
+            self.snapshot.sensors_enclosure_temperature_c = payload.temperature_c();
+            self.t.sensors_enclosure_received_us = now;
+        }
     }
 
     fn on_status_flow(&mut self, payload: &protocol::messages::StatusFlowPayload) {
@@ -2338,6 +2356,19 @@ impl<S: ConfigStore> Core<S> {
         };
         if result.enclosure_freshness != Freshness::Fresh {
             result.enclosure_valid = false;
+        }
+        result.sensors_enclosure_age_ms = age_ms(t.sensors_enclosure_received_us, now);
+        result.sensors_enclosure_freshness = if result.sensors_enclosure_valid {
+            freshness(
+                t.sensors_enclosure_received_us,
+                ENCLOSURE_STATUS_PERIOD_MS,
+                now,
+            )
+        } else {
+            Freshness::Missing
+        };
+        if result.sensors_enclosure_freshness != Freshness::Fresh {
+            result.sensors_enclosure_valid = false;
         }
         result.flow_age_ms = age_ms(t.flow_received_us, now);
         result.actuators_age_ms = age_ms(t.actuators_received_us, now);

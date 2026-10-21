@@ -111,6 +111,10 @@ fn telemetry_busy_matches_cpp() {
     s.enclosure_valid = true;
     s.enclosure_freshness = Freshness::Fresh;
     s.enclosure_age_ms = 150;
+    s.sensors_enclosure_temperature_c = 31.25;
+    s.sensors_enclosure_valid = true;
+    s.sensors_enclosure_freshness = Freshness::Fresh;
+    s.sensors_enclosure_age_ms = 900;
     s.flow_ml_s = 1.2345;
     s.volume_ml = 17.3;
     s.flow_pulse_count = 3_000_000_000;

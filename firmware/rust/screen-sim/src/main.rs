@@ -98,6 +98,11 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         internal_heap_free: 59 * 1024,
         internal_heap_largest: 31 * 1024,
         maintenance_valve_capable: true,
+        enclosure_temperature_c: 28.4,
+        enclosure_humidity_pct: 52.0,
+        enclosure_valid: true,
+        sensors_enclosure_temperature_c: 41.6,
+        sensors_enclosure_valid: true,
         ..Snapshot::default()
     };
     match name {

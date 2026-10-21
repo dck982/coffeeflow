@@ -430,7 +430,7 @@ impl ConfirmSensorsOtaPayload {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ReqStatusPayload {
-    /// Octet brut : 0x20, 0x21, 0x22 ou 0x23 en pratique.
+    /// Octet brut : 0x20 à 0x24 en pratique.
     pub target_type: u8,
     /// 0 = arrêt
     pub period_ms: u16,
@@ -587,6 +587,45 @@ impl StatusActuatorsPayload {
             lease_remaining_ms: get_u16(p, 2),
             continuous_on_ms: get_u16(p, 4),
             flags: p[6],
+        })
+    }
+}
+
+/// STATUS_ENCLOSURE (0x24) : température du boîtier des capteurs, lue sur
+/// le TMP102 de la carte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StatusEnclosurePayload {
+    /// 1/16 °C (résolution 12 bits du TMP102), signé.
+    pub temperature_raw: i16,
+    /// 16 bits bas
+    pub timestamp_ms: u16,
+    /// Bit 0 capteur valide (le TMP102 a répondu à cette lecture).
+    pub flags: u8,
+}
+
+impl StatusEnclosurePayload {
+    pub const DLC: u8 = 5;
+    pub const FLAG_VALID: u8 = 0x01;
+
+    pub fn temperature_c(&self) -> f32 {
+        f32::from(self.temperature_raw) / 16.0
+    }
+
+    pub fn pack(&self) -> [u8; 8] {
+        let mut f = [0u8; 8];
+        f[0..2].copy_from_slice(&self.temperature_raw.to_le_bytes());
+        put_u16(&mut f, 2, self.timestamp_ms);
+        f[4] = self.flags;
+        f
+    }
+
+    pub fn unpack(p: &[u8]) -> Result<Self, DecodeError> {
+        need(p, 5)?;
+        Ok(Self {
+            temperature_raw: get_u16(p, 0) as i16,
+            timestamp_ms: get_u16(p, 2),
+            flags: p[4],
         })
     }
 }
@@ -792,6 +831,7 @@ pub enum Message {
     StatusFlow(StatusFlowPayload),
     StatusActuators(StatusActuatorsPayload),
     StatusHeating(StatusHeatingPayload),
+    StatusEnclosure(StatusEnclosurePayload),
     Log(LogPayload),
     FlashCtrl(FlashCtrlPayload),
     FlashData(FlashDataPayload),
@@ -815,6 +855,7 @@ impl Message {
             Self::StatusFlow(_) => MessageType::StatusFlow,
             Self::StatusActuators(_) => MessageType::StatusActuators,
             Self::StatusHeating(_) => MessageType::StatusHeating,
+            Self::StatusEnclosure(_) => MessageType::StatusEnclosure,
             Self::Log(_) => MessageType::Log,
             Self::FlashCtrl(_) => MessageType::FlashCtrl,
             Self::FlashData(_) => MessageType::FlashData,
@@ -837,6 +878,7 @@ impl Message {
             Self::StatusFlow(_) => StatusFlowPayload::DLC,
             Self::StatusActuators(_) => StatusActuatorsPayload::DLC,
             Self::StatusHeating(_) => StatusHeatingPayload::DLC,
+            Self::StatusEnclosure(_) => StatusEnclosurePayload::DLC,
             Self::Log(_) => LogPayload::DLC,
             Self::FlashCtrl(p) => p.dlc(),
             Self::FlashData(p) => p.dlc(),
@@ -869,7 +911,8 @@ impl Message {
             Self::StatusPressure(_)
             | Self::StatusFlow(_)
             | Self::StatusActuators(_)
-            | Self::StatusHeating(_) => (Node::Sensors, Dest::Screen),
+            | Self::StatusHeating(_)
+            | Self::StatusEnclosure(_) => (Node::Sensors, Dest::Screen),
             Self::Log(_) => (Node::Sensors, Dest::Broadcast),
             Self::FlashCtrl(FlashCtrlPayload::BlockAck { .. }) => (Node::Sensors, Dest::Screen),
             Self::FlashCtrl(_) => (Node::Screen, Dest::Sensors),
@@ -898,6 +941,7 @@ impl Message {
             Self::StatusFlow(p) => p.pack(),
             Self::StatusActuators(p) => p.pack(),
             Self::StatusHeating(p) => p.pack(),
+            Self::StatusEnclosure(p) => p.pack(),
             Self::Log(p) => p.pack(),
             Self::FlashCtrl(p) => p.pack(),
             Self::FlashData(p) => p.pack(),
@@ -951,6 +995,9 @@ impl Message {
                 Self::StatusActuators(StatusActuatorsPayload::unpack(p)?)
             }
             MessageType::StatusHeating => Self::StatusHeating(StatusHeatingPayload::unpack(p)?),
+            MessageType::StatusEnclosure => {
+                Self::StatusEnclosure(StatusEnclosurePayload::unpack(p)?)
+            }
             MessageType::Log => Self::Log(LogPayload::unpack(p)?),
             MessageType::FlashCtrl => Self::FlashCtrl(FlashCtrlPayload::unpack(p)?),
             MessageType::FlashData => Self::FlashData(FlashDataPayload::unpack(p)?),

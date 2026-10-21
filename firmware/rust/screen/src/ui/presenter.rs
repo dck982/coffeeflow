@@ -1196,18 +1196,22 @@ impl Presenter {
             )
             .into(),
         );
-        app.set_enclosure(
-            if s.enclosure_valid {
-                format!(
-                    "boîtier {} · {} %",
-                    number(s.enclosure_temperature_c, 1, " °C"),
-                    number(s.enclosure_humidity_pct, 0, "")
-                )
-            } else {
-                "boîtier -".into()
-            }
-            .into(),
-        );
+        // Écran (SHT40) puis capteurs (TMP102).
+        let screen = if s.enclosure_valid {
+            format!(
+                "{} · {} %",
+                number(s.enclosure_temperature_c, 1, " °C"),
+                number(s.enclosure_humidity_pct, 0, "")
+            )
+        } else {
+            "-".into()
+        };
+        let sensors = if s.sensors_enclosure_valid {
+            number(s.sensors_enclosure_temperature_c, 1, " °C")
+        } else {
+            "-".into()
+        };
+        app.set_enclosure(format!("boîtiers {screen} | {sensors}").into());
         match self.menu {
             3 => {
                 app.set_menu_title("dimmerlink".into());

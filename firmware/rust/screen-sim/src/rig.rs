@@ -1,7 +1,8 @@
 //! Faux module interne : les sorties CAN du vrai cœur commandent le banc.
 //! Aucune action UI n'est simulée en contournant les contrôles de sécurité.
 use protocol::messages::{
-    NodeIdentityPayload, StatusActuatorsPayload, StatusFlowPayload, StatusHeatingPayload,
+    NodeIdentityPayload, StatusActuatorsPayload, StatusEnclosurePayload, StatusFlowPayload,
+    StatusHeatingPayload,
 };
 use protocol::{Dest, Message, Node, Version};
 use screen_core::{
@@ -105,6 +106,14 @@ impl Rig {
             last_edge_ms: (self.now_us / 1000) as u16,
             flags: 1,
         }));
+        // 41,6 °C côté capteurs ; SHT40 à 28,4 °C et 52 %.
+        self.rx(Message::StatusEnclosure(StatusEnclosurePayload {
+            temperature_raw: 666,
+            timestamp_ms: (self.now_us / 1000) as u16,
+            flags: StatusEnclosurePayload::FLAG_VALID,
+        }));
+        self.core
+            .on_enclosure_reading(self.clock(), 27_224, 31_281, true);
         self.core
             .on_boiler_ntc_reading(self.clock(), 28000, self.ntc_a1, true);
         self.core.on_pressure_a2_reading(

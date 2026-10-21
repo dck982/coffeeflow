@@ -11,7 +11,8 @@
 use protocol::messages::{
     DimmerCommand, DimmerCommandPayload, FlashCtrlPayload, LogPayload, MaintenanceValvePayload,
     NodeIdentityPayload, ReqStatusPayload, SetHeatingPayload, SetHeatingPowerPayload, SetPayload,
-    StatusActuatorsPayload, StatusFlowPayload, StatusHeatingPayload, StatusPressurePayload,
+    StatusActuatorsPayload, StatusEnclosurePayload, StatusFlowPayload, StatusHeatingPayload,
+    StatusPressurePayload,
 };
 use protocol::version::HEATING_PROTOCOL_CONFIRMATION_TOKEN;
 use protocol::{Dest, FIRMWARE_VERSION, Frame, LogCode, LogSeverity, Message, MessageType, Node};
@@ -48,6 +49,9 @@ pub const DIMMER_AUTO_RECALIBRATE_DELAY_US: i64 = 20 * 1000 * 1000;
 /// Plancher des publications `STATUS_PRESSURE`, pour qu'une requête mal
 /// formée ne sature pas le bus.
 pub const PRESSURE_PERIOD_FLOOR_MS: u16 = 100;
+/// Plancher des publications `STATUS_ENCLOSURE` : le TMP102 convertit toutes
+/// les 250 ms.
+pub const ENCLOSURE_PERIOD_FLOOR_MS: u16 = 250;
 
 pub const LEASE_DEFAULT_US: i64 = 500 * 1000;
 pub const PRESENCE_SILENCE_BEFORE_CHECK_US: i64 = 1500 * 1000;
@@ -98,6 +102,9 @@ pub trait Hw: FlashSink {
     fn send(&mut self, frame: Frame);
     fn flow(&self) -> FlowCounter;
     fn twai_counters(&mut self) -> Option<TwaiCounters>;
+    /// Température du TMP102 de la carte, en 1/16 °C. `None` s'il ne répond
+    /// pas.
+    fn enclosure_temperature_raw(&mut self) -> Option<i16>;
     /// Écrit le verrou 60 s en mémoire RTC persistante.
     fn store_lockout(&mut self, active: bool);
     /// `esp_ota_mark_app_valid_cancel_rollback` : l'image courante passe
@@ -175,6 +182,8 @@ pub struct Machine<H: Hw> {
     actuators_last_sent_us: i64,
     heating_period_ms: u16,
     heating_last_sent_us: i64,
+    enclosure_period_ms: u16,
+    enclosure_last_sent_us: i64,
 
     twai_last_log_us: i64,
     dimmer_health_last_us: i64,
@@ -225,6 +234,8 @@ impl<H: Hw> Machine<H> {
             actuators_last_sent_us: 0,
             heating_period_ms: 0,
             heating_last_sent_us: 0,
+            enclosure_period_ms: 0,
+            enclosure_last_sent_us: 0,
             twai_last_log_us: 0,
             dimmer_health_last_us: 0,
             dimmer_recalibrate_sent: false,
@@ -362,6 +373,20 @@ impl<H: Hw> Machine<H> {
             ..StatusPressurePayload::default()
         };
         self.send_message(Message::StatusPressure(payload), Dest::Screen);
+    }
+
+    fn send_status_enclosure(&mut self) {
+        let raw = self.hw.enclosure_temperature_raw();
+        let payload = StatusEnclosurePayload {
+            temperature_raw: raw.unwrap_or(0),
+            timestamp_ms: ((self.hw.now_us() / 1000) & 0xFFFF) as u16,
+            flags: if raw.is_some() {
+                StatusEnclosurePayload::FLAG_VALID
+            } else {
+                0
+            },
+        };
+        self.send_message(Message::StatusEnclosure(payload), Dest::Screen);
     }
 
     fn send_status_flow(&mut self) {
@@ -769,6 +794,14 @@ impl<H: Hw> Machine<H> {
                 self.heating_period_ms = payload.period_ms;
                 self.heating_last_sent_us = 0;
             }
+            Some(MessageType::StatusEnclosure) => {
+                self.enclosure_period_ms = if payload.period_ms == 0 {
+                    0
+                } else {
+                    payload.period_ms.max(ENCLOSURE_PERIOD_FLOOR_MS)
+                };
+                self.enclosure_last_sent_us = 0;
+            }
             _ => {}
         }
     }
@@ -874,6 +907,7 @@ impl<H: Hw> Machine<H> {
         self.tick_flow();
         self.tick_actuators();
         self.tick_heating();
+        self.tick_enclosure();
         self.tick_dimmer_zero_guard();
         self.tick_dimmer_health();
     }
@@ -1082,6 +1116,18 @@ impl<H: Hw> Machine<H> {
         }
         self.send_status_heating();
         self.heating_last_sent_us = t;
+    }
+
+    fn tick_enclosure(&mut self) {
+        if self.enclosure_period_ms == 0 {
+            return;
+        }
+        let t = self.hw.now_us();
+        if t - self.enclosure_last_sent_us < i64::from(self.enclosure_period_ms) * 1000 {
+            return;
+        }
+        self.send_status_enclosure();
+        self.enclosure_last_sent_us = t;
     }
 
     fn tick_dimmer_zero_guard(&mut self) {

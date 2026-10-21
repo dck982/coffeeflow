@@ -74,7 +74,8 @@ calibration du facteur K.
 | --- | --- |
 | `temperature.boiler` | Température chaudière `c`, validité, fraîcheur, âge et codes NTC `ntc_a0_raw` / `ntc_a1_raw`. |
 | `temperature.xdb401` | Héritée du XDB401 I2C : `c` vaut toujours `null` depuis 0.3.46, `raw` reste le dernier code reçu par `STATUS_PRESSURE`. |
-| `enclosure.screen` | SHT40 du boîtier de l'écran (depuis 0.4.15) : température `c` et humidité `rh_pct` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur (lecture à 1 s) et âge. Le capteur du module sensors ira dans `enclosure.sensors`. |
+| `enclosure.screen` | SHT40 du boîtier de l'écran (depuis 0.4.15) : température `c` et humidité `rh_pct` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur (lecture à 1 s) et âge. |
+| `enclosure.sensors` | TMP102 de la carte des capteurs (depuis 0.4.17), reçu par `STATUS_ENCLOSURE` à 1 s : température `c` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur et âge. |
 | `pressure` | Pression `bar` tirée de A2, validité, fraîcheur et âge (voir « XDB401 — pression »). `a2_raw` : code ADS1115 de A2 (125 µV par code), `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. `raw` : dernier code reçu par `STATUS_PRESSURE`, que l'écran ne demande plus. |
 | `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
@@ -194,7 +195,7 @@ GPIO43 (non câblé).
 d'où un mode Silent permanent). Un M5Stack Unit CAN avait servi de contournement pendant
 l'investigation ; il n'est plus utilisé côté capteurs.
 
-**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique commandé ; le TMP102 et l'ADS1115 de la carte ne sont lus qu'au démarrage, pour la LED. Ses seules pull-ups sont les 4,7 kΩ de la carte (R13/R14). Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
+**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique commandé ; le TMP102 de la carte est lu pour `STATUS_ENCLOSURE`, et l'ADS1115 seulement au démarrage, pour la LED. Ses seules pull-ups sont les 4,7 kΩ de la carte (R13/R14). Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
 
 ### SSR — vanne solénoïde
 
@@ -639,6 +640,7 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x21` | `STATUS_FLOW` | X → S | compteur d'impulsions |
 | `0x22` | `STATUS_ACTUATORS` | X → S | état + santé |
 | `0x23` | `STATUS_HEATING` | X → S | état chaudière + bail |
+| `0x24` | `STATUS_ENCLOSURE` | X → S | température du boîtier des capteurs |
 | `0x30` | `LOG` | ↔ | code + arguments |
 | `0x38` | `FLASH_CTRL` | ↔ | sous-commande |
 | `0x39` | `FLASH_DATA` | ↔ | 8 octets bruts |
@@ -671,17 +673,18 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 `REQSTATUS` (0x10)
 
 ```
-[0]     type visé   0x20 | 0x21 | 0x22 | 0x23
+[0]     type visé   0x20 | 0x21 | 0x22 | 0x23 | 0x24
 [1..2]  periode_ms  uint16, 0 = arrêt
 [3..7]  réservé
 ```
 
-Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Le module impose un plancher de 100 ms.
+Une période par capteur, pas une fréquence globale : la pression et le débit n'ont pas les mêmes besoins. `0` au boot pour tous ; le module ne streame jamais spontanément. Le module impose un plancher de 100 ms à la pression et de 250 ms à `STATUS_ENCLOSURE`.
 
 **Convention `flags` — bit0 « capteur valide ».** Chaque `STATUS_*` qui porte une lecture de capteur réserve un bit à la même question : est-ce que cette valeur vient d'être obtenue avec succès ? Le sens est générique, mais la capacité de détecter une absence ne l'est pas :
 
 - **Pression** : aucun capteur sur le module depuis 0.3.46, ce bit reste à 0.
 - **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
+- **Boîtier (TMP102, I2C)** : détection réelle, le bit suit le succès de chaque lecture.
 - **Dimmer (I2C)** : détection réelle, une transaction I2C qui échoue met l'état à jour — voir `STATUS_ACTUATORS` ci-dessous.
 
 `STATUS_PRESSURE` (0x20) — format hérité du XDB401 I2C (recopie du registre `0x06`), sans capteur depuis 0.3.46
@@ -691,6 +694,14 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 [3..4]  température brute   16 bits
 [5..6]  horodatage ms       uint16 (16 bits bas)
 [7]     flags               bit0 capteur valide (détection I2C réelle), bit1 timeout conversion
+```
+
+`STATUS_ENCLOSURE` (0x24) — depuis 0.4.17, l'écran le demande à 1000 ms
+
+```
+[0..1]  température         int16, 1/16 °C (code 12 bits du TMP102)
+[2..3]  horodatage ms       uint16 (16 bits bas)
+[4]     flags               bit0 capteur valide
 ```
 
 `STATUS_FLOW` (0x21)

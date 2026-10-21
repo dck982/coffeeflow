@@ -134,6 +134,9 @@ R19/R21/R22 maintiennent la sortie BOILER coupée tant que le GPIO flotte.
 La LED D2 (GPIO2) est fixe 1 s au démarrage, puis clignote à 4 Hz si U5 ou
 U6 ne répondent pas, à 1 Hz si le dimmer ne répond pas, et sinon s’allume
 50 ms à chaque trame CAN reçue. CAN, I2C, FLOW et VALVE gardent leurs GPIO.
+Depuis la 0.4.17, U5 (TMP102) donne la température du boîtier par
+`STATUS_ENCLOSURE` (0x24), affichée par l'écran et exposée sous
+`enclosure.sensors` dans `/telemetry`.
 
 L’image `factory` C++ (v0.2.9) n’a pas besoin d’être refaite pour cette
 carte : elle ne pilote que GPIO3 (désormais NC) pour la chauffe, que R19

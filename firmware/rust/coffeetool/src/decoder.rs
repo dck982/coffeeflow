@@ -41,6 +41,7 @@ pub fn type_name(t: MessageType) -> &'static str {
         MessageType::StatusFlow => "STATUS_FLOW",
         MessageType::StatusActuators => "STATUS_ACTUATORS",
         MessageType::StatusHeating => "STATUS_HEATING",
+        MessageType::StatusEnclosure => "STATUS_ENCLOSURE",
         MessageType::Log => "LOG",
         MessageType::FlashCtrl => "FLASH_CTRL",
         MessageType::FlashData => "FLASH_DATA",
@@ -243,6 +244,11 @@ fn format_payload(message_type: MessageType, frame: &Frame) -> String {
             p.lease_remaining_ms,
             p.continuous_on_ms,
             bin_flags(p.flags, 5)
+        ),
+        Message::StatusEnclosure(p) => format!(
+            "boitier={:.2}°C flags={}",
+            p.temperature_c(),
+            bin_flags(p.flags, 1)
         ),
         Message::StatusHeating(p) => format!(
             "chauffage={} bail_restant={}ms puissance={:.1}% capable={}{}",

@@ -110,7 +110,7 @@ def corbels(wall):
         (
             x + corbel_mid,
             y + corbel_half,
-            3,
+            INSERT_M3.diametre_vis,
             bbox(x, y, corbel_along, corbel_plat),
         ),
     ]

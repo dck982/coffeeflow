@@ -28,7 +28,6 @@ def couvercle_ps(
     gouttiere_epaisseur=1.2,
     gouttiere_profondeur=3.0,
     largeur_passage_cable=5.0,
-    vis_diametre=None,
     appui_pcb_largeur=3.0,
     appui_pcb_profondeur=4.5,
     draft=False,
@@ -46,8 +45,6 @@ def couvercle_ps(
     gouttiere_epaisseur: épaisseur du rebord (3 périmètres)
     gouttiere_profondeur: profondeur du rebord dans la cavité
     largeur_passage_cable: largeur du canal nord, égal à boitier_ps
-    vis_diametre: passage des deux vis M3, dans les inserts ; par défaut la
-        cote mesurée `vis_passage`
     appui_pcb_largeur: épaisseur de l'appui qui presse le RAC05, même valeur
         que sur couvercle_acdc
     appui_pcb_profondeur: profondeur de l'appui dans la cavité, sur le
@@ -60,8 +57,6 @@ def couvercle_ps(
     jeu = gouttiere_jeu
     ep = gouttiere_epaisseur
     prof = gouttiere_profondeur
-    if vis_diametre is None:
-        vis_diametre = measured("vis_passage")
 
     if wall < 1.0:
         reject(f"epaisseur_paroi {wall} is under 1 mm: raise it", param="epaisseur_paroi")
@@ -77,8 +72,6 @@ def couvercle_ps(
             f"gouttiere_profondeur {prof} is under 1.5 mm: raise it",
             param="gouttiere_profondeur",
         )
-    if vis_diametre < 2.0:
-        reject(f"vis_diametre {vis_diametre} is under 2 mm: raise it", param="vis_diametre")
     if appui_pcb_largeur < 1.5:
         reject(
             f"appui_pcb_largeur {appui_pcb_largeur} is under 1.5 mm: raise it",
@@ -103,7 +96,7 @@ def couvercle_ps(
     )
 
     margin = 0.5
-    for cx, cy, _d, pad in corbels(wall):
+    for cx, cy, vis_diametre, pad in corbels(wall):
         # Extra cut only toward the wall the corbel sits on, so the rib
         # clears the pad without eating the rest of the frame.
         if pad.min.X <= 0.05:

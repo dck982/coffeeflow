@@ -198,29 +198,33 @@ def puit_couche(rayon, profondeur, pont=2.0, debord=0.1):
     return _fuse_one(cutter + extrude(dehors, debord))
 
 
-# Heat-insert bores. `encombrement` is the outer diameter of the housing
+# Heat-insert bores. `diametre_vis` is the clearance hole (screw + 0.2 mm) to
+# drill in the part facing the insert. `encombrement` is the outer diameter of the housing
 # (perçage + 2x l'épaisseur de paroi mini), for a circular pad or annulus
 # around the bore; a part using a square/rectangular pad instead can still
 # size it off `encombrement` as the footprint's side.
 HeatInsert = namedtuple(
     "HeatInsert",
-    "diametre_percage epaisseur_paroi_min profondeur_min encombrement",
+    "diametre_percage diametre_vis epaisseur_paroi_min profondeur_min encombrement",
 )
 
 INSERT_M3 = HeatInsert(
     diametre_percage=4.0,
+    diametre_vis=3.2,
     epaisseur_paroi_min=1.6,
     profondeur_min=5.0,
     encombrement=7.2,
 )
 INSERT_M25 = HeatInsert(
     diametre_percage=3.9,
+    diametre_vis=2.7,
     epaisseur_paroi_min=1.5,
     profondeur_min=4.5,
     encombrement=6.9,
 )
 INSERT_M2 = HeatInsert(
     diametre_percage=3.2,
+    diametre_vis=2.2,
     epaisseur_paroi_min=1.2,
     profondeur_min=3.5,
     encombrement=5.6,

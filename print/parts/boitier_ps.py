@@ -81,15 +81,15 @@ def corbels(wall):
     x_sud = bb.max.X - _INSERT_SUD_DEPUIS_EST
     PAD_MARGIN = 1
     return [
-        (r, _PUIT_Y_NORD, 3, bbox(0.0, _PUIT_Y_NORD - half - PAD_MARGIN, plat, along + 2*PAD_MARGIN)),
+        (r, _PUIT_Y_NORD, INSERT_M3.diametre_vis, bbox(0.0, _PUIT_Y_NORD - half - PAD_MARGIN, plat, along + 2*PAD_MARGIN)),
         (
             x_sud - wall - r,
             r,
-            3,
+            INSERT_M3.diametre_vis,
             bbox(x_sud - along - PAD_MARGIN, 0.0, along + 2*PAD_MARGIN, plat),
         ),
         (
-            bb.size.X/2.0 - half, bb.size.Y-r, 3, 
+            bb.size.X/2.0 - half, bb.size.Y-r, INSERT_M3.diametre_vis,
             bbox(bb.size.X/2.0 - along -PAD_MARGIN,bb.size.Y-plat,along+2*PAD_MARGIN,plat)
         )
     ]

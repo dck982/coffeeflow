@@ -47,13 +47,13 @@ def corbels(wall):
         (
             bb.min.X + wall + corbel_plat/2,
             bb.min.Y + wall + corbel_along/2,
-            3,
+            INSERT_M3.diametre_vis,
             bbox(bb.min.X + wall, bb.min.Y + wall, corbel_plat, corbel_along),
         ),
         (
             bb.max.X - wall - corbel_plat/2,
             bb.max.Y - wall - corbel_along/2 - ANGLE_OPENING_W,
-            3,
+            INSERT_M3.diametre_vis,
             bbox(bb.max.X - wall - corbel_plat, bb.max.Y - wall - ANGLE_OPENING_W - corbel_along, corbel_plat, corbel_along),
         ),
 

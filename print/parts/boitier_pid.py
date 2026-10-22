@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import AMIN, CMIN
+from system import AMIN, CMIN, INSERT_M3
 
 
 def _block(x0,y0,z0,dx,dy,dz):
@@ -28,7 +28,7 @@ def boitier_pid(
     body += _block(0,0,0,bb.max.X,wall,floor+hauteur)
     body += _block(0,bb.max.Y-wall,0,bb.max.X,wall,floor+hauteur)
     # M3 hole in the center
-    body -= Pos(bb.center().X,bb.center().Y,0)*Cylinder(1.5,floor,align=CMIN)
+    body -= Pos(bb.center().X,bb.center().Y,0)*Cylinder(INSERT_M3.diametre_vis/2,floor,align=CMIN)
 
     if draft:
         return body

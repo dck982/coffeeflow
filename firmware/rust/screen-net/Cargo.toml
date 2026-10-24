@@ -1,6 +1,6 @@
 [package]
 name = "screen-net"
-version = "0.4.19"
+version = "0.4.20"
 edition = "2024"
 description = "Formats réseau de l'écran, sans pile TCP ni matériel"
 

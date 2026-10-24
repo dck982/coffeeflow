@@ -1222,13 +1222,13 @@ fn hf_capture_records_the_cycle_then_completes() {
     // Pas d'échantillon exportable tant que la capture est active.
     assert!(rig.core.hf_capture_sample(0).is_none());
     rig.advance(6500);
-    assert_eq!(rig.core.hf_capture_info().status, Status::Active); // récupération de 20 s
-    rig.advance(21_000);
+    assert_eq!(rig.core.hf_capture_info().status, Status::Active); // récupération de 10 s
+    rig.advance(11_000);
     let info = rig.core.hf_capture_info();
     assert_eq!(info.status, Status::Complete);
     assert_eq!(info.sample_period_ms, 100);
     assert_eq!(info.capacity, 1152);
-    assert!((250..=290).contains(&info.count), "{}", info.count);
+    assert!((150..=190).contains(&info.count), "{}", info.count);
     assert_eq!(info.dropped_samples, 0);
     let samples = rig.core.hf_capture_samples();
     assert!(samples[0].t_ms <= 50);

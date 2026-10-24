@@ -237,13 +237,16 @@ perd pas son premier tiers.
 
 ### Captures
 
-Depuis **0.3.32**, une capture HF d'infusion conserve **20 s** après l'arrêt
-de la pompe (30 s en 0.3.27–0.3.31, 20 s en 0.3.25–0.3.26) ; une purge ou une
-commande de banc, **5 s**. La précharge y apparaît comme `thermal_preheat`.
+Depuis **0.4.20**, une capture HF d'infusion conserve **10 s** après l'arrêt
+de la pompe (20 s en 0.3.32–0.4.19, 30 s en 0.3.27–0.3.31, 20 s en
+0.3.25–0.3.26) ; une purge ou une commande de banc, **5 s**. Les 10 s couvrent
+la fin des gouttes (poids stable 0,5 à 9,1 s après l'arrêt, voir plus bas) ;
+le maximum du rebond de la NTC, 20 s ou plus après l'arrêt, n'est plus
+capturé : il est relevé à l'écran et noté à la main. La précharge y apparaît comme `thermal_preheat`.
 Pour une purge, lancer `record_heating.py` juste après si le
 maximum du rebond compte.
 
-Sur les cinq infusions du 29 septembre au
+Historique du choix de 20 à 30 s. Sur les cinq infusions du 29 septembre au
 2 octobre, la NTC varie de moins de 0,2 °C entre 20 et 29 s après l'arrêt,
 et le poids en tasse est stable 0,5 à 9,1 s après l'arrêt. Ces infusions
 avaient la coupure de fin (0.3.28 à 0.3.38). Depuis 0.3.39, la chauffe suit

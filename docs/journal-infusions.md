@@ -66,7 +66,7 @@ Toujours avec ces définitions, pour que les entrées restent comparables :
 | Montée | temps de la fin de pré-infusion à 8 bar |
 | Infusion | durée **depuis 8 bar** et débits moyens (tasse en g/s, amont en ml/s) depuis 8 bar ; la durée de la phase « infusion » (fin de pré-infusion → arrêt) est notée à part, c'est celle des tableaux de `chauffe-infusion.md` |
 | Rendement | poids en tasse à l'arrêt de la pompe et poids final (gouttes comprises) |
-| Thermique | NTC pondérée par la tasse (`analyze_hf_capture.py`, critère de la consigne) ; minimum pendant l'écoulement ; minimum total et son instant ; NTC à l'arrêt et 20 s après |
+| Thermique | NTC pondérée par la tasse (`analyze_hf_capture.py`, critère de la consigne) ; minimum pendant l'écoulement ; minimum total et son instant ; NTC à l'arrêt et en fin de capture (20 s après jusqu'à 0.4.19, 10 s depuis 0.4.20) ; maximum du rebond relevé à l'écran |
 | Routine guidée | durée du porte-filtre sur le groupe (retour à la consigne + porte-filtre en place après la consigne, depuis la fin du rinçage du porte-filtre) et préparation, rapprochées de l'écart du modèle avec l'énergie SSR ; voir [wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe) |
 | Énergie | commande et SSR par phase ; l'écart entre les deux dit ce que le simulateur surestime |
 

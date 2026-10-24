@@ -15,10 +15,10 @@ use crate::json::format_g;
 /// Période d'échantillonnage.
 pub const PERIOD_MS: u16 = 100;
 /// 115,2 s couvrent le réglage temporel maximal de 60 s, 15 s de précharge et
-/// les 30 s de récupération conservées après une infusion.
+/// les 10 s de récupération conservées après une infusion, avec de la marge.
 pub const CAPACITY: u16 = 1152;
 /// Durée de récupération gardée après l'arrêt de la pompe d'une infusion.
-pub const BREW_COOLDOWN_US: i64 = 20 * 1000 * 1000;
+pub const BREW_COOLDOWN_US: i64 = 10 * 1000 * 1000;
 /// Idem pour les autres origines.
 pub const OTHER_COOLDOWN_US: i64 = 5 * 1000 * 1000;
 

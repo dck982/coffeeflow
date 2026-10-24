@@ -11,6 +11,7 @@ mod decoder;
 mod flash;
 mod http;
 mod paths;
+mod profile;
 mod purge;
 mod record;
 mod recorder;
@@ -148,6 +149,11 @@ enum Command {
         setting: String,
         #[arg(value_enum)]
         state: OnOff,
+    },
+    /// Liste, crée, renomme, modifie, supprime ou choisit les profils d'infusion
+    Profile {
+        #[command(subcommand)]
+        action: profile::ProfileAction,
     },
     /// Télécharge la dernière capture haute fréquence dans captures/
     DownloadHf,
@@ -526,6 +532,10 @@ fn run(cli: Cli) -> Result<bool> {
             settings::set_bool(setting, enabled, &mut client)?;
             println!("{}.{}={enabled} confirmé", setting.section, setting.key);
         }
+        Command::Profile { action } => {
+            let mut client = connection.client()?;
+            print!("{}", profile::run(&action, &mut client)?);
+        }
         Command::DownloadHf => {
             let mut client = connection.client()?;
             let path = settings::download_hf(&mut client, &paths::captures_dir())?;
@@ -591,6 +601,7 @@ mod tests {
             &["set", "heating", "on", "--usb"],
             &["download-hf", "--usb"],
             &["config", "save", "--usb"],
+            &["profile", "list", "--usb"],
         ] {
             assert!(parse(args).is_err(), "{args:?}");
         }
@@ -620,6 +631,41 @@ mod tests {
         assert!(parse(&["set", "scace", "off"]).is_ok());
         assert!(parse(&["set", "pump", "on"]).is_err());
         assert!(parse(&["set", "heating", "maybe"]).is_err());
+    }
+
+    #[test]
+    fn profile_subcommands_parse_their_options() {
+        assert!(parse(&["profile", "list"]).is_ok());
+        assert!(parse(&["profile", "add"]).is_err());
+        let cli = parse(&[
+            "profile",
+            "add",
+            "lungo",
+            "--from",
+            "single espresso",
+            "--dose",
+            "0",
+            "--basket",
+            "",
+        ])
+        .unwrap();
+        let Command::Profile { action } = cli.command else {
+            panic!("profile attendu");
+        };
+        assert_eq!(
+            action,
+            profile::ProfileAction::Add {
+                name: "lungo".into(),
+                from: Some("single espresso".into()),
+                dose: Some(0.0),
+                basket: Some(String::new()),
+            }
+        );
+        assert!(parse(&["profile", "rename", "a"]).is_err());
+        assert!(parse(&["profile", "rename", "a", "b"]).is_ok());
+        assert!(parse(&["profile", "set", "a", "--dose", "9"]).is_ok());
+        assert!(parse(&["profile", "rm", "a"]).is_ok());
+        assert!(parse(&["profile", "use", "a"]).is_ok());
     }
 
     #[test]

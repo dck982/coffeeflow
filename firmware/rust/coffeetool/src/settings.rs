@@ -123,7 +123,7 @@ pub fn download_hf(client: &mut dyn JsonClient, capture_dir: &Path) -> Result<Pa
     let capture = client.call("GET", "/hf-capture?view=both", None)?;
     let schema_ok = matches!(
         capture.get("schema").and_then(Value::as_str),
-        Some("coffeeflow.hf_capture.v1" | "coffeeflow.hf_capture.v2")
+        Some("coffeeflow.hf_capture.v1" | "coffeeflow.hf_capture.v2" | "coffeeflow.hf_capture.v3")
     );
     if !schema_ok || !capture.get("samples").is_some_and(Value::is_array) {
         bail!("réponse /hf-capture inconnue ou incompatible");
@@ -302,6 +302,28 @@ mod tests {
     }
 
     #[test]
+    fn restore_posts_a_schema_11_save_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let saved = json!({
+            "version": 11,
+            "active_profile": "single espresso",
+            "brew": {"target_weight_g": 22.0},
+            "profiles": [{"name": "single espresso", "dose_g": 8.0, "basket": "LM1 41 mm"}],
+        });
+        let mut get = FakeClient::new({
+            let saved = saved.clone();
+            move |_, _, _| Ok(saved.clone())
+        });
+        let path = dir.path().join("c.json");
+        save_config(&mut get, Some(path.clone()), dir.path()).unwrap();
+        let config = read_config(&path).unwrap();
+        assert_eq!(config, saved);
+        let mut post = FakeClient::new(|_, _, body| Ok(body.unwrap().clone()));
+        assert_eq!(restore_config(&mut post, &config).unwrap(), 11);
+        assert_eq!(post.calls[0].2, Some(saved));
+    }
+
+    #[test]
     fn restore_refuses_bad_files() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("c.json");
@@ -336,6 +358,12 @@ mod tests {
         );
         let saved: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         assert_eq!(saved["samples"], json!([1, 2]));
+
+        let mut client = FakeClient::new(|_, _, _| {
+            Ok(json!({"schema": "coffeeflow.hf_capture.v3", "samples": [3]}))
+        });
+        let other = tempfile::tempdir().unwrap();
+        assert!(download_hf(&mut client, other.path()).is_ok());
 
         let mut client = FakeClient::new(|_, _, _| Ok(json!({"schema": "autre", "samples": []})));
         assert!(download_hf(&mut client, dir.path()).is_err());

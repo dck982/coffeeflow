@@ -230,7 +230,10 @@ avec la raison de sa suppression.
 La transition de la pré-infusion vers l'infusion (depuis 0.3.18) augmente la
 pompe par pas de 5 points en environ 2,5 s. La boucle de pression attend la
 fin de cette montée, sauf si la pression entre plus tôt dans sa bande
-d'activation : elle reprend alors la commande courante sans saut. Depuis
+d'activation : elle reprend alors la commande courante sans saut. La bande
+commence aux 2/3 de la consigne depuis 0.4.21 (6 bar pour 9 bar), et non
+plus 3 bar sous la consigne, qui l'activait à 2 bar pour une consigne de
+5 bar. Depuis
 0.3.32, la montée part d'au moins `kMinimumBrewPumpPct` (50 %) : après une
 pause de pré-infusion à 35 %, sous le seuil de débit de la pompe, elle ne
 perd pas son premier tiers.

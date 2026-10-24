@@ -107,7 +107,10 @@ const BREW_RAMP_DURATION_MS: u64 = 2500;
 // Au-delà, une indisponibilité prolongée ne doit pas provoquer un rattrapage
 // d'intégrale brutal quand la pression réapparaît.
 const BREW_PRESSURE_MAX_INTEGRATION_PERIOD_MS: u64 = 400;
-const BREW_PRESSURE_ACTIVATION_MARGIN_BAR: f32 = 3.0;
+// Le PI prend la main aux 2/3 de la consigne : 6 bar pour 9 bar. Une marge
+// fixe de 3 bar l'activerait à 2 bar pour une consigne de 5 bar, en pleine
+// montée.
+const BREW_PRESSURE_ACTIVATION_FRACTION: f32 = 2.0 / 3.0;
 // Réglage initial tiré de la première capture réelle : autour de 9 bar, le
 // point de fonctionnement est proche de 70 %, avec 300 à 400 ms de retard.
 const BREW_PRESSURE_KP_PCT_PER_BAR: f32 = 15.0;
@@ -499,7 +502,7 @@ impl Machine {
                 + BREW_PRESSURE_KP_PCT_PER_BAR * pressure_error_bar;
             let pressure_control_ready = input.pressure_valid
                 && input.pressure_bar
-                    >= self.config.target_pressure_bar - BREW_PRESSURE_ACTIVATION_MARGIN_BAR
+                    >= self.config.target_pressure_bar * BREW_PRESSURE_ACTIVATION_FRACTION
                 && f32::from(self.brew_pump_pct) >= minimum_bumpless_command_pct;
             if pressure_control_ready {
                 // Une galette restrictive peut approcher la cible avant la fin
@@ -531,7 +534,7 @@ impl Machine {
 
             if !self.brew_pressure_control_active
                 && input.pressure_bar
-                    >= self.config.target_pressure_bar - BREW_PRESSURE_ACTIVATION_MARGIN_BAR
+                    >= self.config.target_pressure_bar * BREW_PRESSURE_ACTIVATION_FRACTION
             {
                 // Initialiser I pour que P + I reproduise la commande
                 // courante : le passage en boucle fermée ne crée ainsi aucun

@@ -102,7 +102,7 @@ fn pressure_regulation() {
     assert!(machine.start(1000, &c, &i));
     assert_eq!(machine.tick(2000, &i).dimmer, 100);
     assert_eq!(machine.tick(2199, &i).dimmer, 100); // pas avant 200 ms
-    assert_eq!(machine.tick(2200, &i).dimmer, 100); // activation à cible - 3 bar, sans saut
+    assert_eq!(machine.tick(2200, &i).dimmer, 100); // activation aux 2/3 de la cible, sans saut
     i.pressure_bar = 7.0;
     assert_eq!(machine.tick(2400, &i).dimmer, 100);
     i.pressure_bar = 8.0;
@@ -124,6 +124,23 @@ fn pressure_regulation() {
     }
     i.pressure_bar = 9.0;
     assert_eq!(machine.tick(5800, &i).dimmer, 70); // pas de windup à la borne basse
+}
+
+#[test]
+fn pressure_regulation_waits_for_two_thirds_of_a_low_target() {
+    let mut machine = Machine::new();
+    let mut c = config();
+    c.preinfusion_mode = PreinfusionMode::NONE;
+    c.target_pressure_bar = 6.0;
+    let mut i = valid(0.0, false, 4.1);
+    assert!(machine.start(1000, &c, &i));
+    assert_eq!(machine.tick(2000, &i).dimmer, 100);
+    i.pressure_bar = 3.8;
+    assert_eq!(machine.tick(2200, &i).dimmer, 100); // 3 bar passés, sous 4 bar : pas de PI
+    i.pressure_bar = 4.3;
+    assert_eq!(machine.tick(2400, &i).dimmer, 100); // activation sans saut
+    i.pressure_bar = 7.0;
+    assert_eq!(machine.tick(2600, &i).dimmer, 59);
 }
 
 #[test]

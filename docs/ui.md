@@ -58,7 +58,8 @@ La couleur de la température suit l'état de la chaudière :
 
 ## Accueil et repos
 
-L'accueil est la page 0. Au centre, la cible en grand : le poids (`36,0 g`) si
+L'accueil est la page 0. Une pastille sous le bandeau porte le nom du profil actif (voir « Choix du
+profil »). Au centre, la cible en grand : le poids (`36,0 g`) si
 la balance est présente, sinon le temps (`28 s`). Appuyer sur la cible ouvre le
 pavé numérique ; « − » et « + » l'ajustent directement (0,5 g entre 10 et
 100 g, ou 1 s entre 5 et 60 s) et enregistrent la configuration. Une ligne
@@ -74,15 +75,34 @@ Trois boutons en bas :
 - **purge**, qui pompe tant que le doigt reste appuyé ;
 - **réglages**.
 
-La fenêtre de choix se superpose à l'accueil, avec trois boutons :
+La fenêtre de choix se superpose à l'accueil. Son titre « infuser » est suivi,
+à droite, du nom du profil. Sous les trois boutons, une ligne rappelle la
+recette et les consignes (`8 g → 22 g · LM1 41 mm · 9 bar · 91 °C`) ; sans
+dose ou sans panier, ces morceaux disparaissent. Les trois boutons :
 
 - **directe** lance l'infusion comme avant. Elle est grisée tant que ses
   conditions ne sont pas réunies (chaudière à moins d'un degré de la
   consigne et prête, chauffage activé, températures et puissance de chauffe
-  fraîches, pas de délai de capture) ; la raison s'affiche en rouge dessous ;
+  fraîches, pas de délai de capture) ; la raison s'affiche en rouge sous la
+  ligne de recette ;
 - **guidée** est toujours active et ouvre l'infusion guidée ;
 - **annuler** ferme la fenêtre. Elle se ferme aussi d'elle-même si l'écran
   quitte l'accueil ou si la purge n'est plus possible.
+
+### Choix du profil
+
+Une pastille centrée sous le bandeau (240 × 40 px, arrondie, en `raised` avec
+un bord `hairline`) porte le nom du profil actif en 18 px `dim`, tronqué s'il
+est long. Sa zone tactile fait 56 px de haut. Un appui ouvre l'écran de choix
+(id 26), qui réutilise la page des grands boutons 360 × 88 en deux colonnes :
+titre « profil », rappel « créer, renommer : coffeetool » à droite de
+l'en-tête, et par profil son nom en 26 px puis sa ligne de recette
+(`{dose} g → {cible} g · {panier}`, en 18 px `dim`). Le profil actif est en
+`primary`, son nom en `accent`. Un appui choisit le profil, demande
+`SelectProfile` au cœur et revient à l'accueil ; un refus (cycle en cours,
+écriture impossible) laisse l'écran de choix et s'affiche en rouge dessous.
+Le retour ramène à l'accueil. Les profils se créent, se renomment et se
+suppriment avec `coffeetool profile`.
 
 La veille a deux niveaux, réglés par `dim_after_s` et `standby_after_s` de la
 configuration : l'écran s'assombrit, puis passe sur un fond uni portant
@@ -178,21 +198,25 @@ habituelle prend alors le relais.
 
 ## Réglages
 
-La page « réglages » (page 3) a un en-tête avec retour, une bascule Wi-Fi
-(session : elle active ou coupe la radio, sans changer d'écran) et quatre
-onglets numérotés. Chaque page affiche six tuiles en deux colonnes ; une tuile
-numérique ouvre le pavé, une tuile de choix ouvre l'écran de choix.
+La page « réglages » (page 3) a un en-tête avec retour, le contexte en
+`accent` (le nom du profil actif sur les onglets 1 à 3, « machine » sur le 4),
+une bascule Wi-Fi (session : elle active ou coupe la radio, sans changer
+d'écran) et quatre onglets numérotés. Les onglets 1 à 3 règlent le profil
+actif ; le 4 règle la machine. Chaque page affiche jusqu'à six tuiles en deux
+colonnes ; une tuile numérique ouvre le pavé, une tuile de choix ouvre l'écran
+de choix.
 
 1. **Cibles et pompes** : cible temps, pompe remplissage, cible poids, pompe
    pré-inf., cible pression, pompe infusion.
-2. **Remplissage et pré-infusion** : pression remplissage, durée remplissage,
-   critères pré-inf. (choix), échéance pré-inf., cible chaudière.
-3. **Rampe et purge** : stratégie rampe (choix), avance temps, avance poids,
-   chute pression, pompe purge, purge max.
-4. **Réseau et maintenance** : réinitialiser réseau (demande confirmation),
-   calibrations (indication « depuis /config », non modifiable à l'écran),
-   réinitialiser LCD (redémarre l'affichage), veille (« automatique », non
-   modifiable), précharge chauffe.
+2. **Remplissage et pré-infusion** : pression remplissage, critères pré-inf.
+   (choix), durée remplissage, échéance pré-inf., cible chaudière, précharge
+   chauffe.
+3. **Rampe** : stratégie rampe (choix), avance temps, avance poids, chute
+   pression. Deux emplacements restent vides.
+4. **Machine** : réinitialiser réseau (demande confirmation), calibrations
+   (indication « depuis /config », non modifiable à l'écran), réinitialiser LCD
+   (redémarre l'affichage), veille (« automatique », non modifiable), pompe
+   purge, purge max.
 
 Les tuiles inactives (calibrations, veille) sont grisées. « Réinitialiser réseau »
 apparaît en rouge et ouvre une fenêtre « effacer les identifiants wifi
@@ -206,9 +230,10 @@ la première touche. « valider » envoie la configuration au cœur ; une valeur
 invalide ou hors limites, ou un refus du cœur (par exemple pendant un cycle),
 s'affiche en rouge sous la valeur.
 
-Les deux écrans de choix sont des grands boutons : critères de pré-infusion
-(temps, poids, cumulables ; actifs en vert) et stratégie de rampe (aucune,
-temps, poids, chute pression ; un seul choix, en orange).
+Les écrans de choix sont des grands boutons : le profil (voir plus haut),
+critères de pré-infusion (temps, poids, cumulables ; actifs en vert) et
+stratégie de rampe (aucune, temps, poids, chute pression ; un seul choix, en
+orange).
 
 ## Diagnostic
 

@@ -40,13 +40,20 @@ export component AppWindow inherits Window {
     default-font-family: "Inter 24pt";
     // Les unités et accents des chaînes calculées en Rust doivent aussi
     // exister dans les glyphes embarqués, même sans libellé Slint statique.
-    Text { x: -200px; y: -200px; width: 1px; height: 1px; opacity: 0; text: "°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ"; font-size: 18px; }
+    // L'ASCII imprimable, les accents admis dans les noms de profil, la flèche
+    // et le point médian de la recette, aux deux tailles du texte libre.
+    Text { x: -200px; y: -200px; width: 1px; height: 1px; opacity: 0; text: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ→·"; font-size: 18px; }
+    Text { x: -200px; y: -200px; width: 1px; height: 1px; opacity: 0; text: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ→·"; font-size: 26px; }
     // La présentation n'envoie jamais de commande matérielle directement.
     callback command(int, string);
     in property <int> page: 0;
     in property <int> settings-page: 0;
     in property <string> target: "36,0 g";
     in property <string> brew-label: "infuser · 36 g";
+    in property <string> profile-name;
+    in property <string> brew-recipe;
+    in property <string> settings-title;
+    in property <bool> choice-profile: false;
     in property <bool> brew-enabled: false;
     in property <bool> minus-enabled: true;
     in property <bool> plus-enabled: true;
@@ -136,8 +143,12 @@ export component AppWindow inherits Window {
     }
     if root.page == 0: Rectangle {
         background: transparent;
-        Label { y: 112px; height: 96px; width: 800px; font-size: 76px; text: root.target; horizontal-alignment: center; }
-        TouchArea { x: 256px; y: 112px; width: 288px; height: 96px; clicked => { root.command(5, ""); } }
+        Rectangle { x: 280px; y: 84px; width: 240px; height: 40px; border-radius: 20px; background: Theme.raised; border-width: 1px; border-color: Theme.hairline;
+            Label { x: 16px; width: 208px; text: root.profile-name; font-size: 18px; color: Theme.dim; horizontal-alignment: center; }
+        }
+        TouchArea { x: 280px; y: 76px; width: 240px; height: 56px; clicked => { root.command(26, ""); } }
+        Label { y: 122px; height: 92px; width: 800px; font-size: 76px; text: root.target; horizontal-alignment: center; }
+        TouchArea { x: 256px; y: 132px; width: 288px; height: 82px; clicked => { root.command(5, ""); } }
         Key { x: 256px; y: 216px; width: 136px; height: 80px; label: "−"; content-size: 40px; enabled: root.minus-enabled; clicked => { root.command(6, ""); } }
         Key { x: 408px; y: 216px; width: 136px; height: 80px; label: "+"; content-size: 40px; enabled: root.plus-enabled; clicked => { root.command(7, ""); } }
         Label { y: 312px; height: 24px; width: 800px; font-size: 18px; text: root.detail; color: Theme.faint; horizontal-alignment: center; }
@@ -205,7 +216,8 @@ export component AppWindow inherits Window {
         background: transparent;
         Rectangle { y: 0px; height: 88px; background: Theme.raised;
             Back { x: 16px; y: 4px; width: 80px; height: 80px; clicked => { root.command(10, ""); } }
-            Label { x: 112px; width: 310px; text: root.page == 3 ? "réglages" : root.page == 4 ? "diagnostic" : root.editor-title; }
+            Label { x: 112px; width: root.page == 3 ? 240px : 310px; text: root.page == 3 ? root.settings-title : root.page == 4 ? "diagnostic" : root.editor-title; color: root.page == 3 ? Theme.accent : Theme.text; }
+            if root.page == 6 && root.choice-profile: Label { x: 432px; width: 352px; text: "créer, renommer : coffeetool"; font-size: 18px; color: Theme.faint; horizontal-alignment: right; }
             if root.page == 4: Label { x: 432px; width: 352px; height: 88px; text: root.enclosure; horizontal-alignment: right; vertical-alignment: center; font-size: 22px; color: Theme.dim; }
             if root.page == 3: Rectangle { background: transparent;
                 Key { x: 360px; y: 4px; width: 80px; height: 80px; label: ""; primary: root.wifi-enabled; clicked => { root.command(11, ""); }
@@ -244,7 +256,16 @@ export component AppWindow inherits Window {
             }
         }
         if root.page == 6: Rectangle { background: transparent;
-            for tile[i] in root.choices: Key { x: mod(i, 2) == 0 ? 32px : 408px; y: 120px + floor(i / 2) * 112px; width: 360px; height: 88px; label: tile.name; primary: tile.tone == 1; selected-toggle: root.editor-title == "pré-infusion" && tile.tone == 1; clicked => { root.command(17, "" + i); } }
+            if root.choice-profile: Label { x: 32px; y: 344px; width: 736px; height: 24px; text: root.editor-error; font-size: 18px; color: Theme.fault; }
+            if root.choice-profile: Rectangle { background: transparent;
+            for tile[i] in root.choices: Rectangle { x: mod(i, 2) == 0 ? 32px : 408px; y: 120px + floor(i / 2) * 112px; width: 360px; height: 88px; border-radius: 8px; background: profile-touch.pressed ? Theme.high : tile.tone == 1 ? Theme.primary : Theme.surface;
+                Label { x: 16px; y: 8px; width: 328px; height: 36px; text: tile.name; color: tile.tone == 1 ? Theme.accent : Theme.text; }
+                Label { x: 16px; y: 50px; width: 328px; height: 26px; text: tile.value; font-size: 18px; color: Theme.dim; }
+                profile-touch := TouchArea { clicked => { root.command(17, "" + i); } }
+            }
+            }
+            if !root.choice-profile: Rectangle { background: transparent;
+            for tile[i] in root.choices: Key { x: mod(i, 2) == 0 ? 32px : 408px; y: 120px + floor(i / 2) * 112px; width: 360px; height: 88px; label: tile.name; primary: tile.tone == 1; selected-toggle: root.editor-title == "pré-infusion" && tile.tone == 1; clicked => { root.command(17, "" + i); } } }
         }
     }
     if root.page == 7: Rectangle { background: Theme.bg;
@@ -267,11 +288,13 @@ export component AppWindow inherits Window {
     if root.brew-choice-visible: Rectangle { background: #16110cb3;
         Rectangle { x: 60px; y: 100px; width: 680px; height: 280px; background: Theme.raised; border-radius: 8px; border-width: 2px; border-color: Theme.hairline;
             Rectangle { x: 0px; y: 0px; width: 4px; height: 280px; background: Theme.accent; }
-            Label { x: 28px; y: 24px; width: 620px; height: 56px; text: "infuser"; font-size: 40px; color: Theme.accent; }
+            Label { x: 28px; y: 24px; width: 200px; height: 56px; text: "infuser"; font-size: 40px; color: Theme.accent; }
+            Label { x: 240px; y: 24px; width: 412px; height: 56px; text: root.profile-name; horizontal-alignment: right; }
             Key { x: 28px; y: 104px; width: 200px; height: 88px; label: "directe"; primary: true; enabled: root.brew-direct-enabled; clicked => { root.command(1, ""); } }
             Key { x: 240px; y: 104px; width: 200px; height: 88px; label: "guidée"; primary: true; clicked => { root.command(22, ""); } }
             Key { x: 452px; y: 104px; width: 200px; height: 88px; label: "annuler"; clicked => { root.command(23, ""); } }
-            Label { x: 28px; y: 216px; width: 624px; height: 28px; text: root.brew-direct-reason; font-size: 18px; color: Theme.fault; }
+            Label { x: 28px; y: 204px; width: 624px; height: 28px; text: root.brew-recipe; font-size: 18px; color: Theme.dim; }
+            Label { x: 28px; y: 240px; width: 624px; height: 28px; text: root.brew-direct-reason; font-size: 18px; color: Theme.fault; }
         }
     }
     if root.full-visible: Rectangle { background: Theme.bg;

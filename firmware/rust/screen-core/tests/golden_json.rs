@@ -1,6 +1,7 @@
-//! Tests dorés : `/config` et `/telemetry` comparés au JSON que le vrai cJSON
-//! écrit pour le même état dans le firmware C++ (`vectors/cjson_vectors.txt`,
-//! régénéré par `vectors/gen_cjson_vectors.sh`).
+//! Tests dorés : `/telemetry` comparé au JSON que le vrai cJSON écrit pour le
+//! même état dans le firmware C++ (`vectors/cjson_vectors.txt`, régénéré par
+//! `vectors/gen_cjson_vectors.sh`), et `/config` du schéma 11 comparé au
+//! document écrit à la main.
 
 #![allow(clippy::field_reassign_with_default)]
 
@@ -39,17 +40,36 @@ fn numbers_are_printed_like_cjson() {
 }
 
 #[test]
-fn config_default_matches_cpp_byte_for_byte() {
+fn config_default_matches_the_schema_11_document() {
     let mut config = Config::default();
     config.revision = 1;
-    assert_eq!(
-        encode_config(&config).to_json_string(),
-        vector("config_default")
+    let brew =
+        r#"{"target_weight_g":36.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}"#;
+    let filling = r#"{"time_s":10,"pressure_bar":1.0,"pump_pct":100}"#;
+    let preinfusion = r#"{"time":true,"weight":false,"time_s":4,"pump_pct":35}"#;
+    let rampdown =
+        r#"{"mode":"none","lead_time_s":3.0,"lead_weight_g":4.0,"pressure_drop_bar":1.0}"#;
+    let expected = format!(
+        concat!(
+            r#"{{"version":11,"active_profile":"single espresso","brew":{brew},"#,
+            r#""heating":{{"enabled":true,"brew_temperature_c":90.0,"brew_preheat_time_s":2.5}},"#,
+            r#""filling":{filling},"preinfusion":{preinfusion},"rampdown":{rampdown},"#,
+            r#""purge":{{"pump_pct":100,"max_s":20}},"ui":{{"dim_after_s":240,"standby_after_s":1800}},"#,
+            r#""scace":{{"enabled":false}},"profiles":[{{"name":"single espresso","dose_g":8.0,"#,
+            r#""basket":"LM1 41 mm","brew":{brew},"#,
+            r#""heating":{{"brew_temperature_c":90.0,"brew_preheat_time_s":2.5}},"#,
+            r#""filling":{filling},"preinfusion":{preinfusion},"rampdown":{rampdown}}}]}}"#
+        ),
+        brew = brew,
+        filling = filling,
+        preinfusion = preinfusion,
+        rampdown = rampdown
     );
+    assert_eq!(encode_config(&config).to_json_string(), expected);
 }
 
 #[test]
-fn config_custom_matches_cpp_byte_for_byte() {
+fn config_custom_matches_the_schema_11_document() {
     let mut c = Config::default();
     c.target_weight_g = 36.5;
     c.target_time_s = 30;
@@ -73,7 +93,32 @@ fn config_custom_matches_cpp_byte_for_byte() {
     c.dim_after_s = 120;
     c.standby_after_s = 900;
     c.scace_enabled = true;
-    assert_eq!(encode_config(&c).to_json_string(), vector("config_custom"));
+    let flat = c;
+    c.profiles[0].take_settings(&flat);
+    let brew =
+        r#"{"target_weight_g":36.5,"target_time_s":30,"target_pressure_bar":9.1,"pump_pct":85}"#;
+    let filling = r#"{"time_s":12,"pressure_bar":0.3,"pump_pct":75}"#;
+    let preinfusion = r#"{"time":true,"weight":true,"time_s":6,"pump_pct":40}"#;
+    let rampdown =
+        r#"{"mode":"pressure_drop","lead_time_s":4.5,"lead_weight_g":2.5,"pressure_drop_bar":1.5}"#;
+    let heating = r#"{"brew_temperature_c":92.5,"brew_preheat_time_s":7.5}"#;
+    let expected = format!(
+        concat!(
+            r#"{{"version":11,"active_profile":"single espresso","brew":{brew},"#,
+            r#""heating":{{"enabled":false,"brew_temperature_c":92.5,"brew_preheat_time_s":7.5}},"#,
+            r#""filling":{filling},"preinfusion":{preinfusion},"rampdown":{rampdown},"#,
+            r#""purge":{{"pump_pct":60,"max_s":30}},"ui":{{"dim_after_s":120,"standby_after_s":900}},"#,
+            r#""scace":{{"enabled":true}},"profiles":[{{"name":"single espresso","dose_g":8.0,"#,
+            r#""basket":"LM1 41 mm","brew":{brew},"heating":{heating},"#,
+            r#""filling":{filling},"preinfusion":{preinfusion},"rampdown":{rampdown}}}]}}"#
+        ),
+        brew = brew,
+        filling = filling,
+        preinfusion = preinfusion,
+        rampdown = rampdown,
+        heating = heating
+    );
+    assert_eq!(encode_config(&c).to_json_string(), expected);
 }
 
 fn clock() -> Clock {

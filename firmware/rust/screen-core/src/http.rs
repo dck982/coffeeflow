@@ -19,8 +19,9 @@ use crate::hf_capture::{self, Status as CaptureStatus, View};
 use crate::json::{self, Json};
 use crate::snapshot::{FlashTarget, Freshness, Snapshot};
 
-/// Taille maximale d'un corps de requête JSON.
-pub const MAX_BODY: usize = 2048;
+/// Taille maximale d'un corps de requête JSON. Le `GET /config` de quatre
+/// profils pèse un peu plus de 2 ko : son re-`POST` doit passer.
+pub const MAX_BODY: usize = 4096;
 
 /// Réponse HTTP : ligne d'état (`"409 Conflict"`) et corps JSON. L'en-tête
 /// `Content-Type: application/json` et `Cache-Control: no-store` sont ajoutés
@@ -800,7 +801,12 @@ pub fn handle_get_hf_capture<S: ConfigStore>(
         CaptureStatus::Complete => {}
     }
     HfCaptureReply::Stream {
-        header: hf_capture::export_header(&info, view, core.hf_capture_session()),
+        header: hf_capture::export_header(
+            &info,
+            view,
+            core.hf_capture_session(),
+            &core.hf_capture_context(),
+        ),
         view,
         count: info.count,
     }

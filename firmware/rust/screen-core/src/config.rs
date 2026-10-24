@@ -1,19 +1,20 @@
 //! Configuration utilisateur persistante : valeurs par défaut, validation,
-//! bornes, blob NVS (schéma 10) et migrations des schémas 1 à 9.
+//! bornes, profils d'infusion, blob NVS (schéma 11) et migrations des
+//! schémas 1 à 10.
 //!
 //! Les calibrations machine ne passent ni par NVS ni par `/config` : elles
 //! sont compilées dans [`crate::calibration`].
 //!
 //! Le stockage est abstrait par [`ConfigStore`] : deux emplacements
 //! transactionnels `a` et `b` (blobs d'une centaine d'octets, espace de noms
-//! NVS `ui`), écrits en alternance. L'écriture est synchrone parce que
+//! NVS `ui`, de l'ordre de 500 octets), écrits en alternance. L'écriture est synchrone parce que
 //! `/config` doit pouvoir répondre `500 storage` sans avoir rien modifié.
 
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::BitOr;
 
-pub const CONFIG_SCHEMA_VERSION: u16 = 10;
+pub const CONFIG_SCHEMA_VERSION: u16 = 11;
 pub const MINIMUM_BREW_TEMPERATURE_C: f32 = 50.0;
 /// 5 °C sous la coupure de sécurité de la chaudière.
 pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 95.0;
@@ -88,7 +89,7 @@ impl RampdownMode {
 pub mod bounds {
     pub const TARGET_WEIGHT_G: (f32, f32, f32) = (10.0, 100.0, 0.5);
     pub const TARGET_TIME_S: (u16, u16) = (5, 60);
-    pub const TARGET_PRESSURE_BAR: (f32, f32, f32) = (6.0, 12.0, 0.1);
+    pub const TARGET_PRESSURE_BAR: (f32, f32, f32) = (4.0, 12.0, 0.1);
     pub const BREW_TEMPERATURE_C: (f32, f32, f32) = (
         super::MINIMUM_BREW_TEMPERATURE_C,
         super::MAXIMUM_BREW_TEMPERATURE_C,
@@ -109,9 +110,174 @@ pub mod bounds {
     pub const PURGE_MAX_S: (u16, u16, u16) = (5, 60, 5);
     pub const DIM_AFTER_S: (u16, u16, u16) = (60, 1800, 60);
     pub const STANDBY_AFTER_S: (u16, u16, u16) = (300, 3600, 300);
+    /// Dose d'un profil : 0 (non renseignée) ou (min, max, pas).
+    pub const PROFILE_DOSE_G: (f32, f32, f32) = (3.0, 30.0, 0.1);
 }
 
-/// Configuration utilisateur (schéma 10).
+/// Nombre maximal de profils.
+pub const MAX_PROFILES: usize = 4;
+/// Taille des tampons UTF-8 du nom et du panier d'un profil.
+pub const PROFILE_TEXT_BYTES: usize = 32;
+/// Longueurs admises, en caractères.
+pub const PROFILE_NAME_MAX_CHARS: usize = 20;
+pub const PROFILE_BASKET_MAX_CHARS: usize = 24;
+
+/// Profil d'infusion : une recette (nom, dose, panier) et les réglages que la
+/// machine applique à l'infusion. Chaque profil porte toutes ses valeurs.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Profile {
+    pub name: [u8; PROFILE_TEXT_BYTES],
+    /// Longueur de `name` en octets.
+    pub name_len: u8,
+    pub basket: [u8; PROFILE_TEXT_BYTES],
+    /// Longueur de `basket` en octets.
+    pub basket_len: u8,
+    /// 0 : non renseignée.
+    pub dose_g: f32,
+    pub target_weight_g: f32,
+    pub target_time_s: u16,
+    pub target_pressure_bar: f32,
+    pub brew_pump_pct: u8,
+    pub brew_temperature_c: f32,
+    pub brew_preheat_time_s: f32,
+    pub filling_time_s: u16,
+    pub filling_pressure_bar: f32,
+    pub filling_pump_pct: u8,
+    pub preinfusion_mode: PreinfusionMode,
+    pub preinfusion_time_s: u16,
+    pub preinfusion_pump_pct: u8,
+    pub rampdown_mode: RampdownMode,
+    pub rampdown_lead_time_s: f32,
+    pub rampdown_lead_weight_g: f32,
+    pub rampdown_pressure_drop_bar: f32,
+}
+
+impl Profile {
+    /// Emplacement inutilisé : tout à zéro.
+    pub const EMPTY: Self = Self {
+        name: [0; PROFILE_TEXT_BYTES],
+        name_len: 0,
+        basket: [0; PROFILE_TEXT_BYTES],
+        basket_len: 0,
+        dose_g: 0.0,
+        target_weight_g: 0.0,
+        target_time_s: 0,
+        target_pressure_bar: 0.0,
+        brew_pump_pct: 0,
+        brew_temperature_c: 0.0,
+        brew_preheat_time_s: 0.0,
+        filling_time_s: 0,
+        filling_pressure_bar: 0.0,
+        filling_pump_pct: 0,
+        preinfusion_mode: PreinfusionMode::NONE,
+        preinfusion_time_s: 0,
+        preinfusion_pump_pct: 0,
+        rampdown_mode: RampdownMode::None,
+        rampdown_lead_time_s: 0.0,
+        rampdown_lead_weight_g: 0.0,
+        rampdown_pressure_drop_bar: 0.0,
+    };
+
+    /// Profil dont les réglages sont ceux des champs plats de `c`.
+    pub fn from_flat(c: &Config, name: &str, dose_g: f32, basket: &str) -> Self {
+        let mut profile = Self::EMPTY;
+        profile.set_name(name);
+        profile.set_basket(basket);
+        profile.dose_g = dose_g;
+        profile.take_settings(c);
+        profile
+    }
+
+    pub fn name(&self) -> &str {
+        text_of(&self.name, self.name_len)
+    }
+
+    pub fn basket(&self) -> &str {
+        text_of(&self.basket, self.basket_len)
+    }
+
+    /// Écrit le nom ; `false` (rien n'est écrit) s'il dépasse le tampon.
+    pub fn set_name(&mut self, name: &str) -> bool {
+        set_text(&mut self.name, &mut self.name_len, name)
+    }
+
+    /// Écrit le panier ; `false` (rien n'est écrit) s'il dépasse le tampon.
+    pub fn set_basket(&mut self, basket: &str) -> bool {
+        set_text(&mut self.basket, &mut self.basket_len, basket)
+    }
+
+    /// Copie les réglages des champs plats de `c` dans ce profil ; la recette
+    /// reste.
+    pub fn take_settings(&mut self, c: &Config) {
+        self.target_weight_g = c.target_weight_g;
+        self.target_time_s = c.target_time_s;
+        self.target_pressure_bar = c.target_pressure_bar;
+        self.brew_pump_pct = c.brew_pump_pct;
+        self.brew_temperature_c = c.brew_temperature_c;
+        self.brew_preheat_time_s = c.brew_preheat_time_s;
+        self.filling_time_s = c.filling_time_s;
+        self.filling_pressure_bar = c.filling_pressure_bar;
+        self.filling_pump_pct = c.filling_pump_pct;
+        self.preinfusion_mode = c.preinfusion_mode;
+        self.preinfusion_time_s = c.preinfusion_time_s;
+        self.preinfusion_pump_pct = c.preinfusion_pump_pct;
+        self.rampdown_mode = c.rampdown_mode;
+        self.rampdown_lead_time_s = c.rampdown_lead_time_s;
+        self.rampdown_lead_weight_g = c.rampdown_lead_weight_g;
+        self.rampdown_pressure_drop_bar = c.rampdown_pressure_drop_bar;
+    }
+
+    /// Copie les réglages de ce profil dans les champs plats de `c`.
+    pub fn give_settings(&self, c: &mut Config) {
+        c.target_weight_g = self.target_weight_g;
+        c.target_time_s = self.target_time_s;
+        c.target_pressure_bar = self.target_pressure_bar;
+        c.brew_pump_pct = self.brew_pump_pct;
+        c.brew_temperature_c = self.brew_temperature_c;
+        c.brew_preheat_time_s = self.brew_preheat_time_s;
+        c.filling_time_s = self.filling_time_s;
+        c.filling_pressure_bar = self.filling_pressure_bar;
+        c.filling_pump_pct = self.filling_pump_pct;
+        c.preinfusion_mode = self.preinfusion_mode;
+        c.preinfusion_time_s = self.preinfusion_time_s;
+        c.preinfusion_pump_pct = self.preinfusion_pump_pct;
+        c.rampdown_mode = self.rampdown_mode;
+        c.rampdown_lead_time_s = self.rampdown_lead_time_s;
+        c.rampdown_lead_weight_g = self.rampdown_lead_weight_g;
+        c.rampdown_pressure_drop_bar = self.rampdown_pressure_drop_bar;
+    }
+}
+
+impl Default for Profile {
+    fn default() -> Self {
+        Self::EMPTY
+    }
+}
+
+fn text_of(buffer: &[u8; PROFILE_TEXT_BYTES], len: u8) -> &str {
+    let len = usize::from(len).min(PROFILE_TEXT_BYTES);
+    core::str::from_utf8(&buffer[..len]).unwrap_or("")
+}
+
+fn set_text(buffer: &mut [u8; PROFILE_TEXT_BYTES], len: &mut u8, text: &str) -> bool {
+    if text.len() > PROFILE_TEXT_BYTES {
+        return false;
+    }
+    *buffer = [0; PROFILE_TEXT_BYTES];
+    buffer[..text.len()].copy_from_slice(text.as_bytes());
+    *len = text.len() as u8;
+    true
+}
+
+/// Nom du profil unique issu d'une migration ou d'une NVS vierge.
+const DEFAULT_PROFILE_NAME: &str = "single espresso";
+const DEFAULT_PROFILE_DOSE_G: f32 = 8.0;
+const DEFAULT_PROFILE_BASKET: &str = "LM1 41 mm";
+
+/// Configuration effective (schéma 11) : la machine et le profil actif. Les
+/// champs plats « profil » (cible, température, remplissage, pré-infusion,
+/// rampe) sont toujours égaux à `profiles[active_profile]` ; toute écriture
+/// acceptée rétablit cet invariant.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Config {
     pub version: u16,
@@ -144,11 +310,17 @@ pub struct Config {
     /// Recherche et connexion BLE de la sonde SCACE. Désactivée par défaut :
     /// la sonde ne sert qu'aux campagnes de mesure.
     pub scace_enabled: bool,
+    /// Emplacements au-delà de `profile_count` : à zéro.
+    pub profiles: [Profile; MAX_PROFILES],
+    /// De 1 à [`MAX_PROFILES`].
+    pub profile_count: u8,
+    /// Indice dans `profiles`, inférieur à `profile_count`.
+    pub active_profile: u8,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self {
+        let mut config = Self {
             version: CONFIG_SCHEMA_VERSION,
             revision: 0,
             target_weight_g: 36.0,
@@ -173,12 +345,77 @@ impl Default for Config {
             dim_after_s: 240,
             standby_after_s: 1800,
             scace_enabled: false,
-        }
+            profiles: [Profile::EMPTY; MAX_PROFILES],
+            profile_count: 1,
+            active_profile: 0,
+        };
+        config.adopt_flat_as_single_profile();
+        config
     }
 }
 
-/// Les profils ne sont délibérément pas encodés dans le blob.
-pub const PROFILES_SUPPORTED: bool = false;
+impl Config {
+    /// Les champs plats deviennent le profil unique et actif : celui des
+    /// migrations et d'une NVS vierge.
+    fn adopt_flat_as_single_profile(&mut self) {
+        self.profiles = [Profile::EMPTY; MAX_PROFILES];
+        self.profiles[0] = Profile::from_flat(
+            self,
+            DEFAULT_PROFILE_NAME,
+            DEFAULT_PROFILE_DOSE_G,
+            DEFAULT_PROFILE_BASKET,
+        );
+        self.profile_count = 1;
+        self.active_profile = 0;
+    }
+
+    /// Profils en service.
+    pub fn profiles(&self) -> &[Profile] {
+        &self.profiles[..usize::from(self.profile_count).min(MAX_PROFILES)]
+    }
+
+    /// Profil actif ; le premier si l'indice est hors plage.
+    pub fn active(&self) -> &Profile {
+        self.profiles
+            .get(usize::from(self.active_profile))
+            .unwrap_or(&self.profiles[0])
+    }
+
+    /// Recopie le profil actif dans les champs plats.
+    pub(crate) fn load_active(&mut self) {
+        let profile = *self.active();
+        profile.give_settings(self);
+    }
+
+    /// Rétablit l'invariant « champs plats = profil actif » sur une
+    /// configuration proposée : si le profil actif est celui de
+    /// `previous_active`, les champs plats modifiés s'écrivent dans le
+    /// profil ; sinon le choix de profil l'emporte. Les emplacements au-delà
+    /// de `profile_count` sont remis à zéro. Un indice ou un nombre hors
+    /// plage est laissé à [`validate`].
+    fn reconcile_profiles(&mut self, previous_active: u8) {
+        let count = usize::from(self.profile_count);
+        if count == 0 || count > MAX_PROFILES || self.active_profile >= self.profile_count {
+            return;
+        }
+        if self.active_profile == previous_active {
+            self.store_active();
+        } else {
+            self.load_active();
+        }
+        for profile in &mut self.profiles[count..] {
+            *profile = Profile::EMPTY;
+        }
+    }
+
+    /// Écrit les champs plats dans le profil actif.
+    pub(crate) fn store_active(&mut self) {
+        let flat = *self;
+        if let Some(profile) = self.profiles.get_mut(usize::from(self.active_profile)) {
+            profile.take_settings(&flat);
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigStatus {
@@ -224,12 +461,9 @@ fn valid_pct(value: u8, (min, max, step): (u8, u8, u8)) -> bool {
     !(value < min || value > max || !value.is_multiple_of(step))
 }
 
-/// Premier champ invalide, `None` si la configuration est valide.
-pub fn validate(c: &Config) -> Option<&'static str> {
+/// Premier champ plat invalide, `None` s'ils sont tous valides.
+fn validate_flat(c: &Config) -> Option<&'static str> {
     use bounds as b;
-    if c.version != CONFIG_SCHEMA_VERSION {
-        return Some("version");
-    }
     if !valid_step(c.target_weight_g, b::TARGET_WEIGHT_G) {
         return Some("brew.target_weight_g");
     }
@@ -295,6 +529,133 @@ pub fn validate(c: &Config) -> Option<&'static str> {
     None
 }
 
+/// Noms des champs d'un profil dans les refus, un tableau par indice : les
+/// noms sont `'static`, comme ceux du reste de la validation.
+macro_rules! profile_field_names {
+    ($($field:literal),* $(,)?) => {
+        pub(crate) const PROFILE_FIELD_NAMES: &[(&str, [&str; MAX_PROFILES])] = &[
+            $((
+                $field,
+                [
+                    concat!("profiles[0].", $field),
+                    concat!("profiles[1].", $field),
+                    concat!("profiles[2].", $field),
+                    concat!("profiles[3].", $field),
+                ],
+            )),*
+        ];
+    };
+}
+
+profile_field_names!(
+    "name",
+    "basket",
+    "dose_g",
+    "brew.target_weight_g",
+    "brew.target_time_s",
+    "brew.target_pressure_bar",
+    "brew.pump_pct",
+    "heating.brew_temperature_c",
+    "heating.brew_preheat_time_s",
+    "filling.time_s",
+    "filling.pressure_bar",
+    "filling.pump_pct",
+    "preinfusion.mode",
+    "preinfusion.time_s",
+    "preinfusion.pump_pct",
+    "rampdown.mode",
+    "rampdown.lead_time_s",
+    "rampdown.lead_weight_g",
+    "rampdown.pressure_drop_bar",
+);
+
+/// Nom d'un champ du profil `index` dans un refus (`profiles[2].name`).
+pub fn profile_field(index: usize, field: &str) -> &'static str {
+    PROFILE_FIELD_NAMES
+        .iter()
+        .find(|(name, _)| *name == field)
+        .and_then(|(_, names)| names.get(index))
+        .copied()
+        .unwrap_or("profiles")
+}
+
+/// Caractères admis dans un nom ou un panier : ASCII imprimable et accents
+/// français.
+fn allowed_char(c: char) -> bool {
+    matches!(c, ' '..='~') || "°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ".contains(c)
+}
+
+/// Texte de profil valide : de `min` à `max` caractères admis, tenant dans le
+/// tampon, sans espace en tête ni en fin.
+fn valid_profile_text(text: &str, min: usize, max: usize) -> bool {
+    let chars = text.chars().count();
+    chars >= min
+        && chars <= max
+        && text.len() <= PROFILE_TEXT_BYTES
+        && text.chars().all(allowed_char)
+        && !text.starts_with(' ')
+        && !text.ends_with(' ')
+}
+
+/// Premier champ invalide d'un profil, `None` s'il est valide. Les unicités
+/// se vérifient entre profils, dans [`validate`].
+fn validate_profile(index: usize, p: &Profile) -> Option<&'static str> {
+    if usize::from(p.name_len) > PROFILE_TEXT_BYTES
+        || !valid_profile_text(p.name(), 1, PROFILE_NAME_MAX_CHARS)
+    {
+        return Some(profile_field(index, "name"));
+    }
+    if usize::from(p.basket_len) > PROFILE_TEXT_BYTES
+        || !valid_profile_text(p.basket(), 0, PROFILE_BASKET_MAX_CHARS)
+    {
+        return Some(profile_field(index, "basket"));
+    }
+    if p.dose_g != 0.0 && !valid_step(p.dose_g, bounds::PROFILE_DOSE_G) {
+        return Some(profile_field(index, "dose_g"));
+    }
+    // Les réglages suivent les règles des champs plats ; le reste de la
+    // configuration étant celui par défaut, seul un champ du profil peut
+    // être fautif.
+    let mut settings = Config::default();
+    p.give_settings(&mut settings);
+    validate_flat(&settings).map(|field| profile_field(index, field))
+}
+
+/// Premier champ invalide, `None` si la configuration est valide.
+pub fn validate(c: &Config) -> Option<&'static str> {
+    if c.version != CONFIG_SCHEMA_VERSION {
+        return Some("version");
+    }
+    if let Some(field) = validate_flat(c) {
+        return Some(field);
+    }
+    let count = usize::from(c.profile_count);
+    if count == 0 || count > MAX_PROFILES {
+        return Some("profiles");
+    }
+    if usize::from(c.active_profile) >= count {
+        return Some("active_profile");
+    }
+    validate_profile_list(&c.profiles[..count])
+}
+
+/// Premier champ invalide d'une liste de profils : chaque profil, puis
+/// l'unicité des noms (le second nom identique est fautif).
+pub fn validate_profile_list(profiles: &[Profile]) -> Option<&'static str> {
+    for (index, profile) in profiles.iter().enumerate() {
+        if let Some(field) = validate_profile(index, profile) {
+            return Some(field);
+        }
+        if profiles[..index]
+            .iter()
+            .any(|other| other.name() == profile.name())
+        {
+            return Some(profile_field(index, "name"));
+        }
+    }
+    None
+}
+
 fn valid_pct16(value: u16, (min, max, step): (u16, u16, u16)) -> bool {
     !(value < min || value > max || !value.is_multiple_of(step))
 }
@@ -328,6 +689,49 @@ use Ty::{Bool, F32, U8, U16, U32};
 /// type C.
 type Field = (&'static str, Ty);
 
+// Le schéma 11 ne garde dans la structure que la machine et le choix du
+// profil ; les réglages d'infusion passent dans les enregistrements de
+// profil qui suivent (voir `PROFILE_FIELDS`).
+const V11: &[Field] = &[
+    ("version", U16),
+    ("revision", U32),
+    ("heating_enabled", Bool),
+    ("purge_pump_pct", U8),
+    ("purge_max_s", U16),
+    ("dim_after_s", U16),
+    ("standby_after_s", U16),
+    ("scace_enabled", Bool),
+    ("active_profile", U8),
+    ("profile_count", U8),
+];
+
+/// Un enregistrement de profil du schéma 11 : le nom puis le panier
+/// (`PROFILE_TEXT_BYTES` octets chacun, complétés par des zéros), puis ces
+/// champs. Quatre enregistrements suivent la structure de la machine ; ceux
+/// au-delà de `profile_count` sont à zéro.
+const PROFILE_FIELDS: &[Field] = &[
+    ("name_len", U8),
+    ("basket_len", U8),
+    ("brew_pump_pct", U8),
+    ("filling_pump_pct", U8),
+    ("preinfusion_mode", U8),
+    ("preinfusion_pump_pct", U8),
+    ("rampdown_mode", U8),
+    ("target_time_s", U16),
+    ("filling_time_s", U16),
+    ("preinfusion_time_s", U16),
+    ("dose_g", F32),
+    ("target_weight_g", F32),
+    ("target_pressure_bar", F32),
+    ("brew_temperature_c", F32),
+    ("brew_preheat_time_s", F32),
+    ("filling_pressure_bar", F32),
+    ("rampdown_lead_time_s", F32),
+    ("rampdown_lead_weight_g", F32),
+    ("rampdown_pressure_drop_bar", F32),
+];
+
+// Le schéma 10 : un seul jeu de réglages, sans profils.
 const V10: &[Field] = &[
     ("version", U16),
     ("revision", U32),
@@ -566,11 +970,28 @@ const V1: &[Field] = V2;
 /// dispose : alignement naturel, structure alignée sur 4.
 struct Layout {
     offsets: Vec<usize>,
-    /// Taille de la structure de configuration, complétée à 4.
+    /// Taille des champs, complétée à 4 : les enregistrements de profil
+    /// commencent juste après.
+    fields_size: usize,
+    /// Taille de la structure de configuration : les champs puis les
+    /// enregistrements de profil.
     config_size: usize,
 }
 
+/// Taille d'un enregistrement de profil dans le blob.
+fn profile_record_size() -> usize {
+    2 * PROFILE_TEXT_BYTES + Layout::of(PROFILE_FIELDS).fields_size
+}
+
 impl Layout {
+    /// Disposition du schéma 11 : la machine et quatre enregistrements de
+    /// profil.
+    fn current() -> Self {
+        let mut layout = Self::of(V11);
+        layout.config_size += MAX_PROFILES * profile_record_size();
+        layout
+    }
+
     fn of(fields: &[Field]) -> Self {
         let mut offsets = Vec::with_capacity(fields.len());
         let mut at = 0usize;
@@ -580,9 +1001,11 @@ impl Layout {
             offsets.push(at);
             at += size;
         }
+        let fields_size = at.div_ceil(4) * 4;
         Self {
             offsets,
-            config_size: at.div_ceil(4) * 4,
+            fields_size,
+            config_size: fields_size,
         }
     }
 
@@ -626,8 +1049,12 @@ impl Raw {
 
 /// Lit un blob de la forme `fields` ; `None` si la taille, la magie, la
 /// version ou la somme de contrôle ne correspondent pas.
-fn decode_blob(bytes: &[u8], fields: &'static [Field], version: u16) -> Option<Raw> {
-    let layout = Layout::of(fields);
+fn decode_blob(
+    bytes: &[u8],
+    fields: &'static [Field],
+    layout: &Layout,
+    version: u16,
+) -> Option<Raw> {
     if bytes.len() != layout.blob_size() || read_u32(bytes, 0) != MAGIC {
         return None;
     }
@@ -637,12 +1064,7 @@ fn decode_blob(bytes: &[u8], fields: &'static [Field], version: u16) -> Option<R
     let mut values = Vec::with_capacity(fields.len());
     for ((_, ty), offset) in fields.iter().zip(&layout.offsets) {
         let at = 4 + offset;
-        values.push(match ty {
-            Ty::U8 | Ty::Bool => f64::from(bytes[at]),
-            Ty::U16 => f64::from(u16::from_le_bytes([bytes[at], bytes[at + 1]])),
-            Ty::U32 => f64::from(read_u32(bytes, at)),
-            Ty::F32 => f64::from(f32::from_bits(read_u32(bytes, at))),
-        });
+        values.push(read_value(bytes, at, *ty));
     }
     let raw = Raw { fields, values };
     if raw.get("version") != Some(f64::from(version)) {
@@ -677,25 +1099,103 @@ fn config_value(c: &Config, name: &str) -> f64 {
         "dim_after_s" => f64::from(c.dim_after_s),
         "standby_after_s" => f64::from(c.standby_after_s),
         "scace_enabled" => f64::from(u8::from(c.scace_enabled)),
+        "active_profile" => f64::from(c.active_profile),
+        "profile_count" => f64::from(c.profile_count),
         _ => 0.0,
     }
 }
 
-/// Blob NVS du schéma 10 : magie, structure `Config` (avec le remplissage du
-/// compilateur C, à zéro), somme de contrôle FNV-1a de tout ce qui précède.
+/// Écrit `value` à `at` selon `ty`.
+fn write_value(out: &mut [u8], at: usize, ty: Ty, value: f64) {
+    match ty {
+        Ty::U8 | Ty::Bool => out[at] = value as u8,
+        Ty::U16 => out[at..at + 2].copy_from_slice(&(value as u16).to_le_bytes()),
+        Ty::U32 => out[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes()),
+        Ty::F32 => out[at..at + 4].copy_from_slice(&(value as f32).to_le_bytes()),
+    }
+}
+
+/// Lit la valeur de type `ty` à `at`.
+fn read_value(bytes: &[u8], at: usize, ty: Ty) -> f64 {
+    match ty {
+        Ty::U8 | Ty::Bool => f64::from(bytes[at]),
+        Ty::U16 => f64::from(u16::from_le_bytes([bytes[at], bytes[at + 1]])),
+        Ty::U32 => f64::from(read_u32(bytes, at)),
+        Ty::F32 => f64::from(f32::from_bits(read_u32(bytes, at))),
+    }
+}
+
+/// Octets d'un enregistrement de profil (`size` octets, à zéro pour un
+/// emplacement inutilisé).
+fn encode_profile(profile: &Profile, used: bool, size: usize) -> Vec<u8> {
+    let mut out = vec![0u8; size];
+    if !used {
+        return out;
+    }
+    out[..PROFILE_TEXT_BYTES].copy_from_slice(&profile.name);
+    out[PROFILE_TEXT_BYTES..2 * PROFILE_TEXT_BYTES].copy_from_slice(&profile.basket);
+    // Les réglages passent par une configuration pour réutiliser `config_value`.
+    let mut settings = Config::default();
+    profile.give_settings(&mut settings);
+    let layout = Layout::of(PROFILE_FIELDS);
+    for ((name, ty), offset) in PROFILE_FIELDS.iter().zip(&layout.offsets) {
+        let value = match *name {
+            "name_len" => f64::from(profile.name_len),
+            "basket_len" => f64::from(profile.basket_len),
+            "dose_g" => f64::from(profile.dose_g),
+            _ => config_value(&settings, name),
+        };
+        write_value(&mut out, 2 * PROFILE_TEXT_BYTES + offset, *ty, value);
+    }
+    out
+}
+
+/// Profil d'un enregistrement ; `None` si une longueur dépasse son tampon ou
+/// si un texte n'est pas de l'UTF-8.
+fn decode_profile(record: &[u8]) -> Option<Profile> {
+    let layout = Layout::of(PROFILE_FIELDS);
+    let mut settings = Config::default();
+    let mut profile = Profile::EMPTY;
+    for ((name, ty), offset) in PROFILE_FIELDS.iter().zip(&layout.offsets) {
+        let value = read_value(record, 2 * PROFILE_TEXT_BYTES + offset, *ty);
+        match *name {
+            "name_len" => profile.name_len = value as u8,
+            "basket_len" => profile.basket_len = value as u8,
+            "dose_g" => profile.dose_g = value as f32,
+            "preinfusion_mode" => settings.preinfusion_mode = PreinfusionMode(value as u8),
+            _ => set_field(&mut settings, name, value),
+        }
+    }
+    profile.name.copy_from_slice(&record[..PROFILE_TEXT_BYTES]);
+    profile
+        .basket
+        .copy_from_slice(&record[PROFILE_TEXT_BYTES..2 * PROFILE_TEXT_BYTES]);
+    if usize::from(profile.name_len) > PROFILE_TEXT_BYTES
+        || usize::from(profile.basket_len) > PROFILE_TEXT_BYTES
+        || core::str::from_utf8(&profile.name[..usize::from(profile.name_len)]).is_err()
+        || core::str::from_utf8(&profile.basket[..usize::from(profile.basket_len)]).is_err()
+    {
+        return None;
+    }
+    profile.take_settings(&settings);
+    Some(profile)
+}
+
+/// Blob NVS du schéma 11 : magie, structure de la machine (avec le
+/// remplissage du compilateur C, à zéro), quatre enregistrements de profil,
+/// somme de contrôle FNV-1a de tout ce qui précède.
 pub fn encode_blob(config: &Config) -> Vec<u8> {
-    let layout = Layout::of(V10);
+    let layout = Layout::current();
     let mut out = vec![0u8; layout.blob_size()];
     out[0..4].copy_from_slice(&MAGIC.to_le_bytes());
-    for ((name, ty), offset) in V10.iter().zip(&layout.offsets) {
-        let at = 4 + offset;
-        let value = config_value(config, name);
-        match ty {
-            Ty::U8 | Ty::Bool => out[at] = value as u8,
-            Ty::U16 => out[at..at + 2].copy_from_slice(&(value as u16).to_le_bytes()),
-            Ty::U32 => out[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes()),
-            Ty::F32 => out[at..at + 4].copy_from_slice(&(value as f32).to_le_bytes()),
-        }
+    for ((name, ty), offset) in V11.iter().zip(&layout.offsets) {
+        write_value(&mut out, 4 + offset, *ty, config_value(config, name));
+    }
+    let record_size = profile_record_size();
+    for (index, profile) in config.profiles.iter().enumerate() {
+        let used = index < usize::from(config.profile_count);
+        let at = 4 + layout.fields_size + index * record_size;
+        out[at..at + record_size].copy_from_slice(&encode_profile(profile, used, record_size));
     }
     let cs = fnv1a(&out[..layout.checksum_offset()]);
     let cs_at = layout.checksum_offset();
@@ -703,9 +1203,9 @@ pub fn encode_blob(config: &Config) -> Vec<u8> {
     out
 }
 
-/// Taille du blob du schéma 10, en octets.
+/// Taille du blob du schéma 11, en octets.
 pub fn blob_size() -> usize {
-    Layout::of(V10).blob_size()
+    Layout::current().blob_size()
 }
 
 /// La sortie par pression n'existe plus. Une pré-infusion qui n'avait que
@@ -743,6 +1243,8 @@ fn set_field(c: &mut Config, name: &str, v: f64) {
         "dim_after_s" => c.dim_after_s = v as u16,
         "standby_after_s" => c.standby_after_s = v as u16,
         "scace_enabled" => c.scace_enabled = v != 0.0,
+        "active_profile" => c.active_profile = v as u8,
+        "profile_count" => c.profile_count = v as u8,
         _ => {}
     }
 }
@@ -893,7 +1395,33 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "dim_after_s",
         "standby_after_s",
     ];
+    // Le schéma 10 ajoute l'interrupteur de la sonde SCACE.
+    const FROM_V10: &[&str] = &[
+        "revision",
+        "target_weight_g",
+        "target_time_s",
+        "target_pressure_bar",
+        "brew_temperature_c",
+        "heating_enabled",
+        "brew_preheat_time_s",
+        "filling_time_s",
+        "filling_pressure_bar",
+        "filling_pump_pct",
+        "preinfusion_time_s",
+        "preinfusion_pump_pct",
+        "rampdown_mode",
+        "rampdown_lead_time_s",
+        "rampdown_lead_weight_g",
+        "rampdown_pressure_drop_bar",
+        "brew_pump_pct",
+        "purge_pump_pct",
+        "purge_max_s",
+        "dim_after_s",
+        "standby_after_s",
+        "scace_enabled",
+    ];
     match version {
+        10 => FROM_V10,
         9 => FROM_V9,
         8 => FROM_V8,
         7 => FROM_V7,
@@ -906,7 +1434,7 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
     }
 }
 
-/// Convertit un blob d'un ancien schéma en configuration courante.
+/// Convertit un blob d'un ancien schéma (1 à 10) en configuration courante.
 fn migrate(version: u16, raw: &Raw) -> Config {
     let mut migrated = Config::default();
     let names = migrated_fields(version);
@@ -919,10 +1447,13 @@ fn migrate(version: u16, raw: &Raw) -> Config {
         // Les deux modes du schéma 1 deviennent une échéance en temps : la
         // sortie par pression a été retirée au schéma 8.
         1 => PreinfusionMode::TIME,
-        // Les schémas 8 et 9 ont déjà le codage courant.
-        8 | 9 => PreinfusionMode(raw.get("preinfusion_mode").unwrap_or(1.0) as u8),
+        // Les schémas 8 à 10 ont déjà le codage courant.
+        8..=10 => PreinfusionMode(raw.get("preinfusion_mode").unwrap_or(1.0) as u8),
         _ => migrate_preinfusion_mode(raw.get("preinfusion_mode").unwrap_or(0.0) as u8),
     };
+    // Les anciens schémas n'ont qu'un jeu de réglages : il devient l'unique
+    // profil, actif.
+    migrated.adopt_flat_as_single_profile();
     migrated
 }
 
@@ -996,16 +1527,29 @@ impl ConfigStore for MemoryConfigStore {
 
 fn read_current(store: &mut dyn ConfigStore, slot: Slot) -> Option<Config> {
     let bytes = store.read_slot(slot)?;
-    let raw = decode_blob(&bytes, V10, CONFIG_SCHEMA_VERSION)?;
+    let layout = Layout::current();
+    let raw = decode_blob(&bytes, V11, &layout, CONFIG_SCHEMA_VERSION)?;
     let mut c = Config::default();
-    for (name, _) in V10 {
+    for (name, _) in V11 {
         let v = raw.get(name).unwrap_or(0.0);
         match *name {
             "version" => c.version = v as u16,
-            "preinfusion_mode" => c.preinfusion_mode = PreinfusionMode(v as u8),
             _ => set_field(&mut c, name, v),
         }
     }
+    if c.profile_count == 0
+        || usize::from(c.profile_count) > MAX_PROFILES
+        || c.active_profile >= c.profile_count
+    {
+        return None;
+    }
+    let record_size = profile_record_size();
+    c.profiles = [Profile::EMPTY; MAX_PROFILES];
+    for index in 0..usize::from(c.profile_count) {
+        let at = 4 + layout.fields_size + index * record_size;
+        c.profiles[index] = decode_profile(&bytes[at..at + record_size])?;
+    }
+    c.load_active();
     Some(c)
 }
 
@@ -1069,6 +1613,7 @@ impl ConfigManager {
         let mut require_heating_confirmation = false;
         if !report.found {
             const LEGACY: &[(u16, &[Field])] = &[
+                (10, V10),
                 (9, V9),
                 (8, V8),
                 (7, V7),
@@ -1082,10 +1627,10 @@ impl ConfigManager {
             for &(version, fields) in LEGACY {
                 let a = store
                     .read_slot(Slot::A)
-                    .and_then(|bytes| decode_blob(&bytes, fields, version));
+                    .and_then(|bytes| decode_blob(&bytes, fields, &Layout::of(fields), version));
                 let b = store
                     .read_slot(Slot::B)
-                    .and_then(|bytes| decode_blob(&bytes, fields, version));
+                    .and_then(|bytes| decode_blob(&bytes, fields, &Layout::of(fields), version));
                 let revision = |r: &Raw| r.get("revision").unwrap_or(0.0) as u32;
                 let chosen = match (&a, &b) {
                     (Some(a), Some(b)) => Some(if revision(a) >= revision(b) { a } else { b }),
@@ -1108,17 +1653,23 @@ impl ConfigManager {
             selected.heating_enabled = false;
             report.heating_disabled_by_migration = true;
         }
-        let normalized_brew_pump = selected.brew_pump_pct < MINIMUM_BREW_PUMP_PCT;
-        if normalized_brew_pump {
-            selected.brew_pump_pct = MINIMUM_BREW_PUMP_PCT;
+        // Chaque profil est ramené dans la plage, puis les champs plats
+        // reprennent le profil actif. Un essai temporaire a autorisé 110 °C,
+        // et le maximum est passé de 100 à 95 °C, avec le même schéma NVS :
+        // une consigne sauvegardée revient dans la plage actuelle.
+        let mut normalized_brew_pump = false;
+        let mut normalized_brew_temperature = false;
+        for profile in &mut selected.profiles[..usize::from(selected.profile_count)] {
+            if profile.brew_pump_pct < MINIMUM_BREW_PUMP_PCT {
+                profile.brew_pump_pct = MINIMUM_BREW_PUMP_PCT;
+                normalized_brew_pump = true;
+            }
+            if profile.brew_temperature_c > MAXIMUM_BREW_TEMPERATURE_C {
+                profile.brew_temperature_c = MAXIMUM_BREW_TEMPERATURE_C;
+                normalized_brew_temperature = true;
+            }
         }
-        // Un essai temporaire a autorisé 110 °C, et le maximum est passé de
-        // 100 à 95 °C, avec le même schéma NVS : ramener une consigne
-        // sauvegardée dans la plage actuelle.
-        let normalized_brew_temperature = selected.brew_temperature_c > MAXIMUM_BREW_TEMPERATURE_C;
-        if normalized_brew_temperature {
-            selected.brew_temperature_c = MAXIMUM_BREW_TEMPERATURE_C;
-        }
+        selected.load_active();
         report.normalized = report.found && (normalized_brew_pump || normalized_brew_temperature);
         if (report.migrated || report.normalized) && !persist(store, &selected) {
             report.persist_failed = true;
@@ -1148,15 +1699,20 @@ impl ConfigManager {
     }
 
     /// Valide, numérote (`révision + 1`), écrit puis remplace la
-    /// configuration courante, tout ou rien.
+    /// configuration courante, tout ou rien. L'invariant des profils est
+    /// rétabli avant la validation : si le profil actif est celui en
+    /// vigueur, les champs plats modifiés s'écrivent dans ce profil ; s'il
+    /// change, ses réglages passent dans les champs plats.
     pub fn apply(
         &mut self,
         store: &mut dyn ConfigStore,
         candidate: &Config,
         expected_revision: u32,
     ) -> ConfigResult {
-        let invalid = validate(candidate);
-        if candidate.version != CONFIG_SCHEMA_VERSION {
+        let mut next = *candidate;
+        next.reconcile_profiles(self.current.active_profile);
+        let invalid = validate(&next);
+        if next.version != CONFIG_SCHEMA_VERSION {
             return ConfigResult {
                 status: ConfigStatus::VersionMismatch,
                 field: invalid,
@@ -1168,7 +1724,26 @@ impl ConfigManager {
         if self.current.revision != expected_revision {
             return ConfigResult::new(ConfigStatus::StaleRevision, "revision");
         }
-        let mut next = *candidate;
+        next.revision = self.current.revision + 1;
+        if !persist(store, &next) {
+            return ConfigResult::new(ConfigStatus::StorageError, "nvs");
+        }
+        self.current = next;
+        ConfigResult::OK
+    }
+
+    /// Rend actif le profil `index` (nouvelle révision), tout ou rien. Sans
+    /// effet, ni écriture, si c'est déjà le profil actif.
+    pub fn select_profile(&mut self, store: &mut dyn ConfigStore, index: u8) -> ConfigResult {
+        if index >= self.current.profile_count {
+            return ConfigResult::new(ConfigStatus::InvalidValue, "active_profile");
+        }
+        if index == self.current.active_profile {
+            return ConfigResult::OK;
+        }
+        let mut next = self.current;
+        next.active_profile = index;
+        next.load_active();
         next.revision = self.current.revision + 1;
         if !persist(store, &next) {
             return ConfigResult::new(ConfigStatus::StorageError, "nvs");

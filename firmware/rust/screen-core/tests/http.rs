@@ -18,15 +18,20 @@ fn post_config(rig: &mut Rig, body: &[u8]) -> HttpResponse {
 }
 
 #[test]
-fn get_defaults_matches_the_cpp_document_exactly() {
+fn get_defaults_has_the_schema_11_shape() {
     let core = Core::new(MemoryConfigStore::default(), Clock::new(1_000_000));
-    let expected = include_str!("vectors/cjson_vectors.txt")
-        .lines()
-        .find_map(|s| s.strip_prefix("config_default\t"))
-        .unwrap();
     let response = handle_get_config(&core);
     assert_eq!(response.status, "200 OK");
-    assert_eq!(response.body, expected);
+    let root = json::parse(response.body.as_bytes()).unwrap();
+    assert_eq!(root.get("version").and_then(Json::as_f64), Some(11.0));
+    assert_eq!(
+        root.get("active_profile").and_then(Json::as_str),
+        Some("single espresso")
+    );
+    let Some(Json::Array(profiles)) = root.get("profiles") else {
+        panic!("profiles");
+    };
+    assert_eq!(profiles.len(), 1);
 }
 
 #[test]
@@ -36,14 +41,14 @@ fn config_patch_is_atomic_and_persisted() {
     let writes = rig.core.store.writes;
     let response = post_config(
         &mut rig,
-        br#"{"version":10,"brew":{"target_weight_g":42.5},"unknown":0}"#,
+        br#"{"version":11,"brew":{"target_weight_g":42.5},"unknown":0}"#,
     );
     assert_eq!(response.status, "400 Bad Request");
     assert_eq!(rig.core.config(), before);
     assert_eq!(rig.core.store.writes, writes);
     let response = post_config(
         &mut rig,
-        br#"{"version":10,"brew":{"target_weight_g":42.5}}"#,
+        br#"{"version":11,"brew":{"target_weight_g":42.5}}"#,
     );
     assert_eq!(response.status, "200 OK");
     assert_eq!(rig.core.config().target_weight_g, 42.5);
@@ -53,7 +58,7 @@ fn config_patch_is_atomic_and_persisted() {
     let before = rig.core.config();
     let response = post_config(
         &mut rig,
-        br#"{"version":10,"brew":{"target_weight_g":43.0}}"#,
+        br#"{"version":11,"brew":{"target_weight_g":43.0}}"#,
     );
     assert_eq!(response.status, "500 Internal Server Error");
     assert_eq!(response.body, r#"{"error":"storage","field":"nvs"}"#);
@@ -104,7 +109,7 @@ fn duplicates_keep_cpp_first_lookup_and_last_patch_semantics() {
     let mut rig = Rig::new();
     let response = post_config(
         &mut rig,
-        br#"{"version":10,"brew":{"target_weight_g":40,"target_weight_g":42}} trailing"#,
+        br#"{"version":11,"brew":{"target_weight_g":40,"target_weight_g":42}} trailing"#,
     );
     assert_eq!(response.status, "200 OK");
     assert_eq!(rig.core.config().target_weight_g, 42.0);
@@ -130,7 +135,7 @@ fn http_never_starts_brew_and_config_firmware_reject_active_cycles() {
     );
     assert_eq!(result.reason, "ok");
     assert_eq!(
-        post_config(&mut rig, br#"{"version":10}"#).status,
+        post_config(&mut rig, br#"{"version":11}"#).status,
         "409 Conflict"
     );
     assert_eq!(
@@ -151,7 +156,7 @@ fn http_never_starts_brew_and_config_firmware_reject_active_cycles() {
         "200 OK"
     );
     assert_eq!(
-        post_config(&mut rig, br#"{"version":10}"#).status,
+        post_config(&mut rig, br#"{"version":11}"#).status,
         "409 Conflict"
     );
     assert_eq!(
@@ -184,12 +189,12 @@ fn config_schema_and_values_are_validated_before_persistence() {
         (r#"{}"#, "invalid_value", "version"),
         (r#"{"version":9}"#, "unknown_version", "version"),
         (
-            r#"{"version":10,"brew":{"target_weight_g":0}}"#,
+            r#"{"version":11,"brew":{"target_weight_g":0}}"#,
             "invalid_value",
             "brew.target_weight_g",
         ),
         (
-            r#"{"version":10,"heating":{"enabled":1}}"#,
+            r#"{"version":11,"heating":{"enabled":1}}"#,
             "invalid_value",
             "heating.enabled",
         ),

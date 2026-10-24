@@ -4,7 +4,7 @@
 use super::{AppWindow, Segment, Tile};
 use alloc::{format, rc::Rc, string::String, vec::Vec};
 use screen_core::{
-    config::{self, Config, PreinfusionMode, RampdownMode},
+    config::{self, Config, PreinfusionMode, Profile, RampdownMode},
     core::{Action, ActionCommand, ActionSource, ActionStatus, Input, Reply},
     guided::{Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot, brew_ready},
@@ -13,6 +13,10 @@ use slint::{Color, Model, ModelRc, SharedString, VecModel};
 
 /// Demande locale à exécuter par l'assemblage, après le traitement des gestes.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "la demande vit le temps d'un geste ; la configuration complète porte les profils"
+)]
 pub enum UiRequest {
     Core(Input),
     RestartLcd,
@@ -115,6 +119,20 @@ fn degrees(v: f32) -> String {
         number(v, 1, "")
     }
 }
+/// Ligne de recette d'un profil : « 8 g → 22 g · LM1 41 mm ». Sans dose, la
+/// dose et sa flèche se réduisent à « → 22 g » ; sans panier, le suffixe saute.
+fn recipe(p: &Profile) -> String {
+    let mut text = if p.dose_g > 0.0 {
+        format!("{} g → {} g", degrees(p.dose_g), degrees(p.target_weight_g))
+    } else {
+        format!("→ {} g", degrees(p.target_weight_g))
+    };
+    if !p.basket().is_empty() {
+        text.push_str(" · ");
+        text.push_str(p.basket());
+    }
+    text
+}
 /// Texte de la consigne ; `ConnectScale` change de verbe selon que la
 /// balance est attendue pour la première fois ou qu'elle a été perdue.
 fn hint_text(hint: Hint, screen: Screen, c: &Config) -> String {
@@ -214,12 +232,15 @@ fn memory_size(bytes: u32) -> String {
     }
 }
 
+/// Valeur de `choice` pour le choix du profil, hors des numéros de réglage.
+const CHOICE_PROFILE: usize = 200;
+
 // L'ordre est celui des six tuiles par page, pas celui du document HTTP.
 const EDITS: [[usize; 6]; 4] = [
     [0, 1, 2, 3, 4, 5],
-    [6, 100, 7, 8, 9, 999],
-    [101, 10, 11, 12, 13, 14],
-    [102, 103, 104, 105, 15, 999],
+    [6, 100, 7, 8, 9, 15],
+    [101, 10, 11, 12, 999, 999],
+    [102, 103, 104, 105, 13, 14],
 ];
 const NAMES: [&str; 16] = [
     "cible temps",
@@ -422,7 +443,9 @@ impl Presenter {
                 Action::StopBrew
             })),
             10 => {
-                self.page = if matches!(self.page, 5 | 6) {
+                self.page = if self.page == 6 && self.choice == CHOICE_PROFILE {
+                    0
+                } else if matches!(self.page, 5 | 6) {
                     3
                 } else if self.page == 7 {
                     4
@@ -507,6 +530,14 @@ impl Presenter {
                 self.page = 7;
                 None
             }
+            17 if self.choice == CHOICE_PROFILE => {
+                self.editor_error.clear();
+                if i < c.profiles().len() {
+                    Some(UiRequest::Core(Input::SelectProfile(i as u8)))
+                } else {
+                    None
+                }
+            }
             17 => {
                 let mut c = *c;
                 if self.choice == 100 {
@@ -564,6 +595,12 @@ impl Presenter {
             }
             24 => Some(core_action(Action::GuidedNext)),
             25 => Some(core_action(Action::GuidedQuit)),
+            26 => {
+                self.choice = CHOICE_PROFILE;
+                self.editor_error.clear();
+                self.page = 6;
+                None
+            }
             _ => None,
         }
     }
@@ -571,14 +608,23 @@ impl Presenter {
     pub fn feedback(&mut self, reply: Reply) {
         match reply {
             Reply::Config(r) if r.status == config::ConfigStatus::Ok => {
-                if self.page == 5 || (self.page == 6 && self.choice == 101) {
+                if self.page == 6 && self.choice == CHOICE_PROFILE {
+                    self.page = 0;
+                } else if self.page == 5 || (self.page == 6 && self.choice == 101) {
                     self.page = 3;
                     self.editor = None;
                 } else if self.page == 7 {
                     self.page = 4;
                 }
             }
-            Reply::Config(_) => self.editor_error = "modification refusée pendant un cycle".into(),
+            Reply::Config(r) => {
+                self.editor_error = if r.status == config::ConfigStatus::StorageError {
+                    "enregistrement impossible"
+                } else {
+                    "modification refusée pendant un cycle"
+                }
+                .into()
+            }
             Reply::Action(r)
                 if r.status == screen_core::core::ActionStatus::Ok
                     && self.page == 7
@@ -843,6 +889,16 @@ impl Presenter {
         app.set_brew_enabled(purge_ready(s));
         app.set_brew_direct_enabled(brew_ready(s, c));
         app.set_brew_direct_reason(brew_warning(s, c).into());
+        app.set_profile_name(c.active().name().into());
+        app.set_brew_recipe(
+            format!(
+                "{} · {} bar · {} °C",
+                recipe(c.active()),
+                degrees(c.target_pressure_bar),
+                degrees(c.brew_temperature_c)
+            )
+            .into(),
+        );
         self.guided(app, s, c);
         app.set_minus_enabled(if s.scale_present {
             c.target_weight_g > 10.0
@@ -1337,6 +1393,11 @@ impl Presenter {
             tiles.push(t);
         }
         sync(app.get_settings(), tiles, |m| app.set_settings(m));
+        app.set_settings_title(if self.settings_page == 3 {
+            "machine".into()
+        } else {
+            c.active().name().into()
+        });
         if let Some(e) = self.editor {
             app.set_editor_title(NAMES[e].into());
             app.set_editor_unit(UNITS[e].into());
@@ -1344,7 +1405,26 @@ impl Presenter {
             app.set_editor_value(self.editor_value.clone().into());
             app.set_editor_error(self.editor_error.clone().into());
         }
-        if self.page == 6 {
+        app.set_choice_profile(self.page == 6 && self.choice == CHOICE_PROFILE);
+        if self.page == 6 && self.choice == CHOICE_PROFILE {
+            app.set_editor_title("profil".into());
+            app.set_editor_error(self.editor_error.clone().into());
+            let choices = c
+                .profiles()
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    tile(
+                        p.name(),
+                        recipe(p),
+                        "",
+                        true,
+                        i32::from(i == usize::from(c.active_profile)),
+                    )
+                })
+                .collect();
+            sync(app.get_choices(), choices, |m| app.set_choices(m));
+        } else if self.page == 6 {
             app.set_editor_title(
                 if self.choice == 100 {
                     "pré-infusion"
@@ -1487,8 +1567,10 @@ mod tests {
     }
     #[test]
     fn rinse_threshold_text_follows_the_setpoint() {
-        let mut c = Config::default();
-        c.brew_temperature_c = 92.0;
+        let c = Config {
+            brew_temperature_c: 92.0,
+            ..Config::default()
+        };
         assert_eq!(
             hint_text(Hint::WaitRinseTemp, Screen::Rinse, &c),
             "attendez 87 °C"
@@ -1501,6 +1583,36 @@ mod tests {
             hint_text(Hint::ConnectScale, Screen::Wait, &c),
             "reconnectez la balance"
         );
+    }
+    #[test]
+    fn recipe_line_drops_missing_dose_and_basket() {
+        let c = Config::default();
+        let mut p = Profile::from_flat(&c, "x", 8.0, "LM1 41 mm");
+        p.target_weight_g = 22.0;
+        assert_eq!(recipe(&p), "8 g → 22 g · LM1 41 mm");
+        p.dose_g = 16.5;
+        p.set_basket("");
+        assert_eq!(recipe(&p), "16,5 g → 22 g");
+        p.dose_g = 0.0;
+        assert_eq!(recipe(&p), "→ 22 g");
+    }
+    #[test]
+    fn profile_choice_selects_and_goes_back_home() {
+        let mut p = Presenter::default();
+        let s = ready();
+        let c = Config::default();
+        assert!(p.command(26, "", 0, &s, &c).is_none());
+        assert_eq!(p.page, 6);
+        assert_eq!(
+            p.command(17, "0", 0, &s, &c),
+            Some(UiRequest::Core(Input::SelectProfile(0)))
+        );
+        assert!(p.command(17, "3", 0, &s, &c).is_none());
+        p.feedback(Reply::Config(config::ConfigResult::OK));
+        assert_eq!(p.page, 0);
+        p.command(26, "", 0, &s, &c);
+        p.command(10, "", 0, &s, &c);
+        assert_eq!(p.page, 0);
     }
     #[test]
     fn wifi_is_session_input_and_never_navigation() {

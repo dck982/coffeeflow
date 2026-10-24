@@ -150,6 +150,13 @@ n'est pas connectée ou si sa dernière mesure correcte date de plus de 300 ms
 `pressure_a2_raw`, et les outils ignorent les champs qu'ils ne connaissent
 pas.
 
+Le schéma `coffeeflow.hf_capture.v3` (profils d'infusion) ajoute, avant
+`session`, `"firmware": {"screen": "…", "sensors": "…"}` (`sensors` vaut `null`
+si sa version n'est pas connue) et, pour une infusion, `"profile"` : le profil
+actif copié au départ de l'infusion, sous la forme d'un élément de `profiles`
+dans `/config`. Les autres origines (purge, banc) portent `firmware` sans
+`profile`. Le reste est celui du v2, et `download-hf` accepte les deux.
+
 Pour une capture `origin: brew`, l'export porte aussi une clé `session`, avant
 `samples` : le déroulé de l'infusion guidée (ouverture, poids de la tasse, rinçage du porte-filtre, attente,
 retrait et retour de la tasse, appui sur **démarrer**, durée sans balance),
@@ -497,29 +504,77 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 10,
-  "brew": { "target_weight_g": 36.0, "target_time_s": 28, "target_pressure_bar": 9.0, "pump_pct": 100 },
-  "heating": { "enabled": true, "brew_temperature_c": 90.0, "brew_preheat_time_s": 2.5 },
-  "filling": { "time_s": 10, "pressure_bar": 1.0, "pump_pct": 100 },
-  "preinfusion": { "time": true, "weight": false, "time_s": 4, "pump_pct": 35 },
-  "rampdown": { "mode": "none", "lead_time_s": 3.0, "lead_weight_g": 4.0, "pressure_drop_bar": 1.0 },
-  "purge": { "pump_pct": 100, "max_s": 20 },
+  "version": 11,
+  "active_profile": "single espresso",
+  "brew": { "target_weight_g": 22.0, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
+  "heating": { "enabled": true, "brew_temperature_c": 91.0, "brew_preheat_time_s": 8.0 },
+  "filling": { "time_s": 10, "pressure_bar": 0.8, "pump_pct": 70 },
+  "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 },
+  "rampdown": { "mode": "none", "lead_time_s": 4.0, "lead_weight_g": 0.5, "pressure_drop_bar": 2.0 },
+  "purge": { "pump_pct": 80, "max_s": 10 },
   "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
   "scace": { "enabled": false },
-  "profiles": []
+  "profiles": [
+    {
+      "name": "single espresso", "dose_g": 8.0, "basket": "LM1 41 mm",
+      "brew": { "target_weight_g": 22.0, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
+      "heating": { "brew_temperature_c": 91.0, "brew_preheat_time_s": 8.0 },
+      "filling": { "time_s": 10, "pressure_bar": 0.8, "pump_pct": 70 },
+      "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 },
+      "rampdown": { "mode": "none", "lead_time_s": 4.0, "lead_weight_g": 0.5, "pressure_drop_bar": 2.0 }
+    }
+  ]
 }
 ```
 
 `scace.enabled` (schéma 10, écran 0.3.47) autorise la recherche et la
 connexion BLE de la sonde SCACE (voir « Sonde SCACE »). Il n'a pas d'écran de
 réglage : `coffeetool set scace on|off`. Défaut `false`, et
-`false` après la migration du schéma 9. Une sauvegarde du schéma 9 ne se
-restaure plus telle quelle (`version` refusée) : elle ne diffère du schéma 10
-que par cette section absente, et passe après avoir remplacé `"version": 9`
-par `10`.
+`false` après la migration du schéma 9.
 
-`profiles` reste un tableau vide tant que la notion de profil n'existe pas :
-le schéma est prévu pour, et l'ajouter ne changera pas le reste de l'objet.
+**Profils (schéma 11).** Un profil regroupe les réglages d'une façon d'infuser
+(`brew`, `heating.brew_temperature_c` et `brew_preheat_time_s`, `filling`,
+`preinfusion`, `rampdown`) et une recette : `name`, `dose_g`, `basket`. Les
+sections en tête du document restent la configuration effective, machine plus
+profil actif : un script qui lit ou écrit `brew.target_weight_g` agit sur le
+profil actif, comme avant. `heating.enabled`, `purge`, `ui` et `scace` sont
+propres à la machine. `profiles` donne la liste complète, de 1 à 4 profils ;
+`active_profile` nomme l'actif. Règles de la recette :
+
+- `name` : 1 à 20 caractères, unique, sans espace en tête ni en fin ;
+- `basket` : 0 à 24 caractères, texte libre ;
+- `dose_g` : `0` (non renseignée) ou 3,0 à 30,0 g, au dixième ;
+- caractères admis dans les deux textes : ASCII imprimable et
+  `°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ`.
+
+`brew.target_pressure_bar` descend à 4,0 bar (6,0 avant le schéma 11).
+
+`GET` renvoie l'objet ci-dessus : un `curl > config.json` sauvegarde tous les
+profils. Le `POST` reste partiel et tout ou rien. Il s'applique dans cet ordre,
+quel que soit l'ordre des clés du document :
+
+1. `profiles`, s'il est présent, remplace la liste entière. Chaque élément doit
+   être complet ; un élément incomplet est refusé avec le champ manquant
+   (`profiles[2].brew.pump_pct`).
+2. `active_profile`, s'il est présent, choisit le profil par son nom. Sinon le
+   profil actif est retrouvé par son nom dans la nouvelle liste ; s'il n'y est
+   plus, le `POST` est refusé (`400`, champ `active_profile`).
+3. Les sections en tête s'appliquent : les champs machine à la machine, les
+   champs de profil au profil actif retenu à l'étape 2.
+
+Le `POST` d'un `GET` est donc neutre. Refus `400` avec le champ fautif :
+`profiles` vide ou de plus de 4 éléments, `profiles[i].name` en double ou hors
+règle, `profiles[i].basket` hors règle, `active_profile` inconnu. Comme pour
+le reste, `409` pendant une infusion ou une purge, et `version` (11)
+obligatoire : une sauvegarde du schéma 10 ne se restaure pas telle quelle.
+
+La migration 10 → 11 fait de la configuration lue l'unique profil « single
+espresso » (dose 8,0 g, panier « LM1 41 mm »), actif. Une NVS vierge démarre
+avec le même profil. À l'écran, on choisit le profil actif et on règle ses
+valeurs ; on crée, renomme, supprime les profils avec `coffeetool profile`
+(`list`, `add`, `rename`, `set`, `rm`, `use`), qui relit `/config`, modifie la
+liste et la renvoie entière. Les réglages d'infusion d'un profil se changent à
+l'écran, profil actif, ou par `config restore`.
 
 Chaque changement de schéma migre les versions précédentes ; un champ dont le
 sens change (par exemple un seuil absolu devenu relatif) revient à son défaut

@@ -1,11 +1,12 @@
-//! Document JSON de `/config` (schéma 10) : écriture de la configuration et
+//! Document JSON de `/config` (schéma 11) : écriture de la configuration et
 //! application d'un correctif partiel validé champ par champ.
 
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 
-use crate::config::{Config, PreinfusionMode, RampdownMode};
+use crate::config::{
+    Config, MAX_PROFILES, PreinfusionMode, Profile, RampdownMode, validate_profile_list,
+};
 use crate::json::Json;
 
 /// Décimal de `/config` : deux décimales au plus, une au moins (`9.0`, `0.1`,
@@ -18,61 +19,89 @@ fn config_decimal(value: f32) -> Json {
     Json::Raw(formatted)
 }
 
-/// Document de `GET /config`, dans l'ordre d'écriture du firmware C++.
+/// Section `brew` : les quatre réglages d'infusion du profil.
+fn encode_brew(p: &Profile) -> Json {
+    let mut brew = Json::object();
+    brew.push("target_weight_g", config_decimal(p.target_weight_g));
+    brew.push_number("target_time_s", f64::from(p.target_time_s));
+    brew.push("target_pressure_bar", config_decimal(p.target_pressure_bar));
+    brew.push_number("pump_pct", f64::from(p.brew_pump_pct));
+    brew
+}
+
+fn encode_filling(p: &Profile) -> Json {
+    let mut filling = Json::object();
+    filling.push_number("time_s", f64::from(p.filling_time_s));
+    filling.push("pressure_bar", config_decimal(p.filling_pressure_bar));
+    filling.push_number("pump_pct", f64::from(p.filling_pump_pct));
+    filling
+}
+
+fn encode_preinfusion(p: &Profile) -> Json {
+    let mut preinfusion = Json::object();
+    preinfusion.push_bool("time", p.preinfusion_mode.has(PreinfusionMode::TIME));
+    preinfusion.push_bool("weight", p.preinfusion_mode.has(PreinfusionMode::WEIGHT));
+    preinfusion.push_number("time_s", f64::from(p.preinfusion_time_s));
+    preinfusion.push_number("pump_pct", f64::from(p.preinfusion_pump_pct));
+    preinfusion
+}
+
+fn encode_rampdown(p: &Profile) -> Json {
+    let mut rampdown = Json::object();
+    rampdown.push_str("mode", p.rampdown_mode.text());
+    rampdown.push("lead_time_s", config_decimal(p.rampdown_lead_time_s));
+    rampdown.push("lead_weight_g", config_decimal(p.rampdown_lead_weight_g));
+    rampdown.push(
+        "pressure_drop_bar",
+        config_decimal(p.rampdown_pressure_drop_bar),
+    );
+    rampdown
+}
+
+/// Un profil, tel qu'un élément de `profiles` dans `/config` et le profil
+/// copié dans une capture HF.
+pub fn encode_profile(p: &Profile) -> Json {
+    let mut profile = Json::object();
+    profile.push_str("name", p.name());
+    profile.push("dose_g", config_decimal(p.dose_g));
+    profile.push_str("basket", p.basket());
+    profile.push("brew", encode_brew(p));
+    let mut heating = Json::object();
+    heating.push("brew_temperature_c", config_decimal(p.brew_temperature_c));
+    heating.push("brew_preheat_time_s", config_decimal(p.brew_preheat_time_s));
+    profile.push("heating", heating);
+    profile.push("filling", encode_filling(p));
+    profile.push("preinfusion", encode_preinfusion(p));
+    profile.push("rampdown", encode_rampdown(p));
+    profile
+}
+
+/// Document de `GET /config` : la configuration effective en tête (machine
+/// et profil actif), puis la liste des profils.
 pub fn encode_config(config: &Config) -> Json {
+    // Les champs plats égalent le profil actif : les sections en tête en
+    // sont la copie.
+    let active = config.active();
     let mut root = Json::object();
     root.push_number("version", f64::from(config.version));
-
-    let mut brew = Json::object();
-    brew.push("target_weight_g", config_decimal(config.target_weight_g));
-    brew.push_number("target_time_s", f64::from(config.target_time_s));
-    brew.push(
-        "target_pressure_bar",
-        config_decimal(config.target_pressure_bar),
-    );
-    brew.push_number("pump_pct", f64::from(config.brew_pump_pct));
-    root.push("brew", brew);
+    root.push_str("active_profile", active.name());
+    root.push("brew", encode_brew(active));
 
     let mut heating = Json::object();
     heating.push_bool("enabled", config.heating_enabled);
     heating.push(
         "brew_temperature_c",
-        config_decimal(config.brew_temperature_c),
+        config_decimal(active.brew_temperature_c),
     );
     heating.push(
         "brew_preheat_time_s",
-        config_decimal(config.brew_preheat_time_s),
+        config_decimal(active.brew_preheat_time_s),
     );
     root.push("heating", heating);
 
-    let mut filling = Json::object();
-    filling.push_number("time_s", f64::from(config.filling_time_s));
-    filling.push("pressure_bar", config_decimal(config.filling_pressure_bar));
-    filling.push_number("pump_pct", f64::from(config.filling_pump_pct));
-    root.push("filling", filling);
-
-    let mut preinfusion = Json::object();
-    preinfusion.push_bool("time", config.preinfusion_mode.has(PreinfusionMode::TIME));
-    preinfusion.push_bool(
-        "weight",
-        config.preinfusion_mode.has(PreinfusionMode::WEIGHT),
-    );
-    preinfusion.push_number("time_s", f64::from(config.preinfusion_time_s));
-    preinfusion.push_number("pump_pct", f64::from(config.preinfusion_pump_pct));
-    root.push("preinfusion", preinfusion);
-
-    let mut rampdown = Json::object();
-    rampdown.push_str("mode", config.rampdown_mode.text());
-    rampdown.push("lead_time_s", config_decimal(config.rampdown_lead_time_s));
-    rampdown.push(
-        "lead_weight_g",
-        config_decimal(config.rampdown_lead_weight_g),
-    );
-    rampdown.push(
-        "pressure_drop_bar",
-        config_decimal(config.rampdown_pressure_drop_bar),
-    );
-    root.push("rampdown", rampdown);
+    root.push("filling", encode_filling(active));
+    root.push("preinfusion", encode_preinfusion(active));
+    root.push("rampdown", encode_rampdown(active));
 
     let mut purge = Json::object();
     purge.push_number("pump_pct", f64::from(config.purge_pump_pct));
@@ -88,7 +117,10 @@ pub fn encode_config(config: &Config) -> Json {
     scace.push_bool("enabled", config.scace_enabled);
     root.push("scace", scace);
 
-    root.push("profiles", Json::Array(Vec::new()));
+    root.push(
+        "profiles",
+        Json::Array(config.profiles().iter().map(encode_profile).collect()),
+    );
     root
 }
 
@@ -122,13 +154,22 @@ fn field_name(name: &str) -> String {
     name[..end].to_string()
 }
 
+/// Nom d'un champ inconnu ou fautif. La troncature à 47 octets ne se fait
+/// qu'à la sortie de [`apply_json_patch`], après l'ajout éventuel du préfixe
+/// `profiles[i].`, pour que le nom reste lisible.
 fn joined(parent: &str, key: &str) -> String {
-    field_name(&format!("{parent}.{key}"))
+    format!("{parent}.{key}")
 }
 
-/// Applique le correctif `root` sur `config` (clés dans l'ordre du document).
-/// En cas de refus, renvoie le nom du champ fautif.
+/// Applique le correctif `root` sur `config`, dans l'ordre `profiles`,
+/// `active_profile`, puis les sections en tête (le dernier doublon gagne).
+/// Les champs « profil » des sections s'écrivent dans le profil actif retenu.
+/// En cas de refus, renvoie le nom du champ fautif (47 octets au plus).
 pub fn apply_json_patch(root: &Json, config: &mut Config) -> Result<(), String> {
+    patch(root, config).map_err(|field| field_name(&field))
+}
+
+fn patch(root: &Json, config: &mut Config) -> Result<(), String> {
     if !root.is_object() {
         return Err("version".to_string());
     }
@@ -138,9 +179,37 @@ pub fn apply_json_patch(root: &Json, config: &mut Config) -> Result<(), String> 
     let Json::Object(pairs) = root else {
         return Err("version".to_string());
     };
+    let last = |name: &str| {
+        pairs
+            .iter()
+            .rev()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value)
+    };
+
+    // Le profil actif avant la liste, retrouvé par son nom dans la nouvelle.
+    let previous_name = config.active().name().to_string();
+    let mut wanted = None;
+    if let Some(list) = last("profiles") {
+        replace_profiles(list, config)?;
+        wanted = Some(previous_name);
+    }
+    if let Some(name) = last("active_profile") {
+        wanted = Some(name.as_str().ok_or("active_profile")?.to_string());
+    }
+    if let Some(name) = wanted {
+        let index = config
+            .profiles()
+            .iter()
+            .position(|profile| profile.name() == name)
+            .ok_or("active_profile")?;
+        config.active_profile = index as u8;
+    }
+    config.load_active();
+
     for (key, value) in pairs {
         match key.as_str() {
-            "version" => {}
+            "version" | "profiles" | "active_profile" => {}
             "brew" => overlay(value, "brew", config, apply_brew_key)?,
             "heating" => overlay(value, "heating", config, apply_heating_key)?,
             "filling" => overlay(value, "filling", config, apply_filling_key)?,
@@ -149,14 +218,110 @@ pub fn apply_json_patch(root: &Json, config: &mut Config) -> Result<(), String> 
             "purge" => overlay(value, "purge", config, apply_purge_key)?,
             "ui" => overlay(value, "ui", config, apply_ui_key)?,
             "scace" => overlay(value, "scace", config, apply_scace_key)?,
-            "profiles" => match value {
-                Json::Array(items) if items.is_empty() => {}
-                _ => return Err("profiles".to_string()),
-            },
-            other => return Err(field_name(other)),
+            other => return Err(other.to_string()),
         }
     }
+    config.store_active();
     Ok(())
+}
+
+/// Clés qu'un élément de `profiles` doit porter, dans l'ordre du document.
+const PROFILE_REQUIRED: &[&str] = &[
+    "name",
+    "dose_g",
+    "basket",
+    "brew.target_weight_g",
+    "brew.target_time_s",
+    "brew.target_pressure_bar",
+    "brew.pump_pct",
+    "heating.brew_temperature_c",
+    "heating.brew_preheat_time_s",
+    "filling.time_s",
+    "filling.pressure_bar",
+    "filling.pump_pct",
+    "preinfusion.time",
+    "preinfusion.weight",
+    "preinfusion.time_s",
+    "preinfusion.pump_pct",
+    "rampdown.mode",
+    "rampdown.lead_time_s",
+    "rampdown.lead_weight_g",
+    "rampdown.pressure_drop_bar",
+];
+
+/// Remplace la liste entière. Les règles de nom, de panier, de dose et
+/// d'unicité sont celles de la validation de la configuration.
+fn replace_profiles(list: &Json, config: &mut Config) -> Result<(), String> {
+    let Json::Array(items) = list else {
+        return Err("profiles".to_string());
+    };
+    if items.is_empty() || items.len() > MAX_PROFILES {
+        return Err("profiles".to_string());
+    }
+    let mut profiles = [Profile::EMPTY; MAX_PROFILES];
+    for (index, item) in items.iter().enumerate() {
+        profiles[index] = parse_profile(index, item)?;
+    }
+    // Les règles de la liste se vérifient ici, avant le choix du profil
+    // actif : un refus de la liste prime sur celui de `active_profile`.
+    if let Some(field) = validate_profile_list(&profiles[..items.len()]) {
+        return Err(field.to_string());
+    }
+    config.profiles = profiles;
+    config.profile_count = items.len() as u8;
+    Ok(())
+}
+
+/// Un élément complet de `profiles`. Les erreurs portent le préfixe
+/// `profiles[index].`.
+fn parse_profile(index: usize, item: &Json) -> Result<Profile, String> {
+    let at = |field: &str| format!("profiles[{index}].{field}");
+    let Json::Object(pairs) = item else {
+        return Err(format!("profiles[{index}]"));
+    };
+    for path in PROFILE_REQUIRED {
+        let present = match path.split_once('.') {
+            Some((section, key)) => item.get(section).and_then(|node| node.get(key)).is_some(),
+            None => item.get(path).is_some(),
+        };
+        if !present {
+            return Err(at(path));
+        }
+    }
+    // Les réglages passent par une configuration pour réutiliser les
+    // lecteurs des sections en tête.
+    let mut settings = Config::default();
+    let mut profile = Profile::EMPTY;
+    for (key, value) in pairs {
+        let result = match key.as_str() {
+            "name" => {
+                let text = value.as_str().ok_or_else(|| at("name"))?;
+                if profile.set_name(text) {
+                    Ok(())
+                } else {
+                    Err("name".to_string())
+                }
+            }
+            "basket" => {
+                let text = value.as_str().ok_or_else(|| at("basket"))?;
+                if profile.set_basket(text) {
+                    Ok(())
+                } else {
+                    Err("basket".to_string())
+                }
+            }
+            "dose_g" => number_float(value, "dose_g", &mut profile.dose_g),
+            "brew" => overlay(value, "brew", &mut settings, apply_brew_key),
+            "heating" => overlay(value, "heating", &mut settings, apply_profile_heating_key),
+            "filling" => overlay(value, "filling", &mut settings, apply_filling_key),
+            "preinfusion" => overlay(value, "preinfusion", &mut settings, apply_preinfusion_key),
+            "rampdown" => overlay(value, "rampdown", &mut settings, apply_rampdown_key),
+            other => Err(other.to_string()),
+        };
+        result.map_err(|field| at(&field))?;
+    }
+    profile.take_settings(&settings);
+    Ok(profile)
 }
 
 type KeyApplier = fn(&str, &Json, &mut Config) -> Result<(), String>;
@@ -224,6 +389,14 @@ fn apply_heating_key(key: &str, value: &Json, c: &mut Config) -> Result<(), Stri
             &mut c.brew_preheat_time_s,
         ),
         _ => Err(joined("heating", key)),
+    }
+}
+
+/// Section `heating` d'un profil : sans l'interrupteur, qui est à la machine.
+fn apply_profile_heating_key(key: &str, value: &Json, c: &mut Config) -> Result<(), String> {
+    match key {
+        "enabled" => Err(joined("heating", key)),
+        _ => apply_heating_key(key, value, c),
     }
 }
 

@@ -6,7 +6,7 @@ mod presenter;
 mod rig;
 use presenter::{Presenter, UiRequest};
 use screen_core::{
-    config::Config,
+    config::{Config, Profile},
     guided::{self, Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot},
 };
@@ -44,6 +44,7 @@ const SCENARIOS: &[&str] = &[
     "standby",
     "choice",
     "choice-heating",
+    "profiles",
     "guided-connect",
     "guided-rinse-temp",
     "guided-rinse-ready",
@@ -67,8 +68,24 @@ fn guided_view(s: &mut Snapshot, screen: Screen, hint: Hint, enabled: bool) {
         ..guided::View::default()
     };
 }
+/// Trois profils, le premier actif.
+fn three_profiles(c: &mut Config) {
+    let recipes = [
+        ("single espresso", 8.0, 22.0, "LM1 41 mm"),
+        ("double espresso", 16.0, 36.0, "58 mm 18 g"),
+        ("turbo shot", 11.0, 45.0, "58 mm 15 g"),
+    ];
+    for (i, (name, dose, target, basket)) in recipes.into_iter().enumerate() {
+        let mut p = Profile::from_flat(c, name, dose, basket);
+        p.target_weight_g = target;
+        c.profiles[i] = p;
+    }
+    c.profile_count = 3;
+    c.active_profile = 0;
+    c.target_weight_g = c.profiles[0].target_weight_g;
+}
 fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
-    let c = Config::default();
+    let mut c = Config::default();
     let mut p = Presenter::default();
     let mut s = Snapshot {
         screen_uptime_s: 10,
@@ -194,6 +211,10 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
                 s.brew_temperature_ready = false;
             }
             p.command(21, "", 1, &s, &c);
+        }
+        "profiles" => {
+            three_profiles(&mut c);
+            p.command(26, "", 1, &s, &c);
         }
         "guided-connect" => {
             s.scale_present = false;
@@ -391,6 +412,10 @@ mod render_tests {
         assert_ne!(
             std::fs::read(dir.join("choice.png")).unwrap(),
             std::fs::read(dir.join("choice-heating.png")).unwrap()
+        );
+        assert_ne!(
+            std::fs::read(dir.join("profiles.png")).unwrap(),
+            std::fs::read(dir.join("home.png")).unwrap()
         );
         assert_ne!(
             std::fs::read(dir.join("guided-rinse-ready.png")).unwrap(),

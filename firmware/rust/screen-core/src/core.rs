@@ -310,8 +310,10 @@ pub enum Output {
 }
 
 /// Entrées, pour une boucle d'événements. Chaque variante correspond à la
-/// méthode du même nom de [`Core`].
+/// méthode du même nom de [`Core`]. `PutConfig` porte les quatre profils : les
+/// entrées sont consommées tout de suite, jamais stockées en nombre.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Input {
     Tick,
     CanFrame(Frame),
@@ -347,6 +349,8 @@ pub enum Input {
         source: ActionSource,
     },
     PutConfig(Config),
+    /// Rend actif le profil d'indice donné (voir [`Core::select_profile`]).
+    SelectProfile(u8),
     ResetConfig,
     ForgetNetwork,
     Event(EventKind),
@@ -537,10 +541,22 @@ fn config_field_arg(field: Option<&str>) -> u16 {
         ("heating.brew_temperature_c", 29),
         ("heating", 30),
         ("heating.brew_preheat_time_s", 31),
+        ("active_profile", 32),
     ];
     let Some(field) = field else {
         return 0;
     };
+    // `profiles[i].champ` : 64 + 32 × i + rang du champ dans le profil.
+    if let Some(rest) = field.strip_prefix("profiles[") {
+        let mut chars = rest.chars();
+        let index = chars.next().and_then(|c| c.to_digit(10));
+        if let (Some(index), Some(name)) = (index, chars.as_str().strip_prefix("].")) {
+            return crate::config::PROFILE_FIELD_NAMES
+                .iter()
+                .position(|(known, _)| *known == name)
+                .map_or(0, |rank| 64 + 32 * index as u16 + rank as u16);
+        }
+    }
     FIELDS
         .iter()
         .find(|(name, _)| *name == field)
@@ -820,6 +836,9 @@ impl<S: ConfigStore> Core<S> {
             capture.complete = false;
             capture.actuator_seen_on = false;
             capture.cooldown = false;
+            // Le profil de l'infusion est celui du départ, même s'il change
+            // ensuite à l'écran.
+            capture.profile = (origin == Origin::Brew).then(|| *config.active());
             self.hf_session = None;
             self.snapshot.capture_cooldown = false;
             // Seule une infusion a un résumé ; une purge ou une commande de
@@ -1683,16 +1702,13 @@ impl<S: ConfigStore> Core<S> {
     /// Écrit une configuration validée, tout ou rien. Refusée (`Busy`) pendant
     /// une infusion, une purge ou un transfert OTA. Ramène à zéro l'état « prêt » si la consigne
     /// de température change, et coupe la chauffe si elle est désactivée.
+    ///
+    /// Les champs plats « profil » du candidat s'écrivent dans le profil
+    /// actif de la configuration courante ; un candidat qui change
+    /// `active_profile` prend à la place les réglages de ce profil.
     pub fn put_config(&mut self, clock: Clock, candidate: &Config) -> ConfigResult {
-        self.enter(clock);
-        if self.snapshot_now().cycle_state.is_active() {
-            return ConfigResult::new(ConfigStatus::Busy, "cycle");
-        }
-        // Le propriétaire flash du cœur 1 peut garder l'image staging pendant
-        // tout le transfert. Attendre NVS ici bloquerait le cœur de l'UI jusqu'à
-        // son watchdog, alors que l'OTA attend elle aussi ses réponses.
-        if self.flash_active || self.pending_flash.is_some() {
-            return ConfigResult::new(ConfigStatus::Busy, "flash");
+        if let Some(refused) = self.config_write_refused(clock) {
+            return refused;
         }
         for _ in 0..2 {
             let previous = self.config.get();
@@ -1700,23 +1716,63 @@ impl<S: ConfigStore> Core<S> {
                 .config
                 .apply(&mut self.store, candidate, previous.revision);
             if result.status != ConfigStatus::StaleRevision {
-                if result.status == ConfigStatus::Ok
-                    && (!candidate.heating_enabled
-                        || candidate.brew_temperature_c != previous.brew_temperature_c)
-                {
-                    self.snapshot.brew_temperature_ready = false;
-                    if !candidate.heating_enabled {
-                        self.snapshot.heating_power_pct = 0.0;
-                        self.snapshot.heating_requested = false;
-                        self.t.heating_deadline_us = 0;
-                        self.send_heating_power(0, false);
-                        self.send_heating(false, 0);
-                    }
+                if result.status == ConfigStatus::Ok {
+                    self.note_config_applied(&previous);
                 }
                 return result;
             }
         }
         ConfigResult::new(ConfigStatus::StaleRevision, "revision")
+    }
+
+    /// Rend actif le profil d'indice `index` : ses réglages passent dans les
+    /// champs plats de la configuration, persistés avec une révision de plus.
+    /// Refusée (`Busy`) pendant un cycle ou un transfert OTA, comme une écriture
+    /// de configuration ; `InvalidValue` (`active_profile`) si l'indice n'existe pas.
+    /// Rien ne change si l'écriture NVS échoue. Choisir le profil déjà actif
+    /// ne touche pas à la NVS.
+    pub fn select_profile(&mut self, clock: Clock, index: u8) -> ConfigResult {
+        if let Some(refused) = self.config_write_refused(clock) {
+            return refused;
+        }
+        let previous = self.config.get();
+        let result = self.config.select_profile(&mut self.store, index);
+        if result.status == ConfigStatus::Ok {
+            self.note_config_applied(&previous);
+        }
+        result
+    }
+
+    /// Refus commun des écritures de configuration : un cycle actif ou un
+    /// transfert OTA en cours.
+    fn config_write_refused(&mut self, clock: Clock) -> Option<ConfigResult> {
+        self.enter(clock);
+        if self.snapshot_now().cycle_state.is_active() {
+            return Some(ConfigResult::new(ConfigStatus::Busy, "cycle"));
+        }
+        // Le propriétaire flash du cœur 1 peut garder l'image staging pendant
+        // tout le transfert. Attendre NVS ici bloquerait le cœur de l'UI jusqu'à
+        // son watchdog, alors que l'OTA attend elle aussi ses réponses.
+        if self.flash_active || self.pending_flash.is_some() {
+            return Some(ConfigResult::new(ConfigStatus::Busy, "flash"));
+        }
+        None
+    }
+
+    /// Effets d'une configuration acceptée : la chauffe n'est plus « prête » si
+    /// la consigne change, et elle est coupée si elle est désactivée.
+    fn note_config_applied(&mut self, previous: &Config) {
+        let applied = self.config.get();
+        if !applied.heating_enabled || applied.brew_temperature_c != previous.brew_temperature_c {
+            self.snapshot.brew_temperature_ready = false;
+            if !applied.heating_enabled {
+                self.snapshot.heating_power_pct = 0.0;
+                self.snapshot.heating_requested = false;
+                self.t.heating_deadline_us = 0;
+                self.send_heating_power(0, false);
+                self.send_heating(false, 0);
+            }
+        }
     }
 
     /// Remet les valeurs par défaut (nouvelle révision).
@@ -2429,6 +2485,27 @@ impl<S: ConfigStore> Core<S> {
         self.hf_session.as_ref()
     }
 
+    /// Versions et profil à écrire dans l'en-tête de la capture HF : les
+    /// versions sont celles de la télémétrie, le profil celui copié au départ
+    /// de l'infusion.
+    pub fn hf_capture_context(&self) -> hf_capture::Context {
+        let s = &self.snapshot;
+        let sensors = (
+            s.sensors_version_major,
+            s.sensors_version_minor,
+            s.sensors_version_patch,
+        );
+        hf_capture::Context {
+            screen_version: (
+                s.screen_version_major,
+                s.screen_version_minor,
+                s.screen_version_patch,
+            ),
+            sensors_version: (sensors != (0, 0, 0)).then_some(sensors),
+            profile: self.hf.profile,
+        }
+    }
+
     /// Instantané de la capture HF.
     pub fn hf_capture_info(&self) -> hf_capture::Info {
         self.hf.info()
@@ -2489,6 +2566,9 @@ impl<S: ConfigStore> Core<S> {
                 return Reply::Action(self.perform_action(clock, &command, source));
             }
             Input::PutConfig(config) => return Reply::Config(self.put_config(clock, &config)),
+            Input::SelectProfile(index) => {
+                return Reply::Config(self.select_profile(clock, index));
+            }
             Input::ResetConfig => return Reply::Config(self.reset_config(clock)),
             Input::ForgetNetwork => self.forget_network(),
             Input::Event(kind) => self.note_event(clock, kind),

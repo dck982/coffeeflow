@@ -1250,9 +1250,10 @@ fn hf_capture_records_the_cycle_then_completes() {
     );
     assert!(samples.iter().any(|s| s.pump_pct_commanded == 100));
     // Document d'export : en-tête et pied.
-    let doc = hf_capture::export(&info, samples, hf_capture::View::Both, None);
+    let context = rig.core.hf_capture_context();
+    let doc = hf_capture::export(&info, samples, hf_capture::View::Both, None, &context);
     assert!(doc.starts_with(
-        "{\"schema\":\"coffeeflow.hf_capture.v2\",\"origin\":\"brew\",\"view\":\"both\""
+        "{\"schema\":\"coffeeflow.hf_capture.v3\",\"origin\":\"brew\",\"view\":\"both\""
     ));
     assert!(doc.ends_with("]}"));
     // Une nouvelle commande rouvre une capture neuve.

@@ -141,7 +141,7 @@ impl Runtime {
         service::process(&mut self.core, clock);
         let snapshot = self.core.snapshot(clock);
         let config = self.core.config();
-        for request in ui.take_requests(now_us, &snapshot, &config) {
+        for request in ui.take_requests(now_us, &snapshot, config) {
             match request {
                 UiRequest::Core(input) => ui.feedback(self.core.handle(clock, input)),
                 UiRequest::RestartLcd => crate::display::request_restart(),
@@ -159,7 +159,7 @@ impl Runtime {
         ui.update(
             now_us,
             &snapshot,
-            &self.core.config(),
+            self.core.config(),
             &network::provisioning_ssid(),
             &crate::ui::presenter::clock_text(clock.wall_unix_s),
         );

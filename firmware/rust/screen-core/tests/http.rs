@@ -37,14 +37,14 @@ fn get_defaults_has_the_schema_11_shape() {
 #[test]
 fn config_patch_is_atomic_and_persisted() {
     let mut rig = Rig::new();
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let writes = rig.core.store.writes;
     let response = post_config(
         &mut rig,
         br#"{"version":11,"brew":{"target_weight_g":42.5},"unknown":0}"#,
     );
     assert_eq!(response.status, "400 Bad Request");
-    assert_eq!(rig.core.config(), before);
+    assert_eq!(*rig.core.config(), before);
     assert_eq!(rig.core.store.writes, writes);
     let response = post_config(
         &mut rig,
@@ -55,14 +55,14 @@ fn config_patch_is_atomic_and_persisted() {
     assert_eq!(rig.core.store.writes, writes + 1);
     assert_eq!(response.body, handle_get_config(&rig.core).body);
     rig.core.store.fail_writes = true;
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let response = post_config(
         &mut rig,
         br#"{"version":11,"brew":{"target_weight_g":43.0}}"#,
     );
     assert_eq!(response.status, "500 Internal Server Error");
     assert_eq!(response.body, r#"{"error":"storage","field":"nvs"}"#);
-    assert_eq!(rig.core.config(), before);
+    assert_eq!(*rig.core.config(), before);
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn bearer_authentication_requires_the_complete_exact_header() {
 #[test]
 fn config_schema_and_values_are_validated_before_persistence() {
     let mut rig = Rig::new();
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     for (body, error, field) in [
         (r#"{}"#, "invalid_value", "version"),
         (r#"{"version":9}"#, "unknown_version", "version"),
@@ -204,7 +204,7 @@ fn config_schema_and_values_are_validated_before_persistence() {
         let json = json::parse(response.body.as_bytes()).unwrap();
         assert_eq!(json.get("error").and_then(Json::as_str), Some(error));
         assert_eq!(json.get("field").and_then(Json::as_str), Some(field));
-        assert_eq!(rig.core.config(), before);
+        assert_eq!(*rig.core.config(), before);
     }
 }
 

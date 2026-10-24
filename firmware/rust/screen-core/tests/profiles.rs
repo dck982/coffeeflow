@@ -47,15 +47,15 @@ fn field_of(response: &HttpResponse) -> Option<String> {
 /// Trois profils aux poids cibles distincts ; le profil `active` est actif.
 fn three_profiles(active: u8) -> Config {
     let base = Config::default();
-    let mut c = base;
-    let mut turbo = base;
+    let mut c = base.clone();
+    let mut turbo = base.clone();
     turbo.target_weight_g = 30.0;
     turbo.target_time_s = 15;
-    let mut lungo = base;
+    let mut lungo = base.clone();
     lungo.target_weight_g = 60.0;
     lungo.brew_temperature_c = 93.5;
-    c.profiles[1] = Profile::from_flat(&turbo, "turbo shot", 0.0, "");
-    c.profiles[2] = Profile::from_flat(&lungo, "lungo é°", 14.5, "IMS 58 mm");
+    c.profiles_mut()[1] = Profile::from_flat(&turbo, "turbo shot", 0.0, "");
+    c.profiles_mut()[2] = Profile::from_flat(&lungo, "lungo é°", 14.5, "IMS 58 mm");
     c.profile_count = 3;
     c.active_profile = active;
     let active = c.profiles[usize::from(active)];
@@ -88,7 +88,7 @@ fn blob_round_trips_every_profile() {
     };
     let (manager, report) = ConfigManager::init(&mut store);
     assert!(report.found && !report.migrated && !report.normalized);
-    assert_eq!(manager.get(), config);
+    assert_eq!(*manager.get(), config);
     assert_eq!(manager.get().profiles()[2].name(), "lungo é°");
     assert_eq!(store.writes, 0);
 }
@@ -135,13 +135,13 @@ fn profile_rules_are_validated_with_indexed_field_names() {
     assert_eq!(check(&|c| c.active_profile = 3), Some("active_profile"));
     assert_eq!(
         check(&|c| {
-            c.profiles[2].set_name("turbo shot");
+            c.profiles_mut()[2].set_name("turbo shot");
         }),
         Some("profiles[2].name")
     );
     assert_eq!(
         check(&|c| {
-            c.profiles[1].set_name("");
+            c.profiles_mut()[1].set_name("");
         }),
         Some("profiles[1].name")
     );
@@ -155,7 +155,7 @@ fn profile_rules_are_validated_with_indexed_field_names() {
     ] {
         assert_eq!(
             check(&|c| {
-                c.profiles[1].set_name(bad);
+                c.profiles_mut()[1].set_name(bad);
             }),
             Some("profiles[1].name"),
             "{bad:?}"
@@ -163,7 +163,7 @@ fn profile_rules_are_validated_with_indexed_field_names() {
     }
     assert_eq!(
         check(&|c| {
-            c.profiles[1].set_name("12345678901234567890");
+            c.profiles_mut()[1].set_name("12345678901234567890");
         }),
         None
     );
@@ -173,36 +173,36 @@ fn profile_rules_are_validated_with_indexed_field_names() {
     assert_eq!(profile.name(), "");
     assert_eq!(
         check(&|c| {
-            c.profiles[0].set_basket("1234567890123456789012345");
+            c.profiles_mut()[0].set_basket("1234567890123456789012345");
         }),
         Some("profiles[0].basket")
     );
     assert_eq!(
         check(&|c| {
-            c.profiles[0].set_basket("trailing ");
+            c.profiles_mut()[0].set_basket("trailing ");
         }),
         Some("profiles[0].basket")
     );
     assert_eq!(
-        check(&|c| c.profiles[0].dose_g = 2.9),
+        check(&|c| c.profiles_mut()[0].dose_g = 2.9),
         Some("profiles[0].dose_g")
     );
     assert_eq!(
-        check(&|c| c.profiles[0].dose_g = 30.1),
+        check(&|c| c.profiles_mut()[0].dose_g = 30.1),
         Some("profiles[0].dose_g")
     );
     assert_eq!(
-        check(&|c| c.profiles[0].dose_g = 8.05),
+        check(&|c| c.profiles_mut()[0].dose_g = 8.05),
         Some("profiles[0].dose_g")
     );
-    assert_eq!(check(&|c| c.profiles[0].dose_g = 3.0), None);
-    assert_eq!(check(&|c| c.profiles[0].dose_g = 0.0), None);
+    assert_eq!(check(&|c| c.profiles_mut()[0].dose_g = 3.0), None);
+    assert_eq!(check(&|c| c.profiles_mut()[0].dose_g = 0.0), None);
     assert_eq!(
-        check(&|c| c.profiles[2].target_pressure_bar = 3.9),
+        check(&|c| c.profiles_mut()[2].target_pressure_bar = 3.9),
         Some("profiles[2].brew.target_pressure_bar")
     );
     assert_eq!(
-        check(&|c| c.profiles[1].rampdown_pressure_drop_bar = 0.0),
+        check(&|c| c.profiles_mut()[1].rampdown_pressure_drop_bar = 0.0),
         Some("profiles[1].rampdown.pressure_drop_bar")
     );
 }
@@ -212,11 +212,11 @@ fn profile_rules_are_validated_with_indexed_field_names() {
 #[test]
 fn get_then_post_is_neutral() {
     let mut rig = rig_with(&three_profiles(1));
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let document = handle_get_config(&rig.core).body;
     let response = post(&mut rig, &document);
     assert_eq!(response.status, "200 OK", "{}", response.body);
-    let after = rig.core.config();
+    let after = rig.core.config().clone();
     assert_eq!(after.revision, before.revision + 1);
     let mut expected = before;
     expected.revision = after.revision;
@@ -253,7 +253,7 @@ fn get_lists_every_profile_and_mirrors_the_active_one() {
 #[test]
 fn post_refusals_name_the_faulty_field_and_change_nothing() {
     let mut rig = rig_with(&three_profiles(0));
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let writes = rig.core.store.writes;
     let ok = |name: &str| profile_json(name, "8.0", "LM1", "36.0");
     let five: Vec<String> = (0..5).map(|i| ok(&format!("p{i}"))).collect();
@@ -351,7 +351,7 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
             Some(field.as_str()),
             "{body}"
         );
-        assert_eq!(rig.core.config(), before, "{body}");
+        assert_eq!(*rig.core.config(), before, "{body}");
         assert_eq!(rig.core.store.writes, writes, "{body}");
     }
 }
@@ -379,7 +379,7 @@ fn replacing_the_list_finds_the_active_profile_by_name() {
     ]);
     let response = post(&mut rig, &body);
     assert_eq!(response.status, "200 OK", "{}", response.body);
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!((c.profile_count, c.active_profile), (2, 1));
     assert_eq!(c.active().name(), "turbo shot");
     assert_eq!(c.target_weight_g, 28.0);
@@ -388,7 +388,7 @@ fn replacing_the_list_finds_the_active_profile_by_name() {
     assert_eq!(c.profiles[2], Profile::EMPTY);
     // Persisté.
     let mut store = rig.core.store.clone();
-    assert_eq!(ConfigManager::init(&mut store).0.get(), c);
+    assert_eq!(*ConfigManager::init(&mut store).0.get(), c);
 }
 
 #[test]
@@ -401,7 +401,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
         r#"{"version":11,"brew":{"target_weight_g":33.5},"active_profile":"turbo shot"}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(c.active_profile, 1);
     assert_eq!(c.target_weight_g, 33.5);
     assert_eq!(c.profiles()[1].target_weight_g, 33.5);
@@ -413,7 +413,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
         profile_json("b", "8.0", "x", "40.0")
     );
     assert_eq!(post(&mut rig, &body).status, "200 OK");
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(
         (c.profile_count, c.active_profile, c.target_weight_g),
         (2, 1, 40.0)
@@ -428,7 +428,7 @@ fn head_sections_edit_the_active_profile_and_the_machine() {
         r#"{"version":11,"brew":{"target_time_s":33},"heating":{"enabled":false,"brew_temperature_c":88.5},"purge":{"max_s":15}}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(c.profiles()[2].target_time_s, 33);
     assert_eq!(c.profiles()[2].brew_temperature_c, 88.5);
     assert_eq!(c.profiles()[0].target_time_s, 28);
@@ -450,19 +450,19 @@ fn head_sections_edit_the_active_profile_and_the_machine() {
 #[test]
 fn select_profile_persists_and_copies_the_settings() {
     let mut rig = rig_with(&three_profiles(0));
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let writes = rig.core.store.writes;
     let clock = rig.clock();
     let result = rig.core.select_profile(clock, 2);
     assert_eq!(result.status, ConfigStatus::Ok);
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(c.revision, before.revision + 1);
     assert_eq!(c.active_profile, 2);
     assert_eq!((c.target_weight_g, c.brew_temperature_c), (60.0, 93.5));
     assert_eq!(c.profiles, before.profiles);
     assert_eq!(rig.core.store.writes, writes + 1);
     let mut store = rig.core.store.clone();
-    assert_eq!(ConfigManager::init(&mut store).0.get(), c);
+    assert_eq!(*ConfigManager::init(&mut store).0.get(), c);
 
     // Même profil : rien à écrire. Indice inconnu : refusé.
     let clock = rig.clock();
@@ -473,7 +473,7 @@ fn select_profile_persists_and_copies_the_settings() {
         (result.status, result.field),
         (ConfigStatus::InvalidValue, Some("active_profile"))
     );
-    assert_eq!(rig.core.config(), c);
+    assert_eq!(*rig.core.config(), c);
 }
 
 #[test]
@@ -504,7 +504,7 @@ fn select_profile_is_refused_during_a_cycle() {
         ActionSource::Ui,
     );
     assert_eq!(started.reason, "ok");
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     let writes = rig.core.store.writes;
     let clock = rig.clock();
     let result = rig.core.select_profile(clock, 1);
@@ -512,14 +512,14 @@ fn select_profile_is_refused_during_a_cycle() {
         (result.status, result.field),
         (ConfigStatus::Busy, Some("cycle"))
     );
-    assert_eq!(rig.core.config(), before);
+    assert_eq!(*rig.core.config(), before);
     assert_eq!(rig.core.store.writes, writes);
 }
 
 #[test]
 fn select_profile_changes_nothing_when_nvs_fails() {
     let mut rig = rig_with(&three_profiles(0));
-    let before = rig.core.config();
+    let before = rig.core.config().clone();
     rig.core.store.fail_writes = true;
     let clock = rig.clock();
     let result = rig.core.select_profile(clock, 1);
@@ -527,7 +527,7 @@ fn select_profile_changes_nothing_when_nvs_fails() {
         (result.status, result.field),
         (ConfigStatus::StorageError, Some("nvs"))
     );
-    assert_eq!(rig.core.config(), before);
+    assert_eq!(*rig.core.config(), before);
 }
 
 // --- Invariant ------------------------------------------------------------------------
@@ -535,13 +535,13 @@ fn select_profile_changes_nothing_when_nvs_fails() {
 #[test]
 fn editing_a_flat_field_writes_the_active_profile() {
     let mut rig = rig_with(&three_profiles(1));
-    let mut edited = rig.core.config();
+    let mut edited = rig.core.config().clone();
     edited.target_weight_g = 31.5;
     edited.preinfusion_time_s = 6;
     edited.purge_pump_pct = 80; // machine
     let clock = rig.clock();
     assert_eq!(rig.core.put_config(clock, &edited).status, ConfigStatus::Ok);
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(c.profiles()[1].target_weight_g, 31.5);
     assert_eq!(c.profiles()[1].preinfusion_time_s, 6);
     assert_eq!(c.profiles()[0].target_weight_g, 36.0);
@@ -557,14 +557,14 @@ fn editing_a_flat_field_writes_the_active_profile() {
 #[test]
 fn a_candidate_that_changes_the_active_profile_takes_its_settings() {
     let mut rig = rig_with(&three_profiles(0));
-    let mut candidate = rig.core.config();
+    let mut candidate = rig.core.config().clone();
     candidate.active_profile = 2;
     let clock = rig.clock();
     assert_eq!(
         rig.core.put_config(clock, &candidate).status,
         ConfigStatus::Ok
     );
-    let c = rig.core.config();
+    let c = rig.core.config().clone();
     assert_eq!(
         (c.active_profile, c.target_weight_g, c.brew_temperature_c),
         (2, 60.0, 93.5)
@@ -575,7 +575,7 @@ fn a_candidate_that_changes_the_active_profile_takes_its_settings() {
 #[test]
 fn at_most_four_profiles() {
     let mut c = three_profiles(0);
-    c.profiles[3] = Profile::from_flat(&Config::default(), "quatre", 0.0, "");
+    c.profiles_mut()[3] = Profile::from_flat(&Config::default(), "quatre", 0.0, "");
     c.profile_count = MAX_PROFILES as u8;
     assert_eq!(validate(&c), None);
     let mut rig = rig_with(&c);
@@ -617,11 +617,11 @@ fn run_brew(rig: &mut Rig) {
 fn hf_capture_v3_header_carries_firmware_and_the_starting_profile() {
     let mut config = three_profiles(2);
     config.brew_preheat_time_s = 0.0;
-    config.profiles[2].brew_preheat_time_s = 0.0;
-    config.profiles[2].filling_time_s = 1;
-    config.profiles[2].preinfusion_time_s = 0;
-    config.profiles[2].target_time_s = 5;
-    config.profiles[2].brew_temperature_c = 90.0;
+    config.profiles_mut()[2].brew_preheat_time_s = 0.0;
+    config.profiles_mut()[2].filling_time_s = 1;
+    config.profiles_mut()[2].preinfusion_time_s = 0;
+    config.profiles_mut()[2].target_time_s = 5;
+    config.profiles_mut()[2].brew_temperature_c = 90.0;
     let mut rig = Rig::new();
     rig.ready();
     let clock = rig.clock();

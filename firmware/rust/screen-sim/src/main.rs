@@ -78,7 +78,7 @@ fn three_profiles(c: &mut Config) {
     for (i, (name, dose, target, basket)) in recipes.into_iter().enumerate() {
         let mut p = Profile::from_flat(c, name, dose, basket);
         p.target_weight_g = target;
-        c.profiles[i] = p;
+        c.profiles_mut()[i] = p;
     }
     c.profile_count = 3;
     c.active_profile = 0;
@@ -334,7 +334,7 @@ fn live() -> Result<(), Box<dyn std::error::Error>> {
         let c = rig.core.config();
         let now = rig.now_us;
         let mut p = p.borrow_mut();
-        if let Some(UiRequest::Core(input)) = p.command(id, &payload, now as u64, &s, &c) {
+        if let Some(UiRequest::Core(input)) = p.command(id, &payload, now as u64, &s, c) {
             let clock = rig.clock();
             p.feedback(rig.core.handle(clock, input));
         }
@@ -354,7 +354,7 @@ fn live() -> Result<(), Box<dyn std::error::Error>> {
                 &app,
                 rig.now_us as u64,
                 &s,
-                &rig.core.config(),
+                rig.core.config(),
                 "coffeeflow-setup",
                 &clock,
             );

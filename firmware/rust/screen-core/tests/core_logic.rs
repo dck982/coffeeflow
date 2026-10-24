@@ -25,8 +25,8 @@ fn cmd(action: Action) -> ActionCommand {
 fn config_changes_during_ota_do_not_wait_for_the_flash_owner() {
     let mut rig = prepared_rig();
     let clock = rig.clock();
-    let original = rig.core.config();
-    let mut changed = original;
+    let original = rig.core.config().clone();
+    let mut changed = original.clone();
     changed.target_time_s = original.target_time_s + 1;
     assert_ne!(
         rig.core.begin_flash(clock, FlashTarget::Screen, 1000),
@@ -37,7 +37,7 @@ fn config_changes_during_ota_do_not_wait_for_the_flash_owner() {
         ConfigStatus::Busy
     );
     assert_eq!(rig.core.reset_config(clock).status, ConfigStatus::Busy);
-    assert_eq!(rig.core.config(), original);
+    assert_eq!(*rig.core.config(), original);
     rig.core.finish_flash();
     assert_eq!(
         rig.core.put_config(clock, &changed).status,
@@ -49,12 +49,12 @@ fn config_changes_during_ota_do_not_wait_for_the_flash_owner() {
 fn reset_config_cannot_change_the_running_brew() {
     let mut rig = prepared_rig();
     assert_eq!(start(&mut rig, ActionSource::Ui), ActionStatus::Ok);
-    let original = rig.core.config();
+    let original = rig.core.config().clone();
     assert_eq!(
         rig.core.reset_config(rig.clock()).status,
         ConfigStatus::Busy
     );
-    assert_eq!(rig.core.config(), original);
+    assert_eq!(*rig.core.config(), original);
 }
 
 #[test]
@@ -804,7 +804,7 @@ fn start_brew_preconditions() {
 
     // Chauffage désactivé dans la configuration.
     let mut off = prepared_rig();
-    let mut c = off.core.config();
+    let mut c = off.core.config().clone();
     c.heating_enabled = false;
     let clock = off.clock();
     assert_eq!(off.core.put_config(clock, &c).status, ConfigStatus::Ok);
@@ -1092,7 +1092,7 @@ fn set_heating_expires_without_renewal() {
     // désactivé) : la demande manuelle part, puis expire seule.
     let mut rig = Rig::new();
     rig.ready();
-    let mut c = rig.core.config();
+    let mut c = rig.core.config().clone();
     c.heating_enabled = true;
     rig.boiler_user_c = 90.0;
     // Valeur au-dessus de la plage de régulation : pas de commande en cours.
@@ -1193,7 +1193,7 @@ fn weight_goal_with_a_scale() {
     let clock = rig.clock();
     rig.core.update_scale_connection(clock, true);
     rig.core.update_scale_weight(clock, 100.0);
-    let mut c = rig.core.config();
+    let mut c = rig.core.config().clone();
     c.target_weight_g = 20.0;
     c.target_time_s = 60;
     assert_eq!(rig.core.put_config(clock, &c).status, ConfigStatus::Ok);
@@ -1448,7 +1448,7 @@ fn cycle_switches_telemetry_profile_and_ble_publish_rate() {
 fn heating_disable_cuts_the_boiler_at_once() {
     let mut rig = Rig::new();
     rig.ready();
-    let mut c = rig.core.config();
+    let mut c = rig.core.config().clone();
     c.heating_enabled = false;
     rig.take_outputs();
     let clock = rig.clock();

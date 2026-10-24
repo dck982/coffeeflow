@@ -310,10 +310,8 @@ pub enum Output {
 }
 
 /// Entrées, pour une boucle d'événements. Chaque variante correspond à la
-/// méthode du même nom de [`Core`]. `PutConfig` porte les quatre profils : les
-/// entrées sont consommées tout de suite, jamais stockées en nombre.
+/// méthode du même nom de [`Core`].
 #[derive(Debug, Clone, PartialEq)]
-#[allow(clippy::large_enum_variant)]
 pub enum Input {
     Tick,
     CanFrame(Frame),
@@ -808,6 +806,13 @@ impl<S: ConfigStore> Core<S> {
 
     fn begin_hf_capture(&mut self, origin: Origin, dimmer: u8) -> bool {
         let config = self.config.get();
+        let active_profile = *config.active();
+        let target_pressure_bar = config.target_pressure_bar;
+        let preheat_s = if config.heating_enabled {
+            config.brew_preheat_time_s
+        } else {
+            0.0
+        };
         let mut started = false;
         if !self.hf.active || self.hf.cooldown {
             if self.hf.cooldown && self.shot_summary_pending {
@@ -838,20 +843,13 @@ impl<S: ConfigStore> Core<S> {
             capture.cooldown = false;
             // Le profil de l'infusion est celui du départ, même s'il change
             // ensuite à l'écran.
-            capture.profile = (origin == Origin::Brew).then(|| *config.active());
+            capture.profile = (origin == Origin::Brew).then_some(active_profile);
             self.hf_session = None;
             self.snapshot.capture_cooldown = false;
             // Seule une infusion a un résumé ; une purge ou une commande de
             // banc l'efface pour que l'écran ne montre pas un cycle étranger.
             if origin == Origin::Brew {
-                self.shot_builder.reset(
-                    config.target_pressure_bar,
-                    if config.heating_enabled {
-                        config.brew_preheat_time_s
-                    } else {
-                        0.0
-                    },
-                );
+                self.shot_builder.reset(target_pressure_bar, preheat_s);
             } else {
                 self.shot_builder.clear();
             }
@@ -1695,7 +1693,7 @@ impl<S: ConfigStore> Core<S> {
 
     // --- Configuration ---------------------------------------------------------------
 
-    pub fn config(&self) -> Config {
+    pub fn config(&self) -> &Config {
         self.config.get()
     }
 
@@ -1711,7 +1709,7 @@ impl<S: ConfigStore> Core<S> {
             return refused;
         }
         for _ in 0..2 {
-            let previous = self.config.get();
+            let previous = self.config.get().clone();
             let result = self
                 .config
                 .apply(&mut self.store, candidate, previous.revision);
@@ -1735,7 +1733,7 @@ impl<S: ConfigStore> Core<S> {
         if let Some(refused) = self.config_write_refused(clock) {
             return refused;
         }
-        let previous = self.config.get();
+        let previous = self.config.get().clone();
         let result = self.config.select_profile(&mut self.store, index);
         if result.status == ConfigStatus::Ok {
             self.note_config_applied(&previous);
@@ -2064,7 +2062,7 @@ impl<S: ConfigStore> Core<S> {
             }
             let wall_s = self.clock.wall_unix_s.unwrap_or(0);
             self.finalize_pending_shot();
-            let machine_config = machine::Config::from(&self.config.get());
+            let machine_config = machine::Config::from(self.config.get());
             let now = self.now();
             let ok = if command.action == Action::StartBrew {
                 let input = self.machine_input(now);

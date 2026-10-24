@@ -509,7 +509,7 @@ pub fn handle_get_telemetry<S: ConfigStore>(
     let config = core.config();
     HttpResponse::json(
         "200 OK",
-        &encode_telemetry(&snapshot, &config, platform, clock),
+        &encode_telemetry(&snapshot, config, platform, clock),
     )
 }
 
@@ -517,7 +517,7 @@ pub fn handle_get_telemetry<S: ConfigStore>(
 
 /// `GET /config`.
 pub fn handle_get_config<S: ConfigStore>(core: &Core<S>) -> HttpResponse {
-    HttpResponse::json("200 OK", &encode_config(&core.config()))
+    HttpResponse::json("200 OK", &encode_config(core.config()))
 }
 
 fn invalid_json() -> HttpResponse {
@@ -550,13 +550,13 @@ pub fn handle_post_config<S: ConfigStore>(
     let Some(root) = read_body(body) else {
         return invalid_json();
     };
-    let mut candidate = core.config();
+    let mut candidate = core.config().clone();
     if let Err(field) = apply_json_patch(&root, &mut candidate) {
         return reject_config(core, "invalid_value", Some(&field));
     }
     let result = core.put_config(clock, &candidate);
     match result.status {
-        ConfigStatus::Ok => HttpResponse::json("200 OK", &encode_config(&core.config())),
+        ConfigStatus::Ok => HttpResponse::json("200 OK", &encode_config(core.config())),
         ConfigStatus::Busy => error_response("409 Conflict", "busy", result.field),
         ConfigStatus::StorageError => {
             error_response("500 Internal Server Error", "storage", result.field)

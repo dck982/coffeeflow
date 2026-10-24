@@ -13,10 +13,6 @@ use slint::{Color, Model, ModelRc, SharedString, VecModel};
 
 /// Demande locale à exécuter par l'assemblage, après le traitement des gestes.
 #[derive(Debug, Clone, PartialEq)]
-#[allow(
-    clippy::large_enum_variant,
-    reason = "la demande vit le temps d'un geste ; la configuration complète porte les profils"
-)]
 pub enum UiRequest {
     Core(Input),
     RestartLcd,
@@ -424,7 +420,7 @@ impl Presenter {
                 None
             }
             6 | 7 => {
-                let mut c = *c;
+                let mut c = c.clone();
                 let d = if id == 6 { -1.0 } else { 1.0 };
                 if s.scale_present {
                     c.target_weight_g = (c.target_weight_g + d * 0.5).clamp(10.0, 100.0);
@@ -517,7 +513,7 @@ impl Presenter {
                     self.editor_error = "valeur hors limites".into();
                     return None;
                 }
-                let mut candidate = *c;
+                let mut candidate = c.clone();
                 set_value(&mut candidate, e, v);
                 if config::validate(&candidate).is_some() {
                     self.editor_error = "valeur hors limites".into();
@@ -539,7 +535,7 @@ impl Presenter {
                 }
             }
             17 => {
-                let mut c = *c;
+                let mut c = c.clone();
                 if self.choice == 100 {
                     if i < 2 {
                         c.preinfusion_mode = PreinfusionMode(c.preinfusion_mode.0 ^ (1 << i));
@@ -566,7 +562,7 @@ impl Presenter {
                     Action::CloseMaintenanceValve
                 })),
                 5 => {
-                    let mut c = *c;
+                    let mut c = c.clone();
                     c.heating_enabled = i == 0;
                     Some(UiRequest::Core(Input::PutConfig(c)))
                 }

@@ -93,8 +93,8 @@ fn config_custom_matches_the_schema_11_document() {
     c.dim_after_s = 120;
     c.standby_after_s = 900;
     c.scace_enabled = true;
-    let flat = c;
-    c.profiles[0].take_settings(&flat);
+    let flat = c.clone();
+    c.profiles_mut()[0].take_settings(&flat);
     let brew =
         r#"{"target_weight_g":36.5,"target_time_s":30,"target_pressure_bar":9.1,"pump_pct":85}"#;
     let filling = r#"{"time_s":12,"pressure_bar":0.3,"pump_pct":75}"#;

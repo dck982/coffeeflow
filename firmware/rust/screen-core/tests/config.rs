@@ -35,8 +35,8 @@ fn blob(version: &str, slot: &str) -> Vec<u8> {
 /// migration.
 fn single(c: Config) -> Config {
     let mut c = c;
-    let flat = c;
-    c.profiles[0].take_settings(&flat);
+    let flat = c.clone();
+    c.profiles_mut()[0].take_settings(&flat);
     c
 }
 
@@ -209,8 +209,8 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
         };
         let (manager, report) = ConfigManager::init(&mut store);
         assert!(report.found && report.migrated);
-        assert_eq!(manager.get(), config);
-        let c = manager.get();
+        assert_eq!(*manager.get(), config);
+        let c = manager.get().clone();
         assert_eq!((c.profile_count, c.active_profile), (1, 0));
         assert_eq!(c.active().name(), "single espresso");
         assert_eq!(c.active().dose_g, 8.0);
@@ -220,7 +220,7 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
         assert_eq!(store.writes, 1);
         let (again, report) = ConfigManager::init(&mut store);
         assert!(report.found && !report.migrated);
-        assert_eq!(again.get(), config);
+        assert_eq!(*again.get(), config);
     }
 }
 
@@ -228,7 +228,7 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
 fn v10_load_picks_the_highest_revision() {
     let mut store = store_with("v10");
     let (manager, report) = ConfigManager::init(&mut store);
-    let c = manager.get();
+    let c = manager.get().clone();
     assert_eq!(c.revision, 4);
     assert_eq!(c.target_weight_g, 41.5);
     assert_eq!(c.active().target_weight_g, 41.5);
@@ -241,7 +241,7 @@ fn v10_load_picks_the_highest_revision() {
 fn v11_load_picks_the_highest_revision_and_a_wins_ties() {
     let mut low = Config::default();
     low.revision = 3;
-    low.profiles[0].target_time_s = 50;
+    low.profiles_mut()[0].target_time_s = 50;
     let mut high = Config::default();
     high.revision = 4;
     let mut store = MemoryConfigStore {
@@ -269,7 +269,7 @@ fn fresh_store_writes_defaults_with_revision_one() {
     assert!(!report.found && !report.persist_failed);
     let mut expected = Config::default();
     expected.revision = 1;
-    assert_eq!(manager.get(), expected);
+    assert_eq!(*manager.get(), expected);
     assert_eq!(store.writes, 1);
     // Écrit sur `a` (aucun emplacement valide).
     assert_eq!(store.a.as_deref(), Some(encode_blob(&expected).as_slice()));
@@ -301,7 +301,7 @@ fn migrated(version: &str) -> (Config, MemoryConfigStore, bool) {
     let mut store = store_with(version);
     let (manager, report) = ConfigManager::init(&mut store);
     assert!(report.found && report.migrated, "{version}");
-    (manager.get(), store, report.heating_disabled_by_migration)
+    (manager.get().clone(), store, report.heating_disabled_by_migration)
 }
 
 /// Valeurs communes aux blobs d'essai, côté emplacement `b` (révision 6).
@@ -390,12 +390,12 @@ fn migrate_v5_disables_heating_until_confirmed() {
     e.filling_pump_pct = 80;
     e.preinfusion_mode = PreinfusionMode::WEIGHT; // pression + poids → poids
     e.heating_enabled = false;
-    assert_eq!(c, single(e));
+    assert_eq!(c, single(e.clone()));
     assert!(disabled);
     // La configuration migrée est écrite au schéma courant.
     let (again, report) = ConfigManager::init(&mut store.clone());
     assert!(report.found && !report.migrated);
-    assert_eq!(again.get(), single(e));
+    assert_eq!(*again.get(), single(e));
 }
 
 #[test]
@@ -431,14 +431,14 @@ fn migrate_v2_and_v1() {
 fn normalisation_of_out_of_range_values() {
     let mut c = Config::default();
     c.revision = 9;
-    c.profiles[0].brew_pump_pct = 20;
-    c.profiles[0].brew_temperature_c = 110.0;
+    c.profiles_mut()[0].brew_pump_pct = 20;
+    c.profiles_mut()[0].brew_temperature_c = 110.0;
     let mut store = MemoryConfigStore {
         a: Some(encode_blob(&c)),
         ..MemoryConfigStore::default()
     };
     let (manager, report) = ConfigManager::init(&mut store);
-    let got = manager.get();
+    let got = manager.get().clone();
     assert_eq!((got.brew_pump_pct, got.brew_temperature_c), (50, 95.0));
     assert_eq!(
         (got.active().brew_pump_pct, got.active().brew_temperature_c),
@@ -454,7 +454,7 @@ fn normalisation_of_out_of_range_values() {
 fn apply_numbers_validates_and_alternates_slots() {
     let mut store = MemoryConfigStore::default();
     let (mut manager, _) = ConfigManager::init(&mut store); // révision 1 sur `a`
-    let mut next = manager.get();
+    let mut next = manager.get().clone();
     next.target_time_s = 30;
 
     let r = manager.apply(&mut store, &next, 0);
@@ -479,14 +479,14 @@ fn apply_numbers_validates_and_alternates_slots() {
     assert_eq!(slot_revision(&store.a), 3);
     assert_eq!(slot_revision(&store.b), 2);
 
-    let mut invalid = manager.get();
+    let mut invalid = manager.get().clone();
     invalid.target_time_s = 3;
     let r = manager.apply(&mut store, &invalid, 3);
     assert_eq!(
         (r.status, r.field),
         (ConfigStatus::InvalidValue, Some("brew.target_time_s"))
     );
-    let mut wrong_version = manager.get();
+    let mut wrong_version = manager.get().clone();
     wrong_version.version = 9;
     let r = manager.apply(&mut store, &wrong_version, 3);
     assert_eq!(
@@ -501,7 +501,7 @@ fn storage_error_changes_nothing() {
     let mut store = MemoryConfigStore::default();
     let (mut manager, _) = ConfigManager::init(&mut store);
     store.fail_writes = true;
-    let mut next = manager.get();
+    let mut next = manager.get().clone();
     next.target_time_s = 40;
     let r = manager.apply(&mut store, &next, 1);
     assert_eq!(
@@ -520,7 +520,7 @@ fn reset_restores_defaults_with_a_new_revision() {
     assert_eq!(manager.reset(&mut store).status, ConfigStatus::Ok);
     let mut expected = Config::default();
     expected.revision = 5;
-    assert_eq!(manager.get(), expected);
+    assert_eq!(*manager.get(), expected);
 }
 
 #[test]

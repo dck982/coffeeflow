@@ -10,6 +10,7 @@
 //! NVS `ui`, de l'ordre de 500 octets), écrits en alternance. L'écriture est synchrone parce que
 //! `/config` doit pouvoir répondre `500 storage` sans avoir rien modifié.
 
+use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::BitOr;
@@ -278,7 +279,7 @@ const DEFAULT_PROFILE_BASKET: &str = "LM1 41 mm";
 /// champs plats « profil » (cible, température, remplissage, pré-infusion,
 /// rampe) sont toujours égaux à `profiles[active_profile]` ; toute écriture
 /// acceptée rétablit cet invariant.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
     pub version: u16,
     pub revision: u32,
@@ -310,8 +311,9 @@ pub struct Config {
     /// Recherche et connexion BLE de la sonde SCACE. Désactivée par défaut :
     /// la sonde ne sert qu'aux campagnes de mesure.
     pub scace_enabled: bool,
-    /// Emplacements au-delà de `profile_count` : à zéro.
-    pub profiles: [Profile; MAX_PROFILES],
+    /// Emplacements au-delà de `profile_count` : à zéro. Hors de la pile
+    /// (`Arc`, copie à l'écriture) : une `Config` reste petite à copier.
+    pub profiles: Arc<[Profile; MAX_PROFILES]>,
     /// De 1 à [`MAX_PROFILES`].
     pub profile_count: u8,
     /// Indice dans `profiles`, inférieur à `profile_count`.
@@ -345,7 +347,7 @@ impl Default for Config {
             dim_after_s: 240,
             standby_after_s: 1800,
             scace_enabled: false,
-            profiles: [Profile::EMPTY; MAX_PROFILES],
+            profiles: Arc::new([Profile::EMPTY; MAX_PROFILES]),
             profile_count: 1,
             active_profile: 0,
         };
@@ -358,13 +360,14 @@ impl Config {
     /// Les champs plats deviennent le profil unique et actif : celui des
     /// migrations et d'une NVS vierge.
     fn adopt_flat_as_single_profile(&mut self) {
-        self.profiles = [Profile::EMPTY; MAX_PROFILES];
-        self.profiles[0] = Profile::from_flat(
+        let mut profiles = [Profile::EMPTY; MAX_PROFILES];
+        profiles[0] = Profile::from_flat(
             self,
             DEFAULT_PROFILE_NAME,
             DEFAULT_PROFILE_DOSE_G,
             DEFAULT_PROFILE_BASKET,
         );
+        self.profiles = Arc::new(profiles);
         self.profile_count = 1;
         self.active_profile = 0;
     }
@@ -372,6 +375,11 @@ impl Config {
     /// Profils en service.
     pub fn profiles(&self) -> &[Profile] {
         &self.profiles[..usize::from(self.profile_count).min(MAX_PROFILES)]
+    }
+
+    /// Profils en écriture : copie à l'écriture si le tableau est partagé.
+    pub fn profiles_mut(&mut self) -> &mut [Profile; MAX_PROFILES] {
+        Arc::make_mut(&mut self.profiles)
     }
 
     /// Profil actif ; le premier si l'indice est hors plage.
@@ -403,16 +411,22 @@ impl Config {
         } else {
             self.load_active();
         }
-        for profile in &mut self.profiles[count..] {
-            *profile = Profile::EMPTY;
+        if self.profiles[count..].iter().any(|p| *p != Profile::EMPTY) {
+            for profile in &mut self.profiles_mut()[count..] {
+                *profile = Profile::EMPTY;
+            }
         }
     }
 
     /// Écrit les champs plats dans le profil actif.
     pub(crate) fn store_active(&mut self) {
-        let flat = *self;
-        if let Some(profile) = self.profiles.get_mut(usize::from(self.active_profile)) {
-            profile.take_settings(&flat);
+        let index = usize::from(self.active_profile);
+        let Some(mut profile) = self.profiles.get(index).copied() else {
+            return;
+        };
+        profile.take_settings(self);
+        if self.profiles[index] != profile {
+            self.profiles_mut()[index] = profile;
         }
     }
 }
@@ -461,8 +475,9 @@ fn valid_pct(value: u8, (min, max, step): (u8, u8, u8)) -> bool {
     !(value < min || value > max || !value.is_multiple_of(step))
 }
 
-/// Premier champ plat invalide, `None` s'ils sont tous valides.
-fn validate_flat(c: &Config) -> Option<&'static str> {
+/// Premier réglage invalide d'un profil (nom, panier et dose exclus), `None`
+/// s'ils sont tous valides.
+fn validate_settings(c: &Profile) -> Option<&'static str> {
     use bounds as b;
     if !valid_step(c.target_weight_g, b::TARGET_WEIGHT_G) {
         return Some("brew.target_weight_g");
@@ -510,6 +525,15 @@ fn validate_flat(c: &Config) -> Option<&'static str> {
     }
     if !valid_pct(c.brew_pump_pct, b::BREW_PUMP_PCT) {
         return Some("brew.pump_pct");
+    }
+    None
+}
+
+/// Premier champ plat invalide, `None` s'ils sont tous valides.
+fn validate_flat(c: &Config) -> Option<&'static str> {
+    use bounds as b;
+    if let Some(field) = validate_settings(&Profile::from_flat(c, "", 0.0, "")) {
+        return Some(field);
     }
     if !valid_pct(c.purge_pump_pct, b::PURGE_PUMP_PCT) {
         return Some("purge.pump_pct");
@@ -613,12 +637,7 @@ fn validate_profile(index: usize, p: &Profile) -> Option<&'static str> {
     if p.dose_g != 0.0 && !valid_step(p.dose_g, bounds::PROFILE_DOSE_G) {
         return Some(profile_field(index, "dose_g"));
     }
-    // Les réglages suivent les règles des champs plats ; le reste de la
-    // configuration étant celui par défaut, seul un champ du profil peut
-    // être fautif.
-    let mut settings = Config::default();
-    p.give_settings(&mut settings);
-    validate_flat(&settings).map(|field| profile_field(index, field))
+    validate_settings(p).map(|field| profile_field(index, field))
 }
 
 /// Premier champ invalide, `None` si la configuration est valide.
@@ -1105,6 +1124,29 @@ fn config_value(c: &Config, name: &str) -> f64 {
     }
 }
 
+/// Valeur du champ `name` d'un enregistrement de profil.
+fn profile_value(p: &Profile, name: &str) -> f64 {
+    match name {
+        "target_weight_g" => f64::from(p.target_weight_g),
+        "target_time_s" => f64::from(p.target_time_s),
+        "target_pressure_bar" => f64::from(p.target_pressure_bar),
+        "brew_temperature_c" => f64::from(p.brew_temperature_c),
+        "brew_preheat_time_s" => f64::from(p.brew_preheat_time_s),
+        "filling_time_s" => f64::from(p.filling_time_s),
+        "filling_pressure_bar" => f64::from(p.filling_pressure_bar),
+        "filling_pump_pct" => f64::from(p.filling_pump_pct),
+        "preinfusion_mode" => f64::from(p.preinfusion_mode.0),
+        "preinfusion_time_s" => f64::from(p.preinfusion_time_s),
+        "preinfusion_pump_pct" => f64::from(p.preinfusion_pump_pct),
+        "rampdown_mode" => f64::from(p.rampdown_mode as u8),
+        "rampdown_lead_time_s" => f64::from(p.rampdown_lead_time_s),
+        "rampdown_lead_weight_g" => f64::from(p.rampdown_lead_weight_g),
+        "rampdown_pressure_drop_bar" => f64::from(p.rampdown_pressure_drop_bar),
+        "brew_pump_pct" => f64::from(p.brew_pump_pct),
+        _ => 0.0,
+    }
+}
+
 /// Écrit `value` à `at` selon `ty`.
 fn write_value(out: &mut [u8], at: usize, ty: Ty, value: f64) {
     match ty {
@@ -1134,16 +1176,13 @@ fn encode_profile(profile: &Profile, used: bool, size: usize) -> Vec<u8> {
     }
     out[..PROFILE_TEXT_BYTES].copy_from_slice(&profile.name);
     out[PROFILE_TEXT_BYTES..2 * PROFILE_TEXT_BYTES].copy_from_slice(&profile.basket);
-    // Les réglages passent par une configuration pour réutiliser `config_value`.
-    let mut settings = Config::default();
-    profile.give_settings(&mut settings);
     let layout = Layout::of(PROFILE_FIELDS);
     for ((name, ty), offset) in PROFILE_FIELDS.iter().zip(&layout.offsets) {
         let value = match *name {
             "name_len" => f64::from(profile.name_len),
             "basket_len" => f64::from(profile.basket_len),
             "dose_g" => f64::from(profile.dose_g),
-            _ => config_value(&settings, name),
+            _ => profile_value(profile, name),
         };
         write_value(&mut out, 2 * PROFILE_TEXT_BYTES + offset, *ty, value);
     }
@@ -1154,7 +1193,6 @@ fn encode_profile(profile: &Profile, used: bool, size: usize) -> Vec<u8> {
 /// si un texte n'est pas de l'UTF-8.
 fn decode_profile(record: &[u8]) -> Option<Profile> {
     let layout = Layout::of(PROFILE_FIELDS);
-    let mut settings = Config::default();
     let mut profile = Profile::EMPTY;
     for ((name, ty), offset) in PROFILE_FIELDS.iter().zip(&layout.offsets) {
         let value = read_value(record, 2 * PROFILE_TEXT_BYTES + offset, *ty);
@@ -1162,8 +1200,7 @@ fn decode_profile(record: &[u8]) -> Option<Profile> {
             "name_len" => profile.name_len = value as u8,
             "basket_len" => profile.basket_len = value as u8,
             "dose_g" => profile.dose_g = value as f32,
-            "preinfusion_mode" => settings.preinfusion_mode = PreinfusionMode(value as u8),
-            _ => set_field(&mut settings, name, value),
+            _ => set_profile_field(&mut profile, name, value),
         }
     }
     profile.name.copy_from_slice(&record[..PROFILE_TEXT_BYTES]);
@@ -1177,7 +1214,6 @@ fn decode_profile(record: &[u8]) -> Option<Profile> {
     {
         return None;
     }
-    profile.take_settings(&settings);
     Some(profile)
 }
 
@@ -1217,6 +1253,28 @@ fn migrate_preinfusion_mode(legacy: u8) -> PreinfusionMode {
         return PreinfusionMode::TIME;
     }
     PreinfusionMode(kept)
+}
+
+fn set_profile_field(p: &mut Profile, name: &str, v: f64) {
+    match name {
+        "target_weight_g" => p.target_weight_g = v as f32,
+        "target_time_s" => p.target_time_s = v as u16,
+        "target_pressure_bar" => p.target_pressure_bar = v as f32,
+        "brew_temperature_c" => p.brew_temperature_c = v as f32,
+        "brew_preheat_time_s" => p.brew_preheat_time_s = v as f32,
+        "filling_time_s" => p.filling_time_s = v as u16,
+        "filling_pressure_bar" => p.filling_pressure_bar = v as f32,
+        "filling_pump_pct" => p.filling_pump_pct = v as u8,
+        "preinfusion_mode" => p.preinfusion_mode = PreinfusionMode(v as u8),
+        "preinfusion_time_s" => p.preinfusion_time_s = v as u16,
+        "preinfusion_pump_pct" => p.preinfusion_pump_pct = v as u8,
+        "rampdown_mode" => p.rampdown_mode = RampdownMode::from_u8(v as u8).unwrap_or_default(),
+        "rampdown_lead_time_s" => p.rampdown_lead_time_s = v as f32,
+        "rampdown_lead_weight_g" => p.rampdown_lead_weight_g = v as f32,
+        "rampdown_pressure_drop_bar" => p.rampdown_pressure_drop_bar = v as f32,
+        "brew_pump_pct" => p.brew_pump_pct = v as u8,
+        _ => {}
+    }
 }
 
 fn set_field(c: &mut Config, name: &str, v: f64) {
@@ -1544,11 +1602,12 @@ fn read_current(store: &mut dyn ConfigStore, slot: Slot) -> Option<Config> {
         return None;
     }
     let record_size = profile_record_size();
-    c.profiles = [Profile::EMPTY; MAX_PROFILES];
+    let mut profiles = [Profile::EMPTY; MAX_PROFILES];
     for index in 0..usize::from(c.profile_count) {
         let at = 4 + layout.fields_size + index * record_size;
-        c.profiles[index] = decode_profile(&bytes[at..at + record_size])?;
+        profiles[index] = decode_profile(&bytes[at..at + record_size])?;
     }
+    c.profiles = Arc::new(profiles);
     c.load_active();
     Some(c)
 }
@@ -1659,7 +1718,8 @@ impl ConfigManager {
         // une consigne sauvegardée revient dans la plage actuelle.
         let mut normalized_brew_pump = false;
         let mut normalized_brew_temperature = false;
-        for profile in &mut selected.profiles[..usize::from(selected.profile_count)] {
+        let count = usize::from(selected.profile_count);
+        for profile in &mut selected.profiles_mut()[..count] {
             if profile.brew_pump_pct < MINIMUM_BREW_PUMP_PCT {
                 profile.brew_pump_pct = MINIMUM_BREW_PUMP_PCT;
                 normalized_brew_pump = true;
@@ -1675,8 +1735,10 @@ impl ConfigManager {
             report.persist_failed = true;
         }
         if !report.found {
-            selected = Config::default();
-            selected.revision = 1;
+            selected = Config {
+                revision: 1,
+                ..Config::default()
+            };
             if !persist(store, &selected) {
                 report.persist_failed = true;
             }
@@ -1694,8 +1756,8 @@ impl ConfigManager {
         }
     }
 
-    pub fn get(&self) -> Config {
-        self.current
+    pub fn get(&self) -> &Config {
+        &self.current
     }
 
     /// Valide, numérote (`révision + 1`), écrit puis remplace la
@@ -1709,7 +1771,7 @@ impl ConfigManager {
         candidate: &Config,
         expected_revision: u32,
     ) -> ConfigResult {
-        let mut next = *candidate;
+        let mut next = candidate.clone();
         next.reconcile_profiles(self.current.active_profile);
         let invalid = validate(&next);
         if next.version != CONFIG_SCHEMA_VERSION {
@@ -1741,7 +1803,7 @@ impl ConfigManager {
         if index == self.current.active_profile {
             return ConfigResult::OK;
         }
-        let mut next = self.current;
+        let mut next = self.current.clone();
         next.active_profile = index;
         next.load_active();
         next.revision = self.current.revision + 1;

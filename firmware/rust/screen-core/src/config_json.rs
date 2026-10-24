@@ -259,22 +259,23 @@ fn replace_profiles(list: &Json, config: &mut Config) -> Result<(), String> {
         return Err("profiles".to_string());
     }
     let mut profiles = [Profile::EMPTY; MAX_PROFILES];
+    let mut settings = Config::default();
     for (index, item) in items.iter().enumerate() {
-        profiles[index] = parse_profile(index, item)?;
+        profiles[index] = parse_profile(index, item, &mut settings)?;
     }
     // Les règles de la liste se vérifient ici, avant le choix du profil
     // actif : un refus de la liste prime sur celui de `active_profile`.
     if let Some(field) = validate_profile_list(&profiles[..items.len()]) {
         return Err(field.to_string());
     }
-    config.profiles = profiles;
+    config.profiles = alloc::sync::Arc::new(profiles);
     config.profile_count = items.len() as u8;
     Ok(())
 }
 
 /// Un élément complet de `profiles`. Les erreurs portent le préfixe
 /// `profiles[index].`.
-fn parse_profile(index: usize, item: &Json) -> Result<Profile, String> {
+fn parse_profile(index: usize, item: &Json, settings: &mut Config) -> Result<Profile, String> {
     let at = |field: &str| format!("profiles[{index}].{field}");
     let Json::Object(pairs) = item else {
         return Err(format!("profiles[{index}]"));
@@ -288,9 +289,11 @@ fn parse_profile(index: usize, item: &Json) -> Result<Profile, String> {
             return Err(at(path));
         }
     }
-    // Les réglages passent par une configuration pour réutiliser les
-    // lecteurs des sections en tête.
-    let mut settings = Config::default();
+    // Les réglages passent par une configuration de travail, partagée par
+    // tous les éléments, pour réutiliser les lecteurs des sections en tête.
+    // Chaque réglage étant exigé, seul le mode de pré-infusion, que les
+    // lecteurs composent bit à bit, repart de la valeur par défaut.
+    settings.preinfusion_mode = PreinfusionMode::TIME;
     let mut profile = Profile::EMPTY;
     for (key, value) in pairs {
         let result = match key.as_str() {
@@ -311,16 +314,16 @@ fn parse_profile(index: usize, item: &Json) -> Result<Profile, String> {
                 }
             }
             "dose_g" => number_float(value, "dose_g", &mut profile.dose_g),
-            "brew" => overlay(value, "brew", &mut settings, apply_brew_key),
-            "heating" => overlay(value, "heating", &mut settings, apply_profile_heating_key),
-            "filling" => overlay(value, "filling", &mut settings, apply_filling_key),
-            "preinfusion" => overlay(value, "preinfusion", &mut settings, apply_preinfusion_key),
-            "rampdown" => overlay(value, "rampdown", &mut settings, apply_rampdown_key),
+            "brew" => overlay(value, "brew", settings, apply_brew_key),
+            "heating" => overlay(value, "heating", settings, apply_profile_heating_key),
+            "filling" => overlay(value, "filling", settings, apply_filling_key),
+            "preinfusion" => overlay(value, "preinfusion", settings, apply_preinfusion_key),
+            "rampdown" => overlay(value, "rampdown", settings, apply_rampdown_key),
             other => Err(other.to_string()),
         };
         result.map_err(|field| at(&field))?;
     }
-    profile.take_settings(&settings);
+    profile.take_settings(settings);
     Ok(profile)
 }
 

@@ -17,24 +17,27 @@ Les fichiers `captures/` sont locaux et ignorés par Git.
 
 ## Réglages en cours
 
-Configuration sauvegardée `configs/261005-075907.json` (schéma 9). Seuls le
-seuil de remplissage et la puissance de pré-infusion diffèrent de
-`configs/261004-142011.json`, en vigueur le 5 octobre à 7 h 26.
+Configuration sauvegardée `configs/261024-155512.json` (schéma 11), profil
+actif « single espresso » (8,0 g, panier LM1 41 mm). Ses valeurs sont
+celles de `configs/261024-102547.json`, en vigueur le 24 octobre à
+10 h 22 ; le profil les reprend depuis l'écran 0.4.22.
 
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
-| Firmware écran | 0.3.40 : remboursement de la précharge, sans coupure de fin, fin de remplissage en pression absolue | avant le 5 octobre |
+| Firmware | écran **0.4.23** (profils d'infusion), carte sensors 0.4.19 | 24 octobre, après 13 h 23 (0.4.15 avant) |
 | Offset NTC | **−14 °C** (écran 0.4.4), mesuré au panier avec la SCACE ; −10,5 °C avant. Consigne bornée à 95 °C, coupure à 100 °C utilisateur (114 °C sonde) | 10 octobre |
-| Sonde de pression | XDB401 analogique sur A2 (0.3.46), loi de chauffe inchangée | 7 octobre |
+| Sonde de pression | XDB401 lu sur J10 de la carte sensors avec la calibration de A2, loi de chauffe inchangée | 23 octobre (A2 de l'écran depuis le 7 octobre) |
 | Précharge | 8 s à 90 % | 4 octobre |
-| Consigne | **92 °C** | 13 octobre, 8 h 18 (90 °C avant) |
-| Remplissage | pompe à 75 %, fin à **0,8 bar** (10 s au plus) | 5 octobre, 7 h 59 |
-| Pré-infusion | pompe à **50 %**, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
+| Consigne | **91 °C** | 24 octobre, 10 h 22 (92 °C du 13 octobre, 8 h 18 ; 90 °C avant) |
+| Remplissage | pompe à **70 %**, fin à 0,8 bar (10 s au plus) | 24 octobre, 10 h 22 (75 % du 5 octobre, 7 h 59) |
+| Pré-infusion | pompe à 50 %, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
 | Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, sans ramp-down | 13 octobre, 13 h 29 (23 g du 11 octobre, 13 h 40 au 13 octobre, 8 h 18) |
-| Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final. Remplissage à 3,6 ml/s à 75 % (3,1 ml/s le 10 octobre seulement) | 10 octobre |
+| Purge | pompe à **80 %**, 10 s au plus | 24 octobre, 10 h 22 (60 % le 23 octobre) |
+| Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final. Remplissage à 3,1 à 3,3 ml/s à 70 % (3,5 à 3,6 ml/s à 75 %) | 10 octobre |
 
-Le numéro de firmware est celui du dernier flash connu ; la capture ne
-l'enregistre pas.
+Depuis l'écran 0.4.22, la capture (schéma v3) enregistre les versions du
+firmware et le profil utilisé. Avant, le numéro de firmware est celui du
+dernier flash connu.
 
 ## Méthode
 
@@ -153,6 +156,7 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | 23/10 15 h 08, mouture ouverte, guide | 7,03 s, 24,3 ml, 0,91 bar | 3,99 s, 5,5 ml, échéance | 37,1 ml | 3,5 s | 15,9 s, 1,26 g/s, 1,58 ml/s | 22,7 g | 92,86 °C |
 | **24/10 10 h 22**, consigne 91 °C, remplissage à 70 % | **8,98 s, 28,1 ml**, 0,86 bar | 3,90 s, 5,8 ml, échéance | 35,1 ml | 3,5 s | 13,9 s, 1,32 g/s, 1,63 ml/s | 23,1 g | 92,15 °C |
 | 24/10 13 h 23 | 6,46 s, 20,0 ml, 0,89 bar | 4,08 s, 5,8 ml, échéance | 27,5 ml | 3,4 s | 14,1 s, 1,36 g/s, 1,55 ml/s | 23,0 g | 91,82 °C |
+| **25/10 9 h 11**, écran 0.4.23, tassage plus ferme | 6,84 s, 21,4 ml, 0,85 bar | 3,50 s, 5,2 ml, goutte | 26,7 ml | 3,6 s | **16,8 s, 1,09 g/s**, 1,29 ml/s | 22,5 g | 91,17 °C |
 
 ## Pistes pour le goût
 
@@ -3999,3 +4003,134 @@ avant l'infusion ; les poids de l'infusion sont continus.
 **Décision** (David). Le remplissage plus lent ne nuit pas à la galette ;
 réglages conservés (configuration sauvegardée à 13 h 28, identique à celle
 de 10 h 25 : consigne de 91 °C, remplissage à 70 %, purge à 80 %).
+
+### 25 octobre, 9 h 11 — `261025-091128`
+
+**Contexte.** Même café (Cozy Chocolate, 17 jours depuis la torréfaction),
+même mouture, routine guidée. Écran **0.4.23** : les réglages passent par
+le profil « single espresso » (configuration sauvegardée le 24 octobre à
+15 h 55), avec les mêmes valeurs que la veille. Consigne de 91 °C,
+remplissage à 70 %, purge à 80 %. La capture passe au schéma v3, qui ajoute
+le firmware et le profil ; ses échantillons sont ceux du v2. Observations de David : **mouture un peu mieux tassée** ;
+**galette passablement dégradée** au visuel, sans signe de channelling
+massif ; au goût, **une amertume pas très agréable**.
+
+**Routine** : guide ouvert machine sous la consigne (NTC à 87,3 °C) ;
+rinçage 15,7 s après l'ouverture (NTC à 88,2 °C), de 5,02 s, 18,8 ml,
+28,7 g, pression maximale 0,30 bar ; retour à la consigne en 62,2 s
+(minimum 84,5 °C, résistance active 22,9 s) ; porte-filtre en place
+353,4 s à la consigne, **415,6 s sur le groupe** après le rinçage ;
+préparation de 108,6 s. Balance absente 11,8 s en tout pendant la
+routine, avant l'infusion ; les poids de l'infusion sont continus.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,01 s | — | **0,40 → 0,46 bar** |
+| Remplissage | 8,01 s | 6,84 s | 21,4 ml (3,13 ml/s) | 0,46 → 0,85 bar |
+| Pré-infusion | 14,85 s | **3,50 s, goutte** | 5,2 ml (1,49 ml/s) | 0,85 → 1,28 bar |
+| Infusion | 18,35 s | **20,31 s** | 32,2 ml | 9,03 bar max |
+
+- Remplissage fini sur la pression (premier paquet à 0,8 bar à 14,69 s,
+  20,9 ml), jusqu'à 3,27 ml/s à 70 %. Le circuit part de 0,40 bar
+  (0,22 à 0,30 bar les deux dernières fois) : le repère de 0,5 bar est
+  atteint dès le premier échantillon et ne se compare pas.
+- Volume admis à chaque palier de pression :
+
+  | Repère | 25/10 9 h 11 | 24/10 13 h 23 | 24/10 10 h 22 |
+  | --- | ---: | ---: | ---: |
+  | 0,8 bar | 20,9 ml | 19,4 ml | 27,5 ml |
+  | 1 bar | 23,5 ml | 22,0 ml | 31,3 ml |
+  | 2 bar | 29,9 ml | 28,1 ml | 36,5 ml |
+  | 8 bar | 36,8 ml | 34,8 ml | 43,2 ml |
+
+- Pré-infusion **finie sur la goutte**, à 3,50 s, une première depuis le
+  changement de café : **première goutte (0,3 g) à 18,35 s, à 1,28 bar**,
+  26,7 ml.
+- Montée de 3,6 s jusqu'à 8 bar, 2,8 g en tasse. **Pas de pic** : la
+  pompe passe de 92 à 65 % et la pression monte lentement de 8,2 à
+  8,9 bar en 8 s ; le maximum, 9,03 bar, vient à 36,7 s, 2 s avant
+  l'arrêt.
+- Depuis 8 bar : **16,8 s**, **1,09 g/s** en tasse, 1,29 ml/s en amont
+  (14,1 s, 1,36 g/s et 1,55 ml/s à 13 h 23). 21,5 g à l'arrêt, 22,5 g
+  final, **0,9 g de gouttes**. Pompe en marche 30,5 s.
+- Plateau (de 8 bar + 2 s à l'arrêt) : 8,86 ± 0,09 bar, pompe à 66 %,
+  1,13 g/s, soit **7,8 bar·s/g** (6,5 à 13 h 23 et à 10 h 22 avec la même
+  mesure). Le débit en tasse reste constant jusqu'à l'arrêt, sans
+  accélération ni chute de pression. Rapport tasse / amont : 0,84 g/ml.
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 20 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 25/10 9 h 11 | 1,6 s | 5,7 s | 10,2 s | **19,1 s** |
+  | 24/10 13 h 23 | 2,3 s | 5,2 s | 9,2 s | 16,5 s |
+  | 24/10 10 h 22 | 2,0 s | 5,0 s | 8,9 s | 16,1 s |
+
+**Thermique.**
+
+| Repère | 25/10 9 h 11 | 24/10 13 h 23 |
+| --- | ---: | ---: |
+| NTC au départ | 91,00 °C, +0,00 °C | 91,05 °C, +0,05 °C |
+| NTC pendant le remplissage | +1,24 °C, sans creux | +1,27 °C, sans creux |
+| Pic avant l'infusion | 92,94 °C à 12,5 s | 92,78 °C à 17,4 s |
+| NTC au début de l'infusion | 92,35 °C, +1,35 °C | 92,67 °C, +1,67 °C |
+| Commande à 0 % (remboursement) | **16,5 s**, NTC sans remontée | 15,2 s, NTC jusqu'à 93,25 °C |
+| Appoint repris avant l'arrêt | **3,8 s** | 2,3 s (même mesure ; 2,1 s dans l'entrée) |
+| NTC à l'arrêt | 89,30 °C | 89,52 °C |
+| **Tasse** | **91,17 °C**, +0,17 °C | 91,82 °C, +0,82 °C |
+| Minimum | 87,89 °C, 6,1 s après l'arrêt | 88,10 °C, 8,0 s après |
+
+- Énergie, commande / SSR : précharge 8,50 / 8,56 kJ, remplissage 6,77 /
+  6,45 kJ, pré-infusion 2,27 / 2,27 kJ, infusion 1,60 / 1,81 kJ.
+- Remplissage : commande de 71 à 90 %, 0,32 kJ/ml admis.
+- Aucune lecture NTC invalide.
+- Moyenne en volume amont : 91,90 °C.
+- Modèle : 92,23 °C avec la commande réelle, **−1,03 °C** (mesure du
+  simulateur : 91,20 °C).
+
+**Attendus vérifiés.** L'entrée de 13 h 23 n'en fixait pas ; ceux de
+10 h 22 portaient sur les mêmes réglages.
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 6,3 à 7,3 bar·s/g ; 12 à 16 s depuis 8 bar ; plateau sous 9,2 bar | **7,8 bar·s/g, 16,8 s : non atteint** ; 9,03 bar : atteint |
+| Remplissage | 3,1 à 3,3 ml/s à 70 %, fin en 8,5 à 9,5 s | 3,13 à 3,27 ml/s : atteint ; **6,84 s : non atteint**, comme à 13 h 23 |
+| Pré-infusion | première goutte sous 2 bar | 1,28 bar : atteint |
+| Chauffe | 0 % pendant 14 à 17 s ; modèle à ±0,6 °C | 16,5 s : atteint ; **−1,03 °C : non atteint** |
+| Tasse | 91,6 à 92,6 °C | **91,17 °C : non atteint** |
+
+**Lecture.**
+
+- *Résistance de la galette, mesuré.* 7,8 bar·s/g contre 6,5 et 6,7 les
+  trois dernières fois : +20 %, au-delà de l'écart de ±0,4 bar·s/g pris
+  pour du bruit. Le tassage plus ferme est le seul changement signalé ;
+  le lien est probable mais pas mesuré : le café a vieilli d'un jour, et
+  rien ne sépare les deux.
+- *Channelling, mesuré.* Le plateau ne le montre pas : pression stable à
+  ± 0,09 bar, sans chute, et débit en tasse constant jusqu'à l'arrêt.
+  L'aspect dégradé de la galette ne se lit pas dans la capture. La
+  galette reste sous ≈ 9 bar pendant la récupération (8,91 → 9,28 bar),
+  comme dans toutes les captures depuis le 23 octobre : ce n'est pas un
+  changement.
+- *Mouillage, mesuré.* La goutte arrive tôt (1,28 bar) et termine la
+  pré-infusion pour la première fois sur ce café, avec 1,5 à 2 ml de plus
+  admis qu'à 13 h 23 à chaque palier. Le remplissage à 70 % donne une
+  troisième goutte sous 2 bar.
+- *Amertume, estimé.* La galette plus résistante allonge l'infusion :
+  20,31 s de phase contre 17,59, 20 g en 19,1 s au lieu de 16,5, à 22 g
+  comme avant. Plus de temps de contact au même rendement va avec plus
+  d'extraction, et l'amertume avec une extraction poussée ; c'est une
+  hypothèse, pas une mesure. La température ne l'explique pas : la tasse
+  est la plus froide depuis le 23 octobre à 14 h 38. Le 23 octobre à
+  15 h 08 (6,8 bar·s/g, 15,9 s), le « brûlé » venait sans galette lente :
+  l'amertume n'a donc pas une seule cause sur ce café.
+- *Température, mesuré.* 91,17 °C en tasse, +0,17 °C, 0,65 °C sous
+  13 h 23. L'infusion part 0,32 °C plus bas (92,35 contre 92,67 °C) et la
+  NTC ne remonte pas pendant le remboursement ; l'appoint revient 3,8 s
+  avant l'arrêt. Une infusion plus longue fait couler plus de café
+  pendant la descente de la NTC (92,35 → 89,30 °C). Le modèle surestime
+  la tasse de 1,03 °C, hors de la plage de ±0,6 °C, et de 0,4 °C de plus
+  qu'à 13 h 23 ; cause non identifiée.
+- *Gouttes, mesuré.* 0,9 g, retour dans la plage habituelle (1,6 et
+  1,7 g la veille).

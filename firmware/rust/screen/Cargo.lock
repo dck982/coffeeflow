@@ -4872,7 +4872,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "screen"
-version = "0.4.23"
+version = "0.4.24"
 dependencies = [
  "bt-hci",
  "critical-section",
@@ -4922,7 +4922,7 @@ dependencies = [
 
 [[package]]
 name = "screen-net"
-version = "0.4.23"
+version = "0.4.24"
 dependencies = [
  "base64",
  "protocol",
@@ -5635,9 +5635,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.2"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e95f91fcc7a621e8b030f6aa23c71fe9838ae2fb4d8118b75602a328f5144044"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "pin-project-lite",
 ]

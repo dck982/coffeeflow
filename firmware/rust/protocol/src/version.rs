@@ -33,7 +33,7 @@ impl core::fmt::Display for Version {
 
 /// Version des deux firmwares Rust (`screen` et `sensors` avancent ensemble).
 /// À incrémenter à chaque image flashée, dans les deux projets.
-pub const FIRMWARE_VERSION: Version = Version::new(0, 4, 23);
+pub const FIRMWARE_VERSION: Version = Version::new(0, 4, 24);
 
 /// Version minimale de l'interface chauffage, comparée sur les trois nombres.
 pub const HEATING_PROTOCOL_MIN: Version = Version::new(0, 2, 63);

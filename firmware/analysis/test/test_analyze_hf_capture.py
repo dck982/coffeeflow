@@ -1,6 +1,6 @@
 import pytest
 
-from analyze_hf_capture import cup_weighted_temperature
+from analyze_hf_capture import analyze, cup_weighted_temperature
 
 
 def sample(weight_g, temperature_c, flags=0x0F):
@@ -55,3 +55,11 @@ def test_an_old_or_faulty_boiler_reading_is_skipped():
         cup_g, average_c = cup_weighted_temperature(samples, 2)
         assert cup_g == pytest.approx(1.0)
         assert average_c == pytest.approx(90.0)
+
+
+def test_a_v3_capture_is_analysed_like_v2():
+    samples = [dict(sample(0.0, 90.0), t_ms=0, volume_ml=0.0, pump_pct_reported=50),
+               dict(sample(1.0, 92.0), t_ms=100, volume_ml=2.0, pump_pct_reported=0)]
+    v2 = {"schema": "coffeeflow.hf_capture.v2", "samples": samples}
+    v3 = dict(v2, schema="coffeeflow.hf_capture.v3", firmware={"screen": "0.4.23"}, profile={"name": "test"})
+    assert analyze(v3) == analyze(v2)

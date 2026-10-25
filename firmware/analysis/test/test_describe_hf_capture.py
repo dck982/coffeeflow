@@ -2,7 +2,7 @@ import json
 import math
 import re
 
-from describe_hf_capture import cup_flow_series, interactive_plot, report_weight_series, weight_flow_g_s
+from describe_hf_capture import cup_flow_series, validate_capture, interactive_plot, report_weight_series, weight_flow_g_s
 
 
 def test_weight_flow_does_not_bridge_a_hidden_weight():
@@ -188,3 +188,9 @@ def test_guided_block_tolerates_unknown_values():
                "cup_removed_ms": None}
     page = render_report(_guided_capture(session=session), Path("brew.json"))
     assert "Infusion guidée" in page and "—" in page
+
+
+def test_a_v3_capture_is_accepted():
+    capture = dict(_guided_capture(), schema="coffeeflow.hf_capture.v3",
+                   firmware={"screen": "0.4.23", "sensors": "0.4.19"}, profile={"name": "single espresso"})
+    assert validate_capture(capture) is capture

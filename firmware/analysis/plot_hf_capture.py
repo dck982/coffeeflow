@@ -41,7 +41,8 @@ PHASE_STYLE = {
 def validate_capture(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("le fichier JSON ne contient pas un objet")
-    if payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2") or not isinstance(payload.get("samples"), list):
+    if payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2",
+                                     "coffeeflow.hf_capture.v3") or not isinstance(payload.get("samples"), list):
         raise RuntimeError("capture inconnue ou incompatible")
     return payload
 
@@ -110,7 +111,8 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
         raise RuntimeError("la capture ne contient aucun échantillon")
     elapsed_s = [float(sample["t_ms"]) / 1000.0 for sample in samples]
     pressure = values(samples, "pressure_bar")
-    v2 = capture["schema"] == "coffeeflow.hf_capture.v2"
+    # Le v3 ajoute le firmware et le profil ; ses échantillons sont ceux du v2.
+    v2 = capture["schema"] in ("coffeeflow.hf_capture.v2", "coffeeflow.hf_capture.v3")
     if v2:
         temperature = [float(sample["boiler_temperature_c"])
                        if boiler_temperature_usable(sample)

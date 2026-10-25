@@ -48,7 +48,8 @@ VALIDITY_FLAGS = {
 def validate_capture(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("le fichier JSON ne contient pas un objet")
-    if payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2") \
+    if payload.get("schema") not in ("coffeeflow.hf_capture.v1", "coffeeflow.hf_capture.v2",
+                                     "coffeeflow.hf_capture.v3") \
             or not isinstance(payload.get("samples"), list):
         raise RuntimeError("capture inconnue ou incompatible")
     return payload

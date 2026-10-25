@@ -139,8 +139,8 @@ def cup_weighted_temperature(samples: list[dict[str, Any]], end_index: int,
 
 
 def analyze(capture: dict[str, Any]) -> tuple[tuple[float, float, float] | None, tuple[float, float]]:
-    if capture.get("schema") != "coffeeflow.hf_capture.v2":
-        raise ValueError("capture HF v2 requise")
+    if capture.get("schema") not in ("coffeeflow.hf_capture.v2", "coffeeflow.hf_capture.v3"):
+        raise ValueError("capture HF v2 ou v3 requise")
     samples = capture.get("samples")
     if not isinstance(samples, list) or len(samples) < 2 or not all(isinstance(sample, dict) for sample in samples):
         raise ValueError("la capture doit contenir au moins deux échantillons")

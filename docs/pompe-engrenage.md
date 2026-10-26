@@ -217,6 +217,25 @@ extrémités opposées** sur la longueur de 69,6 mm : prévoir le passage des fi
 aux deux bouts. Le dessus de la carte est ouvert ; c'est par là et par les
 bouts que l'air circule.
 
+### Fiche du vendeur
+
+![Spécifications](datasheets/alim-24v-specs.png)
+
+| Paramètre | Valeur annoncée | Pour la machine |
+| --- | --- | --- |
+| Entrée | 95 à 265 VAC | 230 V au milieu de la plage |
+| Consommation à vide | < 90 mW | — |
+| Puissance continue | 100 W | 24 V × 4 A = 96 W sur l'étiquette ; retenu : 96 W |
+| Régulation (ligne et charge) | ≤ 1 % | 24 V ± 0,24 V, loin des seuils de 15,5 et 30 V de la pompe |
+| Protection de surintensité | > 120 % | déclenche au-delà de ≈ 4,8 A, au-dessus du pire cas de 3,8 A |
+| Surtension d'entrée tenue | 300 V | — |
+| Montée de 0 à 90 % | ≤ 10 ms | — |
+| Maintien après coupure secteur | ≥ 90 % pendant ≥ 100 ms | une micro-coupure ne redémarre ni les ESP32 ni la pompe |
+| Rendement | 92 % à pleine charge | cohérent avec l'essai (≈ 91–92 %) ; non donné à faible charge |
+| Ondulation | ≤ 65 mV à pleine charge | cohérent avec l'essai (42–85 mV en 12 V) |
+| MTBF | ≥ 30 000 h | ≈ 3,4 ans sous tension permanente |
+| CEM | EN 55032 | — |
+
 ### Bilan de puissance
 
 | Poste | Courant sous 24 V |
@@ -229,6 +248,23 @@ bouts que l'air circule.
 | **Pire cas** | **≈ 3,8 A**, sous les 4 A de l'alimentation |
 | **Usage prévu** (pompe à 11 bar au plus, buck) | **≈ 1,4 A, 35 W**, 35 % de la charge nominale |
 
+**Profil de charge.** Ces 35 W sont une pointe, pas la charge habituelle :
+
+- **La plupart du temps, 2 à 3 W** (≈ 0,1 A sous 24 V) : les deux ESP32,
+  dont un seul utilise la radio. L'alimentation est alors à
+  2–3 % de sa charge nominale et chauffe à peine.
+- **Pompe en marche, rarement à pleine charge** : le courant suit la
+  pression, pas le débit.
+  - Faible débit à haute pression (infusion, tenue de pression) : ≈ 0,5 à
+    1 A à 9 bar, 12 à 24 W.
+  - Fort débit sans résistance (remplissage, purge) : couple faible, courant
+    bien en dessous.
+  - Le haut des deux à la fois, fort débit à 11 bar, n'arrive pas en usage
+    normal.
+- **Durées courtes** : une purge dure 5 à 15 s, en général 5 s ; une
+  infusion 20 à 60 s, en général 30 s. La température de l'alimentation suit la charge moyenne, proche
+  du repos.
+
 - **Buck** : au moins **2 A en 5 V**, pour garder de la marge sur la RECOM
   actuelle.
 - **Pas de fusible sur la carte AC.** Le fusible **T2A 250 V** de
@@ -236,25 +272,78 @@ bouts que l'air circule.
   l'alimentation et la CTN, en série avec lui. Le câblage en amont est
   protégé par le disjoncteur de la maison. Un T1,6 A en amont ne protégerait
   que la carte AC elle-même.
-- **CTN : 10D-9 de 2 A**, par exemple **C2839611** chez JLCPCB (10 Ω à froid,
-  disque de 9 mm, pas de 7,5 mm), en série sur la phase. L'alimentation n'en
-  a pas (essai ci-dessous). Le courant nominal de 2 A égale celui du fusible
-  interne, qui la protège. Éviter les 10D-9 de 1 A (C3790, C70924). Elle
-  limite la crête d'appel à ≈ 325 V / 10 Ω ≈ 33 A. Chaude, elle ne protège
-  plus : un rallumage dans les secondes qui suivent un arrêt claque encore.
+- **CTN : TDK B57236S0100M000** (série S236, 10 Ω à froid), **C125458**
+  chez JLCPCB, en série sur la phase. L'alimentation n'en a pas (essai
+  ci-dessous). Elle limite la crête d'appel à ≈ 325 V / 10 Ω ≈ 33 A. Fiche :
+  [C125458.pdf](datasheets/C125458.pdf).
 - **Composant traversant, pas CMS.** Une CTN d'appel absorbe à chaque mise
   sous tension l'énergie des condensateurs d'entrée, ½ × 81 µF × (325 V)² ≈
   4,3 J, et dissipe en continu. Il faut la masse d'un disque ; les CTN CMS
-  sont des sondes de mesure. JLCPCB monte le traversant en option, sinon elle
-  se soude à la main.
-- **Échauffement de la CTN** : à la charge prévue (≈ 0,35 A efficaces), elle
-  se stabilise vers 4 Ω et dissipe ≈ 0,4 W, soit ≈ 35 K au-dessus de
-  l'ambiante avec 11 mW/K. La monter pattes longues (3 à 5 mm au-dessus de la
-  carte), à l'écart des condensateurs et du plastique.
-- **Capacité admissible** : vérifier dans la fiche de la CTN retenue la
-  capacité maximale admise à 230 V, à comparer aux 81 µF d'entrée.
+  sont des sondes de mesure. JLCPCB monte le traversant en option.
 - **24 V** dans la plage de 20 à 29 V de la pompe, loin de ses seuils de
   15,5 et 30 V.
+
+### CTN d'appel de courant
+
+#### Choix de la CTN
+
+Références comparées, toutes 10 Ω, traversantes et « extended » chez JLCPCB :
+
+| | **C125458** TDK S236 | C3790 Ruilon 10D-9 | C6793809 10D-7 | C125456 TDK S235 |
+| --- | ---: | ---: | ---: | --- |
+| Courant permanent max | **3,5 A** (0 à 65 °C) | 2 A | 1 A | 3 A |
+| Capacité admise à 230–240 V | **300 µF** (essai UL et IEC) | 150 µF | 100 µF | non connue |
+| Marge sur 81 µF | **× 3,7** | × 1,85 | × 1,2 | — |
+| Dissipation | 10 mW/K | ≈ 11 mW/K | 6–9 mW/K | — |
+| Constante de temps | 70 s | ≈ 35 s | 20–27 s | 60 s |
+| Capacité thermique | 700 mJ/K | ≈ 0,4 J/K | ≈ 0,2 J/K | — |
+| Échauffement par allumage (4,3 J) | ≈ 6 K | ≈ 11 K | ≈ 20 K | — |
+| Corps | Ø 11,5, haut. 16 mm | Ø 9 mm | Ø 7 mm | Ø 9,5 mm |
+| Pas | 5 mm | 7,5 mm | 5 mm | 5 mm |
+| Homologations | UL 1434, IEC, VDE, CQC | — | — | UL, VDE, CQC |
+| Prix unitaire | 0,33 $ | 0,09 $ | 0,04 $ | 0,20 $ |
+
+- **C125458 retenue** : seule capacité admise vérifiée par un essai
+  normalisé, avec la plus grande marge ; ses 3,5 A dépassent le fusible T2A,
+  qui lâche avant elle en cas de défaut. Le surcoût est négligeable sur un
+  montage unique.
+- **C3790** : convient en repli. La fiche donne 2 A ; la base JLCPCB
+  affiche 1 A à tort. Sa marge de capacité est deux fois plus faible.
+- **C6793809** : écartée, 81 µF sur 100 µF admis, et plus d'échauffement
+  à chaque allumage.
+- **C125456** : la fiche disponible ne couvre que l'emballage ; repli si les
+  16 mm de hauteur de la S236 ne passent pas dans le boîtier, après avoir
+  trouvé sa capacité admise.
+
+#### Échauffement de la CTN
+
+La CTN chauffe peu, parce que la charge est le plus souvent celle du repos
+(voir [Profil de charge](#bilan-de-puissance)) :
+
+| Situation | Courant secteur | Pertes | Échauffement (S236) |
+| --- | ---: | ---: | ---: |
+| Repos, 2–3 W | ≈ 0,04 A | ≈ 16 mW | ≈ 2 K |
+| Mise sous tension | crête ≈ 33 A | 4,3 J | ≈ 6 K |
+| Infusion de 30 s à 35 W | ≈ 0,35 A | ≈ 0,4 W | ≈ 14 K |
+| Pompe à 35 W tenue en continu | ≈ 0,35 A | ≈ 0,4 W | ≈ 40 K, vers 3 Ω |
+
+- **Presque toujours à 10 Ω** : elle protège à chaque allumage, y compris
+  un rallumage juste après une infusion. Seul un arrêt après plusieurs
+  minutes de pompe en continu la laisserait assez chaude pour qu'un
+  rallumage immédiat claque.
+- **Résistance en charge sans effet** : quelques volts de chute, alors que
+  l'alimentation accepte de 95 à 265 V.
+- **Température de la machine** : 40–50 °C, dans la plage de 0 à 65 °C où
+  TDK garantit les 3,5 A.
+
+#### Montage de la CTN
+
+- **À l'écart** des condensateurs, du plastique et des composants voisins,
+  comme le demande TDK pour son refroidissement. Les pattes coudées de la
+  S236 fixent sa hauteur au-dessus de la carte.
+- **Au sec** : l'eau et les électrolytes traversent le revêtement et
+  dégradent la céramique. Dans la machine, la protéger des projections et de
+  la vapeur par le boîtier.
 
 ### Essai publié de l'alimentation
 
@@ -289,11 +378,12 @@ de sortie :
 
 Conséquences pour la machine :
 
-- **Charge réelle de 35 W environ**, soit un peu plus du tiers de la charge
-  nominale. Les pertes, ≈ 9 W à 96 W, tombent vers ≈ 3 W : l'échauffement
-  au-dessus de l'ambiante est environ trois fois plus faible. Dans une
-  enceinte à 40–50 °C, les points chauds devraient rester vers 80–95 °C,
-  sous les 125 °C des condensateurs de sortie.
+- **Charge de 35 W au plus**, pompe en marche, soit un peu plus du tiers de
+  la charge nominale. Les pertes, ≈ 9 W à 96 W, tombent vers ≈ 3 W :
+  l'échauffement au-dessus de l'ambiante est environ trois fois plus faible.
+  Même tenue en continu, cette charge laisserait les points chauds vers
+  80–95 °C dans une enceinte à 40–50 °C, sous les 125 °C des condensateurs
+  de sortie. Au repos (2–3 W), l'alimentation reste proche de l'ambiante.
 - **Le boîtier ne doit pas l'enfermer étroitement** : garder un espace d'air
   autour du radiateur et des ouïes. La pointe de 84 W de la pompe ne dure
   pas : elle ne compte pas pour l'échauffement.

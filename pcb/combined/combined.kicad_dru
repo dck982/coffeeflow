@@ -1,17 +1,18 @@
 (version 1)
 
 # Mains copper is the AC net class (load current) plus the Mains net class:
-# the low-current nets at mains potential (gates, snubbers, optotriac
-# outputs, zero-cross input). Every other connected net is 3V3-side. A mains
-# net that loses its class after a schematic change falls on the 3V3 side
-# and trips the 7 mm rule, so the classes cannot go stale silently. An
+# the low-current nets at mains potential (gate, snubber, optotriac
+# output). Every other connected net is 3V3-side. A mains net that loses its
+# class after a schematic change falls on the 3V3 side and trips the 7 mm
+# rule, so the classes cannot go stale silently. An
 # unparsable rule makes KiCad drop this whole file, so run the DRC after
 # editing it and check these rules still report.
 
-# Mains load current, up to the 2 A of F1, on a single 1 oz layer.
+# Mains load current, up to the 0.5 A of F1, on a single 1 oz layer; 1 mm
+# keeps the tracks sturdy.
 (rule "AC track width"
 	(condition "A.hasNetclass('AC')")
-	(constraint track_width (min 1.5mm)))
+	(constraint track_width (min 1mm)))
 
 # Gate and snubber pulses are tiny, but a wider track is sturdier.
 (rule "Mains track width"
@@ -25,72 +26,61 @@
 	(condition "(A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.hasNetclass('AC') || B.hasNetclass('Mains'))")
 	(constraint clearance (min 2.2mm)))
 
-# Isolation barrier, as guaranteed by the U1, U2 and U3 optocouplers.
+# Isolation barrier, as guaranteed by the U1 optotriac. The pump side of U8
+# and U9 (GND_P, +5V_P, SPEED_P, TACHO_P) is low voltage: functional
+# isolation from GND only, under the default rules.
 (rule "mains to low voltage"
 	(condition "(A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.Net != '' && B.NetName != 'unconnected-*' && !(B.hasNetclass('AC') || B.hasNetclass('Mains')))")
 	(constraint clearance (min 7mm)))
 
 # A track entering a pad comes close to the next pad of the same part. Inside
-# that part's courtyard, allow 1.25 mm: a 1.5 mm track ending on a D3 pad
-# comes 1.39 mm from the next pad. The courtyard and the pad must belong to the
-# same part: a long segment that merely touches one courtyard would otherwise
+# that part's courtyard, allow 1.25 mm, for the fan-out of the 1 mm AC
+# tracks. The courtyard and the pad must belong to the same part: a long segment that merely touches one courtyard would otherwise
 # escape the 2.2 mm rule along its whole length. A part missing from this
 # list keeps the 2.2 mm rule. The 7 mm barrier still applies. The interactive
 # router does not apply this rule; route these fan-outs in highlight mode.
 (rule "track into a pad"
-	(condition "(A.Type == 'Track' || A.Type == 'Arc') && B.Type == 'Pad' && ((A.intersectsCourtyard('C2') && B.memberOfFootprint('C2')) || (A.intersectsCourtyard('C3') && B.memberOfFootprint('C3')) || (A.intersectsCourtyard('R5') && B.memberOfFootprint('R5')) || (A.intersectsCourtyard('R6') && B.memberOfFootprint('R6')) || (A.intersectsCourtyard('R7') && B.memberOfFootprint('R7')) || (A.intersectsCourtyard('R12') && B.memberOfFootprint('R12')) || (A.intersectsCourtyard('R13') && B.memberOfFootprint('R13')) || (A.intersectsCourtyard('R14') && B.memberOfFootprint('R14')) || (A.intersectsCourtyard('R15') && B.memberOfFootprint('R15')) || (A.intersectsCourtyard('R27') && B.memberOfFootprint('R27')) || (A.intersectsCourtyard('D3') && B.memberOfFootprint('D3')) || (A.intersectsCourtyard('F1') && B.memberOfFootprint('F1')) || (A.intersectsCourtyard('J2') && B.memberOfFootprint('J2')) || (A.intersectsCourtyard('J3') && B.memberOfFootprint('J3')) || (A.intersectsCourtyard('J4') && B.memberOfFootprint('J4')) || (A.intersectsCourtyard('Q2') && B.memberOfFootprint('Q2')) || (A.intersectsCourtyard('Q4') && B.memberOfFootprint('Q4')) || (A.intersectsCourtyard('U1') && B.memberOfFootprint('U1')) || (A.intersectsCourtyard('U2') && B.memberOfFootprint('U2')) || (A.intersectsCourtyard('U3') && B.memberOfFootprint('U3'))) && (A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.hasNetclass('AC') || B.hasNetclass('Mains'))")
+	(condition "(A.Type == 'Track' || A.Type == 'Arc') && B.Type == 'Pad' && ((A.intersectsCourtyard('C2') && B.memberOfFootprint('C2')) || (A.intersectsCourtyard('R5') && B.memberOfFootprint('R5')) || (A.intersectsCourtyard('R6') && B.memberOfFootprint('R6')) || (A.intersectsCourtyard('R7') && B.memberOfFootprint('R7')) || (A.intersectsCourtyard('F1') && B.memberOfFootprint('F1')) || (A.intersectsCourtyard('J2') && B.memberOfFootprint('J2')) || (A.intersectsCourtyard('J3') && B.memberOfFootprint('J3')) || (A.intersectsCourtyard('Q2') && B.memberOfFootprint('Q2')) || (A.intersectsCourtyard('U1') && B.memberOfFootprint('U1'))) && (A.hasNetclass('AC') || A.hasNetclass('Mains')) && (B.hasNetclass('AC') || B.hasNetclass('Mains'))")
 	(constraint clearance (min 1.25mm)))
 
 # Two mains tracks ending on the pads of one resistor face each other across
-# its body. On a 1206 or 1210 the pads themselves are 1.8 mm apart, already
+# its body. On a 1206 the pads themselves are 1.8 mm apart, already
 # accepted below, and a track ending on its pad stays within that gap. These
-# resistors see little voltage: R5, R6, R12, R27 and R13 carry gate or snubber
-# current, R15 and R14 each drop about half the mains peak. A generic
+# resistors see little voltage: R5 and R6 carry gate current. A generic
 # courtyard condition would also hide spacings between different parts, so
 # list the resistors by reference.
 (rule "tracks into one resistor"
-	(condition "(A.Type == 'Track' || A.Type == 'Arc') && (B.Type == 'Track' || B.Type == 'Arc') && ((A.intersectsCourtyard('R5') && B.intersectsCourtyard('R5')) || (A.intersectsCourtyard('R6') && B.intersectsCourtyard('R6')) || (A.intersectsCourtyard('R12') && B.intersectsCourtyard('R12')) || (A.intersectsCourtyard('R13') && B.intersectsCourtyard('R13')) || (A.intersectsCourtyard('R14') && B.intersectsCourtyard('R14')) || (A.intersectsCourtyard('R15') && B.intersectsCourtyard('R15')) || (A.intersectsCourtyard('R27') && B.intersectsCourtyard('R27')))")
+	(condition "(A.Type == 'Track' || A.Type == 'Arc') && (B.Type == 'Track' || B.Type == 'Arc') && ((A.intersectsCourtyard('R5') && B.intersectsCourtyard('R5')) || (A.intersectsCourtyard('R6') && B.intersectsCourtyard('R6')))")
 	(constraint clearance (min 1.8mm)))
 
-# Mains nets on the same side of a resistor, a gate or the D3 bridge stay
-# within a few volts of each other. IEC 60664-1 (5.2.2.2) sizes creepage on
+# Mains nets on the same side of a resistor or a gate stay within a few
+# volts of each other. IEC 60664-1 (5.2.2.2) sizes creepage on
 # the long-term RMS voltage and neglects transients; IEC 60335-1 Table 18
 # (functional insulation, pollution degree 2, FR4 group IIIa) asks 1.1 mm up
 # to 50 V. Clearance follows the 2.5 kV impulse of overvoltage category II:
 # 1.5 mm (IEC 60335-1 Table 16).
-# - L side: L_IN through F1, and R5, R27 + R12, R7 and R13 away from L. R5
-#   drops at most 13 V for 0.3 ms per half-cycle; R27 + R12 and R13 see up to
-#   325 V for a few microseconds when Q4 fires, a few volts RMS.
+# - L side: L_IN through F1, and R5 and R7 away from L. R5 drops at most 13 V
+#   for 0.3 ms per half-cycle.
 # - Valve gate: Q2's gate and R6 sit within the gate drive of L_VALVE.
-# - Pump gate: Q4's gate within its gate drive of L_PUMP.
-# - Zero cross: D3+, D3- and the R14 input differ by the LED and diode drops,
-#   about 3 V, behind 240 kOhm. 1.1 mm.
 # Net names that change after a schematic edit no longer match, and the pair
 # falls back to 2.2 mm.
 (rule "same side: L"
-	(condition "(A.NetName == '/L' || A.NetName == '/L_IN' || A.NetName == 'Net-(R5-Pad1)' || A.NetName == 'Net-(R12-Pad1)' || A.NetName == 'Net-(R12-Pad2)' || A.NetName == 'Net-(C2-Pad1)' || A.NetName == 'Net-(C3-Pad1)') && (B.NetName == '/L' || B.NetName == '/L_IN' || B.NetName == 'Net-(R5-Pad1)' || B.NetName == 'Net-(R12-Pad1)' || B.NetName == 'Net-(R12-Pad2)' || B.NetName == 'Net-(C2-Pad1)' || B.NetName == 'Net-(C3-Pad1)')")
+	(condition "(A.NetName == '/L' || A.NetName == '/L_IN' || A.NetName == 'Net-(R5-Pad1)' || A.NetName == 'Net-(C2-Pad1)') && (B.NetName == '/L' || B.NetName == '/L_IN' || B.NetName == 'Net-(R5-Pad1)' || B.NetName == 'Net-(C2-Pad1)')")
 	(constraint clearance (min 1.5mm)))
 
 (rule "same side: valve gate"
 	(condition "(A.NetName == '/L_VALVE' || A.NetName == 'Net-(Q2-G)' || A.NetName == 'Net-(R6-Pad1)') && (B.NetName == '/L_VALVE' || B.NetName == 'Net-(Q2-G)' || B.NetName == 'Net-(R6-Pad1)')")
 	(constraint clearance (min 1.5mm)))
 
-(rule "same side: pump gate"
-	(condition "(A.NetName == '/L_PUMP' || A.NetName == 'Net-(Q4-G)') && (B.NetName == '/L_PUMP' || B.NetName == 'Net-(Q4-G)')")
-	(constraint clearance (min 1.5mm)))
-
-(rule "same side: zero cross"
-	(condition "(A.NetName == 'Net-(D3-+)' || A.NetName == 'Net-(D3--)' || A.NetName == 'Net-(D3-Pad3)') && (B.NetName == 'Net-(D3-+)' || B.NetName == 'Net-(D3--)' || B.NetName == 'Net-(D3-Pad3)')")
-	(constraint clearance (min 1.1mm)))
-
-# J2, J3 and J4 (HT3.96) have 1.96 mm between their L and N pads, short of
+# J2 and J3 (HT3.96) have 1.96 mm between their L and N pads, short of
 # the 2.0 mm of functional creepage. A 1 mm milled slot between the pins
 # lengthens the surface path around it (IEC 60664-1, 6.2: a groove counts
 # from 1 mm wide at pollution degree 2); the 1.96 mm of air stay above the
 # 1.5 mm clearance. The 2.0 x 2.8 mm oval pads leave 0.48 mm of copper to
-# the slot. Tracks keep the usual 0.5 mm from it.
+# the slot. Tracks keep the usual 0.5 mm from it. J7, the 24 V input, uses
+# the same footprint and slot.
 (rule "connector pins to their slot"
-	(condition "(A.memberOfFootprint('J2') && B.memberOfFootprint('J2')) || (A.memberOfFootprint('J3') && B.memberOfFootprint('J3')) || (A.memberOfFootprint('J4') && B.memberOfFootprint('J4'))")
+	(condition "(A.memberOfFootprint('J2') && B.memberOfFootprint('J2')) || (A.memberOfFootprint('J3') && B.memberOfFootprint('J3')) || (A.memberOfFootprint('J7') && B.memberOfFootprint('J7'))")
 	(constraint edge_clearance (min 0.45mm)))
 
 # Pads of one part keep the spacing of its footprint: 0.15 mm on the 0.5 mm

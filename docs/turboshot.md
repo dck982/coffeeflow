@@ -157,11 +157,13 @@ de la douche, surtout avec beaucoup d'espace libre.
   Le débitmètre sous-compte d'environ 1,4 à ce débit : 3,7 ml/s comptés
   valent ≈ 5,2 g/s.
 - **La pression n'est pas réglable à débit élevé.** La pompe vibrante
-  plafonne : avec une galette aussi perméable qu'au premier essai, 100 %
-  ne donne que ≈ 2,1 bar. `brew.target_pressure_bar` n'agit qu'en
+  plafonne : avec la mouture du single espresso et 11 g dans le panier de
+  58 mm, la galette est si perméable (0,38 à 0,43 bar·s/g) que 100 % ne
+  donne que ≈ 2 bar. `brew.target_pressure_bar` n'agit qu'en
   plafond ; il ne devient actif que si la mouture est assez fine pour que
-  la galette monte jusqu'à la cible. Le débit que la pompe tient à 6 bar
-  n'est pas mesuré.
+  la galette monte jusqu'à la cible. La pompe à 100 % tient ≈ 4,9 g/s
+  sous 2 bar et **≈ 4,4 g/s sous 4,85 bar** (15 g, 26/10 à 15 h 35) ;
+  le débit à 6 bar n'est pas mesuré.
 - **Arrêt au poids.** Le firmware coupe la pompe à
   `target_weight_g − rampdown.lead_weight_g` (en mode `none`). Le café
   continue d'arriver pendant ≈ 0,9 s après la coupure, quel que soit le
@@ -169,11 +171,12 @@ de la douche, surtout avec beaucoup d'espace libre.
   prévoir est proportionnel au débit.
 - **`brew.target_time_s` ne sert pas** quand la balance est présente : il
   ne s'applique qu'en infusion sans objectif de poids.
-- **Remplissage.** Avec 11 g dans le panier de 58 mm 15 g, l'espace libre
-  est grand : 29 ml admis en 10 s à 70 % sans atteindre 0,8 bar, première
-  goutte à 32 ml (≈ 27 ml avec 8 g en LM1 41 mm). Ces ≈ 12 s de mouillage à
-  basse pression avant la première goutte n'existent pas dans les recettes
-  publiées, qui partent sans pré-infusion.
+- **Remplissage.** Avec 11 g dans le panier de 58 mm 15 g, le remplissage
+  à 70 % admet 25 à 29 ml : fin sur la pression à 25,2 ml le 26/10 à
+  13 h 32, échéance de 10 s sans atteindre 0,8 bar à 9 h 34. Première
+  goutte entre 26 et 32 ml (≈ 27 ml avec 8 g en LM1 41 mm). Ces 9 à 12 s
+  de mouillage à basse pression avant la première goutte n'existent pas
+  dans les recettes publiées, qui partent sans pré-infusion.
 
 ## Essais
 
@@ -187,7 +190,8 @@ Profil « turbo shot » de `configs/261026-093452.json` : 11,0 g en panier
 45 g et 6 bar, pompe à 100 %, 91 °C, remplissage 70 % / 0,8 bar / 10 s,
 pré-infusion 50 % / 4 s ou goutte, `lead_weight_g` de 1,0 g. Café « Cozy
 Chocolate » (Brésil, nature), **même mouture que le single espresso**,
-café juste mis à niveau, presque pas tassé. Écran et sensors 0.4.24.
+café tassé (« mis à niveau » sur le moment, déjà un tassage maximal
+selon David à 13 h 32). Écran et sensors 0.4.24.
 Goût : **très intéressant, zéro amertume, notes florales**.
 
 | Grandeur | Mesure | Repère turbo |
@@ -210,19 +214,96 @@ Pour un turbo au sens du papier avec 11 g : 30 à 33 g en tasse, et une
 mouture assez fine pour que la pression monte vers 6 bar en restant sous
 15 s d'écoulement.
 
+### 26 octobre 2026, 13 h 32 — `261026-133226`
+
+Même profil, **cible 40 g** et **88 °C** (`configs/261026-142235.json`),
+même café, même mouture, même tassage, sans puck screen. Goût : **bon,
+mais très léger**, pas d'amertume, légère acidité, **pas de crema**.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 7,90 s, 25,2 ml, fini sur la pression (0,89 bar) | — |
+| Pré-infusion | 0,79 s, 1,2 ml, finie sur la goutte, 0,90 bar | aucune |
+| Première goutte → arrêt | **9,6 s** | 11 à 14 s sur cette machine |
+| Pompe en marche | 18,4 s | < 20 s |
+| Pression d'infusion | **1,9 bar** (1,98 max), pompe à 100 % dès 2,7 s | 6 bar au plus |
+| Débit en tasse | **≈ 4,9 g/s** (10 → 39,6 g en 5,8 s) | 4,5 à 5 g/s |
+| Résistance de la galette | 0,38 bar·s/g | — |
+| Poids | 39,6 g à la coupure, **44,2 g final** | 40 g visés |
+| Ratio | **1:4,0** | 1:2,5 à 1:3 |
+| NTC tasse | 88,74 °C, **+0,74 °C** au-dessus de la consigne | 90 à 93 °C |
+
+Lecture : le tassage ne change pas la galette ; la pression reste à 2 bar.
+La consigne baisse de 3 °C mais la tasse de 0,63 °C seulement. L'arrêt
+laisse encore ≈ 1 s de débit, ≈ 5 g, arriver après le seuil.
+
+### 26 octobre 2026, 15 h 35 — `261026-153548`
+
+**15 g** dans le même panier, cible 45 g, `lead_weight_g` de 5,0 g, 88 °C
+(`configs/261026-153711.json`) ; même mouture, même tassage. Goût :
+**espresso long, crema onctueuse, goût caractéristique de l'espresso,
+légère amertume** ; loin de la « soupe » fruitée des deux essais à 11 g.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 6,28 s, 19,7 ml, fini sur la pression (0,97 bar) | — |
+| Pré-infusion | 4,08 s, 5,5 ml, finie à l'échéance, 1,31 bar | aucune |
+| Pompe avant la goutte | **12,0 s** | 0 dans le papier |
+| Première goutte → arrêt | **9,9 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pompe en marche | 21,9 s | < 20 s |
+| Pression d'infusion | **4,85 bar** (4,91 max), pompe à 97–100 % | 6 bar au plus |
+| Débit en tasse | **4,40 g/s** | 4,5 à 5 g/s |
+| Résistance de la galette | **1,10 bar·s/g** | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 40,8 g à la coupure, **43,9 g final** | 45 g visés |
+| Ratio | **1:2,9** | 1:2,5 à 1:3 |
+| NTC tasse | 89,37 °C, +1,37 °C au-dessus de la consigne | 90 à 93 °C |
+
+Lecture : la galette, le débit, le ratio et le temps depuis la goutte
+sont ceux du turbo du papier, à 4,9 bar au lieu de 6. Ce qui l'en
+éloigne est le **mouillage de 12 s** avant la goutte, absent du papier, et
+la mouture espresso, plus fine. Passer de 11 à 15 g a triplé la
+résistance (0,38 → 1,10 bar·s/g).
+
+### 26 octobre 2026, 16 h 32 — `261026-163228`
+
+Même recette qu'à 15 h 35 (15 g, 45 g, 88 °C), **mouture nettement plus
+grosse**. David voit du **channelling** ; goût **plat**, sans fruité,
+amertume attribuée au channelling.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Pompe avant la goutte | 9,0 s (pré-infusion finie sur la goutte) | 0 dans le papier |
+| Première goutte → arrêt | **10,6 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pression d'infusion | 2,52 → **2,33 bar**, pompe à 100 % | 6 bar au plus |
+| Débit en tasse | 4,30 → **4,86 g/s** | 4,5 à 5 g/s |
+| Résistance de la galette | **0,58 → 0,49 bar·s/g**, −16 % | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | **44,0 g final** | 45 g visés |
+| Ratio | **1:2,9** | 1:2,5 à 1:3 |
+| NTC tasse | 88,77 °C ; la NTC chute de 6,9 °C pendant l'écoulement | 90 à 93 °C |
+
+Lecture : grossir la mouture divise la résistance par 2 sans raccourcir
+l'écoulement, borné par la pompe. La galette s'érode pendant le shot, ce
+qu'elle ne faisait pas à mouture espresso et à pression plus haute. La
+**résistance par tranche de 10 g** est la mesure de l'érosion : constante
+à 15 h 35, en baisse ici.
+
 ## Pistes
 
 Contrainte de David : **garder la mouture du single espresso**, pour faire
 les deux cafés sans toucher au moulin. La résistance de la galette ne se
-règle donc qu'au tassage, au puck screen, à la dose et au panier.
+règle donc qu'au puck screen, à la dose et au panier ; le tassage était
+déjà ferme au premier essai. La dose a été le levier décisif : 15 g
+donnent 1,10 bar·s/g, dans la plage du papier.
 
 | Piste | Depuis | Lecture |
 | --- | --- | --- |
-| Température plus basse | 91 °C le 26/10 | va dans le sens de toutes les recettes récentes (83 à 90 °C). À 5 g/s, la tasse sort ≈ 1,6 °C sous la consigne |
-| Tassage normal, comme pour l'espresso | mise à niveau seule le 26/10 | seul levier sur la résistance à mouture fixe. Le papier n'a pas vu d'effet notable du tassage sur le temps à 6 bar ; sur l'espresso du 25/10, un tassage un peu plus ferme a donné +20 % de résistance. À tassement égal, la géométrie du panier de 58 mm avec 11 g donnerait ≈ 2,2 à 2,7 bar·s/g, contre 0,43 mesurés |
-| Puck screen | aucun le 26/10 | protège la galette de la douche (cratères, plus marqués avec beaucoup d'espace libre) et réduit cet espace de quelques ml |
-| Ratio : 35 g au lieu de 45 g | 1:4,4 le 26/10 | 1:3,2, presque dans la plage du turbo (1:2,5 à 1:3). Avec `lead_weight_g` à 1,0 g, l'arrêt arrive à 34 g et ≈ 0,9 s de débit s'ajoute : ≈ 38,5 g à 5 g/s |
+| Température plus basse | 88 °C le 26/10 à 13 h 32 (91 °C à 9 h 34) | va dans le sens de toutes les recettes récentes (83 à 90 °C). La tasse est sortie à −1,63 °C puis +0,74 °C de la consigne : 3 °C de consigne en moins n'en ont retiré que 0,63 en tasse |
+| Tassage normal, comme pour l'espresso | essayé le 26/10 à 13 h 32 | **sans effet** : le tassage de 9 h 34 était déjà maximal ; 0,38 bar·s/g contre 0,43. La géométrie du panier de 58 mm avec 11 g donnerait ≈ 2,2 à 2,7 bar·s/g ; l'écart reste inexpliqué |
+| Puck screen | aucun le 26/10 | protège la galette de la douche (cratères, plus marqués avec beaucoup d'espace libre) et réduit cet espace de quelques ml. Avec 15 g, la douchette marque déjà la galette : il demande probablement 14 g |
+| Puissance de pompe plus basse | 100 % le 26/10 | à faible résistance, `brew.pump_pct` fixe presque le débit : ≈ 3,3 g/s à 60 %, 45 g en ≈ 13 s depuis la goutte. Piste de David contre l'érosion de la mouture grosse (16 h 32) |
+| Ratio 1:3 | 45 g visés pour 15 g, 43,9 g final (1:2,9) le 26/10 à 15 h 35 | ≈ 0,9 s de débit arrive après le seuil : `lead_weight_g` ≈ 0,9 s × débit, soit ≈ 4 g à 4,4 g/s |
+| Dose de 15 g | essayée le 26/10 à 15 h 35 | 1,10 bar·s/g, 4,85 bar, 4,4 g/s : galette du papier ; goût d'espresso long avec crema |
 
-Le tassage et le puck screen changent tous deux la résistance : changés
+Le puck screen et la dose changent tous deux la résistance : changés
 ensemble, rien dans la capture ne sépare leurs effets. La température se
 lit à part dans la NTC, le ratio dans le poids.

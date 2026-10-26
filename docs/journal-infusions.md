@@ -24,7 +24,10 @@ celles de `configs/261024-102547.json`, en vigueur le 24 octobre à
 Depuis le 26 octobre, `configs/261026-093452.json` ajoute un profil
 « turbo shot » (11,0 g, panier 58 mm 15 g, cible 45 g, 6 bar) ; ses
 essais sont dans les entrées du journal et résumés dans
-[turboshot.md](turboshot.md).
+[turboshot.md](turboshot.md). Depuis le 26 octobre à 13 h 32,
+`configs/261026-142235.json` : profil « turbo shot » à 40 g et 88 °C ;
+depuis 15 h 35, `configs/261026-153711.json` : 45 g et `lead_weight_g` de
+5,0 g, avec 15 g de café (le champ `dose_g` est resté à 11,0 g).
 
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
@@ -162,6 +165,9 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | 24/10 13 h 23 | 6,46 s, 20,0 ml, 0,89 bar | 4,08 s, 5,8 ml, échéance | 27,5 ml | 3,4 s | 14,1 s, 1,36 g/s, 1,55 ml/s | 23,0 g | 91,82 °C |
 | **25/10 9 h 11**, écran 0.4.23, tassage plus ferme | 6,84 s, 21,4 ml, 0,85 bar | 3,50 s, 5,2 ml, goutte | 26,7 ml | 3,6 s | **16,8 s, 1,09 g/s**, 1,29 ml/s | 22,5 g | 91,17 °C |
 | **26/10 9 h 34**, **turbo shot** (11 g, panier 58 mm 15 g, cible 45 g, 6 bar), écran 0.4.24 | **10,05 s**, 28,7 ml, 0,77 bar | 1,92 s, 2,6 ml, goutte | 32,2 ml | jamais (2,17 bar max) | **10,9 s depuis la goutte, 5,05 g/s**, 3,44 ml/s | 48,5 g | **89,37 °C** |
+| **26/10 13 h 32**, turbo shot, cible 40 g, **consigne 88 °C** | 7,90 s, 25,2 ml, 0,89 bar | 0,79 s, 1,2 ml, goutte | 26,4 ml | jamais (1,98 bar max) | **9,6 s depuis la goutte, 4,93 g/s**, 3,51 ml/s | 44,2 g | **88,74 °C** |
+| **26/10 15 h 35**, turbo shot, **15 g**, cible 45 g | 6,28 s, 19,7 ml, 0,97 bar | 4,08 s, 5,5 ml, échéance | 28,4 ml | jamais (4,91 bar max) | **9,9 s depuis la goutte, 4,40 g/s**, 3,29 ml/s | 43,9 g | **89,37 °C** |
+| **26/10 16 h 32**, turbo shot, 15 g, **mouture grosse**, channelling | 6,28 s, 18,3 ml, 0,87 bar | 2,43 s, 3,2 ml, goutte | 21,4 ml | jamais (2,53 bar max) | **10,6 s depuis la goutte, 4,72 g/s**, 3,53 ml/s | 44,0 g | **88,77 °C** |
 
 ## Pistes pour le goût
 
@@ -4154,6 +4160,9 @@ définition du turbo shot : [turboshot.md](turboshot.md). Observations de
 David : café **pratiquement pas tassé, juste mis à niveau** ; pas de café
 visible avant l'infusion ; 3 g au-dessus de la cible ; au goût, **très
 intéressant, zéro amertume, notes florales**.
+Correction du 26 octobre, 13 h 32 : David a tassé normalement l'essai
+suivant et constate que ce « faible tassage » était déjà un tassage
+maximal ; la galette de 9 h 34 était tassée.
 
 **Routine** : guide ouvert à la consigne (NTC à 90,9 °C) ; rinçage de
 5,04 s, 18,3 ml, 24,0 g, pression maximale 0,26 bar ; consigne retrouvée à
@@ -4249,6 +4258,9 @@ l'infusion ; les poids de l'infusion sont continus.
   2,7 bar·s/g (estimé). Les 0,43 bar·s/g mesurés sont 5 à 6 fois plus bas :
   le reste vient probablement de l'absence de tassage et d'un lit moins
   compacté à 2 bar qu'à 9 bar ; rien ne sépare les deux.
+  Correction du 26 octobre, 13 h 32 : la galette était tassée (voir le
+  contexte) ; l'absence de tassage n'explique pas l'écart, et l'essai de
+  13 h 32, tassé de même, mesure 0,38 bar·s/g.
 - *Débit, mesuré.* ≈ 5 g/s en tasse, dans la plage de 4,5 à 5 g/s de
   Cameron ; avec un débit libre sous 7 g/s, la règle de Hedrick vise 11 à
   14 s d'écoulement : 10,9 s ici.
@@ -4289,3 +4301,439 @@ Séparation des effets : la température se lit à part dans la NTC, et le
 ratio dans le poids ; le tassage et le puck screen changent tous deux la
 résistance, et rien dans la capture ne les sépare s'ils changent ensemble.
 Au goût, rien ne sépare les quatre.
+
+### 26 octobre, 13 h 32 — `261026-133226`
+
+**Contexte.** Deuxième **turbo shot**, profil « turbo shot » de
+`configs/261026-142235.json` : par rapport à 9 h 34, **cible 40 g** (45 g)
+et **consigne de 88 °C** (91 °C) ; dose de 11,0 g, panier 58 mm 15 g,
+6 bar, pompe jusqu'à 100 %, remplissage, pré-infusion et
+`lead_weight_g` de 1,0 g inchangés. Même café, même mouture. Écran et
+carte sensors 0.4.24. Observations de David : **tassage normal, comme ce
+matin** — en essayant de tasser plus, il constate que le « faible
+tassage » de 9 h 34 était déjà un tassage maximal ; pas de puck screen. Au
+goût : **bon, mais clairement très léger** ; pas d'amertume, une légère
+acidité ; **pas de crema**. Pas encore de référence de turbo shot pour
+comparer.
+
+Deux réglages changent : la température se lit dans la NTC, le ratio dans
+le poids ; au goût, rien ne les sépare.
+
+**Routine** : guide ouvert à la consigne (NTC à 88,0 °C) ; rinçage de
+5,04 s, 18,6 ml, 29,0 g, pression maximale 0,31 bar ; consigne retrouvée à
+la fin du rinçage, minimum 82,6 °C ensuite, résistance active 73,5 s ;
+porte-filtre **1681,3 s sur le groupe** (28 min) après le rinçage ;
+préparation de 197,6 s. Balance présente toute la routine.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,11 s | — | 0,28 → 0,35 bar |
+| Remplissage | 8,11 s | **7,90 s, pression** | 25,2 ml (3,19 ml/s) | 0,35 → 0,89 bar |
+| Pré-infusion | 16,00 s | 0,79 s, goutte | 1,2 ml (1,47 ml/s) | 0,89 → 0,90 bar |
+| Infusion | 16,79 s | **9,57 s** | 33,6 ml (3,51 ml/s) | **1,98 bar max** |
+
+- Remplissage **fini sur la pression** : premier paquet au-dessus de
+  0,8 bar à 15,83 s (0,85 bar), passage en pré-infusion à 16,00 s
+  (0,89 bar), 0,17 s d'écart. 25,2 ml admis, contre 28,7 ml sans atteindre
+  0,8 bar à 9 h 34 ; même dose, même tassage selon David, pas de puck
+  screen : rien dans la capture n'explique ces 3,5 ml.
+- Première goutte à **26,4 ml** depuis le remplissage (32,2 ml à 9 h 34),
+  8,69 s après son début ; marge de remplissage 1,2 ml (3,5 ml).
+- Montée : pompe de 50 à 100 % en 2,7 s ; 1 bar à 17,49 s. La pression
+  **plafonne à 1,9–2,0 bar** de 21,3 s à l'arrêt, 1,98 bar au plus ; pompe
+  saturée, le PI de pression ne s'active pas.
+- Débit au plateau (21,3 à 26,4 s) : 3,74 ml/s comptés en amont,
+  5,16 g/s en tasse, rapport 1,38 (1,42 en débit libre).
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | 1 g | 5 g | 10 g | 20 g | 30 g | 35 g | 39 g (seuil) | 44 g |
+  | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | 0,8 s | 2,5 s | 3,8 s | 5,8 s | 8,0 s | 8,6 s | 9,6 s | 11,0 s |
+
+  De 10 à 39,6 g : **4,93 g/s** (4,9, 4,8 et 5,1 g/s par tranche).
+- Résistance au plateau : 1,94 bar pour 5,16 g/s, soit
+  **0,38 bar·s/g** (0,43 à 9 h 34).
+- Arrêt : seuil de `40 − 1,0 = 39,0 g` franchi à 26,37 s (38,4 →
+  39,6 g) ; **44,2 g final**, stable dès ≈ 28,8 s. **5,2 g arrivent après
+  le seuil**, soit ≈ 1,0 s au débit de la fin (4,5 g et ≈ 0,9 s à 9 h 34).
+  Écart à la cible : **+4,2 g**.
+- Après l'arrêt, la pression lue monte de 1,88 à 2,51 bar pompe arrêtée,
+  balance immobile, comme à 9 h 34.
+- Ratio final **1:4,0** (1:3,6 visé). Pompe en marche 18,4 s, dont 8,7 s
+  avant la première goutte (12 s à 9 h 34). 61,7 ml admis en tout
+  (71,3 ml).
+
+**Thermique.**
+
+| Repère | Mesure |
+| --- | ---: |
+| NTC au départ | 88,01 °C, +0,01 °C |
+| Pic avant l'infusion | 90,17 °C à 12,9 s, pendant le remplissage, +2,17 °C (+1,38 °C à 9 h 34) |
+| NTC au début de l'infusion | **89,33 °C, +1,33 °C** (−0,55 °C à 9 h 34) |
+| Commande à 0 % (remboursement) | 8,9 s, de 16,79 à 25,70 s |
+| Appoint repris avant l'arrêt | 0,67 s |
+| NTC à l'arrêt | 87,92 °C, minimum pendant l'écoulement |
+| **Tasse** | **88,74 °C, +0,74 °C** (−1,63 °C à 9 h 34) |
+| Minimum | **83,71 °C**, 6,4 s après l'arrêt ; 83,97 °C en fin de capture (10 s) |
+
+- Énergie, commande / SSR : précharge 8,60 / 8,80 kJ, remplissage 7,85 /
+  7,54 kJ (0,31 kJ/ml admis), pré-infusion 0,75 / 0,81 kJ, infusion 0,73 /
+  0,82 kJ.
+- La NTC baisse de 1,4 °C pendant l'écoulement et de 4,2 °C de plus
+  après l'arrêt.
+- Moyenne en volume amont : 89,10 °C.
+- Aucune lecture NTC invalide.
+- Modèle : 87,91 °C avec la commande réelle, **+0,85 °C** (mesure du
+  simulateur : 88,76 °C) ; −2,07 °C à 9 h 34. Hors de son domaine de
+  débit, le modèle se trompe dans les deux sens d'un essai à l'autre.
+
+**Attendus vérifiés.**
+
+| Attendu (9 h 34) | Mesure |
+| --- | --- |
+| Résistance entre 0,43 et ≈ 2,5 bar·s/g selon l'effet du tassage | **0,38 bar·s/g, non atteint** : le tassage n'a pas changé (voir la correction de 9 h 34) et il n'y a pas de puck screen ; la pression reste sous 2 bar |
+| ≈ 5 g/s tant que la pression reste sous ≈ 4 bar ; 35 g en ≈ 7 s depuis la goutte | 4,93 g/s, atteint ; 35 g à **8,6 s**, la montée de la pompe (2,7 s jusqu'à 100 %) n'était pas comptée |
+| Poids final ≈ seuil + 0,9 s × débit | 39,0 + 0,9 × 4,9 = 43,4 g attendus, **44,2 g** mesurés (≈ 1,0 s) |
+| Première goutte avant 32 ml, fin du remplissage peut-être sur la pression, avec le puck screen | **26,4 ml et fin sur la pression**, mais sans puck screen ; la cause n'est pas identifiée |
+| Tasse ≈ consigne − 1,6 °C à 5 g/s | **consigne + 0,74 °C, non atteint** |
+
+**Lecture.**
+
+- *Tassage, mesuré.* À tassage égal selon David, la résistance passe de
+  0,43 à 0,38 bar·s/g : le tassage n'est pas un levier sur cette galette,
+  et l'écart de 5 à 6 fois avec l'estimation géométrique (≈ 2,2 à
+  2,7 bar·s/g) reste inexpliqué. Le rapport mesuré entre l'espresso du
+  25/10 et ce turbo est de 7,8 / 0,38 ≈ 20, contre ≈ 3 par la géométrie
+  (estimé).
+- *Pression, mesuré.* Avec la mouture du single espresso et 11 g dans ce
+  panier, la pompe à 100 % ne dépasse pas 2 bar. Atteindre 6 bar à 5 g/s
+  demande ≈ 1,2 bar·s/g, 3,2 fois la résistance mesurée. À tassement égal,
+  15 g (la capacité du panier) la multiplieraient par ≈ 1,4 (estimé) :
+  ≈ 0,5 bar·s/g, ≈ 2,6 bar. Sans changer la mouture, aucun levier connu
+  ne donne 6 bar dans ce panier.
+- *Débit et temps, mesuré.* 4,9 g/s et 9,6 s de la goutte au seuil, dans
+  les repères de Cameron (4,5 à 5 g/s) mais sous les 11 à 14 s de Hedrick,
+  parce que la cible est plus basse.
+- *Fin au poids, mesuré.* Comme à 9 h 34, ≈ 1 s de débit arrive après le
+  seuil : à ≈ 5 g/s, une avance de ≈ 5 g mettrait le poids final sur la
+  cible.
+- *Température, mesuré.* La consigne baisse de 3 °C, la tasse de
+  **0,63 °C** seulement (89,37 → 88,74 °C) : la NTC est 1,33 °C au-dessus
+  de la consigne au début de l'infusion, contre 0,55 °C en dessous à
+  9 h 34. Cause principale probable, estimée : **28 min de porte-filtre
+  sur le groupe** contre 7 min. Le modèle, qui ne connaît que la
+  chaudière, passe de 2,07 °C au-dessus de la mesure à 0,85 °C en dessous :
+  le sens de la piste du temps minimal sur le groupe
+  ([wizard.md](wizard.md#piste--temps-minimal-sur-le-groupe)), où 642 s au
+  lieu de 148 s plaçaient la mesure 0,5 °C au-dessus du modèle ; l'écart
+  est ici bien plus grand. La NTC ne voit le porte-filtre
+  qu'indirectement, par la chaleur que le groupe tire moins à la
+  chaudière ; la boisson, elle, en profite directement. Varient aussi :
+  6 ml de moins admis avant la goutte pour la même précharge (8,60 kJ,
+  8,51 kJ à 9 h 34) et une préparation plus longue (197,6 s, 130,6 s à
+  9 h 34), porte-filtre hors du groupe. Rien ne les sépare dans la
+  capture ; le modèle n'a pas été rejoué avec l'énergie SSR.
+- *Goût, estimé.* « Très léger » va avec une boisson diluée (1:4,0) et
+  extraite à 2 bar ; l'absence de crema avec une pression basse. La
+  légère acidité, nouvelle par rapport aux notes florales de 9 h 34, peut
+  venir du ratio plus court comme de la tasse un peu plus froide ; rien ne
+  sépare les deux, et sans TDS rien ne dit l'extraction.
+
+**Suite.** Réglages à choisir par David. Ce que la capture chiffre pour
+chaque levier :
+
+| Levier | Effet attendu |
+| --- | --- |
+| `lead_weight_g` à 5,0 g, cible inchangée | poids final ≈ cible ± 0,5 g à 5 g/s |
+| Ratio plus court (cible 33 à 35 g) | 1:3 à 1:3,2 ; ≈ 8 s depuis la goutte |
+| Dose de 13 à 15 g, même panier | résistance ≈ 0,45 à 0,5 bar·s/g, 2,2 à 2,6 bar ; boisson plus concentrée à ratio égal (estimé) |
+| Consigne | la tasse était à −1,63 °C puis +0,74 °C de la consigne : l'écart change de signe d'un essai à l'autre, il faut une mesure de plus avant de choisir la consigne pour une température en tasse |
+
+### 26 octobre, 15 h 35 — `261026-153548`
+
+**Contexte.** Troisième **turbo shot**, profil « turbo shot » de
+`configs/261026-153711.json` : par rapport à 13 h 32, **dose de 15,0 g**
+dans le même panier 58 mm 15 g, **cible 45 g** (1:3), **`lead_weight_g`
+de 5,0 g** ; consigne de 88 °C, 6 bar, pompe jusqu'à 100 %, remplissage
+et pré-infusion inchangés. Le champ `dose_g` du profil est resté à 11,0 g.
+Même café, **même mouture**, même tassage, sans puck screen. Écran et
+carte sensors 0.4.24. Observations de David : la galette résiste moins
+que celle du LM1 à la même mouture ; au goût, **très intéressant : un
+espresso long, crema onctueuse, goût caractéristique de l'espresso,
+légère amertume**, loin de la « soupe » plus fruitée d'avant ; un café
+proche de ce qu'on sert dans les restaurants en Suisse, mais éloigné du
+turbo shot selon lui, notamment par le temps.
+
+La dose et la cible changent ensemble : le ratio se lit dans le poids ;
+la résistance et le goût mêlent les deux.
+
+**Routine** : guide ouvert sous la consigne (NTC à 86,4 °C) ; rinçage de
+5,02 s, 18,8 ml, 24,3 g, pression maximale 0,51 bar ; consigne retrouvée
+125,5 s après la fin du rinçage, minimum 80,1 °C, résistance active
+63,8 s ; porte-filtre **1205,6 s sur le groupe** (20 min) ; préparation de
+85,2 s. Balance présente toute la routine.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,00 s | — | 0,41 → 0,47 bar |
+| Remplissage | 8,00 s | **6,28 s, pression** | 19,7 ml (3,14 ml/s) | 0,47 → 0,97 bar |
+| Pré-infusion | 14,28 s | **4,08 s, échéance** | 5,5 ml (1,35 ml/s) | 0,97 → 1,31 bar |
+| Infusion | 18,37 s | **11,46 s** | 35,9 ml (3,14 ml/s) | **4,91 bar max** |
+
+- Remplissage fini sur la pression : premier paquet au-dessus de 0,8 bar
+  à 14,04 s (0,82 bar), passage à 14,28 s (0,97 bar), 0,24 s d'écart.
+  19,7 ml admis (25,2 ml à 11 g) : 4 g de café de plus prennent ≈ 5 ml
+  d'espace libre.
+- Pré-infusion **finie à l'échéance de 4 s**, sans goutte, la pression
+  montant à 1,31 bar à 50 %.
+- Première goutte à **28,4 ml** depuis le remplissage, à 19,97 s, 1,6 s
+  après le début de l'infusion ; 2 bar à 19,85 s. Marge de remplissage
+  8,7 ml.
+- Montée : pompe de 50 à 100 % en 2,6 s ; pression à 4,5 bar à 22,0 s,
+  puis **plateau à 4,85 bar** de 23,0 s à l'arrêt, 4,91 bar au plus.
+  Pompe à 97–100 % : saturée ou presque, les 6 bar ne sont pas atteints.
+- Débit au plateau (23,0 à 29,8 s) : 3,29 ml/s comptés en amont,
+  **4,40 g/s** en tasse, rapport 1,34.
+- Arrivée en tasse, depuis la première goutte (19,97 s) :
+
+  | 1 g | 5 g | 10 g | 20 g | 30 g | 40 g (seuil) | 43 g |
+  | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | 0,6 s | 1,8 s | 3,0 s | 5,3 s | 7,5 s | 9,9 s | 10,5 s |
+
+  De 10 à 40,8 g : **4,40 g/s** (4,4, 4,4 et 4,3 g/s par tranche).
+- Résistance au plateau : 4,85 bar pour 4,40 g/s, soit **1,10 bar·s/g**
+  (0,38 à 11 g, 7,8 pour l'espresso du 25/10 en LM1).
+- Arrêt : seuil de `45 − 5,0 = 40,0 g` franchi à 29,82 s (39,3 →
+  40,8 g) ; **43,9 g final** (rapport), stable dès ≈ 31 s. 3,9 g arrivent
+  après le seuil, ≈ 0,9 s au débit de la fin. Écart à la cible : **−1,1 g**.
+- Après l'arrêt, la pression lue monte de 4,80 à 7,22 bar pompe arrêtée,
+  balance immobile.
+- Ratio final **1:2,9**. Pompe en marche 21,9 s, dont 12,0 s avant la
+  première goutte ; **9,9 s de la goutte à l'arrêt**. 62,6 ml admis.
+
+**Thermique.**
+
+| Repère | Mesure |
+| --- | ---: |
+| NTC au départ | 88,00 °C |
+| Pic avant l'infusion | 90,73 °C à 15,6 s, pendant la pré-infusion, +2,73 °C |
+| NTC au début de l'infusion | 89,59 °C, +1,59 °C |
+| Commande à 0 % (remboursement) | 9,3 s, de 18,57 à 27,89 s |
+| Appoint repris avant l'arrêt | 1,93 s |
+| NTC à l'arrêt | 86,93 °C, minimum pendant l'écoulement |
+| **Tasse** | **89,37 °C, +1,37 °C** |
+| Minimum | **82,73 °C**, 6,0 s après l'arrêt ; 83,23 °C en fin de capture (10 s) |
+
+- Énergie, commande / SSR : précharge 8,49 / 8,49 kJ, remplissage 6,13 /
+  5,92 kJ, pré-infusion 2,42 / 2,04 kJ, infusion 2,02 / 1,90 kJ.
+- Moyenne en volume amont : 89,44 °C.
+- Aucune lecture NTC invalide.
+- Modèle : 88,96 °C avec la commande réelle, **+0,49 °C** (mesure du
+  simulateur : 89,45 °C) ; +0,85 °C à 13 h 32 avec 28 min sur le groupe,
+  −2,07 °C à 9 h 34 avec 7 min.
+
+**Attendus vérifiés.**
+
+| Attendu (13 h 32 et échanges suivants) | Mesure |
+| --- | --- |
+| À mouture espresso, 15 g résistent ≈ 0,5 bar·s/g (proportion depuis 11 g) ou ≈ 3,7 bar·s/g (géométrie depuis l'espresso) | **1,10 bar·s/g** : entre les deux, aucune des deux estimations n'est juste |
+| Si la géométrie est juste, 6 bar et ≈ 1,6 g/s ; sinon 2 à 3 bar à ≈ 5 g/s | **4,85 bar, 4,40 g/s** : la pompe reste presque saturée, sous 6 bar |
+| Poids final ≈ cible avec `lead_weight_g` ≈ 5 g à ≈ 5 g/s | 43,9 g pour 45 g : à 4,4 g/s, l'avance de 5 g est trop grande d'≈ 1 g |
+| Remplissage plus court avec moins d'espace libre | 19,7 ml contre 25,2 ml, atteint |
+
+**Lecture.**
+
+- *Résistance, mesuré.* Passer de 11 à 15 g multiplie la résistance par
+  **2,9** (0,38 → 1,10 bar·s/g) pour une dose multipliée par 1,36. Un lit
+  plus épais ne l'explique pas seul. Causes possibles, non séparées : la
+  galette mince de 11 g se dégradait (estimé) ; une galette se compacte
+  davantage à 4,9 bar qu'à 2 bar, ce qui augmente encore sa résistance
+  (estimé). À 1,10 bar·s/g, la galette est dans la plage du turbo du
+  papier (≈ 1 à 2 bar·s/g, estimé depuis 15 g → 40 g à 6 bar en 7 à 15 s).
+- *Écart avec le LM1, estimé.* 1,10 contre 7,8 bar·s/g, un facteur 7 là
+  où la géométrie seule donnait ≈ 2 (`(15 / 8) × (41 / 58)⁴ = 0,47`).
+  L'espresso du LM1 est extrait à 9 bar, plus compacté ; la forme et le
+  perçage des deux paniers diffèrent. Rien ne sépare ces causes.
+- *Temps, mesuré.* 9,9 s de la goutte à l'arrêt, dans les 7 à 15 s du
+  papier et sous les 11 à 14 s de Hedrick. Ce qui allonge le shot est le
+  **mouillage** : 12,0 s de pompe avant la goutte (remplissage 6,3 s,
+  pré-infusion jusqu'à l'échéance de 4 s, 1,6 s d'infusion), que le papier
+  n'a pas. Depuis le démarrage de la pompe, 21,9 s.
+- *Débit, mesuré.* 4,40 g/s, juste sous les 4,5 à 5 g/s de Cameron ; la
+  pompe à 100 % ne donne que 4,4 g/s contre 4,9 sous 2 bar. Premier point
+  mesuré du débit de la pompe sous charge : **≈ 4,4 g/s à 4,85 bar**.
+- *Goût, estimé.* Crema et texture vont avec la pression (4,9 bar contre
+  2 bar sans crema à 13 h 32) ; le goût d'espresso et la légère amertume,
+  avec un ratio de 1:2,9 et une mouture espresso, qui extrait plus vite
+  qu'une mouture de turbo. Sans TDS, rien ne dit l'extraction.
+- *Température, mesuré.* +1,37 °C en tasse, l'écart du modèle à +0,49 °C,
+  avec 20 min sur le groupe : même sens qu'à 13 h 32.
+
+### 26 octobre, 16 h 32 — `261026-163228`
+
+**Contexte.** Quatrième **turbo shot** : par rapport à 15 h 35, **mouture
+nettement plus grosse**, seul changement de recette ; 15,0 g dans le
+panier 58 mm 15 g (le profil enregistre désormais `dose_g` à 15,0 g),
+cible 45 g, `lead_weight_g` de 5,0 g, 88 °C, 6 bar, pompe jusqu'à 100 %,
+remplissage et pré-infusion inchangés. Même café, même tassage, sans puck
+screen. Écran et carte sensors 0.4.24. Observations de David : **du
+channelling** ; au goût, le fruité ne ressort pas vraiment, **surtout plus
+plat** ; le channelling apporte probablement de l'amertume. Après
+l'essai de 15 h 35, David avait vu l'empreinte de la douchette sur la
+galette.
+
+La mouture plus grosse raccourcit aussi le mouillage (pré-infusion finie
+sur la goutte) : rien ne sépare les deux effets.
+
+**Routine** : guide ouvert sous la consigne (NTC à 86,5 °C) ; rinçage de
+5,03 s, 18,6 ml, 25,6 g, pression maximale 0,25 bar ; consigne retrouvée
+à la fin du rinçage, minimum 83,4 °C ensuite, résistance active 39,1 s ;
+porte-filtre **1002,8 s sur le groupe** (17 min) ; préparation de 91,3 s.
+Balance présente toute la routine.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,01 s | — | 0,47 → 0,54 bar |
+| Remplissage | 8,01 s | **6,28 s, pression** | 18,3 ml (2,91 ml/s) | 0,54 → 0,87 bar |
+| Pré-infusion | 14,29 s | **2,43 s, goutte** | 3,2 ml (1,31 ml/s) | 0,87 → 0,95 bar |
+| Infusion | 16,71 s | **10,88 s** | 35,7 ml (3,28 ml/s) | **2,53 bar max** |
+
+- Remplissage fini sur la pression : premier paquet au-dessus de 0,8 bar
+  à 14,07 s, passage à 14,29 s, 0,22 s d'écart. 18,3 ml admis (19,7 ml à
+  15 h 35).
+- Première goutte à **21,4 ml** depuis le remplissage, à 16,97 s ; marge
+  de remplissage 3,1 ml. **Pompe avant la goutte : 9,0 s** (12,0 s à
+  15 h 35).
+- Montée : pompe de 50 à 100 % en 2,6 s ; 2 bar à 19,03 s ; plateau de
+  2,52 bar à 21,0 s, qui **redescend à 2,33 bar** à l'arrêt, pompe à
+  100 %.
+- Débit au plateau (20,5 à 27,6 s) : 3,53 ml/s comptés en amont,
+  4,72 g/s en tasse ; résistance moyenne **0,52 bar·s/g** (1,10 à
+  15 h 35).
+- **Résistance par tranche de 10 g** :
+
+  | Tranche | 15 h 35 (mouture espresso) | 16 h 32 (mouture grosse) |
+  | --- | ---: | ---: |
+  | 10 → 20 g | 4,40 g/s, 4,86 bar, 1,10 bar·s/g | 4,30 g/s, 2,49 bar, 0,58 bar·s/g |
+  | 20 → 30 g | 4,43 g/s, 4,88 bar, 1,10 bar·s/g | 4,65 g/s, 2,43 bar, 0,52 bar·s/g |
+  | 30 → 40 g | 4,37 g/s, 4,82 bar, 1,10 bar·s/g | 4,86 g/s, 2,37 bar, 0,49 bar·s/g |
+
+  À commande constante, le débit monte et la pression baisse : la
+  résistance **perd 16 %** pendant l'écoulement, alors qu'elle était
+  constante à 15 h 35. C'est la trace dans la capture du channelling vu
+  par David.
+- Arrivée en tasse, depuis la première goutte :
+
+  | 1 g | 5 g | 10 g | 20 g | 30 g | 40 g (seuil) | 43 g |
+  | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | 1,5 s | 2,9 s | 4,1 s | 6,4 s | 8,6 s | 10,6 s | 11,2 s |
+
+- Arrêt : seuil de 40,0 g franchi à 27,6 s ; **44,0 g final** (rapport),
+  4,0 g après le seuil, ≈ 0,85 s au débit de la fin. Écart à la cible :
+  **−1,0 g**. Ratio **1:2,9**.
+- Pompe en marche 19,6 s, dont 9,0 s avant la goutte ; **10,6 s de la
+  goutte à l'arrêt**. 58,6 ml admis.
+
+**Thermique.**
+
+| Repère | Mesure |
+| --- | ---: |
+| NTC au départ | 87,99 °C |
+| Pic avant l'infusion | 91,07 °C à 16,4 s, pendant la pré-infusion, +3,07 °C |
+| NTC au début de l'infusion | 90,97 °C, +2,97 °C |
+| Commande à 0 % (remboursement) | 9,1 s, de 16,97 à 26,10 s |
+| Appoint repris avant l'arrêt | 1,50 s |
+| NTC à l'arrêt | **84,05 °C**, minimum pendant l'écoulement : **−6,9 °C** pendant l'écoulement (−2,7 °C à 15 h 35) |
+| **Tasse** | **88,77 °C, +0,77 °C** |
+| Minimum | **80,28 °C**, 4,8 s après l'arrêt ; 81,84 °C en fin de capture (10 s) |
+
+- Énergie, commande / SSR : précharge 8,29 / 8,50 kJ, remplissage 6,00 /
+  5,82 kJ, pré-infusion 1,68 / 1,86 kJ, infusion 1,73 / 1,42 kJ.
+- Moyenne en volume amont : 89,28 °C.
+- Aucune lecture NTC invalide.
+- Modèle : 88,76 °C en tasse avec la commande réelle, **+0,09 °C** ; mais
+  il donne un minimum de 86,16 °C pour 80,28 °C mesurés. La chute de la
+  NTC à partir de 23 s (90,6 → 84,0 °C en 4,6 s), pour un volume admis
+  semblable à celui de 15 h 35, n'est pas expliquée.
+
+**Attendus vérifiés.**
+
+| Attendu (15 h 35) | Mesure |
+| --- | --- |
+| Résistance ≈ 0,3 à 0,6 bar·s/g | 0,52 bar·s/g en moyenne, 0,58 → 0,49, atteint |
+| Pression au plateau ≈ 1,5 à 3 bar | 2,33 à 2,52 bar, atteint |
+| Débit ≈ 4,8 à 5 g/s | 4,72 g/s en moyenne, 4,30 → 4,86 g/s |
+| De la goutte à l'arrêt ≈ 9 s | **10,6 s** : la première tranche est plus lente (1,5 s pour le premier gramme) |
+| Pré-infusion probablement finie sur la goutte | 2,43 s, sur la goutte, atteint |
+| Poids final ≈ 44,4 g avec `lead_weight_g` de 5,0 g | 44,0 g, atteint |
+
+**Lecture.**
+
+- *Galette, mesuré.* Avec la mouture grosse, la galette s'érode : sa
+  résistance baisse de 16 % en 7 s à commande constante. À mouture
+  espresso, à 4,9 bar, elle restait constante. L'érosion n'est donc pas
+  liée à la pression, plus basse ici, mais à la mouture.
+- *Mouture, mesuré.* Grossir divise la résistance par 2,1 (1,10 →
+  0,52 bar·s/g) et ne raccourcit pas l'écoulement (10,6 s contre 9,9 s) :
+  la pompe borne le débit, comme prévu. Le mouillage, lui, passe de 12,0 à
+  9,0 s.
+- *Goût, estimé.* « Plat » et sans fruité vont avec une extraction
+  inégale : l'eau passe par les chemins ouverts, une partie du café est
+  peu extraite, une autre trop, ce qui peut aussi donner l'amertume. Sans
+  TDS, rien ne le mesure.
+- *Température, mesuré.* La NTC chute de 6,9 °C pendant l'écoulement, la
+  plus forte chute des quatre turbo shots, et atteint 80,3 °C après
+  l'arrêt ; la tasse reste à 88,77 °C parce que la plus grande partie du
+  café arrive avant la chute. La cause n'est pas identifiée.
+
+**Suite.** Pistes proposées par David :
+
+| Piste | Effet attendu |
+| --- | --- |
+| Puissance de pompe plus basse (`brew.pump_pct`) | à cette résistance, la puissance fixe presque le débit (sans porte-filtre : 4,6 g/s à 70 %, 3,5 g/s à 60 %). À 60 %, ≈ 3,3 g/s : 45 g en ≈ 13 s depuis la goutte, dans les 11 à 14 s de Hedrick, et un débit plus lent à travers la galette (estimé) |
+| Puck screen | répartit l'eau de la douchette sur la galette. Il ajoute ≈ 1,5 à 2 mm : avec l'empreinte de la douchette vue à 15 h 35, il demande probablement de descendre à 14 g, ce qui change aussi la résistance |
+
+Mesure qui juge l'une ou l'autre : la résistance par tranche de 10 g.
+Constante, la galette tient ; en baisse, elle s'érode encore.
+
+**Décision de David** : prochain essai avec **`brew.pump_pct` à 70 %**,
+le reste inchangé (15 g, même mouture grosse, 45 g, `lead_weight_g` de
+5,0 g, 88 °C) ; pas de puck screen, pour ne changer qu'un réglage.
+
+**Attendus pour l'essai à 70 %** (estimés).
+
+| Point | Attendu |
+| --- | --- |
+| Débit en tasse | ≈ 4,2 g/s (4,64 g/s en débit libre à 70 %, moins la perte sous ≈ 2 bar) |
+| Pression au plateau | ≈ 2 bar à 0,5 bar·s/g |
+| De la goutte à l'arrêt | ≈ 11 s |
+| Poids final | 40 + 0,9 × 4,2 ≈ 43,8 g |
+| Érosion | si un débit plus lent ménage la galette, résistance par tranche de 10 g constante à ± 5 % ; sinon, baisse comparable aux 16 % de 16 h 32 |
+
+**Piste : régulation par débit.** Non retenue pour l'instant ; l'essai à
+70 % dit d'abord si un débit plus lent ménage la galette. À 100 % fixe, le
+débit est passé de 4,30 à 4,86 g/s (+13 %) pendant que la galette
+s'érodait : une boucle de débit supprimerait cet écart en baissant la
+pompe quand la résistance chute ; elle ne guérit pas le channelling.
+Ce qu'elle demanderait, tout dans l'écran, sans toucher à la carte
+sensors ni au protocole :
+
+- passer le débit du débitmètre, déjà calculé sur 10 impulsions (4,2 ml),
+  à la machine d'état de l'infusion, qui ne reçoit que poids et pression ;
+- un PI de débit avec la pression en plafond (la plus petite des deux
+  commandes), précommandé par la courbe de débit libre (3,5 g/s ≈ 60 %) ;
+  pompe sans débit sous 40 %, saturée au-delà de 80 %, ≈ 0,15 g/s par
+  point vers 60 % ;
+- un schéma de configuration 12 : mode `pressure` ou `flow`, consigne de
+  débit ;
+- trois choix à trancher : consigne en g/s en tasse convertie (le
+  débitmètre compte 1,34 à 1,42 fois moins que la balance) ou en ml/s
+  comptés ; régulation dès la fin de la pré-infusion ou après la première
+  goutte ; avance d'arrêt exprimée en secondes × débit mesuré (≈ 0,9 s)
+  au lieu de grammes fixes.

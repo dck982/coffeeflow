@@ -4702,6 +4702,10 @@ Balance présente toute la routine.
 Mesure qui juge l'une ou l'autre : la résistance par tranche de 10 g.
 Constante, la galette tient ; en baisse, elle s'érode encore.
 
+**Préférence de David** : sur les quatre turbo shots du 26 octobre, le
+meilleur au goût est celui de **15 h 35** (15 g, mouture espresso,
+plateau à 4,85 bar).
+
 **Décision de David** : prochain essai avec **`brew.pump_pct` à 70 %**,
 le reste inchangé (15 g, même mouture grosse, 45 g, `lead_weight_g` de
 5,0 g, 88 °C) ; pas de puck screen, pour ne changer qu'un réglage.

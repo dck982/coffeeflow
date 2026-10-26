@@ -287,6 +287,10 @@ qu'elle ne faisait pas à mouture espresso et à pression plus haute. La
 **résistance par tranche de 10 g** est la mesure de l'érosion : constante
 à 15 h 35, en baisse ici.
 
+**Meilleur au goût selon David** : l'essai de **15 h 35** (15 g, mouture
+espresso, plateau à 4,85 bar, 1:2,9), devant la mouture grosse de 16 h 32
+et les deux essais à 11 g.
+
 ## Pistes
 
 Contrainte de David : **garder la mouture du single espresso**, pour faire

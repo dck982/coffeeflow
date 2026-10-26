@@ -1,0 +1,41 @@
+(version 1)
+
+# Every net on this board is at mains potential: L_IN, L and N. An
+# unparsable rule makes KiCad drop this whole file, so run the DRC after
+# editing it and check these rules still report.
+
+# The 24 V supply's T2A fuse is the protection, so the tracks are sized for
+# 2 A on one 1 oz layer (IPC-2152 asks about 0.8 mm for a 10 K rise). The
+# 2.0 mm of the layout keeps a margin; 1.5 mm is the floor, as on the
+# combined board.
+(rule "mains track width"
+	(condition "A.Type == 'Track' || A.Type == 'Arc'")
+	(constraint track_width (min 1.5mm)))
+
+# Functional insulation between L and N: IEC 60335-1 Table 18 asks 2.0 mm
+# of creepage at 125-250 V RMS, pollution degree 2, FR4 (group IIIa); the
+# 1.5 mm clearance of Table 16 is smaller. The extra 0.2 mm covers etching
+# tolerance. L_IN and L differ by the NTC drop, a few volts RMS, but the
+# layout keeps 2.2 mm there too, so no exception is needed.
+(rule "mains to mains"
+	(condition "A.Net != B.Net")
+	(constraint clearance (min 2.2mm)))
+
+# The board edge may touch the supply's aluminium bracket or the enclosure,
+# which nothing ties to L or N: treat it as basic insulation, 2.5 mm of
+# creepage (IEC 60335-1 Table 17, pollution degree 2), plus 0.5 mm for the
+# outline tolerance.
+(rule "mains to board edge"
+	(constraint edge_clearance (min 3.0mm)))
+
+# H1 and H2 take nylon screws only; the 1 mm keeps a sound web of FR4
+# between a hole and the copper. The connector slots come 1.66 mm (J2) and
+# 1.86 mm (J1) from their pads. KiCad checks the edge clearance against
+# non-plated holes too: they are not the board edge, so they fall back to
+# the same 1 mm.
+(rule "copper to hole"
+	(constraint hole_clearance (min 1.0mm)))
+
+(rule "copper to slot or mounting hole"
+	(condition "A.Pad_Type == 'NPTH, mechanical' || B.Pad_Type == 'NPTH, mechanical'")
+	(constraint edge_clearance (min 1.0mm)))

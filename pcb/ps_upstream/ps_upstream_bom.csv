@@ -1,0 +1,4 @@
+Reference,Value,Footprint,DNP,LCSC,MPN,Description,Note
+J1,MAINS_IN,PS_Upstream_Local:HT396R-3.96-3P_Pin2Slot,0,C577800,HT396R-3.96-3P,"Mains input, Kefa HT396R right-angle pluggable header, 3.96 mm","1 L, 2 not connected (slot), 3 N"
+RT1,10R NTC,PS_Upstream_Local:NTC_TDK_S236_P5.00,0,C125458,B57236S0100M000,"Inrush current limiter, TDK S236, 10 ohm, 3.5 A, 300 uF tested at 230 V",In series with L
+J2,MAINS_OUT,PS_Upstream_Local:VH-3A_Pin2Slot,0,C20547,VH-3A,"Mains output to the 24 V supply, JST VH-compatible vertical header, 3.96 mm","1 L, 2 not connected (slot), 3 N"

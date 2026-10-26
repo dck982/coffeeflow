@@ -196,26 +196,98 @@ s'initialiser : une consigne envoyée plus tôt est ignorée.
 
 Montage prévu, en remplacement de la RECOM RAC05-05SK (5 V, 1 A) :
 
-1. **Carte AC** : bornier L + N et thermistance CTN d'appel de courant,
-   sans fusible. L'alimentation « claque » à la mise sous tension : c'est la charge
-   de ses condensateurs d'entrée.
-2. **Alimentation 24 V, 96 W** (4 A), vendue comme GaN, 69,6 × 43,8 ×
-   25,8 mm, sur équerre aluminium. Elle ne rentre pas dans `boitier_ps`
-   actuel (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier.
-3. **Carte DC** : buck 24 → 5 V, une sortie 24 V (pompe) et deux sorties 5 V
-   (écran, combined).
+Chaîne prévue, du secteur à la pompe :
+
+```
+secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ ps_downstream ─┬─ 24 V : pompe
+          (CTN sur L)               (fusible T2A)     (bornier)  (buck 5 V)   ├─ 5 V : écran
+                                                                              └─ 5 V : combined
+```
+
+1. **Carte AC, `pcb/ps_upstream`** (38,6 × 19 mm, détails dans
+   `pcb/ps_upstream/ps_upstream_design.md`) : entrée HT396R, thermistance
+   CTN d'appel de courant sur L, sortie VH vers l'alimentation, sans
+   fusible. Sans elle, l'alimentation « claque » à la mise sous tension :
+   c'est la charge de ses condensateurs d'entrée.
+2. **Alimentation 24 V, 96 W** (4 A), décrite ci-dessous. Elle remplace la
+   RECOM RAC05-05SK (5 V, 1 A) et ne rentre pas dans `boitier_ps` actuel
+   (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier.
+3. **Carte DC, `ps_downstream`** (à concevoir) : buck 24 → 5 V, une sortie
+   24 V (pompe) et deux sorties 5 V (écran, combined).
 4. **Combined v2** : la partie dimmer disparaît ; une partie commande la
    pompe (consigne 0–5 V à partir du 5 V reçu) et lit le tachymètre.
 
 ![Alimentation 24 V](datasheets/alim-24v-gan.png)
 
-Pour le boîtier : radiateur en U (fond et deux flancs de 25,8 mm), trous de
-fixation aux coins des flancs. L'entrée secteur (connecteur **JST VH 3,96 mm à
-trois positions, broche centrale supprimée** pour écarter L et N à 7,92 mm,
-et fusible) et la sortie 24 V (bornier à vis bleu, LED) sont aux **deux
-extrémités opposées** sur la longueur de 69,6 mm : prévoir le passage des fils
-aux deux bouts. Le dessus de la carte est ouvert ; c'est par là et par les
-bouts que l'air circule.
+### Description de l'alimentation
+
+Module ouvert vendu « DC 24V 4A » (Aideepen), annoncé GaN. Photos :
+[vue d'ensemble](datasheets/alim-24v-gan.png), [carte vue de
+dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
+
+**Mécanique**
+
+- **Encombrement : 69,6 × 43,8 × 25,8 mm** (longueur × largeur ×
+  hauteur), radiateur compris.
+- **Radiateur en U**, aluminium de 2 mm : un fond sous la carte et deux
+  flancs de 25,8 mm le long des 69,6 mm. Les deux bouts (côtés de 43,8 mm)
+  sont ouverts, et le dessus de la carte aussi : l'air passe par là.
+- **Fixation** : quatre vis aux coins de la carte ; les flancs sont percés
+  aux coins, côté extérieur. Le module se fixe par ces trous.
+- **L'entrée et la sortie sont aux deux bouts opposés** de la longueur de
+  69,6 mm. Il faut donc prévoir le passage des fils aux deux bouts.
+
+**Entrée secteur** (bout « entrée »)
+
+- **Connecteur JST VH 3,96 mm à trois positions, broche centrale
+  supprimée** : L et N sont écartés de 7,92 mm. Il est dans la largeur de
+  43,8 mm, près du milieu. Le câble depuis ps_upstream porte un boîtier VH
+  3 positions à chaque bout, la position 2 vide.
+- **Fusible T2A 250 V**, temporisé, rectangulaire, soudé juste à côté du
+  connecteur : c'est la seule protection de toute la chaîne en aval du
+  disjoncteur.
+- Ensuite : condensateur X à film (jaune), self de mode commun (en fil
+  plat), pont redresseur collé au radiateur, **3 × 27 µF / 400 V**
+  (105 °C), soit 81 µF au total. Pas de CTN : c'est le rôle de ps_upstream.
+
+**Sortie 24 V** (bout « sortie »)
+
+- **Bornier à vis bleu à deux positions**, dans un coin du bout de sortie :
+  à gauche quand on regarde la carte de dessus, entrée vers soi. La
+  polarité et le pas (probablement 5,0 mm) ne sont pas lisibles sur les
+  photos : à relever à réception.
+- **LED rouge** à côté du bornier. Elle reste allumée longtemps après la
+  coupure : les condensateurs de sortie se vident lentement.
+- Self de sortie (tore vert), **2 × 470 µF / 35 V**. La tension de sortie
+  est fixe : il n'y a pas de potentiomètre.
+- Le courant prévu (1,4 A, 4 A au pire) passe dans du fil de 0,5 mm²
+  (AWG 20) ; 0,75 mm² laisse de la marge pour le pire cas.
+
+**Composants principaux**
+
+| Côté | Composants |
+| --- | --- |
+| Primaire | fusible T2A, condensateur X, self de mode commun, pont redresseur, 3 × 27 µF / 400 V, contrôleur marqué « BST25 » (sans fiche), transformateur (ruban jaune) |
+| Barrière | transformateur, condensateur Y (disque bleu, entre primaire et secondaire) |
+| Secondaire | redressement synchrone par deux MOSFET 003N10H (100 V), self de sortie, 2 × 470 µF / 35 V, LED |
+
+**Isolation**
+
+- **Primaire-radiateur** : un film plastique sépare la partie haute
+  tension du radiateur (essai ci-dessous). Rien ne relie le radiateur à L,
+  N ou la terre ; ps_upstream le traite comme une pièce métallique
+  flottante (isolation principale, 3 mm entre le cuivre et le bord de la
+  carte).
+- **Primaire-secondaire** : par le transformateur et le condensateur Y. Le
+  vendeur ne donne ni tension d'essai ni homologation (seulement EN 55032,
+  qui est une norme d'émissions). La sortie 24 V et toute la basse tension
+  en aval ne sont donc **pas garanties TBTS**. On ne la touche pas sous
+  tension sans l'avoir vérifié.
+- **À relever à réception** : continuité entre le radiateur et la sortie
+  (− et +) et entre le radiateur et l'entrée ; résistance d'isolement entre
+  l'entrée (L et N reliés) et la sortie. Le condensateur Y laisse passer
+  un petit courant de fuite alternatif vers la sortie : une sortie flottante
+  peut « picoter » une sonde ou un PC raccordé en USB.
 
 ### Fiche du vendeur
 

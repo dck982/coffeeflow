@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "PS_Upstream") (type "KiCad") (uri "${KIPRJMOD}/PS_Upstream.kicad_sym") (options "") (descr "Mains connector with pin 2 in a slot"))
+)

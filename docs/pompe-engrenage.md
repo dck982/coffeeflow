@@ -3,9 +3,9 @@
 Pompe envisagée pour remplacer la pompe vibratoire OLAB Silent Green 35 W.
 Commandée le 22 octobre 2026, **pas encore installée** : le remplacement
 n'est pas décidé. Les valeurs viennent de la fiche du vendeur et de la notice
-du groupe moteur-pompe ([gearpump.pdf](datasheets/gearpump.pdf), série FG,
-électronique 82 040 001) ; les points marqués **à relever** se mesurent à
-réception.
+de la famille de groupes moteur-pompe ([gearpump.pdf](datasheets/gearpump.pdf),
+série FG, électronique 82 040 001, dont le brochage diffère de l'article) ;
+les points marqués **à relever** se mesurent à réception.
 
 Deux usages motivent le changement :
 
@@ -110,72 +110,97 @@ Glissement = débit théorique (vitesse × 0,1 ml) − débit lu.
 
 ## Interface électrique
 
-Brochage : page 2 de la [notice](datasheets/gearpump.pdf).
+Brochage : fiche du vendeur et photo de l'article, **7 fils**. La
+[notice](datasheets/gearpump.pdf) SOVOFLO décrit une autre électronique de la
+famille FG (82 040 001, 6 fils, couleurs différentes) : son brochage ne
+s'applique pas à cet article. Ses protections internes et son temps
+d'initialisation, plus bas, sont repris comme ordre de grandeur, à confirmer.
 
 | Fil | Signal | Rôle |
 | --- | --- | --- |
-| Rouge | PWR_VCC | +24 V |
-| Noir | PWR_GND | masse puissance |
-| Orange | SPEED_IN | **consigne analogique 0–5 V** |
-| Marron | 0V | référence de la consigne : **non branché** (voir ci-dessous) |
-| Jaune | TACHO | sortie tachymètre |
-| Vert | DIRECTION | sens de rotation |
+| Rouge, épais | +24 V | alimentation |
+| Noir, épais | GND | masse puissance |
+| Jaune, fin | +5V_P | **5 V fourni par la pompe**, pour un potentiomètre |
+| Marron, fin | SPEED | **consigne** : curseur du potentiomètre |
+| Vert, fin | GND_P | référence de la consigne |
+| Bleu, fin | TACHO | sortie vitesse |
+| Blanc, fin | DIR | sens : la pompe s'inverse quand il est relié au vert |
 
-### Masses : ne jamais relier PWR_GND et 0V
+Montage du vendeur : un potentiomètre entre jaune et vert, curseur sur le
+marron.
 
-La notice l'écrit trois fois : relier le marron (0V) au noir (PWR_GND)
-**détruit l'électronique du moteur**. Le buck 24 → 5 V n'est pas isolé : la
-masse de toutes les cartes est PWR_GND. Brancher le marron sur une masse de
-carte reviendrait à les relier.
+### Masses : la consigne reste du côté de la pompe
 
-**Règle : montage alternatif de la notice.** Le marron reste **non branché**,
-extrémité isolée sous gaine. La consigne et le tachymètre se réfèrent à
-PWR_GND, comme dans le schéma « possible alternative connection ». La notice
-annonce alors une linéarité consigne-vitesse moins bonne que ±5 % : sans
-importance, la vitesse est relue sur le tachymètre.
+La fiche ne dit pas si le vert (GND_P) est relié au noir dans la pompe. La
+notice SOVOFLO de la famille interdit de relier la référence de consigne à la
+masse puissance : ça détruit l'électronique. Le buck 24 → 5 V n'est pas
+isolé : la masse de combined v2 est le noir.
 
-### Consigne de vitesse (orange)
+**Règle : jaune, marron, vert et bleu ne touchent jamais une masse ni une
+alimentation de la carte.** Ils ne voient que le côté isolé de deux
+optocoupleurs. Le montage marche donc que le vert soit relié au noir ou non,
+sans avoir à le mesurer avant de commander la carte.
 
-| Tension | Vitesse |
-| --- | --- |
-| < 0,2 V | arrêt |
-| 0,3 à 5 V | 300 à 5 000 tr/min, linéaire à ±5 % à vide, soit ≈ 1 000 tr/min par volt |
+### Consigne (marron)
 
-- **C'est une entrée analogique, pas une entrée PWM.** L'ESP32-S3 n'a pas de
-  DAC : la carte doit produire la tension, par un DAC ou par un PWM filtré.
-- Impédance d'entrée **162 kΩ** ; tenue −5 à 15 V.
-- Plage utile 0,5 à 4,5 V (500 à 4 500 tr/min), plafonnée à 3,6 V
-  (3 600 tr/min) tant que le Digmesa sert de référence (voir
-  [Débitmètre](#débitmètre)).
-- **Exigences pour combined v2** :
-  - consigne **sous 0,2 V** à la mise sous tension, pendant un reset de
-    l'ESP32-S3 et quand le firmware ne tourne pas ;
-  - un DAC à mémoire non volatile ne doit jamais avoir sa valeur de démarrage
-    réécrite (même règle que l'EEPROM du DimmerLink) ;
-  - résolution d'au moins 10 mV, soit 10 tr/min ou 0,017 ml/s.
+- Plage annoncée 0–5 V. La relation consigne-vitesse de cet article n'est
+  pas publiée ; la famille donne l'arrêt sous 0,2 V et ≈ 1 000 tr/min par
+  volt, repris en ordre de grandeur dans [Courbes
+  débit-pression](#courbes-débit-pression).
+- Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa sert de
+  référence (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
+- **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
+  - Côté XIAO : la LED est commandée directement par le GPIO, 330 Ω, soit
+    (3,3 − 1,2) / 330 ≈ 6 mA. 100 kΩ du GPIO à la masse.
+  - Côté pompe : le collecteur sur le jaune, l'émetteur rappelé au vert par
+    10 kΩ. LED allumée, l'émetteur monte à ≈ 5 V ; il faut 0,5 mA, pour un
+    gain en courant de l'EL817C de 200 à 400 % à 5 mA.
+  - Filtre : deux cellules 2,2 kΩ / 1,5 µF (coupure 48 Hz) entre l'émetteur
+    et le marron, condensateurs vers le vert. PWM à 1 kHz : l'opto commute
+    en ≈ 18 µs. Ondulation ≈ 5 V × (48 / 1 000)² ≈ 12 mV, soit ≈ 12 tr/min ;
+    temps de réponse ≈ 10 ms. Le LEDC donne 16 bits à 1 kHz.
+  - Impédance de source ≈ 4,4 kΩ, celle d'un potentiomètre de 10 kΩ à mi-course.
+  - Le PWM déforme la consigne aux extrêmes, de façon monotone : la vitesse
+    est relue sur le tachymètre.
+- **Consigne à 0 sans commande** : LED éteinte, les 10 kΩ ramènent la
+  consigne au vert. C'est le cas à la mise sous tension, pendant un reset,
+  XIAO absent ou firmware arrêté.
 
-### Tachymètre (jaune)
+### Tachymètre (bleu)
 
-- **32 impulsions par tour** : `tr/min = fréquence × 60 / 32`. 4 500 tr/min
-  donnent 2,4 kHz, 500 tr/min 267 Hz.
-- **0,0031 ml par impulsion** de déplacement théorique, contre 0,42 g par
-  impulsion pour le Digmesa.
-- Sortie push-pull TTL avec 390 Ω en série : 3,8 à 4,4 V à l'état haut,
-  0,1 à 0,44 V à l'état bas, 5 mA au plus.
-- **Exigence pour combined v2** : ramener le signal à 3,3 V. Un tampon à
-  entrée tolérante 5 V alimenté en 3,3 V (de type 74LVC1G17) suffit. Un
-  diviseur résistif est limite : 3,8 V × 2/3 = 2,53 V, juste au seuil haut de
-  l'ESP32-S3 (2,48 V). Compter les impulsions avec le PCNT.
+- Type de sortie (push-pull ou collecteur ouvert) et nombre d'impulsions
+  par tour **à relever**. La famille donne **32 impulsions par tour** :
+  `tr/min = fréquence × 60 / 32`, 1,9 kHz à 3 600 tr/min, 2,7 kHz à
+  5 000 tr/min.
+- **Montage sur combined v2 : second EL817C.** Sa LED va du jaune au bleu à
+  travers 1,8 kΩ, soit ≈ 2 mA quand le bleu est bas. Ça marche en
+  push-pull comme en collecteur ouvert : à l'état haut, la LED n'a plus de
+  tension. Côté XIAO, le transistor tire vers la masse un GPIO rappelé au
+  3V3 par 4,7 kΩ (0,7 mA). Le signal est inversé ; le PCNT compte les
+  fronts.
+- L'EL817C convient jusqu'à ≈ 2,7 kHz. S'il y a plus d'impulsions par tour,
+  un opto rapide (6N137) prend sa place.
+- Débit théorique par impulsion, à 32 impulsions par tour : **0,0031 ml**,
+  contre 0,42 g par impulsion pour le Digmesa.
 
-### Sens (vert)
+### Courant pris au jaune
 
-- Sous 2 V : sens horaire côté pompe. Au-dessus de 4 V : sens antihoraire.
-- Les deux schémas de la notice le laissent non branché. Le sens par défaut
-  à vide est **à relever** et doit correspondre à la flèche du couvercle.
-- **Exigence pour combined v2** : un pont à souder vert → non branché, PWR_GND
-  ou 5 V, choisi au premier essai. Jamais commandé par le firmware.
+≈ 0,5 mA pour la consigne et ≈ 2 mA pour le tachymètre : 2,5 mA. Un
+potentiomètre de 10 kΩ en prend déjà 0,5 mA. Si le jaune ne les fournit pas,
+on augmente la résistance de 1,8 kΩ.
 
-### Protections internes
+### Sens (blanc)
+
+Non branché, extrémité isolée sous gaine : le sens n'est jamais commandé. Le
+sens par défaut est **à relever** et doit correspondre à la flèche du
+couvercle ; sinon, le blanc est relié au vert dans le câble.
+
+### Connecteur sur combined v2
+
+XH 4 positions : 1 vert (GND_P), 2 marron (SPEED), 3 bleu (TACHO), 4 jaune
+(+5V_P). Rouge et noir passent par les Wago (voir [Alimentation](#alimentation)).
+
+### Protections internes (notice de la famille)
 
 | Protection | Seuil | Réarmement |
 | --- | --- | --- |
@@ -199,9 +224,8 @@ Montage prévu, en remplacement de la RECOM RAC05-05SK (5 V, 1 A) :
 Chaîne prévue, du secteur à la pompe :
 
 ```
-secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ ps_downstream ─┬─ 24 V : pompe
-          (CTN sur L)               (fusible T2A)     (bornier)  (buck 5 V)   ├─ 5 V : écran
-                                                                              └─ 5 V : combined
+secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ Wago ─┬─ 24 V : pompe
+          (CTN sur L)               (fusible T2A)     (bornier)       └─ 24 V : combined v2 (buck 5 V) ─ 5 V : écran
 ```
 
 1. **Carte AC, `pcb/ps_upstream`** (38,6 × 19 mm, détails dans
@@ -212,10 +236,17 @@ secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ ps_down
 2. **Alimentation 24 V, 96 W** (4 A), décrite ci-dessous. Elle remplace la
    RECOM RAC05-05SK (5 V, 1 A) et ne rentre pas dans `boitier_ps` actuel
    (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier.
-3. **Carte DC, `ps_downstream`** (à concevoir) : buck 24 → 5 V, une sortie
-   24 V (pompe) et deux sorties 5 V (écran, combined).
-4. **Combined v2** : la partie dimmer disparaît ; une partie commande la
-   pompe (consigne 0–5 V à partir du 5 V reçu) et lit le tachymètre.
+3. **Deux Wago 221-423** (+24 V et GND) répartissent le 24 V entre la
+   pompe et combined v2. Pas de carte DC dans `boitier_ps` : le 24 V part
+   directement du bornier de l'alimentation. Les Wago vont dans
+   `boitier_ps` ou dans `boitier_dc`, à décider au montage : dans
+   `boitier_dc`, le câble de la pompe reste entier sous une seule gaine.
+4. **Combined v2** : la partie dimmer et la détection du passage par zéro
+   disparaissent. La carte reçoit le 24 V sur un HT3.96, porte le buck
+   24 → 5 V et renvoie le 5 V de l'écran le long du câble CAN. Elle commande
+   la pompe et lit son tachymètre à travers deux optocoupleurs (voir
+   [Interface électrique](#interface-électrique)). Le buck reçoit moins de
+   5 W ; le courant de la pompe ne traverse pas la carte.
 
 ![Alimentation 24 V](datasheets/alim-24v-gan.png)
 
@@ -669,8 +700,12 @@ d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
 
 | Point | Méthode |
 | --- | --- |
-| Sens par défaut, vert non branché | essai à vide, pompe amorcée, comparé à la flèche du couvercle |
-| Comportement avec l'orange non branché | essai : la pompe doit rester arrêtée ; sinon tirage vers PWR_GND sur combined v2 |
+| Liaison vert (GND_P) – noir | ohmmètre, pompe hors tension |
+| Tension et courant disponible sur le jaune | multimètre, par rapport au vert, pompe sous tension |
+| Sortie bleue : type, niveaux, impulsions par tour | oscilloscope à vitesse fixe, comparée à un comptage de volume |
+| Relation consigne-vitesse | potentiomètre sur le marron, vitesse lue sur le bleu |
+| Sens par défaut, blanc non branché | essai à vide, pompe amorcée, comparé à la flèche du couvercle |
+| Comportement avec le marron non branché | essai : la pompe doit rester arrêtée ; sinon, 10 kΩ du marron au vert dans le câble |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |

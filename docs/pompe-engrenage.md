@@ -232,10 +232,32 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 - **Radiateur en U**, aluminium de 2 mm : un fond sous la carte et deux
   flancs de 25,8 mm le long des 69,6 mm. Les deux bouts (côtés de 43,8 mm)
   sont ouverts, et le dessus de la carte aussi : l'air passe par là.
-- **Fixation** : quatre vis aux coins de la carte ; les flancs sont percés
-  aux coins, côté extérieur. Le module se fixe par ces trous.
+- **Fixation de la carte** : quatre vis **métalliques** aux coins, vissées
+  dans des entretoises en laiton serties dans le fond du radiateur. Les
+  trous de coin de la carte ont une couronne de cuivre, visible au dos :
+  selon la piste qui la rejoint, le radiateur est relié à un potentiel de
+  la carte (voir Isolation).
+- **Fixation du module** : les flancs sont percés aux coins, côté extérieur.
+  Le module se fixe par ces trous.
+- **Dos de la carte** (sortie à droite) : composants CMS des deux côtés.
+  Côté sortie, les deux MOSFET du redressement synchrone (boîtiers plats
+  8 broches) et le contrôleur sont au dos. Côté entrée, une longue fente
+  fraisée traverse la carte ; une ouverture au centre est couverte de ruban
+  jaune. Les bords de la carte ont des encoches en demi-lune.
 - **L'entrée et la sortie sont aux deux bouts opposés** de la longueur de
   69,6 mm. Il faut donc prévoir le passage des fils aux deux bouts.
+
+**Thermique**
+
+- **Côté sortie** : un pad thermique bleu, posé directement sur
+  l'aluminium du fond, refroidit le dos de la carte sous les MOSFET du
+  redressement synchrone.
+- **Côté entrée** : un film isolant noir couvre le fond sous la partie
+  haute tension. Le pont redresseur, un boîtier noir plat debout contre le
+  flanc, y est collé à la pâte thermique.
+- Le radiateur évacue donc la chaleur du primaire (pont) et du secondaire
+  (MOSFET). Le boîtier doit le laisser respirer : ne pas le noyer dans le
+  plastique, garder de l'air aux deux bouts et au-dessus.
 
 **Entrée secteur** (bout « entrée »)
 
@@ -253,9 +275,15 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 **Sortie 24 V** (bout « sortie »)
 
 - **Bornier à vis bleu à deux positions**, dans un coin du bout de sortie :
-  à gauche quand on regarde la carte de dessus, entrée vers soi. La
-  polarité et le pas (probablement 5,0 mm) ne sont pas lisibles sur les
-  photos : à relever à réception.
+  à gauche quand on regarde la carte de dessus, entrée vers soi. Le pas
+  (probablement 5,0 mm) est à relever à réception.
+- **Polarité** : carte vue de dessus, sortie à droite, la LED est sous le
+  bornier. **GND est la vis du haut**, contre le flanc, et **+24 V la vis du
+  bas**, du côté de la LED. Sur la [carte vue de
+  dessus](datasheets/alim-24v-carte.png) (entrée en bas), GND est donc la vis
+  de gauche. Ce relevé vient d'une mesure au multimètre sur la version 12 V
+  (+12,195 V, pointe rouge en bas), dont la carte est la même ; il est à
+  confirmer à réception.
 - **LED rouge** à côté du bornier. Elle reste allumée longtemps après la
   coupure : les condensateurs de sortie se vident lentement.
 - Self de sortie (tore vert), **2 × 470 µF / 35 V**. La tension de sortie
@@ -273,19 +301,28 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 
 **Isolation**
 
-- **Primaire-radiateur** : un film plastique sépare la partie haute
-  tension du radiateur (essai ci-dessous). Rien ne relie le radiateur à L,
-  N ou la terre ; ps_upstream le traite comme une pièce métallique
-  flottante (isolation principale, 3 mm entre le cuivre et le bord de la
-  carte).
+- **Primaire-radiateur** : le film noir sous la partie haute tension et le
+  boîtier isolé du pont redresseur, collé au flanc. Le radiateur n'est pas
+  relié à la terre : l'alimentation n'a pas de borne de terre.
+- **Potentiel du radiateur** : les vis métalliques des coins le relient aux
+  couronnes des trous de la carte. Si une couronne rejoint le GND de sortie,
+  ce qui est courant pour la CEM, le radiateur est au GND de sortie ; sinon
+  il est flottant. Les photos ne montrent aucune piste qui rejoigne une
+  couronne : flottant est le plus probable, à confirmer par la mesure. Le pad thermique bleu sépare de toute façon les MOSFET du
+  secondaire de l'aluminium. Dans les deux cas, ps_upstream le traite
+  comme une pièce métallique qui n'est ni L ni N : isolation principale,
+  3 mm entre le cuivre et le bord de la carte.
 - **Primaire-secondaire** : par le transformateur et le condensateur Y. Le
   vendeur ne donne ni tension d'essai ni homologation (seulement EN 55032,
   qui est une norme d'émissions). La sortie 24 V et toute la basse tension
   en aval ne sont donc **pas garanties TBTS**. On ne la touche pas sous
   tension sans l'avoir vérifié.
 - **À relever à réception** : continuité entre le radiateur et la sortie
-  (− et +) et entre le radiateur et l'entrée ; résistance d'isolement entre
-  l'entrée (L et N reliés) et la sortie. Le condensateur Y laisse passer
+  (− et +) et entre le radiateur et l'entrée, ce qui dit à quoi sont
+  reliées les couronnes des coins ; résistance d'isolement entre l'entrée
+  (L et N reliés) et la sortie, et entre l'entrée et le radiateur. Si le
+  radiateur est au GND de sortie, toute pièce métallique du boîtier qui le
+  touche l'est aussi. Le condensateur Y laisse passer
   un petit courant de fuite alternatif vers la sortie : une sortie flottante
   peut « picoter » une sonde ou un PC raccordé en USB.
 

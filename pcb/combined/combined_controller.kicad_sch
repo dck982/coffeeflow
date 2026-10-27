@@ -2928,9 +2928,9 @@
 		)
 		(uuid "fa520c51-fb24-4f11-ad18-245705e08410")
 	)
-	(text "H1 to H5: M2.5 mounting holes, 2.7mm NPTH, not connected.\nH2 sits on the mains side: nylon screw and standoff,\nat least 5 mm tall."
+	(text "H1 to H6: M2.5 mounting holes, 2.7mm NPTH, not connected.\nMetal screws and standoffs: the hardware edge of H2 and H6\nstays more than 7 mm from mains and low-voltage copper."
 		(exclude_from_sim no)
-		(at 320 245 0)
+		(at 320 255 0)
 		(effects
 			(font
 				(size 1.1 1.1)
@@ -5472,6 +5472,96 @@
 			(project "combined"
 				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
 					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 322.58 243.84 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "3a977a5f-571b-4ca1-a86f-3b4324807aa3")
+		(property "Reference" "H6"
+			(at 327.58 241.84 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "M2.5"
+			(at 327.58 244.84 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.7mm_M2.5"
+			(at 322.58 243.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 322.58 243.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 322.58 243.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "MPN" "M2.5 / 2.7mm"
+			(at 322.58 243.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(instances
+			(project "combined"
+				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
+					(reference "H6")
 					(unit 1)
 				)
 			)

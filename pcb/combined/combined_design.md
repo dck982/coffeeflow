@@ -406,12 +406,15 @@ The v1 netclass patterns and rules for the pump channel and the zero-cross
 detector are removed. Until the board is updated from the schematic, its
 old pump and zero-cross copper has no class left and trips the 7 mm rule.
 
-H2, the second M2.5 mounting hole, sits on the mains side, left of the
-notch, 6.3 mm from the nearest mains copper. It takes a nylon screw and a
-nylon standoff of at least 5 mm, screwed into a brass insert of the
-enclosure: the insert stays at least 5 mm from the board, the reinforced
-distance, so it cannot bridge the mains to H1 and the 3V3 side. H3, in the
-top-left corner of the low-voltage side, has no such constraint.
+H2 and H6, M2.5 mounting holes, sit on the mains side. They take metal
+screws and standoffs into the brass inserts of the printed enclosure; the
+inserts float. Counted from the edge of the hardware (2.9 mm radius, the
+corners of a 5 mm hex standoff), H2 is 8.8 mm from the nearest mains copper
+(L_VALVE) and H6 is 9.6 mm from it (R6, Q2 gate) and 12.5 mm from the GND
+plane: each gap clears the 7 mm reinforced distance alone, so the hardware
+cannot bridge the mains to the low-voltage side. H1, H3, H4 and H5 are on
+the low-voltage side. Under the hardware of H1, H4 and H5 there is only GND
+plane, so the plane runs up to the hole clearance, without a keepout.
 
 J2 and J3 (Kefa HT396R-3.96) are rated 320 V at
 overvoltage category II and pollution degree 2 by their IEC data, with 1 mm

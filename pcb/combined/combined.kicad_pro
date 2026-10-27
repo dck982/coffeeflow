@@ -589,6 +589,10 @@
         "pattern": "+24V"
       },
       {
+        "netclass": "POWER",
+        "pattern": "GND"
+      },
+      {
         "netclass": "AC",
         "pattern": "/L"
       },

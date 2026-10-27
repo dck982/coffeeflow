@@ -42,7 +42,7 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 | J3, valve | HT396R 2 | N | L switched | — | — |
 | J5, CAN | JST XH 2 | CAN_L | CAN_H | — | — |
 | J6, flow | JST XH 3 | GND | +5V | FLOW_PULSE | — |
-| J7, 24 V in | HT396R 2 | GND | +24V | — | — |
+| J7, 24 V in | HT396V 2 | GND | +24V | — | — |
 | J8, boiler SSR | HT396V 2 | GND | BOILER_5V | — | — |
 | J9, pump | JST XH 4 | GND_P (green) | SPEED_P (brown) | TACHO_P (blue) | +5V_P (yellow) |
 | J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE | — |
@@ -58,17 +58,19 @@ PUMP_SPEED and PUMP_TACHO run as tracks to the XIAO sockets, and 3V3 comes
 from the XIAO. The sensors board's two Grove I2C headers and its VALVE
 header are not carried over either: the valve SSR is on board.
 
-J8 is a Kefa HT396V-3.96-2P vertical header (LCSC C577788). Its mating plug,
-the HT396K-3.96-2P (LCSC C577777, screw terminals, 0.2 to 1.5 mm², AWG 14
-to 26), takes the two 0.75 mm² wires to the boiler SSR directly; the SSR
-end uses red 4.8 mm crimp lugs, which need that section and do not fit a JST
-XH crimp. On sensors, two Wago changed the section. The plug is not
-assembled: order it with the board. The LCSC footprint matches the Kefa
-drawing (`../../docs/datasheets/C577788.pdf`): body 7.92 × 7.40 mm centred
-on the pins, 10.1 mm high; the courtyard only gained a 0.25 mm margin. Leave
-room beside it for the plug's wire entry and for a screwdriver above.
+J7 (24 V in) and J8 (boiler SSR) are Kefa HT396V-3.96-2P vertical headers
+(LCSC C577788). Both mate with the HT396K-3.96-2P plug (LCSC C577777, screw
+terminals, 0.2 to 1.5 mm², AWG 14 to 26). J7's plug takes the two wires
+from the Wago split. J8's takes the two 0.75 mm² wires to the boiler SSR
+directly; the SSR end uses red 4.8 mm crimp lugs, which need that section
+and do not fit a JST XH crimp. On sensors, two Wago changed the section.
+The plugs are not assembled: order them with the board. The LCSC footprint
+matches the Kefa drawing (`../../docs/datasheets/C577788.pdf`): body
+7.92 × 7.40 mm centred on the pins, 10.1 mm high; the courtyard only gained
+a 0.25 mm margin. Leave room beside each header for the plug's wire entry
+and for a screwdriver above.
 
-J2, J3 and J7 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
+J2 and J3 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
 clone). Their footprint and 3D model come from LCSC, in `Combined_Local`.
 The outline was redrawn from the Kefa drawing
 (`../../docs/datasheets/C577799.pdf`), as on ps_upstream: the mating face is
@@ -79,8 +81,6 @@ connectors with the pins inside the board and the mating face at the edge:
 pin axis 9.6 mm from the edge. The pads, holes
 and the slot between the pins are set for isolation; see "Isolation and
 layout".
-
-J7 carries 24 V only, but keeps the same footprint and its slot.
 
 Only L is switched. N goes straight from J2 pin 2 to J3 pin 1; nothing else
 on the board connects to N. J3 is reversed against J2 so that, side by side,
@@ -193,11 +193,16 @@ U10 is a TI LMR33630ADDAR (LCSC C841384): synchronous buck, 3.8 to 36 V in,
   basic part is 25 V X5R (Samsung CL31A226KAHNNNE, LCSC C12891), which keeps
   more of its capacitance at 5 V. With about 40 µF left at 5 V, the ripple
   is 1.0 / (8 × 400 kHz × 40 µF) ≈ 8 mV.
-- Input: C1 and C4, 10 µF 50 V X7R 1210 (Samsung CL32B106KBJNNNE, LCSC
-  C138687), and C5, 100 nF next to the VIN and PGND pins. C6, 47 µF 50 V
-  aluminium electrolytic (Lelon RVT1H470M0607, LCSC C970679, 6.3 × 7.7 mm),
-  damps the resonance of the input cable inductance with the ceramics when
-  J7 is plugged in live.
+- Input: C1, 10 µF 50 V X7R 1210 (Samsung CL32B106KBJNNNE, LCSC C138687),
+  and C5, 220 nF 50 V X7R 0603 (Yageo CC0603KRX7R9BB224, LCSC C107083,
+  extended part: the basic 220 nF is 25 V) next to the VIN and PGND pins.
+  This is TI's reference input for the HSOP package at 400 kHz, sized for
+  3 A out; the board draws about 1 A at most.
+- No electrolytic on the input. TI adds one to damp the ringing of long
+  supply leads with the ceramics, which matters when J7 is plugged in live:
+  the overshoot could reach about 48 V, above U10's 36 V. J7 is never
+  plugged with the 24 V on; the board is only powered from the mains side,
+  where the supply ramps up slowly.
 - C7 (100 nF) from BOOT to SW, C16 (1 µF) on VCC, the internal 5 V LDO.
 - D5 (red 0603) with R32 (1 kΩ) shows +5V: about 3 mA.
 - PG is not used.
@@ -209,8 +214,8 @@ at 5 V is 0.23 A from 24 V at 90 % efficiency; the supply budget counts
 
 Layout, for the board update:
 
-- C5, then C1 and C4, right at VIN and PGND: the input loop carries the
-  switched current and must stay small. C6 can sit a little further.
+- C5, then C1, right at VIN and PGND: the input loop carries the switched
+  current and must stay small.
 - Keep the SW node, C7 and L1 compact; nothing sensitive under L1.
 - Thermal pad soldered to a GND area with the footprint's vias to a bottom
   GND plane.
@@ -228,7 +233,7 @@ the board, or through coffeetool once mounted.
 
 - USB without 24 V: the USB 5 V drives +5V, then through L1 and the body
   diode of U10's high-side MOSFET the 24 V rail. It charges the supply's
-  2 × 470 µF, C6 and the pump electronics from the PC port, whose
+  2 × 470 µF and the pump electronics from the PC port, whose
   overcurrent protection is the only limit.
 - USB with 24 V: two 5 V sources in parallel. Whichever is higher feeds the
   other; the PC may end up supplying the screen and the whole board.
@@ -415,7 +420,7 @@ on adjacent pins. Their 2.0 × 2.8 mm oval pads leave 1.96 mm of air, above
 the 1.5 mm clearance, and 0.2 mm of copper around the hole; a 1 mm
 milled slot between the pins lengthens the creepage path around it; a groove
 counts from 1 mm wide at pollution degree 2 (IEC 60664-1, 6.2). The pads
-come 0.48 mm from their slot, which the DRC allows for J2, J3 and J7 only.
+come 0.48 mm from their slot, which the DRC allows for J2 and J3 only.
 
 U1 uses a `Combined_Local` copy of the SMDIP footprint with a 1 mm routed
 slot between the pad rows, extending 1 mm past each end of the

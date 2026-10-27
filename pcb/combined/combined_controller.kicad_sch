@@ -2928,7 +2928,7 @@
 		)
 		(uuid "fa520c51-fb24-4f11-ad18-245705e08410")
 	)
-	(text "H1, H2, H3: M2.5 mounting holes, 2.7mm NPTH, not connected.\nH2 sits on the mains side: nylon screw and standoff,\nat least 5 mm tall."
+	(text "H1 to H5: M2.5 mounting holes, 2.7mm NPTH, not connected.\nH2 sits on the mains side: nylon screw and standoff,\nat least 5 mm tall."
 		(exclude_from_sim no)
 		(at 320 245 0)
 		(effects
@@ -5658,6 +5658,186 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 322.58 203.2 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7fb42e17-6854-463e-9b2e-1889b41742ea")
+		(property "Reference" "H4"
+			(at 327.58 201.2 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "M2.5"
+			(at 327.58 204.2 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.7mm_M2.5"
+			(at 322.58 203.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 322.58 203.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 322.58 203.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "MPN" "M2.5 / 2.7mm"
+			(at 322.58 203.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(instances
+			(project "combined"
+				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
+					(reference "H4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 322.58 193.04 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "05502c35-969f-47d9-951a-56d19ef08659")
+		(property "Reference" "H5"
+			(at 327.58 191.04 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.1 1.1)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "M2.5"
+			(at 327.58 194.04 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.7mm_M2.5"
+			(at 322.58 193.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 322.58 193.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 322.58 193.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(property "MPN" "M2.5 / 2.7mm"
+			(at 322.58 193.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1 1)
+				)
+				(justify left)
+			)
+		)
+		(instances
+			(project "combined"
+				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
+					(reference "H5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:PWR_FLAG")
 		(at 119.38 124.46 0)
 		(unit 1)
@@ -5877,7 +6057,7 @@
 				)
 			)
 		)
-		(property "Value" "ADS1115IDGSR"
+		(property "Value" "ADS1115IDGST"
 			(at 348.36 60.8 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5920,7 +6100,7 @@
 				)
 			)
 		)
-		(property "MPN" "ADS1115IDGSR"
+		(property "MPN" "ADS1115IDGST"
 			(at 340.36 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -5931,7 +6111,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C37593"
+		(property "LCSC" "C468683"
 			(at 340.36 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -6571,7 +6751,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P"
+		(property "Footprint" "Combined_Local:CONN-TH_P3.96_HT396V-3.96-2P"
 			(at 35.56 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -6604,7 +6784,7 @@
 				)
 			)
 		)
-		(property "MPN" "HT396R-3.96-2P"
+		(property "MPN" "HT396V-3.96-2P"
 			(at 35.56 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -6615,7 +6795,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C577799"
+		(property "LCSC" "C577788"
 			(at 35.56 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -6626,7 +6806,7 @@
 				)
 			)
 		)
-		(property "Note" "1 GND, 2 +24V, from the Wago split of the 24 V supply"
+		(property "Note" "Kefa HT396V vertical header; mating plug HT396K-3.96-2P (C577777, screw), 1 GND, 2 +24V, from the Wago split of the 24 V supply"
 			(at 35.56 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -6967,120 +7147,6 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 68.58 46.99 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "bbcaaf29-0c60-478f-89ef-5c4e0e5573ac")
-		(property "Reference" "C4"
-			(at 71.12 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10uF 50V"
-			(at 71.12 48.26 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_1210_3225Metric"
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "CL32B106KBJNNNE"
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C138687"
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "VIN ceramic, X7R 50 V 1210"
-			(at 68.58 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f3ab5e10-0059-4094-8141-ebf99dfb32f0")
-		)
-		(pin "2"
-			(uuid "021c7c23-c9a8-4e51-89d4-d01e519cc510")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
-					(reference "C4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
 		(at 83.82 46.99 0)
 		(unit 1)
 		(body_style 1)
@@ -7101,7 +7167,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "220nF"
 			(at 86.36 48.26 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7145,7 +7211,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0603KRX7R9BB104"
+		(property "MPN" "CC0603KRX7R9BB224"
 			(at 83.82 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -7156,7 +7222,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C14663"
+		(property "LCSC" "C107083"
 			(at 83.82 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -7167,7 +7233,7 @@
 				)
 			)
 		)
-		(property "Note" "VIN high-frequency bypass, next to the VIN and PGND pins"
+		(property "Note" "VIN high-frequency bypass, 50 V X7R, next to the VIN and PGND pins"
 			(at 83.82 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -7188,120 +7254,6 @@
 			(project "combined"
 				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
 					(reference "C5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Polarized")
-		(at 99.06 46.99 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "123ff8bb-5cd2-4ba0-813f-9e3bdc5df0d0")
-		(property "Reference" "C6"
-			(at 101.6 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "47uF 50V"
-			(at 101.6 48.26 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x7.7"
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "RVT1H470M0607"
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C970679"
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "VIN bulk, aluminium electrolytic: damps the input cable inductance"
-			(at 99.06 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6a3f9a20-8286-43a1-a2cf-67cc18932b12")
-		)
-		(pin "2"
-			(uuid "3b00a5cf-6950-463f-b552-7b9248e9d776")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
-					(reference "C6")
 					(unit 1)
 				)
 			)
@@ -8920,26 +8872,6 @@
 	)
 	(wire
 		(pts
-			(xy 68.58 40.64) (xy 68.58 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "707795b3-eae1-4500-b503-e172a23172ab")
-	)
-	(wire
-		(pts
-			(xy 68.58 50.8) (xy 68.58 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e17ceea4-d3d3-4e3b-ae02-a497ca349fdb")
-	)
-	(wire
-		(pts
 			(xy 83.82 40.64) (xy 83.82 43.18)
 		)
 		(stroke
@@ -8957,26 +8889,6 @@
 			(type default)
 		)
 		(uuid "43202c4b-4649-4b34-8346-91de292aff91")
-	)
-	(wire
-		(pts
-			(xy 99.06 40.64) (xy 99.06 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e0800e4b-1dad-4671-b577-4a41d080edda")
-	)
-	(wire
-		(pts
-			(xy 99.06 50.8) (xy 99.06 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "764fa0c2-0f81-4037-a2f9-b05531b9586e")
 	)
 	(wire
 		(pts
@@ -9385,18 +9297,6 @@
 		(uuid "c42fffc1-de4a-4a43-af4d-918595c1331e")
 	)
 	(junction
-		(at 68.58 40.64)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "bfcf7577-b3c9-4636-be80-f77c1169dca3")
-	)
-	(junction
-		(at 68.58 63.5)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "79afd682-4ef2-498e-a488-0766c750abc4")
-	)
-	(junction
 		(at 83.82 40.64)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -9407,18 +9307,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "1c58a911-751a-4522-b7b9-37cd5e29a977")
-	)
-	(junction
-		(at 99.06 40.64)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "a75f5180-d6f9-4bac-b2cd-f7c7d4356c6b")
-	)
-	(junction
-		(at 99.06 63.5)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "03396003-e80c-4ef7-9b29-f494eafa2b18")
 	)
 	(junction
 		(at 114.3 40.64)

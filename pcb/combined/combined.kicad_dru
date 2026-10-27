@@ -19,6 +19,23 @@
 	(condition "A.hasNetclass('Mains')")
 	(constraint track_width (min 0.5mm)))
 
+# Supply and ground tracks, POWER net class: +24V, +5V, +3V3 and GND. GND
+# returns through a track wherever the B.Cu plane does not take it, and then
+# carries the same current as the supply. 0.3 mm on 1 oz carries about 1 A
+# for 10 °C of rise. The 5 V trunk from C19 to the screen on J1 is widened by
+# hand to 0.5 mm, about 1.45 A.
+(rule "POWER track width"
+	(condition "A.hasNetclass('POWER')")
+	(constraint track_width (min 0.3mm)))
+
+# The TMP102 (U5) has 0.5 mm pitch: a 0.3 mm track does not fit between its
+# pads. Inside its courtyard, POWER tracks may neck down to 0.2 mm. Route the
+# neck-down as its own short segment: a long segment that merely touches the
+# courtyard escapes the 0.3 mm rule along its whole length.
+(rule "POWER into the TMP102"
+	(condition "A.hasNetclass('POWER') && A.intersectsCourtyard('U5')")
+	(constraint track_width (min 0.2mm)))
+
 # Creepage between mains nets, functional insulation: IEC 60335-1 Table 18
 # asks 2.0 mm at 125-250 V RMS, pollution degree 2, FR4 (group IIIa). The
 # extra 0.2 mm covers etching tolerance.
@@ -77,10 +94,9 @@
 # lengthens the surface path around it (IEC 60664-1, 6.2: a groove counts
 # from 1 mm wide at pollution degree 2); the 1.96 mm of air stay above the
 # 1.5 mm clearance. The 2.0 x 2.8 mm oval pads leave 0.48 mm of copper to
-# the slot. Tracks keep the usual 0.5 mm from it. J7, the 24 V input, uses
-# the same footprint and slot.
+# the slot. Tracks keep the usual 0.5 mm from it.
 (rule "connector pins to their slot"
-	(condition "(A.memberOfFootprint('J2') && B.memberOfFootprint('J2')) || (A.memberOfFootprint('J3') && B.memberOfFootprint('J3')) || (A.memberOfFootprint('J7') && B.memberOfFootprint('J7'))")
+	(condition "(A.memberOfFootprint('J2') && B.memberOfFootprint('J2')) || (A.memberOfFootprint('J3') && B.memberOfFootprint('J3'))")
 	(constraint edge_clearance (min 0.45mm)))
 
 # Pads of one part keep the spacing of its footprint: 0.15 mm on the 0.5 mm

@@ -4331,7 +4331,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
+		(property "Footprint" "Combined_Local:CONN-TH_P3.96_HT396V-3.96-3P"
 			(at 48.26 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -4353,7 +4353,7 @@
 				)
 			)
 		)
-		(property "Description" "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)"
+		(property "Description" ""
 			(at 48.26 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -4364,7 +4364,7 @@
 				)
 			)
 		)
-		(property "MPN" "B3B-XH-A(LF)(SN)"
+		(property "MPN" "HT396V-3.96-3P"
 			(at 48.26 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -4375,7 +4375,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C144394"
+		(property "LCSC" "C577789"
 			(at 48.26 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -4383,6 +4383,17 @@
 			(effects
 				(font
 					(size 1 1)
+				)
+			)
+		)
+		(property "Note" "Kefa HT396V vertical header; mating plug HT396K-3.96-3P (C577778, screw) takes the 0.5 mm2 wires of the Digmesa cable: 1 GND, 2 +5V, 3 FLOW_PULSE"
+			(at 48.26 176.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)

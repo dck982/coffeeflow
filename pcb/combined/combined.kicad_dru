@@ -76,8 +76,8 @@
 # (functional insulation, pollution degree 2, FR4 group IIIa) asks 1.1 mm up
 # to 50 V. Clearance follows the 2.5 kV impulse of overvoltage category II:
 # 1.5 mm (IEC 60335-1 Table 16).
-# - L side: L_IN through F1, and R5 and R7 away from L. R5 drops at most 13 V
-#   for 0.3 ms per half-cycle.
+# - L side: L_IN through F1, and R5 and R7 away from L. R5 drops at most 11 V
+#   for 0.25 ms per half-cycle.
 # - Valve gate: Q2's gate and R6 sit within the gate drive of L_VALVE.
 # Net names that change after a schematic edit no longer match, and the pair
 # falls back to 2.2 mm.

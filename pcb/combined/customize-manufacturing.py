@@ -37,7 +37,7 @@ ROTATION_OFFSETS = {
 # the shift splits that difference, 0.4 mm on the leads and 0.8 mm on the tab.
 ORIGIN_SHIFTS = {
     'J1': (1.25, 0.0), 'J5': (1.25, 0.0),
-    'J6': (2.5, 0.0), 'J10': (2.5, 0.0),
+    'J10': (2.5, 0.0),
     'J9': (3.75, 0.0),
     'J11': (0.0, 7.62), 'J12': (0.0, 7.62),
     'Q2': (-1.692, 0.0),
@@ -60,9 +60,8 @@ PLACEMENT_PARTS = {
     'U6': ('C468683', 'Package_SO:TSSOP-10_3x3mm_P0.5mm'),
     'J1': ('C158012', 'Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical'),
     'J5': ('C158012', 'Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical'),
-    'J6': ('C144394', 'Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical'),
     'J10': ('C144394', 'Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical'),
-    # Pin-row midpoint like J6/J10; +180, unlike them (see ROTATION_OFFSETS).
+    # Pin-row midpoint like J10; +180, unlike it (see ROTATION_OFFSETS).
     'J9': ('C144395', 'Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'),
     'J11': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
     'J12': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
@@ -75,6 +74,7 @@ PLACEMENT_PARTS = {
     # LCSC footprint, origin and orientation unchanged, as for J2/J3.
     'J7': ('C577788', 'Combined_Local:CONN-TH_P3.96_HT396V-3.96-2P'),
     'J8': ('C577788', 'Combined_Local:CONN-TH_P3.96_HT396V-3.96-2P'),
+    'J6': ('C577789', 'Combined_Local:CONN-TH_P3.96_HT396V-3.96-3P'),
     'D1': ('C2286', 'LED_SMD:LED_0603_1608Metric'),
     'D4': ('C2286', 'LED_SMD:LED_0603_1608Metric'),
     'D5': ('C2286', 'LED_SMD:LED_0603_1608Metric'),
@@ -100,7 +100,7 @@ Rotation corrections: U1, Q2 +270; Q1, Q5, Q6 +180;
 U4 +270, U5 +270, U6 +270; J1/J5 (C158012) and J9 (C144395) +180;
 J11/J12 +270.
 Origin shifts: XH connectors and XIAO sockets at their pin-row midpoint;
-Q2 1.69 mm towards the leads. U8, U9, J2, J3, J7, J8 and the LEDs
+Q2 1.69 mm towards the leads. U8, U9, J2, J3, J6, J7, J8 and the LEDs
 D1/D4/D5 have none.
 U10 and L1 have no computed correction yet. Check
 them, pin 1 of U1, U8, U9 and Q2 and the LED polarity in the JLCPCB

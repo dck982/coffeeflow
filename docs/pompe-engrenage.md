@@ -2,9 +2,11 @@
 
 Pompe envisagée pour remplacer la pompe vibratoire OLAB Silent Green 35 W.
 Commandée le 22 octobre 2026, **pas encore installée** : le remplacement
-n'est pas décidé. Les valeurs viennent de la fiche du vendeur et de la notice
-de la famille de groupes moteur-pompe ([gearpump.pdf](datasheets/gearpump.pdf),
-série FG, électronique 82 040 001, dont le brochage diffère de l'article) ;
+n'est pas décidé. Les valeurs viennent de la fiche du vendeur, de la notice
+du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
+Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
+(série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
+elle n'est plus dans le dépôt) ;
 les points marqués **à relever** se mesurent à réception.
 
 Deux usages motivent le changement :
@@ -110,10 +112,11 @@ Glissement = débit théorique (vitesse × 0,1 ml) − débit lu.
 
 ## Interface électrique
 
-Brochage : fiche du vendeur et photo de l'article, **7 fils**. La
-[notice](datasheets/gearpump.pdf) SOVOFLO décrit une autre électronique de la
-famille FG (82 040 001, 6 fils, couleurs différentes) : son brochage ne
-s'applique pas à cet article. Ses protections internes et son temps
+Brochage : fiche du vendeur et photo de l'article, **7 fils**, confirmé par
+la [notice du fabricant](datasheets/gearpump-mpb003.pdf) (page 3,
+« Potentiometer seven-wire speed regulation »). La notice SOVOFLO décrit une
+autre électronique de la famille FG (82 040 001, 6 fils, couleurs
+différentes) : son brochage ne s'applique pas à cet article. Ses protections internes et son temps
 d'initialisation, plus bas, sont repris comme ordre de grandeur, à confirmer.
 
 | Fil | Signal | Rôle |

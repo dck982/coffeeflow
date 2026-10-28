@@ -41,7 +41,7 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 | J2, mains in | HT396R 2 | L | N | — | — |
 | J3, valve | HT396R 2 | N | L switched | — | — |
 | J5, CAN | JST XH 2 | CAN_L | CAN_H | — | — |
-| J6, flow | JST XH 3 | GND | +5V | FLOW_PULSE | — |
+| J6, flow | HT396V 3 | GND | +5V | FLOW_PULSE | — |
 | J7, 24 V in | HT396V 2 | GND | +24V | — | — |
 | J8, boiler SSR | HT396V 2 | GND | BOILER_5V | — | — |
 | J9, pump | JST XH 4 | GND_P (green) | SPEED_P (brown) | TACHO_P (blue) | +5V_P (yellow) |
@@ -60,13 +60,18 @@ header are not carried over either: the valve SSR is on board.
 
 J7 (24 V in) and J8 (boiler SSR) are Kefa HT396V-3.96-2P vertical headers
 (LCSC C577788). Both mate with the HT396K-3.96-2P plug (LCSC C577777, screw
-terminals, 0.2 to 1.5 mm², AWG 14 to 26). J7's plug takes the two wires
+terminals, 0.2 to 1.5 mm², AWG 14 to 26). J6 (flow) is the 3-pin version,
+HT396V-3.96-3P (LCSC C577789), with the HT396K-3.96-3P plug (LCSC C577778):
+the Digmesa cable ends in a VH3.96 housing at the sensor and needs 0.5 mm²
+wires, which go straight into the screw plug, without the JST-SM to XH
+adapter. J7's plug takes the two wires
 from the Wago split. J8's takes the two 0.75 mm² wires to the boiler SSR
 directly; the SSR end uses red 4.8 mm crimp lugs, which need that section
 and do not fit a JST XH crimp. On sensors, two Wago changed the section.
 The plugs are not assembled: order them with the board. The LCSC footprint
-matches the Kefa drawing (`../../docs/datasheets/C577788.pdf`): body
-7.92 × 7.40 mm centred on the pins, 10.1 mm high; the courtyard only gained
+matches the Kefa drawing (`../../docs/datasheets/C577788.pdf`, 2 to 24
+poles): body 7.92 × 7.40 mm centred on the pins (11.88 × 7.40 mm in 3
+poles), 10.1 mm high; the courtyard only gained
 a 0.25 mm margin. Leave room beside each header for the plug's wire entry
 and for a screwdriver above.
 
@@ -120,10 +125,10 @@ The valve channel uses Q1, R1–R4, D1 and U1.
 - Q1 (SS8050) is a low-side switch. It sinks the optotriac LED current and
   the indicator LED current. That current comes from the XIAO 3V3 output,
   not from the GPIO, which only supplies the base current. With 2.5 mA of
-  base current for about 12 mA of collector current, the transistor
+  base current for about 15 mA of collector current, the transistor
   saturates.
-- R3 (180 Ω) sets the optotriac LED current: (3.3 − 1.2 − 0.1) / 180 ≈ 11 mA
-  typical, at least 8 mA worst case (LED forward voltage 1.5 V max). U1 is
+- R3 (150 Ω) sets the optotriac LED current: (3.3 − 1.2 − 0.1) / 150 ≈ 13 mA
+  typical, at least 9.6 mA worst case (LED forward voltage 1.5 V max). U1 is
   guaranteed to trigger at 5 mA; onsemi recommends any current between that
   and the 60 mA maximum.
 - D1 (red) with R4 (1 kΩ) lights at about 1.2 mA when the channel is
@@ -139,28 +144,34 @@ U1 (MOC3043M) is a zero-cross optotriac. It does not carry the valve current.
 Its output triac only drives a pulse into the gate of Q2 (BT136S), and
 Q2 connects L to L_VALVE.
 
-- Gate path: L → R5 (360 Ω) → U1 pins 6–4 → R6 (330 Ω) → Q2 gate →
+- Gate path: L → R5 (300 Ω) → U1 pins 6–4 → R6 (300 Ω) → Q2 gate →
   L_VALVE. U1 only turns on while the voltage across it is below its inhibit
   voltage (20 V max). Once on, it stays on above that voltage as long as its
   current exceeds its holding current (400 µA typical). The gate current then
   grows with the line voltage until Q2 triggers. With the standard BT136S gate
-  (35 mA max in the two quadrants used here), that happens below about 28 V,
-  0.3 ms after the voltage zero. U1 then carries at most about 35 mA, well
+  (35 mA max in the two quadrants used here), that happens below about 25 V,
+  0.25 ms after the voltage zero. U1 then carries at most about 35 mA, well
   under its 100 mA repetitive peak rating. Once Q2 conducts, only about 1.5 V
   remains across it, and the U1 current drops to zero.
-- R5 + R6 = 690 Ω limit the U1 current if it ever fires at a high
-  instantaneous voltage: 325 V / 690 Ω ≈ 0.47 A, below its 1 A non-repetitive
-  surge rating. The values come from the M5Stack design.
+- R5 + R6 = 600 Ω limit the U1 current if it ever fires at a high
+  instantaneous voltage: 325 V / 600 Ω ≈ 0.54 A, below its 1 A non-repetitive
+  surge rating. The M5Stack design uses 360 Ω + 330 Ω; two 300 Ω 1206 are
+  JLCPCB basic parts.
 - While SSR is high, U1 fires Q2 again at the start of every half-cycle. When
   SSR goes low, Q2 turns off at the next current zero. Because the coil is
   inductive, the current zero comes after the voltage zero. Q2 actually drops
   out when the current falls below its holding current (15 mA max), about
   0.5 ms before the current zero at the valve's 92 mA peak.
-- R7 (39 Ω) + C2 (10 nF, 1 kV X7R 1812, PSA FV43X103K102EFG) form a
+- R7 (100 Ω) + C2 (10 nF, 1 kV X7R 1812, PSA FV43X103K102EFG) form a
   snubber across Q2. At turn-off on an inductive load, the voltage across the
   triac jumps quickly. The snubber limits that dV/dt so Q2 does not
   re-trigger on its own. At 50 Hz, C2 lets about 0.7 mA through the valve
   while it is off (230 V / 318 kΩ). A solenoid ignores this.
+- R7 limits the discharge of C2 into Q2 when it fires: about 0.25 A at the
+  usual 25 V, 3.3 A if Q2 ever fires at the 325 V peak. It hardly changes
+  the turn-off dV/dt: the voltage across Q2 steps by 15 mA × 100 Ω = 1.5 V,
+  then rises at 15 mA / 10 nF ≈ 1.5 V/µs whatever R7 is. The onsemi
+  application value is 39 Ω; 100 Ω is a JLCPCB basic part in the same 1206.
 
 ## Triac dissipation
 
@@ -176,12 +187,12 @@ the supply's negative, the pump's black wire.
 U10 is a TI LMR33630ADDAR (LCSC C841384): synchronous buck, 3.8 to 36 V in,
 3 A, 400 kHz, HSOP-8 with a thermal pad (pin 9, GND).
 
-- Output: 1.0 V reference (0.985 to 1.015 V) and R28 / R29 (100 kΩ /
-  24.9 kΩ): 1.0 × (1 + 100 / 24.9) = 5.02 V, 4.94 to 5.09 V from the
+- Output: 1.0 V reference (0.985 to 1.015 V) and R28 / R29 (120 kΩ /
+  30 kΩ): 1.0 × (1 + 120 / 30) = 5.00 V, 4.93 to 5.08 V from the
   reference tolerance.
-- Enable as undervoltage lockout: R30 / R31 (100 kΩ / 7.15 kΩ) from VIN.
+- Enable as undervoltage lockout: R30 / R31 (330 kΩ / 24 kΩ) from VIN.
   EN starts the switching at 1.231 V (1.2 to 1.26 V) and stops it 100 mV
-  lower: start at 18.4 V (18.0 to 18.9 V), stop at 16.9 V. The board waits
+  lower: start at 18.2 V (17.7 to 18.6 V), stop at 16.7 V. The board waits
   for the supply to be close to 24 V, and stops before the pump's own
   undervoltage trip at 15.5 V. When the XIAO goes down, R34 holds
   PUMP_SPEED low and the pump setpoint drops to 0 (see "Gear pump
@@ -193,11 +204,13 @@ U10 is a TI LMR33630ADDAR (LCSC C841384): synchronous buck, 3.8 to 36 V in,
   basic part is 25 V X5R (Samsung CL31A226KAHNNNE, LCSC C12891), which keeps
   more of its capacitance at 5 V. With about 40 µF left at 5 V, the ripple
   is 1.0 / (8 × 400 kHz × 40 µF) ≈ 8 mV.
-- Input: C1, 10 µF 50 V X7R 1210 (Samsung CL32B106KBJNNNE, LCSC C138687),
-  and C5, 220 nF 50 V X7R 0603 (Yageo CC0603KRX7R9BB224, LCSC C107083,
-  extended part: the basic 220 nF is 25 V) next to the VIN and PGND pins.
-  This is TI's reference input for the HSOP package at 400 kHz, sized for
-  3 A out; the board draws about 1 A at most.
+- Input: C1, 10 µF 50 V X5R 1206 (Samsung CL31A106KBHNNNE, LCSC C13585),
+  and C5, 220 nF 50 V X7R 0805 (Samsung CL21B224KBFNNNE, LCSC C5378) next
+  to the VIN and PGND pins. TI's reference input for the HSOP package at
+  400 kHz is the same values in X7R 1210 and 0603, sized for 3 A out. Those
+  are JLCPCB extended parts (the basic 220 nF 0603 is 25 V); the X5R 1206
+  keeps less of its capacitance at 24 V, which the board accepts because it
+  draws about 1 A at most.
 - No electrolytic on the input. TI adds one to damp the ringing of long
   supply leads with the ceramics, which matters when J7 is plugged in live:
   the overshoot could reach about 48 V, above U10's 36 V. J7 is never
@@ -257,12 +270,12 @@ Setpoint (U8):
 - U8's collector is on the yellow 5 V, its emitter pulled to green by R35
   (10 kΩ). LED on, the emitter rises to about 5 V; 0.5 mA is enough at a CTR
   of 200 to 400 %.
-- Filter: R36 / C20 and R37 / C21, 2 × 2.2 kΩ / 1.5 µF (48 Hz each), between
+- Filter: R36 / C20 and R37 / C21, 2 × 1.5 kΩ / 2.2 µF (48 Hz each), between
   the emitter and the brown wire, capacitors to green. C20 and C21 are
-  25 V X7R 0805 (0805B155K250CT, LCSC C384767). With the LEDC at 1 kHz and
-  16 bits, the ripple is about 5 V × (48 / 1000)² ≈ 12 mV, about 12 rpm, and
-  the response time about 10 ms. The source impedance, about 4.4 kΩ,
-  matches a 10 kΩ potentiometer at mid travel.
+  50 V X5R 0805 (Samsung CL21A225KBQNNNE, LCSC C377773). With the LEDC at
+  1 kHz and 16 bits, the ripple is about 5 V × (48 / 1000)² ≈ 12 mV, about 12 rpm, and
+  the response time about 10 ms. The source impedance, about 3 kΩ,
+  is close to a 10 kΩ potentiometer at mid travel (2.5 kΩ).
 - U8 off, R35 brings the setpoint to green: 0 at power-up, during a reset,
   with the XIAO absent or the firmware stopped.
 - The PWM bends the setpoint near the ends, monotonically: the speed is read
@@ -307,10 +320,10 @@ are on the bus. References that clashed with the AC side were renumbered:
 | R13, R14 | R20, R23 | SDA, SCL pull-ups |
 | R15 | R24 | FLOW pull-up |
 
-The other references (C8–C15, H1, J1, J6, J8 (now an HT396V), J10–J12, R19, R21, R22, R25,
-R26, U4–U6) keep their sensors numbers. The XIAO footprint and its socket
-footprint are copied into `Combined_Local`; `sym-lib-table` points to the
-local Seeed XIAO symbol library, as in sensors.
+The other references (C8–C15, H1, J1, J6 and J8 (now HT396V), J10–J12,
+R19, R21, R22, R25, R26, U4–U6) keep their sensors numbers. The XIAO
+footprint and its socket footprint are copied into `Combined_Local`;
+`sym-lib-table` points to the local Seeed XIAO symbol library, as in sensors.
 
 XIAO pins used by the valve and the pump:
 
@@ -359,9 +372,9 @@ M5Stack Unit SSR) was removed on October 10, 2026. The optotriac stays at
   would leave the valve permanently open. F1 would not blow, because the
   load limits the current.
 - Fallback if spurious firing shows up: MOC3163M (600 V, 1000 V/µs, 5 mA,
-  inhibit voltage 15 V max), same footprint and pinout. R3 stays at 180 Ω.
+  inhibit voltage 15 V max), same footprint and pinout. R3 stays at 150 Ω.
 
-The snubber capacitor (1 kV X7R MLCC) can also fail short, leaving 39 Ω
+The snubber capacitor (1 kV X7R MLCC) can also fail short, leaving 100 Ω
 across the triac and the load on. A ceramic capacitor does not wear with each
 surge the way a varistor does, which is why it is accepted here.
 
@@ -392,7 +405,7 @@ AC net class (L_IN, L, N, L_VALVE, single 1 oz layer for the 0.5 A of F1), 2.2 m
 few volts of each other and may come closer:
 
 - L side: L, L_IN, and the far ends of R5 and R7 (the gate resistor and the
-  snubber resistor). R5 drops at most 13 V for 0.3 ms per half-cycle. 1.5 mm,
+  snubber resistor). R5 drops at most 11 V for 0.25 ms per half-cycle. 1.5 mm,
   the clearance.
 - Q2's gate and R6 with L_VALVE. 1.5 mm.
 
@@ -406,11 +419,11 @@ The v1 netclass patterns and rules for the pump channel and the zero-cross
 detector are removed. Until the board is updated from the schematic, its
 old pump and zero-cross copper has no class left and trips the 7 mm rule.
 
-H2 and H6, M2.5 mounting holes, sit on the mains side. They take metal
+H2 and H6, M2 mounting holes, sit on the mains side. They take metal
 screws and standoffs into the brass inserts of the printed enclosure; the
-inserts float. Counted from the edge of the hardware (2.9 mm radius, the
-corners of a 5 mm hex standoff), H2 is 8.8 mm from the nearest mains copper
-(L_VALVE) and H6 is 9.6 mm from it (R6, Q2 gate) and 12.5 mm from the GND
+inserts float. Counted from the edge of the hardware (2.3 mm radius, the
+corners of a 4 mm hex standoff), H2 is 9.4 mm from the nearest mains copper
+(L_VALVE) and H6 is 10.2 mm from it (R6, Q2 gate) and 13.1 mm from the GND
 plane: each gap clears the 7 mm reinforced distance alone, so the hardware
 cannot bridge the mains to the low-voltage side. H1, H3, H4 and H5 are on
 the low-voltage side. Under the hardware of H1, H4 and H5 there is only GND
@@ -482,4 +495,5 @@ References, in `../../docs/datasheets/`:
 - `bt136.pdf` (JCST BT136S, LCSC C23427, the M5Stack Unit SSR part),
   `el817.pdf` (Everlight), `mf2410.pdf` (AEM MF2410 fuses, F1).
 - `lmr33630.pdf` (TI, U10), `xiao_esp32s3_sch.pdf` (Seeed XIAO ESP32-S3
-  schematic v1.2), `gearpump.pdf`; pump notes in `../../docs/pompe-engrenage.md`.
+  schematic v1.2), `gearpump-mpb003.pdf` (Chenhui MPB003 pump); pump notes
+  in `../../docs/pompe-engrenage.md`.

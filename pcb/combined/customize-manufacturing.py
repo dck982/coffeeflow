@@ -23,11 +23,10 @@ ROTATION_OFFSETS = {
     'Q2': 270.0,
     'Q1': 180.0, 'Q5': 180.0, 'Q6': 180.0,
     'U4': 270.0, 'U5': 270.0, 'U6': 270.0,
-    'J1': 180.0, 'J5': 180.0,
     # C144395 is drawn turned half a turn from C144394: pin 1 on the right and
     # the body deeper on the other side. The four pins land on the holes either
     # way; without this, the housing and pin 1 come out reversed.
-    'J9': 180.0,
+    'J1': 180.0, 'J9': 180.0,
     'J11': 270.0, 'J12': 270.0,
 }
 
@@ -36,9 +35,8 @@ ROTATION_OFFSETS = {
 # The supplier DPAK puts its tab 7.49 mm from the leads instead of 6.3 mm;
 # the shift splits that difference, 0.4 mm on the leads and 0.8 mm on the tab.
 ORIGIN_SHIFTS = {
-    'J1': (1.25, 0.0), 'J5': (1.25, 0.0),
     'J10': (2.5, 0.0),
-    'J9': (3.75, 0.0),
+    'J1': (3.75, 0.0), 'J9': (3.75, 0.0),
     'J11': (0.0, 7.62), 'J12': (0.0, 7.62),
     'Q2': (-1.692, 0.0),
 }
@@ -58,10 +56,9 @@ PLACEMENT_PARTS = {
     'U4': ('C38695', 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm'),
     'U5': ('C99269', 'Package_TO_SOT_SMD:SOT-563'),
     'U6': ('C468683', 'Package_SO:TSSOP-10_3x3mm_P0.5mm'),
-    'J1': ('C158012', 'Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical'),
-    'J5': ('C158012', 'Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical'),
     'J10': ('C144394', 'Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical'),
     # Pin-row midpoint like J10; +180, unlike it (see ROTATION_OFFSETS).
+    'J1': ('C144395', 'Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'),
     'J9': ('C144395', 'Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'),
     'J11': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
     'J12': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
@@ -93,11 +90,11 @@ def customize_placement(ref, footprint, x, y, angle):
             y - dx * math.sin(radians) + dy * math.cos(radians), angle)
 
 
-README_NOTES = """Select through-hole assembly for J1-J3 and J5-J12.
+README_NOTES = """Select through-hole assembly for J1-J3 and J6-J12.
 J11/J12 are the female 1x7 sockets of the XIAO ESP32-S3 (U7), which is not
 assembled: it plugs in by hand.
 Rotation corrections: U1, Q2 +270; Q1, Q5, Q6 +180;
-U4 +270, U5 +270, U6 +270; J1/J5 (C158012) and J9 (C144395) +180;
+U4 +270, U5 +270, U6 +270; J1 and J9 (C144395) +180;
 J11/J12 +270.
 Origin shifts: XH connectors and XIAO sockets at their pin-row midpoint;
 Q2 1.69 mm towards the leads. U8, U9, J2, J3, J6, J7, J8 and the LEDs

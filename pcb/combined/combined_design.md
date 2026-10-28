@@ -37,18 +37,17 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 
 | Connector | Type | Pin 1 | Pin 2 | Pin 3 | Pin 4 |
 |---|---|---|---|---|---|
-| J1, 5 V to the screen | JST XH 2 | GND | +5V | — | — |
+| J1, screen | JST XH 4 | GND | +5V | CAN_L | CAN_H |
 | J2, mains in | HT396R 2 | L | N | — | — |
 | J3, valve | HT396R 2 | N | L switched | — | — |
-| J5, CAN | JST XH 2 | CAN_L | CAN_H | — | — |
 | J6, flow | HT396V 3 | GND | +5V | FLOW_PULSE | — |
 | J7, 24 V in | HT396V 2 | GND | +24V | — | — |
 | J8, boiler SSR | HT396V 2 | GND | BOILER_5V | — | — |
 | J9, pump | JST XH 4 | GND_P (green) | SPEED_P (brown) | TACHO_P (blue) | +5V_P (yellow) |
 | J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE | — |
 
-J1 was the 5 V input in v1; it is now the 5 V output to the screen, whose
-two wires run along the CAN cable. J7 comes from the Wago split of the 24 V
+J1 was the 5 V input in v1; it now carries the screen cable, 5 V and CAN
+in one XH 4 housing, the same part as J9. J7 comes from the Wago split of the 24 V
 supply, which also feeds the pump's red and black wires: the pump current
 does not cross the board. J9 carries only the pump's isolated signal wires;
 the white wire (rotation) stays unconnected in the cable.
@@ -312,7 +311,7 @@ are on the bus. References that clashed with the AC side were renumbered:
 |---|---|---|
 | U1 | U7 | XIAO ESP32-S3 (schematic only, plugs into J11/J12) |
 | D2 | D4 | Status LED, red 0603 here (green 0805 on sensors) |
-| J3 | J5 | CAN connector |
+| J1, J3 | J1 | 5 V and CAN connectors, merged into the screen connector |
 | Q2 | Q5 | AO3401A, boiler output |
 | Q3 | Q6 | 2N7002, boiler output |
 | R11 | R17 | TJA1051 TXD pull-up |
@@ -320,7 +319,7 @@ are on the bus. References that clashed with the AC side were renumbered:
 | R13, R14 | R20, R23 | SDA, SCL pull-ups |
 | R15 | R24 | FLOW pull-up |
 
-The other references (C8–C15, H1, J1, J6 and J8 (now HT396V), J10–J12,
+The other references (C8–C15, H1, J6 and J8 (now HT396V), J10–J12,
 R19, R21, R22, R25, R26, U4–U6) keep their sensors numbers. The XIAO
 footprint and its socket footprint are copied into `Combined_Local`;
 `sym-lib-table` points to the local Seeed XIAO symbol library, as in sensors.

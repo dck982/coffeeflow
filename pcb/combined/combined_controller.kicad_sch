@@ -3176,16 +3176,6 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 81.28) (xy 177.8 81.28)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "36cb3c64-3414-50b9-b39a-6f52f121341e")
-	)
-	(wire
-		(pts
 			(xy 39.37 124.46) (xy 39.37 129.54)
 		)
 		(stroke
@@ -3466,16 +3456,6 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 83.82) (xy 177.8 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ded75ba0-118d-53f6-abe3-6d6f7b2775ea")
-	)
-	(wire
-		(pts
 			(xy 350.52 53.34) (xy 355.6 53.34)
 		)
 		(stroke
@@ -3628,28 +3608,6 @@
 		(uuid "0d9595ec-e898-400b-a6a1-4a8d569655f4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 247.65 170.18 180)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-	)
-	(global_label "+5V"
-		(shape bidirectional)
-		(at 177.8 83.82 180)
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify right)
-		)
-		(uuid "143c3fdc-0e12-54bd-a1a3-4b95e8deb05f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 177.8 83.82 180)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4090,28 +4048,6 @@
 		(uuid "6fe8ada5-55e3-446c-a6db-775bc31f293c")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 247.65 167.64 180)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-	)
-	(global_label "GND"
-		(shape bidirectional)
-		(at 177.8 81.28 180)
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify right)
-		)
-		(uuid "754cc991-8e7c-5007-b405-c0ee25f3f79d")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 177.8 81.28 180)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4646,107 +4582,6 @@
 			(effects
 				(font
 					(size 1 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector_Generic:Conn_01x02")
-		(at 187.96 81.28 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "11ac7497-61d7-50d0-86fd-387824567f82")
-		(property "Reference" "J1"
-			(at 187.96 74.01 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.1 1.1)
-				)
-			)
-		)
-		(property "Value" "5V SCREEN"
-			(at 187.96 77.01 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(property "Footprint" "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical"
-			(at 187.96 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 187.96 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(property "Description" "5 V out to the screen, along the CAN cable: 1 GND, 2 +5V"
-			(at 187.96 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(property "MPN" "B2B-XH-A(LF)(SN)"
-			(at 187.96 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(property "LCSC" "C158012"
-			(at 188.51 81.29 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1 1)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "055e56d2-ce8d-5b8e-ae17-c51bb62c31f2")
-		)
-		(pin "2"
-			(uuid "190bd49d-1133-5410-a53f-5968abe2d6a1")
-		)
-		(instances
-			(project "combined"
-				(path "/a3ee807d-f8aa-4db3-ad94-73a886b6ed37/a559a4b4-f0a6-43cb-a3de-d40c2438cf59"
-					(reference "J1")
-					(unit 1)
 				)
 			)
 		)

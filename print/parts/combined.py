@@ -4,7 +4,7 @@ from system import offset_in
 # Edge.Cuts of pcb/combined/combined.kicad_pcb, in KiCad millimetres (Y down).
 _BOARD_OUTLINE_KICAD = [
     (80.5, 47.0), (80.5, 98.8), (55.9, 98.8), (55.9, 134.6),
-    (106.0, 134.6), (106.0, 85.5), (180.7, 85.5), (180.7, 59.0),
+    (106.0, 134.6), (106.0, 82.0), (180.7, 82.0), (180.7, 59.0),
     (156.5, 59.0), (156.5, 47.0),
 ]
 

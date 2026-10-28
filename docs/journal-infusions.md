@@ -212,6 +212,44 @@ Git).
 | Pression | basse | Peu de marge attendue, mais une pression plus basse (≈ 8,5 bar) vaut un essai. Avant, 9 → 8 bar à débit égal avait donné de la rondeur, mais sur un grain avec 30 % de robusta ; sur le ViCafé, tous les bons cafés étaient à 9 bar. Les « 9 bar » d'avant venaient de la machine, ceux d'aujourd'hui du XDB401 (plateau à 8,87 bar). Essai à débit égal : baisser la pression ralentit le débit, ouvrir la mouture en même temps, sinon l'amertume du ralentissement se lit comme un effet de la pression |
 | Poids | basse | 22 g (ratio 2,75) est le point retenu pour 8 g. Avant : ratio 2,70 à 2,85 retenu, 24 g (ratio 3,00) amer à galette impeccable. Le filet blondit déjà à 22 g. Seul ajustement possible : jusqu'à ≈ 23 g si la mouture plus grosse laisse le filet encore crémeux à 22 g, une galette rapide s'épuisant plus tard. 23 g essayé du 11 au 13 octobre ; à 92 °C, filet fin et blond à la fin : retour à 22 g, impeccable le 13 octobre à 13 h 29 |
 
+### Repère : recette du torréfacteur pour le mélange ViCafé
+
+Recette donnée par le torréfacteur le 28 octobre, avec un nouveau sachet
+du « mélange de la maison ViCafé » : **18 g en panier de 58 mm, 40 g en
+tasse, 24 à 26 s depuis le démarrage de la pompe**. Machine La Marzocco
+professionnelle, pompe rotative, très probablement à 9 bar ; porte-filtre
+à bec. Première goutte à **5 s** sur le chronomètre de l'écran de la
+machine, relevée par David ; sous le panier, elle tombe un peu plus tôt.
+La tasse n'est pas pesée pendant l'infusion : l'arrêt est probablement
+volumétrique, réglé pour viser 40 g, et la mouture se règle sur la durée
+affichée à l'arrêt. Les 40 g sont donc un poids visé, pas mesuré ; une
+dose volumétrique de 40 ml d'eau admise ne donnerait que 10 à 15 g en
+tasse (28 à 36 ml admis avant la goutte avec 8 g dans le LM1). Prochaine
+visite : relever la durée affichée à l'arrêt.
+
+| Grandeur | ViCafé, 58 mm | Ramené au panier LM1 41 mm, 8 g | 28/10 10 h 09 (Cozy Chocolate) |
+| --- | ---: | ---: | ---: |
+| Ratio | 1:2,2 | 17,6 g en tasse | 1:2,9 (23,1 g) |
+| Durée depuis la goutte | 19 à 21 s | ≈ 16 s pour 17,6 g | 18,3 s depuis 8 bar (goutte à 8,98 bar) |
+| Débit moyen en tasse | **1,9 à 2,1 g/s** | **1,07 à 1,18 g/s** | 1,16 g/s |
+| Résistance à 9 bar | ≈ 4,5 bar·s/g | **≈ 8,0 bar·s/g** (7,6 à 8,4) | 7,4 bar·s/g |
+
+- Mise à l'échelle : à mouture égale, le débit suit la surface divisée par
+  l'épaisseur de la galette (dose divisée par la surface). Le panier de
+  41 mm a la moitié de la surface (1320 mm² contre 2642 mm²) et une
+  galette 11 % plus mince (6,1 contre 6,8 mg/mm²) : 0,56 fois le débit
+  du panier de 58 mm. Les diamètres sont nominaux ; le fond des paniers
+  n'est pas mesuré.
+- Le débit est la moyenne de la goutte à l'arrêt, montée comprise ; une
+  seconde d'écart sur la goutte le change de 5 %.
+- La galette du 28 octobre, avec le Cozy Chocolate, est déjà au débit
+  visé par le torréfacteur ; les galettes sans fond du ViCafé, de 6,6 à
+  7,2 bar·s/g les 16 et 17 octobre, étaient un peu plus rapides.
+- L'écart est dans le ratio : 1:2,2 chez le torréfacteur, 1:2,75 retenu
+  ici (voir la piste « Poids »). C'est un arrêt plus tôt au même débit
+  équivalent, dans le sens contraire de l'hypothèse du 20 octobre (à débit
+  faible, l'arrêt à 22 g ne garde que la partie acide de l'extraction).
+
 ## Chemin de recherche
 
 Le journal garde en entrées détaillées les infusions des **7 derniers

@@ -33,6 +33,7 @@ from nurb import (
     Plane,
     Polygon,
     Pos,
+    concave_edges,
     RegularPolygon,
     extrude,
     make_face,
@@ -226,7 +227,7 @@ INSERT_M2 = HeatInsert(
     diametre_percage=3.2,
     diametre_vis=2.2,
     epaisseur_paroi_min=1.2,
-    profondeur_min=3.5,
+    profondeur_min=3.6,  # user 2026-10-29: insertion length of the M2 inserts in stock
     encombrement=5.6,
 )
 
@@ -248,6 +249,24 @@ def add_heat_insert(body, outer, cx, cy, z0, height, insert_def, ring_factor=1.0
     else:
         body += ring
     return body - inner_void
+
+def add_heat_insert_against(body, outer, cx, cy, toward, z0, height, insert_def):
+    """`add_heat_insert` by a wall or in a corner, with the pad filled out to
+    `toward`, a point on the wall face or the corner: a round pad a hair off a
+    wall leaves a crevice too thin to print. Along a single wall the fill is
+    as wide as the pad."""
+    body = add_heat_insert(body, outer, cx, cy, z0, height, insert_def)
+    half = insert_def.encombrement / 2
+
+    def span(c, t):
+        lo, hi = sorted((c, t))
+        return (c - half, c + half) if hi - lo < half else (lo, hi)
+
+    (x0, x1), (y0, y1) = span(cx, toward[0]), span(cy, toward[1])
+    fill = Pos(x0, y0, z0) * Box(x1 - x0, y1 - y0, height, align=AMIN)
+    bore = Pos(cx, cy, z0) * Cylinder(insert_def.diametre_percage / 2, height, align=CMIN)
+    return body + (fill - bore)
+
 
 def add_wall(body, outer, x, y, dx, dy, z0, height):
     wall = Pos(x, y, z0) * Box(
@@ -325,6 +344,73 @@ def add_corbel(body, x, y, hauteur, insert=INSERT_M3, plane=Plane.XZ, reverse=Fa
         * Cylinder(corbel_r, corbel_profondeur + 0.1, align=CMIN)
     )
     return body
+
+CorbelSite = namedtuple("CorbelSite", "x y plane reverse insert hole")
+
+
+def corbel_site(side, face, start, insert=INSERT_M3):
+    """A lid corbel hanging from the inner face of one wall.
+
+    side: the wall it hangs from, "west", "east", "south" or "north".
+    face: X (west/east) or Y (south/north) of that wall's inner face.
+    start: low end of the corbel along the wall.
+    `hole` is (cx, cy, screw diameter, pad bbox), what `couvercle_corps` takes.
+    """
+    plat = insert.diametre_percage + insert.epaisseur_paroi_min
+    along = insert.diametre_percage + 2 * insert.epaisseur_paroi_min
+    if side in ("west", "east"):
+        reverse = side == "east"
+        pad = bbox(face - plat if reverse else face, start, plat, along)
+        plane, x, y = Plane.XZ, face, start
+    elif side in ("south", "north"):
+        reverse = side == "north"
+        pad = bbox(start, face - plat if reverse else face, along, plat)
+        plane, x, y = Plane.YZ, start, face
+    else:
+        raise ValueError(f"corbel side {side!r}: west, east, south or north")
+    c = pad.center()
+    return CorbelSite(x, y, plane, reverse, insert, (c.X, c.Y, insert.diametre_vis, pad))
+
+
+def add_corbel_site(body, site, hauteur):
+    return add_corbel(body, site.x, site.y, hauteur, insert=site.insert,
+                      plane=site.plane, reverse=site.reverse)
+
+
+def carte_rect(name, wall):
+    """A `combined_*` rectangle [x0, y0, x1, y1], from the board frame to the box frame."""
+    x0, y0, x1, y1 = measured(name)
+    return (x0 + wall, y0 + wall, x1 + wall, y1 + wall)
+
+
+# Side of each HT396V header where its HT396K plug's latch sticks out: the
+# side without the rounded contact tubes, from the 3D model and the footprint
+# rotation on combined.kicad_pcb (confirmed by David). J7 is turned 180° on
+# the board so its latch, like J8's, comes out through the south wall.
+VERROUS_HT396 = {"combined_j6": "west", "combined_j7": "south", "combined_j8": "south"}
+
+
+def carte_plug_rect(name, wall):
+    """Footprint of the HT396K plug on header `name`, box frame: the header
+    grown on its latch side by the plug's extra depth."""
+    x0, y0, x1, y1 = carte_rect(name, wall)
+    extra = measured("ht396k_profondeur") - measured("ht396v_profondeur")
+    side = VERROUS_HT396[name]
+    if side == "west":
+        x0 -= extra
+    elif side == "east":
+        x1 += extra
+    elif side == "south":
+        y0 -= extra
+    else:
+        y1 += extra
+    return (x0, y0, x1, y1)
+
+
+def carte_trous(wall):
+    """Centres of the board's M2 holes H1 to H6, in the box frame."""
+    return [(x + wall, y + wall) for x, y in measured("combined_trous")]
+
 
 def entretoise_m2(
     hauteur=3.0,
@@ -823,12 +909,14 @@ def back_face_layout(
     )
 
 
-def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openings=[], extra_v_rims=[]):
+def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openings=(), extra_rims=()):
     """Flat lid for a box outline: plate, inner rim, screw holes, mirrored in X.
 
     The rim sits `wall + jeu` inside `pts` and is cut `corbel_jeu` around each
-    corbel pad. The result is mirrored about the outline's X centre so that
-    flipping the lid about a north-south axis lands it on the box.
+    corbel pad. `openings` are (x0, y0, dx, dy) cut through plate and rim;
+    `extra_rims` are (x0, y0, x1, y1) ribs as deep as the rim. The result is
+    mirrored about the outline's X centre so that flipping the lid about a
+    north-south axis lands it on the box.
     """
     corbel_jeu = 1.3
     plate = extrude(Polygon(*pts, align=None), floor)
@@ -852,9 +940,9 @@ def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openin
         )
     for o_x0,o_y0,o_w,o_h in openings:
         body -= Pos(o_x0,o_y0,0)*Box(o_w,o_h,floor+rim_depth,align=AMIN)
-    for r_x0,r_y0,r_h in extra_v_rims:
-        body += Pos(r_x0,r_y0,floor)*Box(rim_width,r_h,rim_depth,align=AMIN)
-    
+    for x0, y0, x1, y1 in extra_rims:
+        body += Pos(x0, y0, floor) * Box(x1 - x0, y1 - y0, rim_depth, align=AMIN)
+
     xs = [x for x, _ in pts]
     mid_x = (min(xs) + max(xs)) / 2.0
     mirror_x = Plane(origin=(mid_x, 0.0, 0.0), x_dir=(0.0, 1.0, 0.0), z_dir=(1.0, 0.0, 0.0))
@@ -862,11 +950,15 @@ def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openin
 
 
 def polish_couvercle(body, wall, rim_depth):
-    """Chamfer the vertical edges of a lid, keeping those at the rim tip sharp for fit."""
+    """Chamfer the vertical edges of a lid, keeping those at the rim tip sharp
+    for fit, and the inside corners of openings, where a chamfer only fills."""
     bed = body.bounding_box().min.Z
 
     def keep(edge):
         bb = edge.bounding_box()
         return bb.min.Z <= bed + 0.05 or bb.min.Z >= wall + rim_depth - 0.05
 
-    return polish(body, body.edges().filter_by(Axis.Z).filter_by(keep), 0.6)
+    concave = concave_edges(body)
+    edges = [e for e in body.edges().filter_by(Axis.Z).filter_by(keep)
+             if not any(e.is_same(c) for c in concave)]
+    return polish(body, edges, 0.6)

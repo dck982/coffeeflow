@@ -764,111 +764,6 @@ value = 7.0
 unit = "mm"
 how = "user: M5Stack Unit SSR DC terminal block distance from edge"
 
-[boitier_int_x]
-value = 123.0
-unit = "mm"
-how = "user : la gouttière va jusqu'à 120 mm ; la pièce fait 12 cm de part en part. "
-
-[boitier_int_y]
-value = 95.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: bord haut du fond, cote externe."
-
-[boitier_int_aile_x]
-value = 50.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: paroi verticale du L, à gauche de l'aile droite."
-
-[boitier_int_aile_y]
-value = 60.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: bord bas de l'aile droite."
-
-[boitier_int_chanfrein]
-value = 15.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: un chanfrein en bas à gauche"
-
-[boitier_int_marche_x]
-value = 10.5
-unit = "mm"
-how = "user drawing docs/boitier.pdf: paroi verticale de la marche haute-gauche."
-
-[boitier_int_marche_y]
-value = 49.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: palier de la marche haute-gauche."
-
-[boitier_int_encoche_fond]
-value = 85.0
-unit = "mm"
-how = "user drawing docs/boitier.pdf: fond de l'encoche du bord haut."
-
-[boitier_int_puit_droit]
-value = 15.0
-unit = "mm"
-how = "user 2026-08-31: le puits d'aimant de l'aile droite est à 15 mm du bord droit (x = boitier_int_x − 15). Record only : l'aile a été remplacée par la gouttière."
-
-[boitier_int_screw_x]
-value = 88.0
-unit = "mm"
-how = "user 2026-08-31: paroi ouest de l'encoche vis sur le bord nord (x = 85). Was the start of the east gutter."
-
-[boitier_int_screw_dy]
-value = 10.0
-unit = "mm"
-how = "user 2026-08-31: largeur interne de l'encoche en Y."
-
-[boitier_int_screw_dx]
-value = 10.0
-unit = "mm"
-how = "user 2026-08-31: largeur interne de l'encoche en X."
-
-[boitier_int_screw_dz]
-value = 15.0
-unit = "mm"
-how = "user 2026-08-31: largeur interne de l'encoche en Z."
-
-[pcb_sensors_space_y]
-value = 6.5
-unit = "mm"
-how = "user 2026-10-21: espace au sud du PCB"
-
-[pcb_sensors_space_z]
-value = 5.0
-unit = "mm"
-how = "user 2026-10-21: espace sous le PCB"
-
-[pcb_sensors_depth]
-value = 1.7
-unit = "mm"
-how = "user 2026-10-21: PCB board depth with 0.1mm margin"
-
-[pcb_sensors_dx]
-value = 25.0
-unit = "mm"
-how = "user 2026-10-21: largeur du PCB sensors"
-
-[pcb_sensors_dy]
-value = 61.0
-unit = "mm"
-how = "user 2026-10-21: longueur du PCB sensors"
-
-[pcb_sensors_dz]
-value = 21.0
-unit = "mm"
-how = "user 2026-10-21: hauteur du PCB sensors, avec XIAO"
-
-[pcb_sensors_hole_cx]
-value = 12.5
-unit = "mm"
-how = "user 2025-10-21: cx du trou M2.5"
-
-[pcb_sensors_hole_cy]
-value = 2.90
-unit = "mm"
-how = "user 2025-10-21: cy du trou M2.5"
-
 [boitier_ac_puit_depuis_cote]
 value = 10.0
 unit = "mm"
@@ -888,36 +783,6 @@ how = "user 2026-09-03: module width in Y, sits on the 18 mm platform (appui_y).
 value = 11.0
 unit = "mm"
 how = "Record only since 2026-09-03: was the Y nest (DC north +11 mm, AC south-west raised over x = 12–50). Split is now a straight wall at x = 50; DC runs to y = 95."
-
-[boitier_int_puit_bas_x]
-value = 15.0
-unit = "mm"
-how = "user 2026-08-31: puits unique en bas à gauche, 15 mm du bord gauche (x)."
-
-[boitier_int_puit_bas_y]
-value = 25.0
-unit = "mm"
-how = "user 2026-08-31: puits unique en bas à gauche, 25 mm du bord bas (y)."
-
-[magnet_spacer_pin_d]
-value = 2.8
-unit = "mm"
-how = "user: magnet spacer, diamètre des pins de connexion boitier - spacer"
-
-[magnet_spacer_pin_jeu]
-value = 0.6
-unit = "mm"
-how = "user: magnet spacer, jeu à ajouter pour le trou"
-
-[magnet_spacer_ac_deborde_sud]
-value = 5.0
-unit = "mm"
-how = "user 2026-09-13: débord du spacer au sud de boitier_ac"
-
-[magnet_spacer_ac_dans_boitier]
-value = 9.0
-unit = "mm"
-how = "user 2026-09-13: recouvrement du spacer sous le sud de boitier_ac"
 
 # --- Boîtier AC (bac rectangle, retiré 2026-09-02) ---
 # Record only: the rectangle tray was replaced by the upper half of the
@@ -1384,3 +1249,149 @@ how = "Utilisateur 2026-09-14 : descente approximative du connecteur sous la pla
 value = 3.0
 unit = "mm"
 how = "Utilisateur: largeur taquets anti-rotation"
+
+# --- Carte combined (pcb/combined/combined.kicad_pcb) et ses boîtiers ---
+# Repère carte : coin sud-ouest du PCB à l'origine, Y vers le nord (le Y de
+# KiCad inversé), comme parts/combined.py. Les boîtiers posent la carte à
+# (epaisseur_paroi, epaisseur_paroi) : le coin sud-ouest de boitier_dc est 0;0.
+# Les rectangles sont [x0, y0, x1, y1] dans le repère carte.
+
+[combined_largeur]
+value = 124.8
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : X 55.9 à 180.7. Bord est de la carte."
+
+[combined_ouest_y]
+value = 35.8
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : nord de l'extension ouest 24 V (KiCad Y 98.8)."
+
+[combined_dc_largeur]
+value = 50.1
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bord est de la partie basse (KiCad X 106.0)."
+
+[combined_ac_x]
+value = 24.6
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bord ouest de la bande haute et du col DC (KiCad X 80.5)."
+
+[combined_ac_y]
+value = 52.6
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bord sud de la bande haute (KiCad Y 82.0)."
+
+[combined_ac_profondeur]
+value = 35.0
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bande haute de KiCad Y 47.0 à 82.0, la longueur de la plaque métal."
+
+[combined_encoche_x]
+value = 100.6
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bord ouest de l'encoche nord-est (KiCad X 156.5). Le mur ouest du logement de vis s'y plaque (user 2026-10-29)."
+
+[combined_encoche_y]
+value = 75.6
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts : bord sud de l'encoche nord-est (KiCad Y 59.0)."
+
+[combined_epaisseur]
+value = 1.6
+unit = "mm"
+how = "combined.kicad_pcb stackup : 1.6 mm."
+
+[combined_hauteur_xiao]
+value = 15.0
+unit = "mm"
+how = "parts/combined.py : haut du XIAO au-dessus du dessous du PCB (1.6 PCB + 5 socle + 8.5 XIAO). Fixe la hauteur des murs."
+
+[combined_dessous_pcb]
+value = 4.0
+unit = "mm"
+how = "user 2026-10-29 : dessous du PCB à 4 mm au-dessus du fond de boitier_ac ; les inserts M2 demandent 3.6 mm (était 5 mm)."
+
+[combined_trous]
+value = [[35.1, 2.5], [98.1, 85.1], [27.1, 85.1], [2.5, 2.4], [2.5, 33.2], [65.0, 55.1]]
+unit = "mm"
+how = "combined.kicad_pcb : centres de H1 à H6 (M2), dans cet ordre. H2, H3, H6 dans boitier_ac ; H1, H4, H5 dans boitier_dc."
+
+[combined_j2]
+value = [114.65, 54.04, 124.75, 61.96]
+unit = "mm"
+how = "parts/combined.py : HT396R J2 (secteur), modèle 3D placé. Face avant au bord est, fiche par l'est : ouverture dans le mur est."
+
+[combined_j3]
+value = [114.65, 66.38, 124.75, 74.30]
+unit = "mm"
+how = "parts/combined.py : HT396R J3 (vanne), modèle 3D placé. Face avant au bord est, fiche par l'est : ouverture dans le mur est."
+
+[combined_j1]
+value = [16.55, 0.60, 28.95, 6.35]
+unit = "mm"
+how = "parts/combined.py : XH 4 J1 (24 V, CAN), vertical, au bord sud."
+
+[combined_j6]
+value = [25.30, 20.56, 32.70, 32.44]
+unit = "mm"
+how = "parts/combined.py : HT396V 3 J6 (débitmètre), vertical, au milieu de la carte : trou isolé dans le couvercle."
+
+[combined_j7]
+value = [6.46, 0.30, 14.38, 7.70]
+unit = "mm"
+how = "parts/combined.py : HT396V 2 J7 (entrée 24 V), vertical, au bord sud. Tourné de 180° (pins inversées) le 2026-10-29 : verrou au sud."
+
+[combined_j8]
+value = [41.46, 0.30, 49.38, 7.70]
+unit = "mm"
+how = "parts/combined.py : HT396V 2 J8 (SSR chaudière), vertical, coin sud-est de la partie basse."
+
+[combined_j9]
+value = [36.65, 18.05, 49.05, 23.80]
+unit = "mm"
+how = "parts/combined.py : XH 4 J9 (pompe), vertical, au bord est de la partie basse."
+
+[combined_j10]
+value = [39.15, 10.10, 49.05, 15.85]
+unit = "mm"
+how = "parts/combined.py : XH 3 J10 (pression), vertical, au bord est de la partie basse."
+
+[plaque_machine_epaisseur]
+value = 4.0
+unit = "mm"
+how = "user 2026-10-29 : plaque métal sous boitier_ac, 35 mm en Y sur toute la largeur. boitier_dc est 4 mm plus bas, posé sur la face de la machine."
+
+[logement_vis_cote]
+value = 10.0
+unit = "mm"
+how = "user 2026-10-29 : logement isolé 10 × 10 (intérieur, X et Y) autour de la vis de la plaque, dans l'encoche nord-est du PCB."
+
+[logement_vis_hauteur]
+value = 15.0
+unit = "mm"
+how = "user 2026-08-31 : hauteur libre au-dessus de la vis (ancien boitier_int_screw_dz)."
+
+[ht396v_hauteur]
+value = 10.1
+unit = "mm"
+how = "docs/jlcpcb/C577788.pdf (Kefa HT396V) : embase verticale, 10.10 au-dessus du PCB."
+
+[ht396v_profondeur]
+value = 7.4
+unit = "mm"
+how = "docs/jlcpcb/C577788.pdf (Kefa HT396V) : profondeur de l'embase, 7.40."
+
+[ht396k_hauteur]
+value = 15.8
+unit = "mm"
+how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : hauteur hors-tout du plug, 15.80."
+
+[ht396k_insertion]
+value = 7.8
+unit = "mm"
+how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : partie du plug qui entre dans l'embase, 7.80 ; 8 mm restent au-dessus de l'embase."
+
+[ht396k_profondeur]
+value = 10.0
+unit = "mm"
+how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : profondeur du plug, 10.00. Les 2.6 mm de plus que l'embase sont tous côté verrou : mesuré par David sur un HT396 4P, 2026-10-29."

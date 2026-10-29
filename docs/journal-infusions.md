@@ -36,7 +36,9 @@ sauvegardée (valeurs lues dans la capture) : `brew.pump_pct` et
 Depuis 13 h 49, mouture espresso ; ensuite 88 °C et 8 s de précharge.
 Le 28 octobre à 10 h 09, retour au profil « single espresso » (valeurs
 lues dans la capture, celles du tableau ci-dessous) avec le
-**porte-filtre à bec**.
+**porte-filtre à bec**. Le 29 octobre à 14 h 07, retour au ViCafé avec le
+**porte-filtre sans fond** ; depuis 14 h 21, mouture ouverte et consigne
+de 90 °C, sans configuration sauvegardée (valeurs lues dans la capture).
 
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
@@ -44,7 +46,7 @@ lues dans la capture, celles du tableau ci-dessous) avec le
 | Offset NTC | **−14 °C** (écran 0.4.4), mesuré au panier avec la SCACE ; −10,5 °C avant. Consigne bornée à 95 °C, coupure à 100 °C utilisateur (114 °C sonde) | 10 octobre |
 | Sonde de pression | XDB401 lu sur J10 de la carte sensors avec la calibration de A2, loi de chauffe inchangée | 23 octobre (A2 de l'écran depuis le 7 octobre) |
 | Précharge | 8 s à 90 % | 4 octobre |
-| Consigne | **91 °C** | 24 octobre, 10 h 22 (92 °C du 13 octobre, 8 h 18 ; 90 °C avant) |
+| Consigne | **90 °C** | 29 octobre, 14 h 21 (91 °C du 24 octobre, 10 h 22 ; 92 °C du 13 octobre, 8 h 18 ; 90 °C avant) |
 | Remplissage | pompe à **70 %**, fin à 0,8 bar (10 s au plus) | 24 octobre, 10 h 22 (75 % du 5 octobre, 7 h 59) |
 | Pré-infusion | pompe à 50 %, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
 | Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, sans ramp-down | 13 octobre, 13 h 29 (23 g du 11 octobre, 13 h 40 au 13 octobre, 8 h 18) |
@@ -186,13 +188,16 @@ retirer 3,5 °C aux premières pour les comparer. Les infusions avant le
 | **28/10 10 h 09**, single espresso, **porte-filtre à bec**, 1re goutte à 8,98 bar | **5,42 s, 17,1 ml**, 0,81 bar | 4,11 s, 5,8 ml, échéance | **33,0 ml** | 3,4 s | 18,3 s, 1,16 g/s, 1,38 ml/s | 23,1 g | 92,04 °C |
 | **28/10 13 h 47**, single espresso, bec, **fin du sachet**, 1re goutte à 2,65 bar | **10,01 s, 26,7 ml**, 0,83 bar, **2,69 ml/s** | 4,03 s, 5,2 ml, échéance | 36,5 ml | 3,9 s | **11,3 s, 1,57 g/s**, 1,52 ml/s | 23,8 g | **90,12 °C** |
 | **29/10 9 h 19**, single espresso, bec, **dernière dose du Cozy Chocolate**, longue chauffe du porte-filtre | 7,29 s, 22,9 ml, 0,85 bar, 3,14 ml/s | **sautée** (balance de −0,1 à 0,0 g pendant le remplissage) | 34,8 ml | 4,4 s | 14,5 s, 1,40 g/s, 1,28 ml/s | 23,2 g | 90,58 °C |
+| **29/10 14 h 07**, single espresso, **ViCafé**, **sans fond**, mouture trop fine, pic à 9,46 bar | 7,23 s, 22,6 ml, 0,85 bar, 3,13 ml/s | 4,10 s, 5,8 ml, échéance | 35,9 ml | 3,3 s | **20,1 s, 1,03 g/s**, 1,24 ml/s | 22,6 g | 90,50 °C |
+| **29/10 14 h 21**, ViCafé, sans fond, **mouture ouverte**, **consigne 90 °C** | 6,74 s, 21,2 ml, 0,93 bar, 3,14 ml/s | 4,09 s, 5,2 ml, échéance | 31,6 ml | 3,6 s | 14,4 s, 1,34 g/s, 1,35 ml/s | 23,1 g | **91,30 °C** |
 
 ## Pistes pour le goût
 
 Recette : grain ViCafé (100 % arabica), 8,0 g en panier, jusqu'au
 20 octobre ; depuis le 23 octobre, « Cozy Chocolate » de Coffee Coaching
 Club (100 % arabica du Brésil, nature, torréfié le 8 octobre), 8,0 g,
-jusqu'au 29 octobre ; ensuite retour au ViCafé (sachet du 28 octobre). Routine de
+jusqu'au 29 octobre au matin ; depuis le 29 octobre à 14 h 07, retour au
+ViCafé (sachet du 28 octobre), 8,0 g, porte-filtre sans fond. Routine de
 David avant chaque infusion : purge de 5 à 6 s sans porte-filtre dans la
 tasse (rinçage du circuit, tasse chauffée), puis aussitôt une seconde
 purge de 5 à 6 s avec le porte-filtre, dans la même tasse ; attente que
@@ -2789,3 +2794,240 @@ hydrauliques reprennent la recette du torréfacteur ramenée au panier LM1
 | Remplissage | 3,1 à 3,3 ml/s à 70 % ; 17 à 27 ml selon la pression du circuit au départ (0,51 à 0,25 bar) |
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage, d'autant moins qu'il est long ; modèle entre −1,1 et −0,3 °C |
 | Tasse | 90,0 à 92,4 °C, selon le volume du remplissage |
+
+### 29 octobre, 14 h 07 — `261029-140951`
+
+**Contexte.** Single espresso, réglages de 9 h 19 inchangés (lus dans la
+capture) : consigne de 91 °C, cible 22 g. **Retour au ViCafé** (sachet du
+28 octobre), **porte-filtre sans fond**, 8,0 g. Écran et carte sensors
+0.4.24. Observation de David : **mouture trop fine**.
+
+**Routine** : guide ouvert à 90,9 °C ; rinçage 75,6 s après l'ouverture,
+de 5,04 s, 18,6 ml, 27,3 g, pression maximale 0,35 bar. Retour à la
+consigne compté 0,0 s (minimum 84,3 °C pendant l'attente, résistance
+active 33,8 s). **561 s sur le groupe** après le rinçage ; préparation de
+90,4 s. Balance absente 16,4 s pendant la routine, avant l'infusion ; les
+poids de l'infusion sont continus.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,02 s | — | 0,26 → 0,34 bar |
+| Remplissage | 8,02 s | 7,23 s, pression | 22,6 ml (3,13 ml/s) | 0,34 → 0,85 bar |
+| Pré-infusion | 15,26 s | 4,10 s, échéance | 5,8 ml | 0,85 → 1,44 bar |
+| Infusion | 19,36 s | 23,32 s | 33,0 ml | **9,46 bar max** |
+
+- Remplissage : 0,8 bar franchi à 15,08 s (22,0 ml), fin sur la
+  pression. Le débitmètre compte 3,0 à 3,3 ml/s, stable à 3,2–3,26. Le
+  circuit part de 0,26 bar.
+- Pré-infusion finie à l'échéance de 4 s : la balance reste à 0,0 g du
+  remplissage à la fin de la pré-infusion.
+- **Première goutte (0,6 g) à 22,35 s, à 6,95 bar**, 35,9 ml, 2,99 s
+  après le début de l'infusion. Marge de remplissage : 13,3 ml.
+- Montée de 3,3 s jusqu'à 8 bar, pompe de 50 à 100 %, 0,6 g en tasse à
+  8 bar. **Pic à 9,46 bar** à 23,08 s, 0,5 s après 8 bar, pompe à 100 %
+  (8,98 bar au plus à 9 h 19).
+- Depuis 8 bar : **20,1 s**, **1,03 g/s** en tasse, 1,24 ml/s en amont
+  (14,5 s, 1,40 g/s à 9 h 19). Arrêt **au poids** à 21,6 g (21,2 g à
+  l'échantillon d'avant ; seuil de 21,5 g, cible moins 0,5 g), 22,6 g
+  final, 1,0 g de gouttes. Pompe en marche 34,7 s depuis le remplissage :
+  avec la balance, le firmware n'applique pas l'échéance de 27 s.
+- Plateau (de 8 bar + 2 s à l'arrêt) : 9,01 ± 0,07 bar, pompe à 66–70 %,
+  1,04 g/s, soit **8,7 bar·s/g** (6,0 à 9 h 19). Rapport tasse / amont :
+  0,84 g/ml.
+
+**Thermique.**
+
+| Repère | 29/10 14 h 07 | 29/10 9 h 19 |
+| --- | ---: | ---: |
+| NTC au départ | 91,10 °C | 91,07 °C |
+| Volume du remplissage | 22,6 ml | 22,9 ml |
+| NTC pendant le remplissage | **+0,38 °C** | +1,06 °C |
+| NTC pendant la pré-infusion | **−1,78 °C** (5,8 ml) | sautée |
+| Pic avant l'infusion | 92,32 °C à 12,1 s | 92,70 °C à 12,9 s |
+| NTC au début de l'infusion | **89,85 °C** | 92,52 °C |
+| Commande à 0 % (remboursement) | 18,1 s | 14,4 s |
+| Appoint repris avant l'arrêt | 5,2 s | 4,4 s |
+| NTC à l'arrêt | 88,73 °C | 89,30 °C |
+| **Tasse** | **90,50 °C**, −0,50 °C | 90,58 °C, −0,42 °C |
+| Minimum | 87,18 °C, 5,7 s après l'arrêt ; 87,57 °C en fin de capture (10 s) | 87,65 °C |
+
+- Énergie, commande / SSR : précharge 8,10 / 8,01 kJ, remplissage 7,20 /
+  6,84 kJ, pré-infusion 2,45 / 2,52 kJ, infusion 2,27 / 2,26 kJ.
+- Remplissage : commande de 76 à 90 %.
+- Moyenne en volume amont : 90,98 °C.
+- Trois lectures NTC invalides : 208 ms au premier échantillon de la
+  précharge ; 221 et 281 ms à 19,46 et 19,52 s, au début de l'infusion,
+  commande déjà à 0 %. Aucune ne change la commande.
+- Modèle : 92,49 °C avec la commande réelle, **−1,96 °C** (mesure du
+  simulateur : 90,53 °C), sans correction des volumes. L'écart se forme
+  pendant la pré-infusion : la NTC suit le modèle à 0,1 °C près jusqu'à
+  la fin du remplissage, puis est 0,93 °C dessous au début de
+  l'infusion, et 3,04 °C dessous à l'arrêt.
+
+**Attendus vérifiés** (entrée de 9 h 19).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 5,0 à 8,5 bar·s/g ; 10 à 20 s depuis 8 bar ; plateau sous 9,2 bar | 8,7 bar·s/g, 20,1 s, pic à 9,46 bar : **non atteint**, juste au-delà sur les trois |
+| Première goutte | sous 4 bar si la galette est sous 7 bar·s/g | galette à 8,7 bar·s/g : goutte à 6,95 bar, hors du cas prévu |
+| Pré-infusion | finie à l'échéance de 4 s si la balance ne bouge pas pendant le remplissage | 4,10 s, balance à 0,0 g : atteint |
+| Remplissage | 3,1 à 3,3 ml/s ; 17 à 27 ml | 3,13 ml/s, 22,6 ml : atteint |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle entre −1,1 et −0,3 °C | +0,38 °C : atteint ; modèle à −1,96 °C : **non atteint** |
+| Tasse | 90,0 à 92,4 °C | 90,50 °C : atteint |
+
+**Lecture.**
+
+- *Galette trop fine, mesuré.* 8,7 bar·s/g, au-delà de la recette du
+  torréfacteur ramenée au panier LM1 (≈ 8,0 bar·s/g) et des galettes
+  ViCafé des 16 et 17 octobre (6,6 à 7,2 bar·s/g). Le pic à 9,46 bar
+  vient de la montée : la pompe arrive à 100 % quand la pression passe
+  8 bar ; sur une galette plus résistante, le régulateur ne la ramène
+  pas avant le dépassement (estimé, une seule infusion).
+- *Écart du modèle, non expliqué.* Remplissage au même débit compté que
+  9 h 19 (3,13 contre 3,14 ml/s), même commande, volume voisin, mais la
+  NTC n'y gagne que +0,38 °C, puis perd 1,78 °C sur 5,8 ml de
+  pré-infusion. Le rapport tasse / amont du plateau, 0,84 g/ml, est celui
+  des plateaux habituels ([debitmetres.md](debitmetres.md#en-service--un-k-par-régime)) :
+  le comptage pendant l'infusion n'explique pas l'écart, qui est déjà là
+  au début de l'infusion. Comme le 28/10 à 13 h 47 (−2,77 °C, +0,13 °C au
+  remplissage), la chaudière se comporte comme si elle recevait plus
+  d'eau froide que le compte ; rien ne dit pourquoi cette fois-ci.
+- *Goût, non mesuré.* Mouture trop fine selon David.
+
+**Décision** (David). Mouture ouverte et consigne à **90 °C** pour
+l'infusion suivante, prise 14 minutes plus tard ; pas d'attendus fixés
+entre les deux, elle se lit contre ceux de 9 h 19.
+
+### 29 octobre, 14 h 21 — `261029-142259`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, 8,0 g,
+cible 22 g. Deux réglages changés depuis 14 h 07 : **mouture ouverte**
+et **consigne de 90 °C** (lue dans la capture, sans configuration
+sauvegardée). Observation de David : **très bien**.
+
+**Routine** : guide ouvert à 89,4 °C ; rinçage 50,7 s après l'ouverture,
+de 5,05 s, 17,4 ml, 25,1 g, pression maximale 0,23 bar. Retour à la
+consigne compté 0,0 s (minimum 84,3 °C pendant l'attente, résistance
+active 25,4 s). **528 s sur le groupe** après le rinçage ; préparation de
+78,5 s. Balance présente toute la routine. Autre tasse (114,6 g contre
+124,9 g).
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,10 s | — | 0,29 → 0,39 bar |
+| Remplissage | 8,10 s | 6,74 s, pression | 21,2 ml (3,14 ml/s) | 0,39 → 0,93 bar |
+| Pré-infusion | 14,84 s | 4,09 s, échéance | 5,2 ml | 0,93 → 1,37 bar |
+| Infusion | 18,93 s | 17,91 s | 29,3 ml | 9,10 bar max |
+
+- Remplissage : 0,8 bar franchi à 14,61 s (20,3 ml), fin sur la
+  pression. Le débitmètre compte 2,85 à 3,23 ml/s, stable à 3,2. Le
+  circuit part de 0,29 bar.
+- Pré-infusion finie à l'échéance de 4 s, balance à 0,0 g.
+- **Première goutte (0,4 g) à 21,06 s, à 3,18 bar**, 31,6 ml, 2,13 s
+  après le début de l'infusion (6,95 bar à 14 h 07). Marge de
+  remplissage : 10,4 ml.
+- Montée de 3,6 s jusqu'à 8 bar, pompe de 50 à 90 %, **2,1 g en tasse à
+  8 bar** (0,6 g à 14 h 07). 9,10 bar au plus, 1,2 s après 8 bar.
+- Depuis 8 bar : **14,4 s**, **1,34 g/s** en tasse, 1,35 ml/s en amont
+  (20,1 s, 1,03 g/s à 14 h 07). 21,4 g au passage en purge, 21,8 g à
+  l'arrêt de la pompe, 23,1 g final, **1,4 g de gouttes**. Pompe en
+  marche 28,9 s.
+- Plateau (de 8 bar + 2 s à l'arrêt) : 8,90 ± 0,04 bar, pompe à 66–71 %,
+  1,41 g/s, soit **6,3 bar·s/g** (8,7 à 14 h 07). Rapport tasse / amont :
+  1,01 g/ml.
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 20 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 29/10 14 h 21 (sans fond, mouture ouverte) | 3,1 s | 6,2 s | 9,9 s | 16,8 s |
+  | 29/10 14 h 07 (sans fond, trop fine) | 3,7 s | 8,0 s | 12,8 s | 22,1 s |
+  | 29/10 9 h 19 (bec, sans pré-infusion) | 4,5 s | 7,8 s | 11,0 s | 17,9 s |
+
+**Thermique.**
+
+| Repère | 29/10 14 h 21 | 29/10 14 h 07 |
+| --- | ---: | ---: |
+| Consigne | **90 °C** | 91 °C |
+| NTC au départ | 89,99 °C | 91,10 °C |
+| Volume du remplissage | 21,2 ml | 22,6 ml |
+| NTC pendant le remplissage | **+2,02 °C** | +0,38 °C |
+| NTC pendant la pré-infusion | −0,92 °C (5,2 ml) | −1,78 °C (5,8 ml) |
+| Pic avant l'infusion | 92,16 °C à 13,9 s | 92,32 °C à 12,1 s |
+| NTC au début de l'infusion | 91,13 °C | 89,85 °C |
+| Commande à 0 % (remboursement) | 17,7 s | 18,1 s |
+| Appoint repris avant l'arrêt | 0,3 s | 5,2 s |
+| NTC à l'arrêt | 89,57 °C | 88,73 °C |
+| **Tasse** | **91,30 °C**, **+1,30 °C** | 90,50 °C, −0,50 °C |
+| Minimum | 87,28 °C, 6,1 s après l'arrêt ; 87,38 °C en fin de capture (10 s) | 87,18 °C |
+
+- Énergie, commande / SSR : précharge 8,59 / 8,58 kJ, remplissage 6,66 /
+  6,71 kJ, pré-infusion 2,41 / 2,12 kJ, infusion 0,11 / 0,35 kJ.
+- Remplissage : commande de 73 à 90 %.
+- Moyenne en volume amont : 91,38 °C.
+- Deux lectures NTC invalides : 200 ms à 19,28 s, au début de
+  l'infusion, commande déjà à 0 % ; 201 ms à 37,04 s, après l'arrêt.
+- Modèle : 91,81 °C avec la commande réelle, **−0,49 °C** (mesure du
+  simulateur : 91,32 °C), sans correction des volumes. Au début de
+  l'infusion, la NTC est 0,93 °C au-dessus du modèle (0,85 °C à 9 h 19,
+  0,93 °C dessous à 14 h 07).
+
+**Attendus vérifiés** (entrée de 9 h 19 ; la consigne est passée à 90 °C).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Hydraulique | 5,0 à 8,5 bar·s/g ; 10 à 20 s depuis 8 bar ; plateau sous 9,2 bar | 6,3 bar·s/g, 14,4 s, 9,10 bar : atteint |
+| Première goutte | sous 4 bar si la galette est sous 7 bar·s/g | 3,18 bar à 6,3 bar·s/g : atteint |
+| Pré-infusion | finie à l'échéance de 4 s si la balance ne bouge pas | 4,09 s : atteint |
+| Remplissage | 3,1 à 3,3 ml/s ; 17 à 27 ml | 3,14 ml/s, 21,2 ml : atteint |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle entre −1,1 et −0,3 °C | +2,02 °C, −0,49 °C : atteint |
+| Tasse | 90,0 à 92,4 °C (consigne de 91 °C) | 91,30 °C à 90 °C de consigne : dans la fourchette, +1,30 °C sur la consigne |
+
+**Lecture.**
+
+- *Mouture, mesuré.* La galette passe de 8,7 à 6,3 bar·s/g (−28 %), au
+  bas des galettes ViCafé des 16 et 17 octobre (6,6 à 7,2 bar·s/g). La
+  goutte tombe à 3,18 bar au lieu de 6,95 bar, et 22 g arrivent en
+  14,4 s depuis 8 bar au lieu de 20,1 s. La consigne n'y joue presque
+  pas : 1 °C change la viscosité de l'eau d'environ 2 %.
+- *Consigne, mesuré.* Un degré de moins à la consigne, mais **+0,80 °C**
+  en NTC tasse (91,30 contre 90,50 °C). Deux écarts vont dans ce sens :
+  la NTC gagne +2,02 °C au remplissage au lieu de +0,38 °C, et
+  l'infusion, plus courte de 5,7 s, laisse moins d'eau froide entrer
+  avant l'arrêt (89,57 contre 88,73 °C à l'arrêt). Au critère de la NTC,
+  l'eau de 14 h 21 n'était donc pas plus froide que celle de 14 h 07 ; le
+  gain de goût revient à la mouture (estimé), et rien ne mesure ce
+  qu'aurait donné 91 °C avec cette mouture.
+- *Remplissage et tasse, mesuré sur cinq infusions.* +2,30 °C à 17,1 ml,
+  +2,02 °C à 21,2 ml, +1,06 °C à 22,9 ml, +0,38 °C à 22,6 ml, +0,13 °C
+  à 26,7 ml. La pente est raide autour de 22 ml, et 14 h 07 tombe sous
+  9 h 19 pour un volume voisin : le volume ne suffit pas à prédire la
+  NTC du remplissage.
+- *Goût, non mesuré.* Très bien, à 1,34 g/s, 6,3 bar·s/g et 91,30 °C en
+  tasse, porte-filtre sans fond.
+
+**Décision** (David). Réglages de 14 h 21 retenus : ViCafé, mouture de
+14 h 21, 8,0 g, consigne de 90 °C, cible 22 g. Ensuite, un essai à
+**7,5 g** (ou 7,8 g), pour approcher le nominal du panier « LM1 7 g ».
+7,5 g dans le LM1 de 41 mm et 15 g dans le panier de 58 mm donnent la
+même charge par surface (5,7 mg/mm², diamètres nominaux) : même
+épaisseur de galette, donc la même mouture pour les deux paniers ; 7,8 g
+correspondraient à 15,6 g, 8,0 g à 16,0 g.
+
+Estimation pour l'essai à 7,5 g, mouture inchangée : la résistance suit
+l'épaisseur, 6,3 × 7,5 / 8,0 ≈ **5,9 bar·s/g** (6,1 à 7,8 g). La cible
+n'est pas fixée : 22 g font un ratio de 2,93 (au-delà des 2,70 à 2,85
+retenus, voir la piste « Poids ») ; le ratio de 2,75 donne 20,6 g à
+7,5 g, 21,5 g à 7,8 g.
+
+| Point | Attendu (8,0 g, réglages de 14 h 21) |
+| --- | --- |
+| Hydraulique | 5,5 à 7,0 bar·s/g ; 12 à 17 s depuis 8 bar ; plateau sous 9,2 bar |
+| Première goutte | sous 4 bar, sans fond |
+| Pré-infusion | finie à l'échéance de 4 s si la balance ne bouge pas pendant le remplissage |
+| Remplissage | 3,1 à 3,3 ml/s à 70 % ; 17 à 27 ml selon la pression du circuit au départ |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle entre −1,1 et −0,3 °C, sinon relever l'écart au début de l'infusion |
+| Tasse | 89,0 à 91,4 °C à 90 °C de consigne (−0,9 à +1,3 °C sur la consigne, comme du 28/10 au 29/10) |

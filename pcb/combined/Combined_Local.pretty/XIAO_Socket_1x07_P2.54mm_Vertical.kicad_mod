@@ -2,7 +2,7 @@
 	(version 20260206)
 	(generator "kicad-footprint-generator")
 	(layer "F.Cu")
-	(descr "XIAO socket: KiCad PinSocket_1x07_P2.54mm_Vertical without its silkscreen outline (the XIAO outline is drawn on the board) and with a courtyard 0.25 mm around the 2.54 mm body. Through hole straight socket strip, 1x07, 2.54mm pitch, single row (from Kicad 4.0.7), script generated")
+	(descr "XIAO socket, Hong Cheng HC-PM254-5.0H-1x7PZ (5.0 mm high): KiCad PinSocket_1x07_P2.54mm_Vertical pads with the maker's 1.02 mm holes, without silkscreen outline (the XIAO outline is drawn on the board), 18.18 x 2.4 mm body and a courtyard 0.25 mm around it. Through hole straight socket strip, 1x07, 2.54mm pitch, single row (from Kicad 4.0.7), script generated")
 	(tags "Through hole socket strip THT 1x07 2.54mm single row")
 	(property "Reference" "REF**"
 		(at 0 -2.77 0)
@@ -38,8 +38,8 @@
 	(attr through_hole)
 	(duplicate_pad_numbers_are_jumpers no)
 	(fp_line
-		(start -1.27 -1.27)
-		(end 0.635 -1.27)
+		(start -1.2 -1.47)
+		(end 0.6 -1.47)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -47,8 +47,8 @@
 		(layer "F.Fab")
 	)
 	(fp_line
-		(start -1.27 16.51)
-		(end -1.27 -1.27)
+		(start -1.2 16.71)
+		(end -1.2 -1.47)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -56,8 +56,8 @@
 		(layer "F.Fab")
 	)
 	(fp_line
-		(start 0.635 -1.27)
-		(end 1.27 -0.635)
+		(start 0.6 -1.47)
+		(end 1.2 -0.87)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -65,8 +65,8 @@
 		(layer "F.Fab")
 	)
 	(fp_line
-		(start 1.27 -0.635)
-		(end 1.27 16.51)
+		(start 1.2 -0.87)
+		(end 1.2 16.71)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -74,8 +74,8 @@
 		(layer "F.Fab")
 	)
 	(fp_line
-		(start 1.27 16.51)
-		(end -1.27 16.51)
+		(start 1.2 16.71)
+		(end -1.2 16.71)
 		(stroke
 			(width 0.1)
 			(type solid)
@@ -93,8 +93,8 @@
 		)
 	)
 	(fp_rect
-		(start -1.525 -1.525)
-		(end 1.525 16.765)
+		(start -1.45 -1.72)
+		(end 1.45 16.96)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -105,62 +105,62 @@
 	(pad "1" thru_hole rect
 		(at 0 0)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "2" thru_hole circle
 		(at 0 2.54)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "3" thru_hole circle
 		(at 0 5.08)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "4" thru_hole circle
 		(at 0 7.62)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "5" thru_hole circle
 		(at 0 10.16)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "6" thru_hole circle
 		(at 0 12.7)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(pad "7" thru_hole circle
 		(at 0 15.24)
 		(size 1.7 1.7)
-		(drill 1)
+		(drill 1.02)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 	)
 	(embedded_fonts no)
-	(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x07_P2.54mm_Vertical.step"
+	(model "${KIPRJMOD}/Combined_Local.3dshapes/HC-PM254-5.0H-1x7PZ.wrl"
 		(offset
-			(xyz 0 0 0)
+			(xyz 0 -7.62 0)
 		)
 		(scale
 			(xyz 1 1 1)
 		)
 		(rotate
-			(xyz 0 0 0)
+			(xyz 0 0 90)
 		)
 	)
 )

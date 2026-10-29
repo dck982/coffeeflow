@@ -60,8 +60,8 @@ PLACEMENT_PARTS = {
     # Pin-row midpoint like J10; +180, unlike it (see ROTATION_OFFSETS).
     'J1': ('C144395', 'Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'),
     'J9': ('C144395', 'Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'),
-    'J11': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
-    'J12': ('C22438157', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
+    'J11': ('C27985232', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
+    'J12': ('C27985232', 'Combined_Local:XIAO_Socket_1x07_P2.54mm_Vertical'),
     # Checked without correction. U8 and U9 have the pads of the former U3
     # (same part, footprint without the slot).
     'U8': ('C2912100', 'Package_DIP:SMDIP-4_W9.53mm'),

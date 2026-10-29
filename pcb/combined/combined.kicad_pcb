@@ -293,7 +293,7 @@
 				)
 			)
 		)
-		(property "MPN" "HX PM2.54-1x7P ZC-Y"
+		(property "MPN" "HC-PM254-5.0H-1x7PZ"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -306,7 +306,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C22438157"
+		(property "LCSC" "C27985232"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -332,8 +332,8 @@
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
-			(start -1.525 -1.525)
-			(end 1.525 16.765)
+			(start -1.45 -1.72)
+			(end 1.45 16.96)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -343,8 +343,8 @@
 			(uuid "51d04dec-1194-40de-ab5a-5ff032cd1cf2")
 		)
 		(fp_line
-			(start 1.27 16.51)
-			(end -1.27 16.51)
+			(start 1.2 16.71)
+			(end -1.2 16.71)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -353,8 +353,8 @@
 			(uuid "f0d90321-4539-4f44-946c-a8ec57a43849")
 		)
 		(fp_line
-			(start 1.27 -0.635)
-			(end 1.27 16.51)
+			(start 1.2 -0.87)
+			(end 1.2 16.71)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -363,8 +363,8 @@
 			(uuid "b91e5072-21a1-497e-8542-917930379aca")
 		)
 		(fp_line
-			(start 0.635 -1.27)
-			(end 1.27 -0.635)
+			(start 0.6 -1.47)
+			(end 1.2 -0.87)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -373,8 +373,8 @@
 			(uuid "f2b22991-9cbf-4e27-9f9a-748d5f0add00")
 		)
 		(fp_line
-			(start -1.27 16.51)
-			(end -1.27 -1.27)
+			(start -1.2 16.71)
+			(end -1.2 -1.47)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -383,8 +383,8 @@
 			(uuid "a7184ec4-a1d9-443a-bd21-894f7bbf840d")
 		)
 		(fp_line
-			(start -1.27 -1.27)
-			(end 0.635 -1.27)
+			(start -1.2 -1.47)
+			(end 0.6 -1.47)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -406,7 +406,7 @@
 		(pad "1" thru_hole rect
 			(at 0 0 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "PUMP_SPEED")
@@ -417,7 +417,7 @@
 		(pad "2" thru_hole circle
 			(at 0 2.54 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/Controller/STATUS_LED")
@@ -428,7 +428,7 @@
 		(pad "3" thru_hole circle
 			(at 0 5.08 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "PUMP_TACHO")
@@ -439,7 +439,7 @@
 		(pad "4" thru_hole circle
 			(at 0 7.62 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "HEATER_CMD")
@@ -450,7 +450,7 @@
 		(pad "5" thru_hole circle
 			(at 0 10.16 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "I2C_SDA")
@@ -461,7 +461,7 @@
 		(pad "6" thru_hole circle
 			(at 0 12.7 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "I2C_SCL")
@@ -472,7 +472,7 @@
 		(pad "7" thru_hole circle
 			(at 0 15.24 180)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(J11-Pin_7-Pad7)")
@@ -481,15 +481,15 @@
 			(uuid "a2195556-7882-40b1-854b-440a810ff645")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x07_P2.54mm_Vertical.step"
+		(model "${KIPRJMOD}/Combined_Local.3dshapes/HC-PM254-5.0H-1x7PZ.wrl"
 			(offset
-				(xyz 0 0 0)
+				(xyz 0 -7.62 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 0)
+				(xyz 0 0 90)
 			)
 		)
 	)
@@ -7380,7 +7380,7 @@
 				)
 			)
 		)
-		(property "MPN" "HX PM2.54-1x7P ZC-Y"
+		(property "MPN" "HC-PM254-5.0H-1x7PZ"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -7393,7 +7393,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C22438157"
+		(property "LCSC" "C27985232"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -7419,8 +7419,8 @@
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
-			(start -1.525 -1.525)
-			(end 1.525 16.765)
+			(start -1.45 -1.72)
+			(end 1.45 16.96)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -7430,8 +7430,8 @@
 			(uuid "63eeeb8a-cfe0-44bd-8f6e-ec2e4881bcd5")
 		)
 		(fp_line
-			(start -1.27 -1.27)
-			(end 0.635 -1.27)
+			(start -1.2 -1.47)
+			(end 0.6 -1.47)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -7440,8 +7440,8 @@
 			(uuid "ee112aa5-6b67-4520-99d7-09db0f1e6918")
 		)
 		(fp_line
-			(start -1.27 16.51)
-			(end -1.27 -1.27)
+			(start -1.2 16.71)
+			(end -1.2 -1.47)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -7450,8 +7450,8 @@
 			(uuid "17e62de0-14c9-41ea-b985-0a8f19994c23")
 		)
 		(fp_line
-			(start 0.635 -1.27)
-			(end 1.27 -0.635)
+			(start 0.6 -1.47)
+			(end 1.2 -0.87)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -7460,8 +7460,8 @@
 			(uuid "48bf2c27-7de2-4df2-bf7a-3fb0fe35b9a5")
 		)
 		(fp_line
-			(start 1.27 -0.635)
-			(end 1.27 16.51)
+			(start 1.2 -0.87)
+			(end 1.2 16.71)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -7470,8 +7470,8 @@
 			(uuid "0785b897-9469-4f5e-870e-7fe8a0ae6498")
 		)
 		(fp_line
-			(start 1.27 16.51)
-			(end -1.27 16.51)
+			(start 1.2 16.71)
+			(end -1.2 16.71)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -7493,7 +7493,7 @@
 		(pad "1" thru_hole rect
 			(at 0 0)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "FLOW_PULSE")
@@ -7504,7 +7504,7 @@
 		(pad "2" thru_hole circle
 			(at 0 2.54)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "CAN_TX")
@@ -7515,7 +7515,7 @@
 		(pad "3" thru_hole circle
 			(at 0 5.08)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "CAN_RX")
@@ -7526,7 +7526,7 @@
 		(pad "4" thru_hole circle
 			(at 0 7.62)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "SSR")
@@ -7537,7 +7537,7 @@
 		(pad "5" thru_hole circle
 			(at 0 10.16)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "+3V3")
@@ -7548,7 +7548,7 @@
 		(pad "6" thru_hole circle
 			(at 0 12.7)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -7559,7 +7559,7 @@
 		(pad "7" thru_hole circle
 			(at 0 15.24)
 			(size 1.7 1.7)
-			(drill 1)
+			(drill 1.02)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "+5V")
@@ -7568,15 +7568,15 @@
 			(uuid "2b730c17-55ec-4724-8e14-eed43c44fbad")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x07_P2.54mm_Vertical.step"
+		(model "${KIPRJMOD}/Combined_Local.3dshapes/HC-PM254-5.0H-1x7PZ.wrl"
 			(offset
-				(xyz 0 0 0)
+				(xyz 0 -7.62 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 0)
+				(xyz 0 0 90)
 			)
 		)
 	)

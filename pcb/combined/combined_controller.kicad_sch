@@ -4745,7 +4745,7 @@
 				)
 			)
 		)
-		(property "MPN" "HX PM2.54-1x7P ZC-Y"
+		(property "MPN" "HC-PM254-5.0H-1x7PZ"
 			(at 257.81 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -4756,7 +4756,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C22438157"
+		(property "LCSC" "C27985232"
 			(at 257.81 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -5170,7 +5170,7 @@
 				)
 			)
 		)
-		(property "MPN" "HX PM2.54-1x7P ZC-Y"
+		(property "MPN" "HC-PM254-5.0H-1x7PZ"
 			(at 293.37 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -5181,7 +5181,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C22438157"
+		(property "LCSC" "C27985232"
 			(at 293.37 165.1 0)
 			(hide yes)
 			(show_name no)

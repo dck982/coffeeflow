@@ -2903,8 +2903,8 @@ entre les deux, elle se lit contre ceux de 9 h 19.
 ### 29 octobre, 14 h 21 — `261029-142259`
 
 **Contexte.** Single espresso, ViCafé, porte-filtre sans fond, 8,0 g,
-cible 22 g. Deux réglages changés depuis 14 h 07 : **mouture ouverte**
-et **consigne de 90 °C** (lue dans la capture, sans configuration
+cible 22 g. Deux réglages changés depuis 14 h 07 : **mouture ouverte de
+deux crans** et **consigne de 90 °C** (lue dans la capture, sans configuration
 sauvegardée). Observation de David : **très bien**.
 
 **Routine** : guide ouvert à 89,4 °C ; rinçage 50,7 s après l'ouverture,
@@ -2988,7 +2988,8 @@ active 25,4 s). **528 s sur le groupe** après le rinçage ; préparation de
 
 **Lecture.**
 
-- *Mouture, mesuré.* La galette passe de 8,7 à 6,3 bar·s/g (−28 %), au
+- *Mouture, mesuré.* Deux crans font passer la galette de 8,7 à
+  6,3 bar·s/g (−28 %), soit ≈ 15 % par cran (0,85 par cran), au
   bas des galettes ViCafé des 16 et 17 octobre (6,6 à 7,2 bar·s/g). La
   goutte tombe à 3,18 bar au lieu de 6,95 bar, et 22 g arrivent en
   14,4 s depuis 8 bar au lieu de 20,1 s. La consigne n'y joue presque
@@ -3010,22 +3011,24 @@ active 25,4 s). **528 s sur le groupe** après le rinçage ; préparation de
   tasse, porte-filtre sans fond.
 
 **Décision** (David). Réglages de 14 h 21 retenus : ViCafé, mouture de
-14 h 21, 8,0 g, consigne de 90 °C, cible 22 g. Ensuite, un essai à
-**7,5 g** (ou 7,8 g), pour approcher le nominal du panier « LM1 7 g ».
-7,5 g dans le LM1 de 41 mm et 15 g dans le panier de 58 mm donnent la
-même charge par surface (5,7 mg/mm², diamètres nominaux) : même
-épaisseur de galette, donc la même mouture pour les deux paniers ; 7,8 g
-correspondraient à 15,6 g, 8,0 g à 16,0 g.
+14 h 21, consigne de 90 °C. L'infusion suivante passe à **7,5 g**, cible
+**21 g** (ratio 2,80, dans les 2,70 à 2,85 de la piste « Poids »),
+**mouture inchangée** pour l'instant, pour approcher le nominal du panier
+« LM1 7 g ». 7,5 g dans le LM1 de 41 mm et 15 g dans le panier de 58 mm
+donnent la même charge par surface (5,7 mg/mm², diamètres nominaux) :
+même épaisseur de galette, donc la même mouture pour les deux paniers ;
+7,8 g correspondraient à 15,6 g, 8,0 g à 16,0 g.
 
-Estimation pour l'essai à 7,5 g, mouture inchangée : la résistance suit
-l'épaisseur, 6,3 × 7,5 / 8,0 ≈ **5,9 bar·s/g** (6,1 à 7,8 g). La cible
-n'est pas fixée : 22 g font un ratio de 2,93 (au-delà des 2,70 à 2,85
-retenus, voir la piste « Poids ») ; le ratio de 2,75 donne 20,6 g à
-7,5 g, 21,5 g à 7,8 g.
+Estimation pour 7,5 g, mouture inchangée : la résistance suit
+l'épaisseur, 6,3 × 7,5 / 8,0 ≈ **5,9 bar·s/g**. Refermée d'un cran, au
+pas mesuré entre 14 h 07 et 14 h 21 : 5,9 / 0,85 ≈ 6,9 bar·s/g, dans les
+galettes ViCafé des 16 et 17 octobre (6,6 à 7,2), et ≈ 16 s depuis
+8 bar pour 21 g. Le pas par cran vient d'une seule paire d'infusions ;
+David garde le cran pour l'instant.
 
-| Point | Attendu (8,0 g, réglages de 14 h 21) |
+| Point | Attendu (7,5 g, cible 21 g, mouture et consigne de 14 h 21) |
 | --- | --- |
-| Hydraulique | 5,5 à 7,0 bar·s/g ; 12 à 17 s depuis 8 bar ; plateau sous 9,2 bar |
+| Hydraulique | 5,3 à 6,5 bar·s/g (≈ 5,9 estimé) ; 10 à 15 s depuis 8 bar ; plateau sous 9,2 bar |
 | Première goutte | sous 4 bar, sans fond |
 | Pré-infusion | finie à l'échéance de 4 s si la balance ne bouge pas pendant le remplissage |
 | Remplissage | 3,1 à 3,3 ml/s à 70 % ; 17 à 27 ml selon la pression du circuit au départ |

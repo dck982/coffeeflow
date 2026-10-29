@@ -41,7 +41,7 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 | J2, mains in | HT396R 2 | L | N | — | — |
 | J3, valve | HT396R 2 | N | L switched | — | — |
 | J6, flow | HT396V 3 | GND | +5V | FLOW_PULSE | — |
-| J7, 24 V in | HT396V 2 | GND | +24V | — | — |
+| J7, 24 V in | HT396V 2 | +24V | GND | — | — |
 | J8, boiler SSR | HT396V 2 | GND | BOILER_5V | — | — |
 | J9, pump | JST XH 4 | GND_P (green) | SPEED_P (brown) | TACHO_P (blue) | +5V_P (yellow) |
 | J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE | — |

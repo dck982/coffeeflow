@@ -1,7 +1,8 @@
 # Débitmètres — fiches et comparaison
 
 Le capteur retenu est le **Digmesa 932-9525-B (buse 1,00 mm)**, en collecteur ouvert NPN.
-Son câblage en vigueur (filtre RC, port Grove R2, GPIO 7 du XIAO) est dans `cablage.md`.
+Depuis le 23 octobre, il est lu par la carte sensors (`pcb/sensors/`) : pull-up de
+1 kΩ et 10 nF sur FLOW, GPIO 44 (D7) du XIAO. L'ancien câblage est dans `cablage.md`.
 Fiche famille FHKSC 932-952x-B : `datasheets/flowmeter-digmesa.pdf`
 (courbe 1,00 mm 0° = #932-9525-B).
 
@@ -140,7 +141,9 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
   OPV fermée, les deux sont identiques et la lecture est celle de l'infusion. OPV ouverte,
   le capteur compte en plus l'eau recirculée et sur-lit. Avec l'OPV à 11 bar pour un
   fonctionnement à 9 bar, elle ne s'ouvre pas pendant une extraction : le seul régime
-  concerné est la purge de backflush. L'emplacement retenu tient.
+  concerné est la purge de backflush. L'emplacement retenu tient. Le tarage n'est pas
+  mesuré (~10 bar d'après le plateau en panier aveugle, `cablage.md`), ni une fuite
+  sous ce tarage : voir [En service](#en-service--un-k-par-régime).
 
   Le corollaire utile : le débit décroche de la balance exactement quand l'OPV s'ouvre,
   ce qui en fait une **mesure du seuil d'ouverture** (`firmware.md`, calibration).
@@ -148,3 +151,73 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
   balance de précision sort du 10–20 Hz au centigramme. L'intérêt propre de la turbine est de voir l'eau qui
   entre dans le groupe, y compris celle qu'absorbe la galette — soit précisément la
   phase que ni l'une ni l'autre ne mesure bien aujourd'hui.
+
+## En service : un K par régime
+
+Le firmware compte **3450 imp/L** (`screen-core/src/calibration.rs`), mesuré le
+17 septembre avec le porte-filtre de simulation à ~8,5 bar, contre 2382 imp/L sur la
+fiche. Les captures d'infusion comparent ce compte à la balance une fois l'eau en
+tasse : grammes en tasse par ml compté, de 3 s après la première goutte jusqu'à
+l'arrêt de la pompe, carte sensors (depuis le 23 octobre).
+
+| Régime | Débit compté | Pression | Pompe | g/ml |
+| --- | ---: | ---: | ---: | ---: |
+| Espresso, plateau (6 infusions, 23 au 28/10) | 1,36 à 1,65 ml/s | 8,8 à 8,9 bar | 64 à 73 % | **0,79 à 0,86** |
+| Espresso, 28/10 13 h 47 et 29/10 9 h 19 | 1,32 à 1,53 ml/s | 8,8 à 8,9 bar | 64 à 72 % | 1,04 et 1,11 |
+| Espresso lent, 23/10 14 h 38 et 14 h 57 | 0,72 à 0,91 ml/s | 9,0 bar | 64 à 68 % | 1,00 et 0,93 |
+| **Turbo shot** (7 infusions, 26 et 27/10) | **2,87 à 3,83 ml/s** | 1,9 à 5,3 bar | 70 à 100 % | **1,27 à 1,35** |
+
+Ce qui est mesuré :
+
+- **Dans une infusion, le compte suit la balance.** Sur le plateau, le rapport par
+  fenêtre de 3 s varie de ±5 à 8 % autour de sa moyenne, soit ±1 impulsion sur
+  ≈ 13. Pas de dérive ni de saut au sein d'un plateau.
+- **D'un régime à l'autre, le K change d'un facteur ≈ 1,6.** Les turbo shots,
+  serrés de 1,27 à 1,35 g/ml, y compris à 4,9 et 5,3 bar, comptent ≈ 1,6 fois moins
+  d'eau par gramme que le plateau d'espresso. Avec le K de la fiche, ils tomberaient à
+  ≈ 0,90 g/ml (eau chaude, galette) : la fiche vaut au débit élevé, et l'espresso
+  compterait ≈ 1,6 fois l'eau réelle. Le K de 3450, pris à ~8,5 bar, absorbe ce
+  sur-comptage au plateau et fait sous-compter les débits élevés.
+- **Le turbo shot du 27/10 à 7 h 44** a la commande de pompe d'un plateau (70 %),
+  mais 1,85 bar et 2,87 ml/s : 1,28 g/ml. La commande seule n'est pas la variable ;
+  le débit et la pression changent ensemble dans ces données.
+- **Quatre espressos sortent du groupe de 0,79–0,86**, avec un rapport tenu pendant
+  tout leur plateau. Le 28/10 à 13 h 47, 1,04 / 0,83 ≈ 1,24 rejoint les volumes × 1,3
+  que demandait le modèle thermique (`journal-infusions.md`).
+- **Le remplissage** (3,1 à 3,3 ml/s à 70 %, sous 1 bar) est dans le régime du turbo
+  shot du 27/10 à 7 h 44 : l'eau admise y serait ≈ 1,5 fois le volume compté. La loi de
+  chauffe et le simulateur sont réglés sur ces comptes : l'erreur fixe se compense,
+  sa variation d'une infusion à l'autre non.
+- Pendant la précharge, SSR en commutation et pompe arrêtée, aucune impulsion dans
+  aucune capture.
+
+Causes possibles, aucune testée :
+
+1. **Pulsation de la pompe vibrante.** Le capteur est sur l'aspiration. Si la colonne
+   d'eau oscille dans la turbine à chaque coup de piston, le capteur à effet Hall
+   compte les deux sens. L'oscillation pèse d'autant plus que le débit net est faible
+   et la contre-pression forte : sur-comptage au plateau d'espresso. Le guide de boucle
+   (`print/parts/guide_boucle_digmesa`) tient la boucle par le bas : il peut transmettre
+   la vibration de la pompe au segment qui va au Digmesa. Proposition de David : tenir
+   la boucle par le haut, les deux segments du bas libres. Cela traite la voie
+   mécanique, pas la pulsation de la masse d'eau dans le tuyau, à laquelle la boucle
+   répond déjà.
+2. **Fuite de l'OPV sous son tarage.** Le retour de l'OPV rejoint l'aspiration en amont
+   du capteur : une OPV qui fuit vers 9 bar ferait recompter l'eau recirculée au plateau
+   d'espresso seulement. Les turbo shots, sous 5,3 bar, n'en auraient pas. Une fuite qui
+   varie d'une infusion à l'autre irait avec les quatre espressos hors groupe.
+3. **Bruit électrique**, peu probable sur le plateau : des impulsions parasites
+   disperseraient le rapport fenêtre par fenêtre, alors que la pompe y est en coupure de
+   phase à 64–70 %.
+
+Essais qui les séparent :
+
+- **Purges sur la balance**, sans porte-filtre, à 40, 60, 80 et 100 %, 10 s, deux fois
+  chacune. Toutes sous 1 bar. Un rapport voisin de 1,3 g/ml à tous les débits désigne
+  la pression (OPV) ; un rapport qui descend vers 0,8 aux faibles débits désigne le
+  débit (pulsation). La dispersion des grammes à commande égale dit si la pompe varie.
+- **Panier aveugle tenu à 9 bar** par la régulation d'infusion : aucune eau ne sort,
+  toute impulsion comptée est de l'eau recirculée par l'OPV ou une oscillation dans la
+  turbine.
+- **Signal du Digmesa débranché** côté carte, pompe en marche : le pull-up tient la
+  ligne haute, toute impulsion comptée est un parasite.

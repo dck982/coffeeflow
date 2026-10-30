@@ -4,11 +4,11 @@ from system import (
     VERROUS_HT396,
     AMIN,
     INSERT_M2,
-    INSERT_M3,
     _fuse_one,
     add_corbel_site,
     add_heat_insert_against,
     add_well,
+    bord_carte,
     carte_plug_rect,
     carte_trous,
     corbel_site,
@@ -16,23 +16,25 @@ from system import (
 )
 from parts.boitier_ac import languettes
 
-CORBEL_LONGUEUR = INSERT_M3.diametre_percage + 2 * INSERT_M3.epaisseur_paroi_min
+# Low end of the west corbel, board frame: 0.9 mm north of the wing's middle,
+# so its notch in the board edge clears a GND via to the south.
+_CORBEAU_OUEST_Y = 16.0
 
 # Gap around each boitier_ac tongue in its notch, and how far the notch floor
 # drops under the tongue so boitier_ac rests on the metal plate, not on the muret.
 _JEU_LANGUETTE = 0.2
 _LANGUETTE_DEGAGEMENT = 0.1
 # Magnet wells, board frame: 24 V side, sensors side, and the neck under the XIAO.
-_PUITS = ((12.0, 20.0), (38.0, 16.0), (37.0, 44.0))
+_PUITS = ((12.0, 20.0), (38.0, 16.0), (37.0, 43.0))
 
 
 def dc_contour(wall):
-    """Lower part of the board plus one wall, with the 24 V wing to the west.
+    """Lower part of the board plus the slide gap and one wall, with the 24 V wing to the west.
     The north side meets boitier_ac at the south of its outline."""
-    east = measured("combined_dc_largeur") + 2 * wall
+    east = measured("combined_dc_largeur") + 2 * bord_carte(wall)
     north = measured("combined_ac_y")
     neck_x = measured("combined_ac_x")
-    wing_y = measured("combined_ouest_y") + 2 * wall
+    wing_y = measured("combined_ouest_y") + 2 * bord_carte(wall)
     return [
         (0.0, 0.0),
         (east, 0.0),
@@ -44,14 +46,10 @@ def dc_contour(wall):
 
 
 def corbel_sites(wall):
-    """Lid corbels: one in the middle of the 24 V wing's west wall, between H4
-    and H5, and one on the east wall north of J9. H1 has none: J1 and J8 leave
-    no room on the south wall."""
-    east = measured("combined_dc_largeur") + wall
-    return [
-        corbel_site("west", wall, (measured("combined_ouest_y") - CORBEL_LONGUEUR) / 2 + wall),
-        corbel_site("east", east, 25.5 + wall),
-    ]
+    """The one M2 lid corbel, on the 24 V wing's west wall between H4 and H5,
+    fitting a notch in the board edge (`combined_entailles`). H1 has none: J1
+    and J8 leave no room on the south wall."""
+    return [corbel_site("west", wall, _CORBEAU_OUEST_Y + bord_carte(wall), INSERT_M2)]
 
 
 def corbels(wall):
@@ -59,11 +57,16 @@ def corbels(wall):
     return [site.hole for site in corbel_sites(wall)]
 
 
+def _east_inner(wall):
+    """X of the inner face of the east wall."""
+    return dc_contour(wall)[1][0] - wall
+
+
 def _open_north(body, wall, floor, hauteur):
     """Open the north side onto boitier_ac, down to a muret level with its
     floor, notched for its tongues."""
     plate = measured("plaque_machine_epaisseur")
-    east = measured("combined_dc_largeur") + wall
+    east = _east_inner(wall)
     north = measured("combined_ac_y")
     west = measured("combined_ac_x") + wall
     muret = plate + floor
@@ -79,7 +82,7 @@ def _plug_notches(body, wall, floor, hauteur, jeu):
     """Notch the south wall over each HT396 header whose plug latch faces
     south (J7, J8): it sticks out past the board edge and through the wall,
     from the bottom of the latch arm up."""
-    west_inner, east_inner = wall, measured("combined_dc_largeur") + wall
+    west_inner, east_inner = wall, _east_inner(wall)
     pcb_top = (measured("plaque_machine_epaisseur") + floor
                + measured("combined_dessous_pcb") + measured("combined_epaisseur"))
     z0 = pcb_top + measured("ht396v_hauteur") - measured("ht396k_insertion") - jeu
@@ -97,7 +100,7 @@ def _inserts(body, outer, wall, floor):
     taller than boitier_ac's by the plate so the PCB sits level across both boxes."""
     height = measured("plaque_machine_epaisseur") + measured("combined_dessous_pcb")
     h1, _, _, h4, h5, _ = carte_trous(wall)
-    wing_north = measured("combined_ouest_y") + wall
+    wing_north = dc_contour(wall)[-1][1] - wall
     body = add_heat_insert_against(body, outer, *h1, (h1[0], wall), floor, height, INSERT_M2)
     body = add_heat_insert_against(body, outer, *h4, (wall, wall), floor, height, INSERT_M2)
     return add_heat_insert_against(body, outer, *h5, (wall, wing_north), floor, height, INSERT_M2)
@@ -142,7 +145,7 @@ def boitier_dc(
     body = _inserts(body, outer, wall, floor)
 
     for x, y in _PUITS:
-        body = add_well(body, outer, x + wall, y + wall)
+        body = add_well(body, outer, x + bord_carte(wall), y + bord_carte(wall))
 
     for site in corbel_sites(wall):
         body = add_corbel_site(body, site, hauteur)

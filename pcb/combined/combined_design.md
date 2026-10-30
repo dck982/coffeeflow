@@ -468,7 +468,10 @@ When laying out the PCB:
 ## Open points
 
 - Enclosure (`boitier_dc`), outline and mounting of the v2 board, to be
-  decided with its layout. Its low-voltage side, including the 24 V input
+  decided with its layout. The outline already has two 6.6 × 3.9 mm notches
+  for the M2 lid corbels of `boitier_ac` / `boitier_dc`: on the west edge of
+  the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
+  mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
 - Pump interface values to check on the first board: the current the
   yellow wire supplies, the tachometer output type and its pulses per

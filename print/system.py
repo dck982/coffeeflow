@@ -377,10 +377,22 @@ def add_corbel_site(body, site, hauteur):
                       plane=site.plane, reverse=site.reverse)
 
 
+# Gap between the board edge and the inner face of the box walls, all round:
+# enough for the board to slide in by hand.
+JEU_CARTE = 1.0
+
+
+def bord_carte(wall):
+    """Distance from the outer face of a box to the board edge: the wall
+    plus the slide gap. The board's south-west corner sits at (bord, bord)."""
+    return wall + JEU_CARTE
+
+
 def carte_rect(name, wall):
     """A `combined_*` rectangle [x0, y0, x1, y1], from the board frame to the box frame."""
     x0, y0, x1, y1 = measured(name)
-    return (x0 + wall, y0 + wall, x1 + wall, y1 + wall)
+    m = bord_carte(wall)
+    return (x0 + m, y0 + m, x1 + m, y1 + m)
 
 
 # Side of each HT396V header where its HT396K plug's latch sticks out: the
@@ -409,7 +421,8 @@ def carte_plug_rect(name, wall):
 
 def carte_trous(wall):
     """Centres of the board's M2 holes H1 to H6, in the box frame."""
-    return [(x + wall, y + wall) for x, y in measured("combined_trous")]
+    m = bord_carte(wall)
+    return [(x + m, y + m) for x, y in measured("combined_trous")]
 
 
 def entretoise_m2(

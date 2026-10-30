@@ -1253,7 +1253,8 @@ how = "Utilisateur: largeur taquets anti-rotation"
 # --- Carte combined (pcb/combined/combined.kicad_pcb) et ses boîtiers ---
 # Repère carte : coin sud-ouest du PCB à l'origine, Y vers le nord (le Y de
 # KiCad inversé), comme parts/combined.py. Les boîtiers posent la carte à
-# (epaisseur_paroi, epaisseur_paroi) : le coin sud-ouest de boitier_dc est 0;0.
+# (system.bord_carte, system.bord_carte), le mur plus 1 mm de jeu : le coin
+# sud-ouest de boitier_dc est 0;0.
 # Les rectangles sont [x0, y0, x1, y1] dans le repère carte.
 
 [combined_largeur]
@@ -1295,6 +1296,11 @@ how = "combined.kicad_pcb Edge.Cuts : bord ouest de l'encoche nord-est (KiCad X 
 value = 75.6
 unit = "mm"
 how = "combined.kicad_pcb Edge.Cuts : bord sud de l'encoche nord-est (KiCad Y 59.0)."
+
+[combined_entailles]
+value = [[0.0, 15.5, 3.9, 22.1], [68.0, 52.6, 74.6, 56.5]]
+unit = "mm"
+how = "combined.kicad_pcb Edge.Cuts, 2026-10-30 : entailles du bord pour les corbeaux M2 du couvercle, corbeau + 0,5 mm. Ouest de l'aile 24 V (KiCad X 55.9–59.8, Y 112.5–119.1, au nord d'un via GND) et sud de la bande secteur à l'est de H6 (KiCad X 123.9–130.5, Y 78.1–82.0, 1,9 mm de FR4 depuis le trou)."
 
 [combined_epaisseur]
 value = 1.6

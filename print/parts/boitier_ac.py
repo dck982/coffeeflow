@@ -8,6 +8,7 @@ from system import (
     add_heat_insert_against,
     add_well,
     bbox,
+    bord_carte,
     carte_rect,
     carte_trous,
     corbel_site,
@@ -26,29 +27,31 @@ _JEU_OUVERTURE = 0.5
 
 
 def bb_overall(wall):
-    """Upper band of the board plus one wall all round, box frame."""
+    """Upper band of the board plus the slide gap and one wall all round, box frame."""
     x0 = measured("combined_ac_x")
     y0 = measured("combined_ac_y")
+    m = bord_carte(wall)
     return bbox(
         x0, y0,
-        measured("combined_largeur") + 2 * wall - x0,
-        measured("combined_ac_profondeur") + 2 * wall,
+        measured("combined_largeur") + 2 * m - x0,
+        measured("combined_ac_profondeur") + 2 * m,
     )
 
 
 def bb_encoche(wall):
-    """Inside of the screw housing: its west wall stands against the PCB notch edge."""
+    """Inside of the screw housing: its west wall stands the slide gap east of
+    the PCB notch edge."""
     cote = measured("logement_vis_cote")
     north = bb_overall(wall).max.Y
     return bbox(
-        measured("combined_encoche_x") + 2 * wall, north - cote, cote, cote,
+        measured("combined_encoche_x") + 2 * bord_carte(wall), north - cote, cote, cote,
         h=measured("logement_vis_hauteur"),
     )
 
 
 def ouverture_dc(wall):
     """X range of the south side left open onto boitier_dc: its inside."""
-    return measured("combined_ac_x") + wall, measured("combined_dc_largeur") + wall
+    return measured("combined_ac_x") + wall, measured("combined_dc_largeur") + 2 * bord_carte(wall) - wall
 
 
 def languettes(wall):
@@ -77,18 +80,21 @@ def ac_contour(wall):
 
 
 def corbel_sites(wall):
-    """Lid corbels, each beside a mounting hole so the M2 screw stays reachable,
-    plus one on the east wall in the PCB notch."""
+    """M2 lid corbels, each beside a mounting hole so the board's M2 screw
+    stays reachable, plus one on the east wall in the PCB notch. The board
+    slides in tilted, north edge first, under the two north ones; the south
+    one fits a notch in the board edge (`combined_entailles`)."""
     bb = bb_overall(wall)
+    m = bord_carte(wall)
     return [
         # H3, north wall, east of the hole
-        corbel_site("north", bb.max.Y - wall, 29.6 + wall),
+        corbel_site("north", bb.max.Y - wall, 29.6 + m, INSERT_M2),
         # H2, north wall, west of the hole
-        corbel_site("north", bb.max.Y - wall, 88.4 + wall),
+        corbel_site("north", bb.max.Y - wall, 88.4 + m, INSERT_M2),
         # H6, south wall, east of the hole
-        corbel_site("south", bb.min.Y + wall, 67.5 + wall),
+        corbel_site("south", bb.min.Y + wall, 68.5 + m, INSERT_M2),
         # east wall, north of J3, over the notch
-        corbel_site("east", bb.max.X - wall, 77.0 + wall),
+        corbel_site("east", bb.max.X - wall, 77.0 + m, INSERT_M2),
     ]
 
 
@@ -246,7 +252,7 @@ def boitier_ac(
     body = _inserts(body, outer, wall, z0)
 
     # Magnet wells.
-    body = add_well(body, outer, _PUIT_OUEST[0] + wall, _PUIT_OUEST[1] + wall)
+    body = add_well(body, outer, _PUIT_OUEST[0] + bord_carte(wall), _PUIT_OUEST[1] + bord_carte(wall))
     body = add_well(body, outer, *_puit_encoche(wall))
 
     for site in corbel_sites(wall):

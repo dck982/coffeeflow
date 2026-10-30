@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import AMIN
+from system import AMIN, bord_carte
 from parts.boitier_ac import bb_overall as ac_overall
 
 
@@ -43,7 +43,7 @@ def ensemble_boitiers(
     top = ac.bounding_box().max.Z
     lid = _flip_lid(
         use("couvercle_acdc", epaisseur_paroi=w, epaisseur_fond=floor), floor, top, open)
-    board = Pos(w, w, floor + measured("combined_dessous_pcb")) * use("combined")
+    board = Pos(bord_carte(w), bord_carte(w), floor + measured("combined_dessous_pcb")) * use("combined")
 
     # The metal plate under boitier_ac: 35 mm from its north edge, wider than both boxes.
     ac_bb = ac_overall(w)

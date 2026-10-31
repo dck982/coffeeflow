@@ -72,7 +72,7 @@ fn defaults_match_the_cpp_defaults() {
     );
     assert_eq!(c.preinfusion_mode, PreinfusionMode::TIME);
     assert_eq!((c.preinfusion_time_s, c.preinfusion_pump_pct), (4, 35));
-    assert_eq!(c.stop_lead_g, 4.0);
+    assert_eq!(c.stop_lead_g, 1.0);
     assert_eq!(
         (c.brew_pump_pct, c.purge_pump_pct, c.purge_max_s),
         (100, 100, 20)
@@ -175,10 +175,15 @@ fn validation_bounds_and_steps() {
 
 #[test]
 fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
-    let mut defaults = single(Config::default());
+    // Les blobs v10 portent l'avance de 4,0 g de l'ancien défaut ; la
+    // migration la garde.
+    let mut defaults = Config::default();
     defaults.revision = 3;
+    defaults.stop_lead_g = 4.0;
+    let defaults = single(defaults);
     let mut changed = Config::default();
     changed.revision = 4;
+    changed.stop_lead_g = 4.0;
     changed.target_weight_g = 41.5;
     changed.target_time_s = 31;
     changed.heating_enabled = false;

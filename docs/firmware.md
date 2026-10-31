@@ -548,7 +548,7 @@ propres à la machine. `profiles` donne la liste complète, de 1 à 4 profils ;
 `brew.target_pressure_bar` descend à 4,0 bar (6,0 avant le schéma 11).
 
 **Anticipation d'arrêt (schéma 12, écran 0.4.25).** `brew.stop_lead_g` (0 à
-20 g, au demi-gramme, défaut 4,0) est l'avance de l'arrêt de la pompe sur le
+20 g, au demi-gramme, défaut 1,0) est l'avance de l'arrêt de la pompe sur le
 poids cible : la pompe s'arrête à `brew.target_weight_g - brew.stop_lead_g`, et
 le café qui coule encore finit la tasse. La section `rampdown` (mode, avances
 en temps et en poids, chute de pression) est retirée : l'état de fin

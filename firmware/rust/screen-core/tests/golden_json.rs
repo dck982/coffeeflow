@@ -43,7 +43,7 @@ fn numbers_are_printed_like_cjson() {
 fn config_default_matches_the_schema_12_document() {
     let mut config = Config::default();
     config.revision = 1;
-    let brew = r#"{"target_weight_g":36.0,"stop_lead_g":4.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}"#;
+    let brew = r#"{"target_weight_g":36.0,"stop_lead_g":1.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}"#;
     let filling = r#"{"time_s":10,"pressure_bar":1.0,"pump_pct":100}"#;
     let preinfusion = r#"{"time":true,"weight":false,"time_s":4,"pump_pct":35}"#;
     let expected = format!(

@@ -292,7 +292,7 @@ impl Default for Config {
             preinfusion_mode: PreinfusionMode::TIME,
             preinfusion_time_s: 4,
             preinfusion_pump_pct: 35,
-            stop_lead_g: 4.0,
+            stop_lead_g: 1.0,
             brew_pump_pct: 100,
             purge_pump_pct: 100,
             purge_max_s: 20,

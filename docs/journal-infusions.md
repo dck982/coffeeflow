@@ -42,18 +42,21 @@ de 90 °C, sans configuration sauvegardée (valeurs lues dans la capture).
 Le 30 octobre à 7 h 55, **7,5 g** de café ; le profil passe à 7,5 g
 après l'infusion, et la mouture d'un cran plus fine. Depuis 14 h 44,
 mouture un cran plus fine, cible restée à 22 g ; inchangée le 31 octobre
-à 10 h 16.
+à 10 h 16. Depuis le 31 octobre à 10 h 58, `configs/261031-105823.json`
+(schéma 12, écran et sensors 0.4.25) : ramp-down supprimé, anticipation
+d'arrêt `brew.stop_lead_g` de **1,5 g** (0,5 g avant, en
+`rampdown.lead_weight_g`), soit l'arrêt de la pompe à 20,5 g pour 22 g.
 
 | Réglage | Valeur | Depuis |
 | --- | --- | --- |
-| Firmware | écran et carte sensors **0.4.24** | 26 octobre au plus tard (écran 0.4.23 du 24 octobre après 13 h 23, 0.4.15 avant) |
+| Firmware | écran et carte sensors **0.4.25** | 31 octobre, 10 h 58 (0.4.24 du 26 octobre au plus tard ; écran 0.4.23 du 24 octobre après 13 h 23, 0.4.15 avant) |
 | Offset NTC | **−14 °C** (écran 0.4.4), mesuré au panier avec la SCACE ; −10,5 °C avant. Consigne bornée à 95 °C, coupure à 100 °C utilisateur (114 °C sonde) | 10 octobre |
 | Sonde de pression | XDB401 lu sur J10 de la carte sensors avec la calibration de A2, loi de chauffe inchangée | 23 octobre (A2 de l'écran depuis le 7 octobre) |
 | Précharge | 8 s à 90 % | 4 octobre |
 | Consigne | **90 °C** | 29 octobre, 14 h 21 (91 °C du 24 octobre, 10 h 22 ; 92 °C du 13 octobre, 8 h 18 ; 90 °C avant) |
 | Remplissage | pompe à **70 %**, fin à 0,8 bar (10 s au plus) | 24 octobre, 10 h 22 (75 % du 5 octobre, 7 h 59) |
 | Pré-infusion | pompe à 50 %, fin à 4 s ou à la première goutte | 5 octobre, 7 h 59 |
-| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, sans ramp-down | 13 octobre, 13 h 29 (23 g du 11 octobre, 13 h 40 au 13 octobre, 8 h 18) |
+| Infusion | pompe jusqu'à 100 %, cible 9 bar, arrêt à **22 g** ou 27 s, pompe arrêtée **1,5 g** avant la cible | 13 octobre, 13 h 29 (23 g du 11 octobre, 13 h 40 au 13 octobre, 8 h 18) ; anticipation de 1,5 g depuis le 31 octobre, 10 h 58 (0,5 g avant) |
 | Purge | pompe à **80 %**, 10 s au plus | 24 octobre, 10 h 22 (60 % le 23 octobre) |
 | Machine | fermée (panneaux posés), filtre ECM Aqua Aroma Crema dans le réservoir ; état final. Remplissage à 3,1 à 3,3 ml/s à 70 % (3,5 à 3,6 ml/s à 75 %) | 10 octobre |
 

@@ -4,9 +4,7 @@
 use alloc::format;
 use alloc::string::{String, ToString};
 
-use crate::config::{
-    Config, MAX_PROFILES, PreinfusionMode, Profile, validate_profile_list,
-};
+use crate::config::{Config, MAX_PROFILES, PreinfusionMode, Profile, validate_profile_list};
 use crate::json::Json;
 
 /// Décimal de `/config` : deux décimales au plus, une au moins (`9.0`, `0.1`,

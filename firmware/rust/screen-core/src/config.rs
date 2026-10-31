@@ -1180,7 +1180,10 @@ fn decode_profile(record: &[u8], profile_fields: &[Field]) -> Option<Profile> {
             _ => set_profile_field(&mut profile, name, value),
         }
     }
-    if profile_fields.iter().any(|(name, _)| *name == "rampdown_mode") {
+    if profile_fields
+        .iter()
+        .any(|(name, _)| *name == "rampdown_mode")
+    {
         profile.stop_lead_g = if legacy_rampdown_mode == LEGACY_RAMPDOWN_WEIGHT {
             0.0
         } else {

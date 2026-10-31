@@ -381,7 +381,11 @@ fn migrated(version: &str) -> (Config, MemoryConfigStore, bool) {
     let mut store = store_with(version);
     let (manager, report) = ConfigManager::init(&mut store);
     assert!(report.found && report.migrated, "{version}");
-    (manager.get().clone(), store, report.heating_disabled_by_migration)
+    (
+        manager.get().clone(),
+        store,
+        report.heating_disabled_by_migration,
+    )
 }
 
 /// Valeurs communes aux blobs d'essai, côté emplacement `b` (révision 6).

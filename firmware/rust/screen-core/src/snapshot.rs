@@ -49,11 +49,7 @@ impl CycleState {
     pub const fn is_active(self) -> bool {
         matches!(
             self,
-            Self::ThermalPreheat
-                | Self::Filling
-                | Self::Preinfusion
-                | Self::Brew
-                | Self::Purge
+            Self::ThermalPreheat | Self::Filling | Self::Preinfusion | Self::Brew | Self::Purge
         )
     }
 

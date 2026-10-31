@@ -43,8 +43,7 @@ fn numbers_are_printed_like_cjson() {
 fn config_default_matches_the_schema_12_document() {
     let mut config = Config::default();
     config.revision = 1;
-    let brew =
-        r#"{"target_weight_g":36.0,"stop_lead_g":4.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}"#;
+    let brew = r#"{"target_weight_g":36.0,"stop_lead_g":4.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}"#;
     let filling = r#"{"time_s":10,"pressure_bar":1.0,"pump_pct":100}"#;
     let preinfusion = r#"{"time":true,"weight":false,"time_s":4,"pump_pct":35}"#;
     let expected = format!(
@@ -89,8 +88,7 @@ fn config_custom_matches_the_schema_12_document() {
     c.scace_enabled = true;
     let flat = c.clone();
     c.profiles_mut()[0].take_settings(&flat);
-    let brew =
-        r#"{"target_weight_g":36.5,"stop_lead_g":2.5,"target_time_s":30,"target_pressure_bar":9.1,"pump_pct":85}"#;
+    let brew = r#"{"target_weight_g":36.5,"stop_lead_g":2.5,"target_time_s":30,"target_pressure_bar":9.1,"pump_pct":85}"#;
     let filling = r#"{"time_s":12,"pressure_bar":0.3,"pump_pct":75}"#;
     let preinfusion = r#"{"time":true,"weight":true,"time_s":6,"pump_pct":40}"#;
     let heating = r#"{"brew_temperature_c":92.5,"brew_preheat_time_s":7.5}"#;

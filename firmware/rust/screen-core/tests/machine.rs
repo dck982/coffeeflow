@@ -2,7 +2,7 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
-use screen_core::config::{PreinfusionMode};
+use screen_core::config::PreinfusionMode;
 use screen_core::machine::{Config, Input, Machine, State, StopReason};
 
 fn config() -> Config {

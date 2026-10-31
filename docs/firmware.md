@@ -504,14 +504,14 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 12,
+  "version": 13,
   "active_profile": "single espresso",
   "brew": { "target_weight_g": 22.0, "stop_lead_g": 0.5, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
   "heating": { "enabled": true, "brew_temperature_c": 91.0, "brew_preheat_time_s": 8.0 },
   "filling": { "time_s": 10, "pressure_bar": 0.8, "pump_pct": 70 },
   "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 },
   "purge": { "pump_pct": 80, "max_s": 10 },
-  "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
+  "ui": { "standby_after_s": 1800 },
   "scace": { "enabled": false },
   "profiles": [
     {
@@ -557,6 +557,14 @@ l'ancien `lead_weight_g` comme `stop_lead_g`, sauf si l'ancien mode était
 `weight` (la pompe s'arrêtait alors à la cible) : `stop_lead_g` vaut 0. Une
 sauvegarde du schéma 11 est refusée par `POST /config` (`version`) : elle ne se
 restaure plus telle quelle.
+
+**Écran au repos seul (schéma 13, écran 0.4.26).** `ui.dim_after_s` est
+retiré : l'écran ne s'assombrit plus. Il est sur secteur, et l'écran assombri
+demandait un appui de réveil avant chaque action. Seul l'écran « au repos »
+reste, après `ui.standby_after_s` (300 à 3600 s, par pas de 300, défaut
+1800) ; un appui le réveille, sans agir sur l'écran qu'il cachait. La
+migration garde le reste de la configuration et les profils tels quels. Une
+sauvegarde du schéma 12 est refusée par `POST /config` (`version`).
 
 `GET` renvoie l'objet ci-dessus : un `curl > config.json` sauvegarde tous les
 profils. Le `POST` reste partiel et tout ou rien. Il s'applique dans cet ordre,

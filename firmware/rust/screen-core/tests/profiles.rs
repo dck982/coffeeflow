@@ -1,4 +1,4 @@
-//! Profils d'infusion : blob NVS du schéma 12, `/config` (GET, POST, refus),
+//! Profils d'infusion : blob NVS du schéma 13, `/config` (GET, POST, refus),
 //! choix du profil, invariant « champs plats = profil actif » et en-tête de
 //! la capture HF.
 
@@ -30,7 +30,7 @@ fn profile_json(name: &str, dose: &str, basket: &str, weight: &str) -> String {
 }
 
 fn profiles_body(items: &[String]) -> String {
-    format!(r#"{{"version":12,"profiles":[{}]}}"#, items.join(","))
+    format!(r#"{{"version":13,"profiles":[{}]}}"#, items.join(","))
 }
 
 fn post(rig: &mut Rig, body: &str) -> HttpResponse {
@@ -262,7 +262,7 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
         (profiles_body(&[]), "invalid_value", "profiles".into()),
         (profiles_body(&five), "invalid_value", "profiles".into()),
         (
-            r#"{"version":12,"profiles":{}}"#.into(),
+            r#"{"version":13,"profiles":{}}"#.into(),
             "invalid_value",
             "profiles".into(),
         ),
@@ -310,17 +310,17 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
             "profiles[2].brew.pump_pct".into(),
         ),
         (
-            r#"{"version":12,"profiles":[{"name":"a"}]}"#.into(),
+            r#"{"version":13,"profiles":[{"name":"a"}]}"#.into(),
             "invalid_value",
             "profiles[0].dose_g".into(),
         ),
         (
-            r#"{"version":12,"active_profile":"inconnu"}"#.into(),
+            r#"{"version":13,"active_profile":"inconnu"}"#.into(),
             "invalid_value",
             "active_profile".into(),
         ),
         (
-            r#"{"version":12,"active_profile":3}"#.into(),
+            r#"{"version":13,"active_profile":3}"#.into(),
             "invalid_value",
             "active_profile".into(),
         ),
@@ -397,7 +397,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
     // profil choisi.
     let response = post(
         &mut rig,
-        r#"{"version":12,"brew":{"target_weight_g":33.5},"active_profile":"turbo shot"}"#,
+        r#"{"version":13,"brew":{"target_weight_g":33.5},"active_profile":"turbo shot"}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
     let c = rig.core.config().clone();
@@ -407,7 +407,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
     assert_eq!(c.profiles()[0].target_weight_g, 36.0);
     // Liste et choix dans le même document : le nom vise la nouvelle liste.
     let body = format!(
-        r#"{{"version":12,"active_profile":"b","profiles":[{},{}]}}"#,
+        r#"{{"version":13,"active_profile":"b","profiles":[{},{}]}}"#,
         profile_json("a", "8.0", "x", "36.0"),
         profile_json("b", "8.0", "x", "40.0")
     );
@@ -424,7 +424,7 @@ fn head_sections_edit_the_active_profile_and_the_machine() {
     let mut rig = rig_with(&three_profiles(2));
     let response = post(
         &mut rig,
-        r#"{"version":12,"brew":{"target_time_s":33},"heating":{"enabled":false,"brew_temperature_c":88.5},"purge":{"max_s":15}}"#,
+        r#"{"version":13,"brew":{"target_time_s":33},"heating":{"enabled":false,"brew_temperature_c":88.5},"purge":{"max_s":15}}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
     let c = rig.core.config().clone();

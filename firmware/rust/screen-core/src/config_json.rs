@@ -1,4 +1,4 @@
-//! Document JSON de `/config` (schéma 12) : écriture de la configuration et
+//! Document JSON de `/config` (schéma 13) : écriture de la configuration et
 //! application d'un correctif partiel validé champ par champ.
 
 use alloc::format;
@@ -94,7 +94,6 @@ pub fn encode_config(config: &Config) -> Json {
     root.push("purge", purge);
 
     let mut ui = Json::object();
-    ui.push_number("dim_after_s", f64::from(config.dim_after_s));
     ui.push_number("standby_after_s", f64::from(config.standby_after_s));
     root.push("ui", ui);
 
@@ -429,7 +428,6 @@ fn apply_purge_key(key: &str, value: &Json, c: &mut Config) -> Result<(), String
 
 fn apply_ui_key(key: &str, value: &Json, c: &mut Config) -> Result<(), String> {
     match key {
-        "dim_after_s" => number_u16(value, "ui.dim_after_s", &mut c.dim_after_s),
         "standby_after_s" => number_u16(value, "ui.standby_after_s", &mut c.standby_after_s),
         _ => Err(joined("ui", key)),
     }

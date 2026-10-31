@@ -1,9 +1,9 @@
-//! Configuration : défauts, validation, blob NVS du schéma 12, migrations des
-//! schémas 1 à 11, écriture alternée des deux emplacements.
+//! Configuration : défauts, validation, blob NVS du schéma 13, migrations des
+//! schémas 1 à 12, écriture alternée des deux emplacements.
 //!
 //! `vectors/config_blobs.txt` vient du vrai compilateur C sur les structures
 //! de `config.cpp` (voir `vectors/gen_config_blobs.sh`) ; ses blobs sont ceux
-//! des anciens schémas, que le schéma 12 migre.
+//! des anciens schémas, que le schéma 13 migre.
 
 #![allow(clippy::field_reassign_with_default)]
 
@@ -51,7 +51,7 @@ fn store_with(version: &str) -> MemoryConfigStore {
 #[test]
 fn defaults_match_the_cpp_defaults() {
     let c = Config::default();
-    assert_eq!(c.version, 12);
+    assert_eq!(c.version, 13);
     assert_eq!(c.revision, 0);
     assert_eq!((c.profile_count, c.active_profile), (1, 0));
     let profile = c.active();
@@ -77,10 +77,7 @@ fn defaults_match_the_cpp_defaults() {
         (c.brew_pump_pct, c.purge_pump_pct, c.purge_max_s),
         (100, 100, 20)
     );
-    assert_eq!(
-        (c.dim_after_s, c.standby_after_s, c.scace_enabled),
-        (240, 1800, false)
-    );
+    assert_eq!((c.standby_after_s, c.scace_enabled), (1800, false));
     assert_eq!(validate(&c), None);
 }
 
@@ -162,15 +159,8 @@ fn validation_bounds_and_steps() {
     assert_eq!(ok(&|c| c.purge_pump_pct = 15), Some("purge.pump_pct"));
     assert_eq!(ok(&|c| c.purge_max_s = 7), Some("purge.max_s"));
     assert_eq!(ok(&|c| c.purge_max_s = 65), Some("purge.max_s"));
-    assert_eq!(ok(&|c| c.dim_after_s = 90), Some("ui.dim_after_s"));
     assert_eq!(ok(&|c| c.standby_after_s = 400), Some("ui.standby_after_s"));
-    assert_eq!(
-        ok(&|c| {
-            c.dim_after_s = 600;
-            c.standby_after_s = 300;
-        }),
-        Some("ui.standby_after_s")
-    );
+    assert_eq!(ok(&|c| c.standby_after_s = 300), None);
 }
 
 #[test]
@@ -204,7 +194,7 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
         assert_eq!(c.active().dose_g, 8.0);
         assert_eq!(c.active().basket(), "LM1 41 mm");
         assert_eq!(c.active().target_weight_g, config.target_weight_g);
-        // La configuration migrée est écrite au schéma 12, et relue telle quelle.
+        // La configuration migrée est écrite au schéma 13, et relue telle quelle.
         assert_eq!(store.writes, 1);
         let (again, report) = ConfigManager::init(&mut store);
         assert!(report.found && !report.migrated);
@@ -322,6 +312,53 @@ fn v11_profiles_keep_their_lead_unless_the_rampdown_stopped_at_the_target() {
     assert_eq!(*again.get(), c);
 }
 
+/// Blob NVS du schéma 12 pour `c` : ses enregistrements de profil sont ceux
+/// du schéma courant ; sa machine porte encore `dim_after_s` (octet 16).
+fn v12_blob(c: &Config, dim_after_s: u16) -> Vec<u8> {
+    let mut out = encode_blob(c);
+    out[4..24].fill(0);
+    put_u16(&mut out, 4, 12);
+    put_u32(&mut out, 8, c.revision);
+    out[12] = u8::from(c.heating_enabled);
+    out[13] = c.purge_pump_pct;
+    put_u16(&mut out, 14, c.purge_max_s);
+    put_u16(&mut out, 16, dim_after_s);
+    put_u16(&mut out, 18, c.standby_after_s);
+    out[20] = u8::from(c.scace_enabled);
+    out[21] = c.active_profile;
+    out[22] = c.profile_count;
+    let end = out.len() - 4;
+    let mut hash: u32 = 2_166_136_261;
+    for &b in &out[..end] {
+        hash = (hash ^ u32::from(b)).wrapping_mul(16_777_619);
+    }
+    out[end..].copy_from_slice(&hash.to_le_bytes());
+    out
+}
+
+#[test]
+fn v12_drops_the_dim_delay_and_keeps_everything_else() {
+    let mut c = Config::default();
+    c.revision = 9;
+    c.purge_max_s = 25;
+    c.standby_after_s = 900;
+    c.scace_enabled = true;
+    c.stop_lead_g = 1.5;
+    let c = single(c);
+    let mut store = MemoryConfigStore {
+        a: Some(v12_blob(&c, 240)),
+        ..MemoryConfigStore::default()
+    };
+    let (manager, report) = ConfigManager::init(&mut store);
+    assert!(report.found && report.migrated && !report.normalized);
+    assert_eq!(*manager.get(), c);
+    // La configuration est réécrite au schéma courant.
+    assert_eq!(store.writes, 1);
+    let (again, report) = ConfigManager::init(&mut store);
+    assert!(report.found && !report.migrated);
+    assert_eq!(*again.get(), c);
+}
+
 #[test]
 fn v11_load_picks_the_highest_revision_and_a_wins_ties() {
     let mut low = Config::default();
@@ -407,7 +444,6 @@ fn common_expected() -> Config {
     c.brew_pump_pct = 90;
     c.purge_pump_pct = 70;
     c.purge_max_s = 25;
-    c.dim_after_s = 180;
     c.standby_after_s = 900;
     c
 }
@@ -613,7 +649,7 @@ fn reset_restores_defaults_with_a_new_revision() {
 
 #[test]
 fn schema_constant() {
-    assert_eq!(CONFIG_SCHEMA_VERSION, 12);
+    assert_eq!(CONFIG_SCHEMA_VERSION, 13);
     let mut store = MemoryConfigStore::default();
     assert!(store.read_slot(Slot::A).is_none());
     assert_eq!(Slot::A.key(), "a");

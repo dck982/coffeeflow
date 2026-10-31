@@ -517,7 +517,7 @@ fn config_field_arg(field: Option<&str>) -> u16 {
         // 9 à 12 : anciens réglages `rampdown.*`, retirés.
         ("purge.pump_pct", 13),
         ("purge.max_s", 14),
-        ("ui.dim_after_s", 15),
+        // 15 : ancien réglage `ui.dim_after_s`, retiré.
         ("ui.standby_after_s", 16),
         ("profiles", 17),
         ("brew", 18),

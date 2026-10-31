@@ -653,12 +653,12 @@ impl Presenter {
         app.set_settings_page(self.settings_page as i32);
         self.fullscreen(app, s, provisioning_ssid);
         let idle_s = now_us.saturating_sub(self.last_touch_us) / 1_000_000;
-        let dim = !s.cycle_state.is_active()
-            && !s.flash_active
-            && !s.provisioning
-            && idle_s >= c.dim_after_s as u64;
-        app.set_dimmed(dim);
-        app.set_standby(dim && idle_s >= c.standby_after_s as u64);
+        app.set_standby(
+            !s.cycle_state.is_active()
+                && !s.flash_active
+                && !s.provisioning
+                && idle_s >= c.standby_after_s as u64,
+        );
         app.set_standby_offset(((idle_s % 120) as i32 - 60).abs() - 30);
         app.set_confirm_visible(self.confirm);
         app.set_brew_choice_visible(self.brew_choice);

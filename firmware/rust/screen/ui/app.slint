@@ -123,7 +123,6 @@ export component AppWindow inherits Window {
     in property <bool> guided-cup-recognized: false;
     in property <bool> guided-enabled: false;
     in property <string> guided-refusal;
-    in property <bool> dimmed: false;
     in property <bool> standby: false;
     in property <int> standby-offset: 0;
 
@@ -303,9 +302,9 @@ export component AppWindow inherits Window {
         if root.full-progress: Rectangle { x: 32px; y: 380px; width: 736px; height: 2px; background: Theme.hairline; Rectangle { width: parent.width * root.progress; height: 2px; background: Theme.accent; } }
         TouchArea {}
     }
-    if root.dimmed: Rectangle { background: root.standby ? Theme.bg : #16110c99;
-        if root.standby: Label { x: 270px + root.standby-offset * 1px; y: 194px + root.standby-offset / 3 * 1px; width: 260px; height: 92px; text: "coffeeflow"; font-size: 40px; color: Theme.low; }
-        if root.standby: Label { x: 362px + root.standby-offset * 1px; y: 252px + root.standby-offset / 3 * 1px; width: 200px; height: 30px; text: "au repos"; font-size: 18px; color: Theme.faint; }
+    if root.standby: Rectangle { background: Theme.bg;
+        Label { x: 270px + root.standby-offset * 1px; y: 194px + root.standby-offset / 3 * 1px; width: 260px; height: 92px; text: "coffeeflow"; font-size: 40px; color: Theme.low; }
+        Label { x: 362px + root.standby-offset * 1px; y: 252px + root.standby-offset / 3 * 1px; width: 200px; height: 30px; text: "au repos"; font-size: 18px; color: Theme.faint; }
         TouchArea { pointer-event(event) => { if event.kind == PointerEventKind.up { root.command(20, ""); } } }
     }
 }

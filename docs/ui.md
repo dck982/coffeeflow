@@ -104,11 +104,12 @@ l'en-tête, et par profil son nom en 26 px puis sa ligne de recette
 Le retour ramène à l'accueil. Les profils se créent, se renomment et se
 suppriment avec `coffeetool profile`.
 
-La veille a deux niveaux, réglés par `dim_after_s` et `standby_after_s` de la
-configuration : l'écran s'assombrit, puis passe sur un fond uni portant
-« coffeeflow / au repos », décalé lentement pour ne pas marquer la dalle. Elle
-ne s'applique ni pendant un cycle, ni pendant une mise à jour ou un provisioning.
-Tout appui, même hors bouton, réveille l'écran.
+Après `standby_after_s` sans appui (configuration, 30 min par défaut),
+l'écran passe au repos : un fond uni portant « coffeeflow / au repos », décalé
+lentement pour ne pas marquer la dalle. L'écran ne s'assombrit pas avant : il
+est sur secteur. Le repos ne s'applique ni pendant un cycle, ni pendant une
+mise à jour ou un provisioning. Tout appui, même hors bouton, réveille
+l'écran, sans agir sur ce qu'il cachait.
 
 ## Infusion et résumé
 
@@ -160,7 +161,7 @@ poids écoulé et temps écoulé ; une fois terminé, il affiche le dernier poid
 ## Infusion guidée
 
 La page 8 du présentateur affiche le guide. Elle prime sur la page de purge,
-car le rinçage du guide est une purge. La veille s'y applique : un
+car le rinçage du guide est une purge. Le repos s'y applique : un
 appui réveille l'écran sur l'étape en cours. Le déroulé, les conditions de chaque
 écran et les cas limites sont dans [wizard.md](wizard.md) ; ce qui suit
 décrit la page.

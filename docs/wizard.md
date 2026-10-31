@@ -156,8 +156,8 @@ autre tasse, hors tolérance, active **démarrer** comme avant.
 - **Quitter** abandonne le guide sans confirmation et revient à l'accueil.
   Le déroulé est jeté.
 - **Inactivité** : le guide abandonne après **30 min** sans appui.
-  Pendant le guide, la veille assombrit et masque l'écran comme ailleurs ;
-  un appui le réveille sur l'écran en cours.
+  Pendant le guide, l'écran passe au repos comme ailleurs ; un appui le
+  réveille sur l'écran en cours.
 - **Défaut** (verrou, module interne injoignable, mise à jour) : les plein
   écrans de sécurité gardent leur priorité et le guide est abandonné.
 

@@ -1,6 +1,6 @@
 //! Configuration utilisateur persistante : valeurs par défaut, validation,
-//! bornes, profils d'infusion, blob NVS (schéma 12) et migrations des
-//! schémas 1 à 11.
+//! bornes, profils d'infusion, blob NVS (schéma 13) et migrations des
+//! schémas 1 à 12.
 //!
 //! Les calibrations machine ne passent ni par NVS ni par `/config` : elles
 //! sont compilées dans [`crate::calibration`].
@@ -15,7 +15,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::BitOr;
 
-pub const CONFIG_SCHEMA_VERSION: u16 = 12;
+pub const CONFIG_SCHEMA_VERSION: u16 = 13;
 pub const MINIMUM_BREW_TEMPERATURE_C: f32 = 50.0;
 /// 5 °C sous la coupure de sécurité de la chaudière.
 pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 95.0;
@@ -75,7 +75,6 @@ pub mod bounds {
     pub const BREW_PUMP_PCT: (u8, u8, u8) = (super::MINIMUM_BREW_PUMP_PCT, 100, 5);
     pub const PURGE_PUMP_PCT: (u8, u8, u8) = (20, 100, 5);
     pub const PURGE_MAX_S: (u16, u16, u16) = (5, 60, 5);
-    pub const DIM_AFTER_S: (u16, u16, u16) = (60, 1800, 60);
     pub const STANDBY_AFTER_S: (u16, u16, u16) = (300, 3600, 300);
     /// Dose d'un profil : 0 (non renseignée) ou (min, max, pas).
     pub const PROFILE_DOSE_G: (f32, f32, f32) = (3.0, 30.0, 0.1);
@@ -231,7 +230,7 @@ const DEFAULT_PROFILE_NAME: &str = "single espresso";
 const DEFAULT_PROFILE_DOSE_G: f32 = 8.0;
 const DEFAULT_PROFILE_BASKET: &str = "LM1 41 mm";
 
-/// Configuration effective (schéma 12) : la machine et le profil actif. Les
+/// Configuration effective (schéma 13) : la machine et le profil actif. Les
 /// champs plats « profil » (cible, température, remplissage, pré-infusion,
 /// rampe) sont toujours égaux à `profiles[active_profile]` ; toute écriture
 /// acceptée rétablit cet invariant.
@@ -261,7 +260,7 @@ pub struct Config {
     pub brew_pump_pct: u8,
     pub purge_pump_pct: u8,
     pub purge_max_s: u16,
-    pub dim_after_s: u16,
+    /// Inactivité après laquelle l'écran passe au repos.
     pub standby_after_s: u16,
     /// Recherche et connexion BLE de la sonde SCACE. Désactivée par défaut :
     /// la sonde ne sert qu'aux campagnes de mesure.
@@ -296,7 +295,6 @@ impl Default for Config {
             brew_pump_pct: 100,
             purge_pump_pct: 100,
             purge_max_s: 20,
-            dim_after_s: 240,
             standby_after_s: 1800,
             scace_enabled: false,
             profiles: Arc::new([Profile::EMPTY; MAX_PROFILES]),
@@ -487,13 +485,7 @@ fn validate_flat(c: &Config) -> Option<&'static str> {
     if !valid_pct16(c.purge_max_s, b::PURGE_MAX_S) {
         return Some("purge.max_s");
     }
-    if !valid_pct16(c.dim_after_s, b::DIM_AFTER_S) {
-        return Some("ui.dim_after_s");
-    }
     if !valid_pct16(c.standby_after_s, b::STANDBY_AFTER_S) {
-        return Some("ui.standby_after_s");
-    }
-    if c.standby_after_s < c.dim_after_s {
         return Some("ui.standby_after_s");
     }
     None
@@ -651,24 +643,22 @@ use Ty::{Bool, F32, U8, U16, U32};
 /// type C.
 type Field = (&'static str, Ty);
 
-// Le schéma 12 ne garde dans la structure que la machine et le choix du
+// Le schéma 13 ne garde dans la structure que la machine et le choix du
 // profil ; les réglages d'infusion sont dans les enregistrements de profil
-// qui suivent (voir `PROFILE_FIELDS`). La structure de la machine est celle du
-// schéma 11 : seuls les enregistrements de profil ont changé.
-const V12: &[Field] = &[
+// qui suivent (voir `PROFILE_FIELDS`).
+const V13: &[Field] = &[
     ("version", U16),
     ("revision", U32),
     ("heating_enabled", Bool),
     ("purge_pump_pct", U8),
     ("purge_max_s", U16),
-    ("dim_after_s", U16),
     ("standby_after_s", U16),
     ("scace_enabled", Bool),
     ("active_profile", U8),
     ("profile_count", U8),
 ];
 
-/// Un enregistrement de profil du schéma 12 : le nom puis le panier
+/// Un enregistrement de profil des schémas 12 et 13 : le nom puis le panier
 /// (`PROFILE_TEXT_BYTES` octets chacun, complétés par des zéros), puis ces
 /// champs. Quatre enregistrements suivent la structure de la machine ; ceux
 /// au-delà de `profile_count` sont à zéro.
@@ -689,6 +679,21 @@ const PROFILE_FIELDS: &[Field] = &[
     ("brew_preheat_time_s", F32),
     ("filling_pressure_bar", F32),
     ("stop_lead_g", F32),
+];
+
+// Le schéma 12 : la machine avec le délai d'assombrissement de l'écran, les
+// mêmes enregistrements de profil.
+const V12: &[Field] = &[
+    ("version", U16),
+    ("revision", U32),
+    ("heating_enabled", Bool),
+    ("purge_pump_pct", U8),
+    ("purge_max_s", U16),
+    ("dim_after_s", U16),
+    ("standby_after_s", U16),
+    ("scace_enabled", Bool),
+    ("active_profile", U8),
+    ("profile_count", U8),
 ];
 
 // Le schéma 11 : la même structure de machine, des enregistrements de profil
@@ -985,7 +990,7 @@ impl Layout {
 
     /// Disposition du schéma courant.
     fn current() -> Self {
-        Self::with_profiles(V12, PROFILE_FIELDS)
+        Self::with_profiles(V13, PROFILE_FIELDS)
     }
 
     fn of(fields: &[Field]) -> Self {
@@ -1089,7 +1094,6 @@ fn config_value(c: &Config, name: &str) -> f64 {
         "brew_pump_pct" => f64::from(c.brew_pump_pct),
         "purge_pump_pct" => f64::from(c.purge_pump_pct),
         "purge_max_s" => f64::from(c.purge_max_s),
-        "dim_after_s" => f64::from(c.dim_after_s),
         "standby_after_s" => f64::from(c.standby_after_s),
         "scace_enabled" => f64::from(u8::from(c.scace_enabled)),
         "active_profile" => f64::from(c.active_profile),
@@ -1204,14 +1208,14 @@ fn decode_profile(record: &[u8], profile_fields: &[Field]) -> Option<Profile> {
     Some(profile)
 }
 
-/// Blob NVS du schéma 12 : magie, structure de la machine (avec le
+/// Blob NVS du schéma 13 : magie, structure de la machine (avec le
 /// remplissage du compilateur C, à zéro), quatre enregistrements de profil,
 /// somme de contrôle FNV-1a de tout ce qui précède.
 pub fn encode_blob(config: &Config) -> Vec<u8> {
     let layout = Layout::current();
     let mut out = vec![0u8; layout.blob_size()];
     out[0..4].copy_from_slice(&MAGIC.to_le_bytes());
-    for ((name, ty), offset) in V12.iter().zip(&layout.offsets) {
+    for ((name, ty), offset) in V13.iter().zip(&layout.offsets) {
         write_value(&mut out, 4 + offset, *ty, config_value(config, name));
     }
     let record_size = profile_record_size(PROFILE_FIELDS);
@@ -1226,7 +1230,7 @@ pub fn encode_blob(config: &Config) -> Vec<u8> {
     out
 }
 
-/// Taille du blob du schéma 12, en octets.
+/// Taille du blob du schéma 13, en octets.
 pub fn blob_size() -> usize {
     Layout::current().blob_size()
 }
@@ -1279,7 +1283,6 @@ fn set_field(c: &mut Config, name: &str, v: f64) {
         "brew_pump_pct" => c.brew_pump_pct = v as u8,
         "purge_pump_pct" => c.purge_pump_pct = v as u8,
         "purge_max_s" => c.purge_max_s = v as u16,
-        "dim_after_s" => c.dim_after_s = v as u16,
         "standby_after_s" => c.standby_after_s = v as u16,
         "scace_enabled" => c.scace_enabled = v != 0.0,
         "active_profile" => c.active_profile = v as u8,
@@ -1300,7 +1303,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     const FROM_V3: &[&str] = &[
@@ -1314,7 +1316,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     const FROM_V5: &[&str] = &[
@@ -1329,7 +1330,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     const FROM_V6: &[&str] = &[
@@ -1346,7 +1346,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     const FROM_V7: &[&str] = &[
@@ -1364,7 +1363,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     // La montée relative du schéma 8 n'a pas d'équivalent absolu : la
@@ -1384,7 +1382,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     const FROM_V9: &[&str] = &[
@@ -1403,7 +1400,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
     ];
     // Le schéma 10 ajoute l'interrupteur de la sonde SCACE.
@@ -1423,7 +1419,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
-        "dim_after_s",
         "standby_after_s",
         "scace_enabled",
     ];
@@ -1542,12 +1537,13 @@ impl ConfigStore for MemoryConfigStore {
 }
 
 fn read_current(store: &mut dyn ConfigStore, slot: Slot) -> Option<Config> {
-    read_profiled(store, slot, CONFIG_SCHEMA_VERSION, V12, PROFILE_FIELDS)
+    read_profiled(store, slot, CONFIG_SCHEMA_VERSION, V13, PROFILE_FIELDS)
 }
 
-/// Lit un blob à profils (schéma 11 ou courant). Un schéma plus ancien que
-/// le courant est converti : `decode_profile` reprend l'avance de l'ancienne
-/// rampe, et la version devient la courante.
+/// Lit un blob à profils (schéma 11, 12 ou courant). Un schéma plus ancien
+/// que le courant est converti : `decode_profile` reprend l'avance de
+/// l'ancienne rampe, les champs retirés sont ignorés, et la version devient
+/// la courante.
 fn read_profiled(
     store: &mut dyn ConfigStore,
     slot: Slot,
@@ -1642,18 +1638,23 @@ impl ConfigManager {
 
         let mut require_heating_confirmation = false;
         if !report.found {
-            // Le schéma 11 a déjà des profils : chacun est converti.
-            let a = read_profiled(store, Slot::A, 11, V11, PROFILE_FIELDS_V11);
-            let b = read_profiled(store, Slot::B, 11, V11, PROFILE_FIELDS_V11);
-            let chosen = match (a, b) {
-                (Some(a), Some(b)) => Some(if a.revision >= b.revision { a } else { b }),
-                (Some(c), None) | (None, Some(c)) => Some(c),
-                (None, None) => None,
-            };
-            if let Some(c) = chosen {
-                selected = c;
-                report.found = true;
-                report.migrated = true;
+            // Les schémas 11 et 12 ont déjà des profils : chacun est converti.
+            const PROFILED: &[(u16, &[Field], &[Field])] =
+                &[(12, V12, PROFILE_FIELDS), (11, V11, PROFILE_FIELDS_V11)];
+            for &(version, fields, profile_fields) in PROFILED {
+                let a = read_profiled(store, Slot::A, version, fields, profile_fields);
+                let b = read_profiled(store, Slot::B, version, fields, profile_fields);
+                let chosen = match (a, b) {
+                    (Some(a), Some(b)) => Some(if a.revision >= b.revision { a } else { b }),
+                    (Some(c), None) | (None, Some(c)) => Some(c),
+                    (None, None) => None,
+                };
+                if let Some(c) = chosen {
+                    selected = c;
+                    report.found = true;
+                    report.migrated = true;
+                    break;
+                }
             }
         }
         if !report.found {

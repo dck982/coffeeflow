@@ -504,24 +504,22 @@ Règles qui rendent ça utilisable plutôt que dangereux :
 
 ```json
 {
-  "version": 11,
+  "version": 12,
   "active_profile": "single espresso",
-  "brew": { "target_weight_g": 22.0, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
+  "brew": { "target_weight_g": 22.0, "stop_lead_g": 0.5, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
   "heating": { "enabled": true, "brew_temperature_c": 91.0, "brew_preheat_time_s": 8.0 },
   "filling": { "time_s": 10, "pressure_bar": 0.8, "pump_pct": 70 },
   "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 },
-  "rampdown": { "mode": "none", "lead_time_s": 4.0, "lead_weight_g": 0.5, "pressure_drop_bar": 2.0 },
   "purge": { "pump_pct": 80, "max_s": 10 },
   "ui": { "dim_after_s": 240, "standby_after_s": 1800 },
   "scace": { "enabled": false },
   "profiles": [
     {
       "name": "single espresso", "dose_g": 8.0, "basket": "LM1 41 mm",
-      "brew": { "target_weight_g": 22.0, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
+      "brew": { "target_weight_g": 22.0, "stop_lead_g": 0.5, "target_time_s": 27, "target_pressure_bar": 9.0, "pump_pct": 100 },
       "heating": { "brew_temperature_c": 91.0, "brew_preheat_time_s": 8.0 },
       "filling": { "time_s": 10, "pressure_bar": 0.8, "pump_pct": 70 },
-      "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 },
-      "rampdown": { "mode": "none", "lead_time_s": 4.0, "lead_weight_g": 0.5, "pressure_drop_bar": 2.0 }
+      "preinfusion": { "time": true, "weight": true, "time_s": 4, "pump_pct": 50 }
     }
   ]
 }
@@ -532,9 +530,9 @@ connexion BLE de la sonde SCACE (voir « Sonde SCACE »). Il n'a pas d'écran de
 réglage : `coffeetool set scace on|off`. Défaut `false`, et
 `false` après la migration du schéma 9.
 
-**Profils (schéma 11).** Un profil regroupe les réglages d'une façon d'infuser
+**Profils (schéma 11, réglages d'arrêt au schéma 12).** Un profil regroupe les réglages d'une façon d'infuser
 (`brew`, `heating.brew_temperature_c` et `brew_preheat_time_s`, `filling`,
-`preinfusion`, `rampdown`) et une recette : `name`, `dose_g`, `basket`. Les
+`preinfusion`) et une recette : `name`, `dose_g`, `basket`. Les
 sections en tête du document restent la configuration effective, machine plus
 profil actif : un script qui lit ou écrit `brew.target_weight_g` agit sur le
 profil actif, comme avant. `heating.enabled`, `purge`, `ui` et `scace` sont
@@ -548,6 +546,17 @@ propres à la machine. `profiles` donne la liste complète, de 1 à 4 profils ;
   `°µéèêëàâäçîïôöùûüÿœæÉÈÀÇŒ`.
 
 `brew.target_pressure_bar` descend à 4,0 bar (6,0 avant le schéma 11).
+
+**Anticipation d'arrêt (schéma 12, écran 0.4.25).** `brew.stop_lead_g` (0 à
+20 g, au demi-gramme, défaut 4,0) est l'avance de l'arrêt de la pompe sur le
+poids cible : la pompe s'arrête à `brew.target_weight_g - brew.stop_lead_g`, et
+le café qui coule encore finit la tasse. La section `rampdown` (mode, avances
+en temps et en poids, chute de pression) est retirée : l'état de fin
+d'infusion qu'elle déclenchait ne commandait rien. La migration reprend
+l'ancien `lead_weight_g` comme `stop_lead_g`, sauf si l'ancien mode était
+`weight` (la pompe s'arrêtait alors à la cible) : `stop_lead_g` vaut 0. Une
+sauvegarde du schéma 11 est refusée par `POST /config` (`version`) : elle ne se
+restaure plus telle quelle.
 
 `GET` renvoie l'objet ci-dessus : un `curl > config.json` sauvegarde tous les
 profils. Le `POST` reste partiel et tout ou rien. Il s'applique dans cet ordre,

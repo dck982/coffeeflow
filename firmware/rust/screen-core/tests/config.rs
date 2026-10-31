@@ -1,15 +1,15 @@
-//! Configuration : défauts, validation, blob NVS du schéma 11, migrations des
-//! schémas 1 à 10, écriture alternée des deux emplacements.
+//! Configuration : défauts, validation, blob NVS du schéma 12, migrations des
+//! schémas 1 à 11, écriture alternée des deux emplacements.
 //!
 //! `vectors/config_blobs.txt` vient du vrai compilateur C sur les structures
 //! de `config.cpp` (voir `vectors/gen_config_blobs.sh`) ; ses blobs sont ceux
-//! des anciens schémas, que le schéma 11 migre.
+//! des anciens schémas, que le schéma 12 migre.
 
 #![allow(clippy::field_reassign_with_default)]
 
 use screen_core::config::{
     CONFIG_SCHEMA_VERSION, Config, ConfigManager, ConfigStatus, ConfigStore, MemoryConfigStore,
-    PreinfusionMode, RampdownMode, Slot, encode_blob, validate,
+    PreinfusionMode, Slot, encode_blob, validate,
 };
 
 const BLOBS: &str = include_str!("vectors/config_blobs.txt");
@@ -51,7 +51,7 @@ fn store_with(version: &str) -> MemoryConfigStore {
 #[test]
 fn defaults_match_the_cpp_defaults() {
     let c = Config::default();
-    assert_eq!(c.version, 11);
+    assert_eq!(c.version, 12);
     assert_eq!(c.revision, 0);
     assert_eq!((c.profile_count, c.active_profile), (1, 0));
     let profile = c.active();
@@ -72,15 +72,7 @@ fn defaults_match_the_cpp_defaults() {
     );
     assert_eq!(c.preinfusion_mode, PreinfusionMode::TIME);
     assert_eq!((c.preinfusion_time_s, c.preinfusion_pump_pct), (4, 35));
-    assert_eq!(c.rampdown_mode, RampdownMode::None);
-    assert_eq!(
-        (
-            c.rampdown_lead_time_s,
-            c.rampdown_lead_weight_g,
-            c.rampdown_pressure_drop_bar
-        ),
-        (3.0, 4.0, 1.0)
-    );
+    assert_eq!(c.stop_lead_g, 4.0);
     assert_eq!(
         (c.brew_pump_pct, c.purge_pump_pct, c.purge_max_s),
         (100, 100, 20)
@@ -161,18 +153,10 @@ fn validation_bounds_and_steps() {
         ok(&|c| c.preinfusion_pump_pct = 7),
         Some("preinfusion.pump_pct")
     );
-    assert_eq!(
-        ok(&|c| c.rampdown_lead_time_s = 15.5),
-        Some("rampdown.lead_time_s")
-    );
-    assert_eq!(
-        ok(&|c| c.rampdown_lead_weight_g = 20.5),
-        Some("rampdown.lead_weight_g")
-    );
-    assert_eq!(
-        ok(&|c| c.rampdown_pressure_drop_bar = 0.0),
-        Some("rampdown.pressure_drop_bar")
-    );
+    assert_eq!(ok(&|c| c.stop_lead_g = 20.5), Some("brew.stop_lead_g"));
+    assert_eq!(ok(&|c| c.stop_lead_g = 3.25), Some("brew.stop_lead_g"));
+    assert_eq!(ok(&|c| c.stop_lead_g = 0.0), None);
+    assert_eq!(ok(&|c| c.stop_lead_g = 20.0), None);
     assert_eq!(ok(&|c| c.brew_pump_pct = 45), Some("brew.pump_pct"));
     assert_eq!(ok(&|c| c.brew_pump_pct = 50), None);
     assert_eq!(ok(&|c| c.purge_pump_pct = 15), Some("purge.pump_pct"));
@@ -199,7 +183,6 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
     changed.target_time_s = 31;
     changed.heating_enabled = false;
     changed.preinfusion_mode = PreinfusionMode::TIME | PreinfusionMode::WEIGHT;
-    changed.rampdown_mode = RampdownMode::PressureDrop;
     changed.scace_enabled = true;
     let changed = single(changed);
     for (config, slot) in [(defaults, "a"), (changed, "b")] {
@@ -216,7 +199,7 @@ fn v10_blobs_from_the_c_compiler_migrate_to_a_single_profile() {
         assert_eq!(c.active().dose_g, 8.0);
         assert_eq!(c.active().basket(), "LM1 41 mm");
         assert_eq!(c.active().target_weight_g, config.target_weight_g);
-        // La configuration migrée est écrite au schéma 11, et relue telle quelle.
+        // La configuration migrée est écrite au schéma 12, et relue telle quelle.
         assert_eq!(store.writes, 1);
         let (again, report) = ConfigManager::init(&mut store);
         assert!(report.found && !report.migrated);
@@ -235,6 +218,103 @@ fn v10_load_picks_the_highest_revision() {
     assert!(c.scace_enabled && !c.heating_enabled);
     assert!(report.found && report.migrated && !report.normalized);
     assert_eq!(store.writes, 1);
+}
+
+fn put_u16(out: &mut [u8], at: usize, v: u16) {
+    out[at..at + 2].copy_from_slice(&v.to_le_bytes());
+}
+
+fn put_u32(out: &mut [u8], at: usize, v: u32) {
+    out[at..at + 4].copy_from_slice(&v.to_le_bytes());
+}
+
+fn put_f32(out: &mut [u8], at: usize, v: f32) {
+    out[at..at + 4].copy_from_slice(&v.to_le_bytes());
+}
+
+/// Enregistrement de profil du schéma 11 (116 octets) : nom, panier, puis les
+/// champs dont la rampe de fin d'infusion.
+fn v11_profile_record(name: &str, rampdown_mode: u8, lead_weight_g: f32) -> Vec<u8> {
+    let mut r = vec![0u8; 116];
+    r[..name.len()].copy_from_slice(name.as_bytes());
+    let f = 64;
+    r[f] = name.len() as u8;
+    r[f + 2] = 100; // brew_pump_pct
+    r[f + 3] = 100; // filling_pump_pct
+    r[f + 4] = 1; // preinfusion_mode : temps
+    r[f + 5] = 35; // preinfusion_pump_pct
+    r[f + 6] = rampdown_mode;
+    put_u16(&mut r, f + 8, 28); // target_time_s
+    put_u16(&mut r, f + 10, 10); // filling_time_s
+    put_u16(&mut r, f + 12, 4); // preinfusion_time_s
+    put_f32(&mut r, f + 16, 8.0); // dose_g
+    put_f32(&mut r, f + 20, 36.0); // target_weight_g
+    put_f32(&mut r, f + 24, 9.0); // target_pressure_bar
+    put_f32(&mut r, f + 28, 90.0); // brew_temperature_c
+    put_f32(&mut r, f + 32, 2.5); // brew_preheat_time_s
+    put_f32(&mut r, f + 36, 1.0); // filling_pressure_bar
+    put_f32(&mut r, f + 40, 3.0); // rampdown_lead_time_s
+    put_f32(&mut r, f + 44, lead_weight_g);
+    put_f32(&mut r, f + 48, 1.0); // rampdown_pressure_drop_bar
+    r
+}
+
+/// Blob NVS du schéma 11 : magie, machine (20 octets), quatre enregistrements,
+/// somme de contrôle FNV-1a.
+fn v11_blob(revision: u32, records: &[Vec<u8>], active: u8) -> Vec<u8> {
+    let mut out = vec![0u8; 4 + 20 + 4 * 116 + 4];
+    out[0..4].copy_from_slice(&0x4346_4731u32.to_le_bytes());
+    put_u16(&mut out, 4, 11);
+    put_u32(&mut out, 8, revision);
+    out[12] = 1; // heating_enabled
+    out[13] = 100; // purge_pump_pct
+    put_u16(&mut out, 14, 20); // purge_max_s
+    put_u16(&mut out, 16, 240); // dim_after_s
+    put_u16(&mut out, 18, 1800); // standby_after_s
+    out[21] = active;
+    out[22] = records.len() as u8;
+    for (i, record) in records.iter().enumerate() {
+        let at = 4 + 20 + i * 116;
+        out[at..at + 116].copy_from_slice(record);
+    }
+    let end = out.len() - 4;
+    let mut hash: u32 = 2_166_136_261;
+    for &b in &out[..end] {
+        hash = (hash ^ u32::from(b)).wrapping_mul(16_777_619);
+    }
+    out[end..].copy_from_slice(&hash.to_le_bytes());
+    out
+}
+
+#[test]
+fn v11_profiles_keep_their_lead_unless_the_rampdown_stopped_at_the_target() {
+    // Modes de la rampe : 0 aucune, 1 temps, 2 poids, 3 chute de pression.
+    let records = [
+        v11_profile_record("none", 0, 4.0),
+        v11_profile_record("time", 1, 2.5),
+        v11_profile_record("weight", 2, 3.0),
+        v11_profile_record("drop", 3, 1.5),
+    ];
+    let mut store = MemoryConfigStore {
+        a: Some(v11_blob(7, &records, 1)),
+        ..MemoryConfigStore::default()
+    };
+    let (manager, report) = ConfigManager::init(&mut store);
+    assert!(report.found && report.migrated && !report.normalized);
+    let c = manager.get().clone();
+    assert_eq!(c.version, CONFIG_SCHEMA_VERSION);
+    assert_eq!((c.revision, c.profile_count, c.active_profile), (7, 4, 1));
+    let leads: Vec<f32> = c.profiles().iter().map(|p| p.stop_lead_g).collect();
+    assert_eq!(leads, [4.0, 2.5, 0.0, 1.5]);
+    assert_eq!(c.profiles()[2].name(), "weight");
+    // Les champs plats suivent le profil actif.
+    assert_eq!(c.stop_lead_g, 2.5);
+    assert_eq!(validate(&c), None);
+    // La configuration est réécrite au schéma courant.
+    assert_eq!(store.writes, 1);
+    let (again, report) = ConfigManager::init(&mut store);
+    assert!(report.found && !report.migrated);
+    assert_eq!(*again.get(), c);
 }
 
 #[test]
@@ -312,10 +392,9 @@ fn common_expected() -> Config {
     c.target_time_s = 44;
     c.preinfusion_time_s = 5;
     c.preinfusion_pump_pct = 45;
-    c.rampdown_mode = RampdownMode::Weight;
-    c.rampdown_lead_time_s = 3.5;
-    c.rampdown_lead_weight_g = 2.5;
-    c.rampdown_pressure_drop_bar = 1.5;
+    // Le mode du blob d'essai est « poids » : la pompe s'arrêtait à la
+    // cible, donc aucune avance.
+    c.stop_lead_g = 0.0;
     c.brew_pump_pct = 90;
     c.purge_pump_pct = 70;
     c.purge_max_s = 25;
@@ -525,7 +604,7 @@ fn reset_restores_defaults_with_a_new_revision() {
 
 #[test]
 fn schema_constant() {
-    assert_eq!(CONFIG_SCHEMA_VERSION, 11);
+    assert_eq!(CONFIG_SCHEMA_VERSION, 12);
     let mut store = MemoryConfigStore::default();
     assert!(store.read_slot(Slot::A).is_none());
     assert_eq!(Slot::A.key(), "a");

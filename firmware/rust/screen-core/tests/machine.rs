@@ -2,7 +2,7 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
-use screen_core::config::{PreinfusionMode, RampdownMode};
+use screen_core::config::{PreinfusionMode};
 use screen_core::machine::{Config, Input, Machine, State, StopReason};
 
 fn config() -> Config {
@@ -17,10 +17,7 @@ fn config() -> Config {
         preinfusion_mode: PreinfusionMode::TIME,
         preinfusion_time_s: 4,
         preinfusion_pump_pct: 35,
-        rampdown_mode: RampdownMode::None,
-        rampdown_lead_time_s: 3.0,
-        rampdown_lead_weight_g: 4.0,
-        rampdown_pressure_drop_bar: 1.0,
+        stop_lead_g: 4.0,
         brew_pump_pct: 100,
         purge_pump_pct: 100,
         purge_max_s: 20,
@@ -177,22 +174,6 @@ fn safe_direct_config_never_below_minimum() {
 }
 
 #[test]
-fn rampdown_after_regulation() {
-    let mut machine = Machine::new();
-    let mut c = config();
-    c.preinfusion_mode = PreinfusionMode::NONE;
-    c.rampdown_mode = RampdownMode::Time;
-    c.rampdown_lead_time_s = 3.0;
-    let i = valid(0.0, false, 10.0);
-    assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 100);
-    assert_eq!(machine.tick(2200, &i).dimmer, 85);
-    assert_eq!(machine.tick(2400, &i).dimmer, 84);
-    assert_eq!(machine.tick(26000, &i).dimmer, 84);
-    assert_eq!(machine.state(), State::Rampdown);
-}
-
-#[test]
 fn fast_preinfusion_keeps_its_start_level() {
     let mut machine = Machine::new();
     let mut c = config();
@@ -242,7 +223,7 @@ fn first_drop_ends_weight_preinfusion() {
 }
 
 #[test]
-fn weight_goal_stops_and_rampdown_by_weight() {
+fn weight_goal_stops_ahead_of_the_target_by_the_stop_lead() {
     let c = config();
     let mut weighted = Machine::new();
     let mut i = input(10.0, true, 0.0);
@@ -253,19 +234,22 @@ fn weight_goal_stops_and_rampdown_by_weight() {
     assert_eq!(weighted.tick(2100, &i).dimmer, 0);
     assert_eq!(weighted.stop_reason(), StopReason::TargetWeight);
 
+    assert_eq!(weighted.stop_weight_g(), 32.0);
+
+    // Sans avance, la pompe s'arrête à la cible.
     let mut c = config();
-    let mut ramp_weight = Machine::new();
-    c.rampdown_mode = RampdownMode::Weight;
+    c.stop_lead_g = 0.0;
     c.preinfusion_time_s = 0;
+    let mut exact = Machine::new();
     let mut i = input(10.0, true, 0.0);
-    assert!(ramp_weight.start(1000, &c, &i));
-    assert_eq!(ramp_weight.tick(2000, &i).dimmer, 100);
+    assert!(exact.start(1000, &c, &i));
+    assert_eq!(exact.tick(2000, &i).dimmer, 100);
     i.weight_g = 42.0;
-    assert_eq!(ramp_weight.tick(2100, &i).dimmer, 100);
-    assert_eq!(ramp_weight.state(), State::Rampdown);
+    assert_eq!(exact.tick(2100, &i).dimmer, 100);
+    assert_eq!(exact.state(), State::Brew);
     i.weight_g = 46.0;
-    assert_eq!(ramp_weight.tick(2200, &i).dimmer, 0);
-    assert_eq!(ramp_weight.stop_reason(), StopReason::TargetWeight);
+    assert_eq!(exact.tick(2200, &i).dimmer, 0);
+    assert_eq!(exact.stop_reason(), StopReason::TargetWeight);
 }
 
 #[test]

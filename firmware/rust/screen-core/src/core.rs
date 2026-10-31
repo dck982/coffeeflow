@@ -466,7 +466,6 @@ fn cycle_state(state: machine::State) -> CycleState {
         machine::State::Filling => CycleState::Filling,
         machine::State::Preinfusion => CycleState::Preinfusion,
         machine::State::Brew => CycleState::Brew,
-        machine::State::Rampdown => CycleState::Rampdown,
         machine::State::Finished => CycleState::Finished,
         machine::State::Purge => CycleState::Purge,
     }
@@ -478,7 +477,6 @@ fn sample_mode(state: machine::State) -> SampleMode {
         machine::State::Filling => SampleMode::Filling,
         machine::State::Preinfusion => SampleMode::Preinfusion,
         machine::State::Brew => SampleMode::Infusion,
-        machine::State::Rampdown => SampleMode::RampDown,
         _ => SampleMode::Purge,
     }
 }
@@ -490,7 +488,7 @@ fn shot_sample(sample: &hf_capture::Sample) -> ShotSample {
             SampleMode::ThermalPreheat => ShotSampleMode::Preheat,
             SampleMode::Filling => ShotSampleMode::Filling,
             SampleMode::Preinfusion => ShotSampleMode::Preinfusion,
-            SampleMode::Infusion | SampleMode::RampDown => ShotSampleMode::Infusion,
+            SampleMode::Infusion => ShotSampleMode::Infusion,
             SampleMode::Cooldown => ShotSampleMode::Cooldown,
             SampleMode::Purge => ShotSampleMode::Other,
         },
@@ -516,10 +514,7 @@ fn config_field_arg(field: Option<&str>) -> u16 {
         ("preinfusion.mode", 5),
         ("preinfusion.time_s", 6),
         ("preinfusion.pump_pct", 8),
-        ("rampdown.mode", 9),
-        ("rampdown.lead_time_s", 10),
-        ("rampdown.lead_weight_g", 11),
-        ("rampdown.pressure_drop_bar", 12),
+        // 9 à 12 : anciens réglages `rampdown.*`, retirés.
         ("purge.pump_pct", 13),
         ("purge.max_s", 14),
         ("ui.dim_after_s", 15),
@@ -527,7 +522,7 @@ fn config_field_arg(field: Option<&str>) -> u16 {
         ("profiles", 17),
         ("brew", 18),
         ("preinfusion", 19),
-        ("rampdown", 20),
+        // 20 : ancienne section `rampdown`, retirée.
         ("purge", 21),
         ("ui", 22),
         ("filling.time_s", 23),
@@ -540,6 +535,7 @@ fn config_field_arg(field: Option<&str>) -> u16 {
         ("heating", 30),
         ("heating.brew_preheat_time_s", 31),
         ("active_profile", 32),
+        ("brew.stop_lead_g", 33),
     ];
     let Some(field) = field else {
         return 0;
@@ -1193,7 +1189,7 @@ impl<S: ConfigStore> Core<S> {
         let config = self.config.get();
         let s = self.snapshot_now();
         let filling = matches!(s.cycle_state, CycleState::Filling | CycleState::Preinfusion);
-        let infusing = matches!(s.cycle_state, CycleState::Brew | CycleState::Rampdown);
+        let infusing = matches!(s.cycle_state, CycleState::Brew);
         let mode = match s.cycle_state {
             CycleState::ThermalPreheat => thermal::Mode::ThermalPreheat,
             CycleState::Purge => thermal::Mode::Purge,

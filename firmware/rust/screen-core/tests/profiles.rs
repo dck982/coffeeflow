@@ -1,4 +1,4 @@
-//! Profils d'infusion : blob NVS du schéma 11, `/config` (GET, POST, refus),
+//! Profils d'infusion : blob NVS du schéma 12, `/config` (GET, POST, refus),
 //! choix du profil, invariant « champs plats = profil actif » et en-tête de
 //! la capture HF.
 
@@ -22,16 +22,15 @@ use screen_core::json::{self, Json};
 fn profile_json(name: &str, dose: &str, basket: &str, weight: &str) -> String {
     format!(
         r#"{{"name":"{name}","dose_g":{dose},"basket":"{basket}",
-"brew":{{"target_weight_g":{weight},"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}},
+"brew":{{"target_weight_g":{weight},"stop_lead_g":4.0,"target_time_s":28,"target_pressure_bar":9.0,"pump_pct":100}},
 "heating":{{"brew_temperature_c":90.0,"brew_preheat_time_s":2.5}},
 "filling":{{"time_s":10,"pressure_bar":1.0,"pump_pct":100}},
-"preinfusion":{{"time":true,"weight":false,"time_s":4,"pump_pct":35}},
-"rampdown":{{"mode":"none","lead_time_s":3.0,"lead_weight_g":4.0,"pressure_drop_bar":1.0}}}}"#
+"preinfusion":{{"time":true,"weight":false,"time_s":4,"pump_pct":35}}}}"#
     )
 }
 
 fn profiles_body(items: &[String]) -> String {
-    format!(r#"{{"version":11,"profiles":[{}]}}"#, items.join(","))
+    format!(r#"{{"version":12,"profiles":[{}]}}"#, items.join(","))
 }
 
 fn post(rig: &mut Rig, body: &str) -> HttpResponse {
@@ -81,7 +80,7 @@ fn blob_round_trips_every_profile() {
     config.purge_max_s = 30;
     let blob = encode_blob(&config);
     assert_eq!(blob.len(), blob_size());
-    assert_eq!(blob_size(), 492);
+    assert_eq!(blob_size(), 444);
     let mut store = MemoryConfigStore {
         a: Some(blob),
         ..MemoryConfigStore::default()
@@ -96,10 +95,10 @@ fn blob_round_trips_every_profile() {
 #[test]
 fn unused_profile_records_are_zero_in_the_blob() {
     let blob = encode_blob(&Config::default());
-    // Les trois derniers enregistrements (116 octets chacun) précèdent la
+    // Les trois derniers enregistrements (104 octets chacun) précèdent la
     // somme de contrôle.
     let end = blob.len() - 4;
-    assert!(blob[end - 3 * 116..end].iter().all(|b| *b == 0));
+    assert!(blob[end - 3 * 104..end].iter().all(|b| *b == 0));
 }
 
 #[test]
@@ -202,8 +201,8 @@ fn profile_rules_are_validated_with_indexed_field_names() {
         Some("profiles[2].brew.target_pressure_bar")
     );
     assert_eq!(
-        check(&|c| c.profiles_mut()[1].rampdown_pressure_drop_bar = 0.0),
-        Some("profiles[1].rampdown.pressure_drop_bar")
+        check(&|c| c.profiles_mut()[1].stop_lead_g = 20.5),
+        Some("profiles[1].brew.stop_lead_g")
     );
 }
 
@@ -263,7 +262,7 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
         (profiles_body(&[]), "invalid_value", "profiles".into()),
         (profiles_body(&five), "invalid_value", "profiles".into()),
         (
-            r#"{"version":11,"profiles":{}}"#.into(),
+            r#"{"version":12,"profiles":{}}"#.into(),
             "invalid_value",
             "profiles".into(),
         ),
@@ -311,17 +310,17 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
             "profiles[2].brew.pump_pct".into(),
         ),
         (
-            r#"{"version":11,"profiles":[{"name":"a"}]}"#.into(),
+            r#"{"version":12,"profiles":[{"name":"a"}]}"#.into(),
             "invalid_value",
             "profiles[0].dose_g".into(),
         ),
         (
-            r#"{"version":11,"active_profile":"inconnu"}"#.into(),
+            r#"{"version":12,"active_profile":"inconnu"}"#.into(),
             "invalid_value",
             "active_profile".into(),
         ),
         (
-            r#"{"version":11,"active_profile":3}"#.into(),
+            r#"{"version":12,"active_profile":3}"#.into(),
             "invalid_value",
             "active_profile".into(),
         ),
@@ -360,13 +359,13 @@ fn post_refusals_name_the_faulty_field_and_change_nothing() {
 fn long_faulty_keys_stay_readable() {
     let mut rig = Rig::new();
     let body = profiles_body(&[profile_json("a", "8.0", "x", "36.0").replace(
-        r#""rampdown":{"#,
-        r#""rampdown":{"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz":1,"#,
+        r#""brew":{"#,
+        r#""brew":{"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz":1,"#,
     )]);
     let response = post(&mut rig, &body);
     assert_eq!(response.status, "400 Bad Request");
     let field = field_of(&response).unwrap();
-    assert!(field.starts_with("profiles[0].rampdown.zzzz"), "{field}");
+    assert!(field.starts_with("profiles[0].brew.zzzz"), "{field}");
     assert_eq!(field.len(), 47);
 }
 
@@ -398,7 +397,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
     // profil choisi.
     let response = post(
         &mut rig,
-        r#"{"version":11,"brew":{"target_weight_g":33.5},"active_profile":"turbo shot"}"#,
+        r#"{"version":12,"brew":{"target_weight_g":33.5},"active_profile":"turbo shot"}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
     let c = rig.core.config().clone();
@@ -408,7 +407,7 @@ fn active_profile_by_name_then_sections_apply_to_it() {
     assert_eq!(c.profiles()[0].target_weight_g, 36.0);
     // Liste et choix dans le même document : le nom vise la nouvelle liste.
     let body = format!(
-        r#"{{"version":11,"active_profile":"b","profiles":[{},{}]}}"#,
+        r#"{{"version":12,"active_profile":"b","profiles":[{},{}]}}"#,
         profile_json("a", "8.0", "x", "36.0"),
         profile_json("b", "8.0", "x", "40.0")
     );
@@ -425,7 +424,7 @@ fn head_sections_edit_the_active_profile_and_the_machine() {
     let mut rig = rig_with(&three_profiles(2));
     let response = post(
         &mut rig,
-        r#"{"version":11,"brew":{"target_time_s":33},"heating":{"enabled":false,"brew_temperature_c":88.5},"purge":{"max_s":15}}"#,
+        r#"{"version":12,"brew":{"target_time_s":33},"heating":{"enabled":false,"brew_temperature_c":88.5},"purge":{"max_s":15}}"#,
     );
     assert_eq!(response.status, "200 OK", "{}", response.body);
     let c = rig.core.config().clone();

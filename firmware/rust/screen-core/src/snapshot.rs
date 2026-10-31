@@ -40,7 +40,6 @@ pub enum CycleState {
     Filling,
     Preinfusion,
     Brew,
-    Rampdown,
     Finished,
     Purge,
 }
@@ -54,7 +53,6 @@ impl CycleState {
                 | Self::Filling
                 | Self::Preinfusion
                 | Self::Brew
-                | Self::Rampdown
                 | Self::Purge
         )
     }
@@ -66,7 +64,6 @@ impl CycleState {
             Self::Filling => "filling",
             Self::Preinfusion => "preinfusion",
             Self::Brew => "brew",
-            Self::Rampdown => "rampdown",
             Self::Finished => "finished",
             Self::Purge => "purge",
         }

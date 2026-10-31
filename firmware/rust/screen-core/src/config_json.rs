@@ -1,11 +1,11 @@
-//! Document JSON de `/config` (schéma 11) : écriture de la configuration et
+//! Document JSON de `/config` (schéma 12) : écriture de la configuration et
 //! application d'un correctif partiel validé champ par champ.
 
 use alloc::format;
 use alloc::string::{String, ToString};
 
 use crate::config::{
-    Config, MAX_PROFILES, PreinfusionMode, Profile, RampdownMode, validate_profile_list,
+    Config, MAX_PROFILES, PreinfusionMode, Profile, validate_profile_list,
 };
 use crate::json::Json;
 
@@ -19,10 +19,11 @@ fn config_decimal(value: f32) -> Json {
     Json::Raw(formatted)
 }
 
-/// Section `brew` : les quatre réglages d'infusion du profil.
+/// Section `brew` : les réglages d'infusion du profil.
 fn encode_brew(p: &Profile) -> Json {
     let mut brew = Json::object();
     brew.push("target_weight_g", config_decimal(p.target_weight_g));
+    brew.push("stop_lead_g", config_decimal(p.stop_lead_g));
     brew.push_number("target_time_s", f64::from(p.target_time_s));
     brew.push("target_pressure_bar", config_decimal(p.target_pressure_bar));
     brew.push_number("pump_pct", f64::from(p.brew_pump_pct));
@@ -46,18 +47,6 @@ fn encode_preinfusion(p: &Profile) -> Json {
     preinfusion
 }
 
-fn encode_rampdown(p: &Profile) -> Json {
-    let mut rampdown = Json::object();
-    rampdown.push_str("mode", p.rampdown_mode.text());
-    rampdown.push("lead_time_s", config_decimal(p.rampdown_lead_time_s));
-    rampdown.push("lead_weight_g", config_decimal(p.rampdown_lead_weight_g));
-    rampdown.push(
-        "pressure_drop_bar",
-        config_decimal(p.rampdown_pressure_drop_bar),
-    );
-    rampdown
-}
-
 /// Un profil, tel qu'un élément de `profiles` dans `/config` et le profil
 /// copié dans une capture HF.
 pub fn encode_profile(p: &Profile) -> Json {
@@ -72,7 +61,6 @@ pub fn encode_profile(p: &Profile) -> Json {
     profile.push("heating", heating);
     profile.push("filling", encode_filling(p));
     profile.push("preinfusion", encode_preinfusion(p));
-    profile.push("rampdown", encode_rampdown(p));
     profile
 }
 
@@ -101,7 +89,6 @@ pub fn encode_config(config: &Config) -> Json {
 
     root.push("filling", encode_filling(active));
     root.push("preinfusion", encode_preinfusion(active));
-    root.push("rampdown", encode_rampdown(active));
 
     let mut purge = Json::object();
     purge.push_number("pump_pct", f64::from(config.purge_pump_pct));
@@ -214,7 +201,6 @@ fn patch(root: &Json, config: &mut Config) -> Result<(), String> {
             "heating" => overlay(value, "heating", config, apply_heating_key)?,
             "filling" => overlay(value, "filling", config, apply_filling_key)?,
             "preinfusion" => overlay(value, "preinfusion", config, apply_preinfusion_key)?,
-            "rampdown" => overlay(value, "rampdown", config, apply_rampdown_key)?,
             "purge" => overlay(value, "purge", config, apply_purge_key)?,
             "ui" => overlay(value, "ui", config, apply_ui_key)?,
             "scace" => overlay(value, "scace", config, apply_scace_key)?,
@@ -231,6 +217,7 @@ const PROFILE_REQUIRED: &[&str] = &[
     "dose_g",
     "basket",
     "brew.target_weight_g",
+    "brew.stop_lead_g",
     "brew.target_time_s",
     "brew.target_pressure_bar",
     "brew.pump_pct",
@@ -243,10 +230,6 @@ const PROFILE_REQUIRED: &[&str] = &[
     "preinfusion.weight",
     "preinfusion.time_s",
     "preinfusion.pump_pct",
-    "rampdown.mode",
-    "rampdown.lead_time_s",
-    "rampdown.lead_weight_g",
-    "rampdown.pressure_drop_bar",
 ];
 
 /// Remplace la liste entière. Les règles de nom, de panier, de dose et
@@ -318,7 +301,6 @@ fn parse_profile(index: usize, item: &Json, settings: &mut Config) -> Result<Pro
             "heating" => overlay(value, "heating", settings, apply_profile_heating_key),
             "filling" => overlay(value, "filling", settings, apply_filling_key),
             "preinfusion" => overlay(value, "preinfusion", settings, apply_preinfusion_key),
-            "rampdown" => overlay(value, "rampdown", settings, apply_rampdown_key),
             other => Err(other.to_string()),
         };
         result.map_err(|field| at(&field))?;
@@ -367,6 +349,7 @@ fn boolean(value: &Json, field: &str, dest: &mut bool) -> Result<(), String> {
 fn apply_brew_key(key: &str, value: &Json, c: &mut Config) -> Result<(), String> {
     match key {
         "target_weight_g" => number_float(value, "brew.target_weight_g", &mut c.target_weight_g),
+        "stop_lead_g" => number_float(value, "brew.stop_lead_g", &mut c.stop_lead_g),
         "target_time_s" => number_u16(value, "brew.target_time_s", &mut c.target_time_s),
         "target_pressure_bar" => number_float(
             value,
@@ -435,36 +418,6 @@ fn apply_filling_key(key: &str, value: &Json, c: &mut Config) -> Result<(), Stri
         "pressure_bar" => number_float(value, "filling.pressure_bar", &mut c.filling_pressure_bar),
         "pump_pct" => number_u8(value, "filling.pump_pct", &mut c.filling_pump_pct),
         _ => Err(joined("filling", key)),
-    }
-}
-
-fn apply_rampdown_key(key: &str, value: &Json, c: &mut Config) -> Result<(), String> {
-    match key {
-        "mode" => {
-            let Some(text) = value.as_str() else {
-                return Err("rampdown.mode".to_string());
-            };
-            c.rampdown_mode = match text {
-                "none" => RampdownMode::None,
-                "time" => RampdownMode::Time,
-                "weight" => RampdownMode::Weight,
-                "pressure_drop" => RampdownMode::PressureDrop,
-                _ => return Err("rampdown.mode".to_string()),
-            };
-            Ok(())
-        }
-        "lead_time_s" => number_float(value, "rampdown.lead_time_s", &mut c.rampdown_lead_time_s),
-        "lead_weight_g" => number_float(
-            value,
-            "rampdown.lead_weight_g",
-            &mut c.rampdown_lead_weight_g,
-        ),
-        "pressure_drop_bar" => number_float(
-            value,
-            "rampdown.pressure_drop_bar",
-            &mut c.rampdown_pressure_drop_bar,
-        ),
-        _ => Err(joined("rampdown", key)),
     }
 }
 

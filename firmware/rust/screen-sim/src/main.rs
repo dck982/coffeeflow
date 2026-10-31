@@ -31,7 +31,6 @@ const SCENARIOS: &[&str] = &[
     "keypad-weight",
     "keypad-time",
     "preinfusion",
-    "rampdown",
     "dimmer",
     "heating",
     "valve",
@@ -168,9 +167,9 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             s.scale_present = name == "keypad-weight";
             p.command(5, "", 1, &s, &c);
         }
-        "preinfusion" | "rampdown" => {
-            p.settings_page = if name == "preinfusion" { 1 } else { 2 };
-            p.command(13, if name == "preinfusion" { "1" } else { "0" }, 1, &s, &c);
+        "preinfusion" => {
+            p.settings_page = 1;
+            p.command(13, "1", 1, &s, &c);
         }
         "dimmer" | "valve" | "heating" => {
             p.command(

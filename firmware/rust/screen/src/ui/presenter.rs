@@ -4,7 +4,7 @@
 use super::{AppWindow, Segment, Tile};
 use alloc::{format, rc::Rc, string::String, vec::Vec};
 use screen_core::{
-    config::{self, Config, PreinfusionMode, Profile, RampdownMode},
+    config::{self, Config, PreinfusionMode, Profile},
     core::{Action, ActionCommand, ActionSource, ActionStatus, Input, Reply},
     guided::{Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot, brew_ready},
@@ -233,12 +233,12 @@ const CHOICE_PROFILE: usize = 200;
 
 // L'ordre est celui des six tuiles par page, pas celui du document HTTP.
 const EDITS: [[usize; 6]; 4] = [
-    [0, 1, 2, 3, 4, 5],
-    [6, 100, 7, 8, 9, 15],
-    [101, 10, 11, 12, 999, 999],
-    [102, 103, 104, 105, 13, 14],
+    [0, 2, 10, 4, 9, 13],
+    [6, 100, 7, 8, 999, 999],
+    [1, 3, 5, 999, 999, 999],
+    [102, 103, 104, 105, 11, 12],
 ];
-const NAMES: [&str; 16] = [
+const NAMES: [&str; 14] = [
     "cible temps",
     "pompe remplissage",
     "cible poids",
@@ -249,18 +249,16 @@ const NAMES: [&str; 16] = [
     "durée remplissage",
     "échéance pré-inf.",
     "cible chaudière",
-    "avance temps",
-    "avance poids",
-    "chute pression",
+    "anticipation d'arrêt",
     "pompe purge",
     "purge max",
     "précharge chauffe",
 ];
-const UNITS: [&str; 16] = [
-    "s", "%", "g", "%", "bar", "%", "bar", "s", "s", "°C", "s", "g", "bar", "%", "s", "s",
+const UNITS: [&str; 14] = [
+    "s", "%", "g", "%", "bar", "%", "bar", "s", "s", "°C", "g", "%", "s", "s",
 ];
 fn decimal(e: usize) -> bool {
-    matches!(e, 2 | 4 | 6 | 9 | 10 | 11 | 12 | 15)
+    matches!(e, 2 | 4 | 6 | 9 | 10 | 13)
 }
 fn value(c: &Config, e: usize) -> f32 {
     match e {
@@ -274,12 +272,10 @@ fn value(c: &Config, e: usize) -> f32 {
         7 => c.filling_time_s as f32,
         8 => c.preinfusion_time_s as f32,
         9 => c.brew_temperature_c,
-        10 => c.rampdown_lead_time_s,
-        11 => c.rampdown_lead_weight_g,
-        12 => c.rampdown_pressure_drop_bar,
-        13 => c.purge_pump_pct as f32,
-        14 => c.purge_max_s as f32,
-        15 => c.brew_preheat_time_s,
+        10 => c.stop_lead_g,
+        11 => c.purge_pump_pct as f32,
+        12 => c.purge_max_s as f32,
+        13 => c.brew_preheat_time_s,
         _ => 0.0,
     }
 }
@@ -295,12 +291,10 @@ fn set_value(c: &mut Config, e: usize, v: f32) {
         7 => c.filling_time_s = v as u16,
         8 => c.preinfusion_time_s = v as u16,
         9 => c.brew_temperature_c = v,
-        10 => c.rampdown_lead_time_s = v,
-        11 => c.rampdown_lead_weight_g = v,
-        12 => c.rampdown_pressure_drop_bar = v,
-        13 => c.purge_pump_pct = v as u8,
-        14 => c.purge_max_s = v as u16,
-        15 => c.brew_preheat_time_s = v,
+        10 => c.stop_lead_g = v,
+        11 => c.purge_pump_pct = v as u8,
+        12 => c.purge_max_s = v as u16,
+        13 => c.brew_preheat_time_s = v,
         _ => {}
     }
 }
@@ -459,8 +453,8 @@ impl Presenter {
             13 if i < 6 => {
                 let e = EDITS[self.settings_page][i];
                 match e {
-                    0..=15 => self.edit(e, c),
-                    100 | 101 => {
+                    0..=13 => self.edit(e, c),
+                    100 => {
                         self.choice = e;
                         self.page = 6;
                     }
@@ -536,17 +530,8 @@ impl Presenter {
             }
             17 => {
                 let mut c = c.clone();
-                if self.choice == 100 {
-                    if i < 2 {
-                        c.preinfusion_mode = PreinfusionMode(c.preinfusion_mode.0 ^ (1 << i));
-                    }
-                } else {
-                    c.rampdown_mode = match i {
-                        1 => RampdownMode::Time,
-                        2 => RampdownMode::Weight,
-                        3 => RampdownMode::PressureDrop,
-                        _ => RampdownMode::None,
-                    };
+                if i < 2 {
+                    c.preinfusion_mode = PreinfusionMode(c.preinfusion_mode.0 ^ (1 << i));
                 }
                 Some(UiRequest::Core(Input::PutConfig(c)))
             }
@@ -606,7 +591,7 @@ impl Presenter {
             Reply::Config(r) if r.status == config::ConfigStatus::Ok => {
                 if self.page == 6 && self.choice == CHOICE_PROFILE {
                     self.page = 0;
-                } else if self.page == 5 || (self.page == 6 && self.choice == 101) {
+                } else if self.page == 5 {
                     self.page = 3;
                     self.editor = None;
                 } else if self.page == 7 {
@@ -927,7 +912,6 @@ impl Presenter {
             CycleState::ThermalPreheat => "pré-chauffe",
             CycleState::Filling => "remplissage",
             CycleState::Preinfusion => "pré-infusion",
-            CycleState::Rampdown => "rampe",
             CycleState::Finished if s.capture_cooldown => {
                 if s.shot.drip_done {
                     "écoulement"
@@ -1343,7 +1327,7 @@ impl Presenter {
         let mut tiles = Vec::new();
         for &e in &EDITS[self.settings_page] {
             let t = match e {
-                0..=15 => tile(
+                0..=13 => tile(
                     NAMES[e],
                     number(
                         value(c, e),
@@ -1361,19 +1345,6 @@ impl Presenter {
                         2 => "poids",
                         3 => "temps + poids",
                         _ => "aucune",
-                    }
-                    .into(),
-                    "",
-                    true,
-                    0,
-                ),
-                101 => tile(
-                    "stratégie rampe",
-                    match c.rampdown_mode {
-                        RampdownMode::None => "aucune",
-                        RampdownMode::Time => "temps",
-                        RampdownMode::Weight => "poids",
-                        RampdownMode::PressureDrop => "chute pression",
                     }
                     .into(),
                     "",
@@ -1421,20 +1392,8 @@ impl Presenter {
                 .collect();
             sync(app.get_choices(), choices, |m| app.set_choices(m));
         } else if self.page == 6 {
-            app.set_editor_title(
-                if self.choice == 100 {
-                    "pré-infusion"
-                } else {
-                    "stratégie rampe"
-                }
-                .into(),
-            );
-            let names: &[&str] = if self.choice == 100 {
-                &["temps", "poids"]
-            } else {
-                &["aucune", "temps", "poids", "chute pression"]
-            };
-            let choices = names
+            app.set_editor_title("pré-infusion".into());
+            let choices = ["temps", "poids"]
                 .iter()
                 .enumerate()
                 .map(|(i, n)| {
@@ -1443,15 +1402,7 @@ impl Presenter {
                         String::new(),
                         "",
                         true,
-                        if if self.choice == 100 {
-                            c.preinfusion_mode.0 & (1 << i) != 0
-                        } else {
-                            c.rampdown_mode as usize == i
-                        } {
-                            1
-                        } else {
-                            0
-                        },
+                        i32::from(c.preinfusion_mode.0 & (1 << i) != 0),
                     )
                 })
                 .collect();

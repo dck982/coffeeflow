@@ -115,7 +115,7 @@ Tout appui, même hors bouton, réveille l'écran.
 La page d'infusion s'affiche dès qu'un cycle est actif, et reste après la fin
 tant que le résumé n'est pas fermé. Elle comporte, de haut en bas :
 
-1. la phase (`pré-chauffe`, `remplissage`, `pré-infusion`, `rampe`,
+1. la phase (`pré-chauffe`, `remplissage`, `pré-infusion`,
    `infusion`, `dernières gouttes`, `écoulement`, `terminé`) et, à droite, la
    date et l'heure de départ ;
 2. la **frise** (voir ci-dessous) ;
@@ -206,13 +206,14 @@ actif ; le 4 règle la machine. Chaque page affiche jusqu'à six tuiles en deux
 colonnes ; une tuile numérique ouvre le pavé, une tuile de choix ouvre l'écran
 de choix.
 
-1. **Cibles et pompes** : cible temps, pompe remplissage, cible poids, pompe
-   pré-inf., cible pression, pompe infusion.
-2. **Remplissage et pré-infusion** : pression remplissage, critères pré-inf.
-   (choix), durée remplissage, échéance pré-inf., cible chaudière, précharge
+1. **Cibles** : cible temps, cible poids, anticipation d'arrêt (grammes avant
+   la cible où la pompe s'arrête), cible pression, cible chaudière, précharge
    chauffe.
-3. **Rampe** : stratégie rampe (choix), avance temps, avance poids, chute
-   pression. Deux emplacements restent vides.
+2. **Remplissage et pré-infusion** : pression remplissage, critères pré-inf.
+   (choix), durée remplissage, échéance pré-inf. Deux emplacements restent
+   vides.
+3. **Pompes** : pompe remplissage, pompe pré-inf., pompe infusion. Trois
+   emplacements restent vides.
 4. **Machine** : réinitialiser réseau (demande confirmation), calibrations
    (indication « depuis /config », non modifiable à l'écran), réinitialiser LCD
    (redémarre l'affichage), veille (« automatique », non modifiable), pompe
@@ -231,9 +232,7 @@ invalide ou hors limites, ou un refus du cœur (par exemple pendant un cycle),
 s'affiche en rouge sous la valeur.
 
 Les écrans de choix sont des grands boutons : le profil (voir plus haut),
-critères de pré-infusion (temps, poids, cumulables ; actifs en vert) et
-stratégie de rampe (aucune, temps, poids, chute pression ; un seul choix, en
-orange).
+critères de pré-infusion (temps, poids, cumulables ; actifs en vert).
 
 ## Diagnostic
 

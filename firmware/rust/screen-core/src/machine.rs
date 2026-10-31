@@ -1,8 +1,8 @@
 //! Logique pure du cycle café : précharge thermique, remplissage,
-//! pré-infusion, infusion régulée en pression, fin progressive et purge.
+//! pré-infusion, infusion régulée en pression et purge.
 //! Aucune dépendance au bus ni à l'horloge : le temps est un argument.
 
-use crate::config::{MINIMUM_BREW_PUMP_PCT, PreinfusionMode, RampdownMode};
+use crate::config::{MINIMUM_BREW_PUMP_PCT, PreinfusionMode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum State {
@@ -12,7 +12,6 @@ pub enum State {
     Filling,
     Preinfusion,
     Brew,
-    Rampdown,
     Finished,
     Purge,
 }
@@ -43,10 +42,7 @@ pub struct Config {
     pub preinfusion_mode: PreinfusionMode,
     pub preinfusion_time_s: u16,
     pub preinfusion_pump_pct: u8,
-    pub rampdown_mode: RampdownMode,
-    pub rampdown_lead_time_s: f32,
-    pub rampdown_lead_weight_g: f32,
-    pub rampdown_pressure_drop_bar: f32,
+    pub stop_lead_g: f32,
     pub brew_pump_pct: u8,
     pub purge_pump_pct: u8,
     pub purge_max_s: u16,
@@ -65,10 +61,7 @@ impl From<&crate::config::Config> for Config {
             preinfusion_mode: c.preinfusion_mode,
             preinfusion_time_s: c.preinfusion_time_s,
             preinfusion_pump_pct: c.preinfusion_pump_pct,
-            rampdown_mode: c.rampdown_mode,
-            rampdown_lead_time_s: c.rampdown_lead_time_s,
-            rampdown_lead_weight_g: c.rampdown_lead_weight_g,
-            rampdown_pressure_drop_bar: c.rampdown_pressure_drop_bar,
+            stop_lead_g: c.stop_lead_g,
             brew_pump_pct: c.brew_pump_pct,
             purge_pump_pct: c.purge_pump_pct,
             purge_max_s: c.purge_max_s,
@@ -128,7 +121,6 @@ pub struct Machine {
     /// Durée de la purge en cours, au bout de laquelle la pompe s'arrête.
     purge_duration_ms: u64,
     starting_weight_g: f32,
-    preinfusion_pressure_start_bar: f32,
     weight_goal: bool,
     effective_preinfusion_mode: PreinfusionMode,
     preinfusion_start_weight_g: f32,
@@ -160,7 +152,6 @@ impl Machine {
             finished_ms: 0,
             purge_duration_ms: 0,
             starting_weight_g: 0.0,
-            preinfusion_pressure_start_bar: 0.0,
             weight_goal: false,
             effective_preinfusion_mode: PreinfusionMode::NONE,
             preinfusion_start_weight_g: 0.0,
@@ -191,7 +182,6 @@ impl Machine {
                 | State::Filling
                 | State::Preinfusion
                 | State::Brew
-                | State::Rampdown
                 | State::Purge
         )
     }
@@ -206,11 +196,7 @@ impl Machine {
 
     /// Poids en tasse, compté depuis le début du cycle, qui arrête la pompe.
     pub fn stop_weight_g(&self) -> f32 {
-        if self.config.rampdown_mode == RampdownMode::Weight {
-            self.config.target_weight_g
-        } else {
-            self.config.target_weight_g - self.config.rampdown_lead_weight_g
-        }
+        self.config.target_weight_g - self.config.stop_lead_g
     }
 
     pub fn target_time_s(&self) -> u16 {
@@ -253,7 +239,6 @@ impl Machine {
         self.finished_ms = 0;
         self.starting_weight_g = input.weight_g;
         self.preinfusion_start_weight_g = input.weight_g;
-        self.preinfusion_pressure_start_bar = input.pressure_bar;
         self.filling_pressure_since_ms = 0;
         self.weight_goal = input.scale_present;
         self.effective_preinfusion_mode = self.config.preinfusion_mode;
@@ -386,7 +371,6 @@ impl Machine {
             self.phase_started_ms = now_ms;
             self.starting_weight_g = input.weight_g;
             self.preinfusion_start_weight_g = input.weight_g;
-            self.preinfusion_pressure_start_bar = input.pressure_bar;
         }
 
         if self.weight_goal {
@@ -394,14 +378,6 @@ impl Machine {
             if !input.scale_present || delta < -SCALE_BACKWARDS_G {
                 self.finish(StopReason::ScaleLost, now_ms);
                 return Output::default();
-            }
-            let ramp_start = self.config.target_weight_g - self.config.rampdown_lead_weight_g;
-            if self.state == State::Brew
-                && self.config.rampdown_mode == RampdownMode::Weight
-                && delta >= ramp_start
-            {
-                self.state = State::Rampdown;
-                self.phase_started_ms = now_ms;
             }
             if delta >= self.stop_weight_g() {
                 self.finish(StopReason::TargetWeight, now_ms);
@@ -475,20 +451,6 @@ impl Machine {
                 };
             }
             self.enter_brew(now_ms, true);
-        }
-        if self.state == State::Brew {
-            let ramp = self.config.rampdown_mode == RampdownMode::Time
-                && now_ms.wrapping_sub(self.started_ms)
-                    >= ((f32::from(self.config.target_time_s) - self.config.rampdown_lead_time_s)
-                        * 1000.0) as u64;
-            if ramp
-                || (self.config.rampdown_mode == RampdownMode::PressureDrop
-                    && self.preinfusion_pressure_start_bar - input.pressure_bar
-                        >= self.config.rampdown_pressure_drop_bar)
-            {
-                self.state = State::Rampdown;
-                self.phase_started_ms = now_ms;
-            }
         }
         if self.state == State::Brew && self.brew_ramp_active {
             let target_pct = self.target_pump_pct();

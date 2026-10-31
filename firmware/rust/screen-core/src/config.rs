@@ -1,6 +1,6 @@
 //! Configuration utilisateur persistante : valeurs par défaut, validation,
-//! bornes, profils d'infusion, blob NVS (schéma 11) et migrations des
-//! schémas 1 à 10.
+//! bornes, profils d'infusion, blob NVS (schéma 12) et migrations des
+//! schémas 1 à 11.
 //!
 //! Les calibrations machine ne passent ni par NVS ni par `/config` : elles
 //! sont compilées dans [`crate::calibration`].
@@ -15,7 +15,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::BitOr;
 
-pub const CONFIG_SCHEMA_VERSION: u16 = 11;
+pub const CONFIG_SCHEMA_VERSION: u16 = 12;
 pub const MINIMUM_BREW_TEMPERATURE_C: f32 = 50.0;
 /// 5 °C sous la coupure de sécurité de la chaudière.
 pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 95.0;
@@ -53,39 +53,6 @@ impl BitOr for PreinfusionMode {
     }
 }
 
-/// Fin d'infusion progressive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[repr(u8)]
-pub enum RampdownMode {
-    #[default]
-    None = 0,
-    Time = 1,
-    Weight = 2,
-    PressureDrop = 3,
-}
-
-impl RampdownMode {
-    pub const fn from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::None),
-            1 => Some(Self::Time),
-            2 => Some(Self::Weight),
-            3 => Some(Self::PressureDrop),
-            _ => None,
-        }
-    }
-
-    /// Nom dans le JSON de `/config`.
-    pub const fn text(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::Time => "time",
-            Self::Weight => "weight",
-            Self::PressureDrop => "pressure_drop",
-        }
-    }
-}
-
 /// Bornes et pas de la validation, exposés pour que l'UI les partage.
 pub mod bounds {
     pub const TARGET_WEIGHT_G: (f32, f32, f32) = (10.0, 100.0, 0.5);
@@ -103,9 +70,8 @@ pub mod bounds {
     pub const FILLING_PUMP_PCT: (u8, u8, u8) = (20, 100, 5);
     pub const PREINFUSION_TIME_S_MAX: u16 = 20;
     pub const PREINFUSION_PUMP_PCT_MAX: u8 = 100;
-    pub const RAMPDOWN_LEAD_TIME_S: (f32, f32, f32) = (0.0, 15.0, 0.5);
-    pub const RAMPDOWN_LEAD_WEIGHT_G: (f32, f32, f32) = (0.0, 20.0, 0.5);
-    pub const RAMPDOWN_PRESSURE_DROP_BAR: (f32, f32, f32) = (0.5, 4.0, 0.5);
+    /// Avance de l'arrêt de la pompe sur le poids cible, en grammes.
+    pub const STOP_LEAD_G: (f32, f32, f32) = (0.0, 20.0, 0.5);
     pub const BREW_PUMP_PCT: (u8, u8, u8) = (super::MINIMUM_BREW_PUMP_PCT, 100, 5);
     pub const PURGE_PUMP_PCT: (u8, u8, u8) = (20, 100, 5);
     pub const PURGE_MAX_S: (u16, u16, u16) = (5, 60, 5);
@@ -147,10 +113,9 @@ pub struct Profile {
     pub preinfusion_mode: PreinfusionMode,
     pub preinfusion_time_s: u16,
     pub preinfusion_pump_pct: u8,
-    pub rampdown_mode: RampdownMode,
-    pub rampdown_lead_time_s: f32,
-    pub rampdown_lead_weight_g: f32,
-    pub rampdown_pressure_drop_bar: f32,
+    /// Grammes avant le poids cible où la pompe s'arrête : le café qui
+    /// continue de couler après l'arrêt finit la tasse.
+    pub stop_lead_g: f32,
 }
 
 impl Profile {
@@ -173,10 +138,7 @@ impl Profile {
         preinfusion_mode: PreinfusionMode::NONE,
         preinfusion_time_s: 0,
         preinfusion_pump_pct: 0,
-        rampdown_mode: RampdownMode::None,
-        rampdown_lead_time_s: 0.0,
-        rampdown_lead_weight_g: 0.0,
-        rampdown_pressure_drop_bar: 0.0,
+        stop_lead_g: 0.0,
     };
 
     /// Profil dont les réglages sont ceux des champs plats de `c`.
@@ -222,10 +184,7 @@ impl Profile {
         self.preinfusion_mode = c.preinfusion_mode;
         self.preinfusion_time_s = c.preinfusion_time_s;
         self.preinfusion_pump_pct = c.preinfusion_pump_pct;
-        self.rampdown_mode = c.rampdown_mode;
-        self.rampdown_lead_time_s = c.rampdown_lead_time_s;
-        self.rampdown_lead_weight_g = c.rampdown_lead_weight_g;
-        self.rampdown_pressure_drop_bar = c.rampdown_pressure_drop_bar;
+        self.stop_lead_g = c.stop_lead_g;
     }
 
     /// Copie les réglages de ce profil dans les champs plats de `c`.
@@ -242,10 +201,7 @@ impl Profile {
         c.preinfusion_mode = self.preinfusion_mode;
         c.preinfusion_time_s = self.preinfusion_time_s;
         c.preinfusion_pump_pct = self.preinfusion_pump_pct;
-        c.rampdown_mode = self.rampdown_mode;
-        c.rampdown_lead_time_s = self.rampdown_lead_time_s;
-        c.rampdown_lead_weight_g = self.rampdown_lead_weight_g;
-        c.rampdown_pressure_drop_bar = self.rampdown_pressure_drop_bar;
+        c.stop_lead_g = self.stop_lead_g;
     }
 }
 
@@ -275,7 +231,7 @@ const DEFAULT_PROFILE_NAME: &str = "single espresso";
 const DEFAULT_PROFILE_DOSE_G: f32 = 8.0;
 const DEFAULT_PROFILE_BASKET: &str = "LM1 41 mm";
 
-/// Configuration effective (schéma 11) : la machine et le profil actif. Les
+/// Configuration effective (schéma 12) : la machine et le profil actif. Les
 /// champs plats « profil » (cible, température, remplissage, pré-infusion,
 /// rampe) sont toujours égaux à `profiles[active_profile]` ; toute écriture
 /// acceptée rétablit cet invariant.
@@ -299,10 +255,9 @@ pub struct Config {
     pub preinfusion_mode: PreinfusionMode,
     pub preinfusion_time_s: u16,
     pub preinfusion_pump_pct: u8,
-    pub rampdown_mode: RampdownMode,
-    pub rampdown_lead_time_s: f32,
-    pub rampdown_lead_weight_g: f32,
-    pub rampdown_pressure_drop_bar: f32,
+    /// Grammes avant le poids cible où la pompe s'arrête : le café qui
+    /// continue de couler après l'arrêt finit la tasse.
+    pub stop_lead_g: f32,
     pub brew_pump_pct: u8,
     pub purge_pump_pct: u8,
     pub purge_max_s: u16,
@@ -337,10 +292,7 @@ impl Default for Config {
             preinfusion_mode: PreinfusionMode::TIME,
             preinfusion_time_s: 4,
             preinfusion_pump_pct: 35,
-            rampdown_mode: RampdownMode::None,
-            rampdown_lead_time_s: 3.0,
-            rampdown_lead_weight_g: 4.0,
-            rampdown_pressure_drop_bar: 1.0,
+            stop_lead_g: 4.0,
             brew_pump_pct: 100,
             purge_pump_pct: 100,
             purge_max_s: 20,
@@ -514,14 +466,8 @@ fn validate_settings(c: &Profile) -> Option<&'static str> {
     {
         return Some("preinfusion.pump_pct");
     }
-    if !valid_step(c.rampdown_lead_time_s, b::RAMPDOWN_LEAD_TIME_S) {
-        return Some("rampdown.lead_time_s");
-    }
-    if !valid_step(c.rampdown_lead_weight_g, b::RAMPDOWN_LEAD_WEIGHT_G) {
-        return Some("rampdown.lead_weight_g");
-    }
-    if !valid_step(c.rampdown_pressure_drop_bar, b::RAMPDOWN_PRESSURE_DROP_BAR) {
-        return Some("rampdown.pressure_drop_bar");
+    if !valid_step(c.stop_lead_g, b::STOP_LEAD_G) {
+        return Some("brew.stop_lead_g");
     }
     if !valid_pct(c.brew_pump_pct, b::BREW_PUMP_PCT) {
         return Some("brew.pump_pct");
@@ -587,10 +533,7 @@ profile_field_names!(
     "preinfusion.mode",
     "preinfusion.time_s",
     "preinfusion.pump_pct",
-    "rampdown.mode",
-    "rampdown.lead_time_s",
-    "rampdown.lead_weight_g",
-    "rampdown.pressure_drop_bar",
+    "brew.stop_lead_g",
 );
 
 /// Nom d'un champ du profil `index` dans un refus (`profiles[2].name`).
@@ -708,10 +651,11 @@ use Ty::{Bool, F32, U8, U16, U32};
 /// type C.
 type Field = (&'static str, Ty);
 
-// Le schéma 11 ne garde dans la structure que la machine et le choix du
-// profil ; les réglages d'infusion passent dans les enregistrements de
-// profil qui suivent (voir `PROFILE_FIELDS`).
-const V11: &[Field] = &[
+// Le schéma 12 ne garde dans la structure que la machine et le choix du
+// profil ; les réglages d'infusion sont dans les enregistrements de profil
+// qui suivent (voir `PROFILE_FIELDS`). La structure de la machine est celle du
+// schéma 11 : seuls les enregistrements de profil ont changé.
+const V12: &[Field] = &[
     ("version", U16),
     ("revision", U32),
     ("heating_enabled", Bool),
@@ -724,11 +668,35 @@ const V11: &[Field] = &[
     ("profile_count", U8),
 ];
 
-/// Un enregistrement de profil du schéma 11 : le nom puis le panier
+/// Un enregistrement de profil du schéma 12 : le nom puis le panier
 /// (`PROFILE_TEXT_BYTES` octets chacun, complétés par des zéros), puis ces
 /// champs. Quatre enregistrements suivent la structure de la machine ; ceux
 /// au-delà de `profile_count` sont à zéro.
 const PROFILE_FIELDS: &[Field] = &[
+    ("name_len", U8),
+    ("basket_len", U8),
+    ("brew_pump_pct", U8),
+    ("filling_pump_pct", U8),
+    ("preinfusion_mode", U8),
+    ("preinfusion_pump_pct", U8),
+    ("target_time_s", U16),
+    ("filling_time_s", U16),
+    ("preinfusion_time_s", U16),
+    ("dose_g", F32),
+    ("target_weight_g", F32),
+    ("target_pressure_bar", F32),
+    ("brew_temperature_c", F32),
+    ("brew_preheat_time_s", F32),
+    ("filling_pressure_bar", F32),
+    ("stop_lead_g", F32),
+];
+
+// Le schéma 11 : la même structure de machine, des enregistrements de profil
+// avec la rampe de fin d'infusion.
+const V11: &[Field] = V12;
+
+/// Un enregistrement de profil du schéma 11.
+const PROFILE_FIELDS_V11: &[Field] = &[
     ("name_len", U8),
     ("basket_len", U8),
     ("brew_pump_pct", U8),
@@ -749,6 +717,10 @@ const PROFILE_FIELDS: &[Field] = &[
     ("rampdown_lead_weight_g", F32),
     ("rampdown_pressure_drop_bar", F32),
 ];
+
+/// Mode « poids » de la rampe des schémas 11 et antérieurs : la pompe
+/// s'arrêtait à la cible, sans avance.
+const LEGACY_RAMPDOWN_WEIGHT: u8 = 2;
 
 // Le schéma 10 : un seul jeu de réglages, sans profils.
 const V10: &[Field] = &[
@@ -998,17 +970,22 @@ struct Layout {
 }
 
 /// Taille d'un enregistrement de profil dans le blob.
-fn profile_record_size() -> usize {
-    2 * PROFILE_TEXT_BYTES + Layout::of(PROFILE_FIELDS).fields_size
+fn profile_record_size(profile_fields: &[Field]) -> usize {
+    2 * PROFILE_TEXT_BYTES + Layout::of(profile_fields).fields_size
 }
 
 impl Layout {
-    /// Disposition du schéma 11 : la machine et quatre enregistrements de
-    /// profil.
-    fn current() -> Self {
-        let mut layout = Self::of(V11);
-        layout.config_size += MAX_PROFILES * profile_record_size();
+    /// Disposition d'un schéma à profils : la machine et quatre
+    /// enregistrements de profil.
+    fn with_profiles(fields: &[Field], profile_fields: &[Field]) -> Self {
+        let mut layout = Self::of(fields);
+        layout.config_size += MAX_PROFILES * profile_record_size(profile_fields);
         layout
+    }
+
+    /// Disposition du schéma courant.
+    fn current() -> Self {
+        Self::with_profiles(V12, PROFILE_FIELDS)
     }
 
     fn of(fields: &[Field]) -> Self {
@@ -1108,10 +1085,7 @@ fn config_value(c: &Config, name: &str) -> f64 {
         "preinfusion_mode" => f64::from(c.preinfusion_mode.0),
         "preinfusion_time_s" => f64::from(c.preinfusion_time_s),
         "preinfusion_pump_pct" => f64::from(c.preinfusion_pump_pct),
-        "rampdown_mode" => f64::from(c.rampdown_mode as u8),
-        "rampdown_lead_time_s" => f64::from(c.rampdown_lead_time_s),
-        "rampdown_lead_weight_g" => f64::from(c.rampdown_lead_weight_g),
-        "rampdown_pressure_drop_bar" => f64::from(c.rampdown_pressure_drop_bar),
+        "stop_lead_g" => f64::from(c.stop_lead_g),
         "brew_pump_pct" => f64::from(c.brew_pump_pct),
         "purge_pump_pct" => f64::from(c.purge_pump_pct),
         "purge_max_s" => f64::from(c.purge_max_s),
@@ -1138,10 +1112,7 @@ fn profile_value(p: &Profile, name: &str) -> f64 {
         "preinfusion_mode" => f64::from(p.preinfusion_mode.0),
         "preinfusion_time_s" => f64::from(p.preinfusion_time_s),
         "preinfusion_pump_pct" => f64::from(p.preinfusion_pump_pct),
-        "rampdown_mode" => f64::from(p.rampdown_mode as u8),
-        "rampdown_lead_time_s" => f64::from(p.rampdown_lead_time_s),
-        "rampdown_lead_weight_g" => f64::from(p.rampdown_lead_weight_g),
-        "rampdown_pressure_drop_bar" => f64::from(p.rampdown_pressure_drop_bar),
+        "stop_lead_g" => f64::from(p.stop_lead_g),
         "brew_pump_pct" => f64::from(p.brew_pump_pct),
         _ => 0.0,
     }
@@ -1191,17 +1162,30 @@ fn encode_profile(profile: &Profile, used: bool, size: usize) -> Vec<u8> {
 
 /// Profil d'un enregistrement ; `None` si une longueur dépasse son tampon ou
 /// si un texte n'est pas de l'UTF-8.
-fn decode_profile(record: &[u8]) -> Option<Profile> {
-    let layout = Layout::of(PROFILE_FIELDS);
+fn decode_profile(record: &[u8], profile_fields: &[Field]) -> Option<Profile> {
+    let layout = Layout::of(profile_fields);
     let mut profile = Profile::EMPTY;
-    for ((name, ty), offset) in PROFILE_FIELDS.iter().zip(&layout.offsets) {
+    let mut legacy_rampdown_mode = 0u8;
+    let mut legacy_lead_weight_g = 0.0f32;
+    for ((name, ty), offset) in profile_fields.iter().zip(&layout.offsets) {
         let value = read_value(record, 2 * PROFILE_TEXT_BYTES + offset, *ty);
         match *name {
             "name_len" => profile.name_len = value as u8,
             "basket_len" => profile.basket_len = value as u8,
             "dose_g" => profile.dose_g = value as f32,
+            // Schéma 11 : l'avance de la rampe devient l'avance d'arrêt,
+            // sauf en mode poids où la pompe s'arrêtait à la cible.
+            "rampdown_mode" => legacy_rampdown_mode = value as u8,
+            "rampdown_lead_weight_g" => legacy_lead_weight_g = value as f32,
             _ => set_profile_field(&mut profile, name, value),
         }
+    }
+    if profile_fields.iter().any(|(name, _)| *name == "rampdown_mode") {
+        profile.stop_lead_g = if legacy_rampdown_mode == LEGACY_RAMPDOWN_WEIGHT {
+            0.0
+        } else {
+            legacy_lead_weight_g
+        };
     }
     profile.name.copy_from_slice(&record[..PROFILE_TEXT_BYTES]);
     profile
@@ -1217,17 +1201,17 @@ fn decode_profile(record: &[u8]) -> Option<Profile> {
     Some(profile)
 }
 
-/// Blob NVS du schéma 11 : magie, structure de la machine (avec le
+/// Blob NVS du schéma 12 : magie, structure de la machine (avec le
 /// remplissage du compilateur C, à zéro), quatre enregistrements de profil,
 /// somme de contrôle FNV-1a de tout ce qui précède.
 pub fn encode_blob(config: &Config) -> Vec<u8> {
     let layout = Layout::current();
     let mut out = vec![0u8; layout.blob_size()];
     out[0..4].copy_from_slice(&MAGIC.to_le_bytes());
-    for ((name, ty), offset) in V11.iter().zip(&layout.offsets) {
+    for ((name, ty), offset) in V12.iter().zip(&layout.offsets) {
         write_value(&mut out, 4 + offset, *ty, config_value(config, name));
     }
-    let record_size = profile_record_size();
+    let record_size = profile_record_size(PROFILE_FIELDS);
     for (index, profile) in config.profiles.iter().enumerate() {
         let used = index < usize::from(config.profile_count);
         let at = 4 + layout.fields_size + index * record_size;
@@ -1239,7 +1223,7 @@ pub fn encode_blob(config: &Config) -> Vec<u8> {
     out
 }
 
-/// Taille du blob du schéma 11, en octets.
+/// Taille du blob du schéma 12, en octets.
 pub fn blob_size() -> usize {
     Layout::current().blob_size()
 }
@@ -1268,10 +1252,7 @@ fn set_profile_field(p: &mut Profile, name: &str, v: f64) {
         "preinfusion_mode" => p.preinfusion_mode = PreinfusionMode(v as u8),
         "preinfusion_time_s" => p.preinfusion_time_s = v as u16,
         "preinfusion_pump_pct" => p.preinfusion_pump_pct = v as u8,
-        "rampdown_mode" => p.rampdown_mode = RampdownMode::from_u8(v as u8).unwrap_or_default(),
-        "rampdown_lead_time_s" => p.rampdown_lead_time_s = v as f32,
-        "rampdown_lead_weight_g" => p.rampdown_lead_weight_g = v as f32,
-        "rampdown_pressure_drop_bar" => p.rampdown_pressure_drop_bar = v as f32,
+        "stop_lead_g" => p.stop_lead_g = v as f32,
         "brew_pump_pct" => p.brew_pump_pct = v as u8,
         _ => {}
     }
@@ -1291,10 +1272,7 @@ fn set_field(c: &mut Config, name: &str, v: f64) {
         "filling_pump_pct" => c.filling_pump_pct = v as u8,
         "preinfusion_time_s" => c.preinfusion_time_s = v as u16,
         "preinfusion_pump_pct" => c.preinfusion_pump_pct = v as u8,
-        "rampdown_mode" => c.rampdown_mode = RampdownMode::from_u8(v as u8).unwrap_or_default(),
-        "rampdown_lead_time_s" => c.rampdown_lead_time_s = v as f32,
-        "rampdown_lead_weight_g" => c.rampdown_lead_weight_g = v as f32,
-        "rampdown_pressure_drop_bar" => c.rampdown_pressure_drop_bar = v as f32,
+        "stop_lead_g" => c.stop_lead_g = v as f32,
         "brew_pump_pct" => c.brew_pump_pct = v as u8,
         "purge_pump_pct" => c.purge_pump_pct = v as u8,
         "purge_max_s" => c.purge_max_s = v as u16,
@@ -1316,10 +1294,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "target_time_s",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1334,10 +1308,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1353,10 +1323,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1374,10 +1340,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1396,10 +1358,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1420,10 +1378,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1443,10 +1397,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1467,10 +1417,6 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
         "filling_pump_pct",
         "preinfusion_time_s",
         "preinfusion_pump_pct",
-        "rampdown_mode",
-        "rampdown_lead_time_s",
-        "rampdown_lead_weight_g",
-        "rampdown_pressure_drop_bar",
         "brew_pump_pct",
         "purge_pump_pct",
         "purge_max_s",
@@ -1492,7 +1438,8 @@ fn migrated_fields(version: u16) -> &'static [&'static str] {
     }
 }
 
-/// Convertit un blob d'un ancien schéma (1 à 10) en configuration courante.
+/// Convertit un blob d'un ancien schéma (1 à 10, sans profils) en
+/// configuration courante.
 fn migrate(version: u16, raw: &Raw) -> Config {
     let mut migrated = Config::default();
     let names = migrated_fields(version);
@@ -1501,6 +1448,14 @@ fn migrate(version: u16, raw: &Raw) -> Config {
             set_field(&mut migrated, name, value);
         }
     }
+    // L'avance de la rampe devient l'avance d'arrêt, sauf si le mode était
+    // le poids : la pompe s'arrêtait alors à la cible.
+    migrated.stop_lead_g = if raw.get("rampdown_mode") == Some(f64::from(LEGACY_RAMPDOWN_WEIGHT)) {
+        0.0
+    } else {
+        raw.get("rampdown_lead_weight_g")
+            .map_or(migrated.stop_lead_g, |v| v as f32)
+    };
     migrated.preinfusion_mode = match version {
         // Les deux modes du schéma 1 deviennent une échéance en temps : la
         // sortie par pression a été retirée au schéma 8.
@@ -1584,14 +1539,27 @@ impl ConfigStore for MemoryConfigStore {
 }
 
 fn read_current(store: &mut dyn ConfigStore, slot: Slot) -> Option<Config> {
+    read_profiled(store, slot, CONFIG_SCHEMA_VERSION, V12, PROFILE_FIELDS)
+}
+
+/// Lit un blob à profils (schéma 11 ou courant). Un schéma plus ancien que
+/// le courant est converti : `decode_profile` reprend l'avance de l'ancienne
+/// rampe, et la version devient la courante.
+fn read_profiled(
+    store: &mut dyn ConfigStore,
+    slot: Slot,
+    version: u16,
+    fields: &'static [Field],
+    profile_fields: &[Field],
+) -> Option<Config> {
     let bytes = store.read_slot(slot)?;
-    let layout = Layout::current();
-    let raw = decode_blob(&bytes, V11, &layout, CONFIG_SCHEMA_VERSION)?;
+    let layout = Layout::with_profiles(fields, profile_fields);
+    let raw = decode_blob(&bytes, fields, &layout, version)?;
     let mut c = Config::default();
-    for (name, _) in V11 {
+    for (name, _) in fields {
         let v = raw.get(name).unwrap_or(0.0);
         match *name {
-            "version" => c.version = v as u16,
+            "version" => c.version = CONFIG_SCHEMA_VERSION,
             _ => set_field(&mut c, name, v),
         }
     }
@@ -1601,11 +1569,11 @@ fn read_current(store: &mut dyn ConfigStore, slot: Slot) -> Option<Config> {
     {
         return None;
     }
-    let record_size = profile_record_size();
+    let record_size = profile_record_size(profile_fields);
     let mut profiles = [Profile::EMPTY; MAX_PROFILES];
     for index in 0..usize::from(c.profile_count) {
         let at = 4 + layout.fields_size + index * record_size;
-        profiles[index] = decode_profile(&bytes[at..at + record_size])?;
+        profiles[index] = decode_profile(&bytes[at..at + record_size], profile_fields)?;
     }
     c.profiles = Arc::new(profiles);
     c.load_active();
@@ -1670,6 +1638,21 @@ impl ConfigManager {
         }
 
         let mut require_heating_confirmation = false;
+        if !report.found {
+            // Le schéma 11 a déjà des profils : chacun est converti.
+            let a = read_profiled(store, Slot::A, 11, V11, PROFILE_FIELDS_V11);
+            let b = read_profiled(store, Slot::B, 11, V11, PROFILE_FIELDS_V11);
+            let chosen = match (a, b) {
+                (Some(a), Some(b)) => Some(if a.revision >= b.revision { a } else { b }),
+                (Some(c), None) | (None, Some(c)) => Some(c),
+                (None, None) => None,
+            };
+            if let Some(c) = chosen {
+                selected = c;
+                report.found = true;
+                report.migrated = true;
+            }
+        }
         if !report.found {
             const LEGACY: &[(u16, &[Field])] = &[
                 (10, V10),

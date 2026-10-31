@@ -238,7 +238,8 @@ secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ Wago �
    c'est la charge de ses condensateurs d'entrée.
 2. **Alimentation 24 V, 96 W** (4 A), décrite ci-dessous. Elle remplace la
    RECOM RAC05-05SK (5 V, 1 A) et ne rentre pas dans `boitier_ps` actuel
-   (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier.
+   (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier, voir
+   [boitier-ps-24v.md](boitier-ps-24v.md).
 3. **Deux Wago 221-423** (+24 V et GND) répartissent le 24 V entre la
    pompe et combined v2. Pas de carte DC dans `boitier_ps` : le 24 V part
    directement du bornier de l'alimentation. Les Wago vont dans

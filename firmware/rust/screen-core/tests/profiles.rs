@@ -714,9 +714,11 @@ fn unknown_sensors_version_is_null() {
         profile: None,
     };
     let header = hf_capture::export_header(&info, View::Both, None, &context);
-    assert!(header.contains(
-        r#""firmware":{"screen":"0.4.22","sensors":null},"enclosure":null,"samples":["#
-    ));
+    assert!(
+        header.contains(
+            r#""firmware":{"screen":"0.4.22","sensors":null},"enclosure":null,"samples":["#
+        )
+    );
 }
 
 fn purge(rig: &mut Rig) {

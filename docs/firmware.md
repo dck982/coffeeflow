@@ -159,8 +159,9 @@ dans `/config`. Les autres origines (purge, banc) portent `firmware` sans
 
 Depuis 0.4.27, toute capture v3 porte aussi, juste après `firmware`,
 `"enclosure": {"temperature_c": 24.56, "humidity_pct": 42.9}` : le SHT40 du
-boîtier de l'écran, relevé au départ de la capture, pour suivre l'humidité du
-jour d'une infusion à l'autre. La clé vaut `null` si la dernière lecture est en
+boîtier de l'écran, relevé au départ de la capture. C'est l'air du boîtier,
+pas celui de la pièce : le 1er novembre, son point de rosée était de 20,6 °C
+contre 11,1 °C au salon, la vapeur de la machine y entre. La clé vaut `null` si la dernière lecture est en
 erreur ou date de plus de deux secondes. Le schéma reste v3 : la clé
 s'ajoute sans changer les autres.
 

@@ -177,6 +177,15 @@ pub struct Capture {
     pub cooldown: bool,
     /// Profil actif au départ d'une infusion ; `None` pour les autres origines.
     pub profile: Option<Profile>,
+    /// SHT40 du boîtier de l'écran au départ ; `None` sans lecture fraîche.
+    pub enclosure: Option<Enclosure>,
+}
+
+/// Température et humidité du boîtier de l'écran.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Enclosure {
+    pub temperature_c: f32,
+    pub humidity_pct: f32,
 }
 
 impl Default for Capture {
@@ -204,6 +213,7 @@ impl Capture {
             actuator_seen_on: false,
             cooldown: false,
             profile: None,
+            enclosure: None,
         }
     }
 
@@ -257,13 +267,15 @@ impl View {
 }
 
 /// Ce que l'en-tête ajoute à l'état de la capture : les versions des
-/// firmwares et le profil de l'infusion.
+/// firmwares, le boîtier de l'écran au départ et le profil de l'infusion.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Context {
     /// Version de l'écran (majeure, mineure, correctif).
     pub screen_version: (u8, u8, u8),
     /// Version des capteurs, `None` si elle n'est pas connue.
     pub sensors_version: Option<(u8, u8, u8)>,
+    /// Boîtier de l'écran au départ, `None` sans lecture fraîche.
+    pub enclosure: Option<Enclosure>,
     /// Profil copié au départ d'une infusion.
     pub profile: Option<Profile>,
 }
@@ -273,7 +285,9 @@ fn version_text((major, minor, patch): (u8, u8, u8)) -> String {
 }
 
 /// Début du document : tout jusqu'à `"samples":[` inclus. La clé `firmware`
-/// donne les versions de l'écran et des capteurs (`null` si inconnue). Une
+/// donne les versions de l'écran et des capteurs (`null` si inconnue),
+/// `enclosure` la température et l'humidité du boîtier de l'écran au départ
+/// (`null` sans lecture fraîche). Une
 /// infusion porte ensuite `profile` (le profil actif au départ), puis `session` :
 /// le déroulé du guide, ou `null` pour une infusion directe. Les autres
 /// origines n'ont ni `profile` ni `session`.
@@ -289,6 +303,15 @@ pub fn export_header(
         context
             .sensors_version
             .map_or_else(|| "null".to_string(), version_text)
+    );
+    let enclosure = context.enclosure.map_or_else(
+        || "\"enclosure\":null,".to_string(),
+        |e| {
+            format!(
+                "\"enclosure\":{{\"temperature_c\":{:.2},\"humidity_pct\":{:.1}}},",
+                e.temperature_c, e.humidity_pct
+            )
+        },
     );
     let profile = match (info.origin, &context.profile) {
         (Origin::Brew, Some(profile)) => {
@@ -307,7 +330,7 @@ pub fn export_header(
         "{{\"schema\":\"coffeeflow.hf_capture.v3\",\"origin\":\"{}\",\"view\":\"{}\",\
 \"started_at_us\":{},\"ended_at_us\":{},\"started_at_unix_s\":{},\
 \"ended_at_unix_s\":{},\"sample_period_ms\":{},\"sample_count\":{},\
-\"dropped_samples\":{},{firmware}{profile}{session}\"samples\":[",
+\"dropped_samples\":{},{firmware}{enclosure}{profile}{session}\"samples\":[",
         info.origin.text(),
         view.text(),
         info.started_at_us,

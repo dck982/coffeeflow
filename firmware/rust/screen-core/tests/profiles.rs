@@ -710,8 +710,74 @@ fn unknown_sensors_version_is_null() {
     let context = hf_capture::Context {
         screen_version: (0, 4, 22),
         sensors_version: None,
+        enclosure: None,
         profile: None,
     };
     let header = hf_capture::export_header(&info, View::Both, None, &context);
-    assert!(header.contains(r#""firmware":{"screen":"0.4.22","sensors":null},"samples":["#));
+    assert!(header.contains(
+        r#""firmware":{"screen":"0.4.22","sensors":null},"enclosure":null,"samples":["#
+    ));
+}
+
+fn purge(rig: &mut Rig) {
+    let clock = rig.clock();
+    rig.core.perform_action(
+        clock,
+        &ActionCommand::new(Action::PurgePress),
+        ActionSource::Ui,
+    );
+    rig.advance(500);
+    let clock = rig.clock();
+    rig.core.perform_action(
+        clock,
+        &ActionCommand::new(Action::PurgeRelease),
+        ActionSource::Ui,
+    );
+    rig.advance(6000);
+}
+
+#[test]
+fn hf_capture_header_carries_the_enclosure_reading_at_start() {
+    let mut rig = Rig::new();
+    rig.ready();
+    // Codes du banc : 24,56 °C et 42,9 %.
+    let clock = rig.clock();
+    rig.core.on_enclosure_reading(clock, 26_051, 25_638, true);
+    purge(&mut rig);
+    let text = hf_capture_document(&rig.core, None).body;
+    assert!(text.contains(r#""enclosure":{"temperature_c":24.56,"humidity_pct":42.9},"#));
+    let at = |key: &str| text.find(&format!("\"{key}\":")).unwrap();
+    assert!(at("firmware") < at("enclosure"));
+    assert!(at("enclosure") < at("samples"));
+
+    // Une lecture ultérieure ne réécrit pas la capture.
+    let clock = rig.clock();
+    rig.core.on_enclosure_reading(clock, 30_000, 30_000, true);
+    let root = header_of(&rig);
+    let enclosure = root.get("enclosure").expect("enclosure");
+    assert_eq!(
+        enclosure.get("temperature_c").and_then(Json::as_f64),
+        Some(24.56)
+    );
+}
+
+#[test]
+fn hf_capture_enclosure_is_null_without_a_fresh_reading() {
+    let mut rig = Rig::new();
+    rig.ready();
+    purge(&mut rig);
+    assert_eq!(header_of(&rig).get("enclosure"), Some(&Json::Null));
+
+    // Une lecture vieille de plus de deux périodes ne compte plus.
+    let clock = rig.clock();
+    rig.core.on_enclosure_reading(clock, 26_051, 25_638, true);
+    rig.advance(2500);
+    purge(&mut rig);
+    assert_eq!(header_of(&rig).get("enclosure"), Some(&Json::Null));
+
+    // Une lecture en erreur non plus.
+    let clock = rig.clock();
+    rig.core.on_enclosure_reading(clock, 26_051, 25_638, false);
+    purge(&mut rig);
+    assert_eq!(header_of(&rig).get("enclosure"), Some(&Json::Null));
 }

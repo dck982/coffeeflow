@@ -157,6 +157,13 @@ actif copié au départ de l'infusion, sous la forme d'un élément de `profiles
 dans `/config`. Les autres origines (purge, banc) portent `firmware` sans
 `profile`. Le reste est celui du v2, et `download-hf` accepte les deux.
 
+Depuis 0.4.27, toute capture v3 porte aussi, juste après `firmware`,
+`"enclosure": {"temperature_c": 24.56, "humidity_pct": 42.9}` : le SHT40 du
+boîtier de l'écran, relevé au départ de la capture, pour suivre l'humidité du
+jour d'une infusion à l'autre. La clé vaut `null` si la dernière lecture est en
+erreur ou date de plus de deux secondes. Le schéma reste v3 : la clé
+s'ajoute sans changer les autres.
+
 Pour une capture `origin: brew`, l'export porte aussi une clé `session`, avant
 `samples` : le déroulé de l'infusion guidée (ouverture, poids de la tasse, rinçage du porte-filtre, attente,
 retrait et retour de la tasse, appui sur **démarrer**, durée sans balance),

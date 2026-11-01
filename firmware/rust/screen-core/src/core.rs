@@ -821,6 +821,12 @@ impl<S: ConfigStore> Core<S> {
             } else {
                 0
             };
+            let enclosure_fresh = self.snapshot.enclosure_valid
+                && freshness(self.t.enclosure_received_us, 1000, now) == Freshness::Fresh;
+            let enclosure = enclosure_fresh.then_some(hf_capture::Enclosure {
+                temperature_c: self.snapshot.enclosure_temperature_c,
+                humidity_pct: self.snapshot.enclosure_humidity_pct,
+            });
             let capture = &mut self.hf;
             capture.samples.clear();
             capture.origin = origin;
@@ -840,6 +846,7 @@ impl<S: ConfigStore> Core<S> {
             // Le profil de l'infusion est celui du départ, même s'il change
             // ensuite à l'écran.
             capture.profile = (origin == Origin::Brew).then_some(active_profile);
+            capture.enclosure = enclosure;
             self.hf_session = None;
             self.snapshot.capture_cooldown = false;
             // Seule une infusion a un résumé ; une purge ou une commande de
@@ -2479,9 +2486,9 @@ impl<S: ConfigStore> Core<S> {
         self.hf_session.as_ref()
     }
 
-    /// Versions et profil à écrire dans l'en-tête de la capture HF : les
-    /// versions sont celles de la télémétrie, le profil celui copié au départ
-    /// de l'infusion.
+    /// Versions, boîtier et profil à écrire dans l'en-tête de la capture HF :
+    /// les versions sont celles de la télémétrie, le boîtier et le profil ceux
+    /// copiés au départ.
     pub fn hf_capture_context(&self) -> hf_capture::Context {
         let s = &self.snapshot;
         let sensors = (
@@ -2496,6 +2503,7 @@ impl<S: ConfigStore> Core<S> {
                 s.screen_version_patch,
             ),
             sensors_version: (sensors != (0, 0, 0)).then_some(sensors),
+            enclosure: self.hf.enclosure,
             profile: self.hf.profile,
         }
     }

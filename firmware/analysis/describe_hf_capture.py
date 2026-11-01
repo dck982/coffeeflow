@@ -637,6 +637,35 @@ def textual_reading(samples: list[dict[str, Any]], duration_s: float,
     return " ".join(sentences)
 
 
+def dew_point_c(temperature_c: float, humidity_pct: float) -> float:
+    """Point de rosée (formule de Magnus, coefficients de Sonntag), NaN sous 0 % d'humidité."""
+    if not humidity_pct > 0:
+        return math.nan
+    gamma = math.log(humidity_pct / 100) + 17.62 * temperature_c / (243.12 + temperature_c)
+    return 243.12 * gamma / (17.62 - gamma)
+
+
+def absolute_humidity_g_m3(temperature_c: float, humidity_pct: float) -> float:
+    """Masse de vapeur par m³ d'air ; elle baisse à peine quand l'air se réchauffe (dilatation)."""
+    vapour_hpa = 6.112 * math.exp(17.62 * temperature_c / (243.12 + temperature_c)) * humidity_pct / 100
+    return 216.7 * vapour_hpa / (273.15 + temperature_c)
+
+
+def enclosure_card(capture: dict[str, Any]) -> str:
+    """Carte du SHT40 du boîtier de l'écran au départ, vide sans lecture (avant 0.4.27 ou `null`)."""
+    enclosure = capture.get("enclosure")
+    if not isinstance(enclosure, dict):
+        return ""
+    temperature_c = number(enclosure.get("temperature_c"))
+    humidity_pct = number(enclosure.get("humidity_pct"))
+    if not (math.isfinite(temperature_c) and math.isfinite(humidity_pct)):
+        return ""
+    return metric_card(
+        "Boîtier de l’écran", f"{fmt(temperature_c, 1)} °C · {fmt(humidity_pct, 1)} %",
+        f"au départ ; point de rosée {fmt(dew_point_c(temperature_c, humidity_pct), 1)} °C, "
+        f"{fmt(absolute_humidity_g_m3(temperature_c, humidity_pct), 1)} g/m³")
+
+
 def metric_card(label: str, value: str, detail: str) -> str:
     return (f'<div class="metric"><span>{html.escape(label)}</span>'
             f'<strong>{html.escape(value)}</strong><small>{html.escape(detail)}</small></div>')
@@ -1033,6 +1062,8 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
         metric_card("Débit de remplissage", f"{fmt(filling_flow_max[0])} ml/s" if filling_flow_max else "—",
                     f"débitmètre, max à t = {filling_flow_max[1]:.2f} s" if filling_flow_max else "mesure absente"),
     ]
+    if card := enclosure_card(capture):
+        diagnostic_cards.append(card)
     dropped = int(number(capture.get("dropped_samples"))) if math.isfinite(number(capture.get("dropped_samples"))) else 0
     quality = (f"{len(samples)} échantillons à une période annoncée de {capture.get('sample_period_ms', '—')} ms. "
                f"{dropped} échantillon{'s' if dropped != 1 else ''} perdu{'s' if dropped != 1 else ''}. "

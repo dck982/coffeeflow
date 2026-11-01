@@ -194,3 +194,39 @@ def test_a_v3_capture_is_accepted():
     capture = dict(_guided_capture(), schema="coffeeflow.hf_capture.v3",
                    firmware={"screen": "0.4.23", "sensors": "0.4.19"}, profile={"name": "single espresso"})
     assert validate_capture(capture) is capture
+
+
+def test_dew_point_and_absolute_humidity_match_reference_values():
+    from describe_hf_capture import absolute_humidity_g_m3, dew_point_c
+
+    # Tables de référence : 20 °C à 50 % → rosée 9,3 °C, 8,6 g/m³.
+    assert abs(dew_point_c(20.0, 50.0) - 9.26) < 0.05
+    assert abs(absolute_humidity_g_m3(20.0, 50.0) - 8.63) < 0.05
+    # À 100 %, le point de rosée est la température elle-même.
+    assert abs(dew_point_c(37.75, 100.0) - 37.75) < 1e-9
+    # Réchauffer l'air sans y ajouter d'eau garde la pression de vapeur, donc
+    # le point de rosée ; les g/m³ baissent à peine, l'air se dilate.
+    saturation = lambda t: math.exp(17.62 * t / (243.12 + t))
+    warm_rh = 50.0 * saturation(20.0) / saturation(35.0)
+    assert abs(dew_point_c(35.0, warm_rh) - dew_point_c(20.0, 50.0)) < 1e-9
+    assert 0.94 < absolute_humidity_g_m3(35.0, warm_rh) / absolute_humidity_g_m3(20.0, 50.0) < 0.96
+    assert math.isnan(dew_point_c(20.0, 0.0))
+
+
+def test_report_shows_the_enclosure_reading_with_its_dew_point():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    page = render_report(_guided_capture(enclosure={"temperature_c": 37.75, "humidity_pct": 37.2}),
+                         Path("brew.json"))
+    assert "Boîtier de l’écran" in page
+    assert "37.8 °C · 37.2 %" in page
+    assert "point de rosée 20.6 °C, 16.9 g/m³" in page
+
+
+def test_report_has_no_enclosure_card_without_a_reading():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    for extra in ({}, {"enclosure": None}):
+        assert "Boîtier de l’écran" not in render_report(_guided_capture(**extra), Path("brew.json"))

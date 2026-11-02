@@ -4237,3 +4237,9 @@ chaque infusion** et notée avec la capture.
 | Rendement | arrêt de la pompe vers 18,6 g, 19,8 à 20,5 g final |
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle de −1,7 à +1,9 °C |
 | Tasse | 89,0 à 92,5 °C |
+
+### 2 novembre, 13 h 56 et 14 h 08 — `261102-135656`, `261102-140827`
+
+Essais de **turbo shot** avec le panier 49 mm (10 g à la mouture du
+single espresso, puis 15 g cinq crans plus gros) ; le détail est dans
+[turboshot.md](turboshot.md).

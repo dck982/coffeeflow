@@ -384,6 +384,80 @@ tasse.
 espresso, plateau à 4,85 bar, 1:2,9), devant la mouture grosse de 16 h 32
 et les deux essais à 11 g.
 
+### 2 novembre 2026 — panier 49 mm
+
+Kit Normcore « step down » 58 → 49 mm : panier, **papier au fond**, puck
+screen 49 mm et **ressort** qui le tient contre la galette. Profil
+« turbo shot » : cible 45 g, `stop_lead_g` de 5,0 g, 6 bar, pompe à
+100 %, 88 °C, précharge de 8 s, remplissage 100 % / 0,8 bar / 10 s,
+pré-infusion 50 % / 4 s ou goutte. Écran 0.4.27, sensors 0.4.24.
+
+Dose choisie avant l'essai : avec la mouture du single espresso (LM1
+7,5 g), retrouver la galette de 15 h 35 le 26/10 (≈ 1,1 bar·s/g). Par la
+loi de Darcy, 15 g en 49 mm résistent comme 8 g en LM1, soit un
+espresso ; la même résistance qu'à 15 h 35 demande 15 × (49/58)⁴ ≈ 7,6 g,
+la même hauteur de galette 15 × (49/58)² ≈ 10,7 g. D'où **10 g**.
+
+#### 13 h 56 — `261102-135656`
+
+**10 g**, mouture du single espresso. Goût **pas terrible**. Le café a
+peiné à sortir sous le panier, **surtout d'un côté**. Galette très mince
+au fond du panier, **très dense** après l'infusion, **énormément
+d'espace libre**.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 8,25 s, fini sur la pression, 31,6 ml | — |
+| Pré-infusion | 0,29 s, finie sur la goutte | aucune |
+| Première goutte | 9,4 s après le démarrage de la pompe, **34,8 ml** | 0 dans le papier |
+| Première goutte → arrêt | **14,3 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pression d'infusion | 3,9 → **5,7 bar**, en hausse jusqu'à l'arrêt ; pompe bridée à 93 % dès 4,2 bar | 6 bar au plus |
+| Débit en tasse | **3,80 g/s** (10 → 40,7 g) | 4,5 à 5 g/s |
+| Résistance de la galette | **≈ 1,1 → 1,4 bar·s/g**, en hausse | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 40,7 g à l'arrêt, **44,1 g final** | 30 g à 1:3 |
+| Ratio | **1:4,4** | 1:2,5 à 1:3 |
+| NTC | 89,7 → 82,3 °C pendant l'infusion ; **85,8 °C** pondérée par la tasse | 83 à 90 °C dans les recettes récentes |
+
+Lecture : la dose estimée donne la galette visée, un peu plus résistante
+qu'à 15 h 35 le 26/10. La cible de 45 g, restée celle des 15 g, fait un
+ratio de 1:4,4, celui des essais à 11 g jugés « très légers ». La
+résistance monte pendant le shot : la galette se tasse au lieu de
+s'éroder. L'écoulement d'un seul côté ne se voit pas dans la capture.
+
+#### 14 h 08 — `261102-140827`
+
+**15 g**, mouture **cinq crans plus grosse** que celle du single
+espresso. Goût **plus doux,
+plus crémeux**. David trouve la **première goutte très tardive**.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 6,97 s, fini sur la pression, 26,1 ml | — |
+| Pré-infusion | **4,07 s, échéance**, 5,8 ml | aucune |
+| Première goutte | **13,2 s** après le démarrage de la pompe, **37,4 ml**, 1,57 bar | 0 dans le papier |
+| Première goutte → arrêt | **12,8 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pression d'infusion | 3,7 → **6,0 bar**, plafond atteint vers 31 s ; pompe bridée dès 4,2 bar, **85 %** à la fin | 6 bar au plus |
+| Débit en tasse | **3,71 g/s** (10 → 40,6 g) | 4,5 à 5 g/s |
+| Résistance de la galette | **≈ 1,2 → 1,6 bar·s/g**, en hausse | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 40,6 g à l'arrêt, **43,4 g final** | 45 g visés |
+| Ratio | **1:2,9** | 1:2,5 à 1:3 |
+| NTC | 88,5 → 82,5 °C pendant l'infusion ; **86,8 °C** pondérée par la tasse | 83 à 90 °C dans les recettes récentes |
+
+Lecture : premier essai dans tous les repères du turbo sauf le débit :
+ratio, temps depuis la goutte et pression au plus de 6 bar. Le plafond
+`target_pressure_bar` agit pour la première fois. Le débit manque
+≈ 0,7 g/s : la galette résiste un peu plus qu'à 10 g et qu'à 15 h 35 le
+26/10, et se tasse aussi pendant le shot. Il faudrait ≈ 1,1 à
+1,2 bar·s/g pour ≈ 4,4 g/s, soit une mouture un peu plus grosse. La
+première goutte arrive après **37,4 ml**, contre 28,4 ml avec 15 g en
+58 mm le 26/10 : le panier 49 mm, son adaptateur et le papier gardent
+≈ 9 ml de plus avant la goutte (estimé). Ce volume ne dépend presque pas
+de la mouture : ouvrir le moulin ne devrait guère avancer la goutte.
+
+Prochain essai de David : **six crans** plus gros que le single espresso,
+mêmes 15 g. Revenir au single espresso demandera six crans dans l'autre
+sens.
+
 ## Pistes
 
 Contrainte de David : **garder la mouture du single espresso**, pour faire
@@ -391,6 +465,11 @@ les deux cafés sans toucher au moulin. La résistance de la galette ne se
 règle donc qu'au puck screen, à la dose et au panier ; le tassage était
 déjà ferme au premier essai. La dose a été le levier décisif : 15 g
 donnent 1,10 bar·s/g, dans la plage du papier.
+
+Depuis le 2 novembre, avec le panier 49 mm, David moud **plus gros** pour
+le turbo (cinq crans, puis six) : la dose de 10 g qu'imposait la mouture du single espresso
+laissait une galette trop mince sous un grand espace libre. La dose reste
+à 15 g et la mouture règle la résistance.
 
 | Piste | Depuis | Lecture |
 | --- | --- | --- |

@@ -4063,3 +4063,177 @@ de la suivante, notée avec la capture.
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle de −1,7 à +1,9 °C |
 | Tasse | 89,0 à 92,5 °C |
 | Salon | humidité et point de rosée Netatmo à l'heure de l'infusion |
+
+### 2 novembre, 9 h 08 — `261102-090858`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, **dose du
+moulin pesée : 7,4 g** (réglage 7,5 g), cible 20 g, anticipation d'arrêt de
+1,5 g, consigne de 90 °C, cran non mentionné (supposé inchangé). Écran
+0.4.27, sensors 0.4.24. Première infusion du jour : le moulin contient la
+mouture retenue depuis l'infusion de 13 h 31 la veille (aucune autre
+consignée depuis), **sans purge du canal du moulin**. Après la pesée, David a fait la **procédure de
+calibration du moulin** et surveillera la dose aux infusions suivantes.
+Salon (Netatmo, relevé ce matin) : 45 %, point de rosée 10,2 °C
+(10,8 à 11,1 °C depuis le 31/10) ; extérieur : 83 %, point de rosée
+3,1 °C. Observation de David : « le goût était bon, une **petite amertume mais sur
+le centre de la langue, pas sur l'arrière**. Un mélange d'acidité et
+d'amertume. »
+
+**Routine** : guide ouvert à 86,0 °C ; rinçage 14,5 s après l'ouverture,
+de 5,0 s, 18,0 ml, 26,3 g, **pression maximale 0,23 bar**. Consigne
+atteinte 120,6 s après la fin du rinçage, minimum 80,5 °C, résistance
+active 39,2 s. **443 s sur le groupe** ; préparation de 120,6 s. Tasse de
+124,9 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,00 s | — | 0,55 → 0,63 bar |
+| Remplissage | 8,00 s | 5,83 s, pression | 18,0 ml (3,08 ml/s) | 0,64 → 0,85 bar |
+| Pré-infusion | 13,84 s | **2,06 s, goutte** | 2,9 ml | 0,87 → 1,04 bar |
+| Infusion | 15,90 s | 14,08 s | 27,2 ml | 9,03 bar max |
+
+- Remplissage fini sur la pression, débitmètre jusqu'à 3,21 ml/s ; circuit
+  à **0,64 bar** au départ (0,26 à 0,38 bar dans les trois entrées
+  précédentes).
+- **Première goutte (0,3 g) à 16,53 s, à 1,14 bar**, **21,7 ml**, 0,63 s
+  après le début de l'infusion. Marge de remplissage : 3,7 ml (4,7 ml le
+  matin du 1er, 6,4 ml l'après-midi).
+- Montée de 4,4 s jusqu'à 8 bar, 4,9 g en tasse à 8 bar. **Pas de pic** :
+  maximum de 9,03 bar à 27,83 s, 2,1 s avant l'arrêt, sur le plateau.
+- Depuis 8 bar : **9,8 s**, **1,35 g/s** en tasse, 1,48 ml/s en amont.
+  **18,5 g à l'arrêt de la pompe**, **19,6 g final**, 1,1 g de gouttes.
+  Pompe en marche 22,0 s. Goutte → arrêt de la pompe : **13,4 s**.
+- Plateau (de 8 bar + 2 s à l'arrêt) : **8,92 ± 0,05 bar**, pompe à
+  67–70 %, 1,42 g/s, soit **6,3 bar·s/g**, ou **6,4 ramené à 7,5 g**
+  (6,9 le matin du 1er, **−7 %** ; 6,1 l'après-midi).
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 02/11 9 h 08 | 1,7 s | 4,7 s | 8,0 s | 14,0 s |
+  | 01/11 13 h 31 | 1,8 s | 4,7 s | 8,4 s | 13,8 s |
+  | 01/11 9 h 07 | 1,9 s | 5,1 s | 9,2 s | 15,0 s |
+
+**Thermique.**
+
+| Repère | 02/11 9 h 08 | 01/11 13 h 31 |
+| --- | ---: | ---: |
+| NTC au départ | 89,99 °C | 90,00 °C |
+| NTC pendant le remplissage | +1,67 °C (18,0 ml) | +0,65 °C (27,8 ml) |
+| NTC pendant la pré-infusion | +0,15 °C (2,9 ml) | −1,49 °C (4,9 ml) |
+| Pic avant l'infusion | 91,81 °C à 15,4 s | 91,74 °C à 12,3 s |
+| NTC au début de l'infusion | 91,79 °C | 89,53 °C |
+| Commande à 0 % (remboursement) | toute l'infusion | toute l'infusion |
+| Appoint repris avant l'arrêt | 0 s | 0,2 s |
+| NTC à l'arrêt | 88,92 °C | 90,13 °C |
+| **Tasse** | **90,48 °C**, **+0,48 °C** | 90,38 °C, +0,38 °C |
+| Minimum | 86,79 °C, 8,6 s après l'arrêt ; 86,88 °C en fin de capture | 88,24 °C |
+
+- Énergie, commande / SSR : précharge 8,49 / 8,55 kJ, remplissage 5,78 /
+  5,42 kJ, pré-infusion 1,51 / 1,54 kJ, **infusion 0,06 / 0,14 kJ**.
+- Moyenne en volume amont : 90,95 °C. Aucune lecture NTC invalide.
+- Baisse thermique pompe en marche : **−1,07 °C** (88,9 à 91,8 °C), dans la
+  plage de −1,7 à +1,9 °C. Simulateur : tasse de 90,50 °C mesurée, 90,51 °C
+  avec la commande réelle.
+- *Estimé.* Même tasse que l'après-midi par un autre chemin : le
+  remplissage a déplacé 20,9 ml avant l'infusion au lieu de 32,7 ml, donc
+  la tranche d'eau froide n'a pas encore atteint la NTC au début de
+  l'infusion (91,8 °C) et la fait chuter pendant l'écoulement (−2,9 °C
+  jusqu'à l'arrêt, contre +0,6 °C l'après-midi).
+
+**Attendus vérifiés** (entrée de 13 h 31, dose pesée).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | noter l'écart à 7,5 g | **7,4 g (−0,1 g, −1,3 %)** ; ratio 19,6 / 7,4 = **2,65** |
+| Hydraulique | 5,8 à 7,0 bar·s/g, plus haut le matin ; plateau sous 9,2 bar | 6,3 bar·s/g (6,4 à 7,5 g) : atteint, mais pas plus haut que l'après-midi (6,1) ; plateau 8,92 bar : atteint |
+| Rinçage | 0,1 à 0,7 bar | 0,23 bar : atteint |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml | 3,08 ml/s, 18,0 ml : atteint, bas de plage ; départ à 0,64 bar |
+| Rendement | arrêt vers 18,6 g, 19,8 à 20,5 g final | 18,5 g : atteint ; **19,6 g, 0,2 g sous la plage** (1,1 g de gouttes au lieu de 1,4) |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle de −1,7 à +1,9 °C | +1,67 °C ; −1,07 °C : atteint |
+| Tasse | 89,0 à 92,5 °C | 90,48 °C : atteint |
+
+**Comparaison aux meilleures single espresso** (mêmes définitions ; le
+plateau de 6 g à l'arrêt, 18,5 g).
+
+| Infusion | Goût | Dose | Final | Ratio | bar·s/g | Depuis 8 bar | g/s | Goutte → arrêt | 6 → 20 g |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 16/10 14 h 10 | impeccable | 8,0 g | 22,6 g | 2,82 | 6,9 | 13,0 s | 1,32 | 16,6 s | 1,29 g/s |
+| 30/10 14 h 44 | très bonne | 7,5 g | 22,8 g | 3,04 | 6,1 | 12,1 s | 1,50 | 14,5 s | 1,45 g/s |
+| 01/11 9 h 07 | bon, toujours un peu amer | 7,5 g | 22,2 g | 2,96 | 6,9 | 13,0 s | 1,26 | 16,4 s | 1,32 g/s |
+| 01/11 13 h 31 | assez satisfait | 7,5 g | 20,0 g | 2,67 | 6,1 | 10,6 s | 1,41 | 13,3 s | 1,41 g/s (6 → 18,6 g) |
+| **02/11 9 h 08** | **bon, petite amertume au centre de la langue** | 7,4 g (pesée) | 19,6 g | **2,65** | **6,3** (6,4 à 7,5 g) | **9,8 s** | **1,35** | **13,4 s** | **1,43 g/s** (6 → 18,5 g) |
+
+**Lecture.**
+
+- *Dose, mesuré.* 7,4 g contre 7,5 g réglés : −1,3 %, dans les ±0,3 g
+  supposés au moulin. Par la loi de Darcy (estimé), cet écart déplace le
+  bar·s/g d'environ 1,3 % (6,3 → 6,4 à 7,5 g) et le ratio de 0,03 (2,61
+  si la dose avait été 7,5 g). Il n'explique donc pas la différence avec le
+  matin du 1er (**−7 %** à dose égale).
+- *Galette du matin, mesuré.* 6,4 bar·s/g contre 6,9 hier matin : la
+  galette de ce matin est presque aussi rapide que celle de l'après-midi
+  (6,1), alors qu'on attendait plus de résistance le matin. Deux matins,
+  deux valeurs ; sans dose pesée hier, on ne sait pas si l'écart vient de
+  la dose, de la rétention ou de l'humidité.
+- *Remplissage plus court, mesuré.* 18,0 ml en 5,83 s au lieu de 24,6 à
+  27,8 ml : le circuit partait à 0,64 bar au lieu de 0,26 à 0,38 bar
+  (0,55 bar déjà au début de la capture, après 121 s de chauffe porte-
+  filtre en place), et le remplissage s'arrête sur une pression absolue.
+  La première goutte arrive à 21,7 ml cumulés, contre 29,3 et 34,2 ml. La
+  cause de cette pression de départ n'est pas établie (dilatation de l'eau
+  de la chaudière pendant la remontée en température, à vérifier sur la
+  prochaine capture du matin) ; elle n'a pas fait manquer le mouillage :
+  goutte à 1,14 bar, montée à 8 bar normale.
+- *Rinçage à 0,23 bar, mesuré.* Retour dans la plage de 0,1 à 0,7 bar : le
+  1,12 bar de l'après-midi était isolé, la douchette n'est pas en cause
+  (règle : un second rinçage au-dessus de 1 bar).
+- *Ratio, mesuré.* 2,65, dans la plage des cafés notés 2 sur la GO (2,63 à
+  2,86), comme hier après-midi (2,67). Le goût reste bon avec une petite
+  amertume : le ratio de 2,65 ne l'élimine pas à lui seul, et la mouture
+  retenue du matin n'est pas écartée.
+- *Débit, mesuré.* 9,8 s depuis 8 bar, 0,2 s sous la plage prévue de 10 à
+  13 s ; 1,35 g/s, entre le matin (1,26) et l'après-midi (1,41) d'hier.
+- *Goût, observé.* « Mélange d'acidité et d'amertume », amertume au centre
+  de la langue. Aucune mesure ne se rattache à la localisation ; à
+  comparer aux prochaines entrées pour voir si elle se déplace avec la
+  dose ou le ratio.
+- *Hypothèse de David : le café et le canal du moulin, non testée.* Le
+  mélange d'arabicas est assez foncé : un goût plutôt chargé que clair
+  serait sa signature, pas un défaut d'extraction. C'est de plus le café
+  du matin, **sans purge du canal du moulin** : la mouture retenue
+  depuis la veille s'ajoute (même piste que le 1er au matin, 9 h 07).
+  Rien dans la capture ne la contredit : hydraulique, ratio et
+  température sont dans les plages des bonnes infusions. Pour la séparer
+  d'un défaut d'extraction, il faudrait une infusion du matin avec purge
+  du moulin, ou l'infusion de l'après-midi à réglages égaux.
+- *Qualité de la galette, déduction de David.* La pression ne chute pas
+  pendant l'infusion (plateau 8,92 ± 0,05 bar, pompe à 67–70 %, débit en
+  tasse régulier) : pas d'effondrement ni de canal qui se creuse, donc une
+  préparation correcte. La variance de résistance entre infusions (6,1 à
+  6,9 bar·s/g) viendrait alors plutôt du moulin (dose, rétention) que de
+  la préparation. Mesuré pour la stabilité du plateau ; l'attribution au
+  moulin reste une déduction, que la dose pesée à chaque infusion
+  permettra de tester.
+- *Humidité, mesuré.* Point de rosée du salon à 10,2 °C, 0,9 °C sous la
+  plus basse valeur d'hier (11,1 °C) : variation faible, à compenser au
+  moulin si elle se voit.
+- *Thermique, mesuré.* +0,48 °C en tasse, dans la plage des meilleures. La
+  chauffe n'a rien rendu pendant l'infusion, plus courte que le
+  remboursement.
+
+**Décision** (David). Réglages inchangés (7,5 g, cible 20 g, anticipation
+de 1,5 g, 90 °C) ; moulin calibré après cette infusion ; **dose pesée à
+chaque infusion** et notée avec la capture.
+
+| Point | Attendu (prochaine infusion, mêmes réglages, dose pesée après calibration) |
+| --- | --- |
+| Dose | écart à 7,5 g après calibration, nettement sous ±0,3 g ; ratio = final / dose pesée |
+| Hydraulique | 5,8 à 7,0 bar·s/g, ramené à 7,5 g en divisant par dose / 7,5 ; plateau sous 9,2 bar |
+| Rinçage | 0,1 à 0,7 bar |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml ; noter la pression de départ (0,26 à 0,64 bar jusqu'ici) |
+| Rendement | arrêt de la pompe vers 18,6 g, 19,8 à 20,5 g final |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; modèle de −1,7 à +1,9 °C |
+| Tasse | 89,0 à 92,5 °C |

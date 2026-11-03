@@ -4243,3 +4243,10 @@ chaque infusion** et notée avec la capture.
 Essais de **turbo shot** avec le panier 49 mm (10 g à la mouture du
 single espresso, puis 15 g cinq crans plus gros) ; le détail est dans
 [turboshot.md](turboshot.md).
+
+### 3 novembre, 7 h 54 — `261103-075424`
+
+**Turbo shot** dans le panier 49 mm : 15 g, six crans plus gros que le
+single espresso, sans papier au fond. 3,46 g/s, 14,1 s de la goutte à
+l'arrêt, 43,7 g ; goût un peu amer, trop extrait. Prochain essai : 10 g
+pour 30 g. Le détail est dans [turboshot.md](turboshot.md).

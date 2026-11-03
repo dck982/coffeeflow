@@ -452,11 +452,69 @@ ratio, temps depuis la goutte et pression au plus de 6 bar. Le plafond
 première goutte arrive après **37,4 ml**, contre 28,4 ml avec 15 g en
 58 mm le 26/10 : le panier 49 mm, son adaptateur et le papier gardent
 ≈ 9 ml de plus avant la goutte (estimé). Ce volume ne dépend presque pas
-de la mouture : ouvrir le moulin ne devrait guère avancer la goutte.
+de la mouture : ouvrir le moulin ne devrait guère avancer la goutte. (Le
+3/11, retirer le papier l'avance de 5,8 ml.)
 
 Prochain essai de David : **six crans** plus gros que le single espresso,
 mêmes 15 g. Revenir au single espresso demandera six crans dans l'autre
 sens.
+
+### 3 novembre 2026, 7 h 54 — `261103-075424`
+
+**15 g**, mouture **six crans** plus grosse que celle du single espresso,
+**sans papier au fond du panier** (il gênait pour sortir la galette) ;
+même profil qu'à 14 h 08 le 2/11. Le café arrive plus vite sous le panier.
+L'écran affichait 3,5 g/s. Goût **un peu amer, trop extrait**.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 7,13 s, fini sur la pression, 27,0 ml | — |
+| Pré-infusion | 2,51 s, finie sur la goutte | aucune |
+| Première goutte | **10,4 s** après le démarrage de la pompe, **31,6 ml**, 0,93 bar | 0 dans le papier |
+| Première goutte → arrêt | **14,1 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pompe en marche | 24,5 s | < 20 s |
+| Pression d'infusion | 3,9 → **5,8 bar** ; pompe à 100 % jusqu'à 4,2 bar, bridée à **84 %** à la fin | 6 bar au plus |
+| Débit en tasse | **3,46 g/s** (10 → 40 g) | 4,5 à 5 g/s |
+| Résistance par tranche de 10 g, de 10 à 40 g | **1,25 / 1,36 / 1,64 bar·s/g** (1,33 / 1,54 / 1,66 à 14 h 08) | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 40,6 g à l'arrêt, **43,7 g final** | 45 g visés |
+| Ratio | **1:2,9** | 1:2,5 à 1:3 |
+| NTC | 89,7 → 83,0 °C pendant l'infusion ; **86,8 °C** pondérée par la tasse | 83 à 90 °C dans les recettes récentes |
+
+Lecture :
+
+- *Papier.* Sans lui, la goutte arrive **5,8 ml et 2,8 s plus tôt** ; le
+  volume du remplissage, lui, ne change pas (27,0 ml contre 26,1 ml). Le
+  papier comptait donc dans les ≈ 9 ml de plus avant la goutte du panier
+  49 mm.
+- *Débit.* La goutte tombe pendant la montée en pression : les 10 → 20 g
+  coulent à 3,9 bar en moyenne, pompe à 100 %, à 3,1 g/s. La fin du shot
+  est celle de 14 h 08 : la galette se tasse jusqu'à 1,64 bar·s/g, et le
+  plafond de 6 bar borne le débit à ≈ 6 / 1,64 ≈ 3,6 g/s. Le cran de plus,
+  confondu avec le retrait du papier, ne retire que 9 % de résistance en
+  moyenne, presque rien en fin de shot.
+- *Cible.* Pour ≈ 4,5 g/s, il faut ≈ 1,0 à 1,1 bar·s/g en fin de shot,
+  comme le 26/10 à 15 h 35. Sans plafond, la pompe ne donnerait que
+  ≈ 4,1 g/s à la résistance actuelle : relever `target_pressure_bar` ne
+  suffirait pas.
+- *Temps de contact.* Entre le démarrage de la pompe et la goutte, il y a
+  **≈ 10 s quels que soient la dose et la mouture** (9,4 à 13,2 s sur
+  quatre essais) : c'est le volume du circuit, de l'adaptateur et de
+  l'espace libre. 45 g demandent en plus ≈ 10 s d'écoulement au débit de
+  la pompe, soit ≈ 20 s de contact au mieux. C'est l'hypothèse de David
+  pour l'amertume : avec 45 g, le contact reste trop long sur cette pompe.
+- *Arrêt.* 3,1 g arrivent après la coupure à 3,5 g/s ; `stop_lead_g` de
+  5,0 g laisse 43,7 g pour 45 g visés.
+
+Prochain essai de David : **10 g, cible 30 g** (1:3), même mouture, sans
+papier, 88 °C, `stop_lead_g` ≈ 4 g (0,9 s × 4,5 g/s). Attendus, estimés
+par la loi de Darcy depuis 15 g : ≈ 0,9 à 1,1 bar·s/g en fin de shot,
+pompe à 100 % sous le plafond, ≈ 4,5 g/s, goutte toujours ≈ 10 s après le
+démarrage, ≈ 7 s de la goutte à l'arrêt, **≈ 17 s de pompe** au lieu de
+24,5 s. Le remplissage avec 10 g a fini sur la pression en 8,25 s le 2/11
+(31,6 ml) : le délai de 10 s suffit. Le 10 g du 2/11 à 13 h 56, « pas
+terrible », était à la mouture du single espresso et à 1:4,4 : ce n'est
+pas le même essai. Si l'amertume reste avec un écoulement court : la
+température (83 à 86 °C), puis le mouillage.
 
 ## Pistes
 
@@ -468,8 +526,11 @@ donnent 1,10 bar·s/g, dans la plage du papier.
 
 Depuis le 2 novembre, avec le panier 49 mm, David moud **plus gros** pour
 le turbo (cinq crans, puis six) : la dose de 10 g qu'imposait la mouture du single espresso
-laissait une galette trop mince sous un grand espace libre. La dose reste
-à 15 g et la mouture règle la résistance.
+laissait une galette trop mince sous un grand espace libre. La dose est
+restée à 15 g jusqu'au 3 novembre ; à six crans, la galette résiste
+encore trop pour le débit de la pompe, et 45 g allongent le contact. Le
+3 novembre, David passe à **10 g pour 30 g** à la même mouture : la dose
+règle à nouveau la résistance, et la cible le temps d'écoulement.
 
 | Piste | Depuis | Lecture |
 | --- | --- | --- |

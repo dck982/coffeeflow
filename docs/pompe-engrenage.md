@@ -227,15 +227,20 @@ Montage prévu, en remplacement de la RECOM RAC05-05SK (5 V, 1 A) :
 Chaîne prévue, du secteur à la pompe :
 
 ```
-secteur ─ ps_upstream ─ câble VH ─ alimentation 24 V ─ fils ─ Wago ─┬─ 24 V : pompe
-          (CTN sur L)               (fusible T2A)     (bornier)       └─ 24 V : combined v2 (buck 5 V) ─ 5 V : écran
+secteur ─ Wago ─ câble VH ─ alimentation 24 V ─ fils ─ Wago ─┬─ 24 V : pompe
+                  (fusible T2A)     (bornier)                 └─ 24 V : combined v2 (buck 5 V) ─ 5 V : écran
 ```
 
-1. **Carte AC, `pcb/ps_upstream`** (38,6 × 19 mm, détails dans
-   `pcb/ps_upstream/ps_upstream_design.md`) : entrée HT396R, thermistance
-   CTN d'appel de courant sur L, sortie VH vers l'alimentation, sans
-   fusible. Sans elle, l'alimentation « claque » à la mise sous tension :
-   c'est la charge de ses condensateurs d'entrée.
+1. **Pas de carte AC pour l'instant** (décision du 3 novembre 2026). Le
+   secteur arrive aux Wago, puis au VH de l'alimentation : rien entre eux,
+   donc pas de limitation de l'appel de courant (voir
+   [Appel de courant et interrupteur](#appel-de-courant-et-interrupteur)).
+   La carte `pcb/ps_upstream` (38,6 × 19 mm, détails dans
+   `pcb/ps_upstream/ps_upstream_design.md`) reste dessinée : entrée HT396R,
+   thermistance CTN d'appel de courant sur L, sortie VH vers
+   l'alimentation, sans fusible. C'est la seule option de protection
+   retenue si elle revient dans le montage : un montage 230 V se fait avec
+   des Wago, des VH3.96 ou des HT3.96, pas avec une CTN à pattes volante.
 2. **Alimentation 24 V, 96 W** (4 A), décrite ci-dessous. Elle remplace la
    RECOM RAC05-05SK (5 V, 1 A) et ne rentre pas dans `boitier_ps` actuel
    (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier, voir
@@ -262,25 +267,30 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 
 **Mécanique**
 
-- **Encombrement : 69,6 × 43,8 × 25,8 mm** (longueur × largeur ×
-  hauteur), radiateur compris.
+- **Encombrement mesuré : 68,5 × 44,1 × 25,8 mm** (longueur × largeur ×
+  hauteur), radiateur compris, **111,8 g**. La fiche et les photos donnaient
+  69,6 × 43,8.
 - **Radiateur en U**, aluminium de 2 mm : un fond sous la carte et deux
-  flancs de 25,8 mm le long des 69,6 mm. Les deux bouts (côtés de 43,8 mm)
+  flancs de 25,8 mm le long des 68,5 mm. Les deux bouts (côtés de 44,1 mm)
   sont ouverts, et le dessus de la carte aussi : l'air passe par là.
 - **Fixation de la carte** : quatre vis **métalliques** aux coins, vissées
   dans des entretoises en laiton serties dans le fond du radiateur. Les
-  trous de coin de la carte ont une couronne de cuivre, visible au dos :
-  selon la piste qui la rejoint, le radiateur est relié à un potentiel de
-  la carte (voir Isolation).
-- **Fixation du module** : les flancs sont percés aux coins, côté extérieur.
-  Le module se fixe par ces trous.
+  vis ont une tête conique, à fleur sous la plaque : posée sur du métal,
+  l'alimentation touche donc ces vis. Les trous de coin de la carte ont une
+  couronne de cuivre ; leur potentiel est mesuré (voir Isolation).
+- **Fixation du module** : les flancs sont percés aux coins, côté extérieur,
+  en **M3 taraudé** dans les 2 mm de la plaque, sans écrou. Les vis en
+  nylon dont David dispose sont du M2 : elles ne vont pas. Une vis en
+  nylon M3 vissée depuis l'extérieur du boîtier, où le fond touche la
+  face de la machine reliée à la terre, évite tout contact entre cette
+  terre et le radiateur.
 - **Dos de la carte** (sortie à droite) : composants CMS des deux côtés.
   Côté sortie, les deux MOSFET du redressement synchrone (boîtiers plats
   8 broches) et le contrôleur sont au dos. Côté entrée, une longue fente
   fraisée traverse la carte ; une ouverture au centre est couverte de ruban
   jaune. Les bords de la carte ont des encoches en demi-lune.
 - **L'entrée et la sortie sont aux deux bouts opposés** de la longueur de
-  69,6 mm. Il faut donc prévoir le passage des fils aux deux bouts.
+  68,5 mm. Il faut donc prévoir le passage des fils aux deux bouts.
 
 **Thermique**
 
@@ -298,29 +308,29 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 
 - **Connecteur JST VH 3,96 mm à trois positions, broche centrale
   supprimée** : L et N sont écartés de 7,92 mm. Il est dans la largeur de
-  43,8 mm, près du milieu. Le câble depuis ps_upstream porte un boîtier VH
-  3 positions à chaque bout, la position 2 vide.
+  44,1 mm, près du milieu. Le câble d'arrivée porte un boîtier VH 3
+  positions, la position 2 vide, serti par David.
 - **Fusible T2A 250 V**, temporisé, rectangulaire, soudé juste à côté du
   connecteur : c'est la seule protection de toute la chaîne en aval du
   disjoncteur.
 - Ensuite : condensateur X à film (jaune), self de mode commun (en fil
   plat), pont redresseur collé au radiateur, **3 × 27 µF / 400 V**
-  (105 °C), soit 81 µF au total. Pas de CTN : c'est le rôle de ps_upstream.
+  (105 °C), soit 81 µF au total. Pas de CTN (voir [Appel de courant et
+  interrupteur](#appel-de-courant-et-interrupteur)).
 
 **Sortie 24 V** (bout « sortie »)
 
 - **Bornier à vis bleu à deux positions**, dans un coin du bout de sortie :
-  à gauche quand on regarde la carte de dessus, entrée vers soi. Le pas
-  (probablement 5,0 mm) est à relever à réception.
+  à gauche quand on regarde la carte de dessus, entrée vers soi. Pas
+  mesuré : **5 mm**.
 - **Polarité** : carte vue de dessus, sortie à droite, la LED est sous le
   bornier. **GND est la vis du haut**, contre le flanc, et **+24 V la vis du
   bas**, du côté de la LED. Sur la [carte vue de
   dessus](datasheets/alim-24v-carte.png) (entrée en bas), GND est donc la vis
-  de gauche. Ce relevé vient d'une mesure au multimètre sur la version 12 V
-  (+12,195 V, pointe rouge en bas), dont la carte est la même ; il est à
-  confirmer à réception.
-- **LED rouge** à côté du bornier. Elle reste allumée longtemps après la
-  coupure : les condensateurs de sortie se vident lentement.
+  de gauche. Relevé d'abord sur la version 12 V, **confirmé sous tension sur
+  l'exemplaire reçu** : LED au sud, GND au nord ; **23,89 V à vide**.
+- **LED rouge** à côté du bornier. À vide, elle reste allumée environ une
+  minute après la coupure (voir [Réception](#réception-et-premiers-essais)).
 - Self de sortie (tore vert), **2 × 470 µF / 35 V**. La tension de sortie
   est fixe : il n'y a pas de potentiomètre.
 - Le courant prévu (1,4 A, 4 A au pire) passe dans du fil de 0,5 mm²
@@ -339,27 +349,94 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
 - **Primaire-radiateur** : le film noir sous la partie haute tension et le
   boîtier isolé du pont redresseur, collé au flanc. Le radiateur n'est pas
   relié à la terre : l'alimentation n'a pas de borne de terre.
-- **Potentiel du radiateur** : les vis métalliques des coins le relient aux
-  couronnes des trous de la carte. Si une couronne rejoint le GND de sortie,
-  ce qui est courant pour la CEM, le radiateur est au GND de sortie ; sinon
-  il est flottant. Les photos ne montrent aucune piste qui rejoigne une
-  couronne : flottant est le plus probable, à confirmer par la mesure. Le pad thermique bleu sépare de toute façon les MOSFET du
-  secondaire de l'aluminium. Dans les deux cas, ps_upstream le traite
-  comme une pièce métallique qui n'est ni L ni N : isolation principale,
-  3 mm entre le cuivre et le bord de la carte.
+- **Potentiel du radiateur** : mesuré hors tension, voir
+  [Réception](#réception-et-premiers-essais). Les quatre vis, leurs
+  entretoises et les couronnes de la carte forment un réseau **flottant**,
+  relié ni au GND, ni au +24 V, ni à L ou N. Le pad thermique bleu sépare de
+  toute façon les MOSFET du secondaire de l'aluminium. La plaque, sans doute
+  anodisée, n'a pas été reconnue reliée à ce réseau, mais la mesure n'est
+  pas concluante : la tête conique des vis affleure sous la plaque, donc
+  l'alimentation posée sur du métal touche les vis. Le boîtier traite la
+  plaque et les vis comme une pièce métallique qui n'est ni L ni N :
+  isolation principale, 3 mm entre le cuivre et le bord de la carte.
 - **Primaire-secondaire** : par le transformateur et le condensateur Y. Le
   vendeur ne donne ni tension d'essai ni homologation (seulement EN 55032,
   qui est une norme d'émissions). La sortie 24 V et toute la basse tension
   en aval ne sont donc **pas garanties TBTS**. On ne la touche pas sous
   tension sans l'avoir vérifié.
-- **À relever à réception** : continuité entre le radiateur et la sortie
-  (− et +) et entre le radiateur et l'entrée, ce qui dit à quoi sont
-  reliées les couronnes des coins ; résistance d'isolement entre l'entrée
-  (L et N reliés) et la sortie, et entre l'entrée et le radiateur. Si le
-  radiateur est au GND de sortie, toute pièce métallique du boîtier qui le
-  touche l'est aussi. Le condensateur Y laisse passer
-  un petit courant de fuite alternatif vers la sortie : une sortie flottante
-  peut « picoter » une sonde ou un PC raccordé en USB.
+- Le condensateur Y laisse passer un petit courant de fuite alternatif vers
+  la sortie : une sortie flottante peut « picoter » une sonde ou un PC
+  raccordé en USB.
+
+### Réception et premiers essais
+
+Relevés du 3 novembre 2026 sur l'exemplaire reçu.
+
+**Hors tension, au multimètre**
+
+| Mesure | Résultat |
+| --- | --- |
+| L ↔ N (broches du VH) | pas de continuité |
+| +24 V ↔ GND (bornier) | pas de continuité |
+| Les 4 vis de fixation entre elles | continuité |
+| Vis ↔ entretoises | continuité |
+| Vis ↔ plaque du radiateur | pas de continuité (aluminium sans doute anodisé ; léger bip, grattage insuffisant : non concluant) |
+| Vis ↔ bornier DC (les deux vis) | pas de continuité |
+| Vis ↔ connecteur L/N | pas de continuité |
+
+La résistance d'isolement entre l'entrée et la sortie n'a pas été mesurée : un
+multimètre n'applique que quelques volts, donc l'absence de continuité tient
+lieu de test. Le fusible n'a pas été testé : sans continuité, l'alimentation
+ne démarre pas.
+
+**Sous tension, à vide, sans CTN** : pas de claquage au premier essai.
+
+| Observation | Valeur |
+| --- | --- |
+| Tension de sortie | **23,89 V**, soit −0,46 % : dans les ± 1 % de la fiche |
+| Polarité | +24 V côté LED, GND de l'autre côté du bornier |
+| Après la coupure | 23,89 V maintenus ≈ 30 s, puis chute à 0 V en ≈ 20 s ; LED allumée presque une minute |
+
+L'alimentation continue de fonctionner sur l'énergie de ses condensateurs
+primaires : ½ × 81 µF × 325² ≈ 4,3 J, soit ≈ 48 s à 90 mW de consommation à
+vide, ce qui correspond au relevé. Le primaire reste donc chargé à plusieurs
+centaines de volts **pendant environ une minute à vide**, tant que la LED est
+allumée. Avec les ESP32 branchés (2–3 W), la décharge ne prend plus que 1 à 2 s.
+Le couvercle transparent du boîtier laisse voir la LED : on n'ouvre pas tant
+qu'elle est allumée.
+
+### Appel de courant et interrupteur
+
+**Décision du 3 novembre 2026 : pas de ps_upstream, pas de CTN pour l'instant.**
+
+- **Le maillon faible est l'interrupteur**, pas l'alimentation : un
+  **Profitec bipolaire 16 A / 250 V (P9111)**, pièce détachée à une dizaine
+  de dollars. Avec la RECOM RAC05-05SK actuelle, le contact claque environ
+  une fois tous les 50 démarrages, à vue d'œil. Cette RECOM a un appel de
+  courant de 30 A à froid à 230 V d'après sa fiche (`RAC05-K_277.pdf`, T1A
+  temporisé). Les 16 A de l'interrupteur sont une valeur résistive ; sa
+  tenue à un appel capacitif n'est pas donnée.
+- **Sans limitation, cette alimentation donne une crête de l'ordre de 300 à
+  650 A**, de 325 V divisé par la résistance série (0,5 à 1 Ω : fusible,
+  self, pont, câblage et réseau), pendant plusieurs fois plus longtemps que
+  la RECOM. Le I²t vaut environ 4,3 J ÷ R, soit 4 à 9 A²s. Ce sont des
+  ordres de grandeur : ni la fiche du pont ni celle du fusible ne sont connues.
+  Une charge DC branchée n'y change rien : l'appel a lieu avant le démarrage
+  du contrôleur.
+- **Avec la CTN de 10 Ω de ps_upstream, la crête retombe à ≈ 30 A**, soit le
+  niveau de la RECOM actuelle : le claquage de l'interrupteur serait ramené
+  à la fréquence actuelle, pas supprimé.
+- **81 µF pour 100 W**, soit 0,8 µF/W : pas surdimensionné.
+- **Contre ps_upstream** : un élément de plus dans le boîtier, qui doit
+  placer la carte en face du VH de l'alimentation, entrée de ps_upstream du
+  côté de l'arrivée secteur. Sa chaleur est faible (≈ 4 mW au repos).
+- **Pour rien** : les Wago se placent librement, plus de virage serré du
+  0,75 mm² vers une carte. L'alimentation coûte moins de 10 francs, des
+  dizaines de vendeurs la proposent, une de réserve est envisagée.
+- **Risque assumé** : usure ou, plus rarement, soudure des contacts de
+  l'interrupteur. Remplacer l'interrupteur est possible, mais plus gênant que
+  remplacer l'alimentation. Une CTN à pattes volante entre deux Wago a été
+  écartée : le 230 V se monte avec des Wago, des VH3.96 ou des HT3.96.
 
 ### Fiche du vendeur
 
@@ -428,6 +505,11 @@ dessus](datasheets/alim-24v-carte.png), [fiche](datasheets/alim-24v-specs.png).
   15,5 et 30 V.
 
 ### CTN d'appel de courant
+
+Cette section décrit la CTN de `pcb/ps_upstream`. Cette carte n'est pas dans
+le montage pour l'instant (voir [Appel de courant et
+interrupteur](#appel-de-courant-et-interrupteur)) ; le choix reste valable
+si elle y revient.
 
 #### Choix de la CTN
 
@@ -532,8 +614,8 @@ Conséquences pour la machine :
   autour du radiateur et des ouïes. La pointe de 84 W de la pompe ne dure
   pas : elle ne compte pas pour l'échauffement.
 - **Appel de courant confirmé** : condensateurs d'entrée chargés
-  directement sur le secteur redressé, sans CTN. La CTN de la carte AC est
-  nécessaire.
+  directement sur le secteur redressé, sans CTN. Voir [Appel de courant et
+  interrupteur](#appel-de-courant-et-interrupteur) pour la décision.
 - **Sortie qui décroît lentement à la coupure** : le moteur de la pompe
   s'arrête par sa sous-tension à 15,5 V, l'ESP32-S3 quand le buck décroche ;
   la consigne est alors à 0. Aucune action nécessaire.

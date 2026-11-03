@@ -94,7 +94,7 @@ here is at mains potential.
 
 ## Layout
 
-The board measures 38.6 × 19.0 mm, under the 43.8 mm width of the supply.
+The board measures 38.6 × 19.0 mm, under the 44.1 mm width of the supply.
 x runs from J1 to J2, and the L–N axis runs through the two slots and the
 two holes.
 

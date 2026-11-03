@@ -7,12 +7,15 @@ RAC05-05SK ; il est reconstruit de zéro sur le modèle de `boitier_ac` et
 `boitier_dc` : contour et corbeaux M2 définis pour que le couvercle les
 reprenne.
 
-**État au 31 octobre 2026 : en attente de l'alimentation.** Les cotes
-théoriques ci-dessous dépassent la place disponible de quelques millimètres
-selon des hypothèses encore non mesurées (position du VH de l'alimentation,
-mou du câble VH, rayon réel des virages). Prochaine étape : essais de
-courbure des fils à plat sur table, alimentation en main, puis proposition
-de disposition par David.
+**État au 3 novembre 2026 : alimentation reçue, ps_upstream abandonnée pour
+l'instant.** Les pistes A, B1 et B2 ci-dessous ont été étudiées **avec**
+ps_upstream et sont à refaire : le boîtier loge maintenant l'alimentation et
+des Wago (voir [pompe-engrenage.md](pompe-engrenage.md), « Appel de courant
+et interrupteur »). Prochaine étape : essais d'orientation et de courbure des
+fils de 0,75 mm² à plat sur table, alimentation en main, puis proposition de
+disposition par David. Les relevés de réception (dimensions mesurées,
+isolation, M3 taraudé, polarité) sont dans pompe-engrenage.md, « Réception
+et premiers essais ».
 
 ## Place dans la machine
 
@@ -42,8 +45,8 @@ haut), Z depuis la face de la machine vers l'intérieur.
 
 | Pièce | Cotes | Remarques |
 | --- | --- | --- |
-| Alimentation 24 V, 96 W | 69,6 × 43,8 × 25,8 | radiateur en U ; entrée VH (vertical) et sortie bornier aux deux bouts opposés |
-| `pcb/ps_upstream` | 38,6 × 19,0, RT1 haute de 16 | J1 HT396R coudé (plug HT396K), J2 VH vertical ; H1 et H2 M3 **nylon seulement** |
+| Alimentation 24 V, 96 W | **68,5 × 44,1 × 25,8**, 111,8 g (mesuré) | radiateur en U ; entrée VH (vertical) et sortie bornier aux deux bouts opposés, bornier au pas de 5 mm ; fixation par 4 trous **M3 taraudés** dans les flancs de 2 mm |
+| `pcb/ps_upstream` | 38,6 × 19,0, RT1 haute de 16 | **abandonnée pour l'instant** ; J1 HT396R coudé (plug HT396K), J2 VH vertical ; H1 et H2 M3 **nylon seulement** |
 | 2 Wago | 221-423 : 18,8 × 18,6 × 8,4 ; 221-415 : 30 × 18,6 × 8,4 | 221-423 si l'embout double fait gagner une position (voir Câblage) |
 
 Rien en DC à part le bornier de l'alimentation : le 24 V part directement
@@ -70,24 +73,22 @@ Fil **Helutherm 145, 0,75 mm²** partout, AC et DC.
   (0,15 V contre 0,10 V sur 1 m aller-retour à 3,8 A), et le 0,5 mm² ne
   gagne que ≈ 1 mm de rayon.
 - **Embouts** au bornier DC : ≈ 5 mm droits avant tout virage.
-- **VH serti par David** aux deux bouts du câble alimentation – ps_upstream :
-  longueur libre, mais il faut **du mou** pour enficher un bout puis
-  l'autre ; un câble tendu entre deux plugs face à face ne se monte pas.
+- **VH serti par David** au bout du câble d'arrivée sur l'alimentation. Sans
+  ps_upstream, ce câble vient directement d'un Wago : plus de câble tendu
+  entre deux plugs face à face.
 
 ### Cheminement prévu
 
 - **AC** : entre au sud-ouest par une encoche qui commence au-dessus des
   modules (les fils passent par-dessus), longe le sud de l'alimentation,
-  voire le couvercle, jusqu'à J1 de ps_upstream.
-- **Répartition** : L et N vont à ps_upstream et à deux Wago ; des Wago
-  partent la LED de la façade et combined (vanne). La sortie vers combined
+  voire le couvercle, jusqu'aux Wago.
+- **Répartition** : L et N vont de deux Wago à l'alimentation (VH) ; des Wago
+  partent aussi la LED de la façade et combined (vanne). La sortie vers combined
   est **directe au sud**.
-- **Embout double 2 × 0,75** (en stock) : met l'arrivée et le départ vers les
-  Wago dans la même borne, ce qui ramène les Wago à **3 positions** (221-423).
-  Le plug HT396K accepte au plus 1,5 mm² (AWG 14–26, dénudage 7–8 mm) ;
-  l'embout double, plus large et aplati, risque de ne pas entrer dans sa
-  borne. Repli : l'embout double dans le Wago (arrivée + fil vers J1), ce
-  qui donne le même nombre de positions.
+- **Embout double 2 × 0,75** (en stock) : met l'arrivée et le départ vers
+  l'alimentation dans la même borne de Wago, ce qui ramène les Wago à **3
+  positions** (221-423). À vérifier : l'embout double entre-t-il dans un Wago
+  221 ?
 - **DC** : sort au **nord-est**. Sortie droite au ras du mur nord retenue
   pour l'instant : le virage se fait dehors, réglé par la position en Y du
   boîtier ; la zone nord intérieure tombe à ≈ 7 mm. Défaut connu : la face
@@ -95,7 +96,10 @@ Fil **Helutherm 145, 0,75 mm²** partout, AC et DC.
   tasse ; un petit capot sera dessiné après un montage d'essai. Garder un
   mur nord plein autour de l'ouverture pour l'y fixer.
 
-## Pistes étudiées
+## Pistes étudiées (avec ps_upstream)
+
+Ces pistes datent d'avant l'abandon de ps_upstream. Elles restent comme
+repère de place et de gabarit pour l'alimentation sur sa tranche.
 
 Toutes les cotes sont à ± 3 mm. Murs 1,68, fond 1,6, couvercle 1,6, jeu
 1 mm autour des pièces, comme `boitier_ac` / `boitier_dc`.
@@ -176,6 +180,10 @@ métal.
    bord ouest ?
 
 ## À relever avec l'alimentation en main
+
+Déjà relevés le 3 novembre : encombrement, pas du bornier (5 mm), fixation
+(M3 taraudé). Restent les lignes ci-dessous, sauf celles qui concernaient
+ps_upstream.
 
 | Point | Pour |
 | --- | --- |

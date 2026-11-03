@@ -4250,3 +4250,20 @@ single espresso, puis 15 g cinq crans plus gros) ; le détail est dans
 single espresso, sans papier au fond. 3,46 g/s, 14,1 s de la goutte à
 l'arrêt, 43,7 g ; goût un peu amer, trop extrait. Prochain essai : 10 g
 pour 30 g. Le détail est dans [turboshot.md](turboshot.md).
+
+### 3 novembre, 13 h 57 — `261103-135738`
+
+**Turbo shot**, ViCafé, panier 49 mm : 10 g pour 30 g, même mouture.
+16,9 s de pompe, 2,3 bar, 3,76 g/s, 30,2 g ; toujours assez amer, moins
+intéressant qu'un espresso. Dernier essai trois crans plus fin, puis
+retour au single espresso ; turbo repris avec le Cozy Chocolate et la
+pompe à engrenages. Le détail est dans [turboshot.md](turboshot.md).
+
+### 3 novembre, 14 h 13 — `261103-141334`
+
+**Turbo shot**, ViCafé, panier 49 mm : 10 g pour 30 g, trois crans plus
+fin qu'à 13 h 57. 19,0 s de pompe, 2,9 bar au plus, 3,84 g/s, 29,8 g,
+tasse à 86,0 °C ; légère acidité, aucune amertume, plus léger qu'un
+espresso : un des meilleurs turbo shots, loin d'une « soupe » toutefois.
+Dernier turbo avant le retour au single espresso. Le
+détail est dans [turboshot.md](turboshot.md).

@@ -516,6 +516,113 @@ terrible », était à la mouture du single espresso et à 1:4,4 : ce n'est
 pas le même essai. Si l'amertume reste avec un écoulement court : la
 température (83 à 86 °C), puis le mouillage.
 
+### 3 novembre 2026, 13 h 57 — `261103-135738`
+
+**10 g**, cible **30 g**, `stop_lead_g` de **4,0 g**, même mouture (six
+crans plus gros que le single espresso), sans papier, 88 °C. Café
+**ViCafé**, celui du single espresso ; les essais du 26 et du 27/10
+étaient au Cozy Chocolate. Goût **toujours assez amer**, **moins
+intéressant qu'un espresso**.
+
+| Grandeur | Mesure | Repère turbo |
+| --- | ---: | --- |
+| Remplissage | 8,34 s, fini sur la pression, 31,3 ml | — |
+| Pré-infusion | **sautée** : la goutte est tombée pendant le remplissage | aucune |
+| Première goutte | **6,4 s** après le démarrage de la pompe, **24,1 ml**, **0,53 bar** | 0 dans le papier |
+| Première goutte → arrêt | **10,5 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pompe en marche | **16,9 s** (24,5 s à 7 h 54) | < 20 s |
+| Pression d'infusion | 1,7 → **2,3 bar**, pompe à 100 % | 6 bar au plus |
+| Débit en tasse | **3,76 g/s** (10 → 25 g) ; débitmètre 3,65 ml/s | 4,5 à 5 g/s |
+| Résistance apparente | **0,46 → 0,62 bar·s/g** | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 26,3 g à l'arrêt, **30,2 g final** | 30 g visés |
+| Ratio | **1:3,0** | 1:2,5 à 1:3 |
+| NTC | 89,8 → 86,0 °C pendant l'infusion ; **87,8 °C** pondérée par la tasse | 83 à 90 °C dans les recettes récentes |
+
+Lecture :
+
+- *Temps de contact.* −31 % de pompe en marche, comme prévu ; ratio et
+  arrêt au poids justes. L'amertume reste : le contact n'en est pas la
+  cause principale.
+- *Mouillage.* Le mouillage d'≈ 10 s supposé à 7 h 54 ne tient pas avec
+  10 g : la goutte arrive 7,5 ml plus tôt, avant la fin du remplissage et
+  à 0,53 bar. De l'eau traverse la galette avant qu'elle soit mouillée et
+  sous pression, signe probable d'un écoulement inégal.
+- *Résistance.* Moitié de l'estimation par la loi de Darcy (0,9 à 1,1) :
+  comme dans le panier 58 mm (11 → 15 g, ×2,9), la dose agit bien plus
+  que linéairement. C'est le régime des 11 g du 26/10, à 2 bar.
+- *Débit en tasse.* À 2 bar et pompe à 100 %, le débitmètre lit 3,7 ml/s
+  comme le 26/10 à 9 h 34, où la tasse recevait 4,94 g/s ; ici 3,76 g/s.
+  Le rapport tasse / débitmètre vaut 1,3 à 1,4 à pression stable (26 et
+  27/10) et 0,95 à 1,2 tant que la pression monte, ce qui est le cas
+  pendant tout le shot dans le panier 49 mm. *Hypothèse, non vérifiée* :
+  l'eau qui manque comprime l'air de l'espace libre et tasse la galette.
+  La résistance apparente, calculée sur le débit en tasse, est donc
+  surestimée dans ce panier.
+- *Suspects restants* pour l'amertume, temps, ratio et tasse étant dans
+  les repères : le café (ViCafé, foncé, quand les essais floraux étaient
+  au Cozy Chocolate), la mouture grosse sous une galette peu résistante
+  (goutte précoce ; amertume plate aussi le 26/10 à 16 h 32), puis la
+  température.
+
+**Manipulations avec le panier 49 mm** (David) :
+
+- le panier profond n'entre pas dans la fourche du moulin : il faut
+  moudre dans un gobelet doseur, puis transférer ;
+- la galette est au fond d'un canal étroit, sous le puck screen plaqué
+  par le ressort : après l'infusion, elle est si compacte qu'elle ne sort
+  pas d'un bloc et doit être grattée au doigt.
+
+**Décision** (David). Un dernier essai à **10 g pour 30 g**, mouture
+**trois crans plus fine** (trois crans plus grosse que le single
+espresso), pour revenir vers la galette du 26/10 à 15 h 35 (≈ 1,1
+bar·s/g, pression stable vers 5 bar). Le 2/11 à 13 h 56, 10 g à la
+mouture du single espresso donnaient 1,1 à 1,4 bar·s/g. Ensuite, retour
+au single espresso. Les turbo shots reprendront avec le **Cozy
+Chocolate** et la **pompe à engrenages** en service.
+
+### 3 novembre 2026, 14 h 13 — `261103-141334`
+
+Comme à 13 h 57 (ViCafé, 10 g pour 30 g, sans papier, 88 °C), mouture
+**trois crans plus fine** : trois crans plus grosse que le single
+espresso. Goût **bien meilleur**, **très intéressant** : **légère
+acidité**, **aucune amertume**, café **plus léger qu'un espresso**. Selon
+David, on **s'éloigne de l'idée d'un turbo « soupe »**, mais c'est **un
+des meilleurs turbo shots**, à garder comme référence.
+
+| Grandeur | 13 h 57 (six crans) | **14 h 13 (trois crans)** | Repère turbo |
+| --- | ---: | ---: | --- |
+| Remplissage | 8,34 s, 31,3 ml | 8,06 s, 29,6 ml, fini sur la pression sans goutte | — |
+| Pré-infusion | aucune dans la capture | aucune dans la capture | aucune |
+| Première goutte | 6,4 s, 24,1 ml, 0,53 bar | **9,3 s**, **32,2 ml**, **0,90 bar** | 0 dans le papier |
+| Première goutte → arrêt | 10,5 s | **9,8 s** | 7 à 15 s (papier) ; 11 à 14 s sur cette machine |
+| Pompe en marche | 16,9 s | **19,0 s** | < 20 s |
+| Pression d'infusion | 1,7 → 2,3 bar | 1,5 → **2,9 bar**, pompe à 100 % | 6 bar au plus |
+| Débit en tasse, 10 → 25 g | 3,71 g/s | **3,84 g/s** ; 4,19 g/s de 15 à 25 g | 4,5 à 5 g/s |
+| Résistance apparente, 10 → 25 g | 0,54 bar·s/g | **0,66 bar·s/g** | ≈ 1 à 2 (estimé depuis le papier) |
+| Poids | 26,3 → 30,2 g | 26,7 → **29,8 g** | 30 g visés |
+| Ratio | 1:3,0 | **1:3,0** | 1:2,5 à 1:3 |
+| NTC pondérée par la tasse | 87,8 °C | **86,0 °C** | 83 à 90 °C dans les recettes récentes |
+
+Lecture :
+
+- *Mouillage.* La goutte tombe de nouveau après le remplissage, à
+  0,90 bar : la galette se mouille avant que l'eau la traverse.
+- *Résistance.* Trois crans ne font que **+22 %** (0,54 → 0,66 bar·s/g) :
+  la pression plafonne à 2,9 bar, loin des ≈ 5 bar du 26/10 à 15 h 35.
+  La pression monte encore pendant tout le shot.
+- *Deux changements.* La tasse est 1,9 °C plus froide qu'à 13 h 57 (goutte
+  plus tardive, 2,1 s de pompe en plus). Le meilleur goût peut venir de la
+  mouture comme de la température ; la capture ne les sépare pas.
+- *Soupe.* Dans les repères, la « soupe » se définit surtout par le
+  ratio (1:4,5 à 1:6, 2 à 5 % TDS) ; 1:3 est le ratio du turbo du papier.
+  Les essais proches d'une soupe étaient les 11 g à 1:4,0 et 1:4,4 du
+  26/10 (Cozy Chocolate), « très légers », floraux. Pour aller vers la
+  soupe, le levier est le ratio, pas la mouture.
+
+**Décision** (David, confirmée à 13 h 57). Recette de 14 h 13 gardée
+comme référence du turbo dans le panier 49 mm. Retour au single
+espresso ; turbo repris avec le Cozy Chocolate et la pompe à engrenages.
+
 ## Pistes
 
 Contrainte de David : **garder la mouture du single espresso**, pour faire
@@ -530,7 +637,11 @@ laissait une galette trop mince sous un grand espace libre. La dose est
 restée à 15 g jusqu'au 3 novembre ; à six crans, la galette résiste
 encore trop pour le débit de la pompe, et 45 g allongent le contact. Le
 3 novembre, David passe à **10 g pour 30 g** à la même mouture : la dose
-règle à nouveau la résistance, et la cible le temps d'écoulement.
+règle à nouveau la résistance, et la cible le temps d'écoulement. Le
+contact raccourcit de 31 % sans ôter l'amertume du ViCafé. Trois crans
+plus fin, à 2,9 bar : légère acidité, sans amertume, un des meilleurs
+turbo shots. Pause
+jusqu'au Cozy Chocolate et à la pompe à engrenages.
 
 | Piste | Depuis | Lecture |
 | --- | --- | --- |

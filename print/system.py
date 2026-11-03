@@ -922,12 +922,15 @@ def back_face_layout(
     )
 
 
-def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openings=(), extra_rims=()):
+def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openings=(), extra_rims=(),
+                    rim_gaps=()):
     """Flat lid for a box outline: plate, inner rim, screw holes, mirrored in X.
 
     The rim sits `wall + jeu` inside `pts` and is cut `corbel_jeu` around each
     corbel pad. `openings` are (x0, y0, dx, dy) cut through plate and rim;
-    `extra_rims` are (x0, y0, x1, y1) ribs as deep as the rim. The result is
+    `extra_rims` are (x0, y0, x1, y1) ribs as deep as the rim; `rim_gaps` are
+    (x0, y0, x1, y1) cut through the rim only, where it would hit a part
+    inside the box. The result is
     mirrored about the outline's X centre so that flipping the lid about a
     north-south axis lands it on the box.
     """
@@ -955,6 +958,8 @@ def couvercle_corps(pts, corbels, wall, floor, jeu, rim_width, rim_depth, openin
         body -= Pos(o_x0,o_y0,0)*Box(o_w,o_h,floor+rim_depth,align=AMIN)
     for x0, y0, x1, y1 in extra_rims:
         body += Pos(x0, y0, floor) * Box(x1 - x0, y1 - y0, rim_depth, align=AMIN)
+    for x0, y0, x1, y1 in rim_gaps:
+        body -= Pos(x0, y0, floor) * Box(x1 - x0, y1 - y0, rim_depth, align=AMIN)
 
     xs = [x for x, _ in pts]
     mid_x = (min(xs) + max(xs)) / 2.0

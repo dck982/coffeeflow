@@ -1401,3 +1401,30 @@ how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : partie du plug qui entre dans l'e
 value = 10.0
 unit = "mm"
 how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : profondeur du plug, 10.00. Les 2.6 mm de plus que l'embase sont tous côté verrou : mesuré par David sur un HT396 4P, 2026-10-29."
+
+# Alimentation 24 V, 96 W (module ouvert « DC 24V 4A »), mesurée à réception.
+
+[alim24_longueur]
+value = 68.5
+unit = "mm"
+how = "user 2026-11-03: caliper, length along the U, input VH at one end, output terminal at the other."
+
+[alim24_largeur]
+value = 44.1
+unit = "mm"
+how = "user 2026-11-03: caliper, across the two flanks of the U."
+
+[alim24_hauteur]
+value = 25.8
+unit = "mm"
+how = "user 2026-11-03: caliper, from the U base to the flank edges (open side, components)."
+
+[alim24_bornier_centre]
+value = 29.0
+unit = "mm"
+how = "user 2026-11-03: centre of the 2-way 5 mm output terminal, from the lower flank edge with the supply on its edge."
+
+[alim24_trou_coin]
+value = 3.5
+unit = "mm"
+how = "user 2026-11-03: M3 tapped holes in the upper flank, 3.5 mm from the north-east and south-east corners (box frame), in X and Y."

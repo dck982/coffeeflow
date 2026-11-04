@@ -4267,3 +4267,99 @@ tasse à 86,0 °C ; légère acidité, aucune amertume, plus léger qu'un
 espresso : un des meilleurs turbo shots, loin d'une « soupe » toutefois.
 Dernier turbo avant le retour au single espresso. Le
 détail est dans [turboshot.md](turboshot.md).
+
+### 4 novembre, 9 h 44 — `261104-094440`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, **dose
+pesée : 7,4 g** (réglage 7,5 g), cible 20 g, anticipation d'arrêt de
+1,5 g, consigne de 90 °C. Écran 0.4.27, sensors 0.4.24. Premier single
+espresso depuis les turbo shots du 2 et du 3/11 ; moulin ramené au cran
+du single espresso, **canal du moulin purgé** avant la mouture. Point de rosée du salon non relevé. Observation de
+David : **très bon**, **aucune amertume**, aucun goût de « carton / terre
+/ cosse de café » ; arrêt **un peu tôt**.
+
+**Routine** : guide ouvert à 84,9 °C ; rinçage de 5,0 s, 17,7 ml, 25,9 g,
+**pression maximale 0,25 bar**. Consigne atteinte 201,3 s après le
+rinçage, minimum 82,6 °C. **953 s sur le groupe** ; préparation de
+216,4 s. Tasse de 117,6 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,00 s | — | 0,29 → 0,37 bar |
+| Remplissage | 8,00 s | 7,17 s, pression | 22,3 ml (3,11 ml/s) | 0,37 → 0,85 bar |
+| Pré-infusion | 15,18 s | **4,04 s, échéance** | 5,5 ml | 0,85 → 1,33 bar |
+| Infusion | 19,21 s | 16,58 s | 28,7 ml | 9,41 bar max |
+
+- Circuit à 0,29 bar au départ, comme avant le 2/11 (0,55 bar ce
+  jour-là).
+- **Première goutte (0,3 g) à 20,58 s, à 1,93 bar**, 30,1 ml, 1,4 s
+  après le début de l'infusion : la pré-infusion finit sur l'échéance.
+- 8 bar à 22,9 s, 1,8 g en tasse. **Pic à 9,41 bar** à 23,27 s, juste
+  après la montée, puis plateau.
+- Depuis 8 bar : **12,9 s**, **1,27 g/s** en tasse, 1,46 ml/s en amont.
+  **18,5 g à l'arrêt de la pompe**, **19,7 g final**, **1,1 g de
+  gouttes**. Pompe en marche 27,8 s. Goutte → arrêt de la pompe :
+  **15,2 s**.
+- Plateau (de 8 bar + 2 s à l'arrêt) : **8,91 ± 0,05 bar**, pompe vers
+  70 %, 1,30 g/s, soit **6,9 bar·s/g**, ou **7,0 ramené à 7,5 g** (6,4 le
+  2/11 au matin).
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 04/11 9 h 44 | 2,9 s | 6,1 s | 10,3 s | 16,2 s |
+  | 02/11 9 h 08 | 1,7 s | 4,7 s | 8,0 s | 14,0 s |
+
+**Thermique.** NTC de 90,04 °C au départ, **+1,26 °C** pendant le
+remplissage (22,3 ml), −1,06 °C pendant la pré-infusion ; 90,52 °C au
+début de l'infusion, 89,62 °C à l'arrêt. Baisse pompe en marche
+**−0,42 °C** (89,6 à 92,0 °C). **Tasse : 91,07 °C, +1,07 °C.**
+
+**Attendus vérifiés** (entrée du 2/11 à 9 h 08).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | écart à 7,5 g nettement sous ±0,3 g après calibration | **7,4 g (−0,1 g)**, comme avant la calibration ; ratio 19,7 / 7,4 = **2,66** |
+| Hydraulique | 5,8 à 7,0 bar·s/g ramené à 7,5 g ; plateau sous 9,2 bar | **7,0 : haut de plage** ; plateau 8,91 bar, pic transitoire de 9,41 bar |
+| Rinçage | 0,1 à 0,7 bar | 0,25 bar : atteint |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml ; pression de départ | 3,11 ml/s, 22,3 ml : atteint ; départ à 0,37 bar |
+| Rendement | arrêt vers 18,6 g, 19,8 à 20,5 g final | 18,5 g : atteint ; **19,7 g, 0,1 g sous la plage** |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche | +1,26 °C ; −0,42 °C : atteint |
+| Tasse | 89,0 à 92,5 °C | 91,07 °C : atteint |
+
+**Lecture.**
+
+- *Arrêt, mesuré.* 1,1 g arrive après la coupure, comme le 2/11 (1,1 g)
+  à un débit voisin (1,27 et 1,35 g/s), soit ≈ 0,85 s de débit.
+  L'anticipation de 1,5 g laisse donc ≈ 0,4 g sous la cible : c'est
+  l'« arrêt un peu tôt ». Le firmware règle l'anticipation par pas de
+  0,5 g : 1,0 g donne ≈ 20,1 g final, 1,5 g en donne 19,7.
+- *Galette, mesuré.* 7,0 bar·s/g ramené à 7,5 g, en haut de la plage :
+  la galette du matin la plus résistante depuis le 1/11 (6,9 et 6,4).
+  La goutte, plus tardive, et le débit plus bas allongent l'écoulement
+  (15,2 s de la goutte à l'arrêt, contre 13,4 s).
+- *Purge, observé.* Premier matin avec purge du canal du moulin : pas de
+  mouture retenue de la veille. La « petite amertume » du 1/11 et du 2/11
+  au matin, sans purge, est absente ; un seul essai ne suffit pas à
+  l'attribuer à la purge.
+- *Goût et turbo shots, observé.* Même café (ViCafé) et même moulin que
+  les turbo shots du panier 49 mm des 2 et 3/11, sans le goût de carton,
+  de terre ou de cosse qu'ils avaient : le café n'en est pas la source.
+  La lecture est dans [turboshot.md](turboshot.md).
+
+**Décision** (David). **Anticipation d'arrêt de 1,0 g** (1,1 g refusé
+par le firmware, pas de 0,5 g), cible 20 g
+inchangée ; dose, mouture et 90 °C inchangés. Turbo shots en pause
+jusqu'à la pompe à engrenages.
+
+| Point | Attendu (prochaine infusion, anticipation de 1,0 g) |
+| --- | --- |
+| Dose | pesée ; écart à 7,5 g sous ±0,3 g ; ratio = final / dose pesée |
+| Hydraulique | 5,8 à 7,0 bar·s/g ramené à 7,5 g ; plateau sous 9,2 bar |
+| Rinçage | 0,1 à 0,7 bar |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml ; noter la pression de départ |
+| Rendement | arrêt de la pompe vers 19,0 g, **19,9 à 20,4 g final**, ratio ≈ 2,7 |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche |
+| Tasse | 89,0 à 92,5 °C |

@@ -623,6 +623,38 @@ Lecture :
 comme référence du turbo dans le panier 49 mm. Retour au single
 espresso ; turbo repris avec le Cozy Chocolate et la pompe à engrenages.
 
+### 4 novembre 2026 — retour au single espresso, `261104-094440`
+
+Single espresso au ViCafé, même moulin que les turbo shots du panier
+49 mm : **très bon**, **aucune amertume**, et surtout **aucun goût de
+« carton / terre / cosse de café »**, présent dans les turbo shots. Selon
+David, ce goût était **très faible** dans les turbo shots à mouture plus
+serrée (mouture espresso le 26 et le 27/10, trois crans le 3/11 à
+14 h 13) et marqué dans ceux à mouture grosse.
+
+Lecture :
+
+- *Le café est hors de cause.* Tous les turbo shots du panier 49 mm
+  étaient au ViCafé, comme ce single espresso. Le suspect « café » du
+  3/11 à 13 h 57 tombe.
+- *La mouture grosse est le suspect principal.* Les turbo shots amers ou
+  plats sont tous à mouture grosse : 16 h 32 le 26/10 (channelling vu),
+  13 h 16 le 27/10, six crans le 3/11 à 7 h 54 et 13 h 57 (goutte à
+  0,53 bar, avant le mouillage). Un goût sec, de carton ou de bois, est
+  celui d'une extraction inégale : l'eau qui passe par les chemins faciles
+  surextrait leurs parois, le reste de la galette est sous-extrait (effet
+  volcan du papier).
+- *Le kit 49 mm reste secondaire.* L'amertume plate existait déjà dans le
+  panier 58 mm (26/10 à 16 h 32) et a survécu au retrait du papier
+  (3/11). Le puck screen et le ressort ne sont pas testés séparément.
+
+Pour la reprise : partir de **trois crans au plus** au-dessus du single
+espresso, pas de six, et régler le débit par la pompe à engrenages
+plutôt qu'en ouvrant le moulin.
+
+**Décision** (David). Turbo shots **en pause** jusqu'à la pompe à
+engrenages.
+
 ## Pistes
 
 Contrainte de David : **garder la mouture du single espresso**, pour faire
@@ -640,8 +672,9 @@ encore trop pour le débit de la pompe, et 45 g allongent le contact. Le
 règle à nouveau la résistance, et la cible le temps d'écoulement. Le
 contact raccourcit de 31 % sans ôter l'amertume du ViCafé. Trois crans
 plus fin, à 2,9 bar : légère acidité, sans amertume, un des meilleurs
-turbo shots. Pause
-jusqu'au Cozy Chocolate et à la pompe à engrenages.
+turbo shots. Le 4 novembre, un single espresso au même café, sans goût
+de carton ni de terre, met la mouture grosse en cause plutôt que le café.
+Pause jusqu'au Cozy Chocolate et à la pompe à engrenages.
 
 | Piste | Depuis | Lecture |
 | --- | --- | --- |

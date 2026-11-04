@@ -11,6 +11,7 @@ from system import (
     add_well,
     corbel_site,
     surplomb,
+    surplomb_xz,
 )
 
 # Wago catch: 1 mm return with a 45° underside, the bottom of its tip 1 mm
@@ -96,9 +97,11 @@ def _add_supply_holders(body, outer, d, wall, floor, air_ouest, air_fond,
                     floor, hauteur_mur_nord)
 
 
-def _add_wago_bay(body, outer, d, wall, floor, hauteur_rails_wago, hauteur_seuil):
+def _add_wago_bay(body, outer, d, wall, floor, hauteur_rails_wago, hauteur_seuil,
+                  surplomb_ouest):
     """Two 221-415 on edge, openings south: west support wall, south sill,
-    north wall with its catch, two X-rails underneath."""
+    north wall with its catch along the bay, a second catch `surplomb_ouest`
+    long on the support wall at the north-west corner, two X-rails underneath."""
     wago_z = floor + hauteur_rails_wago + measured("wago_415_largeur")
     catch_z = wago_z + _SURPLOMB
     wall_h = catch_z + _SURPLOMB - floor
@@ -111,6 +114,10 @@ def _add_wago_bay(body, outer, d, wall, floor, hauteur_rails_wago, hauteur_seuil
     for y0 in (d["wago_y0"] + _RAIL_WAGO_RETRAIT,
                d["wago_y1"] - _RAIL_WAGO_RETRAIT - wall):
         body = add_wall(body, outer, x0, y0, x1 - x0, wall, floor, hauteur_rails_wago)
+    body = body + surplomb_xz(
+        x0, d["wago_y1"] + wall, catch_z, _SURPLOMB, surplomb_ouest + wall,
+        0.0, inverse=True, overlap=_OVERLAP,
+    )
     return body + surplomb(
         d["wago_y1"], x1, catch_z, _SURPLOMB, x1 - x0,
         plane=Plane.YZ, overlap=_OVERLAP,
@@ -173,6 +180,7 @@ def boitier_ps_24v(
     hauteur_mur_nord=22.0,
     hauteur_rails_wago=2.0,
     hauteur_seuil_wago=1.0,
+    surplomb_ouest_wago=8.0,
     decalage_wago_nord=0.0,
     recul_puits=5.0,
     largeur_ouverture=5.0,
@@ -195,6 +203,7 @@ def boitier_ps_24v(
     hauteur_mur_nord: mur qui tient l'alimentation au nord, sous les fils 24 V
     hauteur_rails_wago: rails sous les Wago, loin de la face chaude
     hauteur_seuil_wago: seuil au sud des Wago, au-dessus des rails
+    surplomb_ouest_wago: longueur du retour sur le mur ouest des Wago, depuis le mur nord
     decalage_wago_nord: déplace le logement des Wago vers le nord
     recul_puits: écart entre les puits d'aimant et le logement des Wago
     largeur_ouverture: largeur des quatre fentes de câble
@@ -229,7 +238,7 @@ def boitier_ps_24v(
                                ecart_alim_wago, hauteur_muret_sud, hauteur_berceau,
                                hauteur_mur_nord)
     body = _add_wago_bay(body, outer, d, wall, floor, hauteur_rails_wago,
-                         hauteur_seuil_wago)
+                         hauteur_seuil_wago, surplomb_ouest_wago)
     bay = Pos(d["wago_x0"], d["wago_y0"], 0) * Box(
         d["wago_x1"] - d["wago_x0"], d["wago_y1"] - d["wago_y0"], hauteur, align=AMIN)
     for x, y in _wells(d, wall, recul_puits):

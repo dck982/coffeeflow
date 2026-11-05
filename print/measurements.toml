@@ -1405,9 +1405,9 @@ how = "docs/jlcpcb/C577777.pdf (Kefa HT396K) : profondeur du plug, 10.00. Les 2.
 # Alimentation 24 V, 96 W (module ouvert « DC 24V 4A »), mesurée à réception.
 
 [alim24_longueur]
-value = 68.5
+value = 68.65
 unit = "mm"
-how = "user 2026-11-03: caliper, length along the U, input VH at one end, output terminal at the other."
+how = "user 2026-11-03: caliper 68.5, length along the U, input VH at one end, output terminal at the other. User 2026-11-04: declared 0.15 mm longer, the box's press-fit was too tight."
 
 [alim24_largeur]
 value = 44.1
@@ -1415,9 +1415,9 @@ unit = "mm"
 how = "user 2026-11-03: caliper, across the two flanks of the U."
 
 [alim24_hauteur]
-value = 25.8
+value = 25.95
 unit = "mm"
-how = "user 2026-11-03: caliper, from the U base to the flank edges (open side, components)."
+how = "user 2026-11-03: caliper 25.8, from the U base to the flank edges (open side, components). User 2026-11-04: declared 0.15 mm thicker for a fit trial, like the length."
 
 [alim24_bornier_centre]
 value = 29.0

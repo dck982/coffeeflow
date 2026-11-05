@@ -80,7 +80,7 @@ def disposition(
 
 
 def _add_supply_holders(body, outer, d, wall, floor, air_ouest, air_fond,
-                        ecart_alim_wago, hauteur_muret_sud, hauteur_berceau,
+                        longueur_berceau, hauteur_muret_sud, hauteur_berceau,
                         hauteur_mur_nord):
     """West ribs, floor rails ending in a cradle lip, the south muret against
     the open end of the U, and the full-width north wall, under the 24 V wires."""
@@ -89,7 +89,7 @@ def _add_supply_holders(body, outer, d, wall, floor, air_ouest, air_fond,
         body = add_wall(body, outer, 0.0, y0, air_ouest, wall,
                         floor, d["hauteur"] - _MARGE_REBORD - floor)
         body = add_wall(body, outer, 0.0, y0, d["alim_x1"], wall, floor, air_fond)
-        body = add_wall(body, outer, d["alim_x1"], y0, ecart_alim_wago, wall,
+        body = add_wall(body, outer, d["alim_x1"], y0, longueur_berceau, wall,
                         floor, hauteur_berceau)
     body = add_wall(body, outer, 0.0, d["alim_y0"] - wall, d["alim_x1"], wall,
                     floor, hauteur_muret_sud)
@@ -136,31 +136,32 @@ def _wells(d, wall, recul_puits):
     )
 
 
-def _openings(d, wall, floor, largeur_ouverture, seuil_ouvertures_sud):
+def _openings(d, wall, floor, largeur_ouverture_sud, largeur_ouverture_nord,
+              seuil_ouvertures_sud):
     """Cable slots open to the rim: (x0, y0, dx, dy, z0). The two north ones
     run to the floor (CAN and 5 V on it, 24 V out east); the machine and
     combined AC ones start at `seuil_ouvertures_sud`."""
-    w, m = largeur_ouverture, 0.5
+    s, n, m = largeur_ouverture_sud, largeur_ouverture_nord, 0.5
     through = wall + 2 * m
     z_sud = floor + seuil_ouvertures_sud
     ix, iy = d["inner_x"], d["inner_y"]
     return [
-        (-wall - m, 0.0, through, w, z_sud),
-        (ix - w, -wall - m, w, through, z_sud),
-        (ix - m, iy - w, through, w, floor),
-        (-wall - m, iy - w, through, w, floor),
+        (-wall - m, 0.0, through, s, z_sud),
+        (ix - s, -wall - m, s, through, z_sud),
+        (ix - m, iy - n, through, n, floor),
+        (-wall - m, iy - n, through, n, floor),
     ]
 
 
-def _corbel_sites(d, largeur_ouverture):
+def _corbel_sites(d, largeur_ouverture_sud, largeur_ouverture_nord):
     """M2.5 lid corbels: on the north wall east of the north-west slot, and on
     the south wall west of the south-east slot."""
     along = INSERT_M25.diametre_percage + 2 * INSERT_M25.epaisseur_paroi_min
     return [
-        corbel_site("north", d["inner_y"], largeur_ouverture + _ECART_CORBEAU,
+        corbel_site("north", d["inner_y"], largeur_ouverture_nord + _ECART_CORBEAU,
                     INSERT_M25),
         corbel_site("south", 0.0,
-                    d["inner_x"] - largeur_ouverture - _ECART_CORBEAU - along,
+                    d["inner_x"] - largeur_ouverture_sud - _ECART_CORBEAU - along,
                     INSERT_M25),
     ]
 
@@ -173,9 +174,10 @@ def boitier_ps_24v(
     air_fond=1.0,
     air_couvercle=1.0,
     ecart_alim_wago=2.5,
-    passage_fils_sud=8.0,
+    passage_fils_sud=6.0,
     passage_fils_nord=15.0,
     hauteur_berceau=4.0,
+    longueur_berceau=5.0,
     hauteur_muret_sud=4.0,
     hauteur_mur_nord=22.0,
     hauteur_rails_wago=2.0,
@@ -183,7 +185,8 @@ def boitier_ps_24v(
     surplomb_ouest_wago=8.0,
     decalage_wago_nord=0.0,
     recul_puits=5.0,
-    largeur_ouverture=5.0,
+    largeur_ouverture_sud=3.0,
+    largeur_ouverture_nord=5.0,
     seuil_ouvertures_sud=15.0,
     draft=False,
 ):
@@ -199,6 +202,7 @@ def boitier_ps_24v(
     passage_fils_sud: du bout sud de l'alimentation au mur sud, muret compris
     passage_fils_nord: du bout nord de l'alimentation au mur nord, mur de 22 mm compris
     hauteur_berceau: hauteur des rails du fond à l'est de l'alimentation
+    longueur_berceau: longueur des rails du fond à l'est de l'alimentation
     hauteur_muret_sud: muret qui tient l'alimentation au sud
     hauteur_mur_nord: mur qui tient l'alimentation au nord, sous les fils 24 V
     hauteur_rails_wago: rails sous les Wago, loin de la face chaude
@@ -206,7 +210,8 @@ def boitier_ps_24v(
     surplomb_ouest_wago: longueur du retour sur le mur ouest des Wago, depuis le mur nord
     decalage_wago_nord: déplace le logement des Wago vers le nord
     recul_puits: écart entre les puits d'aimant et le logement des Wago
-    largeur_ouverture: largeur des quatre fentes de câble
+    largeur_ouverture_sud: largeur des deux fentes de câble sud
+    largeur_ouverture_nord: largeur des deux fentes de câble nord
     seuil_ouvertures_sud: bas des deux fentes sud, depuis le fond
     """
     wall = epaisseur_paroi
@@ -235,7 +240,7 @@ def boitier_ps_24v(
     body = outer - Pos(0, 0, floor) * Box(ix, iy, hauteur, align=AMIN)
 
     body = _add_supply_holders(body, outer, d, wall, floor, air_ouest, air_fond,
-                               ecart_alim_wago, hauteur_muret_sud, hauteur_berceau,
+                               longueur_berceau, hauteur_muret_sud, hauteur_berceau,
                                hauteur_mur_nord)
     body = _add_wago_bay(body, outer, d, wall, floor, hauteur_rails_wago,
                          hauteur_seuil_wago, surplomb_ouest_wago)
@@ -243,10 +248,11 @@ def boitier_ps_24v(
         d["wago_x1"] - d["wago_x0"], d["wago_y1"] - d["wago_y0"], hauteur, align=AMIN)
     for x, y in _wells(d, wall, recul_puits):
         body = add_well(body, outer - bay, x, y)
-    for site in _corbel_sites(d, largeur_ouverture):
+    for site in _corbel_sites(d, largeur_ouverture_sud, largeur_ouverture_nord):
         body = add_corbel_site(body, site, hauteur)
 
-    slots = _openings(d, wall, floor, largeur_ouverture, seuil_ouvertures_sud)
+    slots = _openings(d, wall, floor, largeur_ouverture_sud,
+                     largeur_ouverture_nord, seuil_ouvertures_sud)
     for x0, y0, dx, dy, z0 in slots:
         body = body - Pos(x0, y0, z0) * Box(dx, dy, hauteur - z0 + 1.0, align=AMIN)
 
@@ -285,5 +291,6 @@ def reperes():
                     p["passage_fils_nord"], p["decalage_wago_nord"])
     ix, iy = d["inner_x"], d["inner_y"]
     contour = [(-wall, -wall), (ix + wall, -wall), (ix + wall, iy + wall), (-wall, iy + wall)]
-    trous = [site.hole for site in _corbel_sites(d, p["largeur_ouverture"])]
+    trous = [site.hole for site in _corbel_sites(d, p["largeur_ouverture_sud"],
+                                                p["largeur_ouverture_nord"])]
     return d, contour, trous, wall

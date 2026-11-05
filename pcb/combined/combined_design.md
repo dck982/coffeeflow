@@ -478,8 +478,9 @@ When laying out the PCB:
   the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
   mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
-- Pump interface value to check: the setpoint-to-speed curve beyond the
-  single measured point (2 455 rpm at 2.456 V).
+- Pump interface value to check: the start threshold and the low end of
+  the setpoint-to-speed curve, below 1.2 V (measured: about 1 000 rpm per
+  volt from 1.2 to 5 V).
 
 - The gate, latching and holding values above come from the Philips BT136S
   datasheet (standard -600 gate), the worst case for gate current. The chosen

@@ -164,8 +164,8 @@ sans avoir à le mesurer avant de commander la carte.
 - Plage annoncée 0–5 V. La relation consigne-vitesse de cet article n'est
   pas publiée ; la famille donne l'arrêt sous 0,2 V et ≈ 1 000 tr/min par
   volt, repris dans [Courbes débit-pression](#courbes-débit-pression).
-  **Mesuré : 2 455 tr/min à 2,456 V**, soit 1 000 tr/min par volt (un seul
-  point, voir [Relevés à réception](#relevés-à-réception)).
+  **Mesuré : ≈ 1 000 tr/min par volt**, 1 168 tr/min à 1,20 V et
+  4 827 tr/min à 4,98 V (voir [Relevés à réception](#relevés-à-réception)).
 - Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa est dans
   le circuit (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
 - **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
@@ -269,34 +269,6 @@ environ 1,7 % de consigne en moins, relue sur le tachymètre.
 | Jaune ↔ vert, 998 Ω (5,0 mA) | 4,98 V |
 | Consommation au secteur, pompe au repos | 1,2 W (prise wattmètre) |
 
-**Pompe amorcée, 0 bar**
-
-Aspiration dans un pichet sur la balance, tuyau rempli d'eau passant
-par-dessus le bord ; refoulement libre vers l'évier, plus bas. Consigne par
-diviseur entre jaune et vert, marron au point milieu.
-
-| Mesure | Résultat |
-| --- | --- |
-| Consigne, 4,7 kΩ / 1 kΩ | 0,86 V : la pompe tourne lentement |
-| Consigne, 4,7 kΩ / 4,7 kΩ | **2,456 V** |
-| Bleu ↔ vert, tension continue | **2,514 V** |
-| Bleu ↔ vert, fréquence | **81,8–81,9 Hz** |
-| Eau pompée en 30 s | **128,3 g** |
-
-- **2 impulsions par tour** : 81,85 Hz × 60 / 2 = 2 455 tr/min, soit
-  122,8 ml en 30 s à 0,1 ml par tour. 1 ou 4 impulsions par tour
-  donneraient 245 g ou 61 g.
-- **1 000 tr/min par volt** : 2 455 tr/min pour 2,456 V.
-- **4,5 % d'eau en plus** que la cylindrée (0,1045 ml par tour). Piste : le
-  pichet est plus haut que l'évier, l'eau passe un peu à travers les
-  engrenages en plus de ce qu'ils déplacent. À recouper à refoulement
-  surélevé.
-- **Sens par défaut**, blanc non branché : l'eau coule dans le sens de la
-  flèche de la tête.
-- Quelques petites bulles au refoulement, aucune dans le tuyau
-  d'aspiration : prise d'air probable au filetage d'aspiration, serré à la
-  main sans étanchéité.
-
 - **Le jaune est une sortie régulée** : pas de chute mesurable à 5 mA, soit
   une résistance interne sous 2 Ω. Le besoin du montage est de 2,5 mA.
 - **Marron en l'air : 7 mV**, très loin du seuil d'arrêt de la famille
@@ -309,6 +281,41 @@ diviseur entre jaune et vert, marron au point milieu.
   grandeur.
 - À la coupure, le jaune tombe à 0 V en ≈ 10 s : l'énergie des condensateurs
   de l'alimentation et de la pompe.
+
+**Pompe amorcée, 0 bar**
+
+Aspiration dans un pichet sur la balance, tuyau rempli d'eau passant
+par-dessus le bord ; refoulement libre vers l'évier, plus bas. Consigne par
+diviseur entre jaune et vert, marron au point milieu ; marche et arrêt par
+le 230 V de l'alimentation.
+
+| Diviseur (haut / bas) | Consigne | Fréquence (bleu ↔ vert) | Vitesse | Pesée | Volume à 0,1 ml/tour, sans le ralentissement |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4,7 kΩ / 1 kΩ | 0,86 V | — | lente | — | — |
+| 4,7 kΩ / 1,5 kΩ | ≈ 1,20 V (calculé) | **38,94 Hz** | 1 168 tr/min | 33,4 g, 15 s + 3 s | 29,2 ml en 15 s |
+| 4,7 kΩ / 4,7 kΩ | **2,456 V** | **81,85 Hz** | 2 455 tr/min | 128,3 g en 30 s | 122,8 ml |
+| marron sur jaune | ≈ 4,98 V | **160,9 Hz** | 4 827 tr/min | 83,5 g en 10 s | 80,4 ml |
+
+Bleu ↔ vert en tension continue, à 2,456 V de consigne : **2,514 V**.
+
+- **2 impulsions par tour** : `tr/min = Hz × 30`. 1 ou 4 impulsions par
+  tour donneraient 245 g ou 61 g au lieu de 128,3 g à 2,456 V.
+- **≈ 1 000 tr/min par volt**, un peu moins en haut : 1 168 tr/min à
+  1,20 V, 2 455 à 2,456 V, 4 827 à 4,98 V (≈ 970 tr/min par volt).
+- **Cylindrée de 0,1 ml par tour confirmée.** Le surplus pesé (3 à 5,5 g)
+  s'explique par la pompe qui continue de tourner après la coupure du 230 V, en
+  ralentissant, sur l'énergie des condensateurs de l'alimentation : 3 s à
+  1,20 V, soit ≈ 2 s à pleine vitesse. La pesée ne mesure donc pas la
+  vitesse à mieux que quelques pour cent ; la fréquence, si.
+- **Couper le 230 V n'arrête pas la pompe tout de suite** : quelques
+  secondes de marche en ralentissant, d'autant plus que la charge est
+  faible. En service, le firmware arrête la pompe par la consigne.
+- **Sens par défaut**, blanc non branché : l'eau coule dans le sens de la
+  flèche de la tête.
+- Quelques petites bulles au refoulement, aucune dans le tuyau
+  d'aspiration : prise d'air probable au filetage d'aspiration, serré à la
+  main sans étanchéité. Seuil de démarrage et bas de la plage à mesurer avec
+  combined v2, en essais automatisés, le montage définitif étanche.
 
 ## Alimentation
 
@@ -895,8 +902,7 @@ d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
 
 | Point | Méthode |
 | --- | --- |
-| Relation consigne-vitesse, au-delà du point à 2,456 V | diviseurs sur le marron, vitesse lue sur le bleu |
-| Écart de 4,5 % sur la cylindrée | pesée à refoulement plus haut que l'aspiration |
+| Seuil de démarrage et bas de la plage (< 1,2 V) | essais automatisés avec combined v2, montage étanche |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |

@@ -1,8 +1,8 @@
 # Pompe à engrenage SOVOFLO MPB003
 
 Pompe envisagée pour remplacer la pompe vibratoire OLAB Silent Green 35 W.
-Commandée le 22 octobre 2026, **pas encore installée** : le remplacement
-n'est pas décidé. Les valeurs viennent de la fiche du vendeur, de la notice
+Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **pas encore
+installée** : le remplacement n'est pas décidé. Les valeurs viennent de la fiche du vendeur, de la notice
 du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
 Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
@@ -22,6 +22,10 @@ Deux usages motivent le changement :
 ## Référence
 
 **MPB003BAAA**, moteur BLDC **24 V, 40 W** avec électronique intégrée.
+
+L'étiquette de l'exemplaire reçu porte la référence abrégée **MPB003BAA**,
+avec 24 V, 40 W, 0,3 L/min et 0,1 ml/tour. La lettre du moteur manque, mais
+c'est un moteur brushless : elle vaut A.
 
 | Lettre | Code | Signification |
 | --- | --- | --- |
@@ -114,7 +118,8 @@ Glissement = débit théorique (vitesse × 0,1 ml) − débit lu.
 
 Brochage : fiche du vendeur et photo de l'article, **7 fils**, confirmé par
 la [notice du fabricant](datasheets/gearpump-mpb003.pdf) (page 3,
-« Potentiometer seven-wire speed regulation »). La notice SOVOFLO décrit une
+« Potentiometer seven-wire speed regulation ») et par l'exemplaire reçu :
+7 fils, avec les couleurs du tableau. La notice SOVOFLO décrit une
 autre électronique de la famille FG (82 040 001, 6 fils, couleurs
 différentes) : son brochage ne s'applique pas à cet article. Ses protections internes et son temps
 d'initialisation, plus bas, sont repris comme ordre de grandeur, à confirmer.
@@ -132,10 +137,20 @@ d'initialisation, plus bas, sont repris comme ordre de grandeur, à confirmer.
 Montage du vendeur : un potentiomètre entre jaune et vert, curseur sur le
 marron.
 
+Fils multibrins, diamètre extérieur mesuré sur l'isolant (l'écrasement des
+brins fausse la mesure de la section) :
+
+- **Rouge et noir : 2 mm.** Les Wago 221 les acceptent.
+- **Les cinq fils fins : 1,5 mm.** C'est le maximum du contact JST XH
+  (SXH-001T-P0.6 : AWG 28 à 22, isolant de 0,8 à 1,5 mm). Le sertissage
+  sur le connecteur de combined v2 est à essayer sur un fil avant le câble
+  complet.
+
 ### Masses : la consigne reste du côté de la pompe
 
-La fiche ne dit pas si le vert (GND_P) est relié au noir dans la pompe. La
-notice SOVOFLO de la famille interdit de relier la référence de consigne à la
+La fiche ne dit pas si le vert (GND_P) est relié au noir dans la pompe.
+Mesuré hors tension le 5 novembre 2026 : **pas de continuité entre le vert
+et le noir**, ni entre le noir et aucun des six autres fils. La notice SOVOFLO de la famille interdit de relier la référence de consigne à la
 masse puissance : ça détruit l'électronique. Le buck 24 → 5 V n'est pas
 isolé : la masse de combined v2 est le noir.
 
@@ -158,11 +173,12 @@ sans avoir à le mesurer avant de commander la carte.
   - Côté pompe : le collecteur sur le jaune, l'émetteur rappelé au vert par
     10 kΩ. LED allumée, l'émetteur monte à ≈ 5 V ; il faut 0,5 mA, pour un
     gain en courant de l'EL817C de 200 à 400 % à 5 mA.
-  - Filtre : deux cellules 2,2 kΩ / 1,5 µF (coupure 48 Hz) entre l'émetteur
+  - Filtre : deux cellules 1,5 kΩ / 2,2 µF (coupure 48 Hz) entre l'émetteur
     et le marron, condensateurs vers le vert. PWM à 1 kHz : l'opto commute
     en ≈ 18 µs. Ondulation ≈ 5 V × (48 / 1 000)² ≈ 12 mV, soit ≈ 12 tr/min ;
     temps de réponse ≈ 10 ms. Le LEDC donne 16 bits à 1 kHz.
-  - Impédance de source ≈ 4,4 kΩ, celle d'un potentiomètre de 10 kΩ à mi-course.
+  - Impédance de source ≈ 3 kΩ, proche d'un potentiomètre de 10 kΩ à mi-course
+    (2,5 kΩ).
   - Le PWM déforme la consigne aux extrêmes, de façon monotone : la vitesse
     est relue sur le tachymètre.
 - **Consigne à 0 sans commande** : LED éteinte, les 10 kΩ ramènent la
@@ -189,8 +205,9 @@ sans avoir à le mesurer avant de commander la carte.
 ### Courant pris au jaune
 
 ≈ 0,5 mA pour la consigne et ≈ 2 mA pour le tachymètre : 2,5 mA. Un
-potentiomètre de 10 kΩ en prend déjà 0,5 mA. Si le jaune ne les fournit pas,
-on augmente la résistance de 1,8 kΩ.
+potentiomètre de 10 kΩ en prend déjà 0,5 mA. Le jaune les fournit sans chute
+mesurable (voir [Relevés à réception](#relevés-à-réception)) : la résistance
+de 1,8 kΩ reste telle quelle.
 
 ### Sens (blanc)
 
@@ -219,6 +236,49 @@ défaut et ne relance pas tout seul pendant une infusion.
 
 Au démarrage à froid (alimentation sous 9 V), l'électronique met **65 ms** à
 s'initialiser : une consigne envoyée plus tôt est ignorée.
+
+### Relevés à réception
+
+Relevés du 5 novembre 2026, pompe vide, raccords ouverts.
+
+**Hors tension, au multimètre**
+
+| Mesure | Résultat |
+| --- | --- |
+| Vert ↔ noir | pas de continuité |
+| Noir ↔ les six autres fils | pas de continuité |
+| Rouge ↔ les cinq fils fins | pas de continuité |
+| Rouge ↔ noir | 1,435 MΩ et croissant : le condensateur d'entrée se charge |
+| Marron ↔ vert | **176 kΩ** : rappel interne de la consigne vers le vert |
+| Jaune ↔ vert | 2,78 kΩ : circuits internes, pas de court-circuit |
+
+Le rappel de 176 kΩ ramène un marron en l'air à 0 V, donc à l'arrêt (essai
+ci-dessous). Il charge un peu le filtre de consigne (≈ 3 kΩ) :
+environ 1,7 % de consigne en moins, relue sur le tachymètre.
+
+**Sous tension, 24 V**
+
+| Mesure | Résultat |
+| --- | --- |
+| Pompe, marron relié au vert | immobile |
+| Marron en l'air ↔ vert | **0,007 V**, pompe immobile (essai bref, pompe vide) |
+| Jaune ↔ vert, à vide, marron relié au vert | **4,98 V** |
+| Jaune ↔ vert, 2 192 Ω (2,27 mA) | 4,98 V |
+| Jaune ↔ vert, 998 Ω (5,0 mA) | 4,98 V |
+| Consommation au secteur, pompe au repos | 1,2 W (prise wattmètre) |
+
+- **Le jaune est une sortie régulée** : pas de chute mesurable à 5 mA, soit
+  une résistance interne sous 2 Ω. Le besoin du montage est de 2,5 mA.
+- **Marron en l'air : 7 mV**, très loin du seuil d'arrêt de la famille
+  (≈ 0,2 V) : la pompe reste arrêtée si le connecteur ou le câble lâche,
+  alors que son 24 V, pris aux Wago, ne passe pas par combined v2. Pas de
+  résistance à ajouter dans le câble.
+- **Repos ≈ 1 W sous 24 V**, soit ≈ 40–45 mA, une fois retirés la
+  consommation à vide de l'alimentation (< 90 mW) et ses pertes. La notice de
+  la famille donne 0,06 A. La prise wattmètre ne donne qu'un ordre de
+  grandeur.
+- À la coupure, le jaune tombe à 0 V en ≈ 10 s : l'énergie des condensateurs
+  de l'alimentation et de la pompe.
 
 ## Alimentation
 
@@ -786,12 +846,9 @@ d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
 
 | Point | Méthode |
 | --- | --- |
-| Liaison vert (GND_P) – noir | ohmmètre, pompe hors tension |
-| Tension et courant disponible sur le jaune | multimètre, par rapport au vert, pompe sous tension |
 | Sortie bleue : type, niveaux, impulsions par tour | oscilloscope à vitesse fixe, comparée à un comptage de volume |
 | Relation consigne-vitesse | potentiomètre sur le marron, vitesse lue sur le bleu |
 | Sens par défaut, blanc non branché | essai à vide, pompe amorcée, comparé à la flèche du couvercle |
-| Comportement avec le marron non branché | essai : la pompe doit rester arrêtée ; sinon, 10 kΩ du marron au vert dans le câble |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |

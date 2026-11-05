@@ -259,8 +259,10 @@ the XIAO on the board.
 Two EL817C (U8, U9) keep the pump's signal wires (green GND_P, yellow
 +5V_P, brown SPEED_P, blue TACHO_P) on their isolated side: they never touch
 a ground or a supply of the board. The pump datasheet does not say whether
-green is tied to black inside; the SOVOFLO family forbids tying the setpoint
-reference to the power ground. The circuit works either way.
+green is tied to black inside; on the received pump, the meter finds no
+continuity between them, which does not rule out a path through the
+electronics. The SOVOFLO family forbids tying the setpoint reference to the
+power ground. The circuit works either way.
 
 Setpoint (U8):
 
@@ -292,7 +294,10 @@ Tachometer (U9):
   is burnt, which it is not by default.
 
 The pump's yellow wire supplies about 2.5 mA (0.5 mA for the setpoint, 2 mA
-for the tachometer). If it cannot, R38 goes up.
+for the tachometer). Measured on the received pump: 4.98 V open, unchanged
+at 2.3 mA and 5 mA, so R38 stays at 1.8 kΩ. The pump pulls the brown wire to
+green through 176 kΩ: left open, the setpoint reads 7 mV and the pump stays
+stopped, so a loose J9 cannot start it.
 
 U8 and U9 are on `Package_DIP:SMDIP-4_W9.53mm`, the pads of the v1 U3
 without the slot: the pump side is low voltage. Between the pump side and
@@ -473,9 +478,8 @@ When laying out the PCB:
   the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
   mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
-- Pump interface values to check on the first board: the current the
-  yellow wire supplies, the tachometer output type and its pulses per
-  turn, and the setpoint-to-speed curve.
+- Pump interface values to check with the pump primed: the tachometer
+  output type and its pulses per turn, and the setpoint-to-speed curve.
 
 - The gate, latching and holding values above come from the Philips BT136S
   datasheet (standard -600 gate), the worst case for gate current. The chosen

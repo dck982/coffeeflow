@@ -215,8 +215,7 @@ de 1,8 kΩ reste telle quelle.
 ### Sens (blanc)
 
 Non branché, extrémité isolée sous gaine : le sens n'est jamais commandé. Le
-sens par défaut est **à relever** et doit correspondre à la flèche du
-couvercle ; sinon, le blanc est relié au vert dans le câble.
+sens par défaut suit la flèche de la tête (mesuré à réception).
 
 ### Connecteur sur combined v2
 
@@ -292,6 +291,8 @@ diviseur entre jaune et vert, marron au point milieu.
   pichet est plus haut que l'évier, l'eau passe un peu à travers les
   engrenages en plus de ce qu'ils déplacent. À recouper à refoulement
   surélevé.
+- **Sens par défaut**, blanc non branché : l'eau coule dans le sens de la
+  flèche de la tête.
 - Quelques petites bulles au refoulement, aucune dans le tuyau
   d'aspiration : prise d'air probable au filetage d'aspiration, serré à la
   main sans étanchéité.
@@ -896,7 +897,6 @@ d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
 | --- | --- |
 | Relation consigne-vitesse, au-delà du point à 2,456 V | diviseurs sur le marron, vitesse lue sur le bleu |
 | Écart de 4,5 % sur la cylindrée | pesée à refoulement plus haut que l'aspiration |
-| Sens par défaut, blanc non branché | essai à vide, pompe amorcée, comparé à la flèche du couvercle |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |

@@ -25,7 +25,7 @@ sensors + RBDimmer + M5Stack SSR. Pump interface: `docs/pompe-engrenage.md`,
       isolated nets, never tied to board GND or 5V.
 - [x] Speed opto (EL817C, C2912100): GPIO1 → 330 Ω → LED → GND, 100 k
       GPIO1 to GND. Collector to +5V_P, emitter → 10 k to GND_P, then
-      2.2 k / 1.5 µF / 2.2 k / 1.5 µF to SPEED (caps to GND_P).
+      1.5 k / 2.2 µF / 1.5 k / 2.2 µF to SPEED (caps to GND_P).
 - [x] Tacho opto (EL817C): +5V_P → 1.8 k → LED → TACHO. Collector to GPIO3
       with 4.7 k pull-up to 3V3, emitter to GND.
 - [x] Rename nets: DIM → PUMP_SPEED (GPIO1, D0), ZC → PUMP_TACHO (GPIO3, D2).
@@ -45,13 +45,14 @@ sensors + RBDimmer + M5Stack SSR. Pump interface: `docs/pompe-engrenage.md`,
 
 ## Board (David)
 
-- [ ] Update PCB from schematic, place and route.
-- [ ] Buck: tight VIN/GND loop, thermal pad copper and vias.
-- [ ] Mounting, outline and enclosure (`boitier_dc`).
-- [ ] DRC, then `uv run ../generate_manufacturing.py .`
+- [x] Update PCB from schematic, place and route.
+- [x] Buck: tight VIN/GND loop, thermal pad copper and vias.
+- [x] Mounting, outline and enclosure (`boitier_dc`).
+- [x] DRC, then `uv run ../generate_manufacturing.py .`
 
 ## Firmware
 
 - [ ] LEDC PWM on GPIO1 at 1 kHz, 16 bits; 0 at boot.
-- [ ] PCNT on GPIO3 (inverted signal), with glitch filter.
+- [ ] PCNT on GPIO3 (inverted signal), with glitch filter; 2 pulses per
+      turn, speed from the period between edges.
 - [ ] Fault detection and re-arm (setpoint 0 for ≥ 10 ms).

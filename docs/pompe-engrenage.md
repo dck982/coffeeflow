@@ -142,9 +142,8 @@ brins fausse la mesure de la section) :
 
 - **Rouge et noir : 2 mm.** Les Wago 221 les acceptent.
 - **Les cinq fils fins : 1,5 mm.** C'est le maximum du contact JST XH
-  (SXH-001T-P0.6 : AWG 28 à 22, isolant de 0,8 à 1,5 mm). Le sertissage
-  sur le connecteur de combined v2 est à essayer sur un fil avant le câble
-  complet.
+  (SXH-001T-P0.6 : AWG 28 à 22, isolant de 0,8 à 1,5 mm) ; le sertissage
+  essayé passe.
 
 ### Masses : la consigne reste du côté de la pompe
 

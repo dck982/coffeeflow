@@ -18,6 +18,7 @@ Same approach as `couvercle_ps`, through `system.couvercle_corps`: everything is
 - Rim gap on the west along the supply length (`rim_gaps`): the rim at X = 0.3 → 1.3 would bite 0.3 mm into the aluminium plate at X = 1.0.
 - Supply frame, `hauteur_murets` 4 = 1 mm air + 2 mm flank + 1 mm overlap, 1.68 thick, press-fit with no gap: south and north murets against the supply ends, from the west rim's inner face to the east muret; east muret along the open side, over the full supply length plus both murets. They mirror the box's floor murets.
 - Pins: at 3.5 mm (`alim24_trou_coin`) from the supply's north-east and south-east corners in X and Y. A 5 × 5 pad as deep as the air over the supply (1.0, from the box), then a Ø 2.4 × 2 mm pin. `reject` above Ø 2.5, the M3 thread's minor diameter.
+- Print: PETG transparent with the user's Studio profiles (one wall, no shells, 100 % aligned rectilinear, 0.2 layers, 270 °C, fan off), not the profile `nurb export` embeds. The recipe and its reasons are in `print/README.md`, « Couvercles transparents ».
 - Polish: `polish_couvercle`, 0.6 on vertical edges except at the rim tip. The six `sliver` faces (0.48 mm² and up) are the murets' ends above the rim depth, trimmed by that chamfer; harmless.
 
 ## Don't

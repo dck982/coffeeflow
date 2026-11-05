@@ -60,7 +60,26 @@ Le recuit **retire les pièces** : vérifier les cotes fit-critiques (puits d'ai
 
 `screen_wedge` est la pièce visible : l'*ironing* de sa face supérieure est la raison de son réglage à part.
 
-`printer.toml` déclare `material = "pla"` ; toutes les cartes de pièces sont alignées dessus. Il n'y a plus de PETG dans le projet.
+`printer.toml` déclare `material = "pla"` ; toutes les cartes de pièces sont alignées dessus. Seule exception : `couvercle_ps_24v`, en PETG transparent pour voir la LED de l'alimentation.
+
+### Couvercles transparents (PETG)
+
+La transparence vient de couches toutes posées dans le même sens, sans parois multiples ni coques : la lumière traverse alors des cordons parallèles au lieu de se diffuser sur des croisements. Recette retenue le 2026-11-05. Elle part de la recette « transparent PETG » du wiki Bambu, mais en couches de 0,2 au lieu de 0,1 : deux fois plus rapide, et jugée largement suffisante sur une éprouvette de 1,6 mm.
+
+| Réglage | Valeur |
+| --- | --- |
+| Couche (et première couche) | 0,2 |
+| Parois | 1 |
+| Coques dessus / dessous | 0 / 0 |
+| Remplissage | 100 %, rectiligne aligné, direction 0° |
+| Largeur de ligne | 0,5 partout |
+| Vitesses (parois, remplissage, première couche, ponts) | 30 mm/s, ralentissement en surplomb désactivé |
+| Buse | 270 °C |
+| Ventilateur | 0 % |
+| Flow ratio | 1,01 |
+| Rétraction | 0,3 mm |
+
+Ces réglages sont enregistrés dans Bambu Studio comme deux profils utilisateur, un profil d'impression et un profil filament, à choisir à l'ouverture du 3MF : `nurb export` n'embarque que son profil par défaut (gyroïde 10 %, 3 parois). La face visible est celle du plateau : sur Textured PEI elle sort granuleuse et diffuse la lumière, un plateau lisse la rendrait plus claire.
 
 ## Wago et visserie
 

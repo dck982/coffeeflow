@@ -3840,7 +3840,7 @@
 				)
 			)
 		)
-		(property "MPN" "HT396R-3.96-2P"
+		(property "MPN" "MXHT396R-3.96-02P-OE01-Cu-A"
 			(at 256.54 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -3851,7 +3851,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C577799"
+		(property "LCSC" "C48688287"
 			(at 256.54 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -4525,7 +4525,7 @@
 				)
 			)
 		)
-		(property "MPN" "HT396R-3.96-2P"
+		(property "MPN" "MXHT396R-3.96-02P-OE01-Cu-A"
 			(at 256.54 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -4536,7 +4536,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C577799"
+		(property "LCSC" "C48688287"
 			(at 256.54 48.26 0)
 			(hide yes)
 			(show_name no)

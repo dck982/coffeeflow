@@ -74,15 +74,21 @@ poles), 10.1 mm high; the courtyard only gained
 a 0.25 mm margin. Leave room beside each header for the plug's wire entry
 and for a screwdriver above.
 
-J2 and J3 are HT396R-3.96-2P right-angle headers (LCSC C577799, a JST VH
-clone). Their footprint and 3D model come from LCSC, in `Combined_Local`.
-The outline was redrawn from the Kefa drawing
-(`../../docs/datasheets/C577799.pdf`), as on ps_upstream: the mating face is
-9.6 mm in front of the pin axis and the body 0.5 mm behind it. The silkscreen
-stops 0.4 mm short of the mating face; the courtyard covers the pads, the
-body and the slot, which reaches 2.4 mm behind the pin axis. Place the
-connectors with the pins inside the board and the mating face at the edge:
-pin axis 9.6 mm from the edge. The pads, holes
+J2 and J3 are Maixu MXHT396R-3.96-02P-OE01-Cu-A right-angle headers (LCSC
+C48688287, orange; C48688320 is the green one), a JST VH clone. They replace
+the Kefa HT396R-3.96-2P (C577799), out of stock at JLCPCB: same pitch, pins
+and IEC ratings. Their footprint and 3D model come from LCSC for the Kefa
+part, in `Combined_Local`; the 3D model is still the Kefa one. The outline
+follows the Maixu drawing (`../../docs/datasheets/C48688287.pdf`): the mating
+face is 9.7 mm in front of the pin axis (9.6 mm on the Kefa) and the body
+0.5 mm behind it. The silkscreen stops 0.4 mm short of the mating face; the
+courtyard covers the pads, the body and the slot, which reaches 2.4 mm behind
+the pin axis. Place the connectors with the pins inside the board and the
+mating face at the edge: pin axis 9.7 mm from the edge. The drawing asks for
+1.7 mm holes; the footprint keeps 1.6 mm, which still takes the 1.41 mm
+diagonal of the 1 mm square pin and keeps 0.2 mm of copper around the hole.
+The plug stays the Kefa HT396K-3.96-2P; that it latches on the Maixu header
+is to be checked with the parts in hand. The pads, holes
 and the slot between the pins are set for isolation; see "Isolation and
 layout".
 
@@ -433,9 +439,9 @@ cannot bridge the mains to the low-voltage side. H1, H3, H4 and H5 are on
 the low-voltage side. Under the hardware of H1, H4 and H5 there is only GND
 plane, so the plane runs up to the hole clearance, without a keepout.
 
-J2 and J3 (Kefa HT396R-3.96) are rated 320 V at
+J2 and J3 (Maixu MXHT396R-3.96) are rated 320 V at
 overvoltage category II and pollution degree 2 by their IEC data, with 1 mm
-pins in 1.6 mm holes (`../../docs/datasheets/C577799.pdf`). They have L and N
+pins in 1.6 mm holes (`../../docs/datasheets/C48688287.pdf`). They have L and N
 on adjacent pins. Their 2.0 × 2.8 mm oval pads leave 1.96 mm of air, above
 the 1.5 mm clearance, and 0.2 mm of copper around the hole; a 1 mm
 milled slot between the pins lengthens the creepage path around it; a groove

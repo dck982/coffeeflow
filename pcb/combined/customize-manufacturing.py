@@ -66,8 +66,8 @@ PLACEMENT_PARTS = {
     # (same part, footprint without the slot).
     'U8': ('C2912100', 'Package_DIP:SMDIP-4_W9.53mm'),
     'U9': ('C2912100', 'Package_DIP:SMDIP-4_W9.53mm'),
-    'J2': ('C577799', 'Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P'),
-    'J3': ('C577799', 'Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P'),
+    'J2': ('C48688287', 'Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P'),
+    'J3': ('C48688287', 'Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P'),
     # LCSC footprint, origin and orientation unchanged, as for J2/J3.
     'J7': ('C577788', 'Combined_Local:CONN-TH_P3.96_HT396V-3.96-2P'),
     'J8': ('C577788', 'Combined_Local:CONN-TH_P3.96_HT396V-3.96-2P'),
@@ -99,6 +99,8 @@ J11/J12 +270.
 Origin shifts: XH connectors and XIAO sockets at their pin-row midpoint;
 Q2 1.69 mm towards the leads. U8, U9, J2, J3, J6, J7, J8 and the LEDs
 D1/D4/D5 have none.
+J2 and J3 are now the Maixu C48688287; their supplier footprint could not be
+compared with the Kefa one: check that their bodies face the board edge.
 U10 and L1 have no computed correction yet. Check
 them, pin 1 of U1, U8, U9 and Q2 and the LED polarity in the JLCPCB
 preview: these corrections are computed, not yet confirmed there.

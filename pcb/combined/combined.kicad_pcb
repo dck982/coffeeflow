@@ -4971,7 +4971,7 @@
 	(footprint "Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P"
 		(layer "F.Cu")
 		(uuid "447bc728-ef4e-4cdf-839b-89cbdc13d436")
-		(at 171.1 76.6 90)
+		(at 171 76.6 90)
 		(property "Reference" "J2"
 			(at 4.8 4.1 0)
 			(layer "F.SilkS")
@@ -5016,7 +5016,7 @@
 				)
 			)
 		)
-		(property "MPN" "HT396R-3.96-2P"
+		(property "MPN" "MXHT396R-3.96-02P-OE01-Cu-A"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5042,7 +5042,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C577799"
+		(property "LCSC" "C48688287"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5069,7 +5069,7 @@
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 3.96 -0.5)
-			(end 3.96 9.2)
+			(end 3.96 9.3)
 			(stroke
 				(width 0.25)
 				(type solid)
@@ -5099,7 +5099,7 @@
 		)
 		(fp_line
 			(start -3.96 -0.5)
-			(end -3.96 9.2)
+			(end -3.96 9.3)
 			(stroke
 				(width 0.25)
 				(type solid)
@@ -5109,7 +5109,7 @@
 		)
 		(fp_line
 			(start 4.21 -2.65)
-			(end 4.21 9.85)
+			(end 4.21 9.95)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -5128,8 +5128,8 @@
 			(uuid "9374212f-d928-4ddf-b70f-47ecaa3118d1")
 		)
 		(fp_line
-			(start 4.21 9.85)
-			(end -4.21 9.85)
+			(start 4.21 9.95)
+			(end -4.21 9.95)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -5138,7 +5138,7 @@
 			(uuid "78c1e2dc-101d-4bec-aa0a-86e3dadfc423")
 		)
 		(fp_line
-			(start -4.21 9.85)
+			(start -4.21 9.95)
 			(end -4.21 -2.65)
 			(stroke
 				(width 0.05)
@@ -12471,7 +12471,7 @@
 	(footprint "Combined_Local:CONN-TH_P3.96_HT396R-3.96-2P"
 		(layer "F.Cu")
 		(uuid "a6d4da47-5788-4887-b10f-8a936675581e")
-		(at 171.1 64.26 90)
+		(at 171 64.26 90)
 		(property "Reference" "J3"
 			(at -4.84 4 0)
 			(layer "F.SilkS")
@@ -12516,7 +12516,7 @@
 				)
 			)
 		)
-		(property "MPN" "HT396R-3.96-2P"
+		(property "MPN" "MXHT396R-3.96-02P-OE01-Cu-A"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12542,7 +12542,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C577799"
+		(property "LCSC" "C48688287"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12569,7 +12569,7 @@
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 3.96 -0.5)
-			(end 3.96 9.2)
+			(end 3.96 9.3)
 			(stroke
 				(width 0.25)
 				(type solid)
@@ -12599,7 +12599,7 @@
 		)
 		(fp_line
 			(start -3.96 -0.5)
-			(end -3.96 9.2)
+			(end -3.96 9.3)
 			(stroke
 				(width 0.25)
 				(type solid)
@@ -12609,7 +12609,7 @@
 		)
 		(fp_line
 			(start 4.21 -2.65)
-			(end 4.21 9.85)
+			(end 4.21 9.95)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -12628,8 +12628,8 @@
 			(uuid "358324cf-aabe-4a35-adf4-15f529ef3349")
 		)
 		(fp_line
-			(start 4.21 9.85)
-			(end -4.21 9.85)
+			(start 4.21 9.95)
+			(end -4.21 9.95)
 			(stroke
 				(width 0.05)
 				(type solid)
@@ -12638,7 +12638,7 @@
 			(uuid "b1be26f2-ced7-47b4-80d3-41eda92faf44")
 		)
 		(fp_line
-			(start -4.21 9.85)
+			(start -4.21 9.95)
 			(end -4.21 -2.65)
 			(stroke
 				(width 0.05)

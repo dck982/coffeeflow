@@ -164,7 +164,7 @@ sans avoir à le mesurer avant de commander la carte.
 - Plage annoncée 0–5 V. La relation consigne-vitesse de cet article n'est
   pas publiée ; la famille donne l'arrêt sous 0,2 V et ≈ 1 000 tr/min par
   volt, repris dans [Courbes débit-pression](#courbes-débit-pression).
-  **Mesuré : ≈ 1 000 tr/min par volt**, 1 168 tr/min à 1,20 V et
+  **Mesuré : ≈ 1 000 tr/min par volt**, 1 168 tr/min à 1,195 V et
   4 827 tr/min à 4,98 V (voir [Relevés à réception](#relevés-à-réception)).
 - Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa est dans
   le circuit (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
@@ -292,7 +292,7 @@ le 230 V de l'alimentation.
 | Diviseur (haut / bas) | Consigne | Fréquence (bleu ↔ vert) | Vitesse | Pesée | Volume à 0,1 ml/tour, sans le ralentissement |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | 4,7 kΩ / 1 kΩ | 0,86 V | — | lente | — | — |
-| 4,7 kΩ / 1,5 kΩ | ≈ 1,20 V (calculé) | **38,94 Hz** | 1 168 tr/min | 33,4 g, 15 s + 3 s | 29,2 ml en 15 s |
+| 4,7 kΩ / 1,5 kΩ | **1,195 V** | **38,94 Hz** | 1 168 tr/min | 33,4 g, 15 s + 3 s | 29,2 ml en 15 s |
 | 4,7 kΩ / 4,7 kΩ | **2,456 V** | **81,85 Hz** | 2 455 tr/min | 128,3 g en 30 s | 122,8 ml |
 | marron sur jaune | ≈ 4,98 V | **160,9 Hz** | 4 827 tr/min | 83,5 g en 10 s | 80,4 ml |
 
@@ -300,8 +300,8 @@ Bleu ↔ vert en tension continue, à 2,456 V de consigne : **2,514 V**.
 
 - **2 impulsions par tour** : `tr/min = Hz × 30`. 1 ou 4 impulsions par
   tour donneraient 245 g ou 61 g au lieu de 128,3 g à 2,456 V.
-- **≈ 1 000 tr/min par volt**, un peu moins en haut : 1 168 tr/min à
-  1,20 V, 2 455 à 2,456 V, 4 827 à 4,98 V (≈ 970 tr/min par volt).
+- **≈ 1 000 tr/min par volt** : 1 168 tr/min à 1,195 V (977 par volt),
+  2 455 à 2,456 V (1 000), 4 827 à 4,98 V (969).
 - **Cylindrée de 0,1 ml par tour confirmée.** Le surplus pesé (3 à 5,5 g)
   s'explique par la pompe qui continue de tourner après la coupure du 230 V, en
   ralentissant, sur l'énergie des condensateurs de l'alimentation : 3 s à

@@ -928,7 +928,7 @@ le protocole de mesure hôte ; un remplacement de XIAO ne fait rien perdre.
 
 Elle se fait sur la machine, pas au banc : c'est la plomberie réelle qu'on calibre, OPV comprise. Référence de mesure : la balance Acaia. Deux porte-filtres de simulation, percés d'un trou central, imposent une résistance connue.
 
-Une réserve à respecter : **le point pompe libre ne calibre rien.** ~10 ml/s, c'est 0,6 L/min, au-dessus du plafond du Digmesa 1,00 mm (0,40 L/min). La turbine sature, on lira un chiffre faux sans que rien ne le signale. Les points utiles sont ceux des porte-filtres de simulation, à 1–3 ml/s (0,06–0,18 L/min), en plein linéaire.
+Une réserve à respecter : **le point pompe libre ne calibre rien.** ~10 ml/s, c'est 0,6 L/min, au-dessus du plafond du Digmesa 1,00 mm (0,40 L/min). La turbine continue de compter, mais hors de sa plage linéaire : on lira un chiffre faux sans que rien ne le signale. Les points utiles sont ceux des porte-filtres de simulation, à 1–3 ml/s (0,06–0,18 L/min), en plein linéaire.
 
 Séquence :
 

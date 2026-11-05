@@ -42,7 +42,7 @@ Base de calcul : 36 g en 28 s, soit 1,29 g/s ≈ **0,077 L/min**. Pré-infusion 
 | Impulsions par tasse 36 g | 69 | **86** | 186 |
 | Résolution | 0,52 g (1,4 %) | **0,42 g (1,2 %)** | 0,19 g (0,5 %) |
 
-Le 1,0 mm Digmesa est le bon compromis **alimentaire + pré-infusion** : même interface NPN que le 1,2 mm, PVDF/NSF, et 0,5 g/s n'est plus hors plage. Plafond **0,40 L/min** — une chasse pompe ouverte côté aspiration peut saturer ; une extraction non.
+Le 1,0 mm Digmesa est le bon compromis **alimentaire + pré-infusion** : même interface NPN que le 1,2 mm, PVDF/NSF, et 0,5 g/s n'est plus hors plage. Plafond **0,40 L/min** — une chasse pompe ouverte peut le dépasser ; une extraction non. Au-delà, la turbine compte toujours, mais hors de la plage linéaire ; elle tourne au-dessus des 500 tr/min admis en continu, et la perte de charge, 0,48 bar au plafond, croît comme le carré du débit.
 
 Le OOTDTY reste plus fin en impulsions, mais sortie push-pull 5 V et POM sans certificat.
 

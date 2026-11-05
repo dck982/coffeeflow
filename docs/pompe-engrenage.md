@@ -165,8 +165,8 @@ sans avoir à le mesurer avant de commander la carte.
   pas publiée ; la famille donne l'arrêt sous 0,2 V et ≈ 1 000 tr/min par
   volt, repris en ordre de grandeur dans [Courbes
   débit-pression](#courbes-débit-pression).
-- Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa sert de
-  référence (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
+- Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa est dans
+  le circuit (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
 - **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
   - Côté XIAO : la LED est commandée directement par le GPIO, 330 Ω, soit
     (3,3 − 1,2) / 330 ≈ 6 mA. 100 kΩ du GPIO à la masse.
@@ -758,9 +758,23 @@ Digmesa pendant **2 s** et pression qui ne monte pas → consigne à 0 et erreur
 ### Débitmètre
 
 Le Digmesa est limité à **0,40 L/min (6,7 ml/s)**. La pompe le dépasse à
-basse pression au-delà de 4 000 tr/min. **Règle** : plafonner la vitesse à
-**3 600 tr/min** (6 ml/s théoriques) tant que le Digmesa sert de référence.
-Ce plafond couvre le remplissage actuel (3,6 ml/s).
+basse pression au-delà de 4 000 tr/min : jusqu'à 0,5 L/min à 5 000 tr/min.
+Le Digmesa envoie toujours ses impulsions (≈ 20 Hz à 0,5 L/min), mais la fiche
+pose trois limites :
+
+- **Précision** : les ±2 % ne valent que dans la plage linéaire. Au-delà, le
+  nombre d'impulsions par litre dérive sans que rien ne le signale.
+- **Usure** : turbine sous **500 tr/min en service continu**, atteints vers
+  0,40 L/min.
+- **Perte de charge à l'aspiration** : **0,48 bar à 0,40 L/min** pour la buse
+  de 1,0 mm, à peu près en carré du débit, soit ≈ 0,75 bar à 0,5 L/min.
+  Le Digmesa est en amont de la pompe, annoncée à −0,85 bar au plus, tuyaux
+  non compris : elle caviterait et dégazerait l'eau, et les bulles faussent
+  le Digmesa.
+
+**Règle** : plafonner la vitesse à **3 600 tr/min** (6 ml/s théoriques, soit
+0,36 L/min, ≈ 0,39 bar de perte de charge) tant que le Digmesa est dans le
+circuit. Ce plafond couvre le remplissage actuel (3,6 ml/s).
 
 ### Pression
 

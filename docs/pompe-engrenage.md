@@ -163,8 +163,9 @@ sans avoir à le mesurer avant de commander la carte.
 
 - Plage annoncée 0–5 V. La relation consigne-vitesse de cet article n'est
   pas publiée ; la famille donne l'arrêt sous 0,2 V et ≈ 1 000 tr/min par
-  volt, repris en ordre de grandeur dans [Courbes
-  débit-pression](#courbes-débit-pression).
+  volt, repris dans [Courbes débit-pression](#courbes-débit-pression).
+  **Mesuré : 2 455 tr/min à 2,456 V**, soit 1 000 tr/min par volt (un seul
+  point, voir [Relevés à réception](#relevés-à-réception)).
 - Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa est dans
   le circuit (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
 - **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
@@ -187,20 +188,22 @@ sans avoir à le mesurer avant de commander la carte.
 
 ### Tachymètre (bleu)
 
-- Type de sortie (push-pull ou collecteur ouvert) et nombre d'impulsions
-  par tour **à relever**. La famille donne **32 impulsions par tour** :
-  `tr/min = fréquence × 60 / 32`, 1,9 kHz à 3 600 tr/min, 2,7 kHz à
-  5 000 tr/min.
+- **Sortie active 0–5 V** (push-pull ou rappel interne), rapport cyclique
+  ≈ 50 % : 2,51 V en moyenne au multimètre. Pas de rappel à ajouter.
+- **2 impulsions par tour**, mesurées (la famille en annonçait 32) :
+  `tr/min = fréquence × 60 / 2`, 17 Hz à 500 tr/min, 120 Hz à
+  3 600 tr/min, 167 Hz à 5 000 tr/min.
+- **Vitesse mesurée par la période** entre deux fronts : à basse vitesse, un
+  comptage sur une fenêtre courte n'a que quelques impulsions.
 - **Montage sur combined v2 : second EL817C.** Sa LED va du jaune au bleu à
   travers 1,8 kΩ, soit ≈ 2 mA quand le bleu est bas. Ça marche en
   push-pull comme en collecteur ouvert : à l'état haut, la LED n'a plus de
   tension. Côté XIAO, le transistor tire vers la masse un GPIO rappelé au
   3V3 par 4,7 kΩ (0,7 mA). Le signal est inversé ; le PCNT compte les
   fronts.
-- L'EL817C convient jusqu'à ≈ 2,7 kHz. S'il y a plus d'impulsions par tour,
-  un opto rapide (6N137) prend sa place.
-- Débit théorique par impulsion, à 32 impulsions par tour : **0,0031 ml**,
-  contre 0,42 g par impulsion pour le Digmesa.
+- L'EL817C convient jusqu'à ≈ 2,7 kHz : large marge à 167 Hz.
+- Débit théorique par impulsion : **0,05 ml**, contre 0,42 g par impulsion
+  pour le Digmesa.
 
 ### Courant pris au jaune
 
@@ -266,6 +269,32 @@ environ 1,7 % de consigne en moins, relue sur le tachymètre.
 | Jaune ↔ vert, 2 192 Ω (2,27 mA) | 4,98 V |
 | Jaune ↔ vert, 998 Ω (5,0 mA) | 4,98 V |
 | Consommation au secteur, pompe au repos | 1,2 W (prise wattmètre) |
+
+**Pompe amorcée, 0 bar**
+
+Aspiration dans un pichet sur la balance, tuyau rempli d'eau passant
+par-dessus le bord ; refoulement libre vers l'évier, plus bas. Consigne par
+diviseur entre jaune et vert, marron au point milieu.
+
+| Mesure | Résultat |
+| --- | --- |
+| Consigne, 4,7 kΩ / 1 kΩ | 0,86 V : la pompe tourne lentement |
+| Consigne, 4,7 kΩ / 4,7 kΩ | **2,456 V** |
+| Bleu ↔ vert, tension continue | **2,514 V** |
+| Bleu ↔ vert, fréquence | **81,8–81,9 Hz** |
+| Eau pompée en 30 s | **128,3 g** |
+
+- **2 impulsions par tour** : 81,85 Hz × 60 / 2 = 2 455 tr/min, soit
+  122,8 ml en 30 s à 0,1 ml par tour. 1 ou 4 impulsions par tour
+  donneraient 245 g ou 61 g.
+- **1 000 tr/min par volt** : 2 455 tr/min pour 2,456 V.
+- **4,5 % d'eau en plus** que la cylindrée (0,1045 ml par tour). Piste : le
+  pichet est plus haut que l'évier, l'eau passe un peu à travers les
+  engrenages en plus de ce qu'ils déplacent. À recouper à refoulement
+  surélevé.
+- Quelques petites bulles au refoulement, aucune dans le tuyau
+  d'aspiration : prise d'air probable au filetage d'aspiration, serré à la
+  main sans étanchéité.
 
 - **Le jaune est une sortie régulée** : pas de chute mesurable à 5 mA, soit
   une résistance interne sous 2 Ω. Le besoin du montage est de 2,5 mA.
@@ -699,12 +728,17 @@ et aucun potentiomètre de réglage n'apparaît : la tension de sortie est fixe.
 
 ### Raccords
 
-Les raccords **G1/8** sont à filetage cylindrique : l'étanchéité se fait par
-une rondelle (rondelle à lèvre de type Dowty) ou un joint en face d'appui, pas
-par le filetage. Le vendeur conseille du ruban PTFE à l'aspiration ; la
-notice interdit qu'un fragment de ruban ou de pâte entre dans la pompe.
-**Règle : rondelles d'étanchéité, sans ruban.** Une prise d'air à
-l'aspiration empêche la pompe d'aspirer.
+Les raccords **G1/8** sont à filetage cylindrique. Le vendeur conseille du
+ruban PTFE à l'aspiration ; la notice interdit qu'un fragment de ruban ou de
+pâte entre dans la pompe. Les raccords cannelés n'ont pas d'épaulement pour
+une rondelle.
+
+**Règle : frein-filet Loxeal sur 2 à 3 mm du filetage mâle**, côté
+extérieur, les premiers filets laissés nus : le filetage fait 12 mm, le
+produit ne peut pas atteindre la pompe. Même étanchéité que celle du
+capteur de pression XDB401, qui tient la pression de la chaudière. Pas de
+ruban. Une prise d'air à l'aspiration fait entrer des bulles ou empêche la
+pompe d'aspirer.
 
 Respecter le **sens de la flèche** du couvercle avant. Pompe près du bac,
 aspiration courte, tuyaux au moins aussi gros que les raccords.
@@ -798,7 +832,7 @@ Le Digmesa, en amont, mesure le débit net (OPV fermée). Le glissement est une
 fuite interne de la sortie vers l'entrée de la pompe, après le Digmesa :
 
 ```
-glissement = volume tachymètre (impulsions / 32 × 0,1 ml) − volume Digmesa
+glissement = volume tachymètre (impulsions / 2 × 0,1 ml) − volume Digmesa
 ```
 
 Modèle de départ : `glissement(P) = k × P`, à remplacer par une table si les
@@ -860,8 +894,8 @@ d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
 
 | Point | Méthode |
 | --- | --- |
-| Sortie bleue : type, niveaux, impulsions par tour | oscilloscope à vitesse fixe, comparée à un comptage de volume |
-| Relation consigne-vitesse | potentiomètre sur le marron, vitesse lue sur le bleu |
+| Relation consigne-vitesse, au-delà du point à 2,456 V | diviseurs sur le marron, vitesse lue sur le bleu |
+| Écart de 4,5 % sur la cylindrée | pesée à refoulement plus haut que l'aspiration |
 | Sens par défaut, blanc non branché | essai à vide, pompe amorcée, comparé à la flèche du couvercle |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |

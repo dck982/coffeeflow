@@ -288,8 +288,8 @@ Tachometer (U9):
   blue is low. This works with a push-pull or an open-collector output.
 - U9's transistor pulls PUMP_TACHO (GPIO3) to GND against R39 (4.7 kΩ to
   3V3, 0.7 mA). The signal is inverted; the PCNT counts its edges.
-- The EL817C follows up to about 2.7 kHz, 5 000 rpm at 32 pulses per turn.
-  A faster opto (6N137) would replace it if the pump gives more pulses.
+- The pump gives 2 pulses per turn from an active 0–5 V output (measured):
+  167 Hz at 5 000 rpm, far below the 2.7 kHz the EL817C follows.
 - GPIO3 is a JTAG strapping pin, read only when the `STRAP_JTAG_SEL` eFuse
   is burnt, which it is not by default.
 
@@ -478,8 +478,8 @@ When laying out the PCB:
   the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
   mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
-- Pump interface values to check with the pump primed: the tachometer
-  output type and its pulses per turn, and the setpoint-to-speed curve.
+- Pump interface value to check: the setpoint-to-speed curve beyond the
+  single measured point (2 455 rpm at 2.456 V).
 
 - The gate, latching and holding values above come from the Philips BT136S
   datasheet (standard -600 gate), the worst case for gate current. The chosen

@@ -34,7 +34,7 @@ def _pions(d, floor, air_couvercle, cote_appui, diametre_pions, longueur_pions):
 
 @part
 def couvercle_ps_24v(
-    epaisseur_fond=1.6,
+    epaisseur_fond=1.12,
     gouttiere_jeu=0.3,
     gouttiere_epaisseur=1.0,
     gouttiere_profondeur=3.0,

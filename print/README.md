@@ -64,11 +64,11 @@ Le recuit **retire les pièces** : vérifier les cotes fit-critiques (puits d'ai
 
 ### Couvercles transparents (PETG)
 
-La transparence vient de couches toutes posées dans le même sens, sans parois multiples ni coques : la lumière traverse alors des cordons parallèles au lieu de se diffuser sur des croisements. Recette retenue le 2026-11-05. Elle part de la recette « transparent PETG » du wiki Bambu, mais en couches de 0,2 au lieu de 0,1 : deux fois plus rapide, et jugée largement suffisante sur une éprouvette de 1,6 mm.
+La transparence vient de couches toutes posées dans le même sens, sans parois multiples ni coques : la lumière traverse alors des cordons parallèles au lieu de se diffuser sur des croisements. Recette retenue le 2026-11-05. Elle part de la recette « transparent PETG » du wiki Bambu, mais en couches de 0,2 au lieu de 0,1 : deux fois plus rapide, et jugée largement suffisante sur une éprouvette de 1,6 mm. Le 2026-11-05 toujours, des éprouvettes en 0,28 ont montré que la plaque la plus fine est la plus claire : 1,12 mm, en 4 couches, passe devant 1,40 et 1,6. Les lignes restent visibles, à cause du relief du dessus des cordons.
 
 | Réglage | Valeur |
 | --- | --- |
-| Couche (et première couche) | 0,2 |
+| Couche (et première couche) | 0,28, le maximum du profil A1 mini ; plaque d'un nombre entier de couches (1,12 = 4 couches) |
 | Parois | 1 |
 | Coques dessus / dessous | 0 / 0 |
 | Remplissage | 100 %, rectiligne aligné, direction 0° |

@@ -4789,3 +4789,134 @@ plage.
 | Rendement | arrêt de la pompe vers 19,2 g, 20,2 à 20,6 g final |
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche ; noter le temps du porte-filtre après la consigne |
 | Tasse | 89,0 à 92,5 °C |
+
+### 6 novembre, 7 h 39 — `261106-073933`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, même cran
+que le 5/11 à 9 h 11 et 14 h 31, cible 20 g, anticipation d'arrêt de
+1,0 g, consigne de 90 °C. **Dose : le moulin a donné 7,4 g pour 7,5 g
+réglés**, complétée à 7,5 g. **Canal du moulin non purgé**, première
+infusion du matin : la mouture retenue date de la veille, au même cran.
+Écran 0.4.27, sensors 0.4.24. Salon (Netatmo) : 47 %, point de rosée
+**10,7 °C** (9,8 °C le 4/11 après-midi) ; extérieur : 100 %, point de
+rosée 7,3 °C ; boîtier de l'écran à 35,2 °C et 31,7 %. Observation de
+David : **un côté amer** ; le café **a mis plus longtemps que d'habitude
+à sortir sous le panier**.
+
+**Routine** : guide ouvert à 88,1 °C ; rinçage de 5,0 s, 14,8 ml, 18,5 g,
+**pression maximale 0,18 bar**. Consigne atteinte 78,4 s après le
+rinçage, minimum 84,4 °C. **941 s sur le groupe** ; préparation de
+148,6 s. Tasse de 125,1 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,01 s | — | 0,21 → 0,31 bar |
+| Remplissage | 8,01 s | **10,02 s, échéance** | 29,6 ml (2,95 ml/s) | 0,31 → **0,68 bar** |
+| Pré-infusion | 18,03 s | **4,07 s, échéance** | 5,5 ml | 0,68 → 0,84 bar |
+| Infusion | 22,10 s | 17,67 s | 29,9 ml | 9,47 bar max |
+
+- **Le remplissage finit sur l'échéance de 10 s**, à 0,68 bar, sans
+  atteindre le seuil de 0,8 bar : il finissait sur la pression, en 5,7 à
+  8,7 s, dans les entrées du 4/11 et du 5/11. 29,6 ml, au-dessus de la
+  plage de 17 à 28 ml, sur une précharge partie de 0,21 bar.
+- **Première goutte (0,3 g) à 23,67 s, à 1,50 bar**, **38,3 ml**, la plus
+  tardive de la série (21,7 ml le 5/11 à 14 h 31, 32,5 ml le 4/11 à
+  13 h 48), 1,57 s après le début de l'infusion : c'est le café « plus
+  long à sortir » vu par David.
+- 8 bar à 25,48 s (3,4 s après le début de l'infusion), 2,2 g en tasse.
+  **Pic à 9,47 bar** à 25,84 s, juste après la montée, comme le 4/11
+  (9,41 et 9,26 bar), puis plateau.
+- Depuis 8 bar : **14,3 s**, **1,18 g/s** en tasse, 1,44 ml/s en amont.
+  **19,0 g à l'arrêt de la pompe**, **20,0 g final**, **1,0 g de
+  gouttes**. Pompe en marche 31,8 s. Goutte → arrêt de la pompe :
+  **16,1 s**.
+- Plateau (de 8 bar + 2 s à l'arrêt) : **9,02 ± 0,06 bar**, pompe à
+  67–71 %, 1,19 g/s, soit **7,6 bar·s/g**.
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 06/11 7 h 39 | 2,6 s | 6,0 s | 10,6 s | 17,0 s |
+  | 05/11 14 h 31 | 1,8 s | 4,8 s | 8,5 s | 14,5 s |
+  | 05/11 9 h 11 | 2,3 s | 4,8 s | 7,8 s | 12,3 s |
+  | 05/11 8 h 54 | 1,6 s | 5,5 s | 9,8 s | 16,7 s |
+
+**Thermique.** NTC de 90,02 °C au départ, **+0,04 °C** pendant le
+remplissage (29,6 ml), −0,57 °C pendant la pré-infusion ; 89,91 °C au
+début de l'infusion, 89,48 °C à l'arrêt. Baisse pompe en marche
+**−0,54 °C** (89,5 à 91,4 °C). **Tasse : 90,53 °C, +0,53 °C.**
+
+**Attendus vérifiés** (entrée du 5/11 à 14 h 31, mêmes réglages).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | pesée avant complément ; ratio = final / dose pesée ; noter la purge | 7,4 g moulus, complétés à 7,5 g ; ratio **2,67** ; pas de purge |
+| Hydraulique | 6,1 à 7,5 bar·s/g (≈ 10,5 à 12,5 s depuis 8 bar, ≈ 1,2 à 1,4 g/s) ; plateau sous 9,2 bar ; vers 5, c'est 9 h 11 qui donnait la valeur du cran | **7,6 bar·s/g, 14,3 s, 1,18 g/s : juste au-dessus** ; plateau 9,02 bar : atteint, pic transitoire de 9,47 bar |
+| Rinçage | 0,1 à 0,7 bar | 0,18 bar : atteint |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml | 2,95 ml/s : atteint ; **29,6 ml, au-dessus**, fin sur l'échéance |
+| Rendement | arrêt de la pompe vers 19,2 g, 20,2 à 20,6 g final | 19,0 g ; **20,0 g, 0,2 g sous la plage** |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche ; noter le temps du porte-filtre après la consigne | **+0,04 °C : en dessous** ; −0,54 °C : atteint ; 941 s sur le groupe |
+| Tasse | 89,0 à 92,5 °C | 90,53 °C : atteint |
+
+**Lecture.**
+
+- *Variabilité au même cran, mesuré.* Trois infusions au même cran, à
+  7,4–7,5 g : **4,9**, **6,8** et **7,6 bar·s/g**, un écart de **+55 %**
+  entre les extrêmes. La dose n'y est pour rien (≈ 1 à 2 %, Darcy) et
+  l'écart dépasse largement la dispersion de préparation (± 18 %) : à
+  cran fixe, la galette varie plus que ce que la dose et la préparation
+  expliquent. C'est la preuve que David attendait, avec une réserve :
+  l'écart tient surtout à 9 h 11 ; 14 h 31 et ce matin ne diffèrent que de
+  +12 %, dans la dispersion de préparation.
+- *Ce que l'écart ne départage pas, hypothèse.* Deux sources restent
+  possibles : la mouture elle-même qui varie à cran fixe, ou la mouture
+  retenue dans le moulin. La rétention d'un autre cran est exclue ce
+  matin (même cran depuis 9 h 11) ; une mouture retenue toute la nuit
+  peut encore se comporter autrement (humidité reprise, fines tassées),
+  sans mesure qui l'établisse. 9 h 11, le plus rapide, avait suivi une
+  purge de 7,5 g ; les deux plus résistantes, 8 h 54 (7,7) et ce matin
+  (7,6), sont des premières infusions du matin sans purge.
+- *Galette lente à mouiller, mesuré.* Le remplissage n'atteint pas
+  0,8 bar en 10 s et la goutte arrive après 38,3 ml, 16,6 ml plus tard
+  qu'hier après-midi : à basse pression, la galette absorbe davantage
+  avant de laisser passer. À 9 bar, elle résiste pourtant plus. Le lien
+  « goutte précoce quand la résistance est haute » noté le 5/11 (8 h 54,
+  14 h 31) ne tient donc pas ce matin.
+- *Amertume, observé.* Elle revient sur une première infusion du matin
+  sans purge, comme le 1/11, le 2/11 et le 5/11 à 8 h 54 ; le seul matin
+  purgé (4/11, 9 h 44) n'en avait aucune. La résistance seule ne
+  l'explique pas : le 4/11 à 13 h 48, à 7,5 bar·s/g et sans purge
+  l'après-midi, était « très bon ». Le matin sans purge reste le meilleur
+  prédicteur de l'amertume, avec un seul contre-essai.
+- *Arrêt, mesuré.* 1,0 g après la coupure à 1,19 g/s, comme les infusions
+  à débit voisin : l'anticipation de 1,0 g tient.
+- *Chauffe, mesuré.* Le porte-filtre est resté 941 s sur le groupe ; la
+  baisse pompe en marche revient dans la plage (−2,25 °C hier
+  après-midi, après 87,9 s), comme le prévoyait l'hypothèse de David. Au
+  remplissage, +0,04 °C seulement, sur le volume le plus grand de la
+  série (29,6 ml) : davantage d'eau froide pour la même chauffe, estimé.
+- *Humidité, observé.* Point de rosée du salon à 10,7 °C, 0,9 °C au-dessus
+  du 4/11 après-midi ; la variation est faible devant l'écart de
+  résistance, et une seule valeur ne dit rien de la mouture retenue.
+
+**Décision** (David). **Purge du canal du moulin demain matin**, avant la
+première infusion ; même cran, 7,5 g pesés et complétés au besoin, cible
+20 g, anticipation de 1,0 g, 90 °C.
+
+*Estimé.* Si la mouture retenue la nuit fait la résistance du matin, la
+galette purgée revient vers celle de 9 h 11 et 14 h 31 (4,9 à 6,8, soit
+≈ 1,3 à 1,8 g/s) et l'amertume disparaît. Vers 7,6 avec amertume, la
+purge n'y est pour rien et c'est le moulin qui varie à cran fixe. Un
+débit plus élevé allonge la queue d'écoulement (1,3 g à 1,74 g/s le 5/11).
+
+| Point | Attendu (demain matin, purge, mêmes réglages) |
+| --- | --- |
+| Dose | pesée avant complément ; ratio = final / dose pesée ; masse purgée notée |
+| Hydraulique | **4,9 à 6,9 bar·s/g** si la mouture retenue est en cause (≈ 9 à 12 s depuis 8 bar, ≈ 1,3 à 1,8 g/s) ; vers 7,6, elle ne l'est pas ; plateau sous 9,2 bar |
+| Rinçage | 0,1 à 0,7 bar |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml ; noter la fin (pression ou échéance) et le volume à la première goutte |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 20,6 g final |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche |
+| Tasse | 89,0 à 92,5 °C ; amertume notée |

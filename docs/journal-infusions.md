@@ -4920,3 +4920,127 @@ débit plus élevé allonge la queue d'écoulement (1,3 g à 1,74 g/s le 5/11).
 | Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 20,6 g final |
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche |
 | Tasse | 89,0 à 92,5 °C ; amertume notée |
+
+### 6 novembre, 13 h 19 — `261106-131948`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, même cran
+que le 5/11 à 9 h 11 et 14 h 31 et ce matin à 7 h 39, cible 20 g,
+anticipation d'arrêt de 1,0 g, consigne de 90 °C. **Dose : 7,4 g affichés
+pour 7,5 g réglés, non complétée** : la balance a montré 7,5 g puis 7,4 g
+après quelques secondes, et une impulsion du moulin vaut 0,3 g. **Canal du
+moulin non purgé** ; la mouture retenue date de 7 h 39, au même cran.
+Écran 0.4.27, sensors 0.4.24. Salon (Netatmo) : 48 %, point de rosée
+**11,0 °C** (10,7 °C ce matin) ; extérieur : 100 %, point de rosée
+10,0 °C ; boîtier de l'écran à 34,1 °C et 36,2 %. Observation de David :
+**débit bien plus grand que ce matin**, **amertume en baisse**.
+
+**Routine** : guide ouvert à 90,0 °C ; rinçage de 5,0 s, 16,5 ml, 35,6 g,
+**pression maximale 8,31 bar**. Consigne déjà atteinte à la fin du
+rinçage, minimum 85,4 °C ensuite. **537 s sur le groupe** ; préparation de
+125,9 s. Tasse de 124,9 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,04 s | — | 0,34 → 0,45 bar |
+| Remplissage | 8,04 s | 7,65 s, pression | 22,0 ml (2,88 ml/s) | 0,45 → 0,84 bar |
+| Pré-infusion | 15,69 s | **2,94 s, poids** | 3,8 ml | 0,84 → 1,12 bar |
+| Infusion | 18,62 s | 11,78 s | 25,5 ml | 8,78 bar max |
+
+- **Première goutte (0,3 g) à 18,71 s, à 1,12 bar**, **26,1 ml** (38,3 ml
+  ce matin), dès le début de l'infusion ; la pré-infusion finit sur le
+  poids.
+- 8 bar à 23,54 s (4,9 s après le début de l'infusion), 6,4 g en tasse.
+  Pas de pic transitoire : maximum de 8,78 bar à 30,20 s.
+- Depuis 8 bar : **6,9 s**, **1,87 g/s** en tasse, 1,73 ml/s en amont.
+  **19,2 g à l'arrêt de la pompe**, **20,9 g final**, **1,7 g de
+  gouttes**. Pompe en marche 22,2 s. Goutte → arrêt de la pompe :
+  **11,7 s**.
+- Plateau (de 8 bar + 2 s à l'arrêt) : **8,61 ± 0,11 bar**, pompe à
+  71–74 %, 1,81 g/s, soit **4,7 bar·s/g** (≈ 4,8 ramené à 7,5 g).
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 06/11 13 h 19 | 1,8 s | 4,6 s | 6,9 s | 11,2 s |
+  | 06/11 7 h 39 | 2,6 s | 6,0 s | 10,6 s | 17,0 s |
+  | 05/11 14 h 31 | 1,8 s | 4,8 s | 8,5 s | 14,5 s |
+  | 05/11 9 h 11 | 2,3 s | 4,8 s | 7,8 s | 12,3 s |
+
+**Thermique.** NTC de 90,03 °C au départ, **+1,32 °C** pendant le
+remplissage (22,0 ml), −0,98 °C pendant la pré-infusion ; 90,68 °C au
+début de l'infusion, 89,38 °C à l'arrêt. Baisse pompe en marche
+**−0,65 °C** (89,4 à 92,2 °C). **Tasse : 90,17 °C, +0,17 °C.**
+
+**Attendus vérifiés** (entrée de 7 h 39, prévue pour demain matin après
+purge ; celle-ci est une infusion de l'après-midi sans purge).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | pesée avant complément ; ratio = final / dose pesée ; masse purgée notée | 7,4 g, non complétés ; ratio **2,82** ; pas de purge |
+| Hydraulique | 4,9 à 6,9 bar·s/g si la mouture retenue est en cause ; plateau sous 9,2 bar | **4,7 bar·s/g, 6,9 s, 1,87 g/s : juste en dessous** ; plateau 8,61 bar : atteint |
+| Rinçage | 0,1 à 0,7 bar | **8,31 bar, très au-dessus** ; 35,6 g pour 16,5 ml |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 28 ml ; fin et volume à la goutte | **2,88 ml/s, juste en dessous** ; 22,0 ml : atteint ; fin sur la pression ; goutte à 26,1 ml |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 20,6 g final | 19,2 g ; **20,9 g, 0,3 g au-dessus** |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche | +1,32 °C ; −0,65 °C : atteint |
+| Tasse | 89,0 à 92,5 °C ; amertume notée | 90,17 °C : atteint ; amertume en baisse |
+
+**Lecture.**
+
+- *Variabilité au même cran, mesuré.* Quatre infusions au même cran, à
+  7,4–7,5 g : **4,9**, **6,8**, **7,6** et **4,7 bar·s/g**, un écart de
+  **+62 %** entre les extrêmes, dont **−38 %** entre ce matin et cet
+  après-midi sans rien changer. La dose n'y est pour rien (0,1 g de moins,
+  ≈ −1 à −2 %, Darcy) ; la dispersion de préparation (± 18 %) n'en couvre
+  pas le tiers.
+- *Âge de la mouture retenue, mesuré.* Les deux après-midi sans purge
+  partent d'une mouture retenue depuis 5 h 20 à 5 h 40 (9 h 11 → 14 h 31,
+  7 h 39 → 13 h 19) et donnent 6,8 et 4,7 : **+45 %** à rétention
+  comparable. L'âge de la mouture retenue n'explique donc pas l'écart de
+  l'après-midi ; le moulin varie à cran fixe, ce que conclut David.
+- *Matins sans purge, hypothèse de David.* Les deux matins sans purge
+  sont les plus résistants (7,7 au cran précédent, 7,6) et les plus amers ;
+  la mouture restée toute la nuit dans la chute ajouterait l'amertume. Cet
+  après-midi, plus rapide, l'amertume a baissé. La purge de demain matin
+  le teste.
+- *Remplissage de la trémie, hypothèse de David.* David a remarqué une
+  différence quand la trémie est presque vide : la charge de grains sur
+  les meules, donc la vitesse d'entrée des grains, change la mouture. Le
+  niveau de la trémie n'a été noté pour aucune infusion de la série ; il
+  peut contribuer à l'écart à cran fixe.
+- *Arrêt, mesuré.* 1,7 g de gouttes à 1,81 g/s, la plus longue queue de
+  la série (1,3 g à 1,74 g/s le 5/11 à 9 h 11, 1,0 g à 1,19 g/s ce matin) :
+  au débit élevé, l'anticipation de 1,0 g laisse finir à 20,9 g.
+- *Première goutte, observé.* 26,1 ml sur la galette la plus rapide,
+  38,3 ml ce matin sur la plus résistante, mais 21,7 ml le 5/11 à
+  14 h 31 à 6,8 : le volume à la goutte ne suit pas la résistance.
+- *Rinçage, mesuré.* 8,31 bar au rinçage, contre 0,14 à 0,35 bar dans les
+  entrées du 4/11 au matin de ce jour, et 35,6 g en tasse pour 16,5 ml au
+  débitmètre. Cause non établie : à confirmer par David (porte-filtre,
+  panier, tasse).
+- *Humidité, observé.* Point de rosée du salon à 11,0 °C, +0,3 °C sur ce
+  matin, pendant que la résistance baissait de 38 % : l'humidité ne suit
+  pas l'écart.
+
+**Décision** (David). **Accepter la variabilité de ce moulin** ; réglages
+inchangés : même cran, 7,5 g, cible 20 g, anticipation de 1,0 g, 90 °C.
+La purge de demain matin, décidée à 7 h 39, reste prévue. L'amélioration
+suivante est un **moulin single dose**, le **Mazzer Philos** en ligne de
+mire.
+
+*Estimé.* À cran fixe, ce moulin donne 4,7 à 7,6 bar·s/g : une infusion
+dans cette plage ne départage plus rien sur la galette. Le test de la
+purge repose donc surtout sur le goût : une amertume qui disparaît avec la
+purge confirme l'hypothèse de David ; 7,6 avec amertume après purge
+l'écarte.
+
+| Point | Attendu (demain matin, purge, mêmes réglages) |
+| --- | --- |
+| Dose | pesée avant complément ; ratio = final / dose pesée ; masse purgée notée ; **niveau de la trémie noté** |
+| Hydraulique | **4,7 à 7,6 bar·s/g** (≈ 7 à 14 s depuis 8 bar, ≈ 1,2 à 1,9 g/s) ; plateau sous 9,2 bar |
+| Rinçage | 0,1 à 0,7 bar ; au-dessus, noter l'état du porte-filtre |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 30 ml ; noter la fin (pression ou échéance) |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 21,0 g final |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche |
+| Tasse | 89,0 à 92,5 °C ; **amertume notée** : c'est le critère de la purge |

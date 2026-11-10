@@ -122,7 +122,7 @@ tant que le résumé n'est pas fermé. Elle comporte, de haut en bas :
 2. la **frise** (voir ci-dessous) ;
 3. six tuiles : poids en tasse, temps d'infusion, moyenne en tasse (avec la
    cible de température), temps total (avec le temps de pompe), débit
-   d'infusion (g/s et ml/s) et baisse thermique (avec le min-max) ;
+   d'infusion (g/s et ml/s) et résistance de la galette (avec la pression du plateau) ;
 4. pendant le cycle, quatre mesures en direct (chauffe, pompe, débit balance,
    débit pompe) et le bouton **arrêter** ; une fois terminé, un seul bouton
    **fermer**, qui affiche un compte à rebours (`fermer · 3 s`) et reste grisé

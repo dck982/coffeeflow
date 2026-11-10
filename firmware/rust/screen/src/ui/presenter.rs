@@ -999,12 +999,8 @@ impl Presenter {
                 0
             ),
             tile(
-                "baisse thermique",
-                number(
-                    -(shot.start_temperature_c - shot.min_temperature_c).max(0.0),
-                    1,
-                    "°"
-                ),
+                "résistance",
+                number(shot.resistance_bar_s_g, 1, ""),
                 "",
                 true,
                 0
@@ -1020,13 +1016,9 @@ impl Presenter {
         if shot.infusion_ml_s.is_finite() {
             brew_tiles[4].aside = number(shot.infusion_ml_s, 2, " ml/s").into();
         }
-        if shot.min_temperature_c.is_finite() && shot.max_temperature_c.is_finite() {
-            brew_tiles[5].detail = format!(
-                "{}-{}",
-                number(shot.min_temperature_c, 1, ""),
-                number(shot.max_temperature_c, 1, "°")
-            )
-            .into();
+        brew_tiles[5].aside = "bar·s/g".into();
+        if shot.plateau_pressure_bar.is_finite() {
+            brew_tiles[5].detail = number(shot.plateau_pressure_bar, 1, " bar").into();
         }
         sync(app.get_brew_values(), brew_tiles, |m| {
             app.set_brew_values(m)

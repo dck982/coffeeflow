@@ -53,6 +53,14 @@ pub struct ShotSummary {
     pub start_temperature_c: f32,
     pub min_temperature_c: f32,
     pub max_temperature_c: f32,
+    /// Résistance de la galette, en bar·s/g : pression moyenne du plateau
+    /// divisée par le débit en tasse du plateau. Le plateau court de
+    /// `PLATEAU_SETTLE_S` après consigne − 1 bar au dernier échantillon
+    /// d'infusion ; en cours d'infusion, le dernier échantillon sert de fin
+    /// provisoire. NaN tant qu'elle est inconnue.
+    pub resistance_bar_s_g: f32,
+    /// Pression moyenne du plateau, en bar.
+    pub plateau_pressure_bar: f32,
     /// Échelle de la frise, en secondes : arrêt prévu, puis réel, plus la
     /// réserve des gouttes ; la fin des gouttes une fois celles-ci terminées.
     pub axis_s: f32,
@@ -80,6 +88,8 @@ impl Default for ShotSummary {
             start_temperature_c: NAN,
             min_temperature_c: NAN,
             max_temperature_c: NAN,
+            resistance_bar_s_g: NAN,
+            plateau_pressure_bar: NAN,
             axis_s: 0.0,
         }
     }
@@ -172,6 +182,12 @@ pub struct ShotSummaryBuilder {
     window: [WeightPoint; WINDOW_CAPACITY],
     window_count: usize,
     window_next: usize,
+    plateau_started: bool,
+    plateau_frozen: bool,
+    plateau_start_s: f32,
+    plateau_start_weight_g: f32,
+    plateau_pressure_sum: f32,
+    plateau_pressure_count: u32,
     /// `None` : aucun segment ouvert (le `kCount` du C++).
     current: Option<ShotSegment>,
 }
@@ -193,6 +209,8 @@ impl ShotSummaryBuilder {
     pub const AXIS_GROWTH_AT: f32 = 0.9;
     pub const AXIS_GROWTH_FACTOR: f32 = 1.25;
     pub const DRIP_RESERVE_S: f32 = 4.0;
+    /// Délai après consigne − 1 bar avant que le plateau ne commence.
+    pub const PLATEAU_SETTLE_S: f32 = 2.0;
 
     pub fn new() -> Self {
         Self {
@@ -218,6 +236,12 @@ impl ShotSummaryBuilder {
             window: [WeightPoint::default(); WINDOW_CAPACITY],
             window_count: 0,
             window_next: 0,
+            plateau_started: false,
+            plateau_frozen: false,
+            plateau_start_s: NAN,
+            plateau_start_weight_g: NAN,
+            plateau_pressure_sum: 0.0,
+            plateau_pressure_count: 0,
             current: None,
         }
     }
@@ -249,6 +273,12 @@ impl ShotSummaryBuilder {
         self.stop_weight_g = NAN;
         self.window_count = 0;
         self.window_next = 0;
+        self.plateau_started = false;
+        self.plateau_frozen = false;
+        self.plateau_start_s = NAN;
+        self.plateau_start_weight_g = NAN;
+        self.plateau_pressure_sum = 0.0;
+        self.plateau_pressure_count = 0;
         self.current = None;
         self.summary.axis_s = self.expected_stop_s + Self::DRIP_RESERVE_S;
     }
@@ -283,7 +313,53 @@ impl ShotSummaryBuilder {
         self.track_segments(sample, weight);
         self.track_drips(t, weight);
         self.update_infusion(t);
+        self.track_plateau(sample, weight);
         self.update_axis(t);
+    }
+
+    /// Résistance de la galette. Le plateau commence `PLATEAU_SETTLE_S` après
+    /// consigne − 1 bar et finit au dernier échantillon d'infusion : la valeur
+    /// se fige dès que le mode quitte l'infusion.
+    fn track_plateau(&mut self, sample: &ShotSample, weight: f32) {
+        if self.plateau_frozen {
+            return;
+        }
+        if sample.mode != ShotSampleMode::Infusion {
+            if self.infusion_start_s.is_finite() {
+                self.plateau_frozen = true;
+            }
+            return;
+        }
+        let t = sample.t_s;
+        if !self.plateau_started {
+            if !self.pressure_reached || t < self.pressure_t_s + Self::PLATEAU_SETTLE_S - 1e-3 {
+                return;
+            }
+            self.plateau_started = true;
+            self.plateau_start_s = t;
+            self.plateau_start_weight_g = weight;
+        }
+        if sample.pressure_valid && sample.pressure_bar.is_finite() {
+            self.plateau_pressure_sum += sample.pressure_bar;
+            self.plateau_pressure_count += 1;
+        }
+        self.summary.resistance_bar_s_g = NAN;
+        self.summary.plateau_pressure_bar = NAN;
+        let duration = t - self.plateau_start_s;
+        if duration < 1.0
+            || self.plateau_pressure_count == 0
+            || !self.plateau_start_weight_g.is_finite()
+            || !weight.is_finite()
+        {
+            return;
+        }
+        let cup_g_s = (weight - self.plateau_start_weight_g) / duration;
+        if cup_g_s <= 0.0 {
+            return;
+        }
+        let pressure = self.plateau_pressure_sum / self.plateau_pressure_count as f32;
+        self.summary.plateau_pressure_bar = pressure;
+        self.summary.resistance_bar_s_g = pressure / cup_g_s;
     }
 
     fn relative_weight(&mut self, sample: &ShotSample) -> f32 {

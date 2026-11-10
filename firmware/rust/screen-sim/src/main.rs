@@ -140,6 +140,8 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             s.shot.cup_mean_c = 89.2;
             s.shot.start_temperature_c = 90.0;
             s.shot.min_temperature_c = 87.5;
+            s.shot.resistance_bar_s_g = 6.5;
+            s.shot.plateau_pressure_bar = 8.8;
             s.shot.infusion_cup_g_s = 1.8;
             s.shot.cup_rate_g_s = 1.9;
             s.shot.pump_stop_s = if name == "done" { 24.0 } else { f32::NAN };

@@ -25,7 +25,7 @@ Les six tuiles, en colonnes totaux, infusion, température :
 | | Totaux | Infusion | Température |
 | --- | --- | --- | --- |
 | Ligne 1 | poids | temps infusion | moyenne en tasse · cible |
-| Ligne 2 | temps total · pompe | débit infusion (g/s) · débit débitmètre (ml/s) | baisse thermique · min–max |
+| Ligne 2 | temps total · pompe | débit infusion (g/s) · débit débitmètre (ml/s) | résistance (bar·s/g) · pression du plateau |
 
 Une valeur encore inconnue s'affiche « - ». Les polices embarquées (Inter,
 ASCII et Latin-1) n'ont ni tiret long ni signe moins typographique : les
@@ -47,7 +47,7 @@ sur « infuser ».
 | Gouttes | après l'arrêt de la pompe, jusqu'au premier débit en tasse nul ou inconnu (fenêtre de 2 s) ; une tasse retirée (poids négatif) les termine |
 | Débit balance (tuile du bas) | poids gagné sur les 2 dernières secondes ; inconnu si une mesure manque ou est négative dans la fenêtre |
 | Moyenne en tasse | NTC pondérée par chaque gramme arrivé, poids en maximum courant, jusqu'à l'arrêt de la pompe (critère de [chauffe-infusion.md](chauffe-infusion.md#objectif)) |
-| Baisse thermique | température au début de la capture moins le minimum pompe en marche ; min et max sur la même période |
+| Résistance | pression moyenne du plateau divisée par le débit en tasse du plateau (bar·s/g), sans correction de dose. Le plateau commence 2 s après consigne − 1 bar et finit au dernier échantillon d'infusion ; pendant l'infusion, l'échantillon courant sert de fin provisoire, puis la valeur se fige. Inconnue sous 1 s de plateau ou sans débit en tasse. La tuile affiche aussi la pression moyenne du plateau |
 
 La fin des gouttes utilise une fenêtre de 2 s qui se termine à l'échantillon
 courant, comme l'estimation de fin de la chauffe. Le graphe du rapport HTML

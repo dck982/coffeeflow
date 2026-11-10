@@ -160,3 +160,63 @@ fn purge_clears_the_summary() {
     builder.clear();
     assert!(!builder.summary().active);
 }
+
+// Même tir que test_puck_resistance_spans_the_settled_plateau_to_the_pump_stop
+// côté analyse : préinfusion avant 10 s, infusion de 10 à 30 s, puis purge.
+fn plateau_sample(t: f32, max_bar: f32) -> ShotSample {
+    ShotSample {
+        t_s: t,
+        mode: if t < 10.0 {
+            ShotSampleMode::Preinfusion
+        } else if t < 30.0 {
+            ShotSampleMode::Infusion
+        } else {
+            ShotSampleMode::Other
+        },
+        pump_pct: if t < 30.0 { 70 } else { 0 },
+        pressure_valid: true,
+        pressure_bar: if t < 10.0 {
+            1.0
+        } else {
+            max_bar.min(1.0 + (t - 10.0) * 2.0)
+        },
+        scale_present: true,
+        weight_g: (t - 10.0).max(0.0) * 1.5,
+        volume_ml: t * 1.6,
+        temperature_valid: false,
+        temperature_c: 0.0,
+    }
+}
+
+fn run_plateau(until_i: i32, max_bar: f32) -> ShotSummaryBuilder {
+    let mut builder = ShotSummaryBuilder::new();
+    builder.reset(9.0, 0.0);
+    for i in 0..=until_i {
+        builder.add(&plateau_sample(i as f32 / 10.0, max_bar));
+    }
+    builder
+}
+
+#[test]
+fn puck_resistance_spans_the_settled_plateau_to_the_pump_stop() {
+    let s = *run_plateau(350, 9.0).summary();
+    assert!(near(s.plateau_pressure_bar, 9.0, 1e-4));
+    assert!(near(s.resistance_bar_s_g, 6.0, 1e-3));
+}
+
+#[test]
+fn puck_resistance_is_live_during_the_plateau() {
+    // Plateau dès 15,5 s ; à 20 s, 4,5 s de plateau à 9 bar et 1,5 g/s.
+    let s = *run_plateau(200, 9.0).summary();
+    assert!(near(s.plateau_pressure_bar, 9.0, 1e-4));
+    assert!(near(s.resistance_bar_s_g, 6.0, 1e-3));
+    // Avant 1 s de plateau, inconnue.
+    let s = *run_plateau(160, 9.0).summary();
+    assert!(s.resistance_bar_s_g.is_nan() && s.plateau_pressure_bar.is_nan());
+}
+
+#[test]
+fn puck_resistance_stays_unknown_without_the_plateau_pressure() {
+    let s = *run_plateau(350, 5.0).summary();
+    assert!(s.resistance_bar_s_g.is_nan() && s.plateau_pressure_bar.is_nan());
+}

@@ -15,6 +15,25 @@ lois ; il dit ce que chaque infusion a montré et ce qu'on règle ensuite.
 
 Les fichiers `captures/` sont locaux et ignorés par Git.
 
+## Analyser une capture
+
+Les mesures d'une entrée sortent de
+`uv run firmware/analysis/describe_hf_capture.py captures/<capture>.json`,
+avec `--dose-g` quand la dose a été pesée. Ne pas les recalculer avec du
+Python écrit à la main pour l'occasion : une définition qui change d'une
+entrée à l'autre rend les entrées incomparables. Le bloc « mesures du
+journal » imprimé dans le terminal donne toutes les valeurs d'une entrée :
+phases, première goutte, seuil de 8 bar, poids à l'arrêt et final,
+plateau, arrivées en tasse, thermique, ratio et session guidée. Une mesure qui manque au
+rapport s'ajoute au script, avec un test, avant d'entrer au journal.
+
+La **résistance au plateau** est celle du script, imprimée dans le
+terminal et affichée dans le rapport : pression moyenne de consigne − 1 bar
++ 2 s jusqu'au dernier échantillon d'infusion avant l'arrêt de la pompe,
+divisée par le poids gagné en tasse sur cette fenêtre par seconde, en
+bar·s/g. Elle ne dépend pas de la dose ; avec `--dose-g`, le script la
+ramène aussi à la dose du profil, proportionnellement à la dose.
+
 ## Réglages en cours
 
 Configuration sauvegardée `configs/261024-155512.json` (schéma 11), profil
@@ -5044,3 +5063,86 @@ l'écarte.
 | Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 21,0 g final |
 | Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche |
 | Tasse | 89,0 à 92,5 °C ; **amertume notée** : c'est le critère de la purge |
+
+### 10 novembre, 13 h 42 — `261110-134225`
+
+**Contexte.** Single espresso, ViCafé, porte-filtre sans fond, profil
+inchangé : **7,5 g**, cible 20 g, anticipation d'arrêt de 1,0 g, consigne
+de 90 °C. **Cran : un pas plus serré que le 6/11** : les infusions
+suivantes, non capturées, coulaient vers 1,6 g/s, trop vite au goût de
+David. Une infusion ce matin, bonne et non capturée : la mouture retenue
+dans le canal date de ce matin. Non notés : niveau de la trémie, Netatmo. Écran 0.4.27, sensors 0.4.24 ; boîtier de
+l'écran à 33,2 °C et 38,9 % (point de rosée 17,4 °C). Observation de
+David : **résultat très satisfaisant**.
+
+**Routine** : guide ouvert à 75,2 °C ; rinçage de 5,0 s, 17,7 ml, 32,5 g,
+**pression maximale 0,70 bar** (8,31 bar le 6/11 à 13 h 19). Retour à la
+consigne en 123,9 s, minimum 82,6 °C. **710 s sur le groupe** ;
+préparation de 106,6 s. Tasse de 125,4 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,04 s | — | 0,27 → 0,36 bar |
+| Remplissage | 8,04 s | 7,65 s, pression | 22,6 ml (2,95 ml/s) | 0,36 → 0,87 bar |
+| Pré-infusion | 15,69 s | **1,92 s, poids** | 2,9 ml | 0,88 → 1,09 bar |
+| Infusion | 17,61 s | 15,47 s | 27,5 ml | 9,06 bar max |
+
+- **Première goutte (0,3 g) à 18,29 s, à 1,20 bar**, **27,0 ml**, 0,7 s
+  après le début de l'infusion.
+- 8 bar à 21,73 s (4,1 s après le début de l'infusion), 4,0 g en tasse.
+  Pas de pic transitoire ; la pression monte lentement de 8,5 à
+  **9,06 bar** juste avant l'arrêt, pompe stable à 67–70 %.
+- Depuis 8 bar : **11,3 s**, **1,34 g/s** en tasse, 1,43 ml/s en amont.
+  **19,2 g à l'arrêt de la pompe**, **20,7 g final**, **1,5 g de
+  gouttes**. Goutte → arrêt de la pompe : **14,8 s**.
+- Plateau (de 8 bar + 2 s à l'arrêt) : **8,82 ± 0,09 bar**, pompe à
+  67–70 %, 1,36 g/s, soit **6,5 bar·s/g** à 7,5 g.
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 10/11 13 h 42 | 2,1 s | 4,8 s | 8,7 s | 14,7 s |
+  | 06/11 13 h 19 | 1,8 s | 4,6 s | 6,9 s | 11,2 s |
+  | 06/11 7 h 39 | 2,6 s | 6,0 s | 10,6 s | 17,0 s |
+  | 05/11 14 h 31 | 1,8 s | 4,8 s | 8,5 s | 14,5 s |
+
+**Thermique.** NTC de 90,07 °C au départ, **+1,46 °C** pendant le
+remplissage (22,6 ml), −0,22 °C pendant la pré-infusion ; 91,48 °C au
+début de l'infusion, 89,00 °C à l'arrêt. Baisse pompe en marche
+**−1,07 °C** (89,0 à 91,7 °C). **Tasse : 90,60 °C, +0,60 °C.**
+
+**Attendus vérifiés** (entrée du 6/11 à 13 h 19, prévue pour un matin
+avec purge ; celle-ci est une infusion de l'après-midi, un pas plus
+serré).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | pesée avant complément ; masse purgée ; niveau de la trémie | 7,5 g ; ratio **2,76** ; canal renouvelé par l'infusion du matin ; trémie non notée |
+| Hydraulique | 4,7 à 7,6 bar·s/g (≈ 7 à 14 s depuis 8 bar, ≈ 1,2 à 1,9 g/s) ; plateau sous 9,2 bar | **6,5 bar·s/g**, 11,3 s, 1,34 g/s : atteint ; plateau 8,82 bar, maximum 9,06 bar : atteint |
+| Rinçage | 0,1 à 0,7 bar | 0,70 bar : atteint, en limite haute |
+| Remplissage | 2,9 à 3,3 ml/s à 70 % ; 17 à 30 ml ; noter la fin | 2,95 ml/s ; 22,6 ml ; fin sur la pression : atteint |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 21,0 g final | 19,2 g ; 20,7 g : atteint |
+| Chauffe | NTC +0,1 à +2,3 °C au remplissage ; −1,7 à +1,9 °C pompe en marche | +1,46 °C ; −1,07 °C : atteint |
+| Tasse | 89,0 à 92,5 °C ; amertume notée | 90,60 °C : atteint ; « très satisfaisant », amertume non notée |
+
+**Lecture.**
+
+- *Résistance, mesuré.* 6,5 bar·s/g au cran resserré d'un pas, dans la
+  plage de 4,7 à 7,6 bar·s/g relevée au cran précédent : une seule
+  infusion à ce cran ne dit pas encore de combien il déplace la plage,
+  la dispersion du moulin à cran fixe (+62 %) dépassant l'effet d'un
+  pas.
+- *Rinçage, mesuré.* 0,70 bar contre 8,31 bar le 6/11 : l'anomalie du
+  6/11 ne se reproduit pas, sa cause reste non établie.
+- *Pré-infusion, mesuré.* Close sur le poids en 1,92 s (2,94 s le 6/11),
+  la goutte arrivant à 27,0 ml, dans la fourchette des entrées
+  précédentes (21,7 à 38,3 ml).
+- *Plateau, observé.* À pompe constante, la pression monte de 8,5 à
+  9,06 bar pendant que le débit en tasse reste vers 1,3 à 1,4 g/s : la
+  galette se resserre légèrement en fin d'infusion.
+- *Goût, observé.* Très satisfaisant à 6,5 bar·s/g et 1,34 g/s depuis
+  8 bar, plus lent que les infusions vers 1,6 g/s jugées trop rapides.
+
+**Décision.** Aucune ; cran resserré conservé, profil inchangé.

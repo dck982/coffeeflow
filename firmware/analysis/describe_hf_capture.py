@@ -344,6 +344,92 @@ def shot_cards(shot: dict[str, Any], target_pressure_bar: float) -> list[str]:
     ]
 
 
+def puck_resistance(samples: list[dict[str, Any]], target_pressure_bar: float = 9.0,
+                    settle_s: float = 2.0) -> dict[str, float] | None:
+    """Résistance de la galette au plateau, en bar·s/g.
+
+    Plateau : du premier échantillon d'infusion à consigne − 1 bar, plus
+    settle_s pour laisser passer la montée, au dernier échantillon d'infusion
+    avant l'arrêt de la pompe. Résistance = pression moyenne / débit en tasse,
+    le débit étant le poids gagné sur le plateau divisé par sa durée. La valeur
+    ne dépend pas de la dose ; à mouture égale, elle croît comme l'épaisseur de
+    la galette, donc comme la dose.
+    """
+    infusion = [index for index, sample in enumerate(samples)
+                if SHOT_MODES.get(str(sample.get("mode"))) == "infusion"]
+    if not infusion:
+        return None
+    first = infusion[0]
+    last = next((index - 1 for index in range(first, len(samples))
+                 if SHOT_MODES.get(str(samples[index].get("mode"))) != "infusion"), len(samples) - 1)
+    times = [number(sample.get("t_ms")) / 1000 for sample in samples]
+    threshold = target_pressure_bar - 1.0
+    reached = next((index for index in range(first, last + 1)
+                    if valid(samples[index], "pressure")
+                    and number(samples[index].get("pressure_bar")) >= threshold), None)
+    if reached is None:
+        return None
+    start = next((index for index in range(reached, last + 1)
+                  if times[index] >= times[reached] + settle_s - 1e-3), None)
+    if start is None or times[last] - times[start] < 1.0:
+        return None
+    window = samples[start:last + 1]
+    pressures = [number(sample.get("pressure_bar")) for sample in window if valid(sample, "pressure")]
+    pressures = [value for value in pressures if math.isfinite(value)]
+    begin_w, end_w = number(samples[start].get("weight_g")), number(samples[last].get("weight_g"))
+    if (not pressures or not valid(samples[start], "scale") or not valid(samples[last], "scale")
+            or not math.isfinite(begin_w) or not math.isfinite(end_w)):
+        return None
+    duration = times[last] - times[start]
+    cup_g_s = (end_w - begin_w) / duration
+    if cup_g_s <= 0:
+        return None
+    pressure = sum(pressures) / len(pressures)
+    spread = math.sqrt(sum((value - pressure) ** 2 for value in pressures) / len(pressures))
+    pumps = [number(sample.get("pump_pct_reported")) for sample in window]
+    return {"start_s": times[start], "end_s": times[last], "pressure_bar": pressure,
+            "pressure_sd_bar": spread, "cup_g_s": cup_g_s,
+            "ml_s": (number(samples[last].get("volume_ml")) - number(samples[start].get("volume_ml"))) / duration,
+            "pump_min_pct": min(pumps), "pump_max_pct": max(pumps),
+            "resistance_bar_s_g": pressure / cup_g_s}
+
+
+def scaled_resistance(resistance: float, dose_g: float | None, reference_g: float | None) -> float | None:
+    """Résistance ramenée à la dose de référence, proportionnelle à la dose."""
+    if not dose_g or not reference_g or dose_g <= 0 or reference_g <= 0:
+        return None
+    return resistance * reference_g / dose_g
+
+
+def profile_dose_g(capture: dict[str, Any]) -> float | None:
+    profile = capture.get("profile")
+    dose = number(profile.get("dose_g")) if isinstance(profile, dict) else float("nan")
+    return dose if math.isfinite(dose) and dose > 0 else None
+
+
+def resistance_text(plateau: dict[str, float], dose_g: float | None, reference_g: float | None) -> str:
+    text = (f"{plateau['resistance_bar_s_g']:.2f} bar·s/g ({plateau['pressure_bar']:.2f} ± "
+            f"{plateau['pressure_sd_bar']:.2f} bar, {plateau['cup_g_s']:.2f} g/s, {plateau['ml_s']:.2f} ml/s, "
+            f"pompe {plateau['pump_min_pct']:.0f}–{plateau['pump_max_pct']:.0f} %, "
+            f"{plateau['start_s']:.2f}–{plateau['end_s']:.2f} s)")
+    scaled = scaled_resistance(plateau["resistance_bar_s_g"], dose_g, reference_g)
+    if scaled is not None:
+        text += f", ≈ {scaled:.2f} ramené à {reference_g:g} g pour {dose_g:g} g pesés"
+    return text
+
+
+def resistance_card(plateau: dict[str, float] | None, target_pressure_bar: float,
+                    dose_g: float | None, reference_g: float | None) -> str:
+    if plateau is None:
+        return metric_card("Résistance au plateau", "—", f"pas de plateau mesurable après {target_pressure_bar - 1:g} bar")
+    detail = (f"{fmt(plateau['pressure_bar'])} ± {fmt(plateau['pressure_sd_bar'])} bar / "
+              f"{fmt(plateau['cup_g_s'])} g/s, {plateau['start_s']:.1f}–{plateau['end_s']:.1f} s")
+    scaled = scaled_resistance(plateau["resistance_bar_s_g"], dose_g, reference_g)
+    if scaled is not None:
+        detail += f" ; ≈ {fmt(scaled)} ramené à {reference_g:g} g"
+    return metric_card("Résistance au plateau", f"{fmt(plateau['resistance_bar_s_g'])} bar·s/g", detail)
+
+
 def capture_duration_s(capture: dict[str, Any]) -> float:
     started = number(capture.get("started_at_us"))
     ended = number(capture.get("ended_at_us"))
@@ -704,7 +790,8 @@ def invalid_pressure_details(samples: list[dict[str, Any]], duration_s: float,
     return f"<details><summary>Plages de pression invalide ({len(ranges)})</summary><ul>{items}</ul></details>"
 
 
-def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> str:
+def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float,
+                     target_pressure_bar: float = 9.0) -> str:
     samples: list[dict[str, Any]] = capture["samples"]
     duration_s = capture_duration_s(capture)
     times = [number(sample.get("t_ms")) / 1000 for sample in samples]
@@ -819,6 +906,25 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
          "type": "scatter", "mode": "lines", "line": {"color": "#d62728", "width": 1.5, "dash": "dash"},
          "yaxis": "y", "hoverinfo": "skip", "legendrank": 2},
     ]
+    threshold = target_pressure_bar - 1.0
+    infusion_indices = [index for index, sample in enumerate(samples)
+                        if SHOT_MODES.get(str(sample.get("mode"))) == "infusion"]
+    infusion_set = set(infusion_indices)
+    resistance: list[float | None] = []
+    for index, sample in enumerate(samples):
+        pressure, flow = number(sample.get("pressure_bar")), cup_flows[index]
+        ok = (index in infusion_set and valid(sample, "pressure") and math.isfinite(pressure)
+              and pressure >= threshold and math.isfinite(flow) and flow >= 0.3)
+        resistance.append(pressure / flow if ok else None)
+    traces.append({"name": "résistance", "x": times, "y": resistance, "type": "scatter", "mode": "lines",
+                   "line": {"color": "#8c564b", "width": 2}, "yaxis": "y9",
+                   "hovertemplate": "%{y:.2f} bar·s/g<extra></extra>"})
+    plateau = puck_resistance(samples, target_pressure_bar)
+    if plateau:
+        traces.append({"name": "résistance · plateau", "x": [plateau["start_s"], plateau["end_s"]],
+                       "y": [plateau["resistance_bar_s_g"]] * 2, "type": "scatter", "mode": "lines",
+                       "line": {"color": "#8c564b", "width": 1.5, "dash": "dash"}, "yaxis": "y9",
+                       "hovertemplate": "plateau %{y:.2f} bar·s/g<extra></extra>"})
     if has_scace(samples):
         traces.append({"name": "sonde SCACE · panier", "x": times, "y": series("scace_temperature_c"),
                        "type": "scatter", "mode": "lines", "line": {"color": "#8c564b", "width": 2},
@@ -875,6 +981,7 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float) -> st
                   "rangemode": "tozero"},
         "yaxis2": {"title": "pompe (%)", "overlaying": "y", "side": "right", "range": [0, 105]},
         "yaxis3": {"title": "g/s · ml/s", "domain": [0.53, 0.73], "gridcolor": "#e8ebed", "zeroline": False},
+        "yaxis9": {"title": "résistance (bar·s/g)", "overlaying": "y3", "side": "right", "rangemode": "tozero"},
         "yaxis4": {"title": "°C", "domain": [0.28, 0.48], "gridcolor": "#e8ebed", "zeroline": False},
         "yaxis5": {"title": "chauffage (%)", "overlaying": "y4", "side": "right", "range": [0, 105]},
         "yaxis7": {"title": "poids (g)", "domain": [0, 0.23], "gridcolor": "#e8ebed", "zeroline": False},
@@ -969,6 +1076,7 @@ def guided_session_block(capture: dict[str, Any]) -> str:
         rows.append(
             f"<tr><td>{name}</td><td>{fmt(number(purge.get('duration_ms')) / 1000, 1)} s</td>"
             f"<td>{fmt(purge.get('volume_ml'), 1)} ml</td><td>{fmt(purge.get('weight_g'), 1)} g</td>"
+            f"<td>{fmt(purge.get('pressure_max_bar'), 2)} bar</td>"
             f"<td>{fmt(purge.get('ntc_start_c'), 1)} → {fmt(purge.get('ntc_min_c'), 1)} → "
             f"{fmt(purge.get('ntc_end_c'), 1)} °C</td></tr>")
     wait = session.get("wait") if isinstance(session.get("wait"), dict) else {}
@@ -980,6 +1088,8 @@ def guided_session_block(capture: dict[str, Any]) -> str:
         metric_card("Préparation", f"{fmt(durations['preparation_s'], 1)} s",
                     "du retrait de la tasse à démarrer"),
     ]
+    cards.append(metric_card("NTC à l'ouverture", f"{fmt(session.get('ntc_open_c'), 1)} °C",
+                             "chaudière à l'ouverture du guide"))
     if "cup_g" in session:
         cards.append(metric_card("Tasse", f"{fmt(session.get('cup_g'), 1)} g",
                                  "tasse vide, pesée au rinçage"))
@@ -987,7 +1097,7 @@ def guided_session_block(capture: dict[str, Any]) -> str:
   <section aria-labelledby="guided-title">
     <h2 id="guided-title">Infusion guidée</h2>
     <div class="table-wrap"><table>
-      <thead><tr><th>Rinçage</th><th>Durée</th><th>Volume</th><th>Poids</th><th>NTC départ → minimum → arrêt</th></tr></thead>
+      <thead><tr><th>Rinçage</th><th>Durée</th><th>Volume</th><th>Poids</th><th>Pression max</th><th>NTC départ → minimum → arrêt</th></tr></thead>
       <tbody>{''.join(rows)}</tbody>
     </table></div>
     <div class="metrics">{''.join(cards)}</div>
@@ -995,8 +1105,229 @@ def guided_session_block(capture: dict[str, Any]) -> str:
 """
 
 
+def journal_measures(capture: dict[str, Any], target_pressure_bar: float = 9.0,
+                     dose_g: float | None = None) -> dict[str, Any]:
+    """Mesures du journal d'infusion, toutes calculées ici (NaN si absentes).
+
+    Arrêt de la pompe : premier échantillon hors infusion après la phase
+    d'infusion. Seuil : consigne − 1 bar. Poids final : maximum des poids
+    valides après l'arrêt. Temps « depuis l'infusion » : depuis le premier
+    échantillon en mode infusion.
+    """
+    nan = float("nan")
+    samples: list[dict[str, Any]] = capture["samples"]
+    times = [number(sample.get("t_ms")) / 1000 for sample in samples]
+    weights = report_weight_series(samples)
+    volumes = [number(sample.get("volume_ml")) for sample in samples]
+    pressures = [number(sample.get("pressure_bar")) if valid(sample, "pressure") else nan
+                 for sample in samples]
+    temperatures = [number(sample.get("boiler_temperature_c", sample.get("temperature_c")))
+                    if valid(sample, "boiler") else nan for sample in samples]
+    threshold = target_pressure_bar - 1.0
+    infusion = [index for index, sample in enumerate(samples)
+                if SHOT_MODES.get(str(sample.get("mode"))) == "infusion"]
+    first = infusion[0] if infusion else None
+    last = None
+    if first is not None:
+        last = next((index - 1 for index in range(first, len(samples))
+                     if SHOT_MODES.get(str(samples[index].get("mode"))) != "infusion"), len(samples) - 1)
+    stop = last + 1 if last is not None and last + 1 < len(samples) else None
+
+    def at(values: list[float], index: int | None) -> float:
+        return values[index] if index is not None else nan
+
+    def since(index: int | None) -> float:
+        return times[index] - times[first] if index is not None and first is not None else nan
+
+    def first_mode(mode: str) -> int | None:
+        return next((index for index, sample in enumerate(samples)
+                     if SHOT_MODES.get(str(sample.get("mode"))) == mode), None)
+
+    duration_s = capture_duration_s(capture)
+    phases = []
+    for start, end, start_s, end_s, mode in phase_ranges(samples, duration_s):
+        name = SHOT_MODES.get(mode)
+        if name not in ("preheat", "filling", "preinfusion", "infusion") or (stop is not None and start >= stop):
+            continue
+        after = min(end + 1, len(samples) - 1)
+        span = [value for value in pressures[start:after + 1] if math.isfinite(value)]
+        duration = end_s - start_s
+        volume = volumes[after] - volumes[start]
+        phases.append({"phase": mode_label(mode), "start_s": start_s, "duration_s": duration,
+                       "volume_ml": volume, "flow_ml_s": volume / duration if duration > 0 else nan,
+                       "pressure_start_bar": pressures[start], "pressure_end_bar": pressures[after],
+                       "pressure_max_bar": max(span) if span else nan})
+
+    reached = None
+    if first is not None and last is not None:
+        reached = next((index for index in range(first, last + 1)
+                        if math.isfinite(pressures[index]) and pressures[index] >= threshold), None)
+    drop = next((index for index, weight in enumerate(weights) if weight >= 0.3), None)
+    peak = None
+    if first is not None and last is not None:
+        valid_peak = [index for index in range(first, last + 1) if math.isfinite(pressures[index])]
+        peak = max(valid_peak, key=lambda index: pressures[index], default=None)
+    span_s = times[stop] - times[reached] if stop is not None and reached is not None else nan
+    after_stop = [weight for weight in (weights[stop:] if stop is not None else []) if math.isfinite(weight)]
+    stop_weight = at(weights, stop)
+    final_weight = max(after_stop, default=nan)
+    pump_first = next((index for index, sample in enumerate(samples)
+                       if number(sample.get("pump_pct_reported")) > 0), None)
+    arrivals = {grams: since(next((index for index, weight in enumerate(weights) if weight >= grams), None))
+                for grams in (1, 5, 10, 18)}
+
+    filling, preinfusion = first_mode("filling"), first_mode("preinfusion")
+    shot = shot_summary(samples, target_pressure_bar)
+    profile = capture.get("profile") if isinstance(capture.get("profile"), dict) else {}
+    heating = profile.get("heating") if isinstance(profile.get("heating"), dict) else {}
+    session = capture.get("session") if isinstance(capture.get("session"), dict) else {}
+    setpoint = number(heating.get("brew_temperature_c"))
+    setpoint_source = "profil"
+    if not math.isfinite(setpoint):
+        setpoint, setpoint_source = number(session.get("setpoint_c")), "session"
+    if not math.isfinite(setpoint):
+        setpoint_source = "—"
+    dose_given = dose_g is not None and dose_g > 0
+    dose = dose_g if dose_given else profile_dose_g(capture)
+    ratio = final_weight / dose if dose and math.isfinite(final_weight) else nan
+    rinses = session_rinses(session) if session else []
+    return {
+        "phases": phases,
+        "infusion_start_s": at(times, first),
+        "stop_s": at(times, stop),
+        "threshold_bar": threshold,
+        "drop": {"t_s": at(times, drop), "since_s": since(drop), "pressure_bar": at(pressures, drop),
+                 "volume_ml": at(volumes, drop)},
+        "reached": {"t_s": at(times, reached), "since_s": since(reached), "weight_g": at(weights, reached)},
+        "peak": {"pressure_bar": at(pressures, peak), "t_s": at(times, peak), "since_s": since(peak)},
+        "from_threshold": {"duration_s": span_s,
+                           "cup_g_s": (stop_weight - at(weights, reached)) / span_s if span_s > 0 else nan,
+                           "ml_s": (at(volumes, stop) - at(volumes, reached)) / span_s if span_s > 0 else nan},
+        "stop_weight_g": stop_weight, "final_weight_g": final_weight,
+        "drips_g": final_weight - stop_weight,
+        "pump_running_s": times[stop] - times[pump_first] if stop is not None and pump_first is not None else nan,
+        "drop_to_stop_s": times[stop] - times[drop] if stop is not None and drop is not None else nan,
+        "plateau": puck_resistance(samples, target_pressure_bar),
+        "arrivals_s": arrivals,
+        "thermal": {
+            "start_c": next((value for value in temperatures if math.isfinite(value)), nan),
+            "filling_delta_c": at(temperatures, preinfusion) - at(temperatures, filling),
+            "preinfusion_delta_c": at(temperatures, first) - at(temperatures, preinfusion),
+            "infusion_start_c": at(temperatures, first), "stop_c": at(temperatures, stop),
+            "pump_drop_c": max(0.0, shot["start_temperature_c"] - shot["min_temperature_c"])
+            if math.isfinite(shot["start_temperature_c"] - shot["min_temperature_c"]) else nan,
+            "pump_min_c": shot["min_temperature_c"], "pump_max_c": shot["max_temperature_c"],
+            "cup_mean_c": shot["cup_mean_c"], "setpoint_c": setpoint, "setpoint_source": setpoint_source,
+            "cup_mean_delta_c": shot["cup_mean_c"] - setpoint},
+        "dose_g": dose if dose else nan, "dose_source": "--dose-g" if dose_given else "profil",
+        "ratio": ratio, "profile_dose_g": profile_dose_g(capture),
+        "rinse_pressure_max_bar": number(rinses[-1][1].get("pressure_max_bar")) if rinses else nan,
+        "ntc_open_c": number(session.get("ntc_open_c")),
+    }
+
+
+def journal_rows(measures: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """Mesures du journal en lignes (groupe, libellé, valeur), pour le texte et le HTML."""
+    m = measures
+
+    def sec(value: Any) -> str:
+        return fmt(value, 2, " s")
+
+    def sign(value: Any, suffix: str = " °C") -> str:
+        number_value = number(value)
+        return fmt(value, 2, suffix) if not math.isfinite(number_value) else f"{number_value:+.2f}{suffix}"
+
+    drop, reached, peak, span = m["drop"], m["reached"], m["peak"], m["from_threshold"]
+    thermal, plateau = m["thermal"], m["plateau"]
+    rows = [
+        ("Repères", "début de l'infusion", sec(m["infusion_start_s"])),
+        ("Repères", "arrêt de la pompe", sec(m["stop_s"])),
+        ("Première goutte", "instant (poids ≥ 0,3 g)", sec(drop["t_s"])),
+        ("Première goutte", "depuis le début de l'infusion", sec(drop["since_s"])),
+        ("Première goutte", "pression", fmt(drop["pressure_bar"], 2, " bar")),
+        ("Première goutte", "volume amont", fmt(drop["volume_ml"], 1, " ml")),
+        (f"Seuil {m['threshold_bar']:g} bar", "instant", sec(reached["t_s"])),
+        (f"Seuil {m['threshold_bar']:g} bar", "depuis le début de l'infusion", sec(reached["since_s"])),
+        (f"Seuil {m['threshold_bar']:g} bar", "poids en tasse", fmt(reached["weight_g"], 1, " g")),
+        (f"Seuil {m['threshold_bar']:g} bar", "pression maximale en infusion", fmt(peak["pressure_bar"], 2, " bar")),
+        (f"Seuil {m['threshold_bar']:g} bar", "instant de la pression maximale", sec(peak["t_s"])),
+        (f"Du seuil {m['threshold_bar']:g} bar à l'arrêt", "durée", sec(span["duration_s"])),
+        (f"Du seuil {m['threshold_bar']:g} bar à l'arrêt", "débit en tasse", fmt(span["cup_g_s"], 2, " g/s")),
+        (f"Du seuil {m['threshold_bar']:g} bar à l'arrêt", "débit amont", fmt(span["ml_s"], 2, " ml/s")),
+        ("Poids", "à l'arrêt de la pompe", fmt(m["stop_weight_g"], 1, " g")),
+        ("Poids", "final", fmt(m["final_weight_g"], 1, " g")),
+        ("Poids", "gouttes après l'arrêt", fmt(m["drips_g"], 1, " g")),
+        ("Poids", "pompe en marche", sec(m["pump_running_s"])),
+        ("Poids", "première goutte → arrêt de la pompe", sec(m["drop_to_stop_s"])),
+        ("Plateau", "résistance",
+         resistance_text(plateau, m["dose_g"] if math.isfinite(m["dose_g"]) else None, m["profile_dose_g"])
+         if plateau else "—"),
+    ]
+    rows += [("Arrivée en tasse", f"{grams} g, depuis le début de l'infusion", sec(value))
+             for grams, value in m["arrivals_s"].items()]
+    rows += [
+        ("Thermique", "NTC au début de la capture", fmt(thermal["start_c"], 2, " °C")),
+        ("Thermique", "Δ NTC pendant le remplissage", sign(thermal["filling_delta_c"])),
+        ("Thermique", "Δ NTC pendant la préinfusion", sign(thermal["preinfusion_delta_c"])),
+        ("Thermique", "NTC au début de l'infusion", fmt(thermal["infusion_start_c"], 2, " °C")),
+        ("Thermique", "NTC à l'arrêt de la pompe", fmt(thermal["stop_c"], 2, " °C")),
+        ("Thermique", "baisse pompe en marche", fmt(thermal["pump_drop_c"], 2, " °C")),
+        ("Thermique", "min–max pompe en marche",
+         f"{fmt(thermal['pump_min_c'], 2)}–{fmt(thermal['pump_max_c'], 2)} °C"),
+        ("Thermique", "moyenne en tasse", fmt(thermal["cup_mean_c"], 2, " °C")),
+        ("Thermique", f"écart à la consigne {fmt(thermal['setpoint_c'], 1)} °C ({thermal['setpoint_source']})",
+         sign(thermal["cup_mean_delta_c"])),
+        ("Ratio", f"poids final / dose ({fmt(m['dose_g'], 1, ' g')}, {m['dose_source']})", fmt(m["ratio"], 2)),
+    ]
+    if math.isfinite(m["rinse_pressure_max_bar"]) or math.isfinite(m["ntc_open_c"]):
+        rows += [("Session guidée", "pression maximale au rinçage", fmt(m["rinse_pressure_max_bar"], 2, " bar")),
+                 ("Session guidée", "NTC à l'ouverture du guide", fmt(m["ntc_open_c"], 2, " °C"))]
+    return rows
+
+
+def journal_phase_lines(measures: dict[str, Any]) -> list[str]:
+    return [f"phase {row['phase']} : début {fmt(row['start_s'])} s, durée {fmt(row['duration_s'])} s, "
+            f"Δvolume {fmt(row['volume_ml'], 1)} ml, débit {fmt(row['flow_ml_s'])} ml/s, "
+            f"pression {fmt(row['pressure_start_bar'])} → {fmt(row['pressure_end_bar'])} bar "
+            f"(max {fmt(row['pressure_max_bar'])})" for row in measures["phases"]]
+
+
+def journal_text(measures: dict[str, Any]) -> str:
+    """Bloc texte des mesures du journal, une mesure par ligne."""
+    lines = ["mesures du journal :", *("  " + line for line in journal_phase_lines(measures))]
+    lines += [f"  {group} · {label} : {value}" for group, label, value in journal_rows(measures)]
+    return "\n".join(lines)
+
+
+def journal_section(measures: dict[str, Any]) -> str:
+    """Section HTML « Mesures du journal »."""
+    phase_rows = "".join(
+        f"<tr><th scope=\"row\">{html.escape(row['phase'])}</th><td>{fmt(row['start_s'])} s</td>"
+        f"<td>{fmt(row['duration_s'])} s</td><td>{fmt(row['volume_ml'], 1)} ml</td>"
+        f"<td>{fmt(row['flow_ml_s'])} ml/s</td>"
+        f"<td>{fmt(row['pressure_start_bar'])} → {fmt(row['pressure_end_bar'])} bar "
+        f"(max {fmt(row['pressure_max_bar'])})</td></tr>" for row in measures["phases"])
+    groups: dict[str, list[str]] = {}
+    for group, label, value in journal_rows(measures):
+        groups.setdefault(group, []).append(
+            f"<tr><th scope=\"row\">{html.escape(label)}</th><td>{html.escape(value)}</td></tr>")
+    tables = "".join(
+        f"<h3>{html.escape(group)}</h3><div class=\"table-wrap\"><table style=\"min-width:0\">"
+        f"<tbody>{''.join(rows)}</tbody></table></div>" for group, rows in groups.items())
+    return f"""
+  <section aria-labelledby="journal-title">
+    <h2 id="journal-title">Mesures du journal</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Phase</th><th>Début</th><th>Durée</th><th>Δ volume</th><th>Débit</th><th>Pression début → fin</th></tr></thead>
+      <tbody>{phase_rows}</tbody>
+    </table></div>
+    {tables}
+  </section>
+"""
+
+
 def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: float = 2.0,
-                  target_pressure_bar: float = 9.0) -> str:
+                  target_pressure_bar: float = 9.0, dose_g: float | None = None) -> str:
     samples: list[dict[str, Any]] = capture["samples"]
     if not samples:
         raise RuntimeError("la capture ne contient aucun échantillon")
@@ -1053,6 +1384,8 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
         hero_cards.append(metric_card("SCACE en tasse", f"{fmt(scace_cup[1])} °C",
                                       f"sonde du panier pondérée par la tasse, {fmt(scace_cup[0], 1)} g"))
     diagnostic_cards = [
+        resistance_card(puck_resistance(samples, target_pressure_bar), target_pressure_bar,
+                        dose_g, profile_dose_g(capture)),
         metric_card("Débit tasse", f"{fmt(cup_flow_average)} / {fmt(cup_flow_max)} g/s",
                     f"moyen / maximum avant stop, lissé sur {weight_flow_window_s:g} s"),
         metric_card("Pression maximale", f"{fmt(pressure_max[0])} bar" if pressure_max else "—",
@@ -1119,11 +1452,12 @@ def render_report(capture: dict[str, Any], source: Path, weight_flow_window_s: f
     <div class="metrics hero-metrics">{''.join(hero_cards)}</div>
     <div class="metrics">{''.join(diagnostic_cards)}</div>
   </header>
+{journal_section(journal_measures(capture, target_pressure_bar, dose_g))}
 {guided_session_block(capture)}
   <section aria-labelledby="graph-title">
     <h2 id="graph-title">Mesures</h2>
     <p><small>Survolez pour lire les valeurs, tirez horizontalement pour zoomer et double-cliquez pour réinitialiser. Les segments rouges pointillés relient deux mesures de pression valides séparées par une indisponibilité ; ils ne représentent pas des mesures intermédiaires. Les légendes sont cliquables.</small></p>
-    <div class="plot">{interactive_plot(capture, weight_flow_window_s)}</div>
+    <div class="plot">{interactive_plot(capture, weight_flow_window_s, target_pressure_bar)}</div>
   </section>
 
   <section aria-labelledby="reading-title">
@@ -1181,17 +1515,24 @@ def main(argv: Iterable[str] | None = None) -> int:
                         help="fenêtre centrée du débit balance, en secondes (défaut : 2)")
     parser.add_argument("--target-pressure-bar", type=float, default=9.0,
                         help="pression cible de la recette ; l'infusion part de cette valeur − 1 bar (défaut : 9)")
+    parser.add_argument("--dose-g", type=float,
+                        help="dose pesée ; ramène la résistance à la dose du profil")
     args = parser.parse_args(argv)
     output = args.output or args.capture.with_suffix(".html")
     try:
         capture = validate_capture(json.loads(args.capture.read_text(encoding="utf-8")))
-        report = render_report(capture, args.capture, args.weight_flow_window_s, args.target_pressure_bar)
+        report = render_report(capture, args.capture, args.weight_flow_window_s, args.target_pressure_bar,
+                               args.dose_g)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(report, encoding="utf-8")
     except (OSError, json.JSONDecodeError, RuntimeError, ValueError) as error:
         print(f"erreur: {error}", file=sys.stderr)
         return 1
     print(f"rapport écrit dans {output}")
+    plateau = puck_resistance(capture["samples"], args.target_pressure_bar)
+    print("résistance au plateau : " + (resistance_text(plateau, args.dose_g, profile_dose_g(capture))
+                                        if plateau else "pas de plateau mesurable"))
+    print(journal_text(journal_measures(capture, args.target_pressure_bar, args.dose_g)))
     return 0
 
 

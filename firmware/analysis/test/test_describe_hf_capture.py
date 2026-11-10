@@ -230,3 +230,126 @@ def test_report_has_no_enclosure_card_without_a_reading():
 
     for extra in ({}, {"enclosure": None}):
         assert "Boîtier de l’écran" not in render_report(_guided_capture(**extra), Path("brew.json"))
+
+
+def test_puck_resistance_spans_the_settled_plateau_to_the_pump_stop():
+    from describe_hf_capture import puck_resistance, scaled_resistance
+
+    def sample(t):
+        mode = "preinfusion" if t < 10 else "infusion" if t < 30 else "purge"
+        return {"t_ms": round(t * 1000), "mode": mode, "flags": 0x0F,
+                "pump_pct_reported": 70 if t < 30 else 0,
+                "pressure_bar": 1.0 if t < 10 else min(9.0, 1.0 + (t - 10) * 2),
+                "weight_g": max(0.0, t - 10) * 1.5, "volume_ml": t * 1.6}
+
+    plateau = puck_resistance([sample(i / 10) for i in range(351)])
+    assert abs(plateau["start_s"] - 15.5) < 1e-6 and abs(plateau["end_s"] - 29.9) < 1e-6
+    assert abs(plateau["pressure_bar"] - 9.0) < 1e-6 and abs(plateau["cup_g_s"] - 1.5) < 1e-6
+    assert abs(plateau["resistance_bar_s_g"] - 6.0) < 1e-6
+    assert abs(scaled_resistance(6.0, 7.2, 7.5) - 6.25) < 1e-9
+    assert scaled_resistance(6.0, None, 7.5) is None
+
+
+def test_puck_resistance_needs_the_plateau_pressure():
+    from describe_hf_capture import puck_resistance
+
+    samples = [{"t_ms": i * 100, "mode": "infusion", "flags": 0x0F, "pump_pct_reported": 70,
+                "pressure_bar": 5.0, "weight_g": i * 0.1, "volume_ml": i * 0.1} for i in range(200)]
+    assert puck_resistance(samples) is None
+
+
+def _journal_capture(**extra):
+    def sample(t):
+        mode = ("thermal_preheat" if t < 2 else "filling" if t < 5 else "preinfusion" if t < 8
+                else "infusion" if t < 30 else "purge")
+        weight = max(0.0, t - 9) * 1.0 if t < 30 else 21.0 + min(t - 30, 2) * 0.5
+        return {"t_ms": round(t * 1000), "mode": mode, "flags": 0x0F,
+                "pump_pct_reported": 70 if 2 <= t < 30 else 0,
+                "pressure_bar": 1.0 if t < 8 else min(9.0, 1.0 + (t - 8) * 2),
+                "weight_g": weight, "volume_ml": t * 1.5,
+                "boiler_temperature_c": 90.0 + (1.0 if t >= 5 else 0.0) - (0.5 if t >= 8 else 0.0)}
+
+    return {"schema": "coffeeflow.hf_capture.v2", "origin": "brew",
+            "samples": [sample(i / 10) for i in range(341)],
+            "started_at_us": 0, "ended_at_us": 34_000_000, **extra}
+
+
+def test_journal_measures_follow_the_journal_definitions():
+    from describe_hf_capture import journal_measures
+
+    m = journal_measures(_journal_capture(profile={"dose_g": 7.0, "heating": {"brew_temperature_c": 90.0}}))
+    assert [row["phase"] for row in m["phases"]] == ["chauffe", "remplissage", "pré-infusion", "infusion"]
+    assert abs(m["phases"][3]["start_s"] - 8.0) < 1e-9 and abs(m["phases"][3]["duration_s"] - 22.0) < 1e-9
+    assert abs(m["phases"][3]["flow_ml_s"] - 1.5) < 1e-6 and abs(m["phases"][3]["pressure_max_bar"] - 9.0) < 1e-9
+    assert abs(m["infusion_start_s"] - 8.0) < 1e-9 and abs(m["stop_s"] - 30.0) < 1e-9
+    assert abs(m["drop"]["t_s"] - 9.3) < 1e-9 and abs(m["drop"]["since_s"] - 1.3) < 1e-9
+    assert abs(m["drop"]["pressure_bar"] - 3.6) < 1e-9 and abs(m["drop"]["volume_ml"] - 13.95) < 1e-9
+    assert abs(m["reached"]["t_s"] - 11.5) < 1e-9 and abs(m["reached"]["since_s"] - 3.5) < 1e-9
+    assert abs(m["reached"]["weight_g"] - 2.5) < 1e-9
+    assert abs(m["peak"]["pressure_bar"] - 9.0) < 1e-9 and abs(m["peak"]["t_s"] - 12.0) < 1e-9
+    assert abs(m["from_threshold"]["duration_s"] - 18.5) < 1e-9
+    assert abs(m["from_threshold"]["cup_g_s"] - 1.0) < 1e-6 and abs(m["from_threshold"]["ml_s"] - 1.5) < 1e-6
+    assert abs(m["stop_weight_g"] - 21.0) < 1e-9 and abs(m["final_weight_g"] - 22.0) < 1e-9
+    assert abs(m["drips_g"] - 1.0) < 1e-9
+    assert abs(m["pump_running_s"] - 28.0) < 1e-9 and abs(m["drop_to_stop_s"] - 20.7) < 1e-9
+    assert m["plateau"] is not None and abs(m["plateau"]["resistance_bar_s_g"] - 9.0) < 1e-6
+    assert [round(v, 2) for v in m["arrivals_s"].values()] == [2.0, 6.0, 11.0, 19.0]
+    thermal = m["thermal"]
+    assert abs(thermal["start_c"] - 90.0) < 1e-9 and abs(thermal["filling_delta_c"] - 1.0) < 1e-9
+    assert abs(thermal["preinfusion_delta_c"] + 0.5) < 1e-9
+    assert abs(thermal["infusion_start_c"] - 90.5) < 1e-9 and abs(thermal["stop_c"] - 90.5) < 1e-9
+    assert thermal["setpoint_source"] == "profil" and abs(thermal["setpoint_c"] - 90.0) < 1e-9
+    assert abs(thermal["cup_mean_delta_c"] - (thermal["cup_mean_c"] - 90.0)) < 1e-9
+    assert m["dose_source"] == "profil" and abs(m["ratio"] - 22.0 / 7.0) < 1e-9
+
+
+def test_journal_dose_option_overrides_the_profile_dose():
+    from describe_hf_capture import journal_measures
+
+    m = journal_measures(_journal_capture(profile={"dose_g": 7.0}), dose_g=8.0)
+    assert m["dose_source"] == "--dose-g" and abs(m["ratio"] - 22.0 / 8.0) < 1e-9
+
+
+def test_journal_tolerates_missing_profile_session_and_infusion():
+    from pathlib import Path
+    from describe_hf_capture import journal_measures, journal_rows, journal_text, render_report
+
+    m = journal_measures(_journal_capture())
+    assert math.isnan(m["ratio"]) and m["thermal"]["setpoint_source"] == "—"
+    assert math.isnan(m["rinse_pressure_max_bar"])
+    assert not any(group == "Session guidée" for group, _label, _value in journal_rows(m))
+    empty = journal_measures(_guided_capture())
+    assert math.isnan(empty["stop_s"]) and empty["plateau"] is None
+    assert "—" in journal_text(empty)
+    assert "Mesures du journal" in render_report(_guided_capture(), Path("brew.json"))
+
+
+def test_journal_text_is_one_measure_per_line_and_adds_the_session_values():
+    from describe_hf_capture import journal_measures, journal_text
+
+    text = journal_text(journal_measures(_journal_capture(session=GUIDED_SESSION), dose_g=7.0))
+    lines = text.splitlines()
+    assert lines[0] == "mesures du journal :"
+    assert "  Première goutte · depuis le début de l'infusion : 1.30 s" in lines
+    assert "  Seuil 8 bar · poids en tasse : 2.5 g" in lines
+    assert "  Poids · gouttes après l'arrêt : 1.0 g" in lines
+    assert "  Ratio · poids final / dose (7.0 g, --dose-g) : 3.14" in lines
+    assert "  Session guidée · pression maximale au rinçage : 0.50 bar" in lines
+    assert "  Session guidée · NTC à l'ouverture du guide : 88.10 °C" in lines
+
+
+def test_report_has_the_journal_section_and_the_resistance_trace():
+    from pathlib import Path
+    from describe_hf_capture import render_report
+
+    capture = _journal_capture(session=GUIDED_SESSION)
+    page = render_report(capture, Path("brew.json"))
+    assert "Mesures du journal" in page and "Pression max" in page and "ouverture" in page
+    plot = json.loads(re.search(r"const plot = (\{.*?\});", page).group(1))
+    traces = {trace["name"]: trace for trace in plot["traces"]}
+    resistance = traces["résistance"]
+    assert resistance["yaxis"] == "y9" and "yaxis9" in plot["layout"]
+    values = [(x, y) for x, y in zip(resistance["x"], resistance["y"]) if y is not None]
+    assert values and all(8.0 <= x < 30.0 for x, _y in values)
+    assert all(abs(y - 9.0) < 0.5 for x, y in values if 15 < x < 28)
+    assert traces["résistance · plateau"]["line"]["dash"] == "dash"

@@ -53,6 +53,9 @@ sensors + RBDimmer + M5Stack SSR. Pump interface: `docs/pompe-engrenage.md`,
 ## Firmware
 
 - [ ] LEDC PWM on GPIO1 at 1 kHz, 16 bits; 0 at boot.
+- [ ] Setpoint to duty by linear interpolation in the table measured on
+      the board (`combined_design.md`, Gear pump interface), as a fraction
+      of Vmax.
 - [ ] PCNT on GPIO3 (inverted signal), with glitch filter; 2 pulses per
       turn, speed from the period between edges.
 - [ ] Fault detection and re-arm (setpoint 0 for ≥ 10 ms).

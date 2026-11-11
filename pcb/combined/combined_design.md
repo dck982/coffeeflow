@@ -285,8 +285,24 @@ Setpoint (U8):
   is close to a 10 kΩ potentiometer at mid travel (2.5 kΩ).
 - U8 off, R35 brings the setpoint to green: 0 at power-up, during a reset,
   with the XIAO absent or the firmware stopped.
-- The PWM bends the setpoint near the ends, monotonically: the speed is read
-  back on the tachometer.
+- **The setpoint is not linear in the duty cycle.** Measured on the board on
+  November 11, 2026, J9 yellow on the board +5V (5.16 V), SPEED_P with no
+  pump, PWM at 1 kHz:
+
+  | Duty | 0 % | 0.1 % | 0.3 % | 0.5 % | 1 % | 2 % | 3.09 % | 7.79 % | 15.77 % | 32.37 % | 50 % | 87.87 % | 100 % |
+  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+  | SPEED_P (V) | 0 | 0.071 | 0.318 | 0.576 | 1.045 | 1.481 | 1.727 | 2.455 | 3.240 | 4.09 | 4.55 | 5.02 | 5.09 |
+
+  Two effects add up. C20 charges through R36 alone (1.5 kΩ) while U8
+  conducts, but discharges through R36 + R35 (11.5 kΩ) while it is off: for
+  a duty D, V = Vmax × k·D / (1 + (k − 1)·D) with k = 11.5 / 1.5 ≈ 7.7.
+  U8 also stays on after its LED goes off, which lengthens each pulse: about
+  1 µs for a 1 µs pulse, 11 µs at 5 µs, then 24 to 31 µs from 20 µs on.
+  The curve is monotonic over the whole range, from 0.07 V to 5.09 V, and
+  0 % gives exactly 0 V. The firmware maps a setpoint to a duty by linear
+  interpolation in this table, as a fraction of Vmax (the pump's yellow wire
+  gives 4.98 V, not 5.16 V), and the speed is read back on the tachometer.
+  The fall time is about 25 ms (11.5 kΩ × 2.2 µF), not 10 ms.
 
 Tachometer (U9):
 
@@ -484,6 +500,27 @@ When laying out the PCB:
   the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
   mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
+- **Next board revision: make the setpoint linear.** R36 / R35 make the
+  charge and discharge paths unequal, and U8 lengthens each pulse by up to
+  31 µs (see "Gear pump interface"). The board in service keeps the current
+  values, and the firmware compensates with the measured table; the
+  schematic stays as built until a new revision is ordered. Two approaches,
+  chosen at design time from the space on the board and the parts JLCPCB
+  stocks:
+  - **A, values only, same footprints**: R35 1 kΩ, R36 / R37 10 kΩ,
+    C20 / C21 220 nF (48 Hz kept). k drops from 7.7 to 1.1, and the 1 kΩ
+    load should also make U8 turn off much faster (not measured). The
+    yellow wire supplies 5 mA more at full setpoint, about 7 mA with the
+    tachometer; its regulation was only checked up to 5 mA, so measure it
+    at 7 mA first. The 20 kΩ source against the pump's 176 kΩ pull-down
+    lowers the setpoint by about 10 %, proportionally, read back on the
+    tachometer. A small residual non-linearity remains at very low duty.
+  - **B, dual-channel digital isolator** (ISO7721 type, one channel each
+    way) in place of U8 and U9: push-pull output powered from the yellow
+    wire into the same symmetric RC filter, so V = D × V_yellow exactly; the
+    tachometer goes back through the second channel. New footprint, about
+    2 to 4 mA from the yellow wire, part availability at JLCPCB to check.
+  Either way, the firmware table is measured again on the new board.
 - Pump interface value to check: the start threshold and the low end of
   the setpoint-to-speed curve, below 1.2 V (measured: about 1 000 rpm per
   volt from 1.2 to 5 V).

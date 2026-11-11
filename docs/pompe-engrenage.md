@@ -165,8 +165,8 @@ sans avoir à le mesurer avant de commander la carte.
   volt, repris dans [Courbes débit-pression](#courbes-débit-pression).
   **Mesuré : ≈ 1 000 tr/min par volt**, 1 168 tr/min à 1,195 V et
   4 827 tr/min à 4,98 V (voir [Relevés à réception](#relevés-à-réception)).
-- Consigne plafonnée vers 3,6 V (3 600 tr/min) tant que le Digmesa est dans
-  le circuit (voir [Débitmètre](#débitmètre)), à recaler sur la vitesse lue.
+- Pas de plafond lié au Digmesa : la consigne va jusqu'à 4,5 V (4 500 tr/min),
+  le maximum retenu pour la pompe (voir [Débitmètre](#débitmètre)).
 - **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
   - Côté XIAO : la LED est commandée directement par le GPIO, 330 Ω, soit
     (3,3 − 1,2) / 330 ≈ 6 mA. 100 kΩ du GPIO à la masse.
@@ -179,8 +179,17 @@ sans avoir à le mesurer avant de commander la carte.
     temps de réponse ≈ 10 ms. Le LEDC donne 16 bits à 1 kHz.
   - Impédance de source ≈ 3 kΩ, proche d'un potentiomètre de 10 kΩ à mi-course
     (2,5 kΩ).
-  - Le PWM déforme la consigne aux extrêmes, de façon monotone : la vitesse
-    est relue sur le tachymètre.
+  - **La consigne n'est pas linéaire en rapport cyclique** (mesuré sur la
+    carte le 11 novembre 2026, PWM à 1 kHz, sans pompe) : 0,1 % donne
+    0,071 V, 1 % donne 1,045 V, 3,09 % donne 1,727 V, 50 % donne 4,55 V et
+    100 % donne 5,09 V. Le condensateur se charge par 1,5 kΩ quand l'opto
+    conduit, mais se décharge par 1,5 + 10 kΩ quand il est bloqué, et l'opto
+    allonge chaque impulsion de 24 à 31 µs dès 20 µs. La courbe reste
+    monotone de 0,07 à 5,09 V, et 0 % donne 0 V. Le firmware interpole dans
+    la table mesurée (`pcb/combined/combined_design.md`, Gear pump
+    interface). La descente prend ≈ 25 ms. La vitesse est relue sur le
+    tachymètre. La prochaine révision de la carte doit rendre la consigne
+    linéaire (même document, Open points).
 - **Consigne à 0 sans commande** : LED éteinte, les 10 kΩ ramènent la
   consigne au vert. C'est le cas à la mise sous tension, pendant un reset,
   XIAO absent ou firmware arrêté.
@@ -813,9 +822,25 @@ pose trois limites :
   non compris : elle caviterait et dégazerait l'eau, et les bulles faussent
   le Digmesa.
 
-**Règle** : plafonner la vitesse à **3 600 tr/min** (6 ml/s théoriques, soit
-0,36 L/min, ≈ 0,39 bar de perte de charge) tant que le Digmesa est dans le
-circuit. Ce plafond couvre le remplissage actuel (3,6 ml/s).
+**Règle** : pas de plafond de vitesse imposé par le Digmesa ; la pompe peut
+monter jusqu'à son maximum de 4 500 tr/min. Le débit se lit sur le
+tachymètre (impulsions / 2 × 0,1 ml, moins le glissement). Le Digmesa sert
+surtout à mesurer les pertes de la pompe (voir
+[Calibration du glissement](#calibration-du-glissement)), et il n'a jamais
+été très précis : au-dessus de 0,40 L/min, ses impulsions sont encore
+comptées, mais la dérive de linéarité les rend inutilisables pour la
+calibration. Les échantillons au-dessus de 0,40 L/min sont exclus du calcul
+du glissement.
+
+Les deux autres limites restent à surveiller, sans plafond par défaut :
+
+- **Usure de la turbine** : 0,40 L/min est la limite du service continu. Les
+  dépassements sont brefs (turbo shot, purge rapide).
+- **Perte de charge à l'aspiration** : ≈ 0,39 bar à 3 600 tr/min et
+  ≈ 0,6 bar à 4 500 tr/min à 0 bar, contre −0,85 bar au plus pour la
+  pompe. Si une purge rapide fait apparaître des bulles ou un écart entre
+  tachymètre et Digmesa qui grandit pendant la marche, c'est la cavitation :
+  baisser la vitesse de la purge.
 
 ### Pression
 

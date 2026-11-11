@@ -521,6 +521,18 @@ When laying out the PCB:
     tachometer goes back through the second channel. New footprint, about
     2 to 4 mA from the yellow wire, part availability at JLCPCB to check.
   Either way, the firmware table is measured again on the new board.
+- **Next board revision: put L1 against U10's SW pin**, as in figure 10-2
+  of the LMR33630 datasheet. On the board in service, the SW node is a
+  9.5 mm, 0.8 mm wide track from U10 pin 8 to L1 pin 1, about three times
+  TI's length, with a 1.5 mm, 0.2 mm branch to C7 halfway. C7 (BOOT) and
+  C16 (VCC) sit between U10 and L1 and push L1 away: on the next layout they
+  go beside U10, next to pins 7 and 6, as CBOOT and CVCC in TI's figure, and
+  L1 comes down against pin 8. It does not change regulation or efficiency (about
+  10 nH in series with 10 µH), only radiation and ringing on the switching
+  edges, over the bottom GND plane. Nothing sensitive is within 3 mm of it;
+  the CAN transceiver is about 22 mm away and the ADS1115 about 45 mm. The
+  input loop (C5 at 2.3 mm from VIN and GND) and the thermal vias already
+  follow TI.
 - Pump interface value to check: the start threshold and the low end of
   the setpoint-to-speed curve, below 1.2 V (measured: about 1 000 rpm per
   volt from 1.2 to 5 V).

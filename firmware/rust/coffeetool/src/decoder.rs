@@ -125,10 +125,7 @@ fn format_log(p: &LogPayload) -> String {
             "{name} [{severity}] vitesse={}tr/min pression_brute={}",
             p.arg16, p.arg32 as u16 as i16
         ),
-        "LEGACY_COMMAND_IGNORED" => format!(
-            "{name} [{severity}] type={:#04x}",
-            p.arg16
-        ),
+        "LEGACY_COMMAND_IGNORED" => format!("{name} [{severity}] type={:#04x}", p.arg16),
         "BOILER_ADC_RECOVERED" => format!(
             "{name} [{severity}] adresse={:#04x} interruption={}ms",
             p.arg16, p.arg32

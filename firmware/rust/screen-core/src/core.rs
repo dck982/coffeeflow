@@ -42,9 +42,8 @@
 use alloc::vec::Vec;
 
 use protocol::messages::{
-    ConfirmSensorsOtaPayload, FlashCtrlPayload, LogPayload,
-    MaintenanceValvePayload, NodeIdentityPayload, ReqStatusPayload, SetHeatingPayload,
-    SetHeatingPowerPayload, SetPayload,
+    ConfirmSensorsOtaPayload, FlashCtrlPayload, LogPayload, MaintenanceValvePayload,
+    NodeIdentityPayload, ReqStatusPayload, SetHeatingPayload, SetHeatingPowerPayload, SetPayload,
 };
 use protocol::{
     Dest, FIRMWARE_VERSION, Frame, LogCode, LogSeverity, Message, MessageType, Node,
@@ -743,10 +742,7 @@ impl<S: ConfigStore> Core<S> {
         } else {
             self.note_hf_capture_stop_request();
         }
-        self.emit(Message::Set(SetPayload {
-            pump_pct,
-            ttl_ms,
-        }));
+        self.emit(Message::Set(SetPayload { pump_pct, ttl_ms }));
     }
 
     fn send_maintenance_valve(&mut self, open: bool) {

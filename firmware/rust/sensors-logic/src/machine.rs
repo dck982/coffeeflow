@@ -373,7 +373,7 @@ impl<H: Hw> Machine<H> {
             flags |= StatusActuatorsPayload::FLAG_MAINTENANCE_VALVE_OPEN;
         }
         let payload = StatusActuatorsPayload {
-            valve_open: self.valve_open,
+            valve_open: self.valve_output(),
             pump_pct: self.pump_pct,
             lease_remaining_ms: lease_remaining.min(0xFFFF) as u16,
             continuous_on_ms: continuous_ms.min(0xFFFF) as u16,
@@ -484,7 +484,16 @@ impl<H: Hw> Machine<H> {
     // -------------------------------------------------------------- sorties
 
     fn apply_valve(&mut self) {
-        self.hw.set_valve(self.valve_open);
+        let open = self.valve_output();
+        self.hw.set_valve(open);
+    }
+
+    /// État réel de la vanne : celle que l'écran commande, sauf pendant un
+    /// cycle dont la pompe est en défaut. La pompe ne repartira pas avant le
+    /// prochain cycle, donc la vanne se ferme avec elle. La vidange (pompe à
+    /// 0) n'est pas concernée.
+    fn valve_output(&self) -> bool {
+        self.valve_open && !(self.pump_latched() && self.commanded_pct() > 0)
     }
 
     fn force_heating_off(&mut self) {
@@ -579,8 +588,8 @@ impl<H: Hw> Machine<H> {
         }
     }
 
-    /// Coupe la pompe sur défaut et verrouille `fault` jusqu'au prochain
-    /// SET parti de 0.
+    /// Coupe la pompe et ferme la vanne sur défaut, et verrouille `fault`
+    /// jusqu'au prochain SET parti de 0.
     fn trip_pump(&mut self, fault: LogCode, arg16: u16, arg32: u32) {
         match fault {
             LogCode::PumpDry => self.pump_dry = true,
@@ -588,6 +597,7 @@ impl<H: Hw> Machine<H> {
         }
         self.pump_fault_cut_us = self.hw.now_us();
         self.apply_pump();
+        self.apply_valve();
         self.send_log(fault, LogSeverity::Error, arg16, arg32);
         self.send_status_actuators();
     }
@@ -792,10 +802,12 @@ impl<H: Hw> Machine<H> {
         // maintenance.
         self.end_maintenance_valve(MaintenanceValveClose::BrewSet);
         // Le niveau est l'intention reçue ; la vanne s'ouvre avec la pompe.
+        // La pompe d'abord : un cycle qui part de 0 y lève les défauts, et la
+        // vanne d'un cycle en défaut reste fermée.
         self.valve_open = payload.pump_pct > 0;
         self.pump_pct = payload.pump_pct;
-        self.apply_valve();
         self.apply_pump();
+        self.apply_valve();
         let ttl_us = if payload.ttl_ms == 0 {
             LEASE_DEFAULT_US
         } else {

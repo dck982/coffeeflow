@@ -167,6 +167,10 @@ sans avoir à le mesurer avant de commander la carte.
   4 827 tr/min à 4,98 V (voir [Relevés à réception](#relevés-à-réception)).
 - Pas de plafond lié au Digmesa : la consigne va jusqu'à 4,5 V (4 500 tr/min),
   le maximum retenu pour la pompe (voir [Débitmètre](#débitmètre)).
+  Sur combined, 4,5 V correspond à un rapport cyclique de ≈ 65,5 % : le
+  rapport cyclique plein donne ≈ 4,83 V, soit ≈ 4 800 tr/min. Il reste
+  donc ≈ 7 % de débit disponible sans toucher à la carte, en relevant
+  `PUMP_MAX_RPM` dans le firmware.
 - **Montage sur combined v2 : PWM à travers un optocoupleur EL817C.**
   - Côté XIAO : la LED est commandée directement par le GPIO, 330 Ω, soit
     (3,3 − 1,2) / 330 ≈ 6 mA. 100 kΩ du GPIO à la masse.

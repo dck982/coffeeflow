@@ -348,6 +348,7 @@ fn set_opens_valve_and_pump_then_the_lease_cuts_both() {
 #[test]
 fn set_with_zero_ttl_uses_the_500_ms_default_and_renewals_extend() {
     let mut m = present();
+    m.hw.tach_rpm = 2250;
     set(&mut m, 50, 0);
     assert_eq!(last_actuators(&m).lease_remaining_ms, 500);
     advance(&mut m, 400 * MS, true);
@@ -514,6 +515,7 @@ fn silence_probes_three_times_then_declares_presence_lost() {
 #[test]
 fn presence_lost_after_silence_cuts_outputs_and_logs_once() {
     let mut m = present();
+    m.hw.tach_rpm = 3150;
     set(&mut m, 70, 5000);
     heating_power(&mut m, 500, false);
     m.hw.sent.clear();
@@ -1057,7 +1059,7 @@ fn every_cut_path_sets_the_duty_to_zero() {
 }
 
 #[test]
-fn a_silent_tachometer_cuts_the_pump_and_latches_the_fault() {
+fn a_silent_tachometer_cuts_the_pump_closes_the_valve_and_latches_the_fault() {
     let mut m = present();
     m.hw.tach_rpm = 0;
     set(&mut m, 50, 20_000);
@@ -1065,8 +1067,12 @@ fn a_silent_tachometer_cuts_the_pump_and_latches_the_fault() {
     advance(&mut m, 500 * MS, true);
     assert_eq!(m.hw.duty, pump_duty(50));
     assert!(!has_log(&m, LogCode::PumpFault));
+    assert!(m.hw.valve);
     advance(&mut m, 200 * MS, true);
     assert_eq!(m.hw.duty, 0);
+    // La pompe ne repartira pas de ce cycle : la vanne se ferme avec elle.
+    assert!(!m.hw.valve);
+    assert!(!last_actuators(&m).valve_open);
     assert_eq!(
         log_args(&m, LogCode::PumpFault),
         [(50, u32::from(pump_duty(50)))]
@@ -1076,10 +1082,12 @@ fn a_silent_tachometer_cuts_the_pump_and_latches_the_fault() {
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0x08);
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_PRESENT, 0x04);
 
-    // Verrouillé : les SET suivants ne relancent pas la pompe.
+    // Verrouillé : les SET suivants ne relancent pas la pompe ni ne
+    // rouvrent la vanne.
     set(&mut m, 50, 20_000);
     advance(&mut m, S, true);
     assert_eq!(m.hw.duty, 0);
+    assert!(!m.hw.valve);
     assert_eq!(log_args(&m, LogCode::PumpFault).len(), 1);
 
     // Le cycle fini, la pompe est de nouveau prête mais le défaut reste.
@@ -1092,7 +1100,9 @@ fn a_silent_tachometer_cuts_the_pump_and_latches_the_fault() {
     m.hw.tach_rpm = 2250;
     set(&mut m, 50, 20_000);
     assert_eq!(m.hw.duty, pump_duty(50));
+    assert!(m.hw.valve);
     let st = last_actuators(&m);
+    assert!(st.valve_open);
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0);
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0x02);
     advance(&mut m, 2 * S, true);
@@ -1152,13 +1162,16 @@ fn running_dry_cuts_the_pump_after_two_seconds() {
     let st = last_actuators(&m);
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0x08);
     assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0);
+    assert!(!m.hw.valve);
     // Verrouillée comme le défaut de tachymètre.
     set(&mut m, 50, 30_000);
     advance(&mut m, S, true);
     assert_eq!(m.hw.duty, 0);
+    assert!(!m.hw.valve);
     set(&mut m, 0, 500);
     set(&mut m, 50, 30_000);
     assert_eq!(m.hw.duty, pump_duty(50));
+    assert!(m.hw.valve);
 }
 
 #[test]

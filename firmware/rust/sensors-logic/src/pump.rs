@@ -13,7 +13,12 @@ pub const PUMP_DUTY_BITS: u32 = 14;
 /// accepte 0..=2^bits ; 0 est une sortie toujours basse, donc 0 V exact.
 pub const PUMP_DUTY_FULL: u16 = 1 << PUMP_DUTY_BITS;
 
-/// Vitesse maximale, que `pump_pct` = 100 % demande.
+/// Vitesse maximale, que `pump_pct` = 100 % demande : le maximum annoncé
+/// pour l'article. Elle ne demande que ≈ 65,5 % de rapport cyclique (4,5 V
+/// sur les [`PUMP_VMAX_V`] de la carte). Le rapport cyclique plein donne
+/// ≈ 4 800 tr/min : pour ces ≈ 7 % de débit en plus, relever cette vitesse
+/// et [`PUMP_RPM_PER_PCT`] ensemble (48 tr/min par %), ce qui change le sens
+/// des réglages en % de l'écran.
 pub const PUMP_MAX_RPM: u16 = 4500;
 /// Vitesse visée par pour cent de `pump_pct`, linéaire.
 pub const PUMP_RPM_PER_PCT: u16 = 45;

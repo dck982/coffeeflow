@@ -86,6 +86,8 @@ fn malformed_bodies_and_fields_have_cpp_errors() {
             r#"{"action":"set_brew_actuators","pump_pct":20.1,"ttl_ms":100}"#,
             "pump_pct",
         ),
+        // L'ancien champ `dimmer` de `set_actuators` n'existe plus.
+        (r#"{"action":"set_actuators","dimmer":20}"#, "dimmer"),
         (r#"{"action":"set_heating","on":true}"#, "duration_ms"),
         (
             r#"{"action":"set_heating","on":false,"duration_ms":100}"#,

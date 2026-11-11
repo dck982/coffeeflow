@@ -638,15 +638,9 @@ fn parse_action(root: &Json) -> Result<ActionCommand, String> {
         if action != Action::SetActuators && action != Action::SetBrewActuators {
             return Err(super_field(key));
         }
-        // `set_actuators` garde son ancien champ pour les scripts existants.
-        let pump_field = if action == Action::SetActuators {
-            "dimmer"
-        } else {
-            "pump_pct"
-        };
-        if key == pump_field {
+        if key == "pump_pct" {
             let Some(v) = as_int(value, 255.0) else {
-                return Err(fail(pump_field));
+                return Err(fail("pump_pct"));
             };
             command.brew.pump_pct = v as u8;
             continue;
@@ -661,17 +655,11 @@ fn parse_action(root: &Json) -> Result<ActionCommand, String> {
         return Err(super_field(key));
     }
     if action == Action::SetActuators || action == Action::SetBrewActuators {
-        // `set_actuators` garde son ancien champ pour les scripts existants.
-        let pump_field = if action == Action::SetActuators {
-            "dimmer"
-        } else {
-            "pump_pct"
-        };
-        if root.get(pump_field).is_none()
+        if root.get("pump_pct").is_none()
             || (action == Action::SetBrewActuators && root.get("ttl_ms").is_none())
         {
-            return Err(fail(if root.get(pump_field).is_none() {
-                pump_field
+            return Err(fail(if root.get("pump_pct").is_none() {
+                "pump_pct"
             } else {
                 "ttl_ms"
             }));

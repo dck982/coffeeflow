@@ -36,13 +36,18 @@ def _overlap(a0, a1, b0, b1):
 
 
 def _join_close(rects):
-    """Stretch an opening up to its neighbour when the lid between them would be a sliver."""
+    """Stretch an opening up to its neighbour when the lid between them would be
+    a sliver, widening both to their joint span so they make one window."""
     for a in rects:
         for b in rects:
             if _overlap(a[0], a[2], b[0], b[2]) and 0 < b[1] - a[3] < _ENTRE_MIN:
                 a[3] = b[1]
+                a[0] = b[0] = min(a[0], b[0])
+                a[2] = b[2] = max(a[2], b[2])
             if _overlap(a[1], a[3], b[1], b[3]) and 0 < b[0] - a[2] < _ENTRE_MIN:
                 a[2] = b[0]
+                a[1] = b[1] = min(a[1], b[1])
+                a[3] = b[3] = max(a[3], b[3])
     return rects
 
 
@@ -101,7 +106,7 @@ def openings(wall, jeu):
 @part
 def couvercle_acdc(
     epaisseur_paroi=1.68,
-    epaisseur_fond=1.6,
+    epaisseur_fond=1.4,
     gouttiere_jeu=0.3,
     gouttiere_epaisseur=1.0,
     gouttiere_profondeur=3.0,

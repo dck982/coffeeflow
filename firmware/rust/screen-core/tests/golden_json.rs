@@ -1,5 +1,7 @@
-//! Tests dorés : `/telemetry` comparé au JSON que le vrai cJSON écrit pour le
-//! même état dans le firmware C++ (`vectors/cjson_vectors.txt`, régénéré par
+//! Tests dorés : `/telemetry` comparé aux documents écrits ci-dessous, qui
+//! sont la référence du schéma (le C++ archivé n'a ni l'objet `pump` ni les
+//! clés `dimmer_*` retirées, la parité cJSON ne porte plus que sur les
+//! nombres et sur `/config`, `vectors/cjson_vectors.txt` régénéré par
 //! `vectors/gen_cjson_vectors.sh`), et `/config` du schéma 13 comparé au
 //! document écrit à la main.
 
@@ -13,6 +15,15 @@ use screen_core::json::{self, Json, number_to_string};
 use screen_core::snapshot::{CycleState, FlashTarget, Freshness, NetworkState, Snapshot};
 
 const VECTORS: &str = include_str!("vectors/cjson_vectors.txt");
+
+/// `/telemetry` d'un instantané par défaut.
+const TELEMETRY_DEFAULT: &str = r#"{"uptime_ms":5000,"temperature":{"boiler":{"c":null,"sensor_c":null,"valid":false,"freshness":"missing","age_ms":null,"ntc_a0_raw":0,"ntc_a1_raw":0},"xdb401":{"c":null,"raw":0}},"enclosure":{"screen":{"c":null,"rh_pct":null,"valid":false,"freshness":"missing","age_ms":null},"sensors":{"c":null,"valid":false,"freshness":"missing","age_ms":null}},"pressure":{"bar":0,"raw":0,"a2_raw":null,"valid":false,"freshness":"missing","age_ms":0},"flow":{"ml_s":0,"volume_ml":0,"pulse_count":0,"valid":false,"freshness":"missing","age_ms":0,"last_edge_age_ms":0},"pump":{"pct":0,"rpm":0,"displaced_ml_s":0,"displaced_ml":0,"tach_pulses":0,"ready":false,"fault":false,"dry":false},"scale":{"weight_g":0,"connected":false,"present":false,"age_ms":0},"brew":{"freshness":"missing","age_ms":0,"valve_open":false,"maintenance_valve_open":false,"pump_pct":0,"lockout":false,"lease_remaining_ms":0,"continuous_on_ms":0,"state":"idle","elapsed_ms":0,"weight_goal":false,"capture_cooldown":false,"last_shot":{"available":false}},"heating":{"enabled":true,"target_c":90,"target_sensor_c":104,"ready":false,"power_pct":0,"accepted_power_pct":null,"capable":false,"power_capable":false,"window_restart_capable":false,"requested":false,"freshness":"missing","age_ms":null,"on":null,"lease_remaining_ms":0},"firmware":{"sensors":{"alive":false,"version_major":0,"version_minor":0,"version_patch":0,"uptime_s":0,"twai_rx_errors":0,"twai_tx_errors":0,"twai_bus_errors":0},"screen":{"ota":{"pending_verify":false},"version_major":0,"version_minor":0,"version_patch":0,"uptime_s":0},"ota_staging":{"available":false},"flash":{"active":false,"target":"none","bytes_done":0,"bytes_total":0}},"inputs":{"touch_ready":false,"touch_press_count":0},"network":{"radio_mode":"off","transition":false,"state":"off","ipv4":null,"time_known":false,"wall_time_unix_s":null}}"#;
+
+/// Cas chargé : toutes les clés conditionnelles sont présentes.
+const TELEMETRY_BUSY: &str = r#"{"uptime_ms":5000,"temperature":{"boiler":{"c":93.4560012817383,"sensor_c":103.95600128173828,"valid":true,"freshness":"fresh","age_ms":120,"ntc_a0_raw":20000,"ntc_a1_raw":9000},"xdb401":{"c":null,"raw":777}},"enclosure":{"screen":{"c":24.559999465942383,"rh_pct":42.9000015258789,"valid":true,"freshness":"fresh","age_ms":150},"sensors":{"c":31.25,"valid":true,"freshness":"fresh","age_ms":900}},"pressure":{"bar":8.73449993133545,"raw":123456,"a2_raw":6000,"valid":true,"freshness":"stale","age_ms":210},"flow":{"ml_s":1.2345000505447388,"volume_ml":17.299999237060547,"pulse_count":3000000000,"valid":true,"freshness":"fresh","age_ms":60,"last_edge_age_ms":40},"pump":{"pct":70,"rpm":3150,"displaced_ml_s":5.25,"displaced_ml":200,"tach_pulses":4000,"ready":true,"fault":false,"dry":false},"scale":{"weight_g":-0.05000000074505806,"connected":true,"present":true,"age_ms":90},"brew":{"freshness":"fresh","age_ms":100,"valve_open":true,"maintenance_valve_open":false,"pump_pct":70,"lockout":false,"lease_remaining_ms":450,"continuous_on_ms":12000,"state":"brew","elapsed_ms":15500,"weight_goal":true,"capture_cooldown":true,"last_shot":{"available":true,"weight_g":36.200000762939453,"duration_ms":28100,"flow_ml_s":1.0499999523162842,"unix_s":1790000000}},"heating":{"enabled":true,"target_c":90,"target_sensor_c":104,"ready":true,"power_pct":35.5,"accepted_power_pct":35.4000015258789,"capable":true,"power_capable":true,"window_restart_capable":true,"requested":false,"freshness":"fresh","age_ms":80,"on":true,"lease_remaining_ms":1200},"firmware":{"sensors":{"alive":true,"version_major":0,"version_minor":4,"version_patch":0,"uptime_s":86400,"twai_rx_errors":3,"twai_tx_errors":1,"twai_bus_errors":7},"screen":{"ota":{"pending_verify":true,"running_partition":"ota_0","state":"pending_verify"},"version_major":0,"version_minor":4,"version_patch":0,"uptime_s":3600},"ota_staging":{"available":true,"size":1048576},"flash":{"active":true,"target":"sensors","bytes_done":2048,"bytes_total":400000}},"inputs":{"touch_ready":true,"touch_press_count":42},"network":{"radio_mode":"wifi","transition":false,"state":"sta_connected","ipv4":"192.168.0.1","time_known":true,"wall_time_unix_s":1790001234}}"#;
+
+/// Variante au repos, pompe en défaut.
+const TELEMETRY_IDLE_VARIANT: &str = r#"{"uptime_ms":5000,"temperature":{"boiler":{"c":null,"sensor_c":null,"valid":false,"freshness":"missing","age_ms":null,"ntc_a0_raw":0,"ntc_a1_raw":0},"xdb401":{"c":null,"raw":0}},"enclosure":{"screen":{"c":null,"rh_pct":null,"valid":false,"freshness":"missing","age_ms":null},"sensors":{"c":null,"valid":false,"freshness":"missing","age_ms":null}},"pressure":{"bar":0,"raw":0,"a2_raw":null,"valid":false,"freshness":"missing","age_ms":0},"flow":{"ml_s":0,"volume_ml":0,"pulse_count":0,"valid":false,"freshness":"missing","age_ms":0,"last_edge_age_ms":0},"pump":{"pct":0,"rpm":0,"displaced_ml_s":0,"displaced_ml":0.5,"tach_pulses":10,"ready":false,"fault":true,"dry":true},"scale":{"weight_g":0,"connected":false,"present":false,"age_ms":0},"brew":{"freshness":"missing","age_ms":0,"valve_open":false,"maintenance_valve_open":false,"pump_pct":0,"lockout":false,"lease_remaining_ms":0,"continuous_on_ms":0,"state":"finished","elapsed_ms":0,"weight_goal":false,"capture_cooldown":false,"last_shot":{"available":true,"weight_g":18,"duration_ms":25000,"flow_ml_s":0,"unix_s":null}},"heating":{"enabled":true,"target_c":90,"target_sensor_c":104,"ready":false,"power_pct":0,"accepted_power_pct":null,"capable":false,"power_capable":false,"window_restart_capable":false,"requested":false,"freshness":"stale","age_ms":null,"on":null,"lease_remaining_ms":0},"firmware":{"sensors":{"alive":false,"version_major":0,"version_minor":0,"version_patch":0,"uptime_s":0,"twai_rx_errors":0,"twai_tx_errors":0,"twai_bus_errors":0},"screen":{"ota":{"pending_verify":false,"running_partition":"ota_1","state":"unavailable"},"version_major":0,"version_minor":0,"version_patch":0,"uptime_s":0},"ota_staging":{"available":false},"flash":{"active":false,"target":"screen","bytes_done":0,"bytes_total":0}},"inputs":{"touch_ready":false,"touch_press_count":0},"network":{"radio_mode":"off","transition":false,"state":"off","ipv4":null,"time_known":false,"wall_time_unix_s":null}}"#;
 
 fn vector(name: &str) -> &'static str {
     VECTORS
@@ -114,20 +125,20 @@ fn clock() -> Clock {
 }
 
 #[test]
-fn telemetry_default_matches_cpp() {
+fn telemetry_default_matches_the_reference() {
     let mut snapshot = Snapshot::default();
-    snapshot.wifi_enabled = false; // le C++ avait `radio_mode` = off
+    snapshot.wifi_enabled = false;
     let document = encode_telemetry(
         &snapshot,
         &Config::default(),
         &PlatformInfo::default(),
         Clock::new(5_000_000),
     );
-    assert_eq!(document.to_json_string(), vector("telemetry_default"));
+    assert_eq!(document.to_json_string(), TELEMETRY_DEFAULT);
 }
 
 #[test]
-fn telemetry_busy_matches_cpp() {
+fn telemetry_busy_matches_the_reference() {
     let mut s = Snapshot::default();
     s.pressure_bar = 8.7345;
     s.boiler_temperature_c = 93.456;
@@ -160,8 +171,11 @@ fn telemetry_busy_matches_cpp() {
     s.pressure_valid = true;
     s.flow_valid = true;
     s.valve_open = true;
-    s.dimmer_pct = 70;
     s.pump_pct = 70;
+    s.pump_rpm = 3150;
+    s.pump_tach_pulses = 4000;
+    s.pump_displaced_ml_s = 5.25;
+    s.pump_displaced_ml = 200.0;
     s.heating_capable = true;
     s.heating_power_capable = true;
     s.heating_window_restart_capable = true;
@@ -173,8 +187,7 @@ fn telemetry_busy_matches_cpp() {
     s.heating_lease_remaining_ms = 1200;
     s.heating_freshness = Freshness::Fresh;
     s.heating_age_ms = 80;
-    s.dimmer_ready = true;
-    s.dimmer_valid = true;
+    s.pump_ready = true;
     s.lease_remaining_ms = 450;
     s.continuous_on_ms = 12000;
     s.pressure_freshness = Freshness::Stale;
@@ -220,11 +233,11 @@ fn telemetry_busy_matches_cpp() {
         }),
     };
     let document = encode_telemetry(&s, &Config::default(), &platform, clock());
-    assert_eq!(document.to_json_string(), vector("telemetry_busy"));
+    assert_eq!(document.to_json_string(), TELEMETRY_BUSY);
 }
 
 #[test]
-fn telemetry_idle_variant_matches_cpp() {
+fn telemetry_idle_variant_matches_the_reference() {
     let mut t = Snapshot::default();
     t.last_shot_available = true;
     t.last_shot_weight_g = 18.0;
@@ -234,6 +247,10 @@ fn telemetry_idle_variant_matches_cpp() {
     t.heating_freshness = Freshness::Stale;
     t.heating_power_accepted_pct = 12.0;
     t.pressure_a2_valid = false;
+    t.pump_tach_pulses = 10;
+    t.pump_displaced_ml = 0.5;
+    t.pump_fault = true;
+    t.pump_dry = true;
     t.cycle_state = CycleState::Finished;
     t.flash_target = FlashTarget::Screen;
     t.wifi_enabled = false;
@@ -246,7 +263,7 @@ fn telemetry_idle_variant_matches_cpp() {
         }),
     };
     let document = encode_telemetry(&t, &Config::default(), &platform, Clock::new(5_000_000));
-    assert_eq!(document.to_json_string(), vector("telemetry_idle_variant"));
+    assert_eq!(document.to_json_string(), TELEMETRY_IDLE_VARIANT);
 }
 
 /// Chemins des feuilles d'un document, dans l'ordre d'écriture.
@@ -268,13 +285,13 @@ fn leaf_paths(value: &Json, prefix: &str, out: &mut Vec<String>) {
 
 #[test]
 fn telemetry_keys_golden_list() {
-    // La liste de clés de référence vient du document du C++ (cas chargé, où
-    // les clés conditionnelles sont toutes présentes), moins les détails de
+    // La liste de clés de référence vient du cas chargé, où les clés
+    // conditionnelles sont toutes présentes, moins les détails de
     // `last_shot` qui n'existent que si une infusion est disponible.
-    let busy = json::parse(vector("telemetry_busy").as_bytes()).unwrap();
-    let mut cpp = Vec::new();
-    leaf_paths(&busy, "", &mut cpp);
-    let expected: Vec<String> = cpp
+    let busy = json::parse(TELEMETRY_BUSY.as_bytes()).unwrap();
+    let mut reference = Vec::new();
+    leaf_paths(&busy, "", &mut reference);
+    let expected: Vec<String> = reference
         .into_iter()
         .filter(|p| {
             !["weight_g", "duration_ms", "flow_ml_s", "unix_s"]
@@ -305,20 +322,19 @@ fn telemetry_keys_golden_list() {
 
 #[test]
 fn parser_roundtrips_the_golden_documents() {
-    for name in [
-        "config_default",
-        "config_custom",
-        "telemetry_busy",
-        "telemetry_idle_variant",
+    for (name, text, exact) in [
+        ("config_default", vector("config_default"), false),
+        ("config_custom", vector("config_custom"), false),
+        ("telemetry_busy", TELEMETRY_BUSY, true),
+        ("telemetry_idle_variant", TELEMETRY_IDLE_VARIANT, true),
     ] {
-        let text = vector(name);
         let parsed = json::parse(text.as_bytes()).unwrap();
         // Les décimaux de `/config` sont réécrits en nombres normaux : seul
         // l'ordre et la forme de l'arbre nous intéressent ici.
         let mut paths = Vec::new();
         leaf_paths(&parsed, "", &mut paths);
         assert!(!paths.is_empty());
-        if name.starts_with("telemetry") {
+        if exact {
             assert_eq!(parsed.to_json_string(), text, "{name}");
         }
     }

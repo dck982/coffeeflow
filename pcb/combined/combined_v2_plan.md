@@ -49,7 +49,3 @@ sensors + RBDimmer + M5Stack SSR. Pump interface: `docs/pompe-engrenage.md`,
 - [x] Buck: tight VIN/GND loop, thermal pad copper and vias.
 - [x] Mounting, outline and enclosure (`boitier_dc`).
 - [x] DRC, then `uv run ../generate_manufacturing.py .`
-
-## Firmware
-
-- [ ] `docs/combined-firmware-plan.md`.

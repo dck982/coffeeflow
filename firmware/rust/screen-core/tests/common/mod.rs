@@ -5,7 +5,7 @@
 
 use protocol::messages::{
     NodeIdentityPayload, StatusActuatorsPayload, StatusFlowPayload, StatusHeatingPayload,
-    StatusPressurePayload,
+    StatusPressurePayload, StatusPumpPayload,
 };
 use protocol::{Dest, Frame, Message, Node, Version};
 use screen_core::config::{Config, MemoryConfigStore};
@@ -44,7 +44,9 @@ pub struct Rig {
     pub valve_open: bool,
     pub heater_on: bool,
     pub lockout: bool,
-    pub dimmer_ready: bool,
+    /// Faux pilote de pompe : sans cela, FLAG_PUMP_READY reste baissé.
+    pub pump_ready: bool,
+    pub pump_tach_pulses: u32,
     pub power_permille: u16,
     pub sensors_version: Version,
     pub pulses: u32,
@@ -70,7 +72,8 @@ impl Rig {
             valve_open: false,
             heater_on: false,
             lockout: false,
-            dimmer_ready: true,
+            pump_ready: true,
+            pump_tach_pulses: 0,
             power_permille: 0,
             sensors_version: Version::new(0, 4, 0),
             pulses: 0,
@@ -136,9 +139,9 @@ impl Rig {
     }
 
     pub fn publish_actuators(&mut self) {
-        let mut flags = StatusActuatorsPayload::FLAG_DIMMER_PRESENT;
-        if self.dimmer_ready {
-            flags |= StatusActuatorsPayload::FLAG_DIMMER_READY;
+        let mut flags = StatusActuatorsPayload::FLAG_PUMP_PRESENT;
+        if self.pump_ready {
+            flags |= StatusActuatorsPayload::FLAG_PUMP_READY;
         }
         if self.lockout {
             flags |= StatusActuatorsPayload::FLAG_LOCKOUT;
@@ -160,6 +163,17 @@ impl Rig {
             fine_power_capable: true,
             window_restart_capable: true,
             power_permille: self.power_permille,
+        }));
+    }
+
+    /// Tachymètre : 45 tr/min par point de commande, 2 impulsions par tour.
+    pub fn publish_pump(&mut self) {
+        let rpm = u16::from(self.pump_pct) * 45;
+        self.pump_tach_pulses += u32::from(rpm) * 2 / 600;
+        self.rx(Message::StatusPump(StatusPumpPayload {
+            tach_pulses: self.pump_tach_pulses,
+            rpm,
+            flags: StatusPumpPayload::FLAG_TACH_SEEN,
         }));
     }
 
@@ -208,6 +222,7 @@ impl Rig {
                     self.publish_actuators();
                     self.publish_heating();
                     self.publish_flow();
+                    self.publish_pump();
                 }
             }
             let clock = self.clock();

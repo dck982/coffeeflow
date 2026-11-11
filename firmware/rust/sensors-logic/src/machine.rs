@@ -1,5 +1,5 @@
 //! Machine d'état du module capteurs : actionneurs, bail, présence, verrou
-//! de 60 s, chauffe, dimmer, publications périodiques, réception FLASH et
+//! de 60 s, chauffe, pompe, publications périodiques, réception FLASH et
 //! validation de l'image.
 //!
 //! Tout le matériel passe par [`Hw`] : le firmware l'implémente avec les
@@ -9,10 +9,10 @@
 //! tick ne s'exécutent jamais en même temps.
 
 use protocol::messages::{
-    DimmerCommand, DimmerCommandPayload, FlashCtrlPayload, LogPayload, MaintenanceValvePayload,
-    NodeIdentityPayload, ReqStatusPayload, SetHeatingPayload, SetHeatingPowerPayload, SetPayload,
-    StatusActuatorsPayload, StatusEnclosurePayload, StatusFlowPayload, StatusHeatingPayload,
-    StatusPressurePayload,
+    FlashCtrlPayload, LogPayload, MaintenanceValvePayload, NodeIdentityPayload, ReqStatusPayload,
+    SetHeatingPayload, SetHeatingPowerPayload, SetPayload, StatusActuatorsPayload,
+    StatusEnclosurePayload, StatusFlowPayload, StatusHeatingPayload, StatusPressurePayload,
+    StatusPumpPayload,
 };
 use protocol::version::HEATING_PROTOCOL_CONFIRMATION_TOKEN;
 use protocol::{Dest, FIRMWARE_VERSION, Frame, LogCode, LogSeverity, Message, MessageType, Node};
@@ -22,30 +22,35 @@ use crate::flash_rx::{
 };
 use crate::flow::FlowCounter;
 use crate::heating_pwm::HeatingPwm;
-use crate::zero_guard::DimmerZeroGuard;
+use crate::pump::{TachCounter, pump_duty, pump_target_rpm};
 
-// Registres du DimmerLink. 0x10 est la seule écriture du cycle d'infusion.
-// 0x00 (STATUS, bit0 = READY, bit1 = ERROR) est la source de vérité de l'état,
-// pas le registre d'erreur seul, qui peut contenir des codes non documentés.
-// La commande 0x03 du registre COMMAND bascule le dimmer en UART et l'écrit
-// dans son EEPROM : ce firmware n'écrit que RESET (0x01) et RECALIBRATE
-// (0x02).
-pub const DIMMER_ADDR: u16 = 0x50;
-pub const DIMMER_REG_STATUS: u8 = 0x00;
-pub const DIMMER_REG_COMMAND: u8 = 0x01;
-pub const DIMMER_REG_ERROR: u8 = 0x02;
-pub const DIMMER_REG_LEVEL: u8 = 0x10;
-/// Informatif seulement : observée à 0 en continu sur ce module, même prêt.
-pub const DIMMER_REG_FREQ: u8 = 0x20;
-pub const DIMMER_CMD_RESET: u8 = 0x01;
-pub const DIMMER_CMD_RECALIBRATE: u8 = 0x02;
+pub use crate::pump::{PUMP_DUTY_BITS, PUMP_DUTY_FULL};
 
-/// Relecture à vide de l'état du dimmer, pour que les drapeaux de
-/// `STATUS_ACTUATORS` restent à jour même sans `SET` récent.
-pub const DIMMER_HEALTH_PERIOD_US: i64 = 2000 * 1000;
-/// Marge avant l'unique essai de repli `RECALIBRATE` si le module reste
-/// « pas prêt » : il calibre tout seul à la mise sous tension du secteur.
-pub const DIMMER_AUTO_RECALIBRATE_DELAY_US: i64 = 20 * 1000 * 1000;
+/// Plancher des publications `STATUS_PUMP`.
+pub const PUMP_PERIOD_FLOOR_MS: u16 = 50;
+/// Consigne au-dessus de laquelle la pompe doit tourner : 0,3 V, soit
+/// 300 tr/min (1 000 tr/min par volt).
+pub const PUMP_FAULT_MIN_RPM: u16 = 300;
+/// Défaut du tachymètre : consigne au-dessus de 0,3 V depuis plus de ce
+/// délai...
+pub const PUMP_FAULT_DRIVE_US: i64 = 500 * 1000;
+/// ... et aucun front accepté depuis ce délai.
+pub const PUMP_FAULT_NO_EDGE_US: i64 = 300 * 1000;
+/// La pompe se réarme après 10 ms à 0 V : un redémarrage attend au moins
+/// ce délai après la coupure sur défaut.
+pub const PUMP_REARM_US: i64 = 50 * 1000;
+/// Marche à sec : vitesse mesurée au-dessus de ce seuil...
+pub const DRY_MIN_RPM: u16 = 1000;
+/// ... sans front Digmesa et avec une pression sous 1 bar, tout cela tenu
+/// pendant ce délai.
+pub const DRY_HOLD_US: i64 = 2000 * 1000;
+/// Pression de l'écran (`calibration.rs`, A2) : bar = (code − 3167,3) ×
+/// 0,00075, donc 1 bar = 3167,3 + 1 / 0,00075 = 4500,6 codes. 4 500 arrondit
+/// vers le bas : une pression d'exactement 1 bar n'est pas « sous 1 bar ».
+pub const DRY_PRESSURE_MAX_CODE: i16 = 4500;
+/// Une pression plus vieille que cela se relit avant de juger la marche à
+/// sec.
+pub const DRY_PRESSURE_MAX_AGE_US: i64 = 300 * 1000;
 /// Plancher des publications `STATUS_PRESSURE`, pour qu'une requête mal
 /// formée ne sature pas le bus.
 pub const PRESSURE_PERIOD_FLOOR_MS: u16 = 100;
@@ -99,14 +104,14 @@ pub trait Hw: FlashSink {
     fn set_valve(&mut self, open: bool);
     /// Chauffe : `true` = SSR actif.
     fn set_heater(&mut self, on: bool);
-    /// Écrit `[reg, value]` sur le dimmer. `false` si l'adresse n'acquitte pas.
-    fn dimmer_write(&mut self, reg: u8, value: u8) -> bool;
-    /// Lit un registre du dimmer (écriture du pointeur puis lecture en
-    /// redémarrage de bus). `None` si la transaction échoue.
-    fn dimmer_read(&mut self, reg: u8) -> Option<u8>;
+    /// Rapport cyclique de la consigne de la pompe, en unités du LEDC 14
+    /// bits : 0 = toujours bas (0 V), [`PUMP_DUTY_FULL`] = toujours haut.
+    fn set_pump_duty(&mut self, duty: u16);
     /// Met la trame en file d'émission. Une file pleine la perd.
     fn send(&mut self, frame: Frame);
     fn flow(&self) -> FlowCounter;
+    /// Tachymètre de la pompe, alimenté par l'interruption GPIO.
+    fn pump_tach(&self) -> TachCounter;
     fn twai_counters(&mut self) -> Option<TwaiCounters>;
     /// Température du TMP102 de la carte, en 1/16 °C. `None` s'il ne répond
     /// pas.
@@ -158,10 +163,25 @@ pub struct Machine<H: Hw> {
     heating_power_permille: u16,
     pwm: HeatingPwm,
     pump_pct: u8,
-    zero_guard: DimmerZeroGuard,
-    dimmer_present: bool,
-    dimmer_ready: bool,
-    dimmer_error_active: bool,
+    /// Dernier rapport cyclique posé sur la pompe.
+    pump_duty: u16,
+    /// Un cycle de pompe est en cours (consigne commandée au-dessus de 0).
+    pump_cycle_active: bool,
+    /// Défaut de tachymètre verrouillé jusqu'au prochain SET parti de 0.
+    pump_fault: bool,
+    /// Marche à sec verrouillée, comme `pump_fault`.
+    pump_dry: bool,
+    /// Instant de la dernière coupure sur défaut.
+    pump_fault_cut_us: i64,
+    /// Début de la consigne au-dessus de 0,3 V appliquée, 0 = aucune.
+    pump_drive_since_us: i64,
+    /// Début de la fenêtre de marche à sec, 0 = conditions non réunies.
+    dry_since_us: i64,
+    /// Dernier front Digmesa vu par la règle, pour détecter une impulsion.
+    dry_flow_edge_us: i64,
+    /// Dernière pression lue par `send_status_pressure` et son instant.
+    pressure_cache: Option<(Option<i16>, i64)>,
+    legacy_command_logged: bool,
     /// 0 = pas de bail actif.
     lease_deadline_us: i64,
 
@@ -190,6 +210,8 @@ pub struct Machine<H: Hw> {
     pressure_present: bool,
     flow_period_ms: u16,
     flow_last_sent_us: i64,
+    pump_period_ms: u16,
+    pump_last_sent_us: i64,
     actuators_period_ms: u16,
     actuators_last_sent_us: i64,
     heating_period_ms: u16,
@@ -198,8 +220,6 @@ pub struct Machine<H: Hw> {
     enclosure_last_sent_us: i64,
 
     twai_last_log_us: i64,
-    dimmer_health_last_us: i64,
-    dimmer_recalibrate_sent: bool,
 
     flash: FlashReceiver,
     action: Action,
@@ -220,10 +240,16 @@ impl<H: Hw> Machine<H> {
             heating_power_permille: 0,
             pwm: HeatingPwm::new(),
             pump_pct: 0,
-            zero_guard: DimmerZeroGuard::new(),
-            dimmer_present: false,
-            dimmer_ready: false,
-            dimmer_error_active: false,
+            pump_duty: 0,
+            pump_cycle_active: false,
+            pump_fault: false,
+            pump_dry: false,
+            pump_fault_cut_us: i64::MIN / 2,
+            pump_drive_since_us: 0,
+            dry_since_us: 0,
+            dry_flow_edge_us: 0,
+            pressure_cache: None,
+            legacy_command_logged: false,
             lease_deadline_us: 0,
             run_start_us: 0,
             off_since_us: 0,
@@ -243,6 +269,8 @@ impl<H: Hw> Machine<H> {
             pressure_present: false,
             flow_period_ms: 0,
             flow_last_sent_us: 0,
+            pump_period_ms: 0,
+            pump_last_sent_us: 0,
             actuators_period_ms: 0,
             actuators_last_sent_us: 0,
             heating_period_ms: 0,
@@ -250,8 +278,6 @@ impl<H: Hw> Machine<H> {
             enclosure_period_ms: 0,
             enclosure_last_sent_us: 0,
             twai_last_log_us: 0,
-            dimmer_health_last_us: 0,
-            dimmer_recalibrate_sent: false,
             flash: FlashReceiver::new(),
             action: Action::None,
         }
@@ -333,14 +359,15 @@ impl<H: Hw> Machine<H> {
         if self.lockout_active {
             flags |= StatusActuatorsPayload::FLAG_LOCKOUT;
         }
-        if self.dimmer_ready {
-            flags |= StatusActuatorsPayload::FLAG_DIMMER_READY;
+        // Prête sauf pendant le cycle fautif : le bit retombe quand l'écran
+        // cesse de commander la pompe, pour qu'il puisse repartir.
+        if !(self.pump_latched() && self.commanded_pct() > 0) {
+            flags |= StatusActuatorsPayload::FLAG_PUMP_READY;
         }
-        if self.dimmer_present {
-            flags |= StatusActuatorsPayload::FLAG_DIMMER_PRESENT;
-        }
-        if self.dimmer_error_active {
-            flags |= StatusActuatorsPayload::FLAG_DIMMER_ERROR;
+        // Toujours 1 : une sortie PWM locale ne détecte pas la pompe.
+        flags |= StatusActuatorsPayload::FLAG_PUMP_PRESENT;
+        if self.pump_latched() {
+            flags |= StatusActuatorsPayload::FLAG_PUMP_FAULT;
         }
         if self.maintenance_valve {
             flags |= StatusActuatorsPayload::FLAG_MAINTENANCE_VALVE_OPEN;
@@ -383,6 +410,7 @@ impl<H: Hw> Machine<H> {
     /// est plausible ; sinon la valeur reste invalide (drapeaux à 0).
     fn send_status_pressure(&mut self) {
         let raw = self.hw.pressure_raw();
+        self.pressure_cache = Some((raw, self.hw.now_us()));
         let present = raw.is_some_and(|code| PRESSURE_PLAUSIBLE_CODES.contains(&code));
         if present != self.pressure_present {
             self.pressure_present = present;
@@ -429,6 +457,26 @@ impl<H: Hw> Machine<H> {
         self.send_message(Message::StatusFlow(payload), Dest::Screen);
     }
 
+    fn send_status_pump(&mut self) {
+        let tach = self.hw.pump_tach();
+        let mut flags = 0;
+        if tach.seen() {
+            flags |= StatusPumpPayload::FLAG_TACH_SEEN;
+        }
+        if self.pump_fault {
+            flags |= StatusPumpPayload::FLAG_FAULT;
+        }
+        if self.pump_dry {
+            flags |= StatusPumpPayload::FLAG_DRY;
+        }
+        let payload = StatusPumpPayload {
+            tach_pulses: tach.pulse_count,
+            rpm: tach.rpm(self.hw.now_us()),
+            flags,
+        };
+        self.send_message(Message::StatusPump(payload), Dest::Screen);
+    }
+
     fn send_flash_ack(&mut self, ctrl: FlashCtrlPayload) {
         self.send_message(Message::FlashCtrl(ctrl), Dest::Screen);
     }
@@ -468,85 +516,155 @@ impl<H: Hw> Machine<H> {
         self.pump_pct = 0;
         self.lease_deadline_us = 0;
         self.apply_valve();
-        self.apply_dimmer(0);
+        self.apply_pump();
     }
 
-    // ------------------------------------------------------------ dimmer
+    // ------------------------------------------------------------- pompe
 
-    /// Relit STATUS puis, si besoin, le registre d'erreur, et la fréquence
-    /// secteur à titre informatif. Utilisée après chaque écriture et à vide
-    /// toutes les 2 s, pour que `present` / `ready` / `error` reflètent la
-    /// dernière transaction réelle, pas un état supposé.
-    fn read_dimmer_health(&mut self) {
-        let Some(status) = self.hw.dimmer_read(DIMMER_REG_STATUS) else {
-            self.dimmer_present = false;
-            self.dimmer_ready = false;
-            self.dimmer_error_active = false;
-            self.send_log(LogCode::I2cError, LogSeverity::Error, DIMMER_ADDR, 0);
-            return;
+    /// Consigne commandée : celle du dernier SET tant que la vanne est
+    /// ouverte, sinon 0 (la vanne de maintenance tient `pump_pct` à 0).
+    fn commanded_pct(&self) -> u8 {
+        if self.valve_open { self.pump_pct } else { 0 }
+    }
+
+    fn pump_latched(&self) -> bool {
+        self.pump_fault || self.pump_dry
+    }
+
+    fn set_pump_duty(&mut self, duty: u16) {
+        self.pump_duty = duty;
+        self.hw.set_pump_duty(duty);
+    }
+
+    /// Seul chemin qui pose le rapport cyclique, donc celui de toutes les
+    /// coupures : consigne commandée à 0, défaut verrouillé, ou redémarrage
+    /// trop proche d'une coupure sur défaut, rapport cyclique à 0.
+    ///
+    /// Un cycle qui part de 0 lève les défauts verrouillés. Si la coupure
+    /// sur défaut date de moins de 50 ms, la pompe reste à 0 jusqu'à ce que
+    /// `tick_pump_protection` la relance.
+    fn apply_pump(&mut self) {
+        let now = self.hw.now_us();
+        let pct = self.commanded_pct();
+        let wanted = pump_duty(pct);
+        if pct == 0 {
+            self.pump_cycle_active = false;
+        } else if !self.pump_cycle_active {
+            self.pump_cycle_active = true;
+            self.pump_fault = false;
+            self.pump_dry = false;
+            self.send_log(
+                LogCode::PumpStart,
+                LogSeverity::Info,
+                u16::from(pct),
+                u32::from(wanted),
+            );
+        }
+        let rearmed = now - self.pump_fault_cut_us >= PUMP_REARM_US;
+        let duty = if pct == 0 || self.pump_latched() || !rearmed {
+            0
+        } else {
+            wanted
         };
-        self.dimmer_present = true;
-        self.dimmer_ready = status & 0x01 != 0;
-        self.dimmer_error_active = status & 0x02 != 0;
-
-        if !self.dimmer_ready {
-            self.send_log(LogCode::DimmerCalibrating, LogSeverity::Warn, 0, 0);
+        self.set_pump_duty(duty);
+        if duty > 0 && pump_target_rpm(pct) > PUMP_FAULT_MIN_RPM {
+            if self.pump_drive_since_us == 0 {
+                self.pump_drive_since_us = now;
+            }
+        } else {
+            self.pump_drive_since_us = 0;
         }
-        if self.dimmer_error_active {
-            let arg = self
-                .hw
-                .dimmer_read(DIMMER_REG_ERROR)
-                .map_or(0xFFFF, u16::from);
-            self.send_log(LogCode::DimmerError, LogSeverity::Error, arg, 0);
-        }
-        // Informatif : journalisée pour diagnostic, jamais utilisée pour
-        // piloter un drapeau.
-        let arg = self
-            .hw
-            .dimmer_read(DIMMER_REG_FREQ)
-            .map_or(0xFFFF, u16::from);
-        self.send_log(LogCode::DimmerMainsFreq, LogSeverity::Debug, arg, 0);
-    }
-
-    /// COMMAND = RECALIBRATE. Non fatal si le module n'est pas encore là.
-    fn dimmer_recalibrate(&mut self) {
-        if !self
-            .hw
-            .dimmer_write(DIMMER_REG_COMMAND, DIMMER_CMD_RECALIBRATE)
-        {
-            log::warn!("dimmer recalibrate échec");
+        if duty == 0 {
+            self.dry_since_us = 0;
         }
     }
 
-    fn on_dimmer_command(&mut self, payload: DimmerCommandPayload) {
-        // Une calibration ou une réinitialisation ne coexiste jamais avec
-        // une demande de pompe encore active.
-        self.force_actuators_off();
-        let command = match payload.command {
-            DimmerCommand::Reset => DIMMER_CMD_RESET,
-            DimmerCommand::Recalibrate => DIMMER_CMD_RECALIBRATE,
-        };
-        if !self.hw.dimmer_write(DIMMER_REG_COMMAND, command) {
-            log::warn!("dimmer command {command:#04x} échec");
-            self.send_log(LogCode::I2cError, LogSeverity::Error, DIMMER_ADDR, 0);
+    /// Coupe la pompe sur défaut et verrouille `fault` jusqu'au prochain
+    /// SET parti de 0.
+    fn trip_pump(&mut self, fault: LogCode, arg16: u16, arg32: u32) {
+        match fault {
+            LogCode::PumpDry => self.pump_dry = true,
+            _ => self.pump_fault = true,
         }
-        self.read_dimmer_health();
+        self.pump_fault_cut_us = self.hw.now_us();
+        self.apply_pump();
+        self.send_log(fault, LogSeverity::Error, arg16, arg32);
         self.send_status_actuators();
     }
 
-    /// Écrit le niveau de la pompe puis relit la santé du dimmer.
-    fn apply_dimmer(&mut self, level: u8) -> bool {
-        if !self.hw.dimmer_write(DIMMER_REG_LEVEL, level) {
-            if self.dimmer_present {
-                self.send_log(LogCode::I2cError, LogSeverity::Error, DIMMER_ADDR, 0);
-            }
-            self.dimmer_present = false;
-            self.dimmer_ready = false;
-            self.dimmer_error_active = false;
-            return false;
+    /// Pression brute pour la règle de marche à sec : celle du dernier
+    /// `STATUS_PRESSURE`, relue si elle a plus de 300 ms.
+    fn pressure_for_dry_rule(&mut self, now: i64) -> Option<i16> {
+        if let Some((raw, at)) = self.pressure_cache
+            && now - at <= DRY_PRESSURE_MAX_AGE_US
+        {
+            return raw;
         }
-        self.read_dimmer_health();
-        true
+        let raw = self.hw.pressure_raw();
+        self.pressure_cache = Some((raw, now));
+        raw
+    }
+
+    /// Défaut du tachymètre et marche à sec, à chaque tick de sécurité.
+    fn tick_pump_protection(&mut self) {
+        let now = self.hw.now_us();
+        let tach = self.hw.pump_tach();
+
+        // Pompe retenue 50 ms après une coupure sur défaut, puis relancée.
+        let pct = self.commanded_pct();
+        if pct > 0 && !self.pump_latched() && self.pump_duty == 0 {
+            self.apply_pump();
+        }
+        if self.pump_latched() {
+            self.dry_since_us = 0;
+            return;
+        }
+
+        if self.pump_drive_since_us != 0
+            && now - self.pump_drive_since_us > PUMP_FAULT_DRIVE_US
+            && (tach.last_edge_us == 0 || now - tach.last_edge_us > PUMP_FAULT_NO_EDGE_US)
+        {
+            let duty = u32::from(self.pump_duty);
+            self.trip_pump(LogCode::PumpFault, u16::from(pct), duty);
+            return;
+        }
+
+        // Marche à sec : vitesse haute, ni impulsion Digmesa ni pression.
+        let rpm = tach.rpm(now);
+        let flow_edge = self.hw.flow().last_edge_us;
+        let edge_arrived = flow_edge != self.dry_flow_edge_us;
+        self.dry_flow_edge_us = flow_edge;
+        let mut pressure = None;
+        let conditions = rpm > DRY_MIN_RPM && {
+            pressure = self.pressure_for_dry_rule(now);
+            // Absente ou invraisemblable : la pompe s'arrête plutôt que de
+            // tourner à sec.
+            pressure.is_none_or(|code| {
+                !PRESSURE_PLAUSIBLE_CODES.contains(&code) || code < DRY_PRESSURE_MAX_CODE
+            })
+        };
+        if !conditions {
+            self.dry_since_us = 0;
+        } else if edge_arrived || self.dry_since_us == 0 {
+            self.dry_since_us = now;
+        } else if now - self.dry_since_us >= DRY_HOLD_US {
+            let code = pressure.map_or(0, |code| u32::from(code as u16));
+            self.trip_pump(LogCode::PumpDry, rpm, code);
+        }
+    }
+
+    /// DIMMER_COMMAND n'existe plus : ignoré, un LOG au premier reçu.
+    fn on_legacy_command(&mut self, message_type: MessageType) {
+        if self.legacy_command_logged {
+            return;
+        }
+        self.legacy_command_logged = true;
+        self.send_log(
+            LogCode::LegacyCommandIgnored,
+            LogSeverity::Warn,
+            u16::from(message_type as u8),
+            0,
+        );
     }
 
     // --------------------------------------------------------- réception
@@ -619,11 +737,7 @@ impl<H: Hw> Machine<H> {
                 }
             }
             MessageType::ConfirmSensorsOta => self.on_confirm(p),
-            MessageType::DimmerCommand => {
-                if let Ok(payload) = DimmerCommandPayload::unpack(p) {
-                    self.on_dimmer_command(payload);
-                }
-            }
+            MessageType::DimmerCommand => self.on_legacy_command(MessageType::DimmerCommand),
             MessageType::ReqStatus => {
                 if let Ok(payload) = ReqStatusPayload::unpack(p) {
                     self.on_reqstatus(payload);
@@ -681,7 +795,7 @@ impl<H: Hw> Machine<H> {
         self.valve_open = payload.pump_pct > 0;
         self.pump_pct = payload.pump_pct;
         self.apply_valve();
-        self.apply_dimmer(if self.valve_open { self.pump_pct } else { 0 });
+        self.apply_pump();
         let ttl_us = if payload.ttl_ms == 0 {
             LEASE_DEFAULT_US
         } else {
@@ -721,7 +835,7 @@ impl<H: Hw> Machine<H> {
         self.maintenance_valve = true;
         self.pump_pct = 0;
         self.valve_open = true;
-        self.apply_dimmer(0);
+        self.apply_pump();
         self.apply_valve();
         self.lease_deadline_us = self.hw.now_us() + i64::from(payload.duration_ms) * 1000;
         self.send_log(
@@ -813,6 +927,14 @@ impl<H: Hw> Machine<H> {
             Some(MessageType::StatusFlow) => {
                 self.flow_period_ms = payload.period_ms;
                 self.flow_last_sent_us = 0;
+            }
+            Some(MessageType::StatusPump) => {
+                self.pump_period_ms = if payload.period_ms == 0 {
+                    0
+                } else {
+                    payload.period_ms.max(PUMP_PERIOD_FLOOR_MS)
+                };
+                self.pump_last_sent_us = 0;
             }
             Some(MessageType::StatusActuators) => {
                 self.actuators_period_ms = payload.period_ms;
@@ -936,8 +1058,8 @@ impl<H: Hw> Machine<H> {
         self.tick_actuators();
         self.tick_heating();
         self.tick_enclosure();
-        self.tick_dimmer_zero_guard();
-        self.tick_dimmer_health();
+        self.tick_pump_protection();
+        self.tick_pump_status();
     }
 
     /// Bail : coupe les actionneurs si le SET le plus récent a expiré.
@@ -1158,40 +1280,16 @@ impl<H: Hw> Machine<H> {
         self.enclosure_last_sent_us = t;
     }
 
-    fn tick_dimmer_zero_guard(&mut self) {
-        // En maintenance, la pompe doit rester à zéro : la garde la réaffirme.
-        let now = self.hw.now_us();
-        let valve_open = self.valve_open && !self.maintenance_valve;
-        let mut guard = self.zero_guard;
-        guard.tick(now, valve_open, || self.apply_dimmer(0));
-        self.zero_guard = guard;
-    }
-
-    /// Lecture périodique à vide : sans elle, un dimmer jamais commandé
-    /// resterait avec des drapeaux figés à leur valeur initiale.
-    fn tick_dimmer_health(&mut self) {
-        let t = self.hw.now_us();
-        if t - self.dimmer_health_last_us < DIMMER_HEALTH_PERIOD_US {
+    fn tick_pump_status(&mut self) {
+        if self.pump_period_ms == 0 {
             return;
         }
-        self.dimmer_health_last_us = t;
-        self.read_dimmer_health();
-
-        // Repli, une seule fois par épisode « pas prêt » : `present` exigé,
-        // pas de repli tant qu'on n'a jamais eu de vraie réponse I2C (câblage
-        // ou alimentation, pas un problème de calibration).
-        if self.dimmer_present
-            && !self.dimmer_ready
-            && !self.dimmer_recalibrate_sent
-            && t > DIMMER_AUTO_RECALIBRATE_DELAY_US
-        {
-            self.dimmer_recalibrate_sent = true;
-            self.dimmer_recalibrate();
+        let t = self.hw.now_us();
+        if t - self.pump_last_sent_us < i64::from(self.pump_period_ms) * 1000 {
+            return;
         }
-        if self.dimmer_ready {
-            // Réarme pour une future coupure et reprise du secteur.
-            self.dimmer_recalibrate_sent = false;
-        }
+        self.send_status_pump();
+        self.pump_last_sent_us = t;
     }
 
     /// Publie `STATUS_PRESSURE` à la période demandée.

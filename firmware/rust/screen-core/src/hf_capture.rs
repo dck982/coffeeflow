@@ -1,7 +1,7 @@
 //! Capture haute fréquence : tampon d'échantillons à 10 Hz tenu en RAM
 //! volatile, et export JSON `coffeeflow.hf_capture.v3` de `/hf-capture`.
 //!
-//! Une capture commence au premier SET dimmer > 0 émis par le cœur, quelle
+//! Une capture commence au premier SET pompe > 0 émis par le cœur, quelle
 //! que soit sa porte d'entrée. Elle reste en RAM jusqu'à la session suivante
 //! et n'est exportable qu'une fois l'arrêt confirmé par les capteurs.
 
@@ -111,6 +111,10 @@ pub struct Sample {
     pub weight_g: f32,
     pub pump_pct_commanded: u8,
     pub pump_pct_reported: u8,
+    /// Vitesse de la pompe sur le dernier tour (tachymètre des capteurs).
+    pub pump_rpm: u16,
+    /// Volume refoulé depuis le début de la capture, glissement non retiré.
+    pub pump_displaced_ml: f32,
     pub mode: SampleMode,
     pub flags: u8,
 }
@@ -137,6 +141,8 @@ impl Default for Sample {
             weight_g: 0.0,
             pump_pct_commanded: 0,
             pump_pct_reported: 0,
+            pump_rpm: 0,
+            pump_displaced_ml: 0.0,
             mode: SampleMode::Purge,
             flags: 0,
         }
@@ -169,6 +175,7 @@ pub struct Capture {
     pub next_sample_us: i64,
     pub cooldown_ends_at_us: i64,
     pub volume_ml_reference: f32,
+    pub pump_displaced_ml_reference: f32,
     pub dropped_samples: u16,
     pub pump_pct_commanded: u8,
     pub active: bool,
@@ -206,6 +213,7 @@ impl Capture {
             next_sample_us: 0,
             cooldown_ends_at_us: 0,
             volume_ml_reference: 0.0,
+            pump_displaced_ml_reference: 0.0,
             dropped_samples: 0,
             pump_pct_commanded: 0,
             active: false,
@@ -388,7 +396,7 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
 \"xdb401_temperature_raw\":{},\"boiler_ntc_a0_raw\":{},\"boiler_ntc_a1_raw\":{},\
 \"boiler_temperature_age_ms\":{boiler_age},\"boiler_temperature_valid\":{boiler_valid},\
 \"flow_pulse_count\":{},\"flow_last_edge_age_ms\":{},\
-\"pump_pct_commanded\":{},\"pump_pct_reported\":{},\"heating_power_pct\":{},\
+\"pump_pct_commanded\":{},\"pump_pct_reported\":{},\"pump_rpm\":{},\"pump_displaced_ml\":{},\"heating_power_pct\":{},\
 \"heater_on\":{heater_on},\"mode\":\"{mode}\",\"flags\":{}}}",
             sample.t_ms,
             sample.pressure_raw,
@@ -399,6 +407,8 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
             sample.flow_last_edge_age_ms,
             sample.pump_pct_commanded,
             sample.pump_pct_reported,
+            sample.pump_rpm,
+            g6(sample.pump_displaced_ml),
             g6(sample.heating_power_pct),
             sample.flags
         ),
@@ -407,7 +417,7 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
 \"boiler_temperature_c\":{boiler_temperature},\"boiler_temperature_age_ms\":{boiler_age},\
 \"boiler_temperature_valid\":{boiler_valid},\"scace_temperature_c\":{scace_temperature},\
 \"volume_ml\":{},\"flow_ml_s\":{},\"weight_g\":{},\
-\"pump_pct_commanded\":{},\"pump_pct_reported\":{},\"heating_power_pct\":{},\
+\"pump_pct_commanded\":{},\"pump_pct_reported\":{},\"pump_rpm\":{},\"pump_displaced_ml\":{},\"heating_power_pct\":{},\
 \"heater_on\":{heater_on},\"mode\":\"{mode}\",\"flags\":{}}}",
             sample.t_ms,
             g6(sample.pressure_bar),
@@ -417,6 +427,8 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
             g6(sample.weight_g),
             sample.pump_pct_commanded,
             sample.pump_pct_reported,
+            sample.pump_rpm,
+            g6(sample.pump_displaced_ml),
             g6(sample.heating_power_pct),
             sample.flags
         ),
@@ -428,7 +440,7 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
 \"pressure_bar\":{},\"xdb401_temperature_c\":{},\
 \"boiler_temperature_c\":{boiler_temperature},\"scace_temperature_c\":{scace_temperature},\"volume_ml\":{},\
 \"flow_ml_s\":{},\"weight_g\":{},\"pump_pct_commanded\":{},\
-\"pump_pct_reported\":{},\"heating_power_pct\":{},\"heater_on\":{heater_on},\
+\"pump_pct_reported\":{},\"pump_rpm\":{},\"pump_displaced_ml\":{},\"heating_power_pct\":{},\"heater_on\":{heater_on},\
 \"mode\":\"{mode}\",\"flags\":{}}}",
             sample.t_ms,
             sample.pressure_raw,
@@ -444,6 +456,8 @@ pub fn export_sample(sample: &Sample, view: View, first: bool) -> String {
             g6(sample.weight_g),
             sample.pump_pct_commanded,
             sample.pump_pct_reported,
+            sample.pump_rpm,
+            g6(sample.pump_displaced_ml),
             g6(sample.heating_power_pct),
             sample.flags
         ),

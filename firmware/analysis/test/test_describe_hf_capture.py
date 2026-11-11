@@ -250,6 +250,29 @@ def test_puck_resistance_spans_the_settled_plateau_to_the_pump_stop():
     assert scaled_resistance(6.0, None, 7.5) is None
 
 
+def test_puck_resistance_reports_pump_speed_and_slip_when_captured():
+    from describe_hf_capture import puck_resistance, resistance_text
+
+    def sample(t, with_rpm):
+        mode = "preinfusion" if t < 10 else "infusion" if t < 30 else "purge"
+        result = {"t_ms": round(t * 1000), "mode": mode, "flags": 0x0F,
+                  "pump_pct_reported": 70 if t < 30 else 0,
+                  "pressure_bar": 1.0 if t < 10 else min(9.0, 1.0 + (t - 10) * 2),
+                  "weight_g": max(0.0, t - 10) * 1.5, "volume_ml": t * 1.6}
+        if with_rpm:
+            result["pump_rpm"] = 3000  # 5 ml/s refoulés
+        return result
+
+    plateau = puck_resistance([sample(i / 10, True) for i in range(351)])
+    assert abs(plateau["pump_rpm"] - 3000) < 1e-6
+    assert abs(plateau["pump_displaced_ml_s"] - 5.0) < 1e-6
+    assert abs(plateau["slip_ml_s"] - (5.0 - plateau["ml_s"])) < 1e-9
+    assert "glissement" in resistance_text(plateau, None, None)
+    old = puck_resistance([sample(i / 10, False) for i in range(351)])
+    assert math.isnan(old["pump_rpm"]) and math.isnan(old["slip_ml_s"])
+    assert "glissement" not in resistance_text(old, None, None)
+
+
 def test_puck_resistance_needs_the_plateau_pressure():
     from describe_hf_capture import puck_resistance
 

@@ -37,6 +37,10 @@ PHASE_STYLE = {
 }
 MODE_LABELS = {mode: label for mode, (label, _color) in PHASE_STYLE.items()}
 ORIGIN_LABELS = {"brew": "infusion", "purge": "purge"}
+# Cylindrée de la pompe à engrenage (ml par tour), la même que
+# PUMP_ML_PER_TURN de screen-core : « refoulé » = tours × cylindrée, sans
+# retirer le glissement.
+PUMP_ML_PER_TURN = 0.1
 VALIDITY_FLAGS = {
     "pressure": (0x01, "Pression"),
     "flow": (0x02, "Débitmètre"),
@@ -387,9 +391,18 @@ def puck_resistance(samples: list[dict[str, Any]], target_pressure_bar: float = 
     pressure = sum(pressures) / len(pressures)
     spread = math.sqrt(sum((value - pressure) ** 2 for value in pressures) / len(pressures))
     pumps = [number(sample.get("pump_pct_reported")) for sample in window]
+    # Les captures antérieures à la pompe à engrenage n'ont pas `pump_rpm`.
+    rpms = [number(sample.get("pump_rpm")) for sample in window]
+    rpms = [value for value in rpms if math.isfinite(value)]
+    pump_rpm = sum(rpms) / len(rpms) if rpms else float("nan")
+    displaced_ml_s = pump_rpm * PUMP_ML_PER_TURN / 60
+    digmesa_ml_s = (number(samples[last].get("volume_ml")) - number(samples[start].get("volume_ml"))) / duration
     return {"start_s": times[start], "end_s": times[last], "pressure_bar": pressure,
             "pressure_sd_bar": spread, "cup_g_s": cup_g_s,
-            "ml_s": (number(samples[last].get("volume_ml")) - number(samples[start].get("volume_ml"))) / duration,
+            "ml_s": digmesa_ml_s,
+            "pump_rpm": pump_rpm, "pump_displaced_ml_s": displaced_ml_s,
+            # Écart entre le refoulé et le Digmesa : c'est le glissement de la pompe.
+            "slip_ml_s": displaced_ml_s - digmesa_ml_s,
             "pump_min_pct": min(pumps), "pump_max_pct": max(pumps),
             "resistance_bar_s_g": pressure / cup_g_s}
 
@@ -412,6 +425,9 @@ def resistance_text(plateau: dict[str, float], dose_g: float | None, reference_g
             f"{plateau['pressure_sd_bar']:.2f} bar, {plateau['cup_g_s']:.2f} g/s, {plateau['ml_s']:.2f} ml/s, "
             f"pompe {plateau['pump_min_pct']:.0f}–{plateau['pump_max_pct']:.0f} %, "
             f"{plateau['start_s']:.2f}–{plateau['end_s']:.2f} s)")
+    if math.isfinite(plateau.get("pump_rpm", float("nan"))):
+        text += (f", pompe {plateau['pump_rpm']:.0f} tr/min = {plateau['pump_displaced_ml_s']:.2f} ml/s refoulés, "
+                 f"glissement {plateau['slip_ml_s']:.2f} ml/s")
     scaled = scaled_resistance(plateau["resistance_bar_s_g"], dose_g, reference_g)
     if scaled is not None:
         text += f", ≈ {scaled:.2f} ramené à {reference_g:g} g pour {dose_g:g} g pesés"
@@ -882,6 +898,11 @@ def interactive_plot(capture: dict[str, Any], weight_flow_window_s: float,
          "y": series("flow_ml_s", lambda s: valid(s, "flow")),
          "type": "scatter", "mode": "lines", "line": {"color": "#2ca02c", "dash": "dot", "width": 1.5},
          "opacity": 0.65, "yaxis": "y3", "hovertemplate": "%{y:.2f} ml/s<extra></extra>"},
+        *([{"name": "débit refoulé · pompe", "x": times,
+            "y": [value * PUMP_ML_PER_TURN / 60 if value is not None else None for value in series("pump_rpm")],
+            "type": "scatter", "mode": "lines", "line": {"color": "#8c564b", "dash": "dash", "width": 1.5},
+            "opacity": 0.65, "yaxis": "y3", "hovertemplate": "%{y:.2f} ml/s refoulés<extra></extra>"}]
+          if any("pump_rpm" in sample for sample in samples) else []),
         {"name": "température chaudière", "x": times, "y": finite_series(temperatures), "type": "scatter",
          "mode": "lines", "line": {"color": "#ff7f0e", "width": 2}, "yaxis": "y4",
          "hovertemplate": "%{y:.2f} °C<extra></extra>"},
@@ -1263,6 +1284,11 @@ def journal_rows(measures: dict[str, Any]) -> list[tuple[str, str, str]]:
          resistance_text(plateau, m["dose_g"] if math.isfinite(m["dose_g"]) else None, m["profile_dose_g"])
          if plateau else "—"),
     ]
+    if plateau and math.isfinite(plateau["pump_rpm"]):
+        rows += [("Plateau", "vitesse de la pompe", fmt(plateau["pump_rpm"], 0, " tr/min")),
+                 ("Plateau", "débit refoulé (tr/min × cylindrée)", fmt(plateau["pump_displaced_ml_s"], 2, " ml/s")),
+                 ("Plateau", "débit Digmesa", fmt(plateau["ml_s"], 2, " ml/s")),
+                 ("Plateau", "glissement (refoulé − Digmesa)", fmt(plateau["slip_ml_s"], 2, " ml/s"))]
     rows += [("Arrivée en tasse", f"{grams} g, depuis le début de l'infusion", sec(value))
              for grams, value in m["arrivals_s"].items()]
     rows += [

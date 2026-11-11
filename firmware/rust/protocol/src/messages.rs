@@ -354,8 +354,10 @@ impl NodeIdentityPayload {
     }
 }
 
-/// Commande DimmerLink de DIMMER_COMMAND (0x03). Les capteurs sont le seul
-/// nœud autorisé à écrire le bus I2C du DimmerLink.
+/// Commande DimmerLink de DIMMER_COMMAND (0x03). Réservé : l'écran ne
+/// l'émet plus et les capteurs l'ignorent, le DimmerLink ayant été retiré
+/// avec la carte combined. Le type reste défini pour décoder les anciennes
+/// trames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
@@ -546,6 +548,43 @@ impl StatusFlowPayload {
     }
 }
 
+/// STATUS_PUMP (0x25) : tachymètre de la pompe à engrenage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StatusPumpPayload {
+    /// Impulsions du tachymètre cumulées depuis le démarrage (2 par tour)
+    pub tach_pulses: u32,
+    /// Vitesse sur le dernier tour, en tr/min ; 0 sans front depuis 200 ms
+    pub rpm: u16,
+    /// Bit 0 tachymètre vu depuis le démarrage, bit 1 défaut de tachymètre
+    /// verrouillé, bit 2 marche à sec verrouillée.
+    pub flags: u8,
+}
+
+impl StatusPumpPayload {
+    pub const DLC: u8 = 7;
+    pub const FLAG_TACH_SEEN: u8 = 0x01;
+    pub const FLAG_FAULT: u8 = 0x02;
+    pub const FLAG_DRY: u8 = 0x04;
+
+    pub fn pack(&self) -> [u8; 8] {
+        let mut f = [0u8; 8];
+        put_u32(&mut f, 0, self.tach_pulses);
+        put_u16(&mut f, 4, self.rpm);
+        f[6] = self.flags;
+        f
+    }
+
+    pub fn unpack(p: &[u8]) -> Result<Self, DecodeError> {
+        need(p, 7)?;
+        Ok(Self {
+            tach_pulses: get_u32(p, 0),
+            rpm: get_u16(p, 4),
+            flags: p[6],
+        })
+    }
+}
+
 /// STATUS_ACTUATORS (0x22) : accusé de réception d'un SET.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -554,18 +593,21 @@ pub struct StatusActuatorsPayload {
     pub pump_pct: u8,
     pub lease_remaining_ms: u16,
     pub continuous_on_ms: u16,
-    /// Bit 0 verrou actif, bit 1 DimmerLink prêt, bit 2 DimmerLink valide
-    /// (détection I2C), bit 3 erreur DimmerLink, bit 4 vanne ouverte en
-    /// maintenance, bit 5 MAINTENANCE_VALVE pris en charge.
+    /// Bit 0 verrou actif, bit 1 pompe prête (aucun défaut pendant le cycle
+    /// en cours), bit 2 pilote de pompe présent (toujours 1 : une sortie PWM
+    /// locale ne détecte pas la pompe), bit 3 défaut pompe (tachymètre ou
+    /// marche à sec, jusqu'au prochain SET parti de 0), bit 4 vanne ouverte
+    /// en maintenance, bit 5 MAINTENANCE_VALVE pris en charge. Les bits 1 à
+    /// 3 étaient ceux du DimmerLink : même position, nouveau sens.
     pub flags: u8,
 }
 
 impl StatusActuatorsPayload {
     pub const DLC: u8 = 7;
     pub const FLAG_LOCKOUT: u8 = 0x01;
-    pub const FLAG_DIMMER_READY: u8 = 0x02;
-    pub const FLAG_DIMMER_PRESENT: u8 = 0x04;
-    pub const FLAG_DIMMER_ERROR: u8 = 0x08;
+    pub const FLAG_PUMP_READY: u8 = 0x02;
+    pub const FLAG_PUMP_PRESENT: u8 = 0x04;
+    pub const FLAG_PUMP_FAULT: u8 = 0x08;
     pub const FLAG_MAINTENANCE_VALVE_OPEN: u8 = 0x10;
     pub const FLAG_MAINTENANCE_VALVE_CAPABLE: u8 = 0x20;
 
@@ -830,6 +872,7 @@ pub enum Message {
     StatusPressure(StatusPressurePayload),
     StatusFlow(StatusFlowPayload),
     StatusActuators(StatusActuatorsPayload),
+    StatusPump(StatusPumpPayload),
     StatusHeating(StatusHeatingPayload),
     StatusEnclosure(StatusEnclosurePayload),
     Log(LogPayload),
@@ -854,6 +897,7 @@ impl Message {
             Self::StatusPressure(_) => MessageType::StatusPressure,
             Self::StatusFlow(_) => MessageType::StatusFlow,
             Self::StatusActuators(_) => MessageType::StatusActuators,
+            Self::StatusPump(_) => MessageType::StatusPump,
             Self::StatusHeating(_) => MessageType::StatusHeating,
             Self::StatusEnclosure(_) => MessageType::StatusEnclosure,
             Self::Log(_) => MessageType::Log,
@@ -877,6 +921,7 @@ impl Message {
             Self::StatusPressure(_) => StatusPressurePayload::DLC,
             Self::StatusFlow(_) => StatusFlowPayload::DLC,
             Self::StatusActuators(_) => StatusActuatorsPayload::DLC,
+            Self::StatusPump(_) => StatusPumpPayload::DLC,
             Self::StatusHeating(_) => StatusHeatingPayload::DLC,
             Self::StatusEnclosure(_) => StatusEnclosurePayload::DLC,
             Self::Log(_) => LogPayload::DLC,
@@ -911,6 +956,7 @@ impl Message {
             Self::StatusPressure(_)
             | Self::StatusFlow(_)
             | Self::StatusActuators(_)
+            | Self::StatusPump(_)
             | Self::StatusHeating(_)
             | Self::StatusEnclosure(_) => (Node::Sensors, Dest::Screen),
             Self::Log(_) => (Node::Sensors, Dest::Broadcast),
@@ -940,6 +986,7 @@ impl Message {
             Self::StatusPressure(p) => p.pack(),
             Self::StatusFlow(p) => p.pack(),
             Self::StatusActuators(p) => p.pack(),
+            Self::StatusPump(p) => p.pack(),
             Self::StatusHeating(p) => p.pack(),
             Self::StatusEnclosure(p) => p.pack(),
             Self::Log(p) => p.pack(),
@@ -994,6 +1041,7 @@ impl Message {
             MessageType::StatusActuators => {
                 Self::StatusActuators(StatusActuatorsPayload::unpack(p)?)
             }
+            MessageType::StatusPump => Self::StatusPump(StatusPumpPayload::unpack(p)?),
             MessageType::StatusHeating => Self::StatusHeating(StatusHeatingPayload::unpack(p)?),
             MessageType::StatusEnclosure => {
                 Self::StatusEnclosure(StatusEnclosurePayload::unpack(p)?)

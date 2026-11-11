@@ -64,14 +64,14 @@ la balance est présente, sinon le temps (`28 s`). Appuyer sur la cible ouvre le
 pavé numérique ; « − » et « + » l'ajustent directement (0,5 g entre 10 et
 100 g, ou 1 s entre 5 et 60 s) et enregistrent la configuration. Une ligne
 discrète rappelle la cible et la pré-infusion, ou « balance absente ». Une
-ligne rouge dit pourquoi l'infusion est refusée : erreur dimmer, dimmer en
-calibration, chauffage désactivé, chaudière en chauffe.
+ligne rouge dit pourquoi l'infusion est refusée : défaut de pompe, pompe à sec, pompe
+pas prête, chauffage désactivé, chaudière en chauffe.
 
 Trois boutons en bas :
 
 - **infuser · 36 g** (ou `· 28 s`), principal, qui ouvre la fenêtre de choix
   ci-dessous. Il est actif dès que la machine accepterait une purge (capteurs
-  vivants, pas de verrou, pas de cycle, dimmer prêt), même pendant la chauffe ;
+  vivants, pas de verrou, pas de cycle, pompe prête), même pendant la chauffe ;
 - **purge**, qui pompe tant que le doigt reste appuyé ;
 - **réglages**.
 
@@ -255,10 +255,9 @@ absent ou en erreur, gris désactivé), un nom, une valeur et un détail :
 
 Une ligne au bas de l'écran donne la SRAM libre et le plus gros bloc libre.
 
-Les tuiles pompe, vanne et chauffage sont tactiles et ouvrent un petit menu à
+Les tuiles vanne et chauffage sont tactiles et ouvrent un petit menu à
 deux boutons plus « fermer » :
 
-- **dimmerlink** : reset (en rouge) ou calibrer ; la pompe est arrêtée avant ;
 - **vanne · maintenance** : ouvrir 30 s (ou relancer) ou fermer la vanne ;
   l'ouverture est refusée tant que le chauffage est activé ou si le module
   capteurs est trop ancien, et le texte indique le temps restant ;

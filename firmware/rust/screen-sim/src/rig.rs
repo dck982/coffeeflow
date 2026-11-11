@@ -2,7 +2,7 @@
 //! Aucune action UI n'est simulée en contournant les contrôles de sécurité.
 use protocol::messages::{
     NodeIdentityPayload, StatusActuatorsPayload, StatusEnclosurePayload, StatusFlowPayload,
-    StatusHeatingPayload, StatusPressurePayload,
+    StatusHeatingPayload, StatusPressurePayload, StatusPumpPayload,
 };
 use protocol::{Dest, Message, Node, Version};
 use screen_core::{
@@ -17,6 +17,7 @@ pub struct Rig {
     pump: u8,
     power: u16,
     pulses: u32,
+    pump_turns: f32,
     weight: f32,
     ntc_a1: i16,
 }
@@ -37,6 +38,7 @@ impl Rig {
             pump: 0,
             power: 0,
             pulses: 0,
+            pump_turns: 0.0,
             weight: 0.0,
             ntc_a1: best.1,
         };
@@ -90,8 +92,16 @@ impl Rig {
             pump_pct: self.pump,
             lease_remaining_ms: 400,
             continuous_on_ms: 0,
-            flags: StatusActuatorsPayload::FLAG_DIMMER_PRESENT
-                | StatusActuatorsPayload::FLAG_DIMMER_READY,
+            flags: StatusActuatorsPayload::FLAG_PUMP_PRESENT
+                | StatusActuatorsPayload::FLAG_PUMP_READY,
+        }));
+        // 45 tr/min par point de commande, 2 impulsions par tour (50 ms).
+        let rpm = u16::from(self.pump) * 45;
+        self.pump_turns += f32::from(rpm) / 1200.0;
+        self.rx(Message::StatusPump(StatusPumpPayload {
+            tach_pulses: (self.pump_turns * 2.0) as u32,
+            rpm,
+            flags: StatusPumpPayload::FLAG_TACH_SEEN,
         }));
         self.rx(Message::StatusHeating(StatusHeatingPayload {
             heater_on: self.power > 0,

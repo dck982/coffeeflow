@@ -81,7 +81,7 @@ pub struct Input {
 /// Commande de pompe et durée de validité (bail) à envoyer en SET.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Output {
-    pub dimmer: u8,
+    pub pump_pct: u8,
     pub ttl_ms: u16,
 }
 
@@ -318,9 +318,9 @@ impl Machine {
         self.state = State::Brew;
         self.phase_started_ms = now_ms;
         let target_pct = self.target_pump_pct();
-        // Sans charge, la pompe ne débite rien sous 40 %. Après une pause à
-        // 35 %, partir de MINIMUM_BREW_PUMP_PCT évite de perdre le début de
-        // la rampe.
+        // La pré-infusion peut tourner sous le plancher d'infusion : la rampe
+        // ne part jamais en dessous de MINIMUM_BREW_PUMP_PCT, où la pompe à
+        // engrenage tourne encore franchement.
         self.brew_ramp_start_pct = if ramp_from_preinfusion {
             self.config
                 .preinfusion_pump_pct
@@ -349,7 +349,7 @@ impl Machine {
                 self.finish(StopReason::PurgeTimeout, now_ms);
             } else {
                 return Output {
-                    dimmer: self.config.purge_pump_pct,
+                    pump_pct: self.config.purge_pump_pct,
                     ttl_ms: LEASE_MS,
                 };
             }
@@ -362,7 +362,7 @@ impl Machine {
             let duration_ms = (self.config.brew_preheat_time_s * 1000.0) as u64;
             if now_ms.wrapping_sub(self.phase_started_ms) < duration_ms {
                 return Output {
-                    dimmer: 0,
+                    pump_pct: 0,
                     ttl_ms: LEASE_MS,
                 };
             }
@@ -394,7 +394,7 @@ impl Machine {
             let elapsed = now_ms.wrapping_sub(self.started_ms);
             if elapsed < FILLING_PRESSURE_GUARD_MS {
                 return Output {
-                    dimmer: self.config.filling_pump_pct,
+                    pump_pct: self.config.filling_pump_pct,
                     ttl_ms: LEASE_MS,
                 };
             }
@@ -417,7 +417,7 @@ impl Machine {
             let time_done = elapsed >= u64::from(self.config.filling_time_s) * 1000;
             if !time_done && !pressure_done {
                 return Output {
-                    dimmer: self.config.filling_pump_pct,
+                    pump_pct: self.config.filling_pump_pct,
                     ttl_ms: LEASE_MS,
                 };
             }
@@ -446,7 +446,7 @@ impl Machine {
             }
             if !done {
                 return Output {
-                    dimmer: self.config.preinfusion_pump_pct,
+                    pump_pct: self.config.preinfusion_pump_pct,
                     ttl_ms: LEASE_MS,
                 };
             }
@@ -532,7 +532,7 @@ impl Machine {
             }
         }
         Output {
-            dimmer: self.brew_pump_pct,
+            pump_pct: self.brew_pump_pct,
             ttl_ms: LEASE_MS,
         }
     }

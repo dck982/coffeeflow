@@ -280,7 +280,7 @@ Setpoint (U8):
 - Filter: R36 / C20 and R37 / C21, 2 × 1.5 kΩ / 2.2 µF (48 Hz each), between
   the emitter and the brown wire, capacitors to green. C20 and C21 are
   50 V X5R 0805 (Samsung CL21A225KBQNNNE, LCSC C377773). With the LEDC at
-  1 kHz and 16 bits, the ripple is about 5 V × (48 / 1000)² ≈ 12 mV, about 12 rpm, and
+  1 kHz and 14 bits (the ESP32-S3 LEDC maximum), the ripple is about 5 V × (48 / 1000)² ≈ 12 mV, about 12 rpm, and
   the response time about 10 ms. The source impedance, about 3 kΩ,
   is close to a 10 kΩ potentiometer at mid travel (2.5 kΩ).
 - U8 off, R35 brings the setpoint to green: 0 at power-up, during a reset,
@@ -309,7 +309,8 @@ Tachometer (U9):
 - U9's LED runs from yellow to blue through R38 (1.8 kΩ): about 2 mA while
   blue is low. This works with a push-pull or an open-collector output.
 - U9's transistor pulls PUMP_TACHO (GPIO3) to GND against R39 (4.7 kΩ to
-  3V3, 0.7 mA). The signal is inverted; the PCNT counts its edges.
+  3V3, 0.7 mA). The signal is inverted; a GPIO interrupt counts and timestamps its
+  falling edges.
 - The pump gives 2 pulses per turn from an active 0–5 V output (measured):
   167 Hz at 5 000 rpm, far below the 2.7 kHz the EL817C follows.
 - GPIO3 is a JTAG strapping pin, read only when the `STRAP_JTAG_SEL` eFuse
@@ -355,8 +356,8 @@ XIAO pins used by the valve and the pump:
 
 | Signal | GPIO | Seeed name | U7 / J11–J12 pin | Firmware |
 |---|---:|---|---|---|
-| PUMP_SPEED | 1 | D0 | U7 / 1, J11 / 1 | LEDC PWM, 1 kHz, 16 bits; 0 at boot |
-| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | PCNT on the inverted signal, glitch filter |
+| PUMP_SPEED | 1 | D0 | U7 / 1, J11 / 1 | LEDC PWM, 1 kHz, 14 bits; 0 at boot |
+| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | GPIO interrupt on the inverted signal, 3 ms software filter |
 | SSR | 9 | D10 | U7 / 11, J12 / 4 (former VALVE_CMD) | active HIGH |
 
 The other pins keep their sensors assignments; only D6/GPIO43 stays free.

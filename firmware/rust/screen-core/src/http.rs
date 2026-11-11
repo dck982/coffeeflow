@@ -164,6 +164,14 @@ pub const TELEMETRY_KEYS: &[&str] = &[
     "flow.freshness",
     "flow.age_ms",
     "flow.last_edge_age_ms",
+    "pump.pct",
+    "pump.rpm",
+    "pump.displaced_ml_s",
+    "pump.displaced_ml",
+    "pump.tach_pulses",
+    "pump.ready",
+    "pump.fault",
+    "pump.dry",
     "scale.weight_g",
     "scale.connected",
     "scale.present",
@@ -172,11 +180,7 @@ pub const TELEMETRY_KEYS: &[&str] = &[
     "brew.age_ms",
     "brew.valve_open",
     "brew.maintenance_valve_open",
-    "brew.dimmer_pct",
     "brew.pump_pct",
-    "brew.dimmer_ready",
-    "brew.dimmer_valid",
-    "brew.dimmer_error_active",
     "brew.lockout",
     "brew.lease_remaining_ms",
     "brew.continuous_on_ms",
@@ -333,6 +337,17 @@ pub fn encode_telemetry(
     );
     root.push("flow", flow);
 
+    let mut pump = Json::object();
+    pump.push_number("pct", f64::from(snapshot.pump_pct));
+    pump.push_number("rpm", f64::from(snapshot.pump_rpm));
+    pump.push_number("displaced_ml_s", num(snapshot.pump_displaced_ml_s));
+    pump.push_number("displaced_ml", num(snapshot.pump_displaced_ml));
+    pump.push_number("tach_pulses", u(snapshot.pump_tach_pulses));
+    pump.push_bool("ready", snapshot.pump_ready);
+    pump.push_bool("fault", snapshot.pump_fault);
+    pump.push_bool("dry", snapshot.pump_dry);
+    root.push("pump", pump);
+
     let mut scale = Json::object();
     scale.push_number("weight_g", num(snapshot.weight_g));
     scale.push_bool("connected", snapshot.scale_connected);
@@ -345,11 +360,7 @@ pub fn encode_telemetry(
     push_age(&mut brew, "age_ms", snapshot.actuators_age_ms);
     brew.push_bool("valve_open", snapshot.valve_open);
     brew.push_bool("maintenance_valve_open", snapshot.maintenance_valve_open);
-    brew.push_number("dimmer_pct", f64::from(snapshot.dimmer_pct));
     brew.push_number("pump_pct", f64::from(snapshot.pump_pct));
-    brew.push_bool("dimmer_ready", snapshot.dimmer_ready);
-    brew.push_bool("dimmer_valid", snapshot.dimmer_valid);
-    brew.push_bool("dimmer_error_active", snapshot.dimmer_error_active);
     brew.push_bool("lockout", snapshot.lockout);
     brew.push_number("lease_remaining_ms", f64::from(snapshot.lease_remaining_ms));
     brew.push_number("continuous_on_ms", f64::from(snapshot.continuous_on_ms));
@@ -627,6 +638,7 @@ fn parse_action(root: &Json) -> Result<ActionCommand, String> {
         if action != Action::SetActuators && action != Action::SetBrewActuators {
             return Err(super_field(key));
         }
+        // `set_actuators` garde son ancien champ pour les scripts existants.
         let pump_field = if action == Action::SetActuators {
             "dimmer"
         } else {
@@ -649,6 +661,7 @@ fn parse_action(root: &Json) -> Result<ActionCommand, String> {
         return Err(super_field(key));
     }
     if action == Action::SetActuators || action == Action::SetBrewActuators {
+        // `set_actuators` garde son ancien champ pour les scripts existants.
         let pump_field = if action == Action::SetActuators {
             "dimmer"
         } else {

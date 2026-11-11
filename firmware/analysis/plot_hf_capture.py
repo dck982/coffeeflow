@@ -27,6 +27,9 @@ import matplotlib.pyplot as plt
 from analyze_hf_capture import boiler_temperature_usable
 
 
+# Cylindrée de la pompe à engrenage, en ml par tour.
+PUMP_ML_PER_TURN = 0.1
+
 PHASE_STYLE = {
     "thermal_preheat": ("précharge thermique", "#4a9bb5"),
     "filling": ("remplissage", "#8c6bb1"),
@@ -158,6 +161,10 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
 
     axes[1].plot(elapsed_s, flow, color="tab:green", label="débitmètre (ml/s)")
     axes[1].plot(elapsed_s, balance_flow, color="tab:purple", label=f"balance ({weight_flow_window_s:g} s, g/s)")
+    if any("pump_rpm" in sample for sample in samples):
+        # Refoulé = tr/min × cylindrée ; l'écart avec le débitmètre est le glissement.
+        displaced = [float(sample.get("pump_rpm", 0.0)) * PUMP_ML_PER_TURN / 60.0 for sample in samples]
+        axes[1].plot(elapsed_s, displaced, color="tab:brown", linestyle="--", label="refoulé pompe (ml/s)")
     axes[1].set_ylabel("débit (ml/s ou g/s)")
     if flow_derivative is not None:
         flow_derivative_axis = axes[1].twinx()
@@ -203,7 +210,7 @@ def plot(capture: dict[str, Any], weight_flow_window_s: float = 2.0,
     volume_axis = axes[4].twinx()
     volume_axis.plot(elapsed_s, volume, color="tab:olive", label="volume depuis début")
     volume_axis.set_ylabel("volume (ml)")
-    axes[4].set_xlabel("temps depuis SET dimmer>0 (s)")
+    axes[4].set_xlabel("temps depuis SET pompe>0 (s)")
     axes[4].legend(loc="upper left")
     volume_axis.legend(loc="upper right")
     for axis in axes:

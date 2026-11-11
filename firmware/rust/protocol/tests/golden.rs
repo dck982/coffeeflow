@@ -65,6 +65,8 @@ fn expected(name: &str) -> (Message, Node, Dest) {
         "status_pressure_timeout" => (Message::StatusPressure(StatusPressurePayload { pressure_raw: 0x800000, temperature_raw: 0xFFFF, timestamp_ms: 0, flags: 3 }), Sensors, Sc),
         "status_flow" => (Message::StatusFlow(StatusFlowPayload { pulse_count: 4_000_000_000, last_edge_ms: 1234, flags: 1 }), Sensors, Sc),
         "status_flow_zero" => (Message::StatusFlow(StatusFlowPayload { pulse_count: 0, last_edge_ms: 0, flags: 1 }), Sensors, Sc),
+        "status_pump" => (Message::StatusPump(StatusPumpPayload { tach_pulses: 4_000_000_000, rpm: 4500, flags: 7 }), Sensors, Sc),
+        "status_pump_zero" => (Message::StatusPump(StatusPumpPayload::default()), Sensors, Sc),
         "status_actuators" => (Message::StatusActuators(StatusActuatorsPayload { valve_open: true, pump_pct: 77, lease_remaining_ms: 480, continuous_on_ms: 59000, flags: 0x25 }), Sensors, Sc),
         "status_actuators_idle" => (Message::StatusActuators(StatusActuatorsPayload { flags: 0x30, ..Default::default() }), Sensors, Sc),
         "status_heating_full" => (status_heating(StatusHeatingPayload { heater_on: true, lease_remaining_ms: 350, power_capable: true, fine_power_capable: true, window_restart_capable: true, power_permille: 937 }), Sensors, Sc),

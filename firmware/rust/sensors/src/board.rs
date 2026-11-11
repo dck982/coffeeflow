@@ -5,16 +5,17 @@ use core::sync::atomic::Ordering::Relaxed;
 use esp_hal::Blocking;
 use esp_hal::gpio::{Level, Output};
 use esp_hal::i2c::master::I2c;
+use esp_hal::ledc::LowSpeed;
+use esp_hal::ledc::channel::{Channel, ChannelHW};
 use log::warn;
 use protocol::Frame;
 use sensors_logic::flash_rx::{FlashSink, HEAD_LEN};
-use sensors_logic::machine::{DIMMER_ADDR, DIMMER_REG_COMMAND};
-use sensors_logic::{FlowCounter, Hw, TwaiCounters};
+use sensors_logic::{FlowCounter, Hw, TachCounter, TwaiCounters};
 
 use crate::can;
 use crate::clock;
+use crate::edges;
 use crate::flash::FlashOta;
-use crate::flow;
 use crate::lockout;
 
 /// Niveaux de HEATER_CMD : HIGH ouvre Q3, qui ouvre Q2 et envoie le 5 V au
@@ -38,6 +39,8 @@ const ADS1115_CONFIG_AIN1: u16 = 0xD243;
 pub struct Board {
     pub valve: Output<'static>,
     pub heater: Output<'static>,
+    /// Consigne de la pompe (GPIO 1), 1 kHz, 14 bits.
+    pub pump: Channel<'static, LowSpeed>,
     pub i2c: I2c<'static, Blocking>,
     pub ota: FlashOta,
     /// L'ADS1115 a reçu sa configuration depuis sa dernière erreur : après
@@ -76,23 +79,10 @@ impl Hw for Board {
             .set_level(if on { HEATER_ACTIVE } else { HEATER_INACTIVE });
     }
 
-    fn dimmer_write(&mut self, reg: u8, value: u8) -> bool {
-        // La commande 0x03 du registre COMMAND bascule le dimmer en UART et
-        // l'écrit dans son EEPROM : aucun chemin du code ne doit l'émettre, et
-        // cette dernière barrière la refuse même si l'un d'eux se trompait.
-        if reg == DIMMER_REG_COMMAND && !matches!(value, 0x01 | 0x02) {
-            warn!("commande dimmer {value:#04x} refusée");
-            return false;
-        }
-        self.i2c.write(DIMMER_ADDR as u8, &[reg, value]).is_ok()
-    }
-
-    fn dimmer_read(&mut self, reg: u8) -> Option<u8> {
-        let mut value = [0u8];
-        self.i2c
-            .write_read(DIMMER_ADDR as u8, &[reg], &mut value)
-            .ok()?;
-        Some(value[0])
+    fn set_pump_duty(&mut self, duty: u16) {
+        // Valeur brute du LEDC 14 bits : 0 = toujours bas, 16384 = toujours
+        // haut (le LEDC accepte 0..=2^bits).
+        self.pump.set_duty_hw(u32::from(duty));
     }
 
     fn send(&mut self, frame: Frame) {
@@ -102,7 +92,11 @@ impl Hw for Board {
     }
 
     fn flow(&self) -> FlowCounter {
-        flow::read()
+        edges::flow()
+    }
+
+    fn pump_tach(&self) -> TachCounter {
+        edges::tach()
     }
 
     fn twai_counters(&mut self) -> Option<TwaiCounters> {

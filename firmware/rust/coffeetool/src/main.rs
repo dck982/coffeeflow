@@ -214,6 +214,8 @@ enum StatusTarget {
     Actuators,
     #[value(name = "status_heating")]
     Heating,
+    #[value(name = "status_pump")]
+    Pump,
 }
 
 impl Target {
@@ -303,6 +305,7 @@ fn cmd_send(
                 StatusTarget::Flow => MessageType::StatusFlow,
                 StatusTarget::Actuators => MessageType::StatusActuators,
                 StatusTarget::Heating => MessageType::StatusHeating,
+                StatusTarget::Pump => MessageType::StatusPump,
             };
             (
                 "reqstatus",

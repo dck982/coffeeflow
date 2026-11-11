@@ -1,9 +1,9 @@
 //! Scénarios de la machine d'état avec un faux matériel.
 
 use protocol::messages::{
-    DimmerCommand, DimmerCommandPayload, FlashCtrlPayload, FlashDataPayload,
-    MaintenanceValvePayload, ReqStatusPayload, SetHeatingPayload, SetHeatingPowerPayload,
-    SetPayload, StatusActuatorsPayload, StatusEnclosurePayload, StatusHeatingPayload,
+    FlashCtrlPayload, FlashDataPayload, MaintenanceValvePayload, ReqStatusPayload,
+    SetHeatingPayload, SetHeatingPowerPayload, SetPayload, StatusActuatorsPayload,
+    StatusEnclosurePayload, StatusHeatingPayload, StatusPumpPayload,
 };
 use protocol::{
     Dest, FIRMWARE_VERSION, Frame, LogCode, LogSeverity, Message, MessageType, Node, crc16_ccitt,
@@ -13,6 +13,7 @@ use protocol::{
 use crate::flash_rx::{FlashSink, HEAD_LEN};
 use crate::flow::FlowCounter;
 use crate::machine::*;
+use crate::pump::{TachCounter, pump_duty};
 
 const S: i64 = 1_000_000;
 const MS: i64 = 1_000;
@@ -21,10 +22,13 @@ struct Mock {
     now: i64,
     valve: bool,
     heater: bool,
-    dimmer_ok: bool,
-    dimmer_status: u8,
-    dimmer_error: u8,
-    dimmer_writes: Vec<(u8, u8)>,
+    /// Dernier rapport cyclique de la pompe et tous ceux posés.
+    duty: u16,
+    duty_writes: Vec<u16>,
+    /// Vitesse que le faux tachymètre rend : un front à l'instant courant,
+    /// ou aucun front si 0.
+    tach_rpm: u16,
+    pressure_reads: u32,
     enclosure_raw: Option<i16>,
     pressure_raw: Option<i16>,
     sent: Vec<Frame>,
@@ -44,10 +48,10 @@ impl Mock {
             now: 10 * S,
             valve: false,
             heater: false,
-            dimmer_ok: true,
-            dimmer_status: 0x01,
-            dimmer_error: 0,
-            dimmer_writes: vec![],
+            duty: 0,
+            duty_writes: vec![],
+            tach_rpm: 0,
+            pressure_reads: 0,
             enclosure_raw: Some(0x1F0),
             pressure_raw: None,
             sent: vec![],
@@ -92,25 +96,27 @@ impl Hw for Mock {
     fn set_heater(&mut self, on: bool) {
         self.heater = on;
     }
-    fn dimmer_write(&mut self, reg: u8, value: u8) -> bool {
-        self.dimmer_writes.push((reg, value));
-        self.dimmer_ok
-    }
-    fn dimmer_read(&mut self, reg: u8) -> Option<u8> {
-        if !self.dimmer_ok {
-            return None;
-        }
-        Some(match reg {
-            DIMMER_REG_STATUS => self.dimmer_status,
-            DIMMER_REG_ERROR => self.dimmer_error,
-            _ => 0,
-        })
+    fn set_pump_duty(&mut self, duty: u16) {
+        self.duty = duty;
+        self.duty_writes.push(duty);
     }
     fn send(&mut self, frame: Frame) {
         self.sent.push(frame);
     }
     fn flow(&self) -> FlowCounter {
         self.flow
+    }
+    fn pump_tach(&self) -> TachCounter {
+        if self.tach_rpm == 0 {
+            return TachCounter::new();
+        }
+        let period_us = 30_000_000 / u32::from(self.tach_rpm);
+        TachCounter {
+            pulse_count: 100,
+            last_edge_us: self.now - 1000,
+            period_us,
+            prev_period_us: period_us,
+        }
     }
     fn twai_counters(&mut self) -> Option<TwaiCounters> {
         Some(TwaiCounters {
@@ -123,6 +129,7 @@ impl Hw for Mock {
         self.enclosure_raw
     }
     fn pressure_raw(&mut self) -> Option<i16> {
+        self.pressure_reads += 1;
         self.pressure_raw
     }
     fn store_lockout(&mut self, active: bool) {
@@ -313,7 +320,8 @@ fn set_opens_valve_and_pump_then_the_lease_cuts_both() {
     let mut m = present();
     set(&mut m, 80, 300);
     assert!(m.hw.valve);
-    assert!(m.hw.dimmer_writes.contains(&(DIMMER_REG_LEVEL, 80)));
+    assert_eq!(m.hw.duty, pump_duty(80));
+    assert!(m.hw.duty > 0);
     let st = last_actuators(&m);
     assert!(st.valve_open);
     assert_eq!(st.pump_pct, 80);
@@ -322,14 +330,16 @@ fn set_opens_valve_and_pump_then_the_lease_cuts_both() {
         st.flags & StatusActuatorsPayload::FLAG_MAINTENANCE_VALVE_CAPABLE,
         0x20
     );
-    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_DIMMER_PRESENT, 0x04);
-    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_DIMMER_READY, 0x02);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_PRESENT, 0x04);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0x02);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0);
 
     advance(&mut m, 200 * MS, true);
     assert!(m.hw.valve);
     advance(&mut m, 100 * MS, true);
     assert!(!m.hw.valve);
-    assert_eq!(m.hw.dimmer_writes.last(), Some(&(DIMMER_REG_LEVEL, 0)));
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(m.hw.duty_writes.last(), Some(&0));
     assert!(has_log(&m, LogCode::LeaseExpired));
     let st = last_actuators(&m);
     assert!(!st.valve_open && st.pump_pct == 0 && st.lease_remaining_ms == 0);
@@ -357,7 +367,8 @@ fn set_above_100_is_ignored_and_set_zero_closes_the_valve() {
     set(&mut m, 40, 500);
     set(&mut m, 0, 500);
     assert!(!m.hw.valve);
-    assert_eq!(m.hw.dimmer_writes.last(), Some(&(DIMMER_REG_LEVEL, 0)));
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(m.hw.duty_writes.last(), Some(&0));
 }
 
 #[test]
@@ -652,7 +663,8 @@ fn maintenance_valve_opens_valve_only_with_heating_off() {
     m.hw.sent.clear();
     open_maintenance(&mut m, 10_000);
     assert!(m.hw.valve && !m.hw.heater);
-    assert_eq!(m.hw.dimmer_writes.last(), Some(&(DIMMER_REG_LEVEL, 0)));
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(m.hw.duty_writes.last(), Some(&0));
     let st = last_actuators(&m);
     assert!(st.valve_open && st.pump_pct == 0);
     assert_eq!(
@@ -738,17 +750,12 @@ fn reopening_maintenance_restarts_from_the_received_duration() {
 }
 
 #[test]
-fn the_zero_guard_holds_the_pump_at_zero_during_maintenance() {
+fn the_pump_stays_at_zero_during_maintenance() {
     let mut m = present();
     open_maintenance(&mut m, 10_000);
-    m.hw.dimmer_writes.clear();
     advance(&mut m, 3 * S, true);
-    assert!(m.hw.dimmer_writes.contains(&(DIMMER_REG_LEVEL, 0)));
-    assert!(
-        m.hw.dimmer_writes
-            .iter()
-            .all(|&(r, v)| r != DIMMER_REG_LEVEL || v == 0)
-    );
+    assert!(m.hw.valve);
+    assert!(m.hw.duty_writes.iter().all(|&d| d == 0));
 }
 
 // ------------------------------------------------------------------- chauffe
@@ -963,135 +970,336 @@ fn heater_output_polarity_is_owned_by_the_hardware_layer() {
     assert!(!m.hw.heater);
 }
 
-// -------------------------------------------------------------------- dimmer
+// --------------------------------------------------------------------- pompe
 
-#[test]
-fn dimmer_health_flags_follow_the_last_transaction() {
+fn last_pump(m: &Machine<Mock>) -> StatusPumpPayload {
+    m.hw.sent
+        .iter()
+        .rev()
+        .find_map(|f| match decoded(f) {
+            Message::StatusPump(p) => Some(p),
+            _ => None,
+        })
+        .expect("aucun STATUS_PUMP")
+}
+
+/// Pompe en marche à 50 % avec un tachymètre qui répond, après 1 s.
+fn running_pump() -> Machine<Mock> {
     let mut m = present();
-    m.hw.dimmer_status = 0x02; // pas prêt, erreur
-    m.hw.dimmer_error = 0x07;
-    set(&mut m, 10, 500);
-    let st = last_actuators(&m);
-    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_DIMMER_READY, 0);
-    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_DIMMER_PRESENT, 0x04);
-    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_DIMMER_ERROR, 0x08);
-    assert!(has_log(&m, LogCode::DimmerCalibrating));
-    assert_eq!(log_args(&m, LogCode::DimmerError), [(7, 0)]);
-    assert_eq!(log_args(&m, LogCode::DimmerMainsFreq).len(), 1);
+    m.hw.tach_rpm = 2250;
+    m.hw.pressure_raw = Some(6000); // ≈ 2 bar : pas de marche à sec
+    set(&mut m, 50, 20_000);
+    advance(&mut m, S, true);
+    assert_eq!(m.hw.duty, pump_duty(50));
+    m
 }
 
 #[test]
-fn an_i2c_failure_clears_the_flags_and_logs_once() {
+fn the_duty_follows_the_set_percentage_and_logs_each_cycle_start() {
     let mut m = present();
-    set(&mut m, 10, 500);
-    m.hw.dimmer_ok = false;
-    m.hw.sent.clear();
-    set(&mut m, 20, 500);
-    set(&mut m, 30, 500);
-    let st = last_actuators(&m);
-    assert_eq!(st.flags & 0x0E, 0);
-    // L'erreur n'est journalisée qu'à la première perte.
-    assert_eq!(log_args(&m, LogCode::I2cError), [(0x50, 0)]);
-}
-
-#[test]
-fn the_zero_guard_rewrites_zero_while_the_valve_is_closed() {
-    let mut m = present();
-    m.hw.dimmer_writes.clear();
-    advance(&mut m, 3500 * MS, true);
-    let zero_writes =
-        m.hw.dimmer_writes
-            .iter()
-            .filter(|&&w| w == (DIMMER_REG_LEVEL, 0))
-            .count();
-    assert!((3..=4).contains(&zero_writes), "{zero_writes}");
-    // Jamais pendant une infusion.
+    set(&mut m, 40, 5000);
     set(&mut m, 60, 5000);
-    m.hw.dimmer_writes.clear();
-    advance(&mut m, 3 * S, true);
-    assert!(m.hw.valve);
-    assert!(
-        m.hw.dimmer_writes
-            .iter()
-            .all(|&(r, v)| r != DIMMER_REG_LEVEL || v == 60)
+    assert_eq!(m.hw.duty, pump_duty(60));
+    // Un seul LOG de démarrage : le deuxième SET ne part pas de 0.
+    assert_eq!(
+        log_args(&m, LogCode::PumpStart),
+        [(40, u32::from(pump_duty(40)))]
     );
+    set(&mut m, 0, 5000);
+    assert_eq!(m.hw.duty, 0);
+    set(&mut m, 30, 5000);
+    assert_eq!(log_args(&m, LogCode::PumpStart).len(), 2);
 }
 
 #[test]
-fn a_dimmer_command_forces_the_actuators_off_and_never_uses_command_3() {
+fn the_pump_duty_is_zero_when_idle_and_full_scale_is_never_commanded() {
     let mut m = present();
-    set(&mut m, 90, 5000);
+    advance(&mut m, 3 * S, true);
+    assert!(m.hw.duty_writes.iter().all(|&d| d == 0));
+    set(&mut m, 100, 500);
+    assert!(m.hw.duty > 0 && m.hw.duty < PUMP_DUTY_FULL);
+}
+
+#[test]
+fn every_cut_path_sets_the_duty_to_zero() {
+    // Perte de présence.
+    let mut m = running_pump();
+    advance(&mut m, 4 * S, false);
+    assert!(has_log(&m, LogCode::PresenceLost));
+    assert_eq!(m.hw.duty, 0);
+    // STOP.
+    let mut m = running_pump();
+    send_stop(&mut m);
+    assert_eq!(m.hw.duty, 0);
+    // Bail expiré.
+    let mut m = present();
+    m.hw.tach_rpm = 2250;
+    set(&mut m, 50, 300);
+    advance(&mut m, 300 * MS, true);
+    assert_eq!(m.hw.duty, 0);
+    // Verrou de 60 s.
+    let mut m = present();
+    m.hw.tach_rpm = 2250;
+    set(&mut m, 50, 500);
+    for _ in 0..620 {
+        advance(&mut m, 100 * MS, true);
+        set(&mut m, 50, 500);
+        if m.lockout_active() {
+            break;
+        }
+    }
+    assert!(m.lockout_active());
+    assert_eq!(m.hw.duty, 0);
+    // Vanne de maintenance : pompe à 0.
+    let mut m = present();
+    open_maintenance(&mut m, 10_000);
+    assert_eq!(m.hw.duty, 0);
+}
+
+#[test]
+fn a_silent_tachometer_cuts_the_pump_and_latches_the_fault() {
+    let mut m = present();
+    m.hw.tach_rpm = 0;
+    set(&mut m, 50, 20_000);
+    // 500 ms de consigne ne suffisent pas.
+    advance(&mut m, 500 * MS, true);
+    assert_eq!(m.hw.duty, pump_duty(50));
+    assert!(!has_log(&m, LogCode::PumpFault));
+    advance(&mut m, 200 * MS, true);
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(
+        log_args(&m, LogCode::PumpFault),
+        [(50, u32::from(pump_duty(50)))]
+    );
+    let st = last_actuators(&m);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0x08);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_PRESENT, 0x04);
+
+    // Verrouillé : les SET suivants ne relancent pas la pompe.
+    set(&mut m, 50, 20_000);
+    advance(&mut m, S, true);
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(log_args(&m, LogCode::PumpFault).len(), 1);
+
+    // Le cycle fini, la pompe est de nouveau prête mais le défaut reste.
+    set(&mut m, 0, 500);
+    let st = last_actuators(&m);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0x02);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0x08);
+
+    // Le prochain SET parti de 0 lève le défaut et relance la pompe.
+    m.hw.tach_rpm = 2250;
+    set(&mut m, 50, 20_000);
+    assert_eq!(m.hw.duty, pump_duty(50));
+    let st = last_actuators(&m);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0x02);
+    advance(&mut m, 2 * S, true);
+    assert_eq!(m.hw.duty, pump_duty(50));
+}
+
+#[test]
+fn a_restart_within_50_ms_of_the_cut_waits_for_the_pump_to_rearm() {
+    let mut m = present();
+    m.hw.tach_rpm = 0;
+    set(&mut m, 50, 20_000);
+    advance(&mut m, 600 * MS, true);
+    assert_eq!(m.hw.duty, 0);
+    // Au même instant que la coupure : SET 0 puis SET 30.
+    set(&mut m, 0, 20_000);
+    m.hw.tach_rpm = 1350;
+    set(&mut m, 30, 20_000);
+    assert_eq!(m.hw.duty, 0);
+    m.hw.now += 50 * MS;
+    m.tick_safety();
+    assert_eq!(m.hw.duty, pump_duty(30));
+    let st = last_actuators(&m);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0);
+}
+
+#[test]
+fn a_live_tachometer_or_a_tiny_setpoint_raises_no_fault() {
+    let mut m = running_pump();
+    advance(&mut m, 5 * S, true);
+    assert!(!has_log(&m, LogCode::PumpFault));
+    assert_eq!(m.hw.duty, pump_duty(50));
+    // 6 % = 270 tr/min, sous 0,3 V : la pompe peut rester muette.
+    let mut m = present();
+    m.hw.tach_rpm = 0;
+    set(&mut m, 6, 20_000);
+    advance(&mut m, 3 * S, true);
+    assert!(!has_log(&m, LogCode::PumpFault));
+    assert_eq!(m.hw.duty, pump_duty(6));
+}
+
+fn dry_machine() -> Machine<Mock> {
+    let mut m = present();
+    m.hw.tach_rpm = 2250;
+    m.hw.pressure_raw = Some(3200); // ≈ 0 bar
+    set(&mut m, 50, 30_000);
+    m
+}
+
+#[test]
+fn running_dry_cuts_the_pump_after_two_seconds() {
+    let mut m = dry_machine();
+    advance(&mut m, 1900 * MS, true);
+    assert_eq!(m.hw.duty, pump_duty(50));
+    advance(&mut m, 200 * MS, true);
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(log_args(&m, LogCode::PumpDry), [(2250, 3200)]);
+    let st = last_actuators(&m);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_FAULT, 0x08);
+    assert_eq!(st.flags & StatusActuatorsPayload::FLAG_PUMP_READY, 0);
+    // Verrouillée comme le défaut de tachymètre.
+    set(&mut m, 50, 30_000);
+    advance(&mut m, S, true);
+    assert_eq!(m.hw.duty, 0);
+    set(&mut m, 0, 500);
+    set(&mut m, 50, 30_000);
+    assert_eq!(m.hw.duty, pump_duty(50));
+}
+
+#[test]
+fn pressure_a_digmesa_edge_or_a_slow_pump_prevent_the_dry_rule() {
+    // Pression à 1 bar ou plus.
+    let mut m = dry_machine();
+    m.hw.pressure_raw = Some(DRY_PRESSURE_MAX_CODE);
+    advance(&mut m, 5 * S, true);
+    assert!(!has_log(&m, LogCode::PumpDry));
+    // Une impulsion Digmesa toutes les 500 ms.
+    let mut m = dry_machine();
+    for i in 0..10 {
+        m.hw.flow.on_edge(m.hw.now + 1000 + i);
+        advance(&mut m, 500 * MS, true);
+        m.hw.flow.last_edge_us = m.hw.now;
+    }
+    assert!(!has_log(&m, LogCode::PumpDry));
+    // Sous 1 000 tr/min.
+    let mut m = dry_machine();
+    m.hw.tach_rpm = 900;
+    advance(&mut m, 5 * S, true);
+    assert!(!has_log(&m, LogCode::PumpDry));
+}
+
+#[test]
+fn a_digmesa_edge_restarts_the_dry_window() {
+    let mut m = dry_machine();
+    advance(&mut m, 1500 * MS, true);
+    m.hw.flow.last_edge_us = m.hw.now;
+    advance(&mut m, 1500 * MS, true);
+    assert!(!has_log(&m, LogCode::PumpDry));
+    advance(&mut m, 700 * MS, true);
+    assert!(has_log(&m, LogCode::PumpDry));
+}
+
+#[test]
+fn a_missing_or_implausible_pressure_counts_as_below_one_bar() {
+    for raw in [None, Some(100), Some(25_000)] {
+        let mut m = dry_machine();
+        m.hw.pressure_raw = raw;
+        advance(&mut m, 2200 * MS, true);
+        assert!(has_log(&m, LogCode::PumpDry), "{raw:?}");
+    }
+}
+
+#[test]
+fn the_dry_rule_reuses_a_fresh_published_pressure() {
+    let mut m = dry_machine();
     rx(
         &mut m,
-        Message::DimmerCommand(DimmerCommandPayload {
-            command: DimmerCommand::Recalibrate,
-        }),
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPressure, 100)),
     );
-    assert!(!m.hw.valve);
-    assert!(m.hw.dimmer_writes.contains(&(DIMMER_REG_COMMAND, 2)));
-    rx(
-        &mut m,
-        Message::DimmerCommand(DimmerCommandPayload {
-            command: DimmerCommand::Reset,
-        }),
-    );
-    assert!(m.hw.dimmer_writes.contains(&(DIMMER_REG_COMMAND, 1)));
-    // Une commande hors domaine (0x03, bascule UART en EEPROM) est refusée
-    // par le décodeur du protocole.
+    m.tick_pressure();
+    let reads = m.hw.pressure_reads;
+    m.hw.now += 100 * MS;
+    m.tick_safety();
+    assert_eq!(m.hw.pressure_reads, reads);
+    // Au-delà de 300 ms, le capteur est relu.
+    m.hw.now += 400 * MS;
+    m.tick_safety();
+    assert!(m.hw.pressure_reads > reads);
+}
+
+#[test]
+fn the_old_dimmer_command_is_ignored_with_one_warning() {
+    let mut m = running_pump();
+    m.hw.sent.clear();
     let id = protocol::encode_can_id(protocol::CanId {
         message_type: MessageType::DimmerCommand,
         dest: Dest::Sensors,
         src: Node::Screen,
     });
-    m.on_frame(&Frame::new(id, &[3]).unwrap());
-    assert!(!m.hw.dimmer_writes.contains(&(DIMMER_REG_COMMAND, 3)));
-    advance(&mut m, 60 * S, true);
-    assert!(
-        m.hw.dimmer_writes
+    m.on_frame(&Frame::new(id, &[2]).unwrap());
+    m.on_frame(&Frame::new(id, &[1]).unwrap());
+    assert!(m.hw.valve);
+    assert_eq!(m.hw.duty, pump_duty(50));
+    assert_eq!(
+        log_args(&m, LogCode::LegacyCommandIgnored),
+        [(MessageType::DimmerCommand as u16, 0)]
+    );
+    let severity = logs(&m)[0].severity;
+    assert_eq!(severity, LogSeverity::Warn as u8);
+}
+
+#[test]
+fn status_pump_is_published_with_a_50_ms_floor_and_carries_the_tachometer() {
+    let mut m = present();
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPump, 10)),
+    );
+    m.tick_safety();
+    let st = last_pump(&m);
+    assert_eq!((st.tach_pulses, st.rpm, st.flags), (0, 0, 0));
+
+    m.hw.tach_rpm = 3000;
+    m.hw.sent.clear();
+    advance(&mut m, 1000 * MS, true);
+    let count =
+        m.hw.sent
             .iter()
-            .all(|&w| w != (DIMMER_REG_COMMAND, 3))
+            .filter(|f| decoded(f).message_type() == MessageType::StatusPump)
+            .count();
+    assert_eq!(count, 10);
+    let st = last_pump(&m);
+    assert_eq!((st.tach_pulses, st.rpm), (100, 3000));
+    assert_eq!(st.flags, StatusPumpPayload::FLAG_TACH_SEEN);
+
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPump, 0)),
+    );
+    m.hw.sent.clear();
+    advance(&mut m, 500 * MS, true);
+    assert!(
+        m.hw.sent
+            .iter()
+            .all(|f| decoded(f).message_type() != MessageType::StatusPump)
     );
 }
 
 #[test]
-fn a_dimmer_stuck_not_ready_gets_one_recalibrate_after_20_s() {
-    let mut m = present();
-    m.hw.dimmer_status = 0x00;
-    m.hw.now = 21 * S;
-    send_stop(&mut m);
-    advance(&mut m, 2 * S, true);
-    advance(&mut m, 10 * S, true);
-    let recal =
-        m.hw.dimmer_writes
-            .iter()
-            .filter(|&&w| w == (DIMMER_REG_COMMAND, DIMMER_CMD_RECALIBRATE))
-            .count();
-    assert_eq!(recal, 1);
-    // Prêt : le repli se réarme pour un futur épisode.
-    m.hw.dimmer_status = 0x01;
-    advance(&mut m, 3 * S, true);
-    m.hw.dimmer_status = 0x00;
-    advance(&mut m, 3 * S, true);
-    let recal =
-        m.hw.dimmer_writes
-            .iter()
-            .filter(|&&w| w == (DIMMER_REG_COMMAND, DIMMER_CMD_RECALIBRATE))
-            .count();
-    assert_eq!(recal, 2);
-}
-
-#[test]
-fn no_recalibrate_while_the_dimmer_has_never_answered() {
-    let mut m = present();
-    m.hw.dimmer_ok = false;
-    m.hw.now = 40 * S;
-    send_stop(&mut m);
-    advance(&mut m, 10 * S, true);
-    assert!(
-        m.hw.dimmer_writes
-            .iter()
-            .all(|&(r, _)| r != DIMMER_REG_COMMAND)
+fn status_pump_flags_report_the_latched_faults() {
+    let mut m = dry_machine();
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPump, 100)),
     );
+    advance(&mut m, 2200 * MS, true);
+    assert_eq!(
+        last_pump(&m).flags,
+        StatusPumpPayload::FLAG_TACH_SEEN | StatusPumpPayload::FLAG_DRY
+    );
+    let mut m = present();
+    rx(
+        &mut m,
+        Message::ReqStatus(ReqStatusPayload::new(MessageType::StatusPump, 100)),
+    );
+    set(&mut m, 50, 20_000);
+    advance(&mut m, 800 * MS, true);
+    assert_eq!(last_pump(&m).flags, StatusPumpPayload::FLAG_FAULT);
 }
 
 // ------------------------------------------------------ publications / REQSTATUS
@@ -1699,12 +1907,8 @@ fn presence_loss_during_a_flash_does_not_abort_it() {
 }
 
 #[test]
-fn pump_pct_over_100_never_reaches_the_dimmer() {
+fn pump_pct_over_100_never_reaches_the_pump() {
     let mut m = present();
     set(&mut m, 255, 500);
-    assert!(
-        m.hw.dimmer_writes
-            .iter()
-            .all(|&(r, v)| r != DIMMER_REG_LEVEL || v <= 100)
-    );
+    assert!(m.hw.duty_writes.iter().all(|&d| d == 0));
 }

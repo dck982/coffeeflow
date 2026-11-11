@@ -31,7 +31,6 @@ const SCENARIOS: &[&str] = &[
     "keypad-weight",
     "keypad-time",
     "preinfusion",
-    "dimmer",
     "heating",
     "valve",
     "forget",
@@ -103,8 +102,7 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         boiler_temperature_valid: true,
         boiler_temperature_freshness: Freshness::Fresh,
         brew_temperature_ready: true,
-        dimmer_ready: true,
-        dimmer_valid: true,
+        pump_ready: true,
         screen_version_major: protocol::FIRMWARE_VERSION.major,
         screen_version_minor: protocol::FIRMWARE_VERSION.minor,
         screen_version_patch: protocol::FIRMWARE_VERSION.patch,
@@ -147,7 +145,9 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             s.shot.pump_stop_s = if name == "done" { 24.0 } else { f32::NAN };
             s.pressure_bar = 9.0;
             s.heating_power_pct = 65.0;
-            s.dimmer_pct = 100;
+            s.pump_pct = 100;
+            s.pump_rpm = 4500;
+            s.pump_displaced_ml_s = 7.5;
             s.flow_ml_s = 1.85;
         }
         "purge" => {
@@ -173,11 +173,10 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
             p.settings_page = 1;
             p.command(13, "1", 1, &s, &c);
         }
-        "dimmer" | "valve" | "heating" => {
+        "valve" | "heating" => {
             p.command(
                 16,
                 match name {
-                    "dimmer" => "3",
                     "valve" => "4",
                     _ => "5",
                 },
@@ -264,7 +263,7 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         "guided-refused" => {
             s.weight_g = 0.1;
             guided_view(&mut s, Screen::Wait, Hint::PressStart, true);
-            s.guided.refusal = Some(screen_core::core::ActionStatus::DimmerNotReady);
+            s.guided.refusal = Some(screen_core::core::ActionStatus::PumpNotReady);
         }
         _ => return Err(format!("scénario inconnu : {name}")),
     }

@@ -7,10 +7,11 @@
 )]
 #![deny(clippy::large_stack_frames)]
 
-// Module capteurs de coffeeflow (XIAO ESP32-S3) : vanne, pompe (DimmerLink),
-// chauffe, débitmètre, et les messages de sécurité du bus CAN. La logique est
-// dans `sensors-logic`, testée sur le Mac ; ce crate ne fait que câbler le
-// matériel.
+// Module capteurs de coffeeflow (XIAO ESP32-S3) : vanne, pompe à engrenage
+// MPB003 (consigne LEDC sur GPIO 1, tachymètre sur GPIO 3), chauffe,
+// débitmètre, et les messages de sécurité du bus CAN. L'I2C ne porte plus que
+// les puces de la carte. La logique est dans `sensors-logic`, testée sur le
+// Mac ; ce crate ne fait que câbler le matériel.
 //
 // Une tâche porte la logique (trames reçues, tick de sécurité toutes les
 // 100 ms), une autre le contrôleur TWAI.
@@ -18,8 +19,8 @@
 mod board;
 mod can;
 mod clock;
+mod edges;
 mod flash;
-mod flow;
 mod led;
 mod lockout;
 mod otadata;
@@ -31,11 +32,14 @@ use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Flex, Level, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c, SoftwareTimeout};
+use esp_hal::ledc::channel::{self, ChannelIFace};
+use esp_hal::ledc::timer::{self, TimerIFace};
+use esp_hal::ledc::{LSGlobalClkSource, Ledc, LowSpeed};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::twai::{BaudRate, TwaiConfiguration, TwaiMode};
 use log::{info, warn};
-use sensors_logic::machine::{DIMMER_ADDR, DIMMER_REG_STATUS, TICK_PERIOD_US};
+use sensors_logic::machine::TICK_PERIOD_US;
 use sensors_logic::{Action, Config, Machine};
 use static_cell::StaticCell;
 
@@ -58,6 +62,8 @@ extern "Rust" fn custom_halt() -> ! {
 const VALIDATE: bool = !cfg!(feature = "no-validate");
 
 static MACHINE: StaticCell<Machine<Board>> = StaticCell::new();
+/// Le canal du LEDC garde une référence au timer : elle doit être 'static.
+static PUMP_TIMER: StaticCell<timer::Timer<'static, LowSpeed>> = StaticCell::new();
 
 #[allow(
     clippy::large_stack_frames,
@@ -70,15 +76,44 @@ async fn main(spawner: Spawner) -> ! {
     // Sorties sûres avant tout le reste, CAN compris. La chauffe (HEATER_CMD)
     // et la vanne sont basses ; `Output::new` pose le niveau avant d'activer
     // la sortie. Pas de pull-up sur la chauffe : sans le GPIO, la résistance
-    // de grille de Q3 tient la sortie BOILER coupée.
+    // de grille de Q3 tient la sortie BOILER coupée. La consigne de la pompe
+    // (GPIO 1) est basse aussi ; R34 la tient déjà basse pendant le reset.
     let heater = Output::new(
         peripherals.GPIO4,
         HEATER_INACTIVE,
         OutputConfig::default().with_pull(Pull::None),
     );
     let valve = Output::new(peripherals.GPIO9, Level::Low, OutputConfig::default());
+    // La consigne de la pompe passe par un `Output` bas, créé ici avec la vanne
+    // et la chauffe, puis cédé tel quel au canal LEDC plus bas : la broche ne
+    // flotte jamais entre les deux, et le canal est configuré avec un rapport
+    // cyclique 0 avant que le CAN ne démarre. (`Channel::new` accepte un
+    // `Output`, et `configure` fixe le rapport avant de connecter le signal.)
+    let pump_pin = Output::new(peripherals.GPIO1, Level::Low, OutputConfig::default());
     // LED d'état de la carte, allumée dès ici (voir `led`).
     let led = Output::new(peripherals.GPIO2, Level::High, OutputConfig::default());
+
+    // LEDC bas débit sur l'horloge APB : timer 0, 1 kHz, 14 bits (le LEDC de
+    // l'ESP32-S3 s'arrête là), canal 0 sur GPIO 1, rapport cyclique 0 (sortie
+    // toujours basse, 0 V de consigne) jusqu'à ce que la logique commande.
+    let mut ledc = Ledc::new(peripherals.LEDC);
+    ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
+    let pump_timer = PUMP_TIMER.init(ledc.timer::<LowSpeed>(timer::Number::Timer0));
+    pump_timer
+        .configure(timer::config::Config {
+            duty: timer::config::Duty::Duty14Bit,
+            clock_source: timer::LSClockSource::APBClk,
+            frequency: Rate::from_khz(1),
+        })
+        .unwrap();
+    let pump_timer: &'static timer::Timer<'static, LowSpeed> = pump_timer;
+    let mut pump = ledc.channel::<LowSpeed>(channel::Number::Channel0, pump_pin);
+    pump.configure(channel::config::Config {
+        timer: pump_timer,
+        duty_pct: 0,
+        drive_mode: esp_hal::gpio::DriveMode::PushPull,
+    })
+    .unwrap();
 
     // esp_hal::init a coupé les watchdogs : on réarme celui du RTC tout de suite.
     watchdog::arm(peripherals.RTC_TIMER);
@@ -127,7 +162,7 @@ async fn main(spawner: Spawner) -> ! {
     .start();
     spawner.spawn(can::task(twai).unwrap());
 
-    // Bus I2C du dimmer et des puces de la carte. Ses seules pull-ups sont
+    // Bus I2C des puces de la carte (TMP102, ADS1115). Ses seules pull-ups sont
     // les 4,7 kΩ de la carte (R13/R14) : ni pull-up interne en plus, d'où des
     // broches `Flex` configurées à la main (le pilote n'y touche plus).
     let mut sda = Flex::new(peripherals.GPIO5);
@@ -156,6 +191,7 @@ async fn main(spawner: Spawner) -> ! {
     let board = Board {
         valve,
         heater,
+        pump,
         i2c,
         ota,
         ads_configured: false,
@@ -169,15 +205,13 @@ async fn main(spawner: Spawner) -> ! {
         },
     ));
     machine.start();
-    flow::init(peripherals.IO_MUX, peripherals.GPIO44);
+    edges::init(peripherals.IO_MUX, peripherals.GPIO44, peripherals.GPIO3);
     machine.ready();
 
     logic(machine, led).await
 }
 
-/// Une lecture de registre par puce, pour la LED : les puces de la carte
-/// d'abord, puis le dimmer (son registre STATUS, comme sa relecture
-/// périodique).
+/// Une lecture de registre par puce de la carte, pour la LED.
 fn boot_fault(i2c: &mut I2c<'static, esp_hal::Blocking>) -> Option<led::BootFault> {
     let mut buf = [0u8; 2];
     let tmp102 = i2c
@@ -190,17 +224,8 @@ fn boot_fault(i2c: &mut I2c<'static, esp_hal::Blocking>) -> Option<led::BootFaul
     let ads1115 = i2c
         .write_read(board::ADS1115_ADDR, &[board::ADS1115_REG_CONFIG], &mut buf)
         .is_ok();
-    let dimmer = i2c
-        .write_read(DIMMER_ADDR as u8, &[DIMMER_REG_STATUS], &mut buf[..1])
-        .is_ok();
-    let fault = if !(tmp102 && ads1115) {
-        Some(led::BootFault::Board)
-    } else if !dimmer {
-        Some(led::BootFault::Dimmer)
-    } else {
-        None
-    };
-    info!("i2c : tmp102 {tmp102}, ads1115 {ads1115}, dimmer {dimmer} -> led {fault:?}");
+    let fault = (!(tmp102 && ads1115)).then_some(led::BootFault::Board);
+    info!("i2c : tmp102 {tmp102}, ads1115 {ads1115} -> led {fault:?}");
     fault
 }
 

@@ -1,8 +1,8 @@
 [package]
 name = "sensors-logic"
-version = "0.4.28"
+version = "0.5.0"
 edition = "2024"
-description = "Logique pure du module capteurs : chauffe modulée, garde du dimmer, bail, présence, verrou 60 s, réception FLASH"
+description = "Logique pure du module capteurs : chauffe modulée, pompe à engrenage, bail, présence, verrou 60 s, réception FLASH"
 
 [dependencies]
 protocol = { path = "../protocol" }

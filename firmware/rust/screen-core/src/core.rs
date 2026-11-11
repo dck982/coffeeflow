@@ -42,7 +42,7 @@
 use alloc::vec::Vec;
 
 use protocol::messages::{
-    ConfirmSensorsOtaPayload, DimmerCommand, DimmerCommandPayload, FlashCtrlPayload, LogPayload,
+    ConfirmSensorsOtaPayload, FlashCtrlPayload, LogPayload,
     MaintenanceValvePayload, NodeIdentityPayload, ReqStatusPayload, SetHeatingPayload,
     SetHeatingPowerPayload, SetPayload,
 };
@@ -153,8 +153,6 @@ pub enum Action {
     StartBrew,
     StopBrew,
     ResetSensors,
-    ResetDimmer,
-    RecalibrateDimmer,
     PurgePress,
     PurgeRelease,
     Tare,
@@ -179,7 +177,7 @@ pub enum ActionStatus {
     Unavailable,
     BusLost,
     Locked,
-    DimmerNotReady,
+    PumpNotReady,
     CycleActive,
     NoCycle,
     InvalidValue,
@@ -193,7 +191,7 @@ impl ActionStatus {
             Self::Unavailable => "unavailable",
             Self::BusLost => "bus_lost",
             Self::Locked => "locked",
-            Self::DimmerNotReady => "dimmer_not_ready",
+            Self::PumpNotReady => "pump_not_ready",
             Self::CycleActive => "cycle_active",
             Self::NoCycle => "no_cycle",
             Self::InvalidValue => "invalid_value",
@@ -258,7 +256,7 @@ impl ActionResult {
 pub enum DiagnosticStatus {
     Ok,
     BusLost,
-    DimmerNotReady,
+    PumpNotReady,
     Locked,
 }
 
@@ -406,6 +404,7 @@ struct Timestamps {
     sensors_enclosure_received_us: i64,
     pressure_last_valid_us: i64,
     flow_received_us: i64,
+    pump_received_us: i64,
     actuators_received_us: i64,
     heating_received_us: i64,
     heating_deadline_us: i64,
@@ -420,6 +419,7 @@ struct Timestamps {
 
 struct Periods {
     flow: u16,
+    pump: u16,
     actuators: u16,
 }
 
@@ -427,14 +427,17 @@ const fn periods_for(profile: TelemetryProfile) -> Periods {
     match profile {
         TelemetryProfile::Idle => Periods {
             flow: 1000,
+            pump: 1000,
             actuators: 1000,
         },
         TelemetryProfile::Active => Periods {
             flow: 100,
+            pump: 100,
             actuators: 200,
         },
         TelemetryProfile::Suspended => Periods {
             flow: 0,
+            pump: 0,
             actuators: 0,
         },
     }
@@ -733,15 +736,15 @@ impl<S: ConfigStore> Core<S> {
         self.emit(Message::ReqStatus(ReqStatusPayload::new(target, period_ms)));
     }
 
-    fn send_set(&mut self, dimmer: u8, ttl_ms: u16, origin: Origin) {
-        if dimmer > 0 {
-            self.begin_hf_capture(origin, dimmer);
+    fn send_set(&mut self, pump_pct: u8, ttl_ms: u16, origin: Origin) {
+        if pump_pct > 0 {
+            self.begin_hf_capture(origin, pump_pct);
             self.set_telemetry_profile(TelemetryProfile::Active);
         } else {
             self.note_hf_capture_stop_request();
         }
         self.emit(Message::Set(SetPayload {
-            pump_pct: dimmer,
+            pump_pct,
             ttl_ms,
         }));
     }
@@ -800,7 +803,7 @@ impl<S: ConfigStore> Core<S> {
 
     // --- Capture HF ----------------------------------------------------------------
 
-    fn begin_hf_capture(&mut self, origin: Origin, dimmer: u8) -> bool {
+    fn begin_hf_capture(&mut self, origin: Origin, pump_pct: u8) -> bool {
         let config = self.config.get();
         let active_profile = *config.active();
         let target_pressure_bar = config.target_pressure_bar;
@@ -837,8 +840,9 @@ impl<S: ConfigStore> Core<S> {
             capture.next_sample_us = now;
             capture.cooldown_ends_at_us = 0;
             capture.volume_ml_reference = 0.0;
+            capture.pump_displaced_ml_reference = 0.0;
             capture.dropped_samples = 0;
-            capture.pump_pct_commanded = dimmer;
+            capture.pump_pct_commanded = pump_pct;
             capture.active = true;
             capture.complete = false;
             capture.actuator_seen_on = false;
@@ -860,7 +864,7 @@ impl<S: ConfigStore> Core<S> {
             self.snapshot.shot_start_unix_s = started_unix;
             started = true;
         } else if self.hf.active {
-            self.hf.pump_pct_commanded = dimmer;
+            self.hf.pump_pct_commanded = pump_pct;
         }
         started
     }
@@ -933,6 +937,7 @@ impl<S: ConfigStore> Core<S> {
         // exactement nul.
         if self.hf.samples.is_empty() {
             self.hf.volume_ml_reference = s.volume_ml;
+            self.hf.pump_displaced_ml_reference = s.pump_displaced_ml;
         }
         let scale_flag = s.scale_connected
             && self.t.scale_received_us != 0
@@ -983,7 +988,9 @@ impl<S: ConfigStore> Core<S> {
             flow_ml_s: if silent { 0.0 } else { s.flow_ml_s },
             weight_g: s.weight_g,
             pump_pct_commanded: self.hf.pump_pct_commanded,
-            pump_pct_reported: s.dimmer_pct,
+            pump_pct_reported: s.pump_pct,
+            pump_rpm: s.pump_rpm,
+            pump_displaced_ml: s.pump_displaced_ml - self.hf.pump_displaced_ml_reference,
             mode: if self.hf.cooldown {
                 SampleMode::Cooldown
             } else {
@@ -1063,6 +1070,7 @@ impl<S: ConfigStore> Core<S> {
         if self.profile_dirty || now - self.last_request_us >= 1000 * 1000 {
             let p = periods_for(self.profile);
             self.send_request(MessageType::StatusFlow, p.flow);
+            self.send_request(MessageType::StatusPump, p.pump);
             self.send_request(MessageType::StatusActuators, p.actuators);
             self.send_request(MessageType::StatusHeating, HEATING_STATUS_PERIOD_MS);
             self.send_request(MessageType::StatusPressure, PRESSURE_STATUS_PERIOD_MS);
@@ -1159,7 +1167,7 @@ impl<S: ConfigStore> Core<S> {
             );
         }
         if send {
-            self.send_set(output.dimmer, output.ttl_ms, origin);
+            self.send_set(output.pump_pct, output.ttl_ms, origin);
         }
         let profile = if self.flash_active {
             TelemetryProfile::Suspended
@@ -1298,6 +1306,7 @@ impl<S: ConfigStore> Core<S> {
             }
             Message::StatusPressure(payload) => self.on_status_pressure(&payload),
             Message::StatusFlow(payload) => self.on_status_flow(&payload),
+            Message::StatusPump(payload) => self.on_status_pump(&payload),
             Message::StatusActuators(payload) => self.on_status_actuators(&payload),
             Message::StatusHeating(payload) => self.on_status_heating(&payload),
             Message::StatusEnclosure(payload) => self.on_status_enclosure(&payload),
@@ -1455,20 +1464,35 @@ impl<S: ConfigStore> Core<S> {
             / (calibration::FLOW_PULSES_PER_LITER * f32::from(delta_ms))
     }
 
+    fn on_status_pump(&mut self, payload: &protocol::messages::StatusPumpPayload) {
+        use protocol::messages::StatusPumpPayload as P;
+        let now = self.now();
+        self.t.last_sensors_message_us = now;
+        self.t.pump_received_us = now;
+        self.snapshot.pump_tach_pulses = payload.tach_pulses;
+        self.snapshot.pump_rpm = payload.rpm;
+        self.snapshot.pump_tach_seen = (payload.flags & P::FLAG_TACH_SEEN) != 0;
+        self.snapshot.pump_fault = (payload.flags & P::FLAG_FAULT) != 0;
+        self.snapshot.pump_dry = (payload.flags & P::FLAG_DRY) != 0;
+        self.snapshot.pump_displaced_ml = payload.tach_pulses as f32
+            / calibration::PUMP_TACH_PULSES_PER_TURN as f32
+            * calibration::PUMP_ML_PER_TURN;
+        self.snapshot.pump_displaced_ml_s =
+            f32::from(payload.rpm) * calibration::PUMP_ML_PER_TURN / 60.0;
+    }
+
     fn on_status_actuators(&mut self, payload: &protocol::messages::StatusActuatorsPayload) {
         use protocol::messages::StatusActuatorsPayload as P;
         let now = self.now();
         self.t.last_sensors_message_us = now;
         self.t.actuators_received_us = now;
         self.snapshot.valve_open = payload.valve_open;
-        self.snapshot.dimmer_pct = payload.pump_pct;
         self.snapshot.pump_pct = payload.pump_pct;
         self.snapshot.lease_remaining_ms = payload.lease_remaining_ms;
         self.snapshot.continuous_on_ms = payload.continuous_on_ms;
         self.snapshot.lockout = (payload.flags & P::FLAG_LOCKOUT) != 0;
-        self.snapshot.dimmer_ready = (payload.flags & P::FLAG_DIMMER_READY) != 0;
-        self.snapshot.dimmer_valid = (payload.flags & P::FLAG_DIMMER_PRESENT) != 0;
-        self.snapshot.dimmer_error_active = (payload.flags & P::FLAG_DIMMER_ERROR) != 0;
+        self.snapshot.pump_ready = (payload.flags & P::FLAG_PUMP_READY) != 0
+            && (payload.flags & P::FLAG_PUMP_PRESENT) != 0;
         self.snapshot.maintenance_valve_open =
             (payload.flags & P::FLAG_MAINTENANCE_VALVE_OPEN) != 0;
         self.snapshot.maintenance_valve_capable =
@@ -1837,7 +1861,7 @@ impl<S: ConfigStore> Core<S> {
             ActionStatus::Ok => DiagnosticStatus::Ok,
             ActionStatus::BusLost => DiagnosticStatus::BusLost,
             ActionStatus::Locked => DiagnosticStatus::Locked,
-            _ => DiagnosticStatus::DimmerNotReady,
+            _ => DiagnosticStatus::PumpNotReady,
         }
     }
 
@@ -1972,28 +1996,6 @@ impl<S: ConfigStore> Core<S> {
             self.emit(Message::Reset);
             return result(St::Ok);
         }
-        if command.action == Action::ResetDimmer || command.action == Action::RecalibrateDimmer {
-            if !snapshot.sensors_alive {
-                return result(St::BusLost);
-            }
-            if cycle_busy
-                || snapshot.capture_cooldown
-                || (self.flash_active || self.pending_flash.is_some())
-            {
-                return result(St::CycleActive);
-            }
-            // Coupe explicitement les sorties avant une maintenance qui peut
-            // rendre le DimmerLink indisponible pendant quelques secondes.
-            self.send_set(0, 0, Origin::SetActuators);
-            self.emit(Message::DimmerCommand(DimmerCommandPayload {
-                command: if command.action == Action::ResetDimmer {
-                    DimmerCommand::Reset
-                } else {
-                    DimmerCommand::Recalibrate
-                },
-            }));
-            return result(St::Ok);
-        }
         if command.action == Action::StopBrew {
             let stopped_during_preheat = snapshot.cycle_state == CycleState::ThermalPreheat;
             let ok = self.machine.stop(self.now_ms());
@@ -2060,8 +2062,8 @@ impl<S: ConfigStore> Core<S> {
                     return result(St::Unavailable);
                 }
             }
-            if !snapshot.dimmer_ready || !snapshot.dimmer_valid {
-                return result(St::DimmerNotReady);
+            if !snapshot.pump_ready {
+                return result(St::PumpNotReady);
             }
             let wall_s = self.clock.wall_unix_s.unwrap_or(0);
             self.finalize_pending_shot();
@@ -2151,8 +2153,8 @@ impl<S: ConfigStore> Core<S> {
                     St::Locked
                 } else if s.maintenance_valve_open || s.cycle_state.is_active() {
                     St::CycleActive
-                } else if !s.dimmer_ready || !s.dimmer_valid {
-                    St::DimmerNotReady
+                } else if !s.pump_ready {
+                    St::PumpNotReady
                 } else {
                     St::Ok
                 };
@@ -2338,7 +2340,7 @@ impl<S: ConfigStore> Core<S> {
         let stopped = self.t.actuators_received_us > pending.old_actuators_received_us
             && echo.actuators_freshness == Freshness::Fresh
             && !echo.valve_open
-            && echo.dimmer_pct == 0
+            && echo.pump_pct == 0
             && (!echo.heating_capable
                 || (self.t.heating_received_us > pending.old_heating_received_us
                     && echo.heating_freshness == Freshness::Fresh
@@ -2439,6 +2441,7 @@ impl<S: ConfigStore> Core<S> {
             result.sensors_enclosure_valid = false;
         }
         result.flow_age_ms = age_ms(t.flow_received_us, now);
+        result.pump_age_ms = age_ms(t.pump_received_us, now);
         result.actuators_age_ms = age_ms(t.actuators_received_us, now);
         result.heating_age_ms = age_ms(t.heating_received_us, now);
         result.heating_freshness = freshness(t.heating_received_us, HEATING_STATUS_PERIOD_MS, now);
@@ -2456,6 +2459,16 @@ impl<S: ConfigStore> Core<S> {
         } else {
             Freshness::Missing
         };
+        result.pump_freshness = if t.pump_received_us == 0 {
+            Freshness::Missing
+        } else {
+            freshness(t.pump_received_us, periods.pump, now)
+        };
+        if result.pump_freshness != Freshness::Fresh {
+            // Une vitesse périmée ne doit pas passer pour la vitesse courante.
+            result.pump_rpm = 0;
+            result.pump_displaced_ml_s = 0.0;
+        }
         result.actuators_freshness = freshness(t.actuators_received_us, periods.actuators, now);
         result.sensors_alive =
             t.last_sensors_message_us != 0 && now - t.last_sensors_message_us <= 3 * 1000 * 1000;

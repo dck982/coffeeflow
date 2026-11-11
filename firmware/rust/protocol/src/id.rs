@@ -77,8 +77,10 @@ pub enum MessageType {
     Stop = 0x00,
     Set = 0x01,
     Reset = 0x02,
-    /// Maintenance de l'esclave DimmerLink, écran vers capteurs. Distinct de
-    /// `Reset`, qui redémarre tout le module capteurs.
+    /// Réservé : maintenance de l'ancien esclave DimmerLink, écran vers
+    /// capteurs. L'écran ne l'émet plus et les capteurs l'ignorent (un
+    /// LOG au premier reçu) ; le type reste défini pour décoder les
+    /// anciens journaux et les anciennes images.
     DimmerCommand = 0x03,
     SetHeating = 0x04,
     ConfirmSensorsOta = 0x05,
@@ -94,6 +96,7 @@ pub enum MessageType {
     StatusActuators = 0x22,
     StatusHeating = 0x23,
     StatusEnclosure = 0x24,
+    StatusPump = 0x25,
     Log = 0x30,
     FlashCtrl = 0x38,
     FlashData = 0x39,
@@ -120,6 +123,7 @@ impl MessageType {
             0x22 => Self::StatusActuators,
             0x23 => Self::StatusHeating,
             0x24 => Self::StatusEnclosure,
+            0x25 => Self::StatusPump,
             0x30 => Self::Log,
             0x38 => Self::FlashCtrl,
             0x39 => Self::FlashData,

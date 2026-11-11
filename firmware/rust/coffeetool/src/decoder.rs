@@ -42,6 +42,7 @@ pub fn type_name(t: MessageType) -> &'static str {
         MessageType::StatusActuators => "STATUS_ACTUATORS",
         MessageType::StatusHeating => "STATUS_HEATING",
         MessageType::StatusEnclosure => "STATUS_ENCLOSURE",
+        MessageType::StatusPump => "STATUS_PUMP",
         MessageType::Log => "LOG",
         MessageType::FlashCtrl => "FLASH_CTRL",
         MessageType::FlashData => "FLASH_DATA",
@@ -116,6 +117,18 @@ fn format_log(p: &LogPayload) -> String {
             };
             format!("{name} [{severity}] etat={state}")
         }
+        "PUMP_START" | "PUMP_FAULT" => format!(
+            "{name} [{severity}] consigne={}% rapport_cyclique={}/16384",
+            p.arg16, p.arg32
+        ),
+        "PUMP_DRY" => format!(
+            "{name} [{severity}] vitesse={}tr/min pression_brute={}",
+            p.arg16, p.arg32 as u16 as i16
+        ),
+        "LEGACY_COMMAND_IGNORED" => format!(
+            "{name} [{severity}] type={:#04x}",
+            p.arg16
+        ),
         "BOILER_ADC_RECOVERED" => format!(
             "{name} [{severity}] adresse={:#04x} interruption={}ms",
             p.arg16, p.arg32
@@ -245,6 +258,12 @@ fn format_payload(message_type: MessageType, frame: &Frame) -> String {
             p.continuous_on_ms,
             bin_flags(p.flags, 5)
         ),
+        Message::StatusPump(p) => format!(
+            "impulsions={} vitesse={}tr/min flags={}",
+            p.tach_pulses,
+            p.rpm,
+            bin_flags(p.flags, 3)
+        ),
         Message::StatusEnclosure(p) => format!(
             "boitier={:.2}°C flags={}",
             p.temperature_c(),
@@ -295,7 +314,9 @@ pub fn decode_frame(ts: f64, frame: &Frame) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::messages::{NodeIdentityPayload, SetHeatingPayload, StatusHeatingPayload};
+    use protocol::messages::{
+        NodeIdentityPayload, SetHeatingPayload, StatusHeatingPayload, StatusPumpPayload,
+    };
     use protocol::{Dest, Node, Version};
 
     fn log(code: u8, severity: u8, arg16: u16, arg32: u32) -> String {
@@ -363,6 +384,34 @@ mod tests {
         assert!(new.contains("etat=NEW"), "{new}");
         assert!(log(20, 1, 0, 1).contains("etat=PENDING_VERIFY"));
         assert!(log(20, 1, 0, 7).contains("etat=0x7"));
+    }
+
+    #[test]
+    fn pump_logs_and_status() {
+        let start = log(53, 1, 50, 306);
+        assert!(start.contains("PUMP_START"), "{start}");
+        assert!(start.contains("consigne=50%"), "{start}");
+        assert!(start.contains("rapport_cyclique=306/16384"), "{start}");
+        assert!(log(51, 3, 50, 306).contains("PUMP_FAULT"));
+        let dry = log(52, 3, 2250, 3200);
+        assert!(dry.contains("vitesse=2250tr/min"), "{dry}");
+        assert!(dry.contains("pression_brute=3200"), "{dry}");
+        assert!(log(54, 2, 3, 0).contains("LEGACY_COMMAND_IGNORED [warn] type=0x03"));
+
+        let status = Message::StatusPump(StatusPumpPayload {
+            tach_pulses: 1234,
+            rpm: 2250,
+            flags: 0b101,
+        })
+        .encode();
+        let line = decode_frame(0.0, &status);
+        assert!(line.contains("STATUS_PUMP"), "{line}");
+        assert!(
+            line.ends_with("impulsions=1234 vitesse=2250tr/min flags=0b101"),
+            "{line}"
+        );
+        let request = decode_frame(0.0, &Frame::new(0x211, &[0x25, 0x64, 0x00]).unwrap());
+        assert!(request.contains("cible=STATUS_PUMP"), "{request}");
     }
 
     #[test]

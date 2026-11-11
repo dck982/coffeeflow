@@ -48,33 +48,33 @@ fn thermal_preheat_then_filling_then_preinfusion() {
     c.brew_preheat_time_s = 2.5;
     assert!(machine.start(1000, &c, &i));
     assert_eq!(machine.state(), State::ThermalPreheat);
-    assert_eq!(machine.tick(3499, &i).dimmer, 0);
+    assert_eq!(machine.tick(3499, &i).pump_pct, 0);
     assert_eq!(machine.elapsed_ms(3499), 0);
-    assert_eq!(machine.tick(3500, &i).dimmer, 100);
+    assert_eq!(machine.tick(3500, &i).pump_pct, 100);
     assert_eq!(machine.state(), State::Filling);
     assert_eq!(machine.elapsed_ms(3500), 0);
-    assert_eq!(machine.tick(4499, &i).dimmer, 100);
-    assert_eq!(machine.tick(4500, &i).dimmer, 35);
+    assert_eq!(machine.tick(4499, &i).pump_pct, 100);
+    assert_eq!(machine.tick(4500, &i).pump_pct, 35);
 }
 
 #[test]
-fn time_only_cycle_with_ramp_from_minimum() {
+fn time_only_cycle_with_ramp_from_preinfusion() {
     let mut machine = Machine::new();
     let i = input(0.0, false, 0.0);
     assert!(machine.start(1000, &config(), &i));
     assert_eq!(machine.state(), State::Filling);
-    assert_eq!(machine.tick(1999, &i).dimmer, 100);
-    assert_eq!(machine.tick(2000, &i).dimmer, 35);
+    assert_eq!(machine.tick(1999, &i).pump_pct, 100);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 35);
     assert_eq!(machine.state(), State::Preinfusion);
-    assert_eq!(machine.tick(5999, &i).dimmer, 35);
-    // rampe depuis MINIMUM_BREW_PUMP_PCT, pas depuis la pause
-    assert_eq!(machine.tick(6000, &i).dimmer, 50);
-    assert_eq!(machine.tick(6249, &i).dimmer, 50);
-    // 10 pas de 5 % en 2,5 s
-    assert_eq!(machine.tick(6250, &i).dimmer, 55);
+    assert_eq!(machine.tick(5999, &i).pump_pct, 35);
+    // rampe depuis le niveau de la pré-infusion, au-dessus du plancher
+    assert_eq!(machine.tick(6000, &i).pump_pct, 35);
+    assert_eq!(machine.tick(6191, &i).pump_pct, 35);
+    // 13 pas de 5 % en 2,5 s
+    assert_eq!(machine.tick(6192, &i).pump_pct, 40);
     assert_eq!(machine.state(), State::Brew);
-    assert_eq!(machine.tick(28999, &i).dimmer, 100);
-    assert_eq!(machine.tick(29000, &i).dimmer, 0);
+    assert_eq!(machine.tick(28999, &i).pump_pct, 100);
+    assert_eq!(machine.tick(29000, &i).pump_pct, 0);
     assert_eq!(machine.stop_reason(), StopReason::TargetTime);
 }
 
@@ -86,7 +86,7 @@ fn no_preinfusion_goes_straight_to_brew() {
     let i = input(0.0, false, 0.0);
     assert!(machine.start(1000, &c, &i));
     assert_eq!(machine.state(), State::Filling);
-    assert_eq!(machine.tick(2000, &i).dimmer, 100);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
     assert_eq!(machine.state(), State::Brew);
 }
 
@@ -97,30 +97,31 @@ fn pressure_regulation() {
     c.preinfusion_mode = PreinfusionMode::NONE;
     let mut i = valid(0.0, false, 6.9);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 100);
-    assert_eq!(machine.tick(2199, &i).dimmer, 100); // pas avant 200 ms
-    assert_eq!(machine.tick(2200, &i).dimmer, 100); // activation aux 2/3 de la cible, sans saut
+    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
+    assert_eq!(machine.tick(2199, &i).pump_pct, 100); // pas avant 200 ms
+    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // activation aux 2/3 de la cible, sans saut
     i.pressure_bar = 7.0;
-    assert_eq!(machine.tick(2400, &i).dimmer, 100);
+    assert_eq!(machine.tick(2400, &i).pump_pct, 100);
     i.pressure_bar = 8.0;
-    assert_eq!(machine.tick(2600, &i).dimmer, 85); // terme proportionnel dominant
+    assert_eq!(machine.tick(2600, &i).pump_pct, 85); // terme proportionnel dominant
     i.pressure_bar = 8.5;
-    assert_eq!(machine.tick(2800, &i).dimmer, 78);
+    assert_eq!(machine.tick(2800, &i).pump_pct, 78);
     i.pressure_bar = 9.0;
-    assert_eq!(machine.tick(3000, &i).dimmer, 71);
+    assert_eq!(machine.tick(3000, &i).pump_pct, 71);
     i.pressure_bar = 9.5;
-    assert_eq!(machine.tick(3200, &i).dimmer, 63);
+    assert_eq!(machine.tick(3200, &i).pump_pct, 63);
     i.pressure_valid = false;
-    assert_eq!(machine.tick(3400, &i).dimmer, 63);
+    assert_eq!(machine.tick(3400, &i).pump_pct, 63);
     i.pressure_valid = true;
-    i.pressure_bar = 12.0;
+    // Bien au-dessus de la cible : le PI plafonne à MINIMUM_BREW_PUMP_PCT.
+    i.pressure_bar = 20.0;
     let mut now = 3600;
     while now <= 5600 {
-        assert_eq!(machine.tick(now, &i).dimmer, 50);
+        assert_eq!(machine.tick(now, &i).pump_pct, 10);
         now += 200;
     }
     i.pressure_bar = 9.0;
-    assert_eq!(machine.tick(5800, &i).dimmer, 70); // pas de windup à la borne basse
+    assert_eq!(machine.tick(5800, &i).pump_pct, 70); // pas de windup à la borne basse
 }
 
 #[test]
@@ -131,13 +132,13 @@ fn pressure_regulation_waits_for_two_thirds_of_a_low_target() {
     c.target_pressure_bar = 6.0;
     let mut i = valid(0.0, false, 4.1);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 100);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
     i.pressure_bar = 3.8;
-    assert_eq!(machine.tick(2200, &i).dimmer, 100); // 3 bar passés, sous 4 bar : pas de PI
+    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // 3 bar passés, sous 4 bar : pas de PI
     i.pressure_bar = 4.3;
-    assert_eq!(machine.tick(2400, &i).dimmer, 100); // activation sans saut
+    assert_eq!(machine.tick(2400, &i).pump_pct, 100); // activation sans saut
     i.pressure_bar = 7.0;
-    assert_eq!(machine.tick(2600, &i).dimmer, 59);
+    assert_eq!(machine.tick(2600, &i).pump_pct, 59);
 }
 
 #[test]
@@ -149,16 +150,30 @@ fn intermittent_pressure_integrates_real_elapsed_time() {
     c.preinfusion_mode = PreinfusionMode::NONE;
     let mut i = valid(0.0, false, 7.0);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 100);
-    assert_eq!(machine.tick(2200, &i).dimmer, 100); // activation
+    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
+    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // activation
     i.pressure_bar = 10.0;
-    assert_eq!(machine.tick(2400, &i).dimmer, 54);
+    assert_eq!(machine.tick(2400, &i).pump_pct, 54);
     i.pressure_valid = false;
-    assert_eq!(machine.tick(2600, &i).dimmer, 54);
-    assert_eq!(machine.tick(2800, &i).dimmer, 54);
-    assert_eq!(machine.tick(3000, &i).dimmer, 54);
+    assert_eq!(machine.tick(2600, &i).pump_pct, 54);
+    assert_eq!(machine.tick(2800, &i).pump_pct, 54);
+    assert_eq!(machine.tick(3000, &i).pump_pct, 54);
     i.pressure_valid = true;
-    assert_eq!(machine.tick(3200, &i).dimmer, 53);
+    assert_eq!(machine.tick(3200, &i).pump_pct, 53);
+}
+
+#[test]
+fn ramp_never_starts_below_the_minimum() {
+    let mut machine = Machine::new();
+    let mut c = config();
+    c.preinfusion_pump_pct = 5;
+    let i = input(0.0, false, 0.0);
+    assert!(machine.start(1000, &c, &i));
+    assert_eq!(machine.tick(2000, &i).pump_pct, 5);
+    // la rampe part du plancher, pas du niveau de pause : 18 pas de 5 %
+    assert_eq!(machine.tick(6000, &i).pump_pct, 10);
+    assert_eq!(machine.tick(6137, &i).pump_pct, 10);
+    assert_eq!(machine.tick(6138, &i).pump_pct, 15);
 }
 
 #[test]
@@ -166,11 +181,11 @@ fn safe_direct_config_never_below_minimum() {
     let mut machine = Machine::new();
     let mut c = config();
     c.preinfusion_mode = PreinfusionMode::NONE;
-    c.brew_pump_pct = 20;
+    c.brew_pump_pct = 5;
     let i = valid(0.0, false, 10.0);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 50);
-    assert_eq!(machine.tick(2200, &i).dimmer, 50);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 10);
+    assert_eq!(machine.tick(2200, &i).pump_pct, 10);
 }
 
 #[test]
@@ -180,9 +195,9 @@ fn fast_preinfusion_keeps_its_start_level() {
     c.preinfusion_pump_pct = 80;
     let i = input(0.0, false, 0.0);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 80);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 80);
     // au-dessus du minimum : départ inchangé
-    assert_eq!(machine.tick(6000, &i).dimmer, 80);
+    assert_eq!(machine.tick(6000, &i).pump_pct, 80);
     assert_eq!(machine.state(), State::Brew);
 }
 
@@ -193,19 +208,19 @@ fn first_drop_ends_weight_preinfusion() {
     let mut machine = Machine::new();
     let mut i = input(10.0, true, 0.0);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).dimmer, 35);
+    assert_eq!(machine.tick(2000, &i).pump_pct, 35);
     i.weight_g = 10.09;
-    assert_eq!(machine.tick(2100, &i).dimmer, 35);
+    assert_eq!(machine.tick(2100, &i).pump_pct, 35);
     i.weight_g = 10.1;
     // début de rampe après la première goutte
-    assert_eq!(machine.tick(2200, &i).dimmer, 50);
+    assert_eq!(machine.tick(2200, &i).pump_pct, 35);
     assert_eq!(machine.state(), State::Brew);
 
     // Sans balance, la pré-infusion par poids est ignorée.
     let mut missing_scale = Machine::new();
     let i = input(0.0, false, 0.0);
     assert!(missing_scale.start(1000, &c, &i));
-    assert_eq!(missing_scale.tick(2000, &i).dimmer, 100);
+    assert_eq!(missing_scale.tick(2000, &i).pump_pct, 100);
     assert_eq!(missing_scale.state(), State::Brew);
 
     // Temps + poids : la pression ne termine pas la pré-infusion.
@@ -213,12 +228,12 @@ fn first_drop_ends_weight_preinfusion() {
     let mut combined = Machine::new();
     let mut i = input(10.0, true, 0.0);
     assert!(combined.start(1000, &c, &i));
-    assert_eq!(combined.tick(2000, &i).dimmer, 35);
+    assert_eq!(combined.tick(2000, &i).pump_pct, 35);
     i.pressure_bar = 9.0;
-    assert_eq!(combined.tick(2100, &i).dimmer, 35);
+    assert_eq!(combined.tick(2100, &i).pump_pct, 35);
     assert_eq!(combined.state(), State::Preinfusion);
     i.weight_g = 10.1;
-    assert_eq!(combined.tick(2200, &i).dimmer, 50);
+    assert_eq!(combined.tick(2200, &i).pump_pct, 35);
     assert_eq!(combined.state(), State::Brew);
 }
 
@@ -229,9 +244,9 @@ fn weight_goal_stops_ahead_of_the_target_by_the_stop_lead() {
     let mut i = input(10.0, true, 0.0);
     assert!(weighted.start(1000, &c, &i));
     assert!(weighted.weight_goal());
-    assert_eq!(weighted.tick(2000, &i).dimmer, 35);
+    assert_eq!(weighted.tick(2000, &i).pump_pct, 35);
     i.weight_g = 46.0;
-    assert_eq!(weighted.tick(2100, &i).dimmer, 0);
+    assert_eq!(weighted.tick(2100, &i).pump_pct, 0);
     assert_eq!(weighted.stop_reason(), StopReason::TargetWeight);
 
     assert_eq!(weighted.stop_weight_g(), 32.0);
@@ -243,12 +258,12 @@ fn weight_goal_stops_ahead_of_the_target_by_the_stop_lead() {
     let mut exact = Machine::new();
     let mut i = input(10.0, true, 0.0);
     assert!(exact.start(1000, &c, &i));
-    assert_eq!(exact.tick(2000, &i).dimmer, 100);
+    assert_eq!(exact.tick(2000, &i).pump_pct, 100);
     i.weight_g = 42.0;
-    assert_eq!(exact.tick(2100, &i).dimmer, 100);
+    assert_eq!(exact.tick(2100, &i).pump_pct, 100);
     assert_eq!(exact.state(), State::Brew);
     i.weight_g = 46.0;
-    assert_eq!(exact.tick(2200, &i).dimmer, 0);
+    assert_eq!(exact.tick(2200, &i).pump_pct, 0);
     assert_eq!(exact.stop_reason(), StopReason::TargetWeight);
 }
 
@@ -258,9 +273,9 @@ fn scale_lost_stops_the_cycle() {
     let mut lost = Machine::new();
     let mut i = input(10.0, true, 0.0);
     assert!(lost.start(1000, &c, &i));
-    assert_eq!(lost.tick(2000, &i).dimmer, 35);
+    assert_eq!(lost.tick(2000, &i).pump_pct, 35);
     i.scale_present = false;
-    assert_eq!(lost.tick(2100, &i).dimmer, 0);
+    assert_eq!(lost.tick(2100, &i).pump_pct, 0);
     assert_eq!(lost.stop_reason(), StopReason::ScaleLost);
 }
 
@@ -272,41 +287,41 @@ fn filling_ends_on_absolute_pressure() {
     // pression résiduelle au repos
     let mut i = valid(0.0, false, 1.44);
     assert!(filling_pressure.start(1000, &c, &i));
-    assert_eq!(filling_pressure.tick(1500, &i).dimmer, 100); // garde : ignorée
+    assert_eq!(filling_pressure.tick(1500, &i).pump_pct, 100); // garde : ignorée
     i.pressure_bar = 0.26;
-    assert_eq!(filling_pressure.tick(2000, &i).dimmer, 100);
+    assert_eq!(filling_pressure.tick(2000, &i).pump_pct, 100);
     i.pressure_bar = 1.25;
-    assert_eq!(filling_pressure.tick(2300, &i).dimmer, 100); // paquet isolé au-dessus
+    assert_eq!(filling_pressure.tick(2300, &i).pump_pct, 100); // paquet isolé au-dessus
     i.pressure_bar = 0.40;
-    assert_eq!(filling_pressure.tick(2400, &i).dimmer, 100); // retombé : confirmation remise à zéro
+    assert_eq!(filling_pressure.tick(2400, &i).pump_pct, 100); // retombé : confirmation remise à zéro
     i.pressure_bar = 0.99;
-    assert_eq!(filling_pressure.tick(2500, &i).dimmer, 100); // sous le seuil
+    assert_eq!(filling_pressure.tick(2500, &i).pump_pct, 100); // sous le seuil
     i.pressure_bar = 1.0;
-    assert_eq!(filling_pressure.tick(2600, &i).dimmer, 100);
-    assert_eq!(filling_pressure.tick(2749, &i).dimmer, 100);
-    assert_eq!(filling_pressure.tick(2750, &i).dimmer, 35); // 150 ms à 1 bar ou plus
+    assert_eq!(filling_pressure.tick(2600, &i).pump_pct, 100);
+    assert_eq!(filling_pressure.tick(2749, &i).pump_pct, 100);
+    assert_eq!(filling_pressure.tick(2750, &i).pump_pct, 35); // 150 ms à 1 bar ou plus
     assert_eq!(filling_pressure.state(), State::Preinfusion);
 
     let mut lost_measure = Machine::new();
     let mut i = valid(0.0, false, 0.26);
     assert!(lost_measure.start(1000, &c, &i));
-    assert_eq!(lost_measure.tick(2000, &i).dimmer, 100);
+    assert_eq!(lost_measure.tick(2000, &i).pump_pct, 100);
     i.pressure_bar = 1.1;
-    assert_eq!(lost_measure.tick(2100, &i).dimmer, 100);
+    assert_eq!(lost_measure.tick(2100, &i).pump_pct, 100);
     i.pressure_valid = false;
-    assert_eq!(lost_measure.tick(2200, &i).dimmer, 100); // mesure perdue : pas de sortie
+    assert_eq!(lost_measure.tick(2200, &i).pump_pct, 100); // mesure perdue : pas de sortie
     i.pressure_valid = true;
-    assert_eq!(lost_measure.tick(2300, &i).dimmer, 100);
-    assert_eq!(lost_measure.tick(2449, &i).dimmer, 100);
-    assert_eq!(lost_measure.tick(2450, &i).dimmer, 35);
+    assert_eq!(lost_measure.tick(2300, &i).pump_pct, 100);
+    assert_eq!(lost_measure.tick(2449, &i).pump_pct, 100);
+    assert_eq!(lost_measure.tick(2450, &i).pump_pct, 35);
     assert_eq!(lost_measure.state(), State::Preinfusion);
 
     // Pression jamais atteinte : la durée sert de secours.
     let mut timeout = Machine::new();
     let i = valid(0.0, false, 0.40);
     assert!(timeout.start(1000, &c, &i));
-    assert_eq!(timeout.tick(10999, &i).dimmer, 100);
-    assert_eq!(timeout.tick(11000, &i).dimmer, 35);
+    assert_eq!(timeout.tick(10999, &i).pump_pct, 100);
+    assert_eq!(timeout.tick(11000, &i).pump_pct, 35);
     assert_eq!(timeout.state(), State::Preinfusion);
 }
 
@@ -316,15 +331,15 @@ fn purge() {
     let i = valid(0.0, false, 0.40);
     let mut purge = Machine::new();
     assert!(purge.purge_press(1000, &c, 20_000));
-    assert_eq!(purge.tick(2000, &i).dimmer, 100);
+    assert_eq!(purge.tick(2000, &i).pump_pct, 100);
     assert!(purge.purge_release(2000));
-    assert_eq!(purge.tick(2001, &i).dimmer, 0);
+    assert_eq!(purge.tick(2001, &i).pump_pct, 0);
     assert_eq!(purge.stop_reason(), StopReason::PurgeReleased);
     assert_eq!(purge.elapsed_ms(2001), 1000);
     assert_eq!(purge.elapsed_ms(10000), 1000);
     assert!(purge.purge_press(3000, &c, 20_000));
-    assert_eq!(purge.tick(22999, &i).dimmer, 100);
-    assert_eq!(purge.tick(23000, &i).dimmer, 0);
+    assert_eq!(purge.tick(22999, &i).pump_pct, 100);
+    assert_eq!(purge.tick(23000, &i).pump_pct, 0);
     assert_eq!(purge.stop_reason(), StopReason::PurgeTimeout);
 }
 
@@ -334,8 +349,8 @@ fn purge_duration_is_set_by_the_press() {
     let i = valid(0.0, false, 0.40);
     let mut purge = Machine::new();
     assert!(purge.purge_press(1000, &c, 5000));
-    assert_eq!(purge.tick(5999, &i).dimmer, 100);
-    assert_eq!(purge.tick(6000, &i).dimmer, 0);
+    assert_eq!(purge.tick(5999, &i).pump_pct, 100);
+    assert_eq!(purge.tick(6000, &i).pump_pct, 0);
     assert_eq!(purge.stop_reason(), StopReason::PurgeTimeout);
     assert_eq!(purge.elapsed_ms(6000), 5000);
 }

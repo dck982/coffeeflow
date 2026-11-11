@@ -34,7 +34,7 @@ aujourd'hui.
 ## Entrée
 
 Sur l'accueil, « infuser » s'active dès que la machine accepterait une
-purge (capteurs vivants, pas de verrou, pas de cycle, dimmer prêt), même
+purge (capteurs vivants, pas de verrou, pas de cycle, pompe prête), même
 pendant la chauffe. Il ouvre une fenêtre à trois boutons : **directe**,
 **guidée** et **annuler**.
 
@@ -52,7 +52,7 @@ pendant la chauffe. Il ouvre une fenêtre à trois boutons : **directe**,
 | Tasse retirée | poids < **−5 g**, sur les deux écrans. Le guide attend que le poids soit stable (variation de 0,5 g au plus sur 1 s), puis tare : la balance vide revient à 0 |
 | Tasse reconnue | à l'écran 2, après une tare à vide depuis la consigne atteinte : poids à **± 1,5 g** de `cup_g`, quelle que soit la tasse ; la marge couvre les gouttes d'une tasse rincée |
 | Rinçage possible | NTC valide et au moins à **consigne − 5 °C** |
-| Consigne atteinte | condition actuelle d'« infuser » : NTC à **± 1 °C** de la consigne depuis 3 s, plus les autres conditions d'infusion (dimmer, chauffage, fraîcheur des mesures) |
+| Consigne atteinte | condition actuelle d'« infuser » : NTC à **± 1 °C** de la consigne depuis 3 s, plus les autres conditions d'infusion (pompe, chauffage, fraîcheur des mesures) |
 
 Le seuil de −5 g plutôt que 0 g évite qu'une oscillation de la balance
 autour de zéro passe pour un retrait.
@@ -144,7 +144,7 @@ autre tasse, hors tolérance, active **démarrer** comme avant.
 - **Pendant une purge du guide**, un retrait de tasse ou la perte de la
   balance n'arrêtent pas la pompe : 5 s d'eau finissent au pire dans le
   bac. **Arrêter** coupe la purge et ramène à l'accueil.
-- **Rinçage refusé par le cœur** (cycle, verrou, dimmer) : le bouton
+- **Rinçage refusé par le cœur** (cycle, verrou, pompe) : le bouton
   reste en place et la raison s'affiche en rouge, comme sur l'accueil.
 - **Démarrer refusé par le cœur** : idem. Le guide reste à l'écran 2.
 - **Tasse déjà sur la balance à l'ouverture** : la tare d'ouverture la

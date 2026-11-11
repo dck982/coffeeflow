@@ -73,23 +73,26 @@ fn number(v: f32, digits: usize, unit: &str) -> String {
     }
     format!("{v:.digits$}{unit}").replace('.', ",")
 }
-/// Une purge serait acceptée : capteurs vivants, pas de verrou, dimmer prêt,
+/// Une purge serait acceptée : capteurs vivants, pas de verrou, pompe prête,
 /// pas de cycle ni de capture en récupération. La chauffe n'entre pas en
 /// compte : le guide attend lui-même la température.
 fn purge_ready(s: &Snapshot) -> bool {
     s.sensors_alive
         && !s.lockout
-        && s.dimmer_ready
-        && s.dimmer_valid
+        && s.pump_ready
         && s.cycle_state == CycleState::Idle
         && !s.capture_cooldown
 }
 /// Raison pour laquelle l'infusion directe ne part pas, vide si elle peut.
 fn brew_warning(s: &Snapshot, c: &Config) -> &'static str {
-    if s.dimmer_error_active {
-        "erreur dimmer"
-    } else if !s.dimmer_ready {
-        "dimmer en calibration — vérifier le secteur"
+    if !s.pump_ready {
+        if s.pump_dry {
+            "pompe à sec — remplir le réservoir"
+        } else if s.pump_fault {
+            "défaut de pompe"
+        } else {
+            "pompe pas prête"
+        }
     } else if !c.heating_enabled {
         "chauffage désactivé"
     } else if !s.brew_temperature_ready {
@@ -101,7 +104,7 @@ fn brew_warning(s: &Snapshot, c: &Config) -> &'static str {
 fn refusal_text(status: ActionStatus) -> &'static str {
     match status {
         ActionStatus::Locked => "verrou de sécurité",
-        ActionStatus::DimmerNotReady => "dimmer pas prêt",
+        ActionStatus::PumpNotReady => "pompe pas prête",
         ActionStatus::BusLost | ActionStatus::Unavailable => "module interne injoignable",
         ActionStatus::CycleActive => "un cycle est en cours",
         _ => "commande refusée",
@@ -515,7 +518,7 @@ impl Presenter {
                 }
                 Some(UiRequest::Core(Input::PutConfig(candidate)))
             }
-            16 if matches!(i, 3..=5) => {
+            16 if matches!(i, 4..=5) => {
                 self.menu = i;
                 self.page = 7;
                 None
@@ -536,11 +539,6 @@ impl Presenter {
                 Some(UiRequest::Core(Input::PutConfig(c)))
             }
             18 => match self.menu {
-                3 => Some(core_action(if i == 0 {
-                    Action::ResetDimmer
-                } else {
-                    Action::RecalibrateDimmer
-                })),
                 4 => Some(core_action(if i == 0 {
                     Action::OpenMaintenanceValve
                 } else {
@@ -605,13 +603,6 @@ impl Presenter {
                     "modification refusée pendant un cycle"
                 }
                 .into()
-            }
-            Reply::Action(r)
-                if r.status == screen_core::core::ActionStatus::Ok
-                    && self.page == 7
-                    && self.menu == 3 =>
-            {
-                self.page = 4
             }
             Reply::Action(r) if r.status != screen_core::core::ActionStatus::Ok => {
                 self.editor_error = "commande indisponible".into()
@@ -1025,7 +1016,7 @@ impl Presenter {
         });
         let live = alloc::vec![
             tile("chauffe", number(s.heating_power_pct, 0, " %"), "", true, 0),
-            tile("pompe", format!("{} %", s.dimmer_pct), "", true, 0),
+            tile("pompe", format!("{} %", s.pump_pct), "", true, 0),
             tile(
                 "débit balance",
                 number(shot.cup_rate_g_s, 2, " g/s"),
@@ -1109,19 +1100,21 @@ impl Presenter {
             number(s.flow_ml_s, 1, " ml/s"),
             s.flow_freshness,
         );
-        let pump = if s.dimmer_error_active || !s.sensors_alive || !s.dimmer_valid {
+        let pump = if s.pump_fault || s.pump_dry || !s.sensors_alive {
             DIAG_ERROR
-        } else if !s.dimmer_ready {
+        } else if !s.pump_ready {
             DIAG_WARN
         } else {
             DIAG_VALID
         };
-        let pump_detail = if s.dimmer_error_active {
-            "erreur"
+        let pump_detail = if s.pump_dry {
+            "à sec"
+        } else if s.pump_fault {
+            "défaut"
         } else {
             match pump {
                 DIAG_VALID => "valide",
-                DIAG_WARN => "calibration",
+                DIAG_WARN => "en défaut",
                 _ => "absent",
             }
         };
@@ -1164,7 +1157,7 @@ impl Presenter {
             diag_tile("pression", pressure, pressure_value, pressure_detail),
             diag_tile("chaudière", boiler, boiler_value, boiler_detail),
             diag_tile("débit", flow, flow_value, flow_detail),
-            diag_tile("pompe", pump, format!("{} %", s.dimmer_pct), pump_detail),
+            diag_tile("pompe", pump, format!("{} %", s.pump_pct), pump_detail),
             diag_tile(
                 "vanne",
                 valve,
@@ -1241,20 +1234,6 @@ impl Presenter {
         };
         app.set_enclosure(format!("boîtiers {screen} | {sensors}").into());
         match self.menu {
-            3 => {
-                app.set_menu_title("dimmerlink".into());
-                app.set_menu_body(if self.editor_error.is_empty() {
-                    "la pompe est arrêtée avant la commande".into()
-                } else {
-                    self.editor_error.clone().into()
-                });
-                app.set_menu_hint("".into());
-                app.set_menu_left("reset dimmerlink".into());
-                app.set_menu_right("calibrer".into());
-                app.set_menu_left_destructive(true);
-                app.set_menu_left_enabled(true);
-                app.set_menu_right_enabled(true);
-            }
             4 => {
                 app.set_menu_title("vanne · maintenance".into());
                 app.set_menu_body(if !s.maintenance_valve_capable {
@@ -1472,8 +1451,7 @@ mod tests {
     fn brew_button_opens_the_choice_and_direct_sends_start_brew() {
         let mut p = Presenter::default();
         let mut s = ready();
-        s.dimmer_ready = true;
-        s.dimmer_valid = true;
+        s.pump_ready = true;
         let c = Config::default();
         assert!(p.command(21, "", 0, &s, &c).is_none());
         assert!(p.brew_choice);

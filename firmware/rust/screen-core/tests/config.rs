@@ -154,8 +154,9 @@ fn validation_bounds_and_steps() {
     assert_eq!(ok(&|c| c.stop_lead_g = 3.25), Some("brew.stop_lead_g"));
     assert_eq!(ok(&|c| c.stop_lead_g = 0.0), None);
     assert_eq!(ok(&|c| c.stop_lead_g = 20.0), None);
-    assert_eq!(ok(&|c| c.brew_pump_pct = 45), Some("brew.pump_pct"));
-    assert_eq!(ok(&|c| c.brew_pump_pct = 50), None);
+    assert_eq!(ok(&|c| c.brew_pump_pct = 5), Some("brew.pump_pct"));
+    assert_eq!(ok(&|c| c.brew_pump_pct = 12), Some("brew.pump_pct"));
+    assert_eq!(ok(&|c| c.brew_pump_pct = 10), None);
     assert_eq!(ok(&|c| c.purge_pump_pct = 15), Some("purge.pump_pct"));
     assert_eq!(ok(&|c| c.purge_max_s = 7), Some("purge.max_s"));
     assert_eq!(ok(&|c| c.purge_max_s = 65), Some("purge.max_s"));
@@ -555,7 +556,7 @@ fn migrate_v2_and_v1() {
 fn normalisation_of_out_of_range_values() {
     let mut c = Config::default();
     c.revision = 9;
-    c.profiles_mut()[0].brew_pump_pct = 20;
+    c.profiles_mut()[0].brew_pump_pct = 5;
     c.profiles_mut()[0].brew_temperature_c = 110.0;
     let mut store = MemoryConfigStore {
         a: Some(encode_blob(&c)),
@@ -563,10 +564,10 @@ fn normalisation_of_out_of_range_values() {
     };
     let (manager, report) = ConfigManager::init(&mut store);
     let got = manager.get().clone();
-    assert_eq!((got.brew_pump_pct, got.brew_temperature_c), (50, 95.0));
+    assert_eq!((got.brew_pump_pct, got.brew_temperature_c), (10, 95.0));
     assert_eq!(
         (got.active().brew_pump_pct, got.active().brew_temperature_c),
-        (50, 95.0)
+        (10, 95.0)
     );
     assert!(report.normalized && !report.migrated);
     assert_eq!(store.writes, 1);

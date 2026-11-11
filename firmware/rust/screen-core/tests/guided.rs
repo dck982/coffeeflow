@@ -422,11 +422,11 @@ fn refused_tare_counts_as_a_missing_scale_until_reconnection() {
 fn core_refusal_is_shown_then_expires() {
     let mut b = Bench::new();
     b.ready_to_rinse();
-    b.rig.dimmer_ready = false;
+    b.rig.pump_ready = false;
     b.run(300);
-    assert_eq!(b.act(Action::GuidedNext), ActionStatus::DimmerNotReady);
+    assert_eq!(b.act(Action::GuidedNext), ActionStatus::PumpNotReady);
     let v = b.view();
-    assert_eq!(v.refusal, Some(ActionStatus::DimmerNotReady));
+    assert_eq!(v.refusal, Some(ActionStatus::PumpNotReady));
     assert_eq!(v.screen, Screen::Rinse);
     assert!(!v.purging);
     b.run(5500);
@@ -573,15 +573,15 @@ fn start_refused_by_the_core_keeps_the_guide_on_screen_2() {
     b.swap_cup();
     b.weigh(CUP_BACK, 500);
     assert!(b.view().button_enabled);
-    // Le dimmer décroche entre l'appui et le départ de l'infusion : le cœur
+    // La pompe décroche entre l'appui et le départ de l'infusion : le cœur
     // refuse, le guide reste là et montre la raison.
     assert_eq!(b.act(Action::GuidedNext), ActionStatus::Ok);
-    b.rig.dimmer_ready = false;
+    b.rig.pump_ready = false;
     b.weigh(0.0, 2500);
     let v = b.view();
     assert!(v.active);
     assert_eq!(v.screen, Screen::Wait);
-    assert_eq!(v.refusal, Some(ActionStatus::DimmerNotReady));
+    assert_eq!(v.refusal, Some(ActionStatus::PumpNotReady));
     assert!(b.rig.core.hf_capture_session().is_none());
 }
 
@@ -678,10 +678,10 @@ fn open_follows_the_purge_preconditions_but_not_the_temperature() {
     busy.run(200);
     assert_eq!(busy.act(Action::GuidedOpen), ActionStatus::CycleActive);
 
-    let mut dimmer = Bench::new();
-    dimmer.rig.dimmer_ready = false;
-    dimmer.run(500);
-    assert_eq!(dimmer.act(Action::GuidedOpen), ActionStatus::DimmerNotReady);
+    let mut pump = Bench::new();
+    pump.rig.pump_ready = false;
+    pump.run(500);
+    assert_eq!(pump.act(Action::GuidedOpen), ActionStatus::PumpNotReady);
 
     let mut offline = Bench::new();
     offline.rig.sensors_online = false;

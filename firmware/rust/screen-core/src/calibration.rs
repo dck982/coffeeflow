@@ -7,6 +7,12 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// catalogue (2382 imp/L) sur-estimait le débit d'environ 45 % sur le
 /// montage réel ; conserver cette valeur machine plutôt que le nominal.
 pub const FLOW_PULSES_PER_LITER: f32 = 3450.0;
+/// Tachymètre de la pompe à engrenage MPB003 : impulsions par tour.
+pub const PUMP_TACH_PULSES_PER_TURN: u32 = 2;
+/// Cylindrée de la pompe, en ml par tour. Le « refoulé » est tours ×
+/// cylindrée : le glissement n'est pas retiré, ce n'est pas le débit net.
+/// L'écart avec le Digmesa est le glissement.
+pub const PUMP_ML_PER_TURN: f32 = 0.1;
 /// XDB401 analogique (0,4 à 2,4 V pour 0 à 12 bar) sur A2 de l'ADS1115, PGA
 /// ±4,096 V, soit 125 µV par code. Zéro lu sonde à l'air libre : la pression
 /// est relative à l'atmosphère.

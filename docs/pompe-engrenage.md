@@ -176,7 +176,8 @@ sans avoir à le mesurer avant de commander la carte.
   - Filtre : deux cellules 1,5 kΩ / 2,2 µF (coupure 48 Hz) entre l'émetteur
     et le marron, condensateurs vers le vert. PWM à 1 kHz : l'opto commute
     en ≈ 18 µs. Ondulation ≈ 5 V × (48 / 1 000)² ≈ 12 mV, soit ≈ 12 tr/min ;
-    temps de réponse ≈ 10 ms. Le LEDC donne 16 bits à 1 kHz.
+    temps de réponse ≈ 10 ms. Le LEDC de l'ESP32-S3 s'arrête à 14 bits
+    (pas de 0,006 %), largement assez à 1 kHz.
   - Impédance de source ≈ 3 kΩ, proche d'un potentiomètre de 10 kΩ à mi-course
     (2,5 kΩ).
   - **La consigne n'est pas linéaire en rapport cyclique** (mesuré sur la
@@ -207,8 +208,8 @@ sans avoir à le mesurer avant de commander la carte.
   travers 1,8 kΩ, soit ≈ 2 mA quand le bleu est bas. Ça marche en
   push-pull comme en collecteur ouvert : à l'état haut, la LED n'a plus de
   tension. Côté XIAO, le transistor tire vers la masse un GPIO rappelé au
-  3V3 par 4,7 kΩ (0,7 mA). Le signal est inversé ; le PCNT compte les
-  fronts.
+  3V3 par 4,7 kΩ (0,7 mA). Le signal est inversé ; une interruption
+  GPIO compte et date les fronts descendants.
 - L'EL817C convient jusqu'à ≈ 2,7 kHz : large marge à 167 Hz.
 - Débit théorique par impulsion : **0,05 ml**, contre 0,42 g par impulsion
   pour le Digmesa.

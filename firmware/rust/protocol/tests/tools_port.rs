@@ -91,6 +91,10 @@ fn tools_log_code_table_matches_generated_indices() {
     );
     assert_eq!(LogCode::from_u8(43), Some(LogCode::BoilerNtcInvalidReading));
     assert_eq!(LogCode::from_u8(44), Some(LogCode::BoilerAdcRecovered));
+    assert_eq!(LogCode::from_u8(51), Some(LogCode::PumpFault));
+    assert_eq!(LogCode::from_u8(52), Some(LogCode::PumpDry));
+    assert_eq!(LogCode::from_u8(53), Some(LogCode::PumpStart));
+    assert_eq!(LogCode::from_u8(54), Some(LogCode::LegacyCommandIgnored));
     assert_eq!(log_code_name(40), "BOILER_ADC_NOT_FOUND");
     assert_eq!(log_code_name(200), "UNKNOWN");
 }

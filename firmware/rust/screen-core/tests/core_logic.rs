@@ -6,7 +6,9 @@
 mod common;
 
 use common::{Rig, from_sensors};
-use protocol::messages::{LogPayload, NodeIdentityPayload, SetHeatingPayload, StatusFlowPayload};
+use protocol::messages::{
+    LogPayload, NodeIdentityPayload, SetHeatingPayload, StatusFlowPayload, StatusPumpPayload,
+};
 use protocol::{Dest, Frame, LogCode, Message, MessageType, Node, Version};
 use screen_core::config::{Config, ConfigStatus};
 use screen_core::core::{
@@ -71,7 +73,6 @@ fn awaiting_sensors_stop_excludes_new_actions_and_can_be_cancelled() {
         Action::PurgePress,
         Action::OpenMaintenanceValve,
         Action::ResetSensors,
-        Action::ResetDimmer,
     ] {
         assert_eq!(
             rig.core
@@ -559,17 +560,14 @@ fn actuator_and_heating_status() {
     rig.pump_pct = 60;
     rig.valve_open = true;
     rig.lockout = true;
-    rig.dimmer_ready = false;
+    rig.pump_ready = false;
     rig.publish_actuators();
     rig.heater_on = true;
     rig.power_permille = 357;
     rig.publish_heating();
     let s = rig.snapshot();
-    assert!(s.valve_open && s.lockout && !s.dimmer_ready && s.dimmer_valid);
-    assert_eq!(
-        (s.pump_pct, s.dimmer_pct, s.lease_remaining_ms),
-        (60, 60, 400)
-    );
+    assert!(s.valve_open && s.lockout && !s.pump_ready);
+    assert_eq!((s.pump_pct, s.lease_remaining_ms), (60, 400));
     assert!(s.heating_capable && s.heating_power_capable && s.heater_on);
     assert!((s.heating_power_accepted_pct - 35.7).abs() < 1e-4);
     assert_eq!(s.actuators_freshness, Freshness::Fresh);
@@ -787,13 +785,13 @@ fn start_brew_preconditions() {
     locked.advance(200);
     assert_eq!(start(&mut locked, ActionSource::Ui), ActionStatus::Locked);
 
-    // DimmerLink pas prêt.
-    let mut dimmer = prepared_rig();
-    dimmer.dimmer_ready = false;
-    dimmer.advance(200);
+    // Pompe pas prête.
+    let mut pump = prepared_rig();
+    pump.pump_ready = false;
+    pump.advance(200);
     assert_eq!(
-        start(&mut dimmer, ActionSource::Ui),
-        ActionStatus::DimmerNotReady
+        start(&mut pump, ActionSource::Ui),
+        ActionStatus::PumpNotReady
     );
 
     // Capteurs muets.
@@ -987,21 +985,21 @@ fn bench_commands() {
     assert_eq!(rig.core.hf_capture_info().status, Status::Active);
     assert_eq!(rig.core.hf_capture_info().origin, Origin::SetActuators);
 
-    // RESET, DimmerLink.
+    // RESET des capteurs.
     rig.advance(6000);
     rig.take_outputs();
     let clock = rig.clock();
     // La récupération de 5 s de la capture est terminée : la maintenance passe.
     assert_eq!(
         rig.core
-            .perform_action(clock, &cmd(Action::ResetDimmer), ActionSource::Ui)
+            .perform_action(clock, &cmd(Action::ResetSensors), ActionSource::Ui)
             .status,
         ActionStatus::Ok
     );
 }
 
 #[test]
-fn reset_and_dimmer_commands_when_idle() {
+fn reset_command_when_idle() {
     let mut rig = Rig::new();
     rig.ready();
     let clock = rig.clock();
@@ -1022,17 +1020,31 @@ fn reset_and_dimmer_commands_when_idle() {
         .collect();
     assert!(matches!(frames[0], Message::Set(s) if s.pump_pct == 0));
     assert!(frames.iter().any(|m| matches!(m, Message::Reset)));
-    rig.advance(30_000);
-    let clock = rig.clock();
-    rig.take_outputs();
-    assert_eq!(
-        rig.core
-            .perform_action(clock, &cmd(Action::RecalibrateDimmer), ActionSource::Ui)
-            .status,
-        ActionStatus::Ok
-    );
-    assert!(rig.collect().iter().any(|o| matches!(o, Output::Can(f)
-        if matches!(Message::decode(f), Ok(Message::DimmerCommand(c)) if c.command as u8 == 2))));
+}
+
+#[test]
+fn pump_status_is_converted_and_goes_stale() {
+    let mut rig = Rig::new();
+    rig.ready();
+    rig.rx(Message::StatusPump(StatusPumpPayload {
+        tach_pulses: 4000,
+        rpm: 1800,
+        flags: StatusPumpPayload::FLAG_TACH_SEEN | StatusPumpPayload::FLAG_DRY,
+    }));
+    let s = rig.snapshot();
+    assert_eq!((s.pump_tach_pulses, s.pump_rpm), (4000, 1800));
+    assert!(s.pump_tach_seen && s.pump_dry && !s.pump_fault);
+    // 2 impulsions par tour, 0,1 ml par tour.
+    assert!((s.pump_displaced_ml - 200.0).abs() < 1e-3);
+    assert!((s.pump_displaced_ml_s - 3.0).abs() < 1e-4);
+    assert_eq!(s.pump_freshness, Freshness::Fresh);
+    // Sans nouvelle trame, la vitesse périmée retombe à zéro.
+    rig.sensors_online = false;
+    rig.advance(2500);
+    let s = rig.snapshot();
+    assert_eq!((s.pump_rpm, s.pump_displaced_ml_s), (0, 0.0));
+    assert_ne!(s.pump_freshness, Freshness::Fresh);
+    assert!((s.pump_displaced_ml - 200.0).abs() < 1e-3);
 }
 
 #[test]
@@ -1416,6 +1428,7 @@ fn status_requests_follow_the_profile() {
         requests,
         vec![
             (MessageType::StatusFlow as u8, 1000),
+            (MessageType::StatusPump as u8, 1000),
             (MessageType::StatusActuators as u8, 1000),
             (MessageType::StatusHeating as u8, 250),
             (MessageType::StatusPressure as u8, 100),
@@ -1426,7 +1439,7 @@ fn status_requests_follow_the_profile() {
     rig.core.tick(Clock::new(rig.now_us + 100_000));
     assert!(req_periods(&rig.collect()).is_empty());
     rig.core.tick(Clock::new(rig.now_us + 1_100_000));
-    assert_eq!(req_periods(&rig.collect()).len(), 5);
+    assert_eq!(req_periods(&rig.collect()).len(), 6);
 }
 
 #[test]
@@ -1438,6 +1451,7 @@ fn cycle_switches_telemetry_profile_and_ble_publish_rate() {
     assert!(outputs.contains(&Output::Ble(BleCommand::SetActive(true))));
     let requests = req_periods(&outputs);
     assert!(requests.contains(&(MessageType::StatusFlow as u8, 100)));
+    assert!(requests.contains(&(MessageType::StatusPump as u8, 100)));
     assert!(requests.contains(&(MessageType::StatusActuators as u8, 200)));
     rig.advance(27_000);
     let outputs = rig.take_outputs();

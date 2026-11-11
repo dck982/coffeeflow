@@ -137,8 +137,20 @@ pub struct Snapshot {
     pub pressure_valid: bool,
     pub flow_valid: bool,
     pub valve_open: bool,
-    pub dimmer_pct: u8,
     pub pump_pct: u8,
+    /// Tachymètre de la pompe (`STATUS_PUMP`) : impulsions brutes cumulées,
+    /// vitesse sur le dernier tour, défaut de tachymètre et marche à sec
+    /// verrouillés par les capteurs.
+    pub pump_tach_pulses: u32,
+    pub pump_rpm: u16,
+    pub pump_tach_seen: bool,
+    pub pump_fault: bool,
+    pub pump_dry: bool,
+    /// Volume refoulé depuis le démarrage des capteurs : tours × cylindrée,
+    /// glissement non retiré.
+    pub pump_displaced_ml: f32,
+    /// Débit refoulé instantané, tr/min × cylindrée.
+    pub pump_displaced_ml_s: f32,
     pub heating_capable: bool,
     pub heating_power_capable: bool,
     /// Les capteurs acceptent le drapeau de nouvelle période.
@@ -153,9 +165,8 @@ pub struct Snapshot {
     pub heating_lease_remaining_ms: u16,
     pub heating_freshness: Freshness,
     pub heating_age_ms: u32,
-    pub dimmer_ready: bool,
-    pub dimmer_valid: bool,
-    pub dimmer_error_active: bool,
+    /// Pompe prête : pas de défaut dans le cycle en cours et pilote présent.
+    pub pump_ready: bool,
     pub lockout: bool,
     /// Vanne seule, ouverte par l'action de vidange.
     pub maintenance_valve_open: bool,
@@ -166,9 +177,11 @@ pub struct Snapshot {
 
     pub pressure_freshness: Freshness,
     pub flow_freshness: Freshness,
+    pub pump_freshness: Freshness,
     pub actuators_freshness: Freshness,
     pub pressure_age_ms: u32,
     pub flow_age_ms: u32,
+    pub pump_age_ms: u32,
     pub actuators_age_ms: u32,
 
     pub sensors_version_major: u8,
@@ -229,15 +242,14 @@ pub struct Snapshot {
     pub guided: guided::View,
 }
 
-/// L'infusion peut partir : capteurs vivants, pas de verrou, dimmer prêt,
+/// L'infusion peut partir : capteurs vivants, pas de verrou, pompe prête,
 /// chauffage actif et chaudière à la consigne (mesure fraîche, à
 /// [`BREW_TEMPERATURE_TOLERANCE_C`] près et prête), pas de capture en
 /// récupération.
 pub fn brew_ready(s: &Snapshot, c: &Config) -> bool {
     s.sensors_alive
         && !s.lockout
-        && s.dimmer_ready
-        && s.dimmer_valid
+        && s.pump_ready
         && c.heating_enabled
         && s.boiler_temperature_valid
         && s.boiler_temperature_freshness == Freshness::Fresh
@@ -289,8 +301,14 @@ impl Default for Snapshot {
             pressure_valid: false,
             flow_valid: false,
             valve_open: false,
-            dimmer_pct: 0,
             pump_pct: 0,
+            pump_tach_pulses: 0,
+            pump_rpm: 0,
+            pump_tach_seen: false,
+            pump_fault: false,
+            pump_dry: false,
+            pump_displaced_ml: 0.0,
+            pump_displaced_ml_s: 0.0,
             heating_capable: false,
             heating_power_capable: false,
             heating_window_restart_capable: false,
@@ -302,9 +320,7 @@ impl Default for Snapshot {
             heating_lease_remaining_ms: 0,
             heating_freshness: Freshness::Missing,
             heating_age_ms: u32::MAX,
-            dimmer_ready: false,
-            dimmer_valid: false,
-            dimmer_error_active: false,
+            pump_ready: false,
             lockout: false,
             maintenance_valve_open: false,
             maintenance_valve_capable: false,
@@ -312,9 +328,11 @@ impl Default for Snapshot {
             continuous_on_ms: 0,
             pressure_freshness: Freshness::Missing,
             flow_freshness: Freshness::Missing,
+            pump_freshness: Freshness::Missing,
             actuators_freshness: Freshness::Missing,
             pressure_age_ms: 0,
             flow_age_ms: 0,
+            pump_age_ms: 0,
             actuators_age_ms: 0,
             sensors_version_major: 0,
             sensors_version_minor: 0,

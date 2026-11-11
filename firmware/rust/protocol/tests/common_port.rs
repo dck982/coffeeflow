@@ -234,6 +234,17 @@ fn status_flow_payload_roundtrip() {
 }
 
 #[test]
+fn status_pump_payload_roundtrip() {
+    let original = StatusPumpPayload {
+        tach_pulses: 4_000_000_000,
+        rpm: 4500,
+        flags: StatusPumpPayload::FLAG_TACH_SEEN | StatusPumpPayload::FLAG_DRY,
+    };
+    assert_eq!(StatusPumpPayload::unpack(&original.pack()), Ok(original));
+    assert_eq!(original.pack()[7], 0);
+}
+
+#[test]
 fn status_actuators_payload_roundtrip() {
     let original = StatusActuatorsPayload {
         valve_open: true,

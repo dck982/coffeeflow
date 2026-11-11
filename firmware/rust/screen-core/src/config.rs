@@ -21,9 +21,13 @@ pub const MINIMUM_BREW_TEMPERATURE_C: f32 = 50.0;
 pub const MAXIMUM_BREW_TEMPERATURE_C: f32 = 95.0;
 pub const MAXIMUM_BREW_PREHEAT_TIME_S: f32 = 15.0;
 pub const BREW_TEMPERATURE_TOLERANCE_C: f32 = 1.0;
-/// Sous cette puissance, la pompe ne maintient plus une pression d'infusion
-/// sûre. Cette borne est distincte des puissances de remplissage et de purge.
-pub const MINIMUM_BREW_PUMP_PCT: u8 = 50;
+/// Plancher de la commande de pompe en infusion (plancher du PI de pression,
+/// départ de la rampe, minimum de `brew_pump_pct`). 10 % = 450 tr/min, sous
+/// le glissement à 9 bar : le PI peut abaisser la pression même sur un
+/// panier aveugle, et la commande reste au-dessus des ≈ 7 % (0,3 V) sous
+/// lesquels les capteurs désarment leur détection de défaut du tachymètre.
+/// Cette borne est distincte des puissances de remplissage et de purge.
+pub const MINIMUM_BREW_PUMP_PCT: u8 = 10;
 
 /// Masque des bits de pré-infusion encore valides. Le bit 1 désignait la
 /// sortie par pression (schéma 7 et antérieurs) ; il est retiré, mais les

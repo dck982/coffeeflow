@@ -2,7 +2,7 @@
 //!
 //! - Au démarrage, fixe pendant au moins 1 s : la carte a démarré.
 //! - Défaut constaté au démarrage : clignotement continu jusqu'au prochain
-//!   redémarrage, 4 Hz pour les puces de la carte, 1 Hz pour le dimmer.
+//!   redémarrage, 4 Hz quand une puce de la carte ne répond pas.
 //! - Sinon, éclair de 50 ms à chaque trame CAN reçue : éteinte, le bus est
 //!   muet ; un écran présent la fait scintiller.
 
@@ -14,10 +14,8 @@ const ACTIVITY_US: i64 = 50_000;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BootFault {
     /// Le TMP102 (0x48) ou l'ADS1115 (0x49) soudés sur la carte ne répondent
-    /// pas : XIAO mal enfiché, bus I2C en défaut. Masque le défaut dimmer.
+    /// pas : XIAO mal enfiché, bus I2C en défaut.
     Board,
-    /// Le DimmerLink (0x50) ne répond pas : la pompe ne démarrera pas.
-    Dimmer,
 }
 
 impl BootFault {
@@ -25,7 +23,6 @@ impl BootFault {
     fn half_period_us(self) -> i64 {
         match self {
             Self::Board => 125_000,
-            Self::Dimmer => 500_000,
         }
     }
 }

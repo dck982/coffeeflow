@@ -30,7 +30,7 @@ Le firmware C++ (ESP-IDF 6.1, FreeRTOS, LVGL) est archivé dans `archive/firmwar
 
 L'**écran est le cerveau**. Il porte l'algorithme d'infusion, l'UI, l'Acaia Lunar (client BLE GATT), le LAN, et **toutes les calibrations**. Il ne pilote jamais la pompe ni la vanne directement.
 
-Le module **capteurs est les mains**. Il exécute des commandes (SSR, dimmer), compte les impulsions du débitmètre, lit la pression et la température, et publie de la télémétrie quand on la lui demande. Pas de radio. Pas de calibration. Pas d'interprétation : il transporte des valeurs brutes.
+Le module **capteurs est les mains**. Il exécute des commandes (SSR, pompe), compte les impulsions du débitmètre, lit la pression et la température, et publie de la télémétrie quand on la lui demande. Pas de radio. Pas de calibration. Pas d'interprétation : il transporte des valeurs brutes.
 
 Cette coupure est aussi thermique et électrique. Le XIAO est spécifié à 85 °C et vit dans un compartiment à 45–50 °C ; le Waveshare reste en façade. Le 230 V ne sort jamais de la machine. La paire CAN et le câble de la NTC rejoignent l'écran.
 
@@ -53,7 +53,7 @@ pression** est branchée sur J10 de `pcb/sensors` (depuis 0.4.18) ; le connecteu
 le diagnostic (voir « XDB401 — pression »).
 
 **Restent à valider sur la machine** : chauffe, purge et infusion, donc le SSR
-de la vanne, le dimmer en commande, la chauffe sur GPIO 4 et le comptage réel
+de la vanne, la pompe à engrenage (consigne et tachymètre), la chauffe sur GPIO 4 et le comptage réel
 du débitmètre. Écart connu : `twai_bus_errors` vaut toujours 0 en Rust, le
 contrôleur n'exposant pas ce compteur que le pilote IDF tenait par
 interruption ; le diagnostic de câblage par erreurs de bus n'existe plus.
@@ -84,7 +84,8 @@ calibration du facteur K.
 | `enclosure.screen` | SHT40 du boîtier de l'écran (depuis 0.4.15) : température `c` et humidité `rh_pct` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur (lecture à 1 s) et âge. |
 | `enclosure.sensors` | TMP102 de la carte des capteurs (depuis 0.4.17), reçu par `STATUS_ENCLOSURE` à 1 s : température `c` (`null` tant qu'aucune lecture n'est arrivée), validité, fraîcheur et âge. |
 | `pressure` | Pression `bar` reçue des capteurs par `STATUS_PRESSURE`, validité, fraîcheur et âge (voir « XDB401 — pression »). `raw` : dernier code ADS1115 de la sonde sur J10. `a2_raw` : code A2 de l'écran (125 µV par code), entrée sans sonde depuis 0.4.18, gardé pour le diagnostic ; `null` si la dernière lecture a échoué ; aussi dans la capture HF sous `pressure_a2_raw`. |
-| `brew` | État du cycle `state`, pompe, dimmer, vanne, écho des actionneurs, baux et `last_shot`. |
+| `brew` | État du cycle `state`, `pump_pct`, vanne, écho des actionneurs, baux et `last_shot`. |
+| `pump` | Pompe à engrenage (depuis 0.5.0), reçue par `STATUS_PUMP` et `STATUS_ACTUATORS` : `pct` (commande rapportée), `rpm` (0 si la trame est périmée), `displaced_ml_s` (tr/min × 0,1 ml / 60) et `displaced_ml` (impulsions / 2 × 0,1 ml, depuis le démarrage des capteurs), `tach_pulses` (brut, comme `flow.pulse_count`), `ready` (pas de défaut dans le cycle en cours), `fault` (tachymètre) et `dry` (marche à sec). Le « refoulé » est tours × cylindrée : le glissement n'est pas retiré, l'écart avec `flow.ml_s` (Digmesa) le donne. Les anciennes clés `brew.dimmer_pct`, `brew.dimmer_ready`, `brew.dimmer_valid` et `brew.dimmer_error_active` n'existent plus. |
 | `heating` | Activation, consigne `target_c`, disponibilité `ready`, puissance `power_pct`, écho `accepted_power_pct` et état `on`. |
 | `flow`, `scale` | Débit, volume et impulsions ; poids et état de la balance. |
 | `firmware` | Versions et temps de fonctionnement de `screen` et `sensors`, présence CAN `sensors.alive`, `screen.ota`, `ota_staging` et progression `flash`. Les capteurs ne donnent leur uptime qu'au PING de démarrage et aux vérifications de présence ; depuis 0.4.2, tant qu'ils sont vivants, l'écran ajoute le temps écoulé depuis le dernier PING/PONG (la détection d'un redémarrage compare toujours la valeur reçue). |
@@ -125,18 +126,18 @@ fait une purge Wi-Fi de la durée donnée (60 s au plus, exacte si multiple de
 `GET /hf-capture` exporte la dernière session d'actionneur terminée, à 10 Hz,
 sous forme JSON. Jusqu'à 0.3.30, les échantillons étaient espacés de 100 ou
 150 ms (≈ 130 ms en moyenne, voir le
-[point à considérer 10](chauffe-chaudiere.md#incohérences-du-code)). Le buffer est remis à zéro au premier `SET dimmer>0` d'une
+[point à considérer 10](chauffe-chaudiere.md#incohérences-du-code)). Le buffer est remis à zéro au premier `SET` de pompe > 0 d'une
 nouvelle session, y compris une commande brute `set_actuators`. Il conserve la
-consigne et le niveau dimmer rapporté, la puissance de chauffe demandée,
+consigne et le niveau de pompe rapporté, la vitesse de la pompe `pump_rpm` et le volume refoulé `pump_displaced_ml` (relatif à la capture, comme `volume_ml` ; absents des captures antérieures à 0.5.0), la puissance de chauffe demandée,
 l'état réel rapporté du SSR chaudière, les phases, les valeurs brutes XDB401 /
 Digmesa et leurs valeurs calibrées. Dans les échantillons calibrés,
 `volume_ml` est relatif à la capture et vaut toujours zéro au premier
-échantillon. Après la confirmation de l'arrêt du dimmer, la capture conserve
+échantillon. Après la confirmation de l'arrêt de la pompe, la capture conserve
 cinq secondes d'échantillons `mode="cooldown"`, pour une purge comme pour
 une infusion, afin d'inclure la fin de l'écoulement en tasse. `?view=raw`,
 `?view=calibrated` ou
 `?view=both` (défaut) sélectionne les colonnes. L'endpoint retourne
-`409 capture_active` jusqu'à la confirmation de `dimmer=0` puis pendant ce
+`409 capture_active` jusqu'à la confirmation de `pump_pct=0` puis pendant ce
 cooldown de cinq secondes; il retourne `404` avant toute capture terminée.
 L'export est envoyé par morceaux, sans
 construire le document entier en SRAM. L'image écran 0.2.67 produit le schéma
@@ -196,17 +197,19 @@ D9→GPIO8, D10→GPIO9) :
 
 | Connecteur | Périphérique | Bus | D-number | GPIO natif |
 | --- | --- | --- | --- | --- |
-| J4, J5 | Dimmer RBDimmer DimmerLink ; TMP102 (0x48) et ADS1115 (0x49) sur la carte | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
+| — | TMP102 (0x48) et ADS1115 (0x49) sur la carte (J4, J5 et le DimmerLink sur `pcb/sensors` avant 0.5.0) | I2C | SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** |
 | J6 | Digmesa FHKSC 932-9525-B | impulsions, front descendant | D7 | **GPIO 44** |
 | J3 | TJA1051T/3 de la carte | TWAI | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** |
 | J7 | M5Stack Unit SSR | sortie GPIO | D10 | **GPIO 9** |
 | J8 | Q3/Q2 → SSR chaudière Keysolu/Maxwell | sortie GPIO, active haut | D3 | **GPIO 4** |
 | — | LED D2 de la carte | sortie GPIO, active haut | D1 | **GPIO 2** |
+| J9 (combined) | Consigne de la pompe MPB003 (U8) | LEDC 1 kHz, 14 bits | D0 | **GPIO 1** |
+| J9 (combined) | Tachymètre de la pompe (U9, inversé) | impulsions, front descendant | D2 | **GPIO 3** |
 
 **LED d'état.** Fixe pendant 1 s au démarrage. Ensuite, un défaut relevé au
 démarrage la fait clignoter jusqu'au redémarrage suivant : **4 Hz** si le
 TMP102 ou l'ADS1115 de la carte ne répondent pas (XIAO mal enfiché, bus I2C
-en défaut), **1 Hz** si le dimmer ne répond pas. Sans défaut, elle s'allume
+en défaut). Sans défaut, elle s'allume
 50 ms à chaque trame CAN reçue : éteinte, le bus est muet.
 
 **Console.** Sur l'USB-C du XIAO quand un hôte y est branché, sinon sur
@@ -217,7 +220,7 @@ GPIO43 (non câblé).
 d'où un mode Silent permanent). Un M5Stack Unit CAN avait servi de contournement pendant
 l'investigation ; il n'est plus utilisé côté capteurs.
 
-**Bus I2C.** Le dimmer (`0x50`) en est le seul périphérique commandé ; le TMP102 de la carte est lu pour `STATUS_ENCLOSURE`, et l'ADS1115 seulement au démarrage, pour la LED. Ses seules pull-ups sont les 4,7 kΩ de la carte (R13/R14). Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
+**Bus I2C.** Il ne porte plus que les puces de la carte : le TMP102 de la carte est lu pour `STATUS_ENCLOSURE`, et l'ADS1115 seulement au démarrage, pour la LED. Ses seules pull-ups sont les 4,7 kΩ de la carte (R13/R14). Ne pas utiliser les pull-ups internes de l'ESP32 à la place, ni empiler un second jeu. Accès sérialisé par mutex.
 
 ### SSR — vanne solénoïde
 
@@ -229,7 +232,7 @@ Le matériel est câblé pour deux chemins : **GPIO 4 / D3** du XIAO → **Q3 (2
 
 Depuis v0.2.63, le firmware commande la chauffe via `SET_HEATING` pour une impulsion diagnostique de 1 à 30000 ms, sans renouvellement. Depuis v0.2.69, `SET_HEATING_POWER` porte une puissance de 0,0 à 100,0 % par pas de 0,1 % et un bail de 1500 ms, renouvelé par l'écran toutes les 500 ms. Le module capteurs réalise la modulation sur une période fixe de 1 s ; un renouvellement ne redémarre pas cette période. Depuis v0.3.30, l'écran peut demander une nouvelle période (flag `restart_window`) sur la première commande non nulle de la précharge et de l'écoulement d'une infusion ; sans lui, une hausse reçue après l'extinction du SSR attend la période suivante. Sous 10 %, il répartit des impulsions de 100 ms sur plusieurs périodes. GPIO 4 est mis à LOW (état inactif) dès l'initialisation des sorties, avant tout le reste, à l'expiration du bail, sur `STOP`, à la perte de présence et au début d'un flash ; il passe à HIGH pour chauffer. Avant l'initialisation logicielle, notamment durant reset, R19 tient la grille de Q3 basse. Le SSR existant dans `STATUS_ACTUATORS` reste celui de la **vanne**. `temperature_raw` concerne le **XDB401** ; `temperature_c` dans `/telemetry` concerne la NTC chaudière depuis l'image écran 0.2.67.
 
-`POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating.requested`, `heating.on` (`null` sans écho frais), `heating.freshness`, `heating.capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens ; `brew.dimmer_pct` reste un alias de `brew.pump_pct` en télémétrie.
+`POST /action` accepte `{"action":"set_heating","on":true,"duration_ms":1000}` puis `{"action":"set_heating","on":false}`. La réponse confirme l'acceptation ; `GET /telemetry` expose `heating.requested`, `heating.on` (`null` sans écho frais), `heating.freshness`, `heating.capable` et le bail restant. `set_brew_actuators` utilise `pump_pct` et `ttl_ms`. L'ancien `set_actuators` avec `dimmer` garde le même sens (champ de requête conservé pour les scripts existants). Il n'y a plus d'action `ResetDimmer` / `RecalibrateDimmer` ni d'émission de `DIMMER_COMMAND` : l'écran ne parle plus au DimmerLink. Le statut d'action `dimmer_not_ready` est devenu `pump_not_ready`.
 
 Revue des noms dans le code actuel :
 
@@ -238,13 +241,15 @@ Revue des noms dans le code actuel :
 | `firmware/rust/sensors-logic/src/machine.rs`, `firmware/rust/sensors/src/board.rs` | `valve_open`, `apply_valve()`, `set_valve()` | relais de vanne R4 | chauffage séparé sur L2 (`set_heater()`) |
 | `firmware/rust/protocol/src/messages.rs` | `StatusActuatorsPayload::valve_open` | état de la vanne | octet CAN 0 conservé |
 | `firmware/rust/protocol/src/messages.rs` | `SetPayload::pump_pct` | puissance de pompe | octet CAN 0 conservé |
-| `firmware/rust/sensors-logic/src/machine.rs` | `pump_pct`, `apply_dimmer()`, registres `DIMMER_REG_*` | niveau de pompe et pilote matériel DimmerLink | pilotes DimmerLink inchangés |
-| `firmware/rust/screen-core/src/snapshot.rs` | `valve_open`, `pump_pct`, `heater_on` | vanne, pompe et chaudière | `dimmer_pct` reste un alias |
+| `firmware/rust/sensors-logic/src/machine.rs` | `pump_pct`, `set_pump_duty()` | niveau de pompe et sortie PWM de la pompe à engrenage | DimmerLink retiré avec la carte combined |
+| `firmware/rust/screen-core/src/snapshot.rs` | `valve_open`, `pump_pct`, `heater_on` | vanne, pompe et chaudière | `dimmer_pct` supprimé (0.5.0) |
 | HTTP (`firmware/rust/screen-core/src/http.rs`) | `set_brew_actuators` avec `pump_pct` | commande de pompe | `set_actuators` avec `dimmer` reste un alias |
 
 `on_set()` (`sensors-logic`) déduit l'état de la vanne de `payload.pump_pct > 0`. Le chauffage utilise sa propre commande et son propre état. Les octets des messages CAN existants et les champs HTTP historiques gardent leur sens.
 
 ### Dimmer — pompe
+
+*Historique : le DimmerLink de la carte `sensors` d'origine. Depuis 0.5.0, la pompe à engrenage de la carte `combined` est pilotée par une sortie PWM locale ; l'écran n'émet plus `DIMMER_COMMAND` (type réservé) et lit le tachymètre par `STATUS_PUMP`.*
 
 DimmerLink en I2C, pas UART. Le Cortex du module gère le passage par zéro et le triac ; le XIAO n'écrit que des registres.
 
@@ -407,9 +412,9 @@ répondait à la requête par un RST.
 
 Première mouture de l'API :
 
-- `GET` — dernière télémétrie (pression, température, débit, volume, dimmer, SSR) plus ce que l'écran sait seul (poids, état d'infusion)
+- `GET` — dernière télémétrie (pression, température, débit, volume, pompe, SSR) plus ce que l'écran sait seul (poids, état d'infusion)
 - `GET /hf-capture` — dernière capture haute fréquence, seulement après arrêt confirmé
-- `POST /action` — actions, dont le niveau dimmer
+- `POST /action` — actions, dont le niveau de pompe
 - `POST` image firmware, avec destination **screen** ou **sensors**
 - `GET` / `POST` **`/config`** — toute la configuration en un seul objet JSON, voir ci-dessous
 - WebSocket — miroir de tout le trafic CAN, brut. C'est le sniffer une fois les cartes en boîte.
@@ -664,7 +669,7 @@ Ce que le firmware doit garantir, c'est qu'on ne laisse pas la vanne ouverte et 
 
 ### 1. Bail sur commande (~500 ms)
 
-Chaque `SET` porte un TTL. À l'expiration, le module capteurs remet SSR à 0 et dimmer à 0. L'écran qui rampe le dimmer à 10 Hz renouvelle le bail sans y penser ; un écran **mort** coupe tout en un demi-tour de seconde.
+Chaque `SET` porte un TTL. À l'expiration, le module capteurs remet SSR à 0 et la pompe à 0. L'écran qui rampe la pompe à 10 Hz renouvelle le bail sans y penser ; un écran **mort** coupe tout en un demi-tour de seconde.
 
 C'est le mécanisme rapide, et le seul qui compte pendant un shot.
 
@@ -672,11 +677,11 @@ C'est le mécanisme rapide, et le seul qui compte pendant un shot.
 
 Chaque nœud tient un `last_presence`. Toute trame valide attribuable au pair (adressée au nœud ou en broadcast) remet ce compteur à zéro. Après 1,5 s de silence, il entre dans `PRESENCE_CHECK`, envoie un `PING` toutes les 500 ms, puis déclare `PRESENCE_LOST` 1,5 s après le premier ping si aucune trame ne revient. Trois PING sans réponse ni autre trafic suffisent donc à conclure. Le PING est une sonde de silence, pas un trafic périodique redondant.
 
-Perte de présence côté capteurs : arrêt du streaming, SSR bas, dimmer 0. Une carte seule sur la table pingue toutes les 1–2 s et ne voit jamais de pong : c'est le repos correct.
+Perte de présence côté capteurs : arrêt du streaming, SSR bas, pompe à 0. Une carte seule sur la table pingue toutes les 1–2 s et ne voit jamais de pong : c'est le repos correct.
 
 ### 3. Plafond de temps de marche — 60 s, verrouillé jusqu'à coupure secteur
 
-Si le SSR ou le dimmer restent actifs **plus de 60 s d'affilée**, le module capteurs coupe tout (SSR bas, dimmer 0) et **reste dans cet état jusqu'à une coupure d'alimentation**. Il continue de répondre au ping et de publier son état, il refuse toute commande d'actionneur et le dit par un code `LOG`.
+Si le SSR ou la pompe restent actifs **plus de 60 s d'affilée**, le module capteurs coupe tout (SSR bas, pompe à 0) et **reste dans cet état jusqu'à une coupure d'alimentation**. Il continue de répondre au ping et de publier son état, il refuse toute commande d'actionneur et le dit par un code `LOG`.
 
 Ce mécanisme protège contre un écran **fou** (bug qui commande en boucle), là où le bail protège contre un écran **mort**. Il n'est donc **pas renouvelable** par une rafale de `SET`.
 
@@ -732,6 +737,7 @@ Le type **est** la priorité : pas de champ séparé. Un `STOP` gagne l'arbitrag
 | `0x22` | `STATUS_ACTUATORS` | X → S | état + santé |
 | `0x23` | `STATUS_HEATING` | X → S | état chaudière + bail |
 | `0x24` | `STATUS_ENCLOSURE` | X → S | température du boîtier des capteurs |
+| `0x25` | `STATUS_PUMP` | X → S | tachymètre de la pompe : impulsions, tr/min, défauts |
 | `0x30` | `LOG` | ↔ | code + arguments |
 | `0x38` | `FLASH_CTRL` | ↔ | sous-commande |
 | `0x39` | `FLASH_DATA` | ↔ | 8 octets bruts |
@@ -748,7 +754,7 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 `SET` (0x01)
 
 ```
-[0]     dimmer      0..100 ; 0 demande l'arrêt, >0 l'activation
+[0]     pump_pct    0..100 ; 0 demande l'arrêt, >0 l'activation
 [1..2]  ttl_ms      uint16, 0 = défaut (500)
 [3..7]  réservé
 ```
@@ -764,7 +770,7 @@ valide du pair, y compris `REQSTATUS`, la réarme.
 `REQSTATUS` (0x10)
 
 ```
-[0]     type visé   0x20 | 0x21 | 0x22 | 0x23 | 0x24
+[0]     type visé   0x20 | 0x21 | 0x22 | 0x23 | 0x24 | 0x25
 [1..2]  periode_ms  uint16, 0 = arrêt
 [3..7]  réservé
 ```
@@ -776,7 +782,7 @@ Une période par capteur, pas une fréquence globale : la pression et le débit 
 - **Pression** : depuis 0.4.18, bit à 1 si le code de l'ADS1115 sur J10 tombe dans la plage de la sonde (0,279–2,60 V, codes 2230–20800, soit −0,70 bar en bas). J10 n'a pas de pull-down : une entrée flottante peut passer pour une sonde.
 - **Débitmètre (GPIO seul)** : pas de détection possible. Une simple entrée GPIO ne dit rien sur la présence du capteur, seulement sur les fronts qu'elle reçoit — ce bit reste **toujours à 1** sur `STATUS_FLOW`. L'absence se devine autrement, indirectement, par une absence d'impulsions *attendues* (`LOG FLOWMETER_SILENT`), pas par ce bit.
 - **Boîtier (TMP102, I2C)** : détection réelle, le bit suit le succès de chaque lecture.
-- **Dimmer (I2C)** : détection réelle, une transaction I2C qui échoue met l'état à jour — voir `STATUS_ACTUATORS` ci-dessous.
+- **Pompe** : pas de bit « capteur valide » ; `STATUS_PUMP` porte « tachymètre vu depuis le démarrage », et le pilote est toujours présent (sortie PWM locale) — voir `STATUS_ACTUATORS` ci-dessous.
 
 `STATUS_PRESSURE` (0x20) — format hérité du XDB401 I2C. Depuis 0.4.18, `pression brute` porte le code ADS1115 de AIN1 (sonde sur J10, ±4,096 V, 16 SPS), à convertir comme l'A2 de l'écran ; 0 et bit0 à 0 hors plage
 
@@ -809,20 +815,36 @@ individuel diffusable périodiquement par `REQSTATUS`
 
 ```
 [0]     ssr                 0 | 1
-[1]     dimmer              0..100
+[1]     pump_pct            0..100
 [2..3]  bail restant ms     uint16
 [4..5]  marche continue ms  uint16   (pour voir arriver les 60 s)
-[6]     flags               bit0 verrou actif, bit1 dimmer prêt, bit2 dimmer valide (détection I2C),
-                            bit3 erreur dimmer active (bit ERROR du registre 0x00),
+[6]     flags               bit0 verrou actif, bit1 pompe prête (FLAG_PUMP_READY : aucun défaut pendant le
+                            cycle en cours ; ne tombe que pendant un cycle où la pompe a eu un défaut, et
+                            revient à la fin du cycle), bit2 pilote de pompe présent (FLAG_PUMP_PRESENT :
+                            toujours 1, une sortie PWM locale ne détecte pas la pompe), bit3 défaut pompe
+                            (FLAG_PUMP_FAULT : tachymètre ou marche à sec, verrouillé jusqu'au prochain
+                            SET parti de 0 ; l'écran lit le détail dans STATUS_PUMP),
                             bit4 vanne ouverte en maintenance, bit5 MAINTENANCE_VALVE pris en charge
 [7]     réservé
 ```
 
-Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux dimmer.
+Il n'y a pas d'acquittement séparé pour `SET` : l'écran compare ce qu'il a commandé à ce qui revient ici. Les commandes sont idempotentes, le dernier gagne ; le module n'empile pas de file de niveaux de pompe.
+
+`STATUS_PUMP` (0x25) — depuis 0.5.0, l'écran le demande à 100 ms en profil actif et 1000 ms au repos, comme `STATUS_FLOW`
+
+```
+[0..3]  impulsions          uint32 cumulé depuis le démarrage (2 par tour)
+[4..5]  tr/min              uint16, sur le dernier tour ; 0 sans front depuis 200 ms
+[6]     flags               bit0 tachymètre vu depuis le démarrage, bit1 défaut de tachymètre,
+                            bit2 marche à sec
+[7]     réservé
+```
+
+Les capteurs envoient la mesure brute ; l'écran convertit avec `PUMP_TACH_PULSES_PER_TURN = 2` et `PUMP_ML_PER_TURN = 0.1` (`screen-core/src/calibration.rs`). Le plancher de commande d'infusion `MINIMUM_BREW_PUMP_PCT` est de **10 %** (450 tr/min, sous le glissement à 9 bar) : c'est le plancher du PI de pression, le départ de la rampe et le minimum de `brew_pump_pct`. Il reste au-dessus des ≈ 7 % (0,3 V) sous lesquels les capteurs désarment la détection de défaut du tachymètre.
 
 `SET_HEATING` (0x04) porte `[0] on` (0 ou 1) et `[1..2] duration_ms` en little endian. `on=1` est accepté pour 1 à 30000 ms, indépendamment du bail et de la marche de la pompe. `SET_HEATING_POWER` (0x06) porte `[0..1] power_permille` (0–1000, soit 0,0–100,0 %), `[2..3] lease_ms` et, depuis v0.3.30, un `[4] flags` facultatif (DLC 5) : bit0 `restart_window`, ouvrir une nouvelle période PWM à la réception ; un bit inconnu fait rejeter la trame. Seul un bail de 1500 ms est accepté. Le format ancien à 3 octets (pourcentage entier puis bail) reste accepté par `sensors`. `STATUS_HEATING` (0x23) porte `[0] heater_on`, `[1..2] bail restant ms`, `[3] bit0 capacité diagnostique, bit1 capacité puissance, bit2 résolution 0,1 %, bit3 nouvelle période sur demande`, `[4] partie entière du pourcentage`, `[5] dixième`. `screen` exige le bit2 pour la régulation, et n'envoie la trame de 5 octets qu'à un module qui annonce le bit3 : un `sensors` plus ancien la rejetterait. `/telemetry` expose ce bit dans `heating.window_restart_capable`.
 
-`MAINTENANCE_VALVE` (0x07) porte `[0] open` (0 ou 1) et `[1..2] duration_ms` en little endian. C'est une commande de **maintenance** (vidange de la chaudière), jamais émise par le cycle d'infusion, qui ne passe que par `SET`. `open=1` n'est accepté que pour 1 à 30000 ms : une durée nulle ou supérieure fait rejeter la trame, sans bornage silencieux. `sensors` ouvre alors la vanne, force le dimmer à 0, coupe la chauffe et refuse `SET_HEATING` / `SET_HEATING_POWER` non nuls jusqu'à la fermeture. Une nouvelle ouverture repart de la durée reçue, sans cumul ; l'écran envoie toujours 30000 ms et ne renouvelle jamais automatiquement. La commande est refusée sous verrou, pendant un flash, sans présence, et pendant une infusion (vanne ou pompe déjà commandées par `SET`). `open=0` ferme la vanne si elle est ouverte en maintenance et ne touche jamais une infusion. Un `SET` reprend la main : il termine la maintenance puis s'applique normalement. `STOP`, la perte de présence et le verrou la ferment comme le reste. Chaque ouverture et fermeture produit un `LOG` (`MAINTENANCE_VALVE_OPENED`, durée ; `MAINTENANCE_VALVE_CLOSED`, motif 0 commande, 1 fin de durée, 2 `SET`, 3 arrêt de sécurité). La fin de durée n'est pas un `LEASE_EXPIRED`.
+`MAINTENANCE_VALVE` (0x07) porte `[0] open` (0 ou 1) et `[1..2] duration_ms` en little endian. C'est une commande de **maintenance** (vidange de la chaudière), jamais émise par le cycle d'infusion, qui ne passe que par `SET`. `open=1` n'est accepté que pour 1 à 30000 ms : une durée nulle ou supérieure fait rejeter la trame, sans bornage silencieux. `sensors` ouvre alors la vanne, force la pompe à 0, coupe la chauffe et refuse `SET_HEATING` / `SET_HEATING_POWER` non nuls jusqu'à la fermeture. Une nouvelle ouverture repart de la durée reçue, sans cumul ; l'écran envoie toujours 30000 ms et ne renouvelle jamais automatiquement. La commande est refusée sous verrou, pendant un flash, sans présence, et pendant une infusion (vanne ou pompe déjà commandées par `SET`). `open=0` ferme la vanne si elle est ouverte en maintenance et ne touche jamais une infusion. Un `SET` reprend la main : il termine la maintenance puis s'applique normalement. `STOP`, la perte de présence et le verrou la ferment comme le reste. Chaque ouverture et fermeture produit un `LOG` (`MAINTENANCE_VALVE_OPENED`, durée ; `MAINTENANCE_VALVE_CLOSED`, motif 0 commande, 1 fin de durée, 2 `SET`, 3 arrêt de sécurité). La fin de durée n'est pas un `LEASE_EXPIRED`.
 
 `LOG` (0x30)
 
@@ -911,7 +933,7 @@ Deux emplacements avec rollback couvrent « la nouvelle application plante ». I
 
 Ce ne sont pas les premiers firmwares. C'est pourquoi l'interface capteurs a cette forme.
 
-- **Purge / flush** — SSR ouvert, dimmer 100 %, tant que le bouton est tenu. C'est le seul cas où l'OPV s'ouvre normalement (backflush).
+- **Purge / flush** — SSR ouvert, pompe à 100 %, tant que le bouton est tenu. C'est le seul cas où l'OPV s'ouvre normalement (backflush).
 - **Infusion au poids** — jusqu'à la cible Acaia, moins un décalage d'anticipation pour les dernières gouttes du groupe.
 - **Infusion au temps** — repli quand la balance manque.
 - **Pré-infusion** — basse pression dans le ciel du groupe, pause sur la galette, puis rampe vers une cible qui peut être inférieure à 100 %. Le déclencheur sera vraisemblablement un **timer ou une détection de montée en pression** : à 0,5 ml/s le débitmètre est à ~1,2 impulsion par seconde, on verra à la calibration s'il apporte quelque chose.

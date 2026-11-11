@@ -14,6 +14,7 @@ Deux SSR ont des rôles distincts : le **M5Stack Unit SSR** dans `boitier_ac` co
 | 230 V | **Helutherm 145** (`datasheets/helutherm145.pdf`) | **0,75 mm²** |
 | 230 V — puissance chaudière | câblage de la machine | **1 mm²** |
 | 5 V, signaux, CAN | **Helutherm 145** | **0,25 mm²** |
+| Digmesa | **Helutherm 145** | **0,5 mm²** |
 
 Le **0,75 mm²** décrit les conducteurs ajoutés pour l'alimentation, la vanne et la pompe. Le circuit de puissance de la **résistance de chaudière** est en **1 mm²** ; son chemin est décrit ci-dessous. Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à 40–50 °C.
 
@@ -236,69 +237,36 @@ Le XDB401 porte le SM complémentaire au bout de son propre câble : la connexio
 Fils du capteur : **rouge VCC, noir GND, vert SDA, blanc SCL**. Alimenté en **3,3 V** —
 l'emballage annonce 5 V, mais l'émulation XDB401 est complète en 3,3 V (vérifié au banc).
 
-### Câble du Digmesa (R2)
+### Câble du Digmesa (J6 de `combined`)
 
-**Piège rencontré et corrigé (2026-09-09), après une session entière de diagnostic
-électrique qui a d'abord fait suspecter le firmware/le filtre RC** : le connecteur du
-capteur est un **PANCOM** (introuvable dans le commerce pour ce remplacement), sur lequel
-un câble **VH3.96 3 pôles classique s'enfiche à l'envers** — les pastilles du connecteur
-sensé être complémentaire ne sont pas dans le même ordre. Conséquence, côté capteur,
-**les couleurs ne portent pas les signaux qu'on attendrait d'un VH3.96 standard** :
+Trois fils **Helutherm 145 0,5 mm²**. Le 0,5 mm² est imposé par la section minimale des
+contacts VH3.96 côté capteur. **SIGNAL et GND sont torsadés**, le 5 V court le long de la
+paire, et le tout est tenu par des bouts de gaine thermorétractable.
 
-| Fil (côté capteur, VH3.96) | Signal réel |
-| --- | --- |
-| **rouge** | SIGNAL |
-| **noir** | GND |
-| **jaune** | VCC |
+| Fil | Signal | Côté `combined` : J6 |
+| --- | --- | --- |
+| **blanc** | SIGNAL | broche 3, FLOW_PULSE → **GPIO 44** |
+| **rouge** | 5 V | broche 2, +5V |
+| **noir** | GND | broche 1, GND |
 
-Ce câble VH3.96 se termine sur un **connecteur JST SM 3 pôles mâle fait maison** (serti à
-la main, pas un pigtail acheté). Il s'enfiche dans un **JST SM 3 pôles femelle**, lui aussi
-fait maison, au bout d'un tronçon de câble Grove : c'est **à cette jonction femelle qu'a
-été appliqué le correctif** — rouge et jaune y ont été **intervertis** pour compenser
-l'inversion en amont, afin que le reste de la chaîne (Grove → shield, fil vers la Wago)
-retrouve la bonne identité de signal malgré le VH3.96 câblé à l'envers côté capteur.
+- **Côté Digmesa** : boîtier **VH3.96 3 pôles**.
+- **Côté PCB** : embouts de câble dans un **boîtier HT3.96 3 pôles** (clone VH), enfiché
+  dans J6.
 
-En aval de ce correctif, la chaîne redonne exactement ce qu'attend le firmware :
+**Ordre des broches côté capteur.** Le connecteur du Digmesa est un **PANCOM**. Un boîtier
+VH3.96 s'y enfiche dans l'ordre inverse de celui qu'on attendrait d'un VH standard. Il faut
+placer les fils d'après les **symboles moulés sur le connecteur du capteur**, pas d'après
+l'ordre habituel. Le 9 septembre 2026, l'ancien câble inversait SIGNAL et VCC : GPIO 44
+restait à environ 2,6 V au repos au lieu de 3,3 V, et aucune impulsion n'était comptée.
 
-| Fil (après le JST SM femelle) | Va vers |
-| --- | --- |
-| **noir** (GND) | serti dans le connecteur **Grove** → port R2 |
-| **jaune** (signal) | serti dans le même connecteur Grove → **GPIO 44** (D7 sur le silkscreen) |
-| **rouge** (5 V) | seul, dans la **Wago du compartiment nord-ouest** |
-
-Le câble Grove utilisé pour ce tronçon a 4 fils de base (noir/rouge/blanc/jaune) ; seuls
-**noir et jaune sont sertis dans le connecteur Grove**, **blanc et rouge sont coupés à ras**
-à cet endroit (le VCC de ce câble-ci ne sert pas, le 5 V arrive par le fil rouge séparé
-jusqu'à la Wago, pas par le connecteur Grove).
-
-**Symptôme observé avant correction** : tension de repos anormale sur GPIO 44 (~2,64 V au
-lieu des ~3,3 V attendus du filtre RC), et surtout **aucune impulsion jamais comptée**
-malgré une turbine visiblement en rotation — le signal réel (rouge) était en fait câblé sur
-la broche VCC en aval, et le VCC réel (jaune) sur la broche signal, avant l'inversion
-corrective au JST SM femelle. La session de diagnostic (comparaison avec
-`tests/test_flowmeter.py`, tentative sur GPIO2/pull-up interne, mesures ADC) a fini par
-isoler ce câblage plutôt qu'un bug logiciel.
-
-**Filtre RC**, soudé sur les pastilles à gauche du XIAO (1 = 5 V, 2 = GND, 3 = 3V3,
-D7 = GPIO 44) :
-
-```
-        3V3 (pastille 3)
-             │
-            1 kΩ
-             │
-GPIO 44 ─────┼────── signal Digmesa (fil jaune, collecteur ouvert NPN)
-        (pastille D7)
-             │
-           10 nF
-             │
-        GND (pastille 2)
-```
+**Contrôle avant de brancher le capteur.** Câble sur J6, carte alimentée, mesurer côté
+capteur par rapport à l'alvéole GND : environ **5 V** dans l'alvéole 5 V et environ
+**3,3 V** dans l'alvéole SIGNAL.
 
 Le Digmesa est un **collecteur ouvert** : il tire la ligne à la masse mais ne la monte
-jamais. C'est le 1 kΩ vers 3,3 V qui fixe le niveau haut — le capteur peut donc être
-alimenté en 5 V sans jamais présenter plus de 3,3 V au GPIO. Le 10 nF filtre les
-transitoires. GPIO en `INPUT`, **pull-up interne éteinte**.
+jamais. Sur `combined`, un **1 kΩ vers le 3V3** fixe le niveau haut, et un **10 nF vers
+GND** filtre les transitoires. Le capteur peut donc être alimenté en 5 V sans jamais
+présenter plus de 3,3 V au GPIO. GPIO en `INPUT`, **pull-up interne éteinte**.
 
 ### Câble du SSR de vanne (R4)
 
@@ -492,5 +460,6 @@ aucune commande.
 | **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal ; HW-399 : entrée 2 pôles (GND, IN4) et sortie 3 pôles (GND, VCC, OUT4) |
 | **JST PH 2.0** | entrée CAN du Waveshare |
 | **VH3.96** | côté Digmesa |
+| **HT3.96** (clone VH) | côté `combined` : J6 (Digmesa) |
 | **Bornier à vis 2,54 mm** | pastilles VCC/GND/RX/TX du CAN Pal ; pastilles 5 V/GND du Grove Shield |
 | **Bornier adaptateur USB-C** | alimentation 5 V de l'écran |

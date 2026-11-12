@@ -1,7 +1,7 @@
 # Passage du XDB401 I2C au XDB401 analogique
 
 Document de travail pour la transition de sonde de pression. Il complète la
-section « Évolution prévue : XDB401 analogique sur l'ADS1115 » de
+section « Pression — XDB401 analogique (J10 de `combined`) » de
 [cablage.md](cablage.md) et tient l'état d'avancement. À supprimer une fois la
 transition terminée et ses résultats reportés dans `cablage.md`.
 

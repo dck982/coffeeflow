@@ -1,85 +1,99 @@
 # Câblage — détail fil par fil
 
 Vue d'ensemble et choix des composants : `../README.md`. Ce fichier tient le détail :
-quel fil, quelle couleur, quelle connectique, d'où à où.
+quel fil, quelle couleur, quelle connectique, d'où à où. Le brochage de chaque connecteur
+de la carte `combined` est dans `../pcb/combined/combined_design.md` (« Connectors »).
 
-Tout le 230 V reste dans le compartiment technique. Le CAN et le câble de la sonde NTC rejoignent le boîtier de l'écran en façade.
+Tout le 230 V reste dans le compartiment technique. Le câble de l'écran (5 V et CAN) et le
+câble de la sonde NTC rejoignent le boîtier de l'écran en façade.
 
-Deux SSR ont des rôles distincts : le **M5Stack Unit SSR** dans `boitier_ac` commande la **vanne**, tandis que le **Keysolu/Maxwell KS53 D-24Z20N-LQ**, fourni avec la machine, commande la **résistance de chaudière**. Le second possède deux bornes d'entrée DC **+ / −** (plage **4–24 VDC indiquée pour l'exemplaire**) et deux bornes de puissance **230 VAC**. La [fiche de la série KS53](https://manage.keysolu.com/upload/product/file/20241204/KS53_EN.pdf) donne une plage générique d'entrée de 4–32 VDC ; le 5 V du montage appartient aux deux plages.
+```text
+interrupteur principal ── L/N ── Wago 221-415 (boitier_ps_24v) ─┬─ LED de façade
+                                                                ├─ alimentation 24 V (VH)
+                                                                └─ combined J2 ─ J3 ─ vanne
+
+alimentation 24 V ── bornier ── rouge/noir ── combined J7 ─┬─ embouts doubles ─ pompe (rouge/noir)
+                                                           └─ buck 5 V ─┬─ J1 écran (5 V + CAN)
+                                                                        ├─ J6 Digmesa
+                                                                        ├─ J8 SSR chaudière
+                                                                        └─ J10 XDB401
+combined J9 ── fils de signal de la pompe (consigne, tachymètre)
+```
+
+La carte `combined` a deux SSR à distinguer : le triac de la carte commande la **vanne**
+(J3), tandis que le **Keysolu/Maxwell KS53 D-24Z20N-LQ** (« mini-puck »), fourni avec la
+machine, commande la **résistance de chaudière** ; `combined` ne lui envoie que sa
+commande 5 V (J8). Il possède deux bornes d'entrée DC **+ / −** (plage **4–24 VDC
+indiquée pour l'exemplaire**) et deux bornes de puissance **230 VAC**. La [fiche de la
+série KS53](https://manage.keysolu.com/upload/product/file/20241204/KS53_EN.pdf) donne une
+plage générique d'entrée de 4–32 VDC ; le 5 V du montage appartient aux deux plages.
 
 ## Câble
 
 | Domaine | Référence | Section |
 | --- | --- | --- |
-| 230 V | **Helutherm 145** (`datasheets/helutherm145.pdf`) | **0,75 mm²** |
+| 230 V : arrivée, LED, alimentation, `combined`, vanne | **Helutherm 145** (`datasheets/helutherm145.pdf`) | **0,75 mm²** |
 | 230 V — puissance chaudière | câblage de la machine | **1 mm²** |
-| 5 V, signaux, CAN | **Helutherm 145** | **0,25 mm²** |
-| Digmesa | **Helutherm 145** | **0,5 mm²** |
+| 24 V, alimentation → J7 | **Helutherm 145** rouge / noir | **0,75 mm²** |
+| Commande du SSR chaudière (J8) | **Helutherm 145** | **0,75 mm²**, imposé par les cosses rouges 4,8 mm |
+| Digmesa (J6) | **Helutherm 145** | **0,5 mm²**, imposé par les contacts VH3.96 |
+| Écran, 5 V et CAN (J1) | **Helutherm 145** | **0,25 mm²** |
+| XDB401 (J10) | câble intégré à la sonde | inconnue, probablement moins de 0,25 mm² |
+| Pompe (J7, J9) | câble intégré à la pompe | rouge et noir Ø 2 mm, fils de signal Ø 1,5 mm sur l'isolant |
 
-Le **0,75 mm²** décrit les conducteurs ajoutés pour l'alimentation, la vanne et la pompe. Le circuit de puissance de la **résistance de chaudière** est en **1 mm²** ; son chemin est décrit ci-dessous. Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à 40–50 °C.
+Le Helutherm 145 tient 145 °C en continu ; l'enceinte de la machine est estimée à
+40–50 °C.
 
 ### Compatibilité électromagnétique
 
-Le dimmer à triac et la vanne inductive sont des sources d'EMI. La règle est
-d'**annuler la surface de boucle** : aller et retour strictement contigus.
+La vanne inductive est la principale source d'EMI. La règle est d'**annuler la surface
+de boucle** : aller et retour strictement contigus.
 
 - **230 V** : chaque paire phase-neutre est maintenue par de la **gaine thermo** sur toute
   sa longueur. Pas besoin de torsader.
 - **CAN** : **paire torsadée** CANH / CANL.
+- **Digmesa** : SIGNAL et GND torsadés.
 - **XDB401** : la gaine porte une fine feuille de blindage, **sans continuité avec le GND**
-  et sans fil de drain : elle ne peut pas être reliée à la masse et reste flottante. Un
-  blindage flottant ne protège presque pas du couplage capacitif ; il le relaie et ajoute de
-  la capacité aux lignes. Les erreurs I2C fréquentes de R1 s'expliquent ainsi, voir
-  [Interférences sur la mesure de pression](#interférences-sur-la-mesure-de-pression).
+  et sans fil de drain : elle reste flottante.
 
 ---
 
 ## 230 V
 
-### Entrée — interrupteur principal → `boitier_ps`
+### Entrée — interrupteur principal → `boitier_ps_24v`
 
 Deux **cosses FASTON 6,3 × 0,8 mm isolées** prises sur l'interrupteur principal de la
 machine. Tant qu'il n'est pas enfoncé (clic mécanique), rien n'est sous tension : le mod
 n'est jamais alimenté machine éteinte.
 
-Les deux fils entrent dans `boitier_ps` par le **sud-ouest** et vont dans ses deux Wago :
+Les deux fils, **0,75 mm²**, entrent dans `boitier_ps_24v` et vont dans ses deux **Wago
+221-415**, une pour L, une pour N. Phase brun, neutre bleu.
 
-| Fil | Couleur | Wago |
-| --- | --- | --- |
-| Phase | brun | Wago **du bas** |
-| Neutre | bleu | Wago **du haut** |
+### Départs des Wago
 
-### Sortie — LED de façade
+Trois paires 0,75 mm² repartent des deux Wago :
 
-Depuis les mêmes Wago, phase et neutre **ressortent par le sud-ouest** vers la LED de
-façade (brun / bleu). Ce départ est obligatoire : les cosses FASTON de la LED ont été
-réutilisées pour prendre l'alimentation.
+| Vers | Arrivée |
+| --- | --- |
+| **LED de façade** | cosses FASTON d'origine. Ce départ est obligatoire : les cosses de la LED ont été réutilisées pour prendre l'alimentation |
+| **Alimentation 24 V** | boîtier **JST VH 3 positions**, position 2 vide : L et N à 7,92 mm |
+| **`combined` J2** | embouts 0,75 mm² dans un boîtier **HT3.96 2 pôles** : broche 1 L, broche 2 N |
 
-### Sortie — alimentation RECOM
+Le fusible T2A de l'alimentation ne protège qu'elle-même. Le départ vers `combined` est
+protégé par F1 (0,5 A rapide) sur la carte, juste après J2 ; le câblage en amont, par le
+disjoncteur de la maison.
 
-Depuis les mêmes Wago, phase et neutre font un **arc vers le nord** jusqu'à la RECOM
-RAC05-05SK/277/W, logée juste au nord dans `boitier_ps`. Brun / bleu.
+### Vanne — `combined` J3
 
-### Sortie — `boitier_ac`
-
-Quatre conducteurs quittent `boitier_ps` en **deux paires** phase-neutre, chacune tenue par
-de la gaine thermo, et entrent dans `boitier_ac` par sa **face est** :
-
-| Destination | Phase | Neutre |
-| --- | --- | --- |
-| SSR | **jaune** | bleu |
-| Dimmer | **violet** | bleu |
-
-### Sorties de `boitier_ac` vers les actionneurs
-
-| Départ | Vers | Phase | Neutre |
-| --- | --- | --- | --- |
-| SSR | **Vanne solénoïde** OLAB 08252L50-A14-1A-G (bobine 08000BH-J5IV, 15 VA) | jaune | bleu |
-| Dimmer | **Pompe vibratoire** OLAB Silent Green 35 W | violet | bleu |
+Deux fils **0,75 mm² bleu / jaune**, embouts dans un boîtier **HT3.96 2 pôles** côté
+`combined`, **FASTON 6,3 × 0,8 mm** côté vanne solénoïde trois voies OLAB 08252L50-A14-1A-G
+(bobine 08000BH-J5IV, 15 VA). J3 : broche 1 N (bleu), broche 2 L commutée (jaune). Seule
+la phase est commutée ; le neutre traverse la carte de J2 à J3.
 
 ### SSR de chaudière fourni avec la machine
 
-Le SSR est **en série** dans le circuit de puissance de la chaudière, en **1 mm²** :
+Le SSR est **en série** dans le circuit de puissance de la chaudière, en **1 mm²**,
+câblage d'origine :
 
 ```text
 phase de l'interrupteur principal → borne AC du SSR chaudière
@@ -87,155 +101,100 @@ phase de l'interrupteur principal → borne AC du SSR chaudière
 → protection / relais thermique → neutre de l'interrupteur principal
 ```
 
-Les **deux bornes DC + / −** rejoignent le `boitier_pid` et la sortie du HW-399 décrite plus bas. Ce SSR est distinct de celui de la vanne situé dans `boitier_ac`. La protection thermique reste dans le chemin de retour vers le neutre.
+Ses deux bornes DC **+ / −** reçoivent la commande de `combined` J8, décrite plus bas.
 
 ### Résumé des paires 230 V
 
-1. **L + N** interrupteur principal → `boitier_ps`
-2. **L + N** `boitier_ps` → LED de façade
-3. **L + N** `boitier_ps` → alim RECOM (interne au boîtier)
-4. **L + N** `boitier_ps` → SSR (`boitier_ac`)
-5. **L + N** `boitier_ps` → dimmer (`boitier_ac`)
-6. **L + N** SSR → vanne
-7. **L + N** dimmer → pompe
+1. **L + N** interrupteur principal → Wago de `boitier_ps_24v`
+2. **L + N** Wago → LED de façade
+3. **L + N** Wago → alimentation 24 V
+4. **L + N** Wago → `combined` J2
+5. **N + L commutée** `combined` J3 → vanne
 
-Circuit de chauffe distinct : **phase interrupteur → SSR chaudière → résistance → protection thermique → neutre interrupteur** (conducteurs de puissance en **1 mm²**).
-
----
-
-## 5 V
-
-La RECOM sort **VCC 5 V et GND** dans les **Wago 3 poles au nord de `boitier_ps`**. Deux
-départs partent de là, en **0,25 mm² rouge (5 V) / noir (GND)** :
-
-| Départ | Vers | Arrivée |
-| --- | --- | --- |
-| 1 | **Écran Waveshare** | bornier adaptateur **USB-C** |
-| 2 | **`boitier_dc`** | Wago du compartiment **sud-ouest** |
-
-Le 5 V / GND est aussi distribué au **`boitier_pid`** (Wago de distribution pour le HW-399 et la commande du SSR chaudière). Le pont NTC du boîtier **screen** est alimenté par le **3V3 et le GND du port Sensor AD du Waveshare**. Le LDO AMS1117 ajouté auparavant pour ce pont a été retiré après la correction de sa référence de masse.
-
-### Distribution dans `boitier_dc`
-
-Compartiment **sud-ouest**, deux Wago :
-
-- **3 poles à gauche = 5 V**
-- **2 poles à droite = GND**
-
-En repartent :
-
-- **5 V + GND vers le XIAO**, dans le **bornier 2 poles** soudé sur les pastilles 5 V / GND
-  du Grove Shield (une patte du condensateur du filtre RC partage cette borne).
-- **5 V vers la Wago 3 poles du compartiment nord-ouest.**
-
-La Wago **nord-ouest** distribue le 5 V à deux consommateurs :
-
-- le **SSR** — fil du câble Grove dont le VCC a été coupé à ras côté XIAO, puis dénudé et
-  repris ici ;
-- le **Digmesa** — fil rouge de son câble JST SM.
+Circuit de chauffe distinct : **phase interrupteur → SSR chaudière → résistance →
+protection thermique → neutre interrupteur** (conducteurs de puissance en **1 mm²**).
 
 ---
 
-## Bus CAN
+## 24 V — alimentation, `combined` et pompe
 
-Un seul segment, deux nœuds, **120 Ω activée par jumper aux deux extrémités**.
+Deux fils **0,75 mm² rouge (+24 V) / noir (GND)** partent du **bornier à vis** de
+l'alimentation (+24 V côté LED, GND contre le flanc) vers **J7** de `combined` : broche 1
++24V, broche 2 GND.
 
-### Côté XIAO — Adafruit CAN Pal (TJA1051T/3)
+Côté J7, chaque fil est serti avec le fil de même polarité de la pompe dans un **embout
+double 2 × 0,75 mm²**, serré dans le boîtier **HT3.96 2 pôles** :
 
-Monté au **nord de `boitier_dc`**.
-
-- **Quatre pastilles de gauche** (VCC, GND, RX, TX de gauche à droite) : **bornier à vis
-  2,54 mm** soudé, relié au port Grove **R3** par un câble dénudé d'un côté, Grove de
-  l'autre. **TX → fil blanc → GPIO 7**, **RX → fil jaune → GPIO 8** (port Grove **D8/D9**
-  du silkscreen Seeed — le D-number, pas le GPIO natif : voir la note ci-dessous).
-- **Deux pastilles de droite** (CANH, CANL de gauche à droite) : **connecteur PCB femelle
-  JST XH 2,54 mm**.
-- **Broche `SLNT`** (pastille suivante du header, entre TX et CANH) : reliée au **GND**
-  (vis GND du bornier CAN). Sur ce clone, `SLNT` flottant se retrouve tiré haut (mode
-  Silent, émetteur coupé) au lieu de rester bas comme le prévoit le pull-down interne du
-  TJA1051
-
-### La ligne
-
-**Paire torsadée Helutherm 145 0,25 mm²** :
-
-| Signal | Couleur |
+| J7 | Embout double |
 | --- | --- |
-| **CANL** | orange |
-| **CANH** | gris |
+| broche 1, +24V | rouge de l'alimentation + rouge de la pompe |
+| broche 2, GND | noir de l'alimentation + noir de la pompe |
 
-Elle chemine dans la machine et **sort par le trou de l'ancien bouton brew** (Ø 16 mm),
-équipé du passe-câble imprimé (`print/parts/passe_cable.md`, `ecrou_passe_cable.md`).
+La pompe est donc alimentée par J7. Son courant (≈ 1,1 A au plus jusqu'à l'OPV) passe d'un
+fil à l'autre dans l'embout et la vis du bornier, sans traverser les pistes de la carte.
+Débrancher J7 coupe à la fois `combined`, l'écran et la pompe. **J7 ne se branche jamais
+sous tension** : le buck n'a pas de condensateur électrolytique d'entrée pour amortir la
+surtension d'un branchement à chaud (voir `combined_design.md`, « 24 V input and 5 V
+buck »).
+
+Le GND de `combined` est le noir de l'alimentation : le buck n'est pas isolé.
+
+### Signaux de la pompe — `combined` J9
+
+Les quatre fils de signal de la pompe sont sertis directement dans un boîtier **JST XH
+4 pôles** (contacts SXH-001T-P0.6, isolant de 1,5 mm au maximum du contact) :
+
+| J9 | Fil de la pompe | Signal |
+| --- | --- | --- |
+| 1 | vert | GND_P, référence de la consigne |
+| 2 | marron | SPEED_P, consigne 0–5 V |
+| 3 | bleu | TACHO_P, tachymètre |
+| 4 | jaune | +5V_P, 5 V fourni par la pompe |
+
+Le **blanc** (sens) n'est pas branché, extrémité isolée sous gaine. Ces quatre fils ne
+touchent que le côté pompe des deux optocoupleurs : ils ne rejoignent jamais une masse ni
+une alimentation de la carte. Détail dans [pompe-engrenage.md](pompe-engrenage.md),
+« Interface électrique ».
+
+---
+
+## 5 V et CAN — `combined` J1 → écran
+
+Le buck de `combined` fait le 5 V de toute la basse tension : XIAO, CAN, Digmesa, commande
+du SSR chaudière, XDB401 (par le 3,3 V du XIAO) et écran.
+
+**Quatre fils Helutherm 145 0,25 mm²** dans un boîtier **JST XH 4 pôles** sur J1 :
+
+| J1 | Signal | Fil |
+| --- | --- | --- |
+| 1 | GND | noir |
+| 2 | +5V | rouge |
+| 3 | CAN_L | orange |
+| 4 | CAN_H | gris |
+
+- La **paire CAN est torsadée**. La **paire 5 V / GND** court droite le long de la paire
+  CAN, attachée à elle par des bouts de gaine thermo.
+- Le câble traverse `boitier_ps_24v` sur le fond, sous les fils 24 V, et **sort par le
+  trou de l'ancien bouton brew** (Ø 16 mm), équipé du passe-câble imprimé
+  (`print/parts/passe_cable.md`, `ecrou_passe_cable.md`).
 
 ### Côté écran
 
-Un **JST SM 2 poles** relie la paire torsadée à un câble **JST PH 2.0 2 poles** qui se
-branche sur le PCB du Waveshare. Le transceiver TJA1051T/3 y est intégré : CAN sur
-**GPIO20 (TX) / GPIO19 (RX)**, `CAN_SEL` (EXIO5 du CH422G) à l'état haut.
+- **CAN** : un **JST SM 2 pôles** relie la paire torsadée au petit câble **JST PH 2.0
+  2 pôles** qui se branche sur le PCB du Waveshare (inchangé). Le transceiver TJA1051T/3
+  y est intégré : CAN sur **GPIO20 (TX) / GPIO19 (RX)**, `CAN_SEL` (EXIO5 du CH422G) à
+  l'état haut.
+- **5 V** : deux **Wago 221-412** relient la paire 5 V / GND à un câble USB-C, branché
+  dans le câble USB-C coudé qui entre dans le Waveshare (inchangé).
+
+### Bus CAN
+
+Un seul segment, deux nœuds, **120 Ω à chaque extrémité** : R18 soudée sur `combined`,
+jumper sur le Waveshare.
 
 ---
 
-## Ports Grove du XIAO
-
-Depuis le 2026-10-21, le XIAO est enfiché sur la carte `pcb/sensors`, qui remplace le
-Grove Shield ; brochage dans `pcb/sensors/sensors_design.md`. Cette section décrit
-l'ancien montage.
-
-Shield tenu XIAO en bas : colonne **gauche = L**, colonne **droite = R**, port **1** au plus
-près du XIAO, **4** au plus loin.
-
-**Le silkscreen du Grove Shield XIAO numérote en `Dn` (D-number Seeed), pas en GPIO natif
-de l'ESP32-S3.** Au-delà de D5 les deux numérotations divergent : D6/D7 partent sur
-GPIO43/44 (réservés à l'UART0), ce qui décale tout ce qui suit — D8→GPIO7, D9→GPIO8,
-D10→GPIO9. Le tableau ci-dessous donne les deux, `Dn` étant ce qui est effectivement
-imprimé sur le PCB du shield. Erreur découverte et corrigée le 2026-09-08, au multimètre
-puis par un auto-test de bouclage transceiver (`firmware/can-selftest`), après un bring-up
-phase 2 resté silencieux sur le bus faute de cette traduction.
-
-| Port | Périphérique | Signaux (D-number) | GPIO natif | Alim |
-| --- | --- | --- | --- | --- |
-| **R1** | XDB401 (pression) | I2C — SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V |
-| **R2** | Digmesa (débit) | impulsions — D7 | **GPIO 44** | 5 V, hors du câble Grove |
-| **R3** | CAN Pal | TX D8, RX D9 | TX **GPIO 7**, RX **GPIO 8** | 3,3 V |
-| **R4** | Unit SSR | commande — D10 (fil jaune) | **GPIO 9** | 5 V, hors du câble Grove |
-| **L2** | HW-399 → SSR chaudière | commande — D2 | **GPIO 3** | 5 V côté sortie du HW-399 |
-| **L4** | Dimmer DimmerLink | I2C — SDA D4, SCL D5 | SDA **GPIO 5**, SCL **GPIO 6** | 3,3 V |
-
-**L4 est une copie de R1** : le dimmer et le capteur de pression partagent le même bus I2C.
-Le dimmer n'a **pas de pull-up** ; ce sont les **4,7 kΩ du XDB401** qui tiennent SDA et SCL
-pour tout le bus. Retirer le capteur de pression laisse les lignes sans tirage et le dimmer
-muet (sauf câble très court, sur les pull-ups internes de l'ESP32).
-
-Ces pull-ups sont au bout des ~30 cm de câble, côté sonde. Pour le niveau statique, leur
-position est indifférente. Le temps de montée reste dans la norme : 4,7 kΩ avec ~100 pF
-(câble blindé, câbles Grove, dimmer) donnent ~0,4 µs, sous la limite de 1 µs à 100 kHz
-(`scl_speed_hz = 100000` dans `firmware/sensors`). **Doubler les pull-ups est permis**, et
-même favorable contre le bruit, car une ligne tirée plus fort résiste mieux aux injections.
-La limite est le courant qu'un composant doit absorber pour tenir la ligne basse : 3 mA en
-mode standard, soit une résistance équivalente d'au moins **1,1 kΩ** sous 3,3 V. Deux 4,7 kΩ
-en parallèle font 2,35 kΩ, soit 1,4 mA ; une 2,2 kΩ en parallèle des 4,7 kΩ du XDB401 fait
-1,5 kΩ, soit 2,2 mA. Les deux sont acceptables.
-
-Lors du remplacement prévu du XDB401 I2C par sa version analogique, ajouter au niveau du
-XIAO **une résistance de 4,7 kΩ entre SDA et 3,3 V et une autre entre SCL et 3,3 V**. Les
-pull-ups internes de l'ESP32 ne constituent pas un remplacement robuste.
-
-Souder ces résistances sur les pastilles du shield est écarté : la pastille 3,3 V est déjà
-utilisée. Un réseau de deux résistances à point commun exigerait une plaque de prototypage.
-Les résistances iront donc dans un **petit connecteur Grove à quatre broches** (SDA → 4,7 kΩ
-→ 3,3 V, SCL → 4,7 kΩ → 3,3 V) branché sur une prise I2C du shield, par exemple celle du
-XDB401 (R1) une fois libérée. Ce module doit être en place **dès que le XDB401 est débranché** :
-sans lui, le dimmer ne répond plus, sans autre symptôme. Le laisser branché en même temps
-que le XDB401 I2C est sans danger (2,35 kΩ, voir plus haut).
-
-### Câble du XDB401 (R1)
-
-Câble **Grove à clip** de quelques centimètres, sur lequel est serti un **JST SM 4 poles**.
-Le XDB401 porte le SM complémentaire au bout de son propre câble : la connexion se fait
-**hors du boîtier**, à proximité immédiate, et la sonde se débranche sans rien ouvrir.
-
-Fils du capteur : **rouge VCC, noir GND, vert SDA, blanc SCL**. Alimenté en **3,3 V** —
-l'emballage annonce 5 V, mais l'émulation XDB401 est complète en 3,3 V (vérifié au banc).
+## Capteurs et commande de la chaudière
 
 ### Câble du Digmesa (J6 de `combined`)
 
@@ -268,71 +227,42 @@ jamais. Sur `combined`, un **1 kΩ vers le 3V3** fixe le niveau haut, et un **10
 GND** filtre les transitoires. Le capteur peut donc être alimenté en 5 V sans jamais
 présenter plus de 3,3 V au GPIO. GPIO en `INPUT`, **pull-up interne éteinte**.
 
-### Câble du SSR de vanne (R4)
+### Commande du SSR de chaudière (J8 de `combined`)
 
-Câble **Grove 10 cm** dont le **VCC est coupé à ras côté XIAO**, dénudé et repris dans la
-**Wago nord-ouest** (5 V). Le **fil jaune** porte la commande vers le SSR, sur **GPIO 9**
-(D10 sur le silkscreen du Grove Shield). Le SSR est donc alimenté en 5 V par la Wago, pas
-par le port Grove.
+Deux fils **0,75 mm²** : embouts 0,75 mm² dans un boîtier **HT3.96 2 pôles** côté
+`combined`, **cosses rouges 4,8 mm** sur les languettes DC du SSR « mini-puck ». Les
+cosses rouges demandent cette section ; elles n'entrent pas dans un contact XH.
 
-### Commande du SSR de chaudière (L2)
+| J8 | Signal | SSR |
+| --- | --- | --- |
+| 1 | GND | borne **−** |
+| 2 | BOILER_5V | borne **+** |
 
-Le port Grove **L2** du Shield (broche **D2** sur le PCB, **GPIO 3** natif du XIAO) porte la commande du chauffage. Le GPIO commande **IN4** du HW-399 ; la commande est inversée côté logiciel : **LOW active le chauffage, HIGH l'arrête**. Le GPIO en 3,3 V ne commande pas directement le SSR Keysolu/Maxwell, dont l'entrée de l'exemplaire est indiquée pour 4–24 VDC.
+`combined` commute le 5 V sur la broche 2 (Q5 / Q6) : **HEATER_CMD sur GPIO 4, actif
+HIGH**. Des résistances tiennent la sortie coupée tant que le GPIO flotte (démarrage,
+reset, XIAO absent). Le circuit de puissance du SSR est décrit dans « SSR de chaudière
+fourni avec la machine » ci-dessus.
 
-Le câble Grove mène au connecteur **XH 2 pôles** du HW-399 dans `boitier_pid` : **GND + IN4**. La voie **IN4 / OUT4** du module optocoupleur est utilisée. Le côté sortie reçoit **5 V et GND** des Wago de distribution ; il sort par un **XH 3 pôles GND, VCC, OUT4**. Le SSR est câblé en mode absorption : **5 V (VCC) → borne `+` du SSR ; borne `−` du SSR → OUT4**. Quand GPIO 3 / IN4 est LOW, le transistor de sortie tire OUT4 vers GND et le SSR s'allume ; quand GPIO 3 est HIGH, OUT4 remonte à 5 V et le SSR s'éteint. Le SSR fourni avec la machine porte des **languettes mâles FASTON 4,8 mm**. Son circuit de puissance est décrit dans la section « SSR de chaudière fourni avec la machine » ci-dessus.
+### Pression — XDB401 analogique (J10 de `combined`)
 
-### Sonde NTC et ADS1115 dans le boîtier de l'écran
+Sonde **XDB401 0,4–2,4 V, 0–12 bar, alimentée en 3,3 V**. Son câble intégré est serti
+directement dans un boîtier **JST XH 3 pôles** :
 
-La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Le **3V3 du port Sensor AD** rejoint la Wago NTC2, qui dessert une patte de la NTC et **A0** de l'ADS1115. L'autre patte rejoint la Wago NTC1, qui dessert **A1** et la résistance fixe de **4676 Ω** (4,7 kΩ du banc PT1000, 2,193 kΩ jusqu'au 2 octobre 2026). L'autre extrémité de cette résistance retourne au **GND du port Sensor AD**, proche de la référence GND de l'ADS1115. Le GPIO/AD du port Sensor n'est pas utilisé.
+| J10 | Fil de la sonde | Signal |
+| --- | --- | --- |
+| 1 | rouge | +3V3 |
+| 2 | noir | GND |
+| 3 | jaune | PRESSURE, 0,4–2,4 V |
 
-Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
+L'ADS1115 de `combined` (U6, adresse 0x49) lit PRESSURE sur AIN1 derrière un filtre
+1 kΩ / 10 µF (16 Hz) ; AIN0 surveille le 3,3 V. La sortie de la sonde n'est pas
+ratiométrique. L'écran reçoit la pression par le CAN. Circuit :
+`../pcb/sensors/sensors_design.md`, « U6 / J10 ».
 
-Sur le Waveshare, le connecteur I2C (H7) est séparé de l'ESP32-S3 par un translateur de
-niveau à MOSFET (NDC7002N). Côté connecteur, **deux 4,7 kΩ tirent SDA et SCL vers `I2C_VCC`**,
-et deux autres côté ESP32 vers le 3V3 ; le bus du connecteur est donc déjà tiré, et l'ADS1115
-n'a pas besoin de pull-ups. `I2C_VCC` est fixé par le cavalier H8 sur **3V3 (défaut)** ou 5 V ;
-le montage suppose 3V3. Le port Sensor AD (J6) est câblé 3V3 / GND / AD, directement au rail
-de la carte. Les deux ports sont supposés sur le même rail et le même plan de masse (ils sont
-voisins sur la carte) ; ce n'est pas vérifié sur le schéma.
+Les deux sous-sections suivantes décrivent le passage de la sonde I2C à la sonde
+analogique, en octobre 2026 ; le suivi est dans [xdb401_swap.md](xdb401_swap.md).
 
-Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 est intégrée au firmware `screen` et publiée par `GET /telemetry`.
-
-Une future **PT1000 iOVEO 012EF02202** remplacera la NTC dans le même raccord
-G 1/8 de chaudière. Sa partie immergée en inox mesure 9 × 5,5 mm et sa sortie
-comporte deux fils silicone de 20 à 25 cm. Le câblage restera donc un pont à
-deux fils vers A1. Sur seulement 40 à 50 cm aller-retour, la résistance des
-conducteurs devrait produire une erreur de quelques centièmes de degré ; une
-mesure sonde montée suffira à vérifier qu'aucune compensation n'est nécessaire.
-La résistance fixe est déjà une **4,7 kΩ** (4676 Ω étalonnés), montée avec la
-NTC le 2 octobre 2026 à la place de la 2,193 kΩ. Le courant dans la PT1000 sera
-ainsi voisin de 0,54 mA vers 100 °C, contre 0,92 mA avec l'ancien pont.
-
-### Évolution prévue : XDB401 analogique sur l'ADS1115
-
-Une version du XDB401 à sortie **0,4–2,4 V**, alimentée en **3,3 V**, pourra utiliser
-l'entrée **A2** du même ADS1115. A0 restera la mesure du 3,3 V, A1 celle du pont de
-température et A3 restera libre. La plage unipolaire 0,4–2,4 V est compatible avec
-l'alimentation 3,3 V de l'ADS1115 et avec son réglage actuel à ±4,096 V. À ce gain, un
-code vaut 125 µV. La pièce commandée couvre **0–12 bar** sur 2,0 V, soit une résolution
-brute d'environ **0,00075 bar (0,75 mbar) par code**, avant bruit et calibration.
-
-La référence de la pièce commandée est « 3.3V OUT 0.4-2.4V, 0-1,2 MPa, G1/8 » : elle
-s'alimente bien en 3,3 V. D'autres annonces de la même famille XDB401 0,4–2,4 V indiquent
-5–12 V ; ne pas les confondre. **Aucune résistance n'est nécessaire** entre la sortie et A2 :
-l'entrée de l'ADS1115 est de haute impédance. Seul le filtre RC optionnel ci-dessous peut
-s'ajouter.
-
-Relier la masse de la sonde au GND du même port que l'ADS1115, et acheminer la sortie et la
-masse ensemble, torsadées si possible et à l'écart du 230 V. Un petit filtre RC au plus près
-de A2 pourra être ajouté si les captures montrent du bruit.
-
-Ce montage raccourcit le trajet analogique et supprime le XDB401 I2C ainsi que ses attentes
-de conversion sur le bus du XIAO. Le dimmer reste toutefois en I2C et nécessite alors les
-deux pull-ups de 4,7 kΩ décrites plus haut. La mesure se fait aussi là où tourne la
-régulation (`core` sur l'écran), sans passer par le CAN. Le câblage actuel avec le XDB401 I2C
-reste la référence jusqu'à la réception et à la caractérisation de la nouvelle pièce.
-
-#### Calibration de la version analogique
+### Calibration de la version analogique
 
 Les deux versions du XDB401 sortent **calibrées d'usine**. Elles partagent la cellule
 céramique et la puce de conditionnement ; seule la sortie diffère. La fiche du fabricant
@@ -373,7 +303,7 @@ nécessaires). La caractérisation se fait donc ainsi :
 3. **Pente.** Départ sur la pente d'usine (6 bar/V), puis alignement sur le XDB401 I2C au
    plateau de l'OPV, décrit ci-dessous.
 
-#### Point de comparaison : plateau de l'OPV en panier aveugle
+### Point de comparaison : plateau de l'OPV en panier aveugle
 
 **But : continuité, pas exactitude.** Les consignes de pression et les captures existantes
 ont été établies avec le XDB401 I2C. La sonde analogique doit rendre **la même valeur
@@ -407,44 +337,31 @@ La température interne fournie par le XDB401 I2C disparaît avec lui. C'est la 
 du corps de la sonde, utilisée par sa puce pour compenser la pression ; elle ne mesure pas
 l'eau et ne sert pas à la régulation.
 
-### Interférences sur la mesure de pression
+### Sonde NTC et ADS1115 dans le boîtier de l'écran
 
-**Constat.** Le câble I2C du XDB401 (R1) fait ~30 cm. Il passe près des câbles 230 V du SSR
-de chaudière, et son blindage ne peut pas être relié à la masse. Des erreurs I2C
-(`I2C_ERROR`, `XDB401_TIMEOUT`) y apparaissent régulièrement.
+La sonde NTC vissée en **G1/8** dans la chaudière rejoint directement le boîtier **screen** voisin, afin de raccourcir son cheminement et de limiter les interférences. L'**ADS1115 16 bits est alimenté en 3,3 V par le connecteur I2C** du Waveshare, sur le bus partagé avec notamment le CH422G et le contrôleur tactile GT911. Le **3V3 du port Sensor AD** rejoint la Wago NTC2, qui dessert une patte de la NTC et **A0** de l'ADS1115. L'autre patte rejoint la Wago NTC1, qui dessert **A1** et la résistance fixe de **4676 Ω** (4,7 kΩ du banc PT1000, 2,193 kΩ jusqu'au 2 octobre 2026). L'autre extrémité de cette résistance retourne au **GND du port Sensor AD**, proche de la référence GND de l'ADS1115. Le GPIO/AD du port Sensor n'est pas utilisé.
 
-**Mécanisme.** L'I2C est asymétrique et à drain ouvert : l'état haut n'est tenu que par une
-pull-up de 4,7 kΩ. Les fronts rapides voisins s'y injectent par couplage capacitif : la
-commutation du SSR, la découpe de phase du dimmer et la pompe, qui est une charge inductive.
-Le champ magnétique 50 Hz du courant de chaudière compte peu. Le blindage flottant ne
-protège presque pas. Une injection donne un NACK, un octet faux ou une ligne SDA bloquée. Le
-bus est **partagé avec le dimmer** : une ligne bloquée prive aussi la pompe de commande.
+Le pont utilisait auparavant un LDO AMS1117 distinct, et sa résistance fixe retournait au GND de l'alimentation 5 V. Un écart mesuré de **10–13 mV** entre ce GND et celui de l'ADS1115 faussait la lecture ratiométrique : A1 indiquait environ 0,133 V côté ADS pour environ 0,143 V au point milieu rapporté au GND de l'alimentation. Le raccordement du pont au port Sensor AD a supprimé cet écart dans le calcul : **47,926 kΩ** par l'ADS contre **47,9 kΩ** au multimètre lors du relevé à froid. La [fiche ADS1115](datasheets/ads1115.pdf) décrit les limites électriques et la programmation de ces entrées.
 
-Trois options :
+Sur le Waveshare, le connecteur I2C (H7) est séparé de l'ESP32-S3 par un translateur de
+niveau à MOSFET (NDC7002N). Côté connecteur, **deux 4,7 kΩ tirent SDA et SCL vers `I2C_VCC`**,
+et deux autres côté ESP32 vers le 3V3 ; le bus du connecteur est donc déjà tiré, et l'ADS1115
+n'a pas besoin de pull-ups. `I2C_VCC` est fixé par le cavalier H8 sur **3V3 (défaut)** ou 5 V ;
+le montage suppose 3V3. Le port Sensor AD (J6) est câblé 3V3 / GND / AD, directement au rail
+de la carte. Les deux ports sont supposés sur le même rail et le même plan de masse (ils sont
+voisins sur la carte) ; ce n'est pas vérifié sur le schéma.
 
-| | A — analogique sur l'ADS1115 de l'écran | B — I2C sur le connecteur du Waveshare | C — I2C actuel amélioré |
-| --- | --- | --- | --- |
-| Montage | sortie 0,4–2,4 V sur A2, câble plus court | XDB401 I2C sur H7, câble plus court | inchangé |
-| Nature du signal | tension pilotée par la sonde (faible impédance) | lignes tenues par pull-ups | lignes tenues par pull-ups |
-| Pull-ups | dimmer : module 4,7 kΩ ajouté sur le XIAO | 4,7 kΩ Waveshare ∥ 4,7 kΩ sonde = 2,35 kΩ | 2,2 kΩ côté XIAO ∥ 4,7 kΩ sonde = 1,5 kΩ |
-| Effet d'un parasite | un échantillon faussé, filtré par l'ADS1115, un RC ou un médian | transaction perdue ou bus bloqué | transaction perdue ou bus bloqué |
-| Bus exposé au câble | aucun : l'ADS1115 est dans le boîtier | bus de l'écran : CH422G, GT911 tactile, ADS1115 (NTC chaudière) | bus du XIAO : dimmer |
-| Gamme, précision | 0–12 bar, ±0,12 bar | 0–16 bar, ±0,16 bar | 0–16 bar, ±0,16 bar |
-| Température de la sonde | perdue | conservée | conservée |
-| Trajet jusqu'à la régulation | direct | direct | par le CAN |
-| Pièce ou travail | sonde commandée, firmware screen, module pull-ups | adresse 0x7F à vérifier par scan du bus, firmware screen | pull-ups, routage, firmware sensors |
+Le schéma du pont, les mesures de calibration et le calcul de température sont dans [ntc_ads1115_calibration.md](ntc_ads1115_calibration.md). Les échanges I2C sont décrits en §7.5 de la [fiche ADS1115](datasheets/ads1115.pdf). La lecture de l'ADS1115 est intégrée au firmware `screen` et publiée par `GET /telemetry`.
 
-Mesures communes aux trois options : croiser les câbles 230 V à 90° plutôt que de les
-longer, et garder chaque signal contre sa masse. Pour B et C, côté firmware : récupération
-du bus (9 impulsions SCL) et nouvel essai après une erreur.
-
-### Câble du dimmer (L4)
-
-Câble **Grove** simple, alimentation **3,3 V**, I2C sur GPIO 5 / 6 (SDA/SCL, D4/D5 sur le
-silkscreen). En mode DimmerLink,
-le Cortex du module gère la détection de passage par zéro et le triac ; le XIAO ne fait que
-de l'I2C. **Sans secteur sur le dimmer, le module reste en `Calibrating...`** et n'accepte
-aucune commande.
+Une future **PT1000 iOVEO 012EF02202** remplacera la NTC dans le même raccord
+G 1/8 de chaudière. Sa partie immergée en inox mesure 9 × 5,5 mm et sa sortie
+comporte deux fils silicone de 20 à 25 cm. Le câblage restera donc un pont à
+deux fils vers A1. Sur seulement 40 à 50 cm aller-retour, la résistance des
+conducteurs devrait produire une erreur de quelques centièmes de degré ; une
+mesure sonde montée suffira à vérifier qu'aucune compensation n'est nécessaire.
+La résistance fixe est déjà une **4,7 kΩ** (4676 Ω étalonnés), montée avec la
+NTC le 2 octobre 2026 à la place de la 2,193 kΩ. Le courant dans la PT1000 sera
+ainsi voisin de 0,54 mA vers 100 °C, contre 0,92 mA avec l'ancien pont.
 
 ---
 
@@ -452,14 +369,14 @@ aucune commande.
 
 | Type | Où |
 | --- | --- |
-| **FASTON 6,3 × 0,8 mm** isolées nylon | côté machine : interrupteur principal, LED, pompe, vanne. Pas de piggyback |
-| **FASTON 4,8 mm** mâles | sur le SSR de chaudière fourni avec la machine |
-| **Wago 221** (412 / 415 / 423) | toutes les dérivations, 230 V et 5 V |
-| **Grove** | XIAO ↔ périphériques |
-| **JST SM** | jonctions débrochables : XDB401 (4 p.), Digmesa (3 p.), CAN (2 p.) |
-| **JST XH 2,54 mm** | sortie CANH / CANL du CAN Pal ; HW-399 : entrée 2 pôles (GND, IN4) et sortie 3 pôles (GND, VCC, OUT4) |
+| **FASTON 6,3 × 0,8 mm** isolées nylon | côté machine : interrupteur principal, LED de façade, vanne. Pas de piggyback |
+| **FASTON 4,8 mm** (cosses rouges) | SSR de chaudière fourni avec la machine : commande DC depuis J8 |
+| **Wago 221-415** | `boitier_ps_24v` : L et N (arrivée, LED, alimentation, `combined`) |
+| **Wago 221-412** | boîtier de l'écran : 5 V / GND vers le câble USB-C |
+| **HT3.96** (clone VH), embouts de câble | côté `combined` : J2 (230 V), J3 (vanne), J6 (Digmesa), J7 (24 V, embouts doubles avec la pompe), J8 (SSR chaudière) |
+| **VH3.96** | côté Digmesa ; entrée secteur de l'alimentation 24 V (3 positions, centrale vide) |
+| **Bornier à vis 5 mm** | sortie 24 V de l'alimentation |
+| **JST XH 2,54 mm** | côté `combined` : J1 (écran), J9 (signaux de la pompe), J10 (XDB401) |
+| **JST SM 2 pôles** | jonction débrochable du CAN côté écran |
 | **JST PH 2.0** | entrée CAN du Waveshare |
-| **VH3.96** | côté Digmesa |
-| **HT3.96** (clone VH) | côté `combined` : J6 (Digmesa) |
-| **Bornier à vis 2,54 mm** | pastilles VCC/GND/RX/TX du CAN Pal ; pastilles 5 V/GND du Grove Shield |
-| **Bornier adaptateur USB-C** | alimentation 5 V de l'écran |
+| **USB-C** | alimentation 5 V de l'écran, câble coudé |

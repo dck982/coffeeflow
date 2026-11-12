@@ -47,9 +47,10 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 | J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE | — |
 
 J1 was the 5 V input in v1; it now carries the screen cable, 5 V and CAN
-in one XH 4 housing, the same part as J9. J7 comes from the Wago split of the 24 V
-supply, which also feeds the pump's red and black wires: the pump current
-does not cross the board. J9 carries only the pump's isolated signal wires;
+in one XH 4 housing, the same part as J9. J7 takes two 0.75 mm² wires from the 24 V
+supply. In J7's plug, each one shares a double 2 × 0.75 mm² ferrule with the
+pump's red or black wire: the pump is fed from J7, and its current passes
+from wire to wire in the ferrule without crossing the board's tracks. J9 carries only the pump's isolated signal wires;
 the white wire (rotation) stays unconnected in the cable.
 
 The former 5-pin control header (GND, 3V3, DIM, ZC, SSR) is gone: SSR,
@@ -63,8 +64,8 @@ terminals, 0.2 to 1.5 mm², AWG 14 to 26). J6 (flow) is the 3-pin version,
 HT396V-3.96-3P (LCSC C577789), with the HT396K-3.96-3P plug (LCSC C577778):
 the Digmesa cable ends in a VH3.96 housing at the sensor and needs 0.5 mm²
 wires, which go straight into the screw plug, without the JST-SM to XH
-adapter. J7's plug takes the two wires
-from the Wago split. J8's takes the two 0.75 mm² wires to the boiler SSR
+adapter. J7's plug takes the supply and pump wires
+in two double ferrules. J8's takes the two 0.75 mm² wires to the boiler SSR
 directly; the SSR end uses red 4.8 mm crimp lugs, which need that section
 and do not fit a JST XH crimp. On sensors, two Wago changed the section.
 The plugs are not assembled: order them with the board. The LCSC footprint

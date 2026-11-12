@@ -1,8 +1,9 @@
 # Pompe à engrenage SOVOFLO MPB003
 
-Pompe envisagée pour remplacer la pompe vibratoire OLAB Silent Green 35 W.
-Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **pas encore
-installée** : le remplacement n'est pas décidé. Les valeurs viennent de la fiche du vendeur, de la notice
+Pompe qui remplace la pompe vibratoire OLAB Silent Green 35 W.
+Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **installée le
+12 novembre 2026** avec la carte combined, raccords au Loxeal. La première
+purge attend le séchage du Loxeal. Les valeurs viennent de la fiche du vendeur, de la notice
 du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
 Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
@@ -140,7 +141,8 @@ marron.
 Fils multibrins, diamètre extérieur mesuré sur l'isolant (l'écrasement des
 brins fausse la mesure de la section) :
 
-- **Rouge et noir : 2 mm.** Les Wago 221 les acceptent.
+- **Rouge et noir : 2 mm.** Ils entrent dans les embouts doubles
+  2 × 0,75 mm² de J7 (voir [Alimentation](#alimentation)).
 - **Les cinq fils fins : 1,5 mm.** C'est le maximum du contact JST XH
   (SXH-001T-P0.6 : AWG 28 à 22, isolant de 0,8 à 1,5 mm) ; le sertissage
   essayé passe.
@@ -233,7 +235,8 @@ sens par défaut suit la flèche de la tête (mesuré à réception).
 ### Connecteur sur combined v2
 
 XH 4 positions : 1 vert (GND_P), 2 marron (SPEED), 3 bleu (TACHO), 4 jaune
-(+5V_P). Rouge et noir passent par les Wago (voir [Alimentation](#alimentation)).
+(+5V_P). Rouge et noir vont dans le boîtier de J7, avec les fils de
+l'alimentation (voir [Alimentation](#alimentation)).
 
 ### Protections internes (notice de la famille)
 
@@ -286,7 +289,7 @@ environ 1,7 % de consigne en moins, relue sur le tachymètre.
   une résistance interne sous 2 Ω. Le besoin du montage est de 2,5 mA.
 - **Marron en l'air : 7 mV**, très loin du seuil d'arrêt de la famille
   (≈ 0,2 V) : la pompe reste arrêtée si le connecteur ou le câble lâche,
-  alors que son 24 V, pris aux Wago, ne passe pas par combined v2. Pas de
+  alors que son 24 V, pris dans le boîtier de J7, reste présent. Pas de
   résistance à ajouter dans le câble.
 - **Repos ≈ 1 W sous 24 V**, soit ≈ 40–45 mA, une fois retirés la
   consommation à vide de l'alimentation (< 90 mW) et ses pertes. La notice de
@@ -332,13 +335,12 @@ Bleu ↔ vert en tension continue, à 2,456 V de consigne : **2,514 V**.
 
 ## Alimentation
 
-Montage prévu, en remplacement de la RECOM RAC05-05SK (5 V, 1 A) :
-
-Chaîne prévue, du secteur à la pompe :
+Montage en service depuis le 12 novembre 2026, en remplacement de la RECOM
+RAC05-05SK (5 V, 1 A). Chaîne du secteur à la pompe :
 
 ```
-secteur ─ Wago ─ câble VH ─ alimentation 24 V ─ fils ─ Wago ─┬─ 24 V : pompe
-                  (fusible T2A)     (bornier)                 └─ 24 V : combined v2 (buck 5 V) ─ 5 V : écran
+secteur ─ Wago ─ câble VH ─ alimentation 24 V ─ rouge/noir 0,75 mm² ─ J7 ─┬─ embouts doubles : pompe
+                  (fusible T2A)     (bornier)                               └─ combined v2 (buck 5 V) ─ 5 V : écran
 ```
 
 1. **Pas de carte AC pour l'instant** (décision du 3 novembre 2026). Le
@@ -355,17 +357,19 @@ secteur ─ Wago ─ câble VH ─ alimentation 24 V ─ fils ─ Wago ─┬─
    RECOM RAC05-05SK (5 V, 1 A) et ne rentre pas dans `boitier_ps` actuel
    (logement de la RECOM : 21,9 × 27,1 × 33 mm) : nouveau boîtier, voir
    [boitier-ps-24v.md](boitier-ps-24v.md).
-3. **Deux Wago 221-423** (+24 V et GND) répartissent le 24 V entre la
-   pompe et combined v2. Pas de carte DC dans `boitier_ps` : le 24 V part
-   directement du bornier de l'alimentation. Les Wago vont dans
-   `boitier_ps` ou dans `boitier_dc`, à décider au montage : dans
-   `boitier_dc`, le câble de la pompe reste entier sous une seule gaine.
+3. **Embouts doubles dans J7** : le 24 V part du bornier de l'alimentation
+   en deux fils 0,75 mm² rouge / noir jusqu'à J7 de combined v2. Dans le
+   boîtier HT3.96 de J7, chaque fil est serti avec le fil de même polarité
+   de la pompe dans un embout double 2 × 0,75 mm². Les deux Wago 221-423
+   prévus pour répartir le 24 V ne sont pas montés. Fil par fil :
+   [cablage.md](cablage.md), « 24 V ».
 4. **Combined v2** : la partie dimmer et la détection du passage par zéro
    disparaissent. La carte reçoit le 24 V sur un HT3.96, porte le buck
    24 → 5 V et renvoie le 5 V de l'écran le long du câble CAN. Elle commande
    la pompe et lit son tachymètre à travers deux optocoupleurs (voir
    [Interface électrique](#interface-électrique)). Le buck reçoit moins de
-   5 W ; le courant de la pompe ne traverse pas la carte.
+   5 W ; le courant de la pompe passe d'un fil à l'autre dans l'embout de
+   J7, sans traverser les pistes de la carte.
 
 ![Alimentation 24 V](datasheets/alim-24v-gan.png)
 
@@ -922,10 +926,9 @@ latéralement du moteur, côté équerre.
 
 ## Mécanique
 
-Pas encore de support. À dessiner quand l'emplacement de la pompe vibratoire
-sera relevé : équerre à quatre boutonnières de 6 mm, entraxe 45,5 × 55 mm.
-Le moteur de 66 mm de diamètre et la tête de 38 mm dépassent l'encombrement
-d'une pompe vibratoire ; la pompe doit rester près du bac, aspiration courte.
+Pas de support à imprimer : l'équerre d'origine de la pompe est vissée dans
+deux des trous de 6 mm de la plaque du fond de la machine, à 40 mm
+d'entraxe, que ses boutonnières rejoignent.
 
 ## À relever à réception
 

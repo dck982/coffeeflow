@@ -1210,6 +1210,7 @@ fn a_live_tachometer_or_a_tiny_setpoint_raises_no_fault() {
 
 fn dry_machine() -> Machine<Mock> {
     let mut m = present();
+    m.dry_rule_enabled = true;
     m.hw.tach_rpm = 2250;
     m.hw.pressure_raw = Some(3200); // ≈ 0 bar
     set(&mut m, 50, 30_000);
@@ -1237,6 +1238,15 @@ fn running_dry_cuts_the_pump_after_two_seconds() {
     set(&mut m, 50, 30_000);
     assert_eq!(m.hw.duty, pump_duty(50));
     assert!(m.hw.valve);
+}
+
+#[test]
+fn the_dry_rule_stays_off_while_disabled() {
+    let mut m = dry_machine();
+    m.dry_rule_enabled = false;
+    advance(&mut m, 5 * S, true);
+    assert!(!has_log(&m, LogCode::PumpDry));
+    assert_eq!(m.hw.duty, pump_duty(50));
 }
 
 #[test]

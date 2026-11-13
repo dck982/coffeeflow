@@ -56,6 +56,9 @@ pub const DRY_PRESSURE_MAX_CODE: i16 = 4500;
 /// Une pression plus vieille que cela se relit avant de juger la marche à
 /// sec.
 pub const DRY_PRESSURE_MAX_AGE_US: i64 = 300 * 1000;
+/// Règle de marche à sec active. À couper pour faire tourner la pompe au
+/// banc sans Digmesa en amont : sans impulsion, la règle l'arrêterait en 2 s.
+pub const DRY_RULE_ENABLED: bool = true;
 /// Plancher des publications `STATUS_PRESSURE`, pour qu'une requête mal
 /// formée ne sature pas le bus.
 pub const PRESSURE_PERIOD_FLOOR_MS: u16 = 100;
@@ -186,6 +189,8 @@ pub struct Machine<H: Hw> {
     pump_fault_cut_us: i64,
     /// Début de la consigne au-dessus de 0,3 V appliquée, 0 = aucune.
     pump_drive_since_us: i64,
+    /// Règle de marche à sec active, `DRY_RULE_ENABLED` au démarrage.
+    pub(crate) dry_rule_enabled: bool,
     /// Début de la fenêtre de marche à sec, 0 = conditions non réunies.
     dry_since_us: i64,
     /// Dernier front Digmesa vu par la règle, pour détecter une impulsion.
@@ -258,6 +263,7 @@ impl<H: Hw> Machine<H> {
             pump_dry: false,
             pump_fault_cut_us: i64::MIN / 2,
             pump_drive_since_us: 0,
+            dry_rule_enabled: DRY_RULE_ENABLED,
             dry_since_us: 0,
             dry_flow_edge_us: 0,
             pressure_cache: None,
@@ -667,7 +673,7 @@ impl<H: Hw> Machine<H> {
         let edge_arrived = flow_edge != self.dry_flow_edge_us;
         self.dry_flow_edge_us = flow_edge;
         let mut pressure = None;
-        let conditions = rpm > DRY_MIN_RPM && {
+        let conditions = self.dry_rule_enabled && rpm > DRY_MIN_RPM && {
             pressure = self.pressure_for_dry_rule(now);
             // Absente ou invraisemblable : la pompe s'arrête plutôt que de
             // tourner à sec.

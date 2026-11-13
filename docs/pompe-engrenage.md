@@ -3,7 +3,12 @@
 Pompe qui remplace la pompe vibratoire OLAB Silent Green 35 W.
 Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **installée le
 12 novembre 2026** avec la carte combined, raccords au Loxeal. Première
-purge le 13 novembre 2026. Les valeurs viennent de la fiche du vendeur, de la notice
+purge le 13 novembre 2026. **Le même jour, l'exemplaire reçu s'est révélé être
+un clone** qui fuit à l'intérieur ([Essai au banc](#essai-au-banc-sortie-bouchée-13-novembre-2026),
+[Exemplaire du 5 novembre](#exemplaire-du-5-novembre--une-autre-construction)) : il est
+sorti de la machine, un litige est ouvert chez le vendeur AliExpress, et une
+MPB003BAAA a été commandée chez le fabricant, Zhuhai Chenhui Technology. En
+attente de livraison. Les valeurs viennent de la fiche du vendeur, de la notice
 du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
 Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
@@ -26,7 +31,8 @@ Deux usages motivent le changement :
 
 L'étiquette de l'exemplaire reçu porte la référence abrégée **MPB003BAA**,
 avec 24 V, 40 W, 0,3 L/min et 0,1 ml/tour. La lettre du moteur manque, mais
-c'est un moteur brushless : elle vaut A.
+c'est un moteur brushless : elle vaut A. Le fabricant grave la tête (logo
+晨辉, P/N MPB003, S/N) ; l'exemplaire reçu n'a qu'une étiquette.
 
 | Lettre | Code | Signification |
 | --- | --- | --- |
@@ -42,7 +48,14 @@ Engrenages hélicoïdaux en PEEK dans une chambre en inox 316L. Le moteur
 entraîne la pompe par un accouplement magnétique à travers une cloche
 (*shielding case*) : aucun joint tournant, seulement des joints toriques
 statiques. Les matériaux en contact avec le liquide sont annoncés aptes au
-contact alimentaire.
+contact alimentaire. C'est la construction du fabricant ; l'exemplaire du
+5 novembre ne la suit pas (voir [Structure et cotes](#structure-et-cotes)).
+
+La boutique AliExpress du fabricant donne, pour la MPB003 : viscosité 0 à
+1 500 cP, −40 à 100 °C, 20 bar de différence de pression, filtre 400 mesh,
+−0,85 bar à l'aspiration, 500 à 4 500 tr/min, moins de 60 dB à 3 000 tr/min.
+Le vendeur du clone annonçait 0 à 3 000 cP, −30 à 120 °C et 60 dB à
+4 000 tr/min.
 
 ## Limites
 
@@ -826,6 +839,10 @@ détectent un bac vide : la pompe tourne et le Digmesa ne compte rien.
 Digmesa pendant **2 s** et pression qui ne monte pas → consigne à 0 et erreur
 « bac vide ». Les seuils se règlent au premier essai, bac débranché.
 
+`DRY_RULE_ENABLED` (`sensors-logic`) coupe la règle. Elle reste active en
+service ; une image construite avec la règle coupée fait tourner la pompe au
+banc sans Digmesa en amont, comme le 13 novembre 2026 (0.5.2).
+
 ### Débitmètre
 
 Le Digmesa est limité à **0,40 L/min (6,7 ml/s)**. La pompe le dépasse à
@@ -945,6 +962,45 @@ aspirés**, 17,7 g en tasse, Digmesa 17,6 ml, tachymètre 28,2 ml.
   porte-filtre sans fond retient de l'eau : une tasse haute, sans
   porte-filtre, est le bon montage.
 
+### Essai au banc, sortie bouchée (13 novembre 2026)
+
+Pompe sortie de la machine, toujours pilotée par combined (0.5.2, marche à sec
+coupée). Aspiration par un tube en silicone rempli d'eau, depuis un pichet sur
+la balance ; au refoulement, un prolongateur G1/8 puis le **XDB401 I2C**, qui
+ferme la sortie. Le XDB401 est lu par le Core2 (`firmware/xdb401`, BLE
+enregistré par `firmware/analysis/xdb401_ble_log.py`, fichier
+`captures/xdb401-261113-152846.csv`) ; il lit +0,035 bar à l'air, retiré
+ci-dessous.
+
+Sans débit net, la fuite interne égale le refoulé : chaque palier donne la
+pression à laquelle la pompe recircule tout ce qu'elle déplace.
+
+| Purge | Vitesse (tachymètre) | Refoulé = fuite | Palier |
+| --- | ---: | ---: | --- |
+| 30 %, `261113-153034` | 1 211 tr/min | 2,02 ml/s | **1,19 bar** en 1,5 s, puis lente dérive vers 1,2 |
+| 45 %, `261113-153310` | 1 774 tr/min | 2,96 ml/s | **2,77 bar** en 1,5 s, stable 6 s |
+| 55 %, `261113-154002` | 2 135 tr/min | 3,56 ml/s | **4,98 bar** en 1,5 s, stable 4 s |
+| 60 %, `261113-152539` | 2 264 tr/min | 3,77 ml/s | > 7 bar, encore en montée à l'arrêt manuel |
+
+- **La fuite est 3 à 10 fois celle de la fiche.** La courbe donne encore
+  0,5 ml/s nets à 12 bar et 1 000 tr/min ; cet exemplaire recircule 2 ml/s à
+  1,2 bar. À 9 bar, la fuite vaut au plus ≈ 3,8 ml/s (60 % montait encore à
+  7 bar).
+- **La fuite croît moins vite que la pression** : exposant 0,45 entre 30 et
+  45 %, 0,31 entre 45 et 55 %. Un jeu fin donnerait une fuite proportionnelle
+  à la pression. Pas de bascule : la pente du palier en vitesse grandit
+  régulièrement (2,8, puis 6,1, puis plus de 16 bar par 1 000 tr/min).
+- **À l'arrêt, la pression retombe à 0 en moins d'une seconde**, par les
+  engrenages : la pompe n'a pas de clapet.
+- Le palier de 30 % s'est reproduit à deux essais (1,16 bar à l'écran du
+  Core2 au premier) : ce n'est pas de l'air dans la tête.
+- Avec cette fuite, 9 bar avec 2 ml/s en tasse demanderaient
+  ≈ 3 500 tr/min : la plage basse, 500 à 1 750 tr/min, ne tient pas la
+  pression. Le glissement à 0 bar dans la machine (1 à 1,5 ml/s, plus haut)
+  vient probablement du même défaut.
+- Un prolongateur ou un raccord trop long qui étranglerait la sortie ne change
+  pas ces paliers : sans débit, il n'y a pas de perte de charge.
+
 ## Structure et cotes
 
 ![Structure](datasheets/mpb003-structure.png)
@@ -953,6 +1009,27 @@ Vis creuses ×3, couvercle avant, joint 1, goupilles ×2, engrenage menant,
 engrenage mené, chambre, bagues d'arbre ×6, corps, joint 2, aimant intérieur,
 cloche, platine de fixation, vis fraisées M3 ×6. La tête se sépare du moteur
 par les 4 vis arrière, resserrées à 1 ± 0,2 Nm.
+
+### Exemplaire du 5 novembre : une autre construction
+
+Démonté le 13 novembre 2026 après l'essai au banc. Une des trois vis de la
+tête était nettement plus serrée que les deux autres. La tête porte les
+raccords sur ses faces latérales ; sur sa face supérieure, deux trous : la
+sortie, libre, et l'emplacement de la paire d'engrenages, autour du tube de
+centrage blanc. Le chapeau, qui porte l'aimant intérieur et entre dans le
+moteur, ferme le tout.
+
+| Point | Fabricant (vue éclatée, photos) | Exemplaire reçu |
+| --- | --- | --- |
+| Engrenages | PEEK, hélicoïdaux | noirs, **droits**, ≈ 12 dents |
+| Chambre | pièce usinée en 316L, serrée entre couvercle et corps | **pièce en C en plastique**, tenue par un ressort en fil et une vis |
+| Arbres | 316L, 6 bagues, 2 goupilles | axes plantés dans la tête, ni bagues ni goupilles |
+| Marquage | gravé sur la tête | étiquette « MPB003BAA » |
+
+L'étanchéité entre refoulement et aspiration ne tient qu'au jeu entre les
+dents et la pièce en C, à son appui sur la tête et à la face du chapeau : rien
+d'usiné dans la masse. Les dimensions extérieures sont celles de la MPB003 ;
+l'annonce du vendeur reprend la vue éclatée du fabricant. C'est un clone.
 
 ![Cotes](datasheets/mpb003-cotes.png)
 
@@ -992,3 +1069,5 @@ d'entraxe, que ses boutonnières rejoignent.
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |
 | Finesse du filtre actuel | référence du filtre |
+| MPB003 Chenhui : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de l'exemplaire du 5 novembre avant de brancher combined |
+| MPB003 Chenhui : fuite interne | paliers sortie bouchée à 30, 45 et 55 %, même montage que le [13 novembre](#essai-au-banc-sortie-bouchée-13-novembre-2026) |

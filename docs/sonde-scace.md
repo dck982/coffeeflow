@@ -13,7 +13,7 @@ de la chauffe et permettra de recaler l'offset de −10 °C (voir
 | Puck | `print/parts/sim_puck.py`, PETG, Ø 57 × 13,5 mm. La perle affleure au sommet, en sortie du canal incliné à 45°, scellée au silicone Loctite SI 5366. Les fils sortent sous le puck, entourés d'un joint torique. |
 | Panier | Panier de simulation Decent Espresso, aveugle, trou central de 0,3 mm (un second de 0,2 mm existe). La restriction fait monter la pression. Deux trous de 0,6 mm laissent passer les fils de la sonde ; rendus étanches au Loctite par-dessous le 9 octobre 2026, après la fuite de la [première purge](#première-purge-9-octobre-2026). Une fuite résiduelle subsiste, acceptée (voir la [purge de 15 s](#purge-de-15-s-10-octobre-2026) et les [limites du montage](#limites-du-montage)). |
 | Boîtier | `print/parts/scace_box.py` : LDO 5 V → 3,3 V, ADS1115, résistance 1 kΩ, Wago 5 et 3 pôles. Les fils de la sonde y sont prolongés en 0,25 mm². |
-| Lecteur | M5Stack Core2 sur batterie, port A (Grove) : jaune = SCL = GPIO32, blanc = SDA = GPIO33. Pull-ups de 10 kΩ sur le breakout ADS1115. |
+| Lecteur | M5Stack Core2 sur batterie, port A (Grove) : SDA = GPIO32, SCL = GPIO33 (table de M5Unified). Pull-ups de 10 kΩ sur le breakout ADS1115. |
 
 ## Câblage
 

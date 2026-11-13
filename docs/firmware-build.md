@@ -172,6 +172,16 @@ boucle sans que le rollback reprenne le slot précédent.
 cible `esp32`, partition unique, sans OTA. `idf.py flash` complet est le
 chemin normal. Conception et calibration : [sonde-scace.md](sonde-scace.md).
 
+### Sonde de pression XDB401
+
+`firmware/xdb401` tourne sur le même Core2 que la sonde SCACE, à la place
+de son firmware : XDB401 I2C sur le port A (GPIO32 = SDA vert, GPIO33 = SCL
+blanc, 3,3 V par le LDO du boîtier SCACE), lu par le pilote `i2c_master`
+d'ESP-IDF à 10 Hz. Pression à l'écran, CSV sur la console USB, BLE sur un
+service distinct de SCACE, enregistré depuis le Mac par
+`uv run firmware/analysis/xdb401_ble_log.py`. Même construction que
+`firmware/scace` (`idf.py flash`).
+
 ### Outils hôte
 
 `coffeetool` (Rust, `firmware/rust/coffeetool`) remplace les outils Python,

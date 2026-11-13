@@ -2,8 +2,8 @@
 
 Pompe qui remplace la pompe vibratoire OLAB Silent Green 35 W.
 Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **installée le
-12 novembre 2026** avec la carte combined, raccords au Loxeal. La première
-purge attend le séchage du Loxeal. Les valeurs viennent de la fiche du vendeur, de la notice
+12 novembre 2026** avec la carte combined, raccords au Loxeal. Première
+purge le 13 novembre 2026. Les valeurs viennent de la fiche du vendeur, de la notice
 du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
 Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
@@ -210,6 +210,12 @@ sans avoir à le mesurer avant de commander la carte.
   3 600 tr/min, 167 Hz à 5 000 tr/min.
 - **Vitesse mesurée par la période** entre deux fronts : à basse vitesse, un
   comptage sur une fenêtre courte n'a que quelques impulsions.
+- **Fronts parasites au front opposé** (purge du 13 novembre 2026) : à
+  4 605 tr/min, quelques fronts descendants de plus, 3,26 à 3,32 ms après un
+  vrai front, soit au quart de tour, sur la remontée du signal. Le compte
+  gonflait d'environ 3 %. Le firmware 0.5.1 rejette un front arrivé moins de
+  35 % d'un tour après le précédent ; le tour de référence est le plus court
+  de la mesure et de la vitesse visée.
 - **Montage sur combined v2 : second EL817C.** Sa LED va du jaune au bleu à
   travers 1,8 kΩ, soit ≈ 2 mA quand le bleu est bas. Ça marche en
   push-pull comme en collecteur ouvert : à l'état haut, la LED n'a plus de
@@ -786,9 +792,15 @@ démontage), il suffit.
 La notice demande de ne manœuvrer une électrovanne située après la pompe
 qu'une fois la pompe arrêtée, pour éviter les coups de bélier : une pompe
 volumétrique qui refoule contre une vanne qui se ferme monte en pression
-jusqu'à l'ouverture de l'OPV. **Règle : en fin d'infusion, la vanne se ferme
-quand le tachymètre indique l'arrêt de la pompe**, au plus tard 500 ms après
-la consigne à 0.
+jusqu'à l'ouverture de l'OPV. **Règle : après un SET à 0, la vanne se ferme
+quand le tachymètre indique l'arrêt de la pompe** (200 ms sans front), au plus
+tard **1 s** après la consigne à 0. Les arrêts de sécurité (STOP, bail
+expiré, verrou, défaut de pompe) ferment la vanne tout de suite.
+
+Mesuré le 13 novembre 2026 en purge à 100 %, sans charge : la pompe met
+≈ 0,6 s à s'arrêter une fois la consigne à 0. En 0.5.0, la vanne se fermait avec
+la consigne : la pompe qui ralentissait a laissé 0,24 bar dans la chaudière
+fermée. 500 ms ne suffisaient donc pas ; la règle passe à 1 s en 0.5.1.
 
 ### Filtration
 
@@ -877,7 +889,8 @@ glissement = volume tachymètre (impulsions / 2 × 0,1 ml) − volume Digmesa
 ```
 
 Modèle de départ : `glissement(P) = k × P`, à remplacer par une table si les
-mesures s'en écartent. Le glissement dépend aussi de la viscosité, donc de la
+mesures s'en écartent. **Les premières purges le contredisent** : le
+glissement n'est pas nul à 0 bar (voir ci-dessous). Le glissement dépend aussi de la viscosité, donc de la
 température de l'eau du bac, à peu près constante.
 
 Protocole :
@@ -891,6 +904,46 @@ Protocole :
    des points avec débit réel, à comparer au modèle.
 3. **En service** : chaque infusion OPV fermée recalcule `k` à partir du
    tachymètre et du Digmesa, pour suivre l'usure.
+
+### Premières purges dans la machine
+
+13 novembre 2026, firmware 0.5.1, eau à l'ambiante aspirée dans un pichet par
+un tube en siphon, sans porte-filtre, pression lue 0 à 0,16 bar. Pas de bulle
+visible dans les tubes d'aspiration. Le pichet de retour de l'OPV est resté
+sec. Débits sur la marche stable, calculés par
+`firmware/analysis/pump_capture.py` :
+
+| Purge | Vitesse | Pompe (tours × 0,1 ml) | Digmesa (2 564 imp/L) | Tasse | Tasse / pompe |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 40 %, `261113-093547` | 1 720 tr/min | 2,87 ml/s | 1,72 ml/s | 1,82 g/s | 63 % |
+| 40 %, `261113-092042` | 1 717 tr/min | 2,86 ml/s | 1,76 ml/s | 1,85 g/s | 65 % |
+| 100 %, `261113-092123` | 4 604 tr/min | 7,67 ml/s | 5,93 ml/s | 6,14 g/s | 80 % |
+
+Bilan sur 10 s à 40 % (`261113-093547`), pichet d'aspiration pesé : **17,9 g
+aspirés**, 17,7 g en tasse, Digmesa 17,6 ml, tachymètre 28,2 ml.
+
+- **Le glissement vaut ≈ 1,0 ml/s à 1 720 tr/min et ≈ 1,5 ml/s à
+  4 600 tr/min, à 0 bar.** L'eau aspirée arrive en tasse : il n'y a pas de
+  perte en aval, l'écart est une recirculation dans la pompe. La courbe du
+  fabricant ne prévoit pas de glissement à 0 bar. Le relevé à réception
+  (5 novembre, sortie libre vers l'évier) donnait au contraire ≈ 100 % ; la
+  cause de la différence n'est pas connue.
+- **Le Digmesa mesure le débit net à ≈ 2 % près** avec 2 564 imp/L, à
+  40 % comme à 100 %. Le tachymètre seul surestime le débit de 25 à 60 %.
+- **Panier de 0,2 mm, air de la chaudière purgé par la buse vapeur**
+  (`261113-100955`, 30 %, 27 s) : la pompe tourne à 1 225 tr/min
+  (2,04 ml/s refoulés, 55 ml au total) et la pression se stabilise en moins
+  d'une seconde vers **0,85 bar**. Le pichet d'aspiration perd 1,7 g en 27 s,
+  ≈ 0,06 ml/s : à 0,85 bar, la pompe recircule presque tout son refoulé. La
+  courbe du fabricant donne encore 0,5 ml/s à 12 bar à 1 000 tr/min. Le
+  Digmesa compte 20 impulsions (7,8 ml) : ce débit est sous sa plage, il ne
+  vaut rien ici. Avant la purge d'air, les purges au panier de 0,2 mm
+  (`261113-095703`, `261113-095839`) montaient lentement en pression parce
+  que l'eau comprimait d'abord ≈ 50 ml d'air.
+- La purge `261113-093231` (40 %, 1,59 g/s) est écartée : la douche coulait
+  plus large que la tasse, les éclaboussures n'étaient pas pesées. Un
+  porte-filtre sans fond retient de l'eau : une tasse haute, sans
+  porte-filtre, est le bon montage.
 
 ## Structure et cotes
 

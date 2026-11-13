@@ -154,9 +154,10 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
 
 ## En service : un K par régime
 
-Le firmware compte **3450 imp/L** (`screen-core/src/calibration.rs`), mesuré le
+Avec la pompe vibrante, le firmware comptait **3450 imp/L**, mesuré le
 17 septembre avec le porte-filtre de simulation à ~8,5 bar, contre 2382 imp/L sur la
-fiche. Les captures d'infusion comparent ce compte à la balance une fois l'eau en
+fiche. Depuis la pompe à engrenage (0.5.1), il compte 2564 imp/L : voir [Avec la
+pompe à engrenage](#avec-la-pompe-à-engrenage). Les captures d'infusion comparent ce compte à la balance une fois l'eau en
 tasse : grammes en tasse par ml compté, de 3 s après la première goutte jusqu'à
 l'arrêt de la pompe, carte sensors (depuis le 23 octobre).
 
@@ -191,7 +192,23 @@ Ce qui est mesuré :
 - Pendant la précharge, SSR en commutation et pompe arrêtée, aucune impulsion dans
   aucune capture.
 
-Causes possibles, aucune testée :
+### Avec la pompe à engrenage
+
+Première purge du 13 novembre 2026 (`captures/261113-084742.json`), pompe à 100 %,
+0,15 bar, eau du pichet à l'ambiante : **150 impulsions pour 58,5 g**, soit
+**2564 imp/L** (0,39 ml par impulsion), à ≈ 6 g/s. Compté à 3450 imp/L, le même
+écoulement donne 1,35 g/ml : le régime des turbo shots ci-dessus. Le firmware 0.5.1
+compte 2564 imp/L (`screen-core/src/calibration.rs`).
+
+- **Un seul point, au haut de la plage** (≈ 6 ml/s pour 6,7 ml/s au plus), avec
+  quelques bulles d'air vues dans l'aspiration du pichet. Il reste à le vérifier au
+  débit d'infusion (1,5–2 ml/s).
+- La pompe à engrenage ne pulse pas : si la cause 1 ci-dessous expliquait le
+  sur-comptage au plateau d'espresso, le K ne devrait plus dépendre du régime.
+- La loi de chauffe utilise ce débit : à nombre d'impulsions égal, il est
+  1,35 fois plus élevé qu'en 0.5.0.
+
+Causes possibles du changement de K avec la pompe vibrante, aucune testée :
 
 1. **Pulsation de la pompe vibrante.** Le capteur est sur l'aspiration. Si la colonne
    d'eau oscille dans la turbine à chaque coup de piston, le capteur à effet Hall

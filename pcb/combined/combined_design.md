@@ -358,7 +358,7 @@ XIAO pins used by the valve and the pump:
 | Signal | GPIO | Seeed name | U7 / J11–J12 pin | Firmware |
 |---|---:|---|---|---|
 | PUMP_SPEED | 1 | D0 | U7 / 1, J11 / 1 | LEDC PWM, 1 kHz, 14 bits; 0 at boot |
-| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | GPIO interrupt on the inverted signal, 3 ms software filter |
+| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | GPIO interrupt on the inverted signal, software filter: 3 ms, and 35 % of a turn |
 | SSR | 9 | D10 | U7 / 11, J12 / 4 (former VALVE_CMD) | active HIGH |
 
 The other pins keep their sensors assignments; only D6/GPIO43 stays free.
@@ -535,6 +535,22 @@ When laying out the PCB:
   the CAN transceiver is about 22 mm away and the ADS1115 about 45 mm. The
   input loop (C5 at 2.3 mm from VIN and GND) and the thermal vias already
   follow TI.
+- **Next board revision: give PUMP_TACHO a clean rising edge.** In the
+  first purge in the machine (2026-11-13, pump at 4 605 rpm), GPIO3 saw
+  about 4.6 extra falling edges per second, about 3 % of the count. Each
+  extra edge arrives 0 to 60 µs after the rising edge: when U9's LED goes
+  off, its transistor turns off slowly and R39 (4.7 kΩ) pulls the input up
+  over tens of µs. Noise during that ramp crosses the threshold again. The
+  noise source is not measured: the buck (400 kHz, PFM bursts at light
+  load, long SW track, see the point above) or the pump's commutation
+  through the cable. The firmware rejects these edges since 0.5.1 (an edge
+  under 35 % of a turn after the previous one is dropped); the board should
+  not need that filter. Options, to choose at design time:
+  - a Schmitt-trigger buffer (74LVC1G17 type, 3V3) between U9 and GPIO3;
+  - R39 down to 1 kΩ (3.3 mA, within U9's output at 2 mA LED current
+    with a CTR of 200 % or more), for a ramp about five times shorter;
+  - option B of the setpoint point above: a digital isolator has
+    push-pull outputs with fast edges and removes U9 altogether.
 - Pump interface value to check: the start threshold and the low end of
   the setpoint-to-speed curve, below 1.2 V (measured: about 1 000 rpm per
   volt from 1.2 to 5 V).

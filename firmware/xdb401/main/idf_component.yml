@@ -1,0 +1,6 @@
+# M5Unified gère la puce d'alimentation du Core2 (AXP192 ou AXP2101), l'écran
+# via M5GFX, le tactile et les boutons virtuels, sans LVGL.
+dependencies:
+  idf:
+    version: ">=5.3"
+  m5stack/m5unified: "*"

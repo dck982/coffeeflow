@@ -124,7 +124,11 @@ impl TachCounter {
     /// vrai front rejeté pendant une accélération) ne peut pas le bloquer à
     /// un front sur deux.
     pub fn set_target_rpm(&mut self, rpm: u16) {
-        self.target_turn_us = if rpm == 0 { 0 } else { 60_000_000 / u32::from(rpm) };
+        self.target_turn_us = if rpm == 0 {
+            0
+        } else {
+            60_000_000 / u32::from(rpm)
+        };
     }
 
     /// Durée de tour de référence du filtre : la plus courte de la

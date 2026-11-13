@@ -39,6 +39,11 @@ pub const PUMP_FAULT_NO_EDGE_US: i64 = 300 * 1000;
 /// La pompe se réarme après 10 ms à 0 V : un redémarrage attend au moins
 /// ce délai après la coupure sur défaut.
 pub const PUMP_REARM_US: i64 = 50 * 1000;
+/// Un SET à 0 laisse la vanne ouverte jusqu'à l'arrêt de la pompe, lu sur
+/// le tachymètre, et au plus ce délai : une pompe volumétrique qui ralentit
+/// contre une vanne fermée monte en pression. Sans charge, elle met
+/// ≈ 0,7 s à s'arrêter, arrêt détecté compris.
+pub const VALVE_CLOSE_MAX_DELAY_US: i64 = 1000 * 1000;
 /// Marche à sec : vitesse mesurée au-dessus de ce seuil...
 pub const DRY_MIN_RPM: u16 = 1000;
 /// ... sans front Digmesa et avec une pression sous 1 bar, tout cela tenu
@@ -107,6 +112,9 @@ pub trait Hw: FlashSink {
     /// Rapport cyclique de la consigne de la pompe, en unités du LEDC 14
     /// bits : 0 = toujours bas (0 V), [`PUMP_DUTY_FULL`] = toujours haut.
     fn set_pump_duty(&mut self, duty: u16);
+    /// Vitesse visée par la consigne posée, 0 à l'arrêt : référence du
+    /// filtre des fronts parasites du tachymètre.
+    fn set_tach_target_rpm(&mut self, rpm: u16);
     /// Met la trame en file d'émission. Une file pleine la perd.
     fn send(&mut self, frame: Frame);
     fn flow(&self) -> FlowCounter;
@@ -156,6 +164,9 @@ pub struct Machine<H: Hw> {
     lockout_active: bool,
 
     valve_open: bool,
+    /// Fin au plus tard de la vanne tenue ouverte après un SET à 0, 0 =
+    /// aucune.
+    valve_hold_deadline_us: i64,
     maintenance_valve: bool,
     heater_on: bool,
     heating_deadline_us: i64,
@@ -233,6 +244,7 @@ impl<H: Hw> Machine<H> {
             validate: cfg.validate,
             lockout_active: cfg.lockout_active,
             valve_open: false,
+            valve_hold_deadline_us: 0,
             maintenance_valve: false,
             heater_on: false,
             heating_deadline_us: 0,
@@ -491,9 +503,11 @@ impl<H: Hw> Machine<H> {
     /// État réel de la vanne : celle que l'écran commande, sauf pendant un
     /// cycle dont la pompe est en défaut. La pompe ne repartira pas avant le
     /// prochain cycle, donc la vanne se ferme avec elle. La vidange (pompe à
-    /// 0) n'est pas concernée.
+    /// 0) n'est pas concernée. Après un SET à 0, elle reste ouverte tant que
+    /// la pompe tourne encore.
     fn valve_output(&self) -> bool {
-        self.valve_open && !(self.pump_latched() && self.commanded_pct() > 0)
+        (self.valve_open && !(self.pump_latched() && self.commanded_pct() > 0))
+            || self.valve_hold_deadline_us != 0
     }
 
     fn force_heating_off(&mut self) {
@@ -522,6 +536,7 @@ impl<H: Hw> Machine<H> {
     fn force_actuators_off(&mut self) {
         self.end_maintenance_valve(MaintenanceValveClose::Safety);
         self.valve_open = false;
+        self.valve_hold_deadline_us = 0;
         self.pump_pct = 0;
         self.lease_deadline_us = 0;
         self.apply_valve();
@@ -543,6 +558,12 @@ impl<H: Hw> Machine<H> {
     fn set_pump_duty(&mut self, duty: u16) {
         self.pump_duty = duty;
         self.hw.set_pump_duty(duty);
+        let rpm = if duty == 0 {
+            0
+        } else {
+            pump_target_rpm(self.commanded_pct())
+        };
+        self.hw.set_tach_target_rpm(rpm);
     }
 
     /// Seul chemin qui pose le rapport cyclique, donc celui de toutes les
@@ -596,6 +617,7 @@ impl<H: Hw> Machine<H> {
             _ => self.pump_fault = true,
         }
         self.pump_fault_cut_us = self.hw.now_us();
+        self.valve_hold_deadline_us = 0;
         self.apply_pump();
         self.apply_valve();
         self.send_log(fault, LogSeverity::Error, arg16, arg32);
@@ -803,7 +825,14 @@ impl<H: Hw> Machine<H> {
         self.end_maintenance_valve(MaintenanceValveClose::BrewSet);
         // Le niveau est l'intention reçue ; la vanne s'ouvre avec la pompe.
         // La pompe d'abord : un cycle qui part de 0 y lève les défauts, et la
-        // vanne d'un cycle en défaut reste fermée.
+        // vanne d'un cycle en défaut reste fermée. Une pompe qu'on arrête
+        // garde la vanne ouverte jusqu'à son arrêt (`tick_valve_hold`).
+        let stopping = payload.pump_pct == 0 && self.pump_duty > 0 && self.valve_output();
+        self.valve_hold_deadline_us = if stopping {
+            self.hw.now_us() + VALVE_CLOSE_MAX_DELAY_US
+        } else {
+            0
+        };
         self.valve_open = payload.pump_pct > 0;
         self.pump_pct = payload.pump_pct;
         self.apply_pump();
@@ -1071,7 +1100,23 @@ impl<H: Hw> Machine<H> {
         self.tick_heating();
         self.tick_enclosure();
         self.tick_pump_protection();
+        self.tick_valve_hold();
         self.tick_pump_status();
+    }
+
+    /// Ferme la vanne tenue après un SET à 0 dès que le tachymètre voit la
+    /// pompe arrêtée, au plus tard après `VALVE_CLOSE_MAX_DELAY_US`.
+    fn tick_valve_hold(&mut self) {
+        if self.valve_hold_deadline_us == 0 {
+            return;
+        }
+        let now = self.hw.now_us();
+        if self.hw.pump_tach().rpm(now) != 0 && now < self.valve_hold_deadline_us {
+            return;
+        }
+        self.valve_hold_deadline_us = 0;
+        self.apply_valve();
+        self.send_status_actuators();
     }
 
     /// Bail : coupe les actionneurs si le SET le plus récent a expiré.

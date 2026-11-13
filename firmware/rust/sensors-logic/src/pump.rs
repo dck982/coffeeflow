@@ -86,6 +86,11 @@ pub const MIN_TACH_EDGE_INTERVAL_US: i64 = 3_000;
 /// Sans front depuis ce délai, la pompe est arrêtée (sous 150 tr/min), et
 /// une période plus longue n'en est pas une.
 pub const TACH_STOPPED_AFTER_US: i64 = 200_000;
+/// Un front plus proche du précédent que cette fraction de tour, en
+/// millièmes, est un parasite. Les fronts parasites tombent au front opposé
+/// du signal, au quart de tour ; les vrais sont à un demi-tour, ou à 35 %
+/// d'un tour pour des demi-tours inégaux de 35 / 65.
+pub const TACH_MIN_TURN_PERMILLE: u64 = 350;
 
 /// Tachymètre de la pompe, alimenté par l'interruption du front descendant :
 /// 2 impulsions par tour.
@@ -99,6 +104,8 @@ pub struct TachCounter {
     pub period_us: u32,
     /// Période d'avant, 0 si inconnue.
     pub prev_period_us: u32,
+    /// Durée d'un tour à la vitesse visée par la consigne, 0 sans consigne.
+    pub target_turn_us: u32,
 }
 
 impl TachCounter {
@@ -108,6 +115,31 @@ impl TachCounter {
             last_edge_us: 0,
             period_us: 0,
             prev_period_us: 0,
+            target_turn_us: 0,
+        }
+    }
+
+    /// Vitesse visée par la consigne, 0 à l'arrêt. Elle borne la durée de
+    /// tour de référence du filtre : une période mesurée trop longue (un
+    /// vrai front rejeté pendant une accélération) ne peut pas le bloquer à
+    /// un front sur deux.
+    pub fn set_target_rpm(&mut self, rpm: u16) {
+        self.target_turn_us = if rpm == 0 { 0 } else { 60_000_000 / u32::from(rpm) };
+    }
+
+    /// Durée de tour de référence du filtre : la plus courte de la
+    /// mesure et de la consigne, 0 si aucune n'est connue.
+    fn reference_turn_us(&self) -> u64 {
+        let measured = match (self.period_us, self.prev_period_us) {
+            (0, _) => 0,
+            (p, 0) => 2 * u64::from(p),
+            (p, q) => u64::from(p) + u64::from(q),
+        };
+        let target = u64::from(self.target_turn_us);
+        match (measured, target) {
+            (0, t) => t,
+            (m, 0) => m,
+            (m, t) => m.min(t),
         }
     }
 
@@ -116,6 +148,11 @@ impl TachCounter {
         if self.last_edge_us != 0 {
             let period = edge_us - self.last_edge_us;
             if period < MIN_TACH_EDGE_INTERVAL_US {
+                return false;
+            }
+            if period <= TACH_STOPPED_AFTER_US
+                && (period as u64) * 1000 < self.reference_turn_us() * TACH_MIN_TURN_PERMILLE
+            {
                 return false;
             }
             if period > TACH_STOPPED_AFTER_US {
@@ -248,14 +285,14 @@ mod tests {
 
     #[test]
     fn unequal_halves_average_over_one_turn() {
-        // Demi-tours de 10 et 20 ms : un tour dure 30 ms, 2 000 tr/min.
+        // Demi-tours de 12 et 18 ms : un tour dure 30 ms, 2 000 tr/min.
         let mut tach = TachCounter::new();
         tach.on_edge(1_000_000);
-        tach.on_edge(1_010_000);
+        tach.on_edge(1_012_000);
         tach.on_edge(1_030_000);
         assert_eq!(tach.rpm(1_031_000), 2_000);
-        tach.on_edge(1_040_000);
-        assert_eq!(tach.rpm(1_041_000), 2_000);
+        tach.on_edge(1_042_000);
+        assert_eq!(tach.rpm(1_043_000), 2_000);
     }
 
     #[test]
@@ -296,6 +333,78 @@ mod tests {
         assert_eq!(tach.rpm(last + 1_001_000), 0);
         tach.on_edge(last + 1_010_000);
         assert_eq!(tach.rpm(last + 1_011_000), 3_000);
+    }
+
+    #[test]
+    fn edge_at_a_quarter_turn_is_rejected() {
+        // 4 605 tr/min, demi-tour de 6 515 µs : un parasite au front opposé,
+        // 3 260 µs après un vrai front, comme dans la purge du 13/11.
+        let mut tach = TachCounter::new();
+        tach.set_target_rpm(4_500);
+        let last = feed(&mut tach, 1_000_000, 6_515, 10);
+        assert!(!tach.on_edge(last + 3_260));
+        assert!(tach.on_edge(last + 6_515));
+        assert_eq!(tach.pulse_count, 11);
+        let rpm = tach.rpm(last + 7_000);
+        assert!((4_600..=4_610).contains(&rpm), "{rpm}");
+    }
+
+    #[test]
+    fn quarter_turn_glitch_is_rejected_without_a_target() {
+        // Ralentissement après la consigne à 0 : seule la mesure sert.
+        let mut tach = TachCounter::new();
+        let last = feed(&mut tach, 1_000_000, 10_000, 5);
+        assert!(!tach.on_edge(last + 5_000));
+        assert!(tach.on_edge(last + 11_000));
+    }
+
+    #[test]
+    fn unequal_halves_of_35_65_are_kept() {
+        let mut tach = TachCounter::new();
+        tach.set_target_rpm(2_000);
+        let mut t = 1_000_000;
+        for _ in 0..10 {
+            assert!(tach.on_edge(t));
+            t += 10_500;
+            assert!(tach.on_edge(t));
+            t += 19_500;
+        }
+        assert_eq!(tach.pulse_count, 20);
+    }
+
+    #[test]
+    fn a_fast_start_is_followed_up_to_the_target() {
+        // Démarrage où chaque demi-tour raccourcit de moitié : la consigne
+        // borne la référence, aucun vrai front n'est perdu.
+        let mut tach = TachCounter::new();
+        tach.set_target_rpm(4_500);
+        let mut t = 1_000_000;
+        let mut period = 80_000;
+        assert!(tach.on_edge(t));
+        while period > 6_667 {
+            t += period;
+            assert!(tach.on_edge(t), "période {period}");
+            period /= 2;
+        }
+        let last = feed(&mut tach, t + 6_667, 6_667, 5);
+        assert!((4_499..=4_501).contains(&tach.rpm(last + 100)));
+    }
+
+    #[test]
+    fn a_rejected_real_edge_does_not_lock_at_half_rate() {
+        // Une période mesurée deux fois trop longue (front perdu) : la
+        // consigne ramène la référence, le front suivant passe.
+        let mut tach = TachCounter::new();
+        tach.set_target_rpm(3_000);
+        tach.on_edge(1_000_000);
+        tach.on_edge(1_020_000);
+        tach.on_edge(1_040_000);
+        // 20 000 µs mesurés, 10 000 µs visés.
+        let mut t = 1_040_000;
+        for _ in 0..5 {
+            t += 10_000;
+            assert!(tach.on_edge(t));
+        }
     }
 
     #[test]

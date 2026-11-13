@@ -3,10 +3,11 @@
 //! vivent en NVS (module `config`).
 
 pub const SCHEMA_VERSION: u32 = 1;
-/// Mesuré avec le porte-filtre de simulation à ~8,5 bar le 2026-09-17. Le K
-/// catalogue (2382 imp/L) sur-estimait le débit d'environ 45 % sur le
-/// montage réel ; conserver cette valeur machine plutôt que le nominal.
-pub const FLOW_PULSES_PER_LITER: f32 = 3450.0;
+/// Mesuré à la balance le 2026-11-13 avec la pompe à engrenage : purge à
+/// 0 bar, 150 impulsions pour 58,5 g, à ≈ 6 ml/s, près du haut de la plage
+/// du Digmesa. Le 3 450 imp/L pris avec la pompe vibratoire (débit pulsé, à
+/// ~8,5 bar) ne vaut plus. Le K catalogue est de 2 382 imp/L.
+pub const FLOW_PULSES_PER_LITER: f32 = 2564.0;
 /// Tachymètre de la pompe à engrenage MPB003 : impulsions par tour.
 pub const PUMP_TACH_PULSES_PER_TURN: u32 = 2;
 /// Cylindrée de la pompe, en ml par tour. Le « refoulé » est tours ×

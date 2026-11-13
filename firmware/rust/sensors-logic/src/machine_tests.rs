@@ -28,6 +28,8 @@ struct Mock {
     /// Vitesse que le faux tachymètre rend : un front à l'instant courant,
     /// ou aucun front si 0.
     tach_rpm: u16,
+    /// Dernière vitesse visée transmise au filtre du tachymètre.
+    tach_target_rpm: u16,
     pressure_reads: u32,
     enclosure_raw: Option<i16>,
     pressure_raw: Option<i16>,
@@ -51,6 +53,7 @@ impl Mock {
             duty: 0,
             duty_writes: vec![],
             tach_rpm: 0,
+            tach_target_rpm: 0,
             pressure_reads: 0,
             enclosure_raw: Some(0x1F0),
             pressure_raw: None,
@@ -100,6 +103,9 @@ impl Hw for Mock {
         self.duty = duty;
         self.duty_writes.push(duty);
     }
+    fn set_tach_target_rpm(&mut self, rpm: u16) {
+        self.tach_target_rpm = rpm;
+    }
     fn send(&mut self, frame: Frame) {
         self.sent.push(frame);
     }
@@ -116,6 +122,7 @@ impl Hw for Mock {
             last_edge_us: self.now - 1000,
             period_us,
             prev_period_us: period_us,
+            target_turn_us: 0,
         }
     }
     fn twai_counters(&mut self) -> Option<TwaiCounters> {
@@ -367,9 +374,67 @@ fn set_above_100_is_ignored_and_set_zero_closes_the_valve() {
     assert!(m.hw.sent.is_empty());
     set(&mut m, 40, 500);
     set(&mut m, 0, 500);
-    assert!(!m.hw.valve);
     assert_eq!(m.hw.duty, 0);
     assert_eq!(m.hw.duty_writes.last(), Some(&0));
+    // Pompe déjà muette : la vanne se ferme au tick suivant.
+    assert!(m.hw.valve);
+    advance(&mut m, 100 * MS, true);
+    assert!(!m.hw.valve);
+    assert!(!last_actuators(&m).valve_open);
+}
+
+#[test]
+fn set_zero_keeps_the_valve_open_until_the_tachometer_stops() {
+    let mut m = present();
+    m.hw.tach_rpm = 4500;
+    set(&mut m, 100, 500);
+    assert_eq!(m.hw.tach_target_rpm, 4500);
+    set(&mut m, 0, 500);
+    assert_eq!(m.hw.duty, 0);
+    assert_eq!(m.hw.tach_target_rpm, 0);
+    assert!(m.hw.valve);
+    assert!(last_actuators(&m).valve_open);
+    advance(&mut m, 500 * MS, true);
+    assert!(m.hw.valve);
+    m.hw.tach_rpm = 0;
+    advance(&mut m, 100 * MS, true);
+    assert!(!m.hw.valve);
+    assert!(!last_actuators(&m).valve_open);
+}
+
+#[test]
+fn the_valve_closes_after_one_second_if_the_pump_keeps_turning() {
+    let mut m = present();
+    m.hw.tach_rpm = 3000;
+    set(&mut m, 60, 500);
+    set(&mut m, 0, 500);
+    advance(&mut m, 900 * MS, true);
+    assert!(m.hw.valve);
+    advance(&mut m, 100 * MS, true);
+    assert!(!m.hw.valve);
+}
+
+#[test]
+fn stop_closes_the_valve_at_once_even_while_the_pump_turns() {
+    let mut m = present();
+    m.hw.tach_rpm = 3000;
+    set(&mut m, 60, 500);
+    rx(&mut m, Message::Stop);
+    assert!(!m.hw.valve);
+    assert_eq!(m.hw.duty, 0);
+}
+
+#[test]
+fn a_new_set_during_the_hold_keeps_the_valve_open() {
+    let mut m = present();
+    m.hw.tach_rpm = 3000;
+    set(&mut m, 60, 500);
+    set(&mut m, 0, 500);
+    set(&mut m, 30, 500);
+    m.hw.tach_rpm = 1350;
+    advance(&mut m, 300 * MS, true);
+    assert!(m.hw.valve);
+    assert!(m.hw.duty > 0);
 }
 
 #[test]

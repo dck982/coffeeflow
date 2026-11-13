@@ -88,3 +88,12 @@ pub fn flow() -> FlowCounter {
 pub fn tach() -> TachCounter {
     critical_section::with(|cs| TACH.borrow(cs).get())
 }
+
+/// Vitesse visée par la consigne, référence du filtre des fronts parasites.
+pub fn set_tach_target_rpm(rpm: u16) {
+    critical_section::with(|cs| {
+        let mut counter = TACH.borrow(cs).get();
+        counter.set_target_rpm(rpm);
+        TACH.borrow(cs).set(counter);
+    });
+}

@@ -85,6 +85,10 @@ impl Hw for Board {
         self.pump.set_duty_hw(u32::from(duty));
     }
 
+    fn set_tach_target_rpm(&mut self, rpm: u16) {
+        edges::set_tach_target_rpm(rpm);
+    }
+
     fn send(&mut self, frame: Frame) {
         if can::TX.try_send(frame).is_err() {
             warn!("file d'émission CAN pleine, trame perdue");

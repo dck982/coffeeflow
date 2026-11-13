@@ -483,14 +483,14 @@ fn flow_from_pulses() {
     assert_eq!(rig.snapshot().flow_ml_s, 0.0);
     send(&mut rig, 5, 600);
     // Dès 3 impulsions, fenêtre courte : 5 impulsions en 500 ms.
-    let early = 5.0 * 1_000_000.0 / (3450.0 * 500.0);
+    let early = 5.0 * 1_000_000.0 / (2564.0 * 500.0);
     assert!((rig.snapshot().flow_ml_s - early).abs() < 1e-3);
     send(&mut rig, 12, 1100);
     // Fenêtre de 10 impulsions : de 2 à 12, en 750 ms.
-    let expected = 10.0 * 1_000_000.0 / (3450.0 * 750.0);
+    let expected = 10.0 * 1_000_000.0 / (2564.0 * 750.0);
     let s = rig.snapshot();
     assert!((s.flow_ml_s - expected).abs() < 1e-3, "{}", s.flow_ml_s);
-    assert!((s.volume_ml - 12.0 * 1000.0 / 3450.0).abs() < 1e-3);
+    assert!((s.volume_ml - 12.0 * 1000.0 / 2564.0).abs() < 1e-3);
     assert_eq!(s.flow_pulse_count, 12);
     assert!(s.flow_valid);
     // Une trame sans changement ne relance pas le calcul ; le débit s'éteint
@@ -524,7 +524,7 @@ fn a_new_flow_ignores_the_pulses_of_the_previous_one() {
     send(&mut rig, 42, edge.wrapping_add(80));
     assert_eq!(rig.snapshot().flow_ml_s, 0.0);
     send(&mut rig, 44, edge.wrapping_add(240));
-    let expected = 3.0 * 1_000_000.0 / (3450.0 * 240.0);
+    let expected = 3.0 * 1_000_000.0 / (2564.0 * 240.0);
     assert!((rig.snapshot().flow_ml_s - expected).abs() < 1e-3);
 }
 

@@ -3,14 +3,19 @@
 Pompe qui remplace la pompe vibratoire OLAB Silent Green 35 W.
 Commandée le 22 octobre 2026, reçue le 5 novembre 2026, **installée le
 12 novembre 2026** avec la carte combined, raccords au Loxeal. Première
-purge le 13 novembre 2026. **Le même jour, l'exemplaire reçu s'est révélé être
-un clone** qui fuit à l'intérieur ([Essai au banc](#essai-au-banc-sortie-bouchée-13-novembre-2026),
-[Exemplaire du 5 novembre](#exemplaire-du-5-novembre--une-autre-construction)) : il est
-sorti de la machine, un litige est ouvert chez le vendeur AliExpress, et une
-MPB003BAAA a été commandée chez le fabricant, Zhuhai Chenhui Technology. En
-attente de livraison. Les valeurs viennent de la fiche du vendeur, de la notice
-du fabricant ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui
-Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
+purge le 13 novembre 2026. **Le même jour, l'exemplaire reçu s'est révélé fuir
+à l'intérieur environ 5 fois plus que la courbe du fabricant**
+([Essai au banc](#essai-au-banc-sortie-bouchée-13-novembre-2026)). C'est
+bien une MPB003 : la notice dessine la même tête à sabot, seule la vue éclatée
+de l'annonce montre une autre construction
+([Construction réelle](#construction-réelle--une-tête-à-sabot)). La pompe est
+sortie de la machine et un litige est ouvert chez le vendeur AliExpress (annonce
+non conforme, fuite hors fiche). La MPB003BAAA commandée chez le fabricant,
+Zhuhai Chenhui Technology, a été annulée : elle aurait livré la même
+construction. Réparation en cours (précharge du sabot), la
+[MPB010](#alternative--mpb010) en alternative. Les valeurs viennent de la
+fiche du vendeur, de la notice du fabricant
+([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
 elle n'est plus dans le dépôt) ;
 les points marqués **à relever** se mesurent à réception.
@@ -31,8 +36,9 @@ Deux usages motivent le changement :
 
 L'étiquette de l'exemplaire reçu porte la référence abrégée **MPB003BAA**,
 avec 24 V, 40 W, 0,3 L/min et 0,1 ml/tour. La lettre du moteur manque, mais
-c'est un moteur brushless : elle vaut A. Le fabricant grave la tête (logo
-晨辉, P/N MPB003, S/N) ; l'exemplaire reçu n'a qu'une étiquette.
+c'est un moteur brushless : elle vaut A. Les photos du fabricant montrent une
+tête gravée (logo 晨辉, P/N MPB003, S/N) ; celle de l'exemplaire reçu porte
+« 2025081201 » et la flèche du sens.
 
 | Lettre | Code | Signification |
 | --- | --- | --- |
@@ -44,17 +50,18 @@ c'est un moteur brushless : elle vaut A. Le fabricant grave la tête (logo
 | A | raccords | **G1/8** |
 | A | moteur | BLDC |
 
-Engrenages hélicoïdaux en PEEK dans une chambre en inox 316L. Le moteur
-entraîne la pompe par un accouplement magnétique à travers une cloche
-(*shielding case*) : aucun joint tournant, seulement des joints toriques
+Le moteur entraîne la pompe par un accouplement magnétique à travers une
+cloche (*shielding case*) : aucun joint tournant, seulement des joints toriques
 statiques. Les matériaux en contact avec le liquide sont annoncés aptes au
-contact alimentaire. C'est la construction du fabricant ; l'exemplaire du
-5 novembre ne la suit pas (voir [Structure et cotes](#structure-et-cotes)).
+contact alimentaire. La tête est une tête à sabot, pas la chambre usinée de la
+vue éclatée (voir [Construction réelle](#construction-réelle--une-tête-à-sabot)).
+Le texte de la notice annonce 0,13 ml/tour ; sa courbe et la pesée du
+5 novembre donnent 0,1 ml/tour.
 
 La boutique AliExpress du fabricant donne, pour la MPB003 : viscosité 0 à
 1 500 cP, −40 à 100 °C, 20 bar de différence de pression, filtre 400 mesh,
 −0,85 bar à l'aspiration, 500 à 4 500 tr/min, moins de 60 dB à 3 000 tr/min.
-Le vendeur du clone annonçait 0 à 3 000 cP, −30 à 120 °C et 60 dB à
+Le vendeur AliExpress annonçait 0 à 3 000 cP, −30 à 120 °C et 60 dB à
 4 000 tr/min.
 
 ## Limites
@@ -108,6 +115,12 @@ Glissement = débit théorique (vitesse × 0,1 ml) − débit lu.
   d'infusion de 1,5–2 ml/s : le compteur Hall seul ne suffit pas, il faut un
   modèle de glissement en fonction de la pression (voir
   [Calibration du glissement](#calibration-du-glissement)).
+- **La fuite croît vite jusqu'à ≈ 3 bar, puis presque plus** : à
+  1 000 tr/min, 0,42 ml/s à 1 bar, 0,92 à 4 bar, 1,13 à 9 bar, 1,45 à 20 bar
+  (la courbe va jusqu'à 20 bar). C'est la signature d'un sabot que la pression
+  plaque contre les engrenages (voir
+  [Construction réelle](#construction-réelle--une-tête-à-sabot)) : une pompe à
+  jeux fixes, comme la MPB010, fuit à peu près en proportion de la pression.
 - **Points de fonctionnement utiles** :
 
   | Besoin | Vitesse estimée | Consigne (≈ 1 000 tr/min par V) |
@@ -943,8 +956,9 @@ aspirés**, 17,7 g en tasse, Digmesa 17,6 ml, tachymètre 28,2 ml.
   4 600 tr/min, à 0 bar.** L'eau aspirée arrive en tasse : il n'y a pas de
   perte en aval, l'écart est une recirculation dans la pompe. La courbe du
   fabricant ne prévoit pas de glissement à 0 bar. Le relevé à réception
-  (5 novembre, sortie libre vers l'évier) donnait au contraire ≈ 100 % ; la
-  cause de la différence n'est pas connue.
+  (5 novembre, sortie libre vers l'évier) donnait au contraire ≈ 100 % : la
+  sortie descendait en siphon, à 0 bar ou moins, et la fuite de cet exemplaire
+  croît surtout dans le premier bar (voir l'essai au banc ci-dessous).
 - **Le Digmesa mesure le débit net à ≈ 2 % près** avec 2 564 imp/L, à
   40 % comme à 100 %. Le tachymètre seul surestime le débit de 25 à 60 %.
 - **Panier de 0,2 mm, air de la chaudière purgé par la buse vapeur**
@@ -982,14 +996,28 @@ pression à laquelle la pompe recircule tout ce qu'elle déplace.
 | 55 %, `261113-154002` | 2 135 tr/min | 3,56 ml/s | **4,98 bar** en 1,5 s, stable 4 s |
 | 60 %, `261113-152539` | 2 264 tr/min | 3,77 ml/s | > 7 bar, encore en montée à l'arrêt manuel |
 
-- **La fuite est 3 à 10 fois celle de la fiche.** La courbe donne encore
-  0,5 ml/s nets à 12 bar et 1 000 tr/min ; cet exemplaire recircule 2 ml/s à
-  1,2 bar. À 9 bar, la fuite vaut au plus ≈ 3,8 ml/s (60 % montait encore à
-  7 bar).
-- **La fuite croît moins vite que la pression** : exposant 0,45 entre 30 et
-  45 %, 0,31 entre 45 et 55 %. Un jeu fin donnerait une fuite proportionnelle
-  à la pression. Pas de bascule : la pente du palier en vitesse grandit
-  régulièrement (2,8, puis 6,1, puis plus de 16 bar par 1 000 tr/min).
+- **La fuite vaut ≈ 5 fois celle de la courbe, avec la même forme.** Fuite de
+  la courbe au même point (débit à 0 bar moins débit livré, interpolé entre
+  les vitesses) :
+
+  | Palier | Mesurée | Courbe | Rapport |
+  | --- | ---: | ---: | ---: |
+  | 1 211 tr/min, 1,19 bar | 2,02 ml/s | ≈ 0,42 ml/s | ≈ 5 |
+  | 1 774 tr/min, 2,77 bar | 2,96 ml/s | ≈ 0,53 ml/s | ≈ 5,5 |
+  | 2 135 tr/min, 4,98 bar | 3,56 ml/s | ≈ 0,68 ml/s | ≈ 5 |
+
+  Une pompe conforme livre encore 0,3 ml/s à 20 bar et 1 000 tr/min ; cet
+  exemplaire ne livre plus rien dès 1,2 bar à 1 211 tr/min.
+- **La fuite croît moins vite que la pression** (exposant 0,45 entre 30 et
+  45 %, 0,31 entre 45 et 55 %), comme sur la courbe. Comme la fuite est
+  presque plate à haute pression, quelques tr/min de plus déplacent beaucoup
+  le palier : la pente en vitesse grandit (2,8, puis 6,1, puis plus de 16 bar
+  par 1 000 tr/min) et 60 % monte « en flèche ». Une bascule du sabot n'est
+  pas nécessaire pour l'expliquer.
+- **Un rapport constant désigne un jeu plutôt que la précharge** : une
+  précharge trop faible creuserait l'écart à basse pression, puis la pression
+  reprendrait la main. La fuite d'un jeu varie à peu près comme son cube :
+  ×5 correspond à un jeu ≈ 1,7 fois trop grand.
 - **À l'arrêt, la pression retombe à 0 en moins d'une seconde**, par les
   engrenages : la pompe n'a pas de clapet.
 - Le palier de 30 % s'est reproduit à deux essais (1,16 bar à l'écran du
@@ -1003,33 +1031,66 @@ pression à laquelle la pompe recircule tout ce qu'elle déplace.
 
 ## Structure et cotes
 
-![Structure](datasheets/mpb003-structure.png)
+![Vue éclatée de l'annonce](datasheets/mpb003-structure.png)
 
-Vis creuses ×3, couvercle avant, joint 1, goupilles ×2, engrenage menant,
-engrenage mené, chambre, bagues d'arbre ×6, corps, joint 2, aimant intérieur,
-cloche, platine de fixation, vis fraisées M3 ×6. La tête se sépare du moteur
-par les 4 vis arrière, resserrées à 1 ± 0,2 Nm.
+Cette vue éclatée, reprise par l'annonce du vendeur et par celle du fabricant,
+**n'est pas celle de la MPB003** : la notice de la MPB010
+([mpb010.pdf](datasheets/mpb010.pdf)) porte la même. La page 1 de la notice
+MPB003 et son plan coté (tête lisse Ø38 × 32,5, sans vis en face avant)
+montrent la tête à sabot décrite ci-dessous. La tête se sépare du moteur par
+les 4 vis arrière, resserrées à 1 ± 0,2 Nm.
 
-### Exemplaire du 5 novembre : une autre construction
+### Construction réelle : une tête à sabot
 
-Démonté le 13 novembre 2026 après l'essai au banc. Une des trois vis de la
-tête était nettement plus serrée que les deux autres. La tête porte les
-raccords sur ses faces latérales ; sur sa face supérieure, deux trous : la
-sortie, libre, et l'emplacement de la paire d'engrenages, autour du tube de
-centrage blanc. Le chapeau, qui porte l'aimant intérieur et entre dans le
-moteur, ferme le tout.
+Démontée le 13 novembre 2026 après l'essai au banc. Une des trois vis du
+chapeau était nettement plus serrée que les deux autres.
 
-| Point | Fabricant (vue éclatée, photos) | Exemplaire reçu |
+| Point | Vue éclatée de l'annonce | Exemplaire reçu |
 | --- | --- | --- |
-| Engrenages | PEEK, hélicoïdaux | noirs, **droits**, ≈ 12 dents |
-| Chambre | pièce usinée en 316L, serrée entre couvercle et corps | **pièce en C en plastique**, tenue par un ressort en fil et une vis |
-| Arbres | 316L, 6 bagues, 2 goupilles | axes plantés dans la tête, ni bagues ni goupilles |
-| Marquage | gravé sur la tête | étiquette « MPB003BAA » |
+| Engrenages | PEEK, hélicoïdaux | noirs, **droits**, 12 dents |
+| Chambre | pièce usinée en 316L, serrée entre couvercle et corps | **sabot en plastique**, plaqué par un ressort en fil |
+| Arbres | 316L, 6 bagues, 2 goupilles | axe et pion blancs plantés dans la tête |
+| Marquage | gravé sur la tête | « 2025081201 » et flèche gravés, étiquette « MPB003BAA » |
 
-L'étanchéité entre refoulement et aspiration ne tient qu'au jeu entre les
-dents et la pièce en C, à son appui sur la tête et à la face du chapeau : rien
-d'usiné dans la masse. Les dimensions extérieures sont celles de la MPB003 ;
-l'annonce du vendeur reprend la vue éclatée du fabricant. C'est un clone.
+C'est le principe des têtes à sabot (*suction shoe*) de Micropump. Sur la face
+de la tête : l'axe blanc de l'engrenage mené par l'aimant (tube hexagonal),
+le pion blanc de l'autre engrenage, le trou d'aspiration à gauche de l'axe, le
+trou de refoulement à droite, le trou de l'ergot du sabot (sud-ouest) et le
+taraudage de la vis du ressort (sud-est). Le sabot couvre les deux engrenages
+et la chambre d'aspiration ; il pivote sur son ergot.
+
+Trajet de l'eau : raccord d'entrée, trou sous le sabot, chambre où les dents
+se désengrènent, creux des dents le long des **arcs du sabot** (3 pointes au
+contact par arc, soit 2 pas), sortie au bout des arcs dans la **cavité sous le
+chapeau**, toute au refoulement, puis trou libre et raccord de sortie. À
+l'engrènement, les dents vont du refoulement vers le sabot. Moteur en sens
+antihoraire vu côté chapeau ; la flèche gravée va du raccord du sabot vers
+celui du trou libre.
+
+Le sabot fait seul l'étanchéité entre la cavité et l'aspiration : le bout des
+dents contre ses arcs, le dessus des engrenages contre son couvercle, sa base
+contre la tête autour du trou d'aspiration. Le fil le plaque dès 0 bar ; la
+pression de la cavité sur son dos et son dessus le serre ensuite davantage,
+d'où la fuite presque plate au-dessus de 3 bar sur la courbe.
+
+Constats au démontage :
+
+- Sens, montage et arcs conformes (voir ci-dessus).
+- Aucune trace d'usure sous le sabot ni sur ses arcs ; des cercles nets sur la
+  face de la tête, sous les engrenages. Ni débris ni rayure sur les dents.
+- Le sabot reste stable quand on appuie sur ses bords.
+- Fil d'origine : boucle sous la rondelle, crochet sur la partie haute du
+  sabot, près du tube hexagonal, fléchi pour y arriver. Libre, il retombe sur
+  la partie basse, où le dessus du sabot porte des rayures en arc.
+- Rotation à la main, eau dans l'entrée : en antihoraire l'eau est aspirée et
+  sort au bout des deux arcs ; en horaire, l'air de la chambre est refoulé
+  dans l'entrée.
+
+Deux causes restent possibles : une précharge du fil trop faible, ou un jeu
+trop grand (hauteur des engrenages sous le couvercle du sabot, bout des
+dents). Le rapport constant de ≈ 5 à la courbe penche pour le jeu.
+
+### Cotes
 
 ![Cotes](datasheets/mpb003-cotes.png)
 
@@ -1060,6 +1121,40 @@ Pas de support à imprimer : l'équerre d'origine de la pompe est vissée dans
 deux des trous de 6 mm de la plaque du fond de la machine, à 40 mm
 d'entraxe, que ses boutonnières rejoignent.
 
+## Alternative : MPB010
+
+Même vendeur, même brochage à 7 fils, raccords G1/8
+([mpb010.pdf](datasheets/mpb010.pdf)) : 0,28 ml/tour, BLDC 24 V 70 W (3 A),
+500 à 4 500 tr/min, 15 bar. Construction à jeux fixes : chambre usinée entre
+couvercle avant (3 vis M3 × 25) et corps, deux goupilles, arbres tenus des
+deux côtés par des bagues. La vidéo de l'annonce montre des dents droites, pas
+les hélicoïdales de la vue éclatée. Un utilisateur l'a montée dans une Gaggia
+Classic Pro.
+
+Valeurs lues sur sa courbe, à 9 bar :
+
+| Vitesse | Déplacé | Livré | Fuite |
+| ---: | ---: | ---: | ---: |
+| 4 500 tr/min | 21 ml/s | 9,8 ml/s | ≈ 11 ml/s |
+| 3 000 tr/min | 14 ml/s | 2,3 ml/s | ≈ 11,5 ml/s |
+| ≈ 2 500 tr/min | 12 ml/s | 0 | ≈ 12 ml/s |
+
+- **Pas de sabot, donc une fuite continue** : à peu près proportionnelle à la
+  pression (≈ 4,7 ml/s à 3 bar), sans seuil. Une table fuite = f(P) et le
+  Digmesa la compensent ; le tachymètre ne donne plus le débit.
+- **Fuite ≈ 3 fois celle de l'exemplaire MPB003 défectueux à 9 bar**, ≈ 15 fois
+  celle d'une MPB003 conforme. Elle dépend de la viscosité, donc de la
+  température de l'eau (≈ 2 %/°C), et augmente avec l'usure.
+- **Petits débits sous pression faciles** : la fuite sert de dérivation,
+  0,5 ml/s à 9 bar vers 2 600 tr/min. À basse pression, 500 tr/min déplacent
+  déjà 2,3 ml/s : pas de purge lente sous ≈ 2 ml/s.
+- **Vitesse plus haute** (≈ 3 000 tr/min pour 2 ml/s à 9 bar) : plus de bruit
+  à prévoir, ≈ 10 W de recirculation dans l'eau.
+- **Courant** : ≈ 1,5 A à 9 bar et 3 000 tr/min, ≈ 3 A au plus ; avec le buck,
+  sous les 4 A de l'alimentation.
+- **Encombrement** : 100 mm de long au lieu de 81, tête Ø44 au lieu de Ø38 ;
+  l'équerre est à vérifier sur les trous à 40 mm de la plaque du fond.
+
 ## À relever à réception
 
 | Point | Méthode |
@@ -1069,5 +1164,7 @@ d'entraxe, que ses boutonnières rejoignent.
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |
 | Finesse du filtre actuel | référence du filtre |
-| MPB003 Chenhui : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de l'exemplaire du 5 novembre avant de brancher combined |
-| MPB003 Chenhui : fuite interne | paliers sortie bouchée à 30, 45 et 55 %, même montage que le [13 novembre](#essai-au-banc-sortie-bouchée-13-novembre-2026) |
+| Sabot : précharge | fil retordu dans sa position d'origine ; sortie bouchée au banc, purge de 1 à 2 s à 15–20 %, pic lu sur le Core2. Une pompe conforme dépasse 20 bar à 30 % : rien ne limite la pression au banc |
+| Sabot : bascule | dans la machine, panier aveugle, OPV à 11 bar : 60 % jusqu'à l'OPV, puis 30 % puis 20 % sans couper ; une pression qui reste haute à 30 % montre une hystérésis |
+| Sabot : jeu | si le fil ne change rien : épaisseur des engrenages contre hauteur sous le couvercle du sabot |
+| MPB010 : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de la MPB003 avant de brancher combined |

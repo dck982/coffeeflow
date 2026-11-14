@@ -1268,6 +1268,43 @@ deux côtés par des bagues. La vidéo de l'annonce montre des dents droites, pa
 les hélicoïdales de la vue éclatée. Un utilisateur l'a montée dans une Gaggia
 Classic Pro.
 
+![Vue éclatée MPB010](datasheets/mpb010-structure.png)
+
+![Photo MPB010](datasheets/mpb010-photo.png)
+
+Cette vue éclatée, à engrenages droits, correspond à la photo. De bas en
+haut : la cloche sous l'équerre, le corps à six pans qui porte les deux G1/8,
+puis le cylindre de la chambre fermé par le couvercle gravé « P/N MPB010 ».
+Les MPB015 et 0130 ont un cylindre plus haut.
+
+| Étiquette | Pièce | Rôle |
+| --- | --- | --- |
+| 内六角圆柱头螺钉 | 3 vis à tête cylindrique six pans creux | serrent couvercle, chambre et corps |
+| 前端盖 | couvercle avant, flèche gravée | ferme la chambre, porte un palier de chaque arbre |
+| 密封圈1 | joint torique 1 | étanchéité couvercle–chambre |
+| 从动齿轮 / 主动齿轮 | engrenage mené / menant | le menant porte l'aimant intérieur |
+| 泵腔体 | anneau de chambre | son épaisseur fixe la largeur de la chambre |
+| 销钉 | 2 goupilles | alignent couvercle, chambre et corps |
+| 轴套 | bagues (6 selon la vue MPB003) | paliers des arbres, des deux côtés |
+| 主体 | corps | raccords G1/8, paliers côté moteur |
+| 密封圈2 | joint torique 2 | étanchéité corps–cloche |
+| 内磁驱 | aimant intérieur | entraîné à travers la cloche |
+| 屏蔽罩 | cloche | sépare l'eau du moteur |
+| 安装片 / 沉头螺丝 | équerre, vis à tête fraisée | fixation sur le moteur |
+
+- **Deux chemins de fuite, à jeux fixes** : entre les faces des engrenages et
+  le couvercle ou le corps (jeu axial), entre le bout des dents et l'alésage
+  de l'anneau (jeu radial). Sans sabot, rien ne les referme sous pression :
+  la fuite croît avec la pression, sans plafond.
+- **La hauteur du cylindre fait le modèle.** La cylindrée croît avec la
+  largeur des engrenages ; la fuite axiale passe par les deux mêmes faces quelle
+  que soit la largeur, seule la fuite radiale grandit. Un modèle plus haut fuit
+  moins par rapport à sa cylindrée.
+- **Démontable** : le jeu axial dépend de l'épaisseur de l'anneau face à celle
+  des engrenages, pas du serrage, et les goupilles réalignent les pièces. Un
+  rodage léger de l'anneau sur plaque plane réduirait le jeu axial ; le jeu
+  radial ne se reprend pas.
+
 Valeurs lues sur sa courbe, à 9 bar :
 
 | Vitesse | Déplacé | Livré | Fuite |

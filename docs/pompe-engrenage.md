@@ -8,11 +8,15 @@ purge le 13 novembre 2026. **Le même jour, l'exemplaire reçu s'est révélé f
 ([Essai au banc](#essai-au-banc-sortie-bouchée-13-novembre-2026)). C'est
 bien une MPB003 : la notice dessine la même tête à sabot, seule la vue éclatée
 de l'annonce montre une autre construction
-([Construction réelle](#construction-réelle--une-tête-à-sabot)). La pompe est
-sortie de la machine et un litige est ouvert chez le vendeur AliExpress (annonce
-non conforme, fuite hors fiche). La MPB003BAAA commandée chez le fabricant,
-Zhuhai Chenhui Technology, a été annulée : elle aurait livré la même
-construction. Réparation en cours (précharge du sabot), la
+([Construction réelle](#construction-réelle--une-tête-à-sabot)). Un litige
+est ouvert chez le vendeur AliExpress (annonce non conforme, fuite hors
+fiche) : il propose le remboursement du prix payé contre le retour de la
+pompe, frais d'envoi (≈ 30 % du prix) et change à la charge de l'acheteur,
+ce qui ne vaut pas le coup. La MPB003BAAA commandée chez le fabricant, Zhuhai
+Chenhui Technology, a été annulée : elle aurait livré la même construction.
+Retendre le fil du sabot n'a rien changé : la fuite vient d'un jeu
+([Remontage](#remontage-fil-tendu-sur-le-sommet-du-sabot-14-novembre-2026)).
+La pompe retourne dans la machine pour l'essai contre l'OPV, la
 [MPB010](#alternative--mpb010) en alternative. Les valeurs viennent de la
 fiche du vendeur, de la notice du fabricant
 ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
@@ -1055,10 +1059,55 @@ la tasse gagne, à 0,1 g près : pas de fuite externe après le remontage.
   tasse gagne encore ≈ 0,1 g/s. Pendant la marche, ce débit s'ajoute au
   refoulé ; il pèse surtout à 20 %, d'où les 104 à 107 %.
 - **Ces points ne jugent pas le fil** : le relevé du 5 novembre, même montage
-  en siphon avec le fil d'origine, donnait aussi ≈ 100 %. Seul un essai sous
-  pression peut montrer si la tension a réduit la fuite. Le prochain essai se
-  fait sortie bouchée par le XDB401, à comparer au palier de 1,19 bar à 30 %
-  du 13 novembre.
+  en siphon avec le fil d'origine, donnait aussi ≈ 100 %. Seul l'essai sous
+  pression ci-dessous le juge.
+
+Puis sortie bouchée par le XDB401 (lu par le Core2, fichier
+`captures/xdb401-261114-115503.csv`, +0,037 bar à l'air, retiré ci-dessous),
+purges de 10 s sauf mention. Écran 0.5.3 dès 57 %, pour les pas de 1 % :
+
+| Purge | Vitesse stable | Refoulé = fuite | Palier | 13 novembre |
+| --- | ---: | ---: | --- | --- |
+| 20 %, `261114-115603` | 825 tr/min | 1,37 ml/s | **0,48 bar** | — |
+| 30 %, `261114-115717` | 1 218 tr/min | 2,03 ml/s | **1,03 bar** | 1,19 bar à 1 211 tr/min |
+| 45 %, `261114-115836` | 1 797 tr/min | 3,00 ml/s | **2,42 bar** | 2,77 bar à 1 774 tr/min |
+| 55 %, `261114-120140` | 2 188 tr/min | 3,65 ml/s | **4,05 bar**, ± 0,15 | 4,98 bar à 2 135 tr/min |
+| 57 %, `261114-120907` (5 s) | 2 207 tr/min | 3,68 ml/s | > 5,8 bar, montée de 0,2 bar/s | — |
+| 58 %, `261114-120944` | 2 207 tr/min | 3,68 ml/s | **6,5 bar**, ± 0,3, après 7,1 bar à 5 s | — |
+| 59 %, `261114-121034` | 2 207 tr/min | 3,68 ml/s | **7,35 bar**, ± 0,35 | — |
+| 60 %, `261114-121152` | 2 182 tr/min | 3,64 ml/s | **8,55 bar**, ± 0,5 | > 7 bar en montée, arrêt à 1,2 s |
+
+Un 60 % de 1,2 s (`261114-120221`) montait encore à 6,9 bar à l'arrêt ; le
+palier vient après 2 s. À chaque arrêt, la pression retombe à 0 en moins
+d'une demi-seconde.
+
+- **La tension du fil n'a rien changé** : la fuite est même ≈ 7 à 9 % plus
+  forte qu'au 13 novembre, à 30, 45 et 55 % (paliers du 13 ramenés à la
+  vitesse du jour). La précharge est hors de cause : c'est un jeu.
+- **La fuite plafonne à ≈ 3,65 ml/s de 4 à 8,5 bar**, à 1 % près. Le sabot,
+  plaqué par la pression, ne la laisse plus croître, mais au niveau d'un jeu
+  ≈ 5 fois trop grand.
+- **La commande règle la pression, pas la vitesse** : au-dessus de 55 %,
+  chaque % ajoute 0,85 à 1,2 bar, et 9 bar se tiennent vers 60–61 %. Le
+  moteur ralentit sous la charge jusqu'à égaler la fuite ; la vitesse ne
+  bouge plus que de quelques tr/min, sous la résolution du tachymètre (pas de
+  ≈ 5 tr/min). Un palier se forme à chaque marche : pas d'emballement.
+- **L'ondulation croît avec la pression** (± 0,15 bar à 4 bar, ± 0,5 à
+  8,5 bar). Vers 2 200 tr/min, la pente vaut ≈ 0,14 bar par tr/min : quelques
+  tr/min de variation du moteur suffisent.
+- **Pour l'infusion**, avec la fuite plafonnée, 2 ml/s en tasse à 9 bar
+  demandent ≈ 5,7 ml/s refoulés, soit ≈ 3 400 tr/min. Le moteur doit tenir
+  cette vitesse sous 9 bar : c'est à mesurer dans la machine, panier SCACE et
+  balance, avec la fuite à 9–11 bar et l'hystérésis contre l'OPV.
+
+**Bilan face à la pompe vibratoire.** Cet exemplaire se pilote comme une
+vibratoire : à commande fixe, le débit tombe avec la pression jusqu'à une
+pression de fermeture, que la commande règle. Le tachymètre ne donne plus le
+débit ; le pilotage en débit passe par le Digmesa. Le gain principal est la
+précision du Digmesa : sans pulsation à 50 Hz, il mesure le débit net à ≈ 2 %
+près. S'y ajoutent une pression lisse et stable sans débit, et le bas de la
+plage (0,5 bar à 20 %, purge lente vers 1,4 ml/s). Le bilan dépend encore du
+débit livré à 9 bar.
 
 ## Structure et cotes
 
@@ -1117,9 +1166,11 @@ Constats au démontage :
   sort au bout des deux arcs ; en horaire, l'air de la chambre est refoulé
   dans l'entrée.
 
-Deux causes restent possibles : une précharge du fil trop faible, ou un jeu
+Deux causes étaient possibles : une précharge du fil trop faible, ou un jeu
 trop grand (hauteur des engrenages sous le couvercle du sabot, bout des
-dents). Le rapport constant de ≈ 5 à la courbe penche pour le jeu.
+dents). Le fil retendu le 14 novembre n'a rien changé
+([Remontage](#remontage-fil-tendu-sur-le-sommet-du-sabot-14-novembre-2026)) :
+c'est le jeu.
 
 ### Cotes
 
@@ -1195,7 +1246,7 @@ Valeurs lues sur sa courbe, à 9 bar :
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
 | Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |
 | Finesse du filtre actuel | référence du filtre |
-| Sabot : précharge | fil retordu dans sa position d'origine ; sortie bouchée au banc, purge de 1 à 2 s à 15–20 %, pic lu sur le Core2. Une pompe conforme dépasse 20 bar à 30 % : rien ne limite la pression au banc |
+| Sabot : précharge | fait le 14 novembre : fil retendu, paliers inchangés, hors de cause |
 | Sabot : bascule | dans la machine, panier aveugle, OPV à 11 bar : 60 % jusqu'à l'OPV, puis 30 % puis 20 % sans couper ; une pression qui reste haute à 30 % montre une hystérésis |
 | Sabot : jeu | si le fil ne change rien : épaisseur des engrenages contre hauteur sous le couvercle du sabot |
 | MPB010 : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de la MPB003 avant de brancher combined |

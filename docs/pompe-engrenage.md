@@ -16,8 +16,11 @@ ce qui ne vaut pas le coup. La MPB003BAAA commandée chez le fabricant, Zhuhai
 Chenhui Technology, a été annulée : elle aurait livré la même construction.
 Retendre le fil du sabot n'a rien changé : la fuite vient d'un jeu
 ([Remontage](#remontage-fil-tendu-sur-le-sommet-du-sabot-14-novembre-2026)).
-La pompe retourne dans la machine pour l'essai contre l'OPV, la
-[MPB010](#alternative--mpb010) en alternative. Les valeurs viennent de la
+**Remontée dans la machine le 14 novembre 2026, elle y reste en service**
+([Dans la machine, contre l'OPV](#dans-la-machine-contre-lopv-14-novembre-2026)) :
+malgré sa fuite, elle livre 2 ml/s à 9–10 bar vers 78 % et jusqu'à 3,9 ml/s
+à 100 %. La décision sera revue à l'arrivée de la
+[MPB010](#alternative--mpb010). Les valeurs viennent de la
 fiche du vendeur, de la notice du fabricant
 ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
 (série FG, électronique 82 040 001, dont le brochage diffère de l'article ;
@@ -813,9 +816,11 @@ bac par la pompe, de l'eau chaude atteindrait les engrenages, et le Digmesa,
 en amont, compterait ce débit à l'envers comme un débit normal.
 
 **Règle : un clapet anti-retour à la sortie de la pompe**, avant le capteur de
-pression, pour que celui-ci continue de lire la chaudière. Si la machine
-d'origine a déjà un clapet à l'entrée de la chaudière (**à vérifier** au
-démontage), il suffit.
+pression, pour que celui-ci continue de lire la chaudière. La machine
+d'origine en a un, qui suffit : la pièce 10 du schéma (EM100047-00), sur la
+colonne montante, avant le T de l'OPV et du capteur. Il tient ≈ 6 bar après
+l'arrêt, et son ressort fait refouler la pompe contre ≈ 0,1 à 0,3 bar à débit
+libre.
 
 ### Vanne trois voies
 
@@ -1106,8 +1111,58 @@ pression de fermeture, que la commande règle. Le tachymètre ne donne plus le
 débit ; le pilotage en débit passe par le Digmesa. Le gain principal est la
 précision du Digmesa : sans pulsation à 50 Hz, il mesure le débit net à ≈ 2 %
 près. S'y ajoutent une pression lisse et stable sans débit, et le bas de la
-plage (0,5 bar à 20 %, purge lente vers 1,4 ml/s). Le bilan dépend encore du
-débit livré à 9 bar.
+plage (0,5 bar à 20 %, purge lente vers 1,4 ml/s). Le débit livré à 9 bar,
+mesuré ci-dessous dans la machine, suffit à l'infusion.
+
+### Dans la machine, contre l'OPV (14 novembre 2026)
+
+Pompe remontée, écran 0.5.4 et sensors 0.5.3 (marche à sec active).
+Aspiration depuis un pichet pesé ; la vanne trois voies vide le groupe à
+chaque arrêt.
+
+**Purges sans porte-filtre** (≈ 0 bar au capteur, tasse sur l'Acaia, le
+pichet perd ce que la tasse gagne) :
+
+| Purge | Vitesse | Refoulé | Tasse | Tasse / pompe | K du Digmesa |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 30 %, `261114-213636` | 1 301 tr/min | 2,17 ml/s | 1,41 g/s | 65 % | 2 500 imp/L |
+| 60 %, `261114-213031` | 2 678 tr/min | 4,46 ml/s | 3,33 g/s | 75 % | 2 485 imp/L |
+
+Au banc, en siphon, la même pompe livrait ≈ 100 %. Le **clapet anti-retour
+d'origine** (pièce 10 du schéma, EM100047-00, 1/8 mâle-mâle, sur la colonne
+montante avant le T de l'OPV et du capteur) oppose un ressort : la pompe
+refoule contre ≈ 0,1 à 0,3 bar, qui croît avec le débit, alors que le
+capteur lit 0. Ça suffit pour la fuite des premiers bars. Le Digmesa est
+recalé à 2 490 imp/L (0.5.4).
+
+**Panier aveugle, OPV en sortie, retour OPV dans une tasse sur l'Acaia.**
+Avant la série, une purge à 60 % buse vapeur ouverte chasse l'air du haut de
+la chaudière : la souplesse du circuit passe de ≈ 1,5 à ≈ 0,9 ml/bar. Après
+chaque arrêt, la pression retombe vers 6 bar et y reste, tenue par le
+clapet ; la vanne trois voies en laisse sans doute passer une partie. Purges
+de 10 à 20 s, débits pris sur le plateau :
+
+| Purge | Plateau (OPV) | Vitesse sous charge | Refoulé | Livré (OPV, Acaia) | Digmesa | Fuite |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 60 %, `261114-215739` | 9,48 bar | 2 128 tr/min | 3,55 ml/s | 0,27 g/s | 0,33 ml/s | 3,25 ml/s |
+| 70 %, `261114-220125` | 9,68 bar | 2 595 tr/min | 4,33 ml/s | 1,13 g/s | 1,19 ml/s | 3,18 ml/s |
+| 80 %, `261114-220501` | 9,85 bar | 3 145 tr/min | 5,24 ml/s | 2,20 g/s | 2,18 ml/s | 3,04 ml/s |
+| 90 %, `261114-220809` | 9,98 bar | 3 634 tr/min | 6,06 ml/s | 3,00 g/s | 3,12 ml/s | 3,06 ml/s |
+| 100 %, `261114-220901` | 10,10 bar | 4 035 tr/min | 6,73 ml/s | 3,86 g/s | 3,83 ml/s | 2,87 ml/s |
+
+- **La pompe suffit à l'infusion** : 2 ml/s à 9–10 bar vers 78 %, jusqu'à
+  3,9 ml/s à 100 %. Entre 70 et 100 %, chaque tranche de 10 % ajoute
+  ≈ 0,9 ml/s.
+- **La fuite reste plafonnée jusqu'à 10 bar** et baisse un peu avec la
+  vitesse (3,25 à 2,87 ml/s). Elle ne croît jamais avec la pression : le
+  sabot se plaque comme prévu, mais sur un jeu trop grand.
+- **L'OPV d'origine s'ouvre vers 9,45 bar** et monte avec le débit, jusqu'à
+  10,1 bar à 3,9 ml/s.
+- **De 6 à 10 bar en ≈ 1,7 s** à 90 et 100 %, une fois l'air chassé.
+- **Le Digmesa suit l'Acaia à ≈ 3 % près sous pression**, avec 2 490 imp/L.
+  Au-dessus de ≈ 2 g/s, pichet, Digmesa et Acaia concordent à ≈ 2 %. Plus
+  lentement, la balance du pichet sous-estime la baisse ; elle ne sert pas
+  aux plateaux lents.
 
 ## Structure et cotes
 
@@ -1244,9 +1299,9 @@ Valeurs lues sur sa courbe, à 9 bar :
 | Seuil de démarrage et bas de la plage (< 1,2 V) | essais automatisés avec combined v2, montage étanche |
 | Courant d'appel au démarrage | shunt ou pince, démarrage à 9 bar |
 | Tension de sortie à vide et à 1,5 A | multimètre aux bornes ; 20 à 29 V pour la pompe |
-| Clapet à l'entrée de la chaudière d'origine | démontage de l'arrivée |
+| Clapet d'origine | fait le 14 novembre : pièce 10, sur la colonne montante |
 | Finesse du filtre actuel | référence du filtre |
 | Sabot : précharge | fait le 14 novembre : fil retendu, paliers inchangés, hors de cause |
-| Sabot : bascule | dans la machine, panier aveugle, OPV à 11 bar : 60 % jusqu'à l'OPV, puis 30 % puis 20 % sans couper ; une pression qui reste haute à 30 % montre une hystérésis |
+| Sabot : bascule | fait le 14 novembre : fuite plafonnée jusqu'à 10 bar, de 60 à 100 % ; l'hystérésis n'est pas mesurable sans changer la commande en cours de purge |
 | Sabot : jeu | si le fil ne change rien : épaisseur des engrenages contre hauteur sous le couvercle du sabot |
 | MPB010 : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de la MPB003 avant de brancher combined |

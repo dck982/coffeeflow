@@ -156,7 +156,8 @@ Tant que ces mesures ne sont pas faites, considérer le volume de pré-infusion 
 
 Avec la pompe vibrante, le firmware comptait **3450 imp/L**, mesuré le
 17 septembre avec le porte-filtre de simulation à ~8,5 bar, contre 2382 imp/L sur la
-fiche. Depuis la pompe à engrenage (0.5.1), il compte 2564 imp/L : voir [Avec la
+fiche. Avec la pompe à engrenage, il compte 2564 imp/L en 0.5.1, puis 2490 imp/L
+depuis 0.5.4 : voir [Avec la
 pompe à engrenage](#avec-la-pompe-à-engrenage). Les captures d'infusion comparent ce compte à la balance une fois l'eau en
 tasse : grammes en tasse par ml compté, de 3 s après la première goutte jusqu'à
 l'arrêt de la pompe, carte sensors (depuis le 23 octobre).
@@ -200,9 +201,19 @@ Première purge du 13 novembre 2026 (`captures/261113-084742.json`), pompe à 10
 écoulement donne 1,35 g/ml : le régime des turbo shots ci-dessus. Le firmware 0.5.1
 compte 2564 imp/L (`screen-core/src/calibration.rs`).
 
-- **Un seul point, au haut de la plage** (≈ 6 ml/s pour 6,7 ml/s au plus), avec
-  quelques bulles d'air vues dans l'aspiration du pichet. Il reste à le vérifier au
-  débit d'infusion (1,5–2 ml/s).
+Le 14 novembre, pompe remontée dans la machine, purges sans porte-filtre à ≈ 0 bar,
+pichet et tasse pesés (le pichet perd ce que la tasse gagne) :
+
+| Purge | Débit en tasse | Impulsions | Tasse | K |
+| --- | ---: | ---: | ---: | ---: |
+| 60 %, `261114-213031` | 3,33 g/s | 82 | 33,0 g | 2485 imp/L |
+| 30 %, `261114-213636` | 1,41 g/s | 35 | 14,0 g | 2500 imp/L |
+
+- **Le K ne dépend pas du débit** de 1,4 à 3,3 ml/s, à une impulsion près
+  (±1 à 3 %). Il est ≈ 3 % sous celui du 13 novembre, pris avant le remontage, au
+  haut de la plage et avec des bulles dans l'aspiration. Le firmware 0.5.4 compte
+  **2490 imp/L**, la moyenne des deux.
+- Reste à le vérifier sous pression, au débit d'infusion.
 - La pompe à engrenage ne pulse pas : si la cause 1 ci-dessous expliquait le
   sur-comptage au plateau d'espresso, le K ne devrait plus dépendre du régime.
 - La loi de chauffe utilise ce débit : à nombre d'impulsions égal, il est

@@ -3,11 +3,13 @@
 //! vivent en NVS (module `config`).
 
 pub const SCHEMA_VERSION: u32 = 1;
-/// Mesuré à la balance le 2026-11-13 avec la pompe à engrenage : purge à
-/// 0 bar, 150 impulsions pour 58,5 g, à ≈ 6 ml/s, près du haut de la plage
-/// du Digmesa. Le 3 450 imp/L pris avec la pompe vibratoire (débit pulsé, à
-/// ~8,5 bar) ne vaut plus. Le K catalogue est de 2 382 imp/L.
-pub const FLOW_PULSES_PER_LITER: f32 = 2564.0;
+/// Mesuré à la balance le 2026-11-14 avec la pompe à engrenage, après son
+/// remontage : purges à ≈ 0 bar, 82 impulsions pour 33,0 g à 3,3 ml/s et
+/// 35 impulsions pour 14,0 g à 1,4 ml/s, soit 2 485 et 2 500 imp/L. Le
+/// 13 novembre, avant le remontage, donnait 2 564 imp/L à ≈ 6 ml/s. Le
+/// 3 450 imp/L pris avec la pompe vibratoire (débit pulsé, à ~8,5 bar) ne
+/// vaut plus. Le K catalogue est de 2 382 imp/L.
+pub const FLOW_PULSES_PER_LITER: f32 = 2490.0;
 /// Tachymètre de la pompe à engrenage MPB003 : impulsions par tour.
 pub const PUMP_TACH_PULSES_PER_TURN: u32 = 2;
 /// Cylindrée de la pompe, en ml par tour. Le « refoulé » est tours ×

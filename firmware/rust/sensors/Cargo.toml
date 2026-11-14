@@ -2,7 +2,7 @@
 edition      = "2024"
 name         = "sensors"
 rust-version = "1.95"
-version      = "0.5.3"
+version      = "0.5.4"
 
 [features]
 default = []

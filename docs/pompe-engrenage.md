@@ -1029,6 +1029,37 @@ pression à laquelle la pompe recircule tout ce qu'elle déplace.
 - Un prolongateur ou un raccord trop long qui étranglerait la sortie ne change
   pas ces paliers : sans débit, il n'y a pas de perte de charge.
 
+### Remontage, fil tendu sur le sommet du sabot (14 novembre 2026)
+
+Tête remontée avec un peu plus de tension sur le fil, crochet sur le sommet du
+sabot. Pompe hors de la machine, toujours pilotée par combined (0.5.2).
+Aspiration en siphon depuis un pichet surélevé sur la balance, sortie libre
+dans une tasse. Le capteur de pression de sensors n'est pas sur le circuit
+(1,12 bar fixes dans les captures) et le Digmesa reste à 0 impulsion.
+Purges de 10 s :
+
+| Purge | Vitesse | Refoulé (tachymètre) | Tasse, marche stable | Bilan total | Tasse / pompe |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 %, `261114-110205` | 866 tr/min | 1,44 ml/s | 1,49 g/s | ≈ 15,3 g / 14,25 ml | 104 à 107 % |
+| 50 %, `261114-105602` | 2 187 tr/min | 3,64 ml/s | 3,77 g/s | 36,5 g / 36,0 ml | 101 % |
+| 80 %, `261114-110410` | 3 729 tr/min | 6,21 ml/s | 6,28 g/s | 47,8 g / 47,75 ml | 100 % |
+| 100 %, `261114-105751` | 4 657 tr/min | 7,76 ml/s | 7,55 g/s | 76,5 g / 77,1 ml | 97 à 99 % |
+
+Le bilan total est pris une demi-seconde après l'arrêt. Le pichet perd ce que
+la tasse gagne, à 0,1 g près : pas de fuite externe après le remontage.
+
+- **0,1 ml/tour tient de 866 à 4 657 tr/min sans résistance.** Le léger
+  manque à 100 % sur la marche stable ne se retrouve ni au bilan total ni à
+  80 % : c'est la balance, pas un glissement.
+- **Le siphon pousse l'eau à travers la pompe arrêtée** : après l'arrêt, la
+  tasse gagne encore ≈ 0,1 g/s. Pendant la marche, ce débit s'ajoute au
+  refoulé ; il pèse surtout à 20 %, d'où les 104 à 107 %.
+- **Ces points ne jugent pas le fil** : le relevé du 5 novembre, même montage
+  en siphon avec le fil d'origine, donnait aussi ≈ 100 %. Seul un essai sous
+  pression peut montrer si la tension a réduit la fuite. Le prochain essai se
+  fait sortie bouchée par le XDB401, à comparer au palier de 1,19 bar à 30 %
+  du 13 novembre.
+
 ## Structure et cotes
 
 ![Vue éclatée de l'annonce](datasheets/mpb003-structure.png)

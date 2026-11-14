@@ -77,7 +77,8 @@ pub mod bounds {
     /// Avance de l'arrêt de la pompe sur le poids cible, en grammes.
     pub const STOP_LEAD_G: (f32, f32, f32) = (0.0, 20.0, 0.5);
     pub const BREW_PUMP_PCT: (u8, u8, u8) = (super::MINIMUM_BREW_PUMP_PCT, 100, 5);
-    pub const PURGE_PUMP_PCT: (u8, u8, u8) = (20, 100, 5);
+    /// Pas de 1 % : les essais au banc cherchent le palier entre deux marches.
+    pub const PURGE_PUMP_PCT: (u8, u8, u8) = (20, 100, 1);
     pub const PURGE_MAX_S: (u16, u16, u16) = (5, 60, 5);
     pub const STANDBY_AFTER_S: (u16, u16, u16) = (300, 3600, 300);
     /// Dose d'un profil : 0 (non renseignée) ou (min, max, pas).

@@ -158,6 +158,7 @@ fn validation_bounds_and_steps() {
     assert_eq!(ok(&|c| c.brew_pump_pct = 12), Some("brew.pump_pct"));
     assert_eq!(ok(&|c| c.brew_pump_pct = 10), None);
     assert_eq!(ok(&|c| c.purge_pump_pct = 15), Some("purge.pump_pct"));
+    assert_eq!(ok(&|c| c.purge_pump_pct = 57), None);
     assert_eq!(ok(&|c| c.purge_max_s = 7), Some("purge.max_s"));
     assert_eq!(ok(&|c| c.purge_max_s = 65), Some("purge.max_s"));
     assert_eq!(ok(&|c| c.standby_after_s = 400), Some("ui.standby_after_s"));

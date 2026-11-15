@@ -1275,7 +1275,8 @@ Classic Pro.
 Cette vue éclatée, à engrenages droits, correspond à la photo. De bas en
 haut : la cloche sous l'équerre, le corps à six pans qui porte les deux G1/8,
 puis le cylindre de la chambre fermé par le couvercle gravé « P/N MPB010 ».
-Les MPB015 et 0130 ont un cylindre plus haut.
+Les [MPB015](#alternative--mpb015) (101 mm) et [MPB030](#alternative--mpb030)
+(99 mm) ont presque sa longueur (100 mm) pour 1,3 et 3,3 fois sa cylindrée.
 
 | Étiquette | Pièce | Rôle |
 | --- | --- | --- |
@@ -1296,10 +1297,13 @@ Les MPB015 et 0130 ont un cylindre plus haut.
   le couvercle ou le corps (jeu axial), entre le bout des dents et l'alésage
   de l'anneau (jeu radial). Sans sabot, rien ne les referme sous pression :
   la fuite croît avec la pression, sans plafond.
-- **La hauteur du cylindre fait le modèle.** La cylindrée croît avec la
-  largeur des engrenages ; la fuite axiale passe par les deux mêmes faces quelle
-  que soit la largeur, seule la fuite radiale grandit. Un modèle plus haut fuit
-  moins par rapport à sa cylindrée.
+- **La taille interne fait le modèle, pas la longueur.** La MPB030 ne peut
+  pas loger 3,3 fois la cylindrée de la MPB010 dans une tête plus courte : la
+  chambre et les engrenages grandissent à l'intérieur. La part du diamètre et
+  de la largeur n'est pas connue.
+- **Plus grande, la pompe fuit moins par rapport à sa cylindrée.** Fuite à
+  9 bar par ml/tour : ≈ 41 ml/s pour la MPB010, ≈ 19 pour la MPB015, ≈ 17
+  pour la MPB030. La MPB010 sort du lot.
 - **Démontable** : le jeu axial dépend de l'épaisseur de l'anneau face à celle
   des engrenages, pas du serrage, et les goupilles réalignent les pièces. Un
   rodage léger de l'anneau sur plaque plane réduirait le jeu axial ; le jeu
@@ -1328,6 +1332,82 @@ Valeurs lues sur sa courbe, à 9 bar :
   sous les 4 A de l'alimentation.
 - **Encombrement** : 100 mm de long au lieu de 81, tête Ø44 au lieu de Ø38 ;
   l'équerre est à vérifier sur les trous à 40 mm de la plaque du fond.
+
+## Alternative : MPB015
+
+Même famille que la MPB010, à chambre plus grande. C'est le modèle
+le plus cité dans les modifications de machines à expresso. Pas de fiche dans
+le dépôt. L'annonce décrit les 7 mêmes fils que la MPB003 et la MPB010, avec
+le même moteur BLDC 24 V en 70 W, comme la MPB010 (la MPB003 est en 40 W).
+L'électronique de commande est supposée la même, fil jaune compris. 101 mm de
+long.
+
+![Courbes débit et courant MPB015](datasheets/mpb015-debit.png)
+
+**≈ 0,36 à 0,375 ml/tour** : à 0 bar, 1 500 ml/min à 4 000 tr/min,
+900 à 2 500, 370 à 1 000. La courbe s'arrête à 20 bar ; celle de
+1 000 tr/min, à 5 bar. Valeurs lues à 9 bar, avec 0,36 ml/tour :
+
+| Vitesse | Déplacé | Livré | Fuite | Courant |
+| ---: | ---: | ---: | ---: | ---: |
+| 4 000 tr/min | 24 ml/s | 18 ml/s | ≈ 6,5 ml/s | ≈ 3,4 A |
+| 3 000 tr/min | 18 ml/s | 11,5 ml/s | ≈ 6,7 ml/s | — |
+| 2 000 tr/min | 12 ml/s | 5 ml/s | ≈ 7 ml/s | — |
+| 1 500 tr/min | 9 ml/s | 1,7 ml/s | ≈ 7,3 ml/s | ≈ 1,3 A |
+
+- **Jeux fixes, comme la MPB010** : la fuite croît à peu près en proportion
+  de la pression, ≈ 0,8 ml/s par bar, sans plafond. Une table fuite = f(P)
+  et le Digmesa la compensent ; elle dépend de la température de l'eau.
+- **Moins de fuite que la MPB010 avec plus de cylindrée** : ≈ 7 ml/s à
+  9 bar contre ≈ 11,5. La chambre plus grande ne gagne pas seulement en
+  proportion : la fuite baisse aussi en valeur absolue.
+- **Vitesse deux fois plus basse sous pression** : 2 ml/s à 9 bar vers
+  1 550 tr/min, contre ≈ 3 000 pour la MPB010 et pour l'exemplaire MPB003
+  qui fuit. Une MPB003 conforme fait à peu près pareil (≈ 1 750 tr/min).
+  Moins de bruit à prévoir, ≈ 6 W de recirculation dans l'eau.
+- **Tenir 9 bar sans débit** : ≈ 1 150 tr/min.
+- **Pas de purge lente** : à 500 tr/min, si le bas de plage est le même
+  que pour les autres modèles, elle déplace déjà ≈ 3 ml/s à 0 bar. La
+  pré-infusion sous quelques bars reste possible : la fuite sert de
+  dérivation.
+- **Commande plus grossière** : avec ≈ 1 000 tr/min par volt, 0,1 V vaut
+  ≈ 0,6 ml/s, contre 0,47 pour la MPB010 et 0,17 pour la MPB003. En
+  service, la consigne reste entre ≈ 0,6 et 2 V.
+- **Courant** : ≈ 1,3 A à 9 bar pour 2 ml/s, ≈ 3,4 A à 4 000 tr/min ;
+  l'OPV limite la pression vers 10 bar. Avec le buck, sous les 4 A de
+  l'alimentation.
+- **Encombrement** : la pompe est vissée près de la face avant, dans le
+  compartiment sous le réservoir, flèche du couvercle vers l'avant. Seule la
+  longueur compte : la MPB003 (81 mm) laisse ≈ 25 mm jusqu'à la face, la
+  MPB010 (100 mm) ≈ 6 mm, la MPB015 (101 mm) ≈ 5 mm.
+
+## Alternative : MPB030
+
+Même famille, 99 mm de long. Pas de fiche dans le dépôt ; seule la courbe est
+connue.
+
+![Courbes débit et courant MPB030](datasheets/mpb030-debit.png)
+
+**≈ 0,93 ml/tour** : à 0 bar, 3 700 ml/min à 4 000 tr/min, 2 350 à 2 500,
+900 à 1 000. La courbe de 4 000 tr/min s'arrête à 8 bar, celle de
+1 000 tr/min à 5 bar. Valeurs lues à 9 bar :
+
+| Vitesse | Déplacé | Livré | Fuite |
+| ---: | ---: | ---: | ---: |
+| 3 500 tr/min | 54 ml/s | 40 ml/s | ≈ 14 ml/s |
+| 3 000 tr/min | 46,5 ml/s | 32 ml/s | ≈ 14,5 ml/s |
+| 2 500 tr/min | 39 ml/s | 23 ml/s | ≈ 16 ml/s |
+| 2 000 tr/min | 31 ml/s | 14,7 ml/s | ≈ 16,3 ml/s |
+| 1 500 tr/min | 23 ml/s | 7,8 ml/s | ≈ 15,4 ml/s |
+
+- **Trop grande pour l'infusion** : 2 ml/s à 9 bar vers 1 150 tr/min, et
+  9 bar tenus sans débit vers 1 000 tr/min. Toute l'infusion tient dans
+  ≈ 150 tr/min, et 0,1 V de consigne vaut ≈ 1,5 ml/s.
+- **Pas de purge lente** : 500 tr/min déplacent ≈ 7,7 ml/s à 0 bar.
+- **Fuite ≈ 1,7 ml/s par bar**, ≈ 14 W de recirculation dans l'eau à 9 bar.
+- **Courant**, lu grossièrement : ≈ 2 à 3 A à 9 bar entre 1 500 et
+  2 000 tr/min, ≈ 6 A à 4 000 tr/min et 8 bar, au-delà des 4 A de
+  l'alimentation.
 
 ## À relever à réception
 

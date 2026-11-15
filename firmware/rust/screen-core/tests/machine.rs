@@ -30,6 +30,7 @@ fn input(weight_g: f32, scale_present: bool, pressure_bar: f32) -> Input {
         scale_present,
         pressure_bar,
         pressure_valid: false,
+        pressure_sample_ms: 0,
     }
 }
 
@@ -38,6 +39,12 @@ fn valid(weight_g: f32, scale_present: bool, pressure_bar: f32) -> Input {
         pressure_valid: true,
         ..input(weight_g, scale_present, pressure_bar)
     }
+}
+
+/// Pas de la machine avec une mesure de pression reçue à cet instant.
+fn tick_sampled(machine: &mut Machine, now_ms: u64, i: &mut Input) -> u8 {
+    i.pressure_sample_ms = now_ms;
+    machine.tick(now_ms, i).pump_pct
 }
 
 #[test]
@@ -97,31 +104,57 @@ fn pressure_regulation() {
     c.preinfusion_mode = PreinfusionMode::NONE;
     let mut i = valid(0.0, false, 6.9);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
-    assert_eq!(machine.tick(2199, &i).pump_pct, 100); // pas avant 200 ms
-    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // activation aux 2/3 de la cible, sans saut
+    // activation aux 2/3 de la cible, sans saut ni pente connue
+    assert_eq!(tick_sampled(&mut machine, 2000, &mut i), 100);
+    // sans nouvelle mesure, pas de nouvelle commande
+    assert_eq!(machine.tick(2050, &i).pump_pct, 100);
     i.pressure_bar = 7.0;
-    assert_eq!(machine.tick(2400, &i).pump_pct, 100);
+    assert_eq!(tick_sampled(&mut machine, 2100, &mut i), 99); // P dominant
     i.pressure_bar = 8.0;
-    assert_eq!(machine.tick(2600, &i).pump_pct, 85); // terme proportionnel dominant
-    i.pressure_bar = 8.5;
-    assert_eq!(machine.tick(2800, &i).pump_pct, 78);
+    // 5,5 bar/s sur deux intervalles : le terme dérivé coupe avant la cible
+    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 43);
     i.pressure_bar = 9.0;
-    assert_eq!(machine.tick(3000, &i).pump_pct, 71);
+    // 10 bar/s : commande au plancher
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 10);
+    assert_eq!(tick_sampled(&mut machine, 2400, &mut i), 32); // 5 bar/s
     i.pressure_bar = 9.5;
-    assert_eq!(machine.tick(3200, &i).pump_pct, 63);
+    assert_eq!(tick_sampled(&mut machine, 2500, &mut i), 43);
+    assert_eq!(tick_sampled(&mut machine, 2600, &mut i), 43);
+    assert_eq!(tick_sampled(&mut machine, 2700, &mut i), 61); // pente nulle
     i.pressure_valid = false;
-    assert_eq!(machine.tick(3400, &i).pump_pct, 63);
+    assert_eq!(tick_sampled(&mut machine, 2800, &mut i), 61);
     i.pressure_valid = true;
     // Bien au-dessus de la cible : le PI plafonne à MINIMUM_BREW_PUMP_PCT.
     i.pressure_bar = 20.0;
-    let mut now = 3600;
-    while now <= 5600 {
-        assert_eq!(machine.tick(now, &i).pump_pct, 10);
-        now += 200;
+    let mut now = 3000;
+    while now <= 5000 {
+        assert_eq!(tick_sampled(&mut machine, now, &mut i), 10);
+        now += 100;
     }
     i.pressure_bar = 9.0;
-    assert_eq!(machine.tick(5800, &i).pump_pct, 70); // pas de windup à la borne basse
+    tick_sampled(&mut machine, 5100, &mut i);
+    tick_sampled(&mut machine, 5200, &mut i);
+    assert_eq!(tick_sampled(&mut machine, 5300, &mut i), 69); // pas de windup à la borne basse
+}
+
+#[test]
+fn derivative_cuts_a_fast_rise_before_the_target() {
+    // Montée du 15/11 sur la pompe à engrenage : ≈ 6,7 bar/s de 6 à 9 bar.
+    // Sans anticipation, la commande resterait à 100 % jusqu'à 6,9 bar.
+    let mut machine = Machine::new();
+    let mut c = config();
+    c.preinfusion_mode = PreinfusionMode::NONE;
+    let mut i = valid(0.0, false, 4.7);
+    assert!(machine.start(1000, &c, &i));
+    assert_eq!(tick_sampled(&mut machine, 2000, &mut i), 100);
+    i.pressure_bar = 5.4;
+    assert_eq!(tick_sampled(&mut machine, 2100, &mut i), 100); // sous 6 bar
+    i.pressure_bar = 6.2;
+    // activation : P + I reprend 100 %, le terme dérivé (7,5 bar/s) en
+    // retire 56
+    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 44);
+    i.pressure_bar = 6.9;
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 34);
 }
 
 #[test]
@@ -130,15 +163,17 @@ fn pressure_regulation_waits_for_two_thirds_of_a_low_target() {
     let mut c = config();
     c.preinfusion_mode = PreinfusionMode::NONE;
     c.target_pressure_bar = 6.0;
-    let mut i = valid(0.0, false, 4.1);
+    // Mesures espacées de 300 ms : la pente s'étale au-delà de 400 ms et
+    // le terme dérivé reste nul.
+    let mut i = valid(0.0, false, 3.5);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
+    assert_eq!(tick_sampled(&mut machine, 2000, &mut i), 100);
     i.pressure_bar = 3.8;
-    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // 3 bar passés, sous 4 bar : pas de PI
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 100); // 3 bar passés, sous 4 bar : pas de PI
     i.pressure_bar = 4.3;
-    assert_eq!(machine.tick(2400, &i).pump_pct, 100); // activation sans saut
+    assert_eq!(tick_sampled(&mut machine, 2600, &mut i), 100); // activation sans saut
     i.pressure_bar = 7.0;
-    assert_eq!(machine.tick(2600, &i).pump_pct, 59);
+    assert_eq!(tick_sampled(&mut machine, 2900, &mut i), 59);
 }
 
 #[test]
@@ -150,16 +185,17 @@ fn intermittent_pressure_integrates_real_elapsed_time() {
     c.preinfusion_mode = PreinfusionMode::NONE;
     let mut i = valid(0.0, false, 7.0);
     assert!(machine.start(1000, &c, &i));
-    assert_eq!(machine.tick(2000, &i).pump_pct, 100);
-    assert_eq!(machine.tick(2200, &i).pump_pct, 100); // activation
+    assert_eq!(tick_sampled(&mut machine, 2000, &mut i), 100); // activation
     i.pressure_bar = 10.0;
-    assert_eq!(machine.tick(2400, &i).pump_pct, 54);
+    let after_jump = tick_sampled(&mut machine, 2100, &mut i);
     i.pressure_valid = false;
-    assert_eq!(machine.tick(2600, &i).pump_pct, 54);
-    assert_eq!(machine.tick(2800, &i).pump_pct, 54);
-    assert_eq!(machine.tick(3000, &i).pump_pct, 54);
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), after_jump);
+    assert_eq!(tick_sampled(&mut machine, 2600, &mut i), after_jump);
+    assert_eq!(tick_sampled(&mut machine, 3000, &mut i), after_jump);
     i.pressure_valid = true;
-    assert_eq!(machine.tick(3200, &i).pump_pct, 53);
+    // la pente est trop étalée pour compter ; seule l'intégrale avance, de
+    // −3 %/(bar·s) × 1 bar × 0,4 s
+    assert_eq!(tick_sampled(&mut machine, 3100, &mut i), 54);
 }
 
 #[test]

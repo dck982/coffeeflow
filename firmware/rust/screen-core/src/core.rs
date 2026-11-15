@@ -583,6 +583,8 @@ pub struct Core<S: ConfigStore> {
     machine: Machine,
     last_cycle_set_us: i64,
     cycle_set_on: bool,
+    /// Dernière commande de pompe envoyée par le cycle.
+    last_cycle_set_pct: u8,
     shot_start_unix_s: i64,
     shot_summary_pending: bool,
     hf: Capture,
@@ -632,6 +634,7 @@ impl<S: ConfigStore> Core<S> {
             machine: Machine::new(),
             last_cycle_set_us: 0,
             cycle_set_on: false,
+            last_cycle_set_pct: 0,
             shot_start_unix_s: 0,
             shot_summary_pending: false,
             hf: Capture::new(),
@@ -1137,9 +1140,17 @@ impl<S: ConfigStore> Core<S> {
         }
         self.update_cycle_snapshot();
         let mut send = false;
-        if (active && now - self.last_cycle_set_us >= 100_000) || (!active && self.cycle_set_on) {
+        // Le bail se renouvelle toutes les 100 ms ; une commande qui change
+        // part tout de suite, sans attendre ce renouvellement : pendant la
+        // montée en pression, chaque milliseconde de retard se paie en
+        // dépassement.
+        let command_changed = active && output.pump_pct != self.last_cycle_set_pct;
+        if (active && (now - self.last_cycle_set_us >= 100_000 || command_changed))
+            || (!active && self.cycle_set_on)
+        {
             self.last_cycle_set_us = now;
             self.cycle_set_on = active;
+            self.last_cycle_set_pct = output.pump_pct;
             send = true;
         }
         let capture_active = self.hf.active;
@@ -1188,6 +1199,7 @@ impl<S: ConfigStore> Core<S> {
             scale_present: self.scale_present_raw(now),
             pressure_bar: self.snapshot.pressure_bar,
             pressure_valid: pressure_fresh,
+            pressure_sample_ms: (self.t.pressure_last_valid_us / 1000) as u64,
         }
     }
 

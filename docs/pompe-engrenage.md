@@ -1164,6 +1164,22 @@ de 10 à 20 s, débits pris sur le plateau :
   lentement, la balance du pichet sous-estime la baisse ; elle ne sert pas
   aux plateaux lents.
 
+### Première infusion (15 novembre 2026)
+
+Capture `261115-214106`, single espresso inchangé, galette serrée
+(9,05 bar·s/g). L'analyse complète est dans
+[journal-infusions.md](journal-infusions.md#15-novembre-21-h-41--261115-214106).
+
+- **Plateau** : 9 bar tenus à ± 0,05 bar par 66 à 71 %, 2 550 tr/min,
+  1,08 ml/s au Digmesa, fuite de 3,17 ml/s : les plateaux contre l'OPV
+  se retrouvent sur une galette.
+- **Pic à 9,92 bar** à la montée : la pompe reste à 100 % jusqu'à 8 bar,
+  la régulation réglée sur la vibratoire coupe trop tard (hypothèse).
+- **Remplissage à 70 %** : 3,59 ml/s, contre 2,9 à 3,3 ml/s avec la
+  vibratoire ; il n'atteint pas 0,8 bar en 10 s (0,48 bar). La galette
+  serrée et la pompe ne se séparent pas sur cette infusion.
+- **Après l'arrêt**, le clapet garde 6,6 bar dans la chaudière.
+
 ## Structure et cotes
 
 ![Vue éclatée de l'annonce](datasheets/mpb003-structure.png)

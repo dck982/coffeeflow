@@ -6732,7 +6732,7 @@
 				)
 			)
 		)
-		(property "Note" "Kefa HT396V vertical header; mating plug HT396K-3.96-2P (C577777, screw), 1 GND, 2 +24V, from the Wago split of the 24 V supply"
+		(property "Note" "Kefa HT396V vertical header; mating plug HT396K-3.96-2P (C577777, screw), 1 +24V, 2 GND, from the Wago split of the 24 V supply"
 			(at 35.56 35.56 0)
 			(hide yes)
 			(show_name no)

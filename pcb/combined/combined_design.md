@@ -17,6 +17,15 @@ supply, makes its own 5 V with a buck, sends 5 V to the screen, and drives
 the pump through two optocouplers. The vibration pump setup stays on the
 sensors board with the RBDimmer and the M5Stack Unit SSR.
 
+**Version 3, November 15, 2026:** two changes for the next board. A
+CA-IS3721CLS digital isolator (U8) replaces the two EL817C: the setpoint
+becomes duty × yellow voltage, linear, and the tachometer edges become clean
+(see "Gear pump interface"). J13 extends the I2C bus, through two BSS138
+level shifters (Q7, Q8), to a NAU7802 on the scale board, `../scale/` (see
+"Scale bus"). The
+board in service is still v2; "Board in service (v2)" keeps what the
+firmware needs for it.
+
 The schematic has three sheets. `combined.kicad_sch` holds the valve
 channel and the pump interface, as below. `combined_controller.kicad_sch`
 (24 V input and 5 V buck, XIAO, status LED, pressure ADC) and
@@ -25,8 +34,9 @@ boiler SSR output) come from `../sensors/`, except the 24 V input and the
 buck. The design notes in `sensors_design.md` still apply to those circuits,
 with the references renumbered as listed in "Low-voltage side from
 sensors". `combined.pdf` is a
-generated review copy. `combined.kicad_pcb` is still the v1 layout: it must
-be updated from the schematic, placed and routed again.
+generated review copy. `combined.kicad_pcb` is the v3 layout.
+`Combined_Local.kicad_sym` holds the U8 symbol: KiCad's ISO7721 symbol does
+not fit, its channels run the other way.
 `combined_bom.csv` lists values, footprints and design notes.
 Every fitted part has its JLCPCB part.
 
@@ -45,6 +55,7 @@ from 3.3 V logic, with the circuit of the M5Stack Unit SSR it replaces.
 | J8, boiler SSR | HT396V 2 | GND | BOILER_5V | — | — |
 | J9, pump | JST XH 4 | GND_P (green) | SPEED_P (brown) | TACHO_P (blue) | +5V_P (yellow) |
 | J10, pressure | JST XH 3 | +3V3 | GND | PRESSURE | — |
+| J13, scale | JST XH 4 | SCALE_SDA | SCALE_SCL | +5V | GND |
 
 J1 was the 5 V input in v1; it now carries the screen cable, 5 V and CAN
 in one XH 4 housing, the same part as J9. J7 takes two 0.75 mm² wires from the 24 V
@@ -141,8 +152,8 @@ The valve channel uses Q1, R1–R4, D1 and U1.
   commanded. It sits in parallel with the optotriac LED, so it shows the
   command, not whether the valve is actually conducting.
 
-Load on the 3V3 rail: about 12 mA with the valve on, plus 0.7 mA for the
-PUMP_TACHO pull-up, drawn from the XIAO 3V3 without a local bulk capacitor.
+Load on the 3V3 rail: about 12 mA with the valve on, plus U8's side A
+(1.8 to 3.1 mA typical, 4.9 mA max), drawn from the XIAO 3V3.
 
 ## Mains side: valve channel (zero-cross)
 
@@ -231,7 +242,7 @@ at 5 V is 0.23 A from 24 V at 90 % efficiency; the supply budget counts
 0.25 A for the buck. With 2 A at 5 V for margin, U10 runs well inside its
 3 A.
 
-Layout, for the board update:
+Layout:
 
 - C5, then C1, right at VIN and PGND: the input loop carries the switched
   current and must stay small.
@@ -240,6 +251,17 @@ Layout, for the board update:
   GND plane.
 - R28 / R29 next to FB, away from SW; feedback taken at the output
   capacitors.
+
+The SW node is an 8.3 mm, 0.8 mm wide track from U10 pin 8 to L1 pin 1,
+longer than in TI's figure 10-2: C7 (BOOT) and C16 (VCC) sit between U10
+and L1 and push L1 away. TI's layout guidelines (section 10.1) rank CIN,
+then CVCC, CBOOT and the FB divider at their pins before the SW length
+(point 9). L1 stays where it is (decided on November 15, 2026). A shorter SW
+node would not change regulation or efficiency (about 10 nH in series with
+10 µH), only radiation and ringing on the switching edges, over the bottom
+GND plane. Nothing sensitive is within 3 mm of it: the CAN transceiver is
+about 22 mm away and the ADS1115 about 45 mm. The input loop (C5 at 2.3 mm
+from VIN and GND) and the thermal vias follow TI.
 
 ## XIAO 5 V pin and USB
 
@@ -263,71 +285,223 @@ the XIAO on the board.
 
 ## Gear pump interface
 
-Two EL817C (U8, U9) keep the pump's signal wires (green GND_P, yellow
-+5V_P, brown SPEED_P, blue TACHO_P) on their isolated side: they never touch
-a ground or a supply of the board. The pump datasheet does not say whether
-green is tied to black inside; on the received pump, the meter finds no
-continuity between them, which does not rule out a path through the
+U8, a Chipanalog CA-IS3721CLS (LCSC C41784135,
+`../../docs/datasheets/CA-IS3721CLS.pdf`, version 1.03), keeps the pump's signal wires (green
+GND_P, yellow +5V_P, brown SPEED_P, blue TACHO_P) on its side B: they never
+touch a ground or a supply of the board. The pump datasheet does not say
+whether green is tied to black inside; on the received pump, the meter finds
+no continuity between them, which does not rule out a path through the
 electronics. The SOVOFLO family forbids tying the setpoint reference to the
 power ground. The circuit works either way.
 
-Setpoint (U8):
+The CA-IS3721C is a two-channel capacitive isolator with one channel each
+way, 3.0 to 5.5 V on each side, Schmitt-trigger inputs and push-pull
+outputs. Each channel sends a carrier across the barrier for one input state
+and nothing for the other (on-off keying); the receiver rebuilds the level.
+The "L" parts output LOW when their input is open or the input side is
+unpowered (`tDO` 15 ns max). The output is undefined while its own side is
+below its 2.7 V undervoltage threshold. It needs 25 to 37 µs to start.
 
-- PUMP_SPEED (GPIO1) lights the U8 LED through R33 (330 Ω):
-  (3.3 − 1.2) / 330 ≈ 6 mA. R34 (100 kΩ) holds GPIO1 low.
-- U8's collector is on the yellow 5 V, its emitter pulled to green by R35
-  (10 kΩ). LED on, the emitter rises to about 5 V; 0.5 mA is enough at a CTR
-  of 200 to 400 %.
-- Filter: R36 / C20 and R37 / C21, 2 × 1.5 kΩ / 2.2 µF (48 Hz each), between
-  the emitter and the brown wire, capacitors to green. C20 and C21 are
-  50 V X5R 0805 (Samsung CL21A225KBQNNNE, LCSC C377773). With the LEDC at
-  1 kHz and 14 bits (the ESP32-S3 LEDC maximum), the ripple is about 5 V × (48 / 1000)² ≈ 12 mV, about 12 rpm, and
-  the response time about 10 ms. The source impedance, about 3 kΩ,
-  is close to a 10 kΩ potentiometer at mid travel (2.5 kΩ).
-- U8 off, R35 brings the setpoint to green: 0 at power-up, during a reset,
-  with the XIAO absent or the firmware stopped.
-- **The setpoint is not linear in the duty cycle.** Measured on the board on
-  November 11, 2026, J9 yellow on the board +5V (5.16 V), SPEED_P with no
-  pump, PWM at 1 kHz:
+**Pinout, not the ISO7721's.** Side A: 1 VDDA, 2 VI1, 3 VO2, 4 GNDA. Side B:
+5 GNDB, 6 VI2, 7 VO1, 8 VDDB. Channel 1 runs from pin 2 to pin 7, channel 2
+from pin 6 to pin 3. TI's ISO7721 has the same supply pins but its channels
+run the other way (input on pin 7, output on pin 2): the two are not
+interchangeable, and KiCad's `Isolator:ISO7721D` symbol does not fit. The
+CA-IS3722C has the ISO7721 order. The default-high CA-IS3721CHS (C41409432)
+fits the same pads but would start the pump without a XIAO: never substitute
+it.
 
-  | Duty | 0 % | 0.1 % | 0.3 % | 0.5 % | 1 % | 2 % | 3.09 % | 7.79 % | 15.77 % | 32.37 % | 50 % | 87.87 % | 100 % |
-  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-  | SPEED_P (V) | 0 | 0.071 | 0.318 | 0.576 | 1.045 | 1.481 | 1.727 | 2.455 | 3.240 | 4.09 | 4.55 | 5.02 | 5.09 |
+Side A is on the XIAO 3V3 with C22 (100 nF) and C23 (1 µF), as the
+datasheet asks; side B runs from the yellow wire with C24 (100 nF) and C25
+(1 µF).
 
-  Two effects add up. C20 charges through R36 alone (1.5 kΩ) while U8
-  conducts, but discharges through R36 + R35 (11.5 kΩ) while it is off: for
-  a duty D, V = Vmax × k·D / (1 + (k − 1)·D) with k = 11.5 / 1.5 ≈ 7.7.
-  U8 also stays on after its LED goes off, which lengthens each pulse: about
-  1 µs for a 1 µs pulse, 11 µs at 5 µs, then 24 to 31 µs from 20 µs on.
-  The curve is monotonic over the whole range, from 0.07 V to 5.09 V, and
-  0 % gives exactly 0 V. The firmware maps a setpoint to a duty by linear
-  interpolation in this table, as a fraction of Vmax (the pump's yellow wire
-  gives 4.98 V, not 5.16 V), and the speed is read back on the tachometer.
-  The fall time is about 25 ms (11.5 kΩ × 2.2 µF), not 10 ms.
+Setpoint (channel 1):
 
-Tachometer (U9):
+- PUMP_SPEED (GPIO1) drives VI1 directly. R34 (100 kΩ) holds GPIO1 low while
+  the XIAO is absent or booting; VI1 left open gives LOW as well.
+  ESP32-S3 high output ≥ 2.64 V against VIH = 0.7 × 3.3 = 2.31 V.
+- VO1 swings from GND_P to +5V_P through about 50 Ω (± 40 %). Filter: R36 /
+  C20 and R37 / C21, 2 × 2.2 kΩ / 2.2 µF (33 Hz each, nearer 40 Hz with the
+  X5R's loss at 5 V), between VO1 and the brown wire, capacitors to green.
+  C20 and C21 are 50 V X5R 0805 (Samsung CL21A225KBQNNNE, LCSC C377773),
+  kept from v2. Charge and discharge both go through R36, so
+  **SPEED_P = duty × V(yellow) × 176 / (176 + 4.4) ≈ 0.976 × duty ×
+  V(yellow)**: 176 kΩ is the pump input, 4.4 kΩ the filter. The 2.4 %
+  is proportional; full scale is about 4.86 V with the yellow wire at
+  4.98 V.
+- What is left of non-linearity is the difference between the high and low
+  output resistances, 40 Ω at worst against 2.2 kΩ: at most 0.45 % of
+  V(yellow) at 50 % duty, about 23 mV, much less with matched outputs. Pulse
+  width distortion (10 ns max) is 10 ppm of the 1 ms period. With the LEDC at
+  1 kHz and 14 bits, one step is 61 ns, three times the 20 ns minimum pulse,
+  and 0.3 mV of setpoint. The ripple stays under 10 mV, about 10 rpm, and
+  the response takes about 15 ms.
+- 2.2 kΩ is a compromise. 1.5 kΩ (v2) would draw up to 3.3 mA peaks from
+  VO1, close to its 4 mA rating, and double the non-linearity; 4.7 kΩ would
+  lose 5 % of the full scale, 4.73 V, too close to the 4.6 V of the purge.
+- 3V3 absent, XIAO absent or booting, firmware stopped: VO1 is LOW and the
+  pump stays at 0.
 
-- U9's LED runs from yellow to blue through R38 (1.8 kΩ): about 2 mA while
-  blue is low. This works with a push-pull or an open-collector output.
-- U9's transistor pulls PUMP_TACHO (GPIO3) to GND against R39 (4.7 kΩ to
-  3V3, 0.7 mA). The signal is inverted; a GPIO interrupt counts and timestamps its
-  falling edges.
-- The pump gives 2 pulses per turn from an active 0–5 V output (measured):
-  167 Hz at 5 000 rpm, far below the 2.7 kHz the EL817C follows.
+Why it matters: a MPB015 (0.36 ml/turn, `docs/pompe-engrenage.md`,
+"Alternative : MPB015") would run between about 0.6 and 2 V, where 0.1 V is
+about 0.6 ml/s. On v2 that range is 0.5 to 5 % duty, pulses of 5 to 50 µs
+that the EL817C stretches by 24 to 31 µs, and the setpoint depends mostly on
+the optocoupler's turn-off time, which varies from part to part and with
+temperature. With U8 it depends on the duty and the yellow voltage only.
+
+Tachometer (channel 2):
+
+- Blue drives VI2; R38 (10 kΩ) pulls it up to the yellow wire, so an
+  open-collector output would work too (0.5 mA while blue is low). Measured
+  on the received pump: active 0–5 V output, 2 pulses per turn, 167 Hz at
+  5 000 rpm.
+- VI2 thresholds from the yellow 4.98 V: high above 3.49 V, low below
+  1.49 V, with hysteresis.
+- VO2 drives PUMP_TACHO (GPIO3) push-pull at 3.3 V, rise and fall under
+  5 ns: **PUMP_TACHO follows blue, it is no longer inverted.** No pull-up.
+  Pump unpowered or J9 unplugged: PUMP_TACHO stays LOW.
 - GPIO3 is a JTAG strapping pin, read only when the `STRAP_JTAG_SEL` eFuse
   is burnt, which it is not by default.
 
-The pump's yellow wire supplies about 2.5 mA (0.5 mA for the setpoint, 2 mA
-for the tachometer). Measured on the received pump: 4.98 V open, unchanged
-at 2.3 mA and 5 mA, so R38 stays at 1.8 kΩ. The pump pulls the brown wire to
-green through 176 kΩ: left open, the setpoint reads 7 mV and the pump stays
-stopped, so a loose J9 cannot start it.
+Yellow wire load: U8 side B draws 1.9 mA typical with both inputs low,
+3.4 mA with both high, 5.0 mA at most; add up to 0.5 mA for R38 and about
+0.6 mA for the filter at 50 % duty. That is 2.5 to 4.3 mA typical and about
+6 mA at worst. Measured on the received pump: 4.98 V open, unchanged at
+2.3 mA and 5 mA. The pump pulls the brown wire to green through 176 kΩ:
+left open, the setpoint reads 7 mV and the pump stays stopped, so a loose
+J9 cannot start it.
 
-U8 and U9 are on `Package_DIP:SMDIP-4_W9.53mm`, the pads of the v1 U3
-without the slot: the pump side is low voltage. Between the pump side and
-board GND, the isolation is functional only and the default rules apply. On
-the board, group U8, U9, R35–R38, C20, C21 and J9, and keep the board GND
-pour away from GND_P and +5V_P so that they are not tied by accident.
+A strongly driven input can feed an unpowered side through its protection
+diodes and make the outputs undefined. Blue and yellow come from the same
+pump electronics, so this cannot happen in service; do not plug J9 with the
+pump powered, its contacts do not mate in order.
+
+Firmware for v3:
+
+- Setpoint: duty = V / (0.976 × V(yellow)), no table. Measure one point at
+  the bench to fix the 0.976.
+- Tachometer: the edge to count is the same as on v2. On v2, PUMP_TACHO
+  falls when blue falls (U9 conducts); on v3 it falls with blue too. Only
+  the idle level without the pump changes, LOW instead of HIGH. The software
+  filter (35 % of a turn) can stay, it should no longer reject anything.
+- The firmware needs to know which board it runs on (see Open points).
+
+On the board, U8 straddles the boundary: pins 1–4 toward the XIAO, pins 5–8
+toward J9. Group J9, R36–R38, C20, C21, C24 and C25 on the pump side, and
+keep the board GND pour away from GND_P and +5V_P so that they are not tied
+by accident. The isolation is functional only and the default rules apply.
+U8 uses KiCad's `SOIC-8_3.9x4.9mm_P1.27mm`, as U4. Chipanalog's land
+pattern (version 1.03) has 0.60 × 1.40 mm pads at 5.50 mm; KiCad's are
+0.6 × 1.95 mm at 4.95 mm, with the same outer edge. Between the pad rows
+that leaves 3.0 mm instead of 4.1 mm, enough for functional isolation.
+
+### Board in service (v2)
+
+Two EL817C on `Package_DIP:SMDIP-4_W9.53mm`. U8: R33 (330 Ω) from GPIO1 to
+its LED, about 6 mA; collector on yellow, emitter pulled to green by R35
+(10 kΩ), then 2 × 1.5 kΩ / 2.2 µF. U9: LED from yellow to blue through R38
+(1.8 kΩ, 2 mA); transistor pulls PUMP_TACHO to GND against R39 (4.7 kΩ to
+3V3): the signal is inverted.
+
+**The v2 setpoint is not linear in the duty cycle.** Measured on the board
+on November 11, 2026, J9 yellow on the board +5V (5.16 V), SPEED_P with no
+pump, PWM at 1 kHz:
+
+| Duty | 0 % | 0.1 % | 0.3 % | 0.5 % | 1 % | 2 % | 3.09 % | 7.79 % | 15.77 % | 32.37 % | 50 % | 87.87 % | 100 % |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| SPEED_P (V) | 0 | 0.071 | 0.318 | 0.576 | 1.045 | 1.481 | 1.727 | 2.455 | 3.240 | 4.09 | 4.55 | 5.02 | 5.09 |
+
+C20 charges through R36 alone (1.5 kΩ) while U8 conducts, but discharges
+through R36 + R35 (11.5 kΩ) while it is off: for a duty D, V = Vmax × k·D /
+(1 + (k − 1)·D) with k ≈ 7.7. U8 also stays on after its LED goes off: about
+1 µs for a 1 µs pulse, 11 µs at 5 µs, then 24 to 31 µs from 20 µs on. The
+curve is monotonic, and 0 % gives exactly 0 V. The firmware maps a setpoint
+to a duty by linear interpolation in this table, as a fraction of Vmax, and
+reads the speed back on the tachometer. The fall time is about 25 ms.
+
+On v2, U9's transistor turns off slowly when blue rises, and R39 pulls GPIO3
+up over tens of µs. In the first purge in the machine (2026-11-13, pump at
+4 605 rpm), noise during that ramp gave about 4.6 extra falling edges per
+second, 0 to 60 µs after the rising edge, about 3 % of the count. The
+firmware rejects them since 0.5.1: an edge under 35 % of a turn after the
+previous one is dropped.
+
+## Scale bus
+
+The scale board (`../scale/`, a NAU7802 at the load cell under the drip
+tray) sits on this board's I2C bus. The only way through is a 4 mm hole from
+the inside of the machine to the purge area of the drip tray, so the cable
+carries four wires: GND, +5V, SDA and SCL, 20 to 25 cm, not twisted. The
+scale board has no microcontroller and no firmware; the XIAO here reads the
+weight. Datasheet: `../../docs/datasheets/nau7802.pdf` (Nuvoton, rev 2.6).
+
+Why a NAU7802 on I2C. The first design put an ADS1232 and a XIAO on the
+scale board and a second TJA1051 here, with the CAN logic lines on the
+cable. The NAU7802 drops the third firmware and the module behind the drip
+tray, and needs no GPIO here (only GPIO43 is free). It is noisier than the
+ADS1232, 50 nV rms at 10 SPS and 150 nV at 80 SPS (gain 128) against 17 and
+44 nV, which stays far below 0.1 g: with a 1 mV/V cell excited at 4.2 V, a
+1 kg cell gives 4.2 mV full scale, so 0.012 g rms at 10 SPS and 0.036 g at
+80 SPS. The cost is an I2C bus that leaves the board.
+
+Why the scale side runs at 5 V:
+
+- The NAU7802's I2C thresholds follow DVDD (VIH = 0.7 × DVDD), and AVDD
+  cannot exceed DVDD; its LDO needs DVDD at least 0.3 V above its output.
+- At gain 64 and 128, the PGA inputs must stay between AVSS + 1.5 V and
+  AVDD − 1.5 V, a figure given only at 5 V. The bridge midpoint is half the
+  excitation: at 3.0 V (DVDD on 3.3 V), the window shrinks to nothing.
+- So DVDD is on +5V and the LDO gives 4.2 V to AVDD, REFP and the bridge:
+  midpoint 2.1 V in a 1.5 to 2.7 V window, and 0.8 V of headroom for the
+  LDO. That makes VIH 3.5 V, out of reach of the 3.3 V bus: hence Q7 and
+  Q8.
+
+Level shifters:
+
+- Q7 (SDA) and Q8 (SCL) are BSS138-7-F (LCSC C40912), gate on +3V3, source
+  on I2C_SDA / I2C_SCL with R20 / R23 (4.7 kΩ), drain on SCALE_SDA /
+  SCALE_SCL with R40 / R41 (2.2 kΩ) to +5V. A side pulled low pulls the
+  other low, first through the body diode, then through the channel once
+  Vgs rises; released, each side rises on its own pull-ups. The 2N7002DW
+  dual was left out: its threshold reaches 2.5 V against 3.3 V of gate.
+- The NAU7802 asks rise and fall times of 300 ns at most in every mode, and
+  400 pF at most on the bus. With about 80 pF of cable and pins, 2.2 kΩ
+  gives about 150 ns; the 4.7 kΩ of the 3.3 V side alone would give about
+  320 ns. The bus stays at 100 kHz.
+- The 5 V side gives 1.5 V of noise margin (VIH 3.5 V of 5 V), against
+  0.8 V for an ESP32-S3 input on the 3.3 V bus.
+- With the scale unplugged, R40 / R41 hold SCALE_SDA / SCALE_SCL high and
+  the bus on this board works as before. A fault on the cable that holds a
+  line low blocks the whole bus, ADS1115 and TMP102 included: the firmware
+  recovers it (nine SCL pulses, then a STOP) and reports the scale as
+  missing.
+
+J13 (JST XH 4, B4B-XH-A, as J1): 1 SCALE_SDA, 2 SCALE_SCL, 3 +5V, 4 GND,
+pin for pin with J1 of the scale board, a screw terminal block: straight
+cable. The XH end
+is crimped on this side first; the wires then go through the hole and into
+the terminal block. The scale board draws about 7.7 mA from +5V (NAU7802
+2.1 mA, the 1 kΩ cell (1 000 Ω measured between red and black, and between green and white) 4.2 mA at 4.2 V, its LED 1.4 mA), plus R40 / R41 while
+a line is low (2.3 mA each). The NAU7802's LDO gives 10 mA at most: at
+4.2 V the cell must be above 420 Ω (a 350 Ω cell would draw 12 mA).
+
+Firmware, from the NAU7802 datasheet:
+
+- Address 0x2A, fixed; no conflict with the TMP102 (0x48) or the ADS1115
+  (0x49).
+- Nothing runs until configured: RR = 1 then 0 with PUD = 1, wait for PUR
+  (about 200 µs), LDO at 4.2 V (VLDO = 001) with AVDDS = 1, PUA = 1, gain
+  128, rate, REG0x15 = 0x30, PGA_CAP_EN for the Cfilter on VIN2, then an
+  internal offset calibration (CALS, check CAL_ERR), and drop the first six
+  conversions.
+- Read the result by polling CR (REG0x00 bit 5), then a 3-byte burst read
+  from 0x12. Never enable CRSD (REG0x11 bit 7): the chip would then hold SDA
+  low to signal a conversion, and block the shared bus. DRDY is not wired.
+- Disable the internal 50 kΩ pull-ups (WPD = 1); the 2.2 kΩ here are enough.
+
+On the board, Q7, Q8, R40 and R41 sit next to J13, on the edge facing the
+drip tray hole. I2C_SDA and I2C_SCL already run to the TMP102 and the
+ADS1115; SCALE_SDA and SCALE_SCL stay short, over the GND plane.
 
 ## Low-voltage side from sensors
 
@@ -358,7 +532,7 @@ XIAO pins used by the valve and the pump:
 | Signal | GPIO | Seeed name | U7 / J11–J12 pin | Firmware |
 |---|---:|---|---|---|
 | PUMP_SPEED | 1 | D0 | U7 / 1, J11 / 1 | LEDC PWM, 1 kHz, 14 bits; 0 at boot |
-| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | GPIO interrupt on the inverted signal, software filter: 3 ms, and 35 % of a turn |
+| PUMP_TACHO | 3 | D2 | U7 / 3, J11 / 3 | GPIO interrupt on falling edges (blue falling, on v2 and v3), software filter: 3 ms, and 35 % of a turn |
 | SSR | 9 | D10 | U7 / 11, J12 / 4 (former VALVE_CMD) | active HIGH |
 
 The other pins keep their sensors assignments; only D6/GPIO43 stays free.
@@ -371,8 +545,9 @@ setpoint is above 0.3 V. It then sets the setpoint to 0 for at least 10 ms,
 which re-arms the pump, logs the fault and does not restart on its own during
 a shot. The pump ignores a setpoint sent within 65 ms of a cold start.
 
-The XIAO 3V3 output also supplies the valve logic (12 mA with the valve on)
-and the PUMP_TACHO pull-up, on top of the sensors load.
+The XIAO 3V3 output also supplies the valve logic (12 mA with the valve on),
+U8's side A (4.9 mA at most), on top of the
+sensors load.
 
 ## Overvoltage protection decision
 
@@ -443,17 +618,16 @@ and two mains tracks ending on the pads of R5 or R6 may come to 1.8 mm, the
 pad gap of a 1206; these resistors see little voltage. C2 has the full mains
 across it when Q2 is off, so it is an 1812: 2.7 mm between pads.
 
-The v1 netclass patterns and rules for the pump channel and the zero-cross
-detector are removed. Until the board is updated from the schematic, its
-old pump and zero-cross copper has no class left and trips the 7 mm rule.
-
-H2 and H6, M2 mounting holes, sit on the mains side. They take metal
-screws and standoffs into the brass inserts of the printed enclosure; the
-inserts float. Counted from the edge of the hardware (2.3 mm radius, the
-corners of a 4 mm hex standoff), H2 is 9.4 mm from the nearest mains copper
-(L_VALVE) and H6 is 10.2 mm from it (R6, Q2 gate) and 13.1 mm from the GND
-plane: each gap clears the 7 mm reinforced distance alone, so the hardware
-cannot bridge the mains to the low-voltage side. H1, H3, H4 and H5 are on
+H2 and H6, M2 mounting holes, sit on the mains side. The board rests on a
+printed PETG cylinder holding a brass insert, and a nylon screw clamps it:
+nothing conductive passes through the board, and the holes are unplated.
+The insert, under the board, touches no copper and floats. The hardware
+therefore cannot bridge the mains to the low-voltage side, whatever its
+distance to the copper. For reference, from a 2.3 mm radius around the hole,
+H2 is 10.0 mm from the nearest mains copper (L_VALVE on the bottom layer);
+H6 is 7.2 mm from it (R6 pad 2, Q2 gate) and 2.0 mm from the GND plane.
+Metal screws or standoffs would make these gaps the insulation: H6 would
+then keep only 0.2 mm over the 7 mm reinforced distance. H1, H3, H4 and H5 are on
 the low-voltage side. Under the hardware of H1, H4 and H5 there is only GND
 plane, so the plane runs up to the hole clearance, without a keepout.
 
@@ -485,8 +659,8 @@ When laying out the PCB:
   pin 1): N joins them with one short track, and L_IN and L_VALVE stay on
   the outer pins.
 - The output pin of Q2 is trapped between its gate trace and the L feed of
-  U1 (R5): L_VALVE leaves pin 1 through two vias (0.8/0.4 mm, about 1.5 to
-  2 A each) and reaches J3 on the bottom layer. No rotation avoids it, since
+  U1 (R5): L_VALVE leaves pin 1 through one via (0.6/0.3 mm, about 1 A,
+  for 65 mA) and reaches J3 on the bottom layer. No rotation avoids it, since
   rotating a part keeps the order of its pads.
 - Keep L_IN, between J2.1 and F1, short; F1 does not protect it.
 - Do not pour GND under the mains side.
@@ -502,55 +676,25 @@ When laying out the PCB:
   the 24 V wing (X 55.9–59.8, Y 112.5–119.1) and on the south edge of the
   mains band east of H6 (X 123.9–130.5, Y 78.1–82.0). Its low-voltage side, including the 24 V input
   and the pump side, must keep 7 mm from every mains net.
-- **Next board revision: make the setpoint linear.** R36 / R35 make the
-  charge and discharge paths unequal, and U8 lengthens each pulse by up to
-  31 µs (see "Gear pump interface"). The board in service keeps the current
-  values, and the firmware compensates with the measured table; the
-  schematic stays as built until a new revision is ordered. Two approaches,
-  chosen at design time from the space on the board and the parts JLCPCB
-  stocks:
-  - **A, values only, same footprints**: R35 1 kΩ, R36 / R37 10 kΩ,
-    C20 / C21 220 nF (48 Hz kept). k drops from 7.7 to 1.1, and the 1 kΩ
-    load should also make U8 turn off much faster (not measured). The
-    yellow wire supplies 5 mA more at full setpoint, about 7 mA with the
-    tachometer; its regulation was only checked up to 5 mA, so measure it
-    at 7 mA first. The 20 kΩ source against the pump's 176 kΩ pull-down
-    lowers the setpoint by about 10 %, proportionally, read back on the
-    tachometer. A small residual non-linearity remains at very low duty.
-  - **B, dual-channel digital isolator** (ISO7721 type, one channel each
-    way) in place of U8 and U9: push-pull output powered from the yellow
-    wire into the same symmetric RC filter, so V = D × V_yellow exactly; the
-    tachometer goes back through the second channel. New footprint, about
-    2 to 4 mA from the yellow wire, part availability at JLCPCB to check.
-  Either way, the firmware table is measured again on the new board.
-- **Next board revision: put L1 against U10's SW pin**, as in figure 10-2
-  of the LMR33630 datasheet. On the board in service, the SW node is a
-  9.5 mm, 0.8 mm wide track from U10 pin 8 to L1 pin 1, about three times
-  TI's length, with a 1.5 mm, 0.2 mm branch to C7 halfway. C7 (BOOT) and
-  C16 (VCC) sit between U10 and L1 and push L1 away: on the next layout they
-  go beside U10, next to pins 7 and 6, as CBOOT and CVCC in TI's figure, and
-  L1 comes down against pin 8. It does not change regulation or efficiency (about
-  10 nH in series with 10 µH), only radiation and ringing on the switching
-  edges, over the bottom GND plane. Nothing sensitive is within 3 mm of it;
-  the CAN transceiver is about 22 mm away and the ADS1115 about 45 mm. The
-  input loop (C5 at 2.3 mm from VIN and GND) and the thermal vias already
-  follow TI.
-- **Next board revision: give PUMP_TACHO a clean rising edge.** In the
-  first purge in the machine (2026-11-13, pump at 4 605 rpm), GPIO3 saw
-  about 4.6 extra falling edges per second, about 3 % of the count. Each
-  extra edge arrives 0 to 60 µs after the rising edge: when U9's LED goes
-  off, its transistor turns off slowly and R39 (4.7 kΩ) pulls the input up
-  over tens of µs. Noise during that ramp crosses the threshold again. The
-  noise source is not measured: the buck (400 kHz, PFM bursts at light
-  load, long SW track, see the point above) or the pump's commutation
-  through the cable. The firmware rejects these edges since 0.5.1 (an edge
-  under 35 % of a turn after the previous one is dropped); the board should
-  not need that filter. Options, to choose at design time:
-  - a Schmitt-trigger buffer (74LVC1G17 type, 3V3) between U9 and GPIO3;
-  - R39 down to 1 kΩ (3.3 mA, within U9's output at 2 mA LED current
-    with a CTR of 200 % or more), for a ramp about five times shorter;
-  - option B of the setpoint point above: a digital isolator has
-    push-pull outputs with fast edges and removes U9 altogether.
+- **Before ordering v3: load the yellow wire with 6 mA** (820 Ω from yellow
+  to green, pump powered, motor stopped) and check that it stays near
+  4.98 V. U8, R38 and the filter draw 2.5 to 4.3 mA typical and about 6 mA
+  at worst; the wire was only checked up to 5 mA.
+- **First power-up of v3, before the pump turns**, pump on J9, XIAO
+  firmware with PUMP_SPEED at 0:
+  - SPEED_P at 0 V with the XIAO removed, and with the XIAO in place but
+    held in reset (RESET button held): the default-low output and R34.
+  - One point, 50 % duty with the pump powered: SPEED_P against
+    0.976 × duty × V(yellow), within 1 %; this fixes the firmware's factor.
+  - Blue at the scope against VI2's thresholds: low under 1.49 V with
+    R38's 0.5 mA, high above 3.49 V.
+  - PUMP_TACHO: one clean falling edge per blue falling edge, no extra
+    edge after the rising one (count over a purge against the software
+    filter's rejects, which should stay at 0).
+- **Firmware: tell v2 from v3.** v2 needs the duty table and sees PUMP_TACHO
+  HIGH without the pump; v3 maps the duty linearly and sees it LOW. A
+  build or configuration setting is enough: the board cannot report its
+  version. To decide in the firmware.
 - Pump interface value to check: the start threshold and the low end of
   the setpoint-to-speed curve, below 1.2 V (measured: about 1 000 rpm per
   volt from 1.2 to 5 V).
@@ -563,9 +707,10 @@ When laying out the PCB:
 
 ## Assembly and maintenance
 
-U1, U8 and U9 are the surface-mount lead-bend options (MOC3043SR2M,
-EL817S1(C)(TU)-F); the plain part numbers are through-hole DIPs and do not
-fit the SMDIP footprints. The manufacturing export
+U1 is the surface-mount lead-bend option (MOC3043SR2M); the plain part
+number is a through-hole DIP and does not fit the SMDIP footprint. U8 must
+be the CA-IS3721CLS: the CHS variant defaults high, and the ISO7721 and
+CA-IS3722C have the channels the other way. The manufacturing export
 (`uv run ../generate_manufacturing.py .`) requires the LCSC column, matching
 fields in the schematic, and a DRC-clean PCB.
 
@@ -573,7 +718,9 @@ References, in `../../docs/datasheets/`:
 - `m5stack-unit-ssr.md` (valve channel origin), `KS53_EN.pdf` (boiler SSR).
 - `MOC3043M-D.PDF`, `MOC3163M-D.PDF` (onsemi optotriacs).
 - `bt136.pdf` (JCST BT136S, LCSC C23427, the M5Stack Unit SSR part),
-  `el817.pdf` (Everlight), `mf2410.pdf` (AEM MF2410 fuses, F1).
+  `el817.pdf` (Everlight, v2 U8 and U9), `mf2410.pdf` (AEM MF2410 fuses, F1).
+- `CA-IS3721CLS.pdf` (Chipanalog CA-IS372xC, version 1.03, U8),
+  `TJA1051.pdf` (NXP, U4), `nau7802.pdf` (Nuvoton, on the scale board).
 - `lmr33630.pdf` (TI, U10), `xiao_esp32s3_sch.pdf` (Seeed XIAO ESP32-S3
   schematic v1.2), `gearpump-mpb003.pdf` (Chenhui MPB003 pump); pump notes
   in `../../docs/pompe-engrenage.md`.

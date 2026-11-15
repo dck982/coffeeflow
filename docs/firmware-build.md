@@ -201,6 +201,7 @@ sens sur le bus CAN. Sous-commandes :
 | `set scace on\|off` | active ou désactive un réglage de `/config` |
 | `download-hf` | télécharge la dernière capture haute fréquence dans `captures/` |
 | `purge <secondes>` | purge Wi-Fi (60 s au plus, exacte si multiple de 5) |
+| `tds [--average N] [--listen] [--capture <capture>] [--dose-g <g>] [--beverage-g <g>] [--address <adresse>]` | lit le réfractomètre DiFluid R2 en BLE depuis le Mac : lance un test (ou une moyenne de 2 à 10), ou avec `--listen` affiche chaque test lancé au bouton jusqu'à Ctrl-C ; TDS, indice, températures, et rendement d'extraction. `--capture` en tire la dose du profil et le poids final (maximum des poids valides après l'arrêt de la pompe, comme `describe_hf_capture.py`) ; `--dose-g` et `--beverage-g` les remplacent. Rien n'est écrit dans `captures/`. L'application DiFluid doit être déconnectée : le R2 n'annonce plus rien tant qu'elle l'est |
 
 Un seul processus peut ouvrir un port série à la fois ; le moniteur peut
 afficher les trames avec retard lorsqu'il rattrape un buffer important.

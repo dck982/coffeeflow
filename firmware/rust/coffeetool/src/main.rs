@@ -8,6 +8,7 @@
 //! seules commandes qui ont un sens sur le bus CAN.
 
 mod decoder;
+mod difluid;
 mod flash;
 mod http;
 mod paths;
@@ -159,6 +160,28 @@ enum Command {
     DownloadHf,
     /// Purge Wi-Fi de la durée donnée (60 s au plus, exacte si multiple de 5)
     Purge { seconds: f64 },
+    /// Mesure le TDS au réfractomètre DiFluid R2, en BLE
+    Tds {
+        /// Moyenne de N tests (2 à 10) au lieu d'un test simple
+        #[arg(long, conflicts_with = "listen")]
+        average: Option<u8>,
+        /// Ne lance rien : affiche chaque test lancé sur l'appareil, jusqu'à Ctrl-C
+        #[arg(long)]
+        listen: bool,
+        /// Capture HF de l'infusion : dose du profil et poids final, pour le
+        /// rendement d'extraction
+        #[arg(long)]
+        capture: Option<PathBuf>,
+        /// Dose en grammes, prioritaire sur la capture
+        #[arg(long)]
+        dose_g: Option<f64>,
+        /// Boisson en grammes (poids final), prioritaire sur la capture
+        #[arg(long)]
+        beverage_g: Option<f64>,
+        /// Adresse BLE du R2 (sinon recherche par nom)
+        #[arg(long)]
+        address: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -461,6 +484,36 @@ fn cmd_telemetry(
     Ok(true)
 }
 
+/// Dose et boisson de l'extraction : les valeurs données gagnent sur celles
+/// de la capture. Une capture qui ne fournit pas l'une des deux est refusée
+/// avant la mesure, pas après.
+fn tds_masses(
+    capture: Option<&std::path::Path>,
+    dose_g: Option<f64>,
+    beverage_g: Option<f64>,
+) -> Result<(Option<f64>, Option<f64>)> {
+    let Some(path) = capture else {
+        if dose_g.is_some() != beverage_g.is_some() {
+            bail!("--dose-g et --beverage-g vont ensemble, ou avec --capture");
+        }
+        return Ok((dose_g, beverage_g));
+    };
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("lecture de {}", path.display()))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&text).with_context(|| format!("JSON de {}", path.display()))?;
+    let masses = difluid::capture_masses(&json)?;
+    let dose = dose_g.or(masses.dose_g);
+    let beverage = beverage_g.or(masses.final_weight_g);
+    let Some(dose) = dose else {
+        bail!("pas de dose dans le profil de la capture : donner --dose-g");
+    };
+    let Some(beverage) = beverage else {
+        bail!("pas de poids final dans la capture : donner --beverage-g");
+    };
+    Ok((Some(dose), Some(beverage)))
+}
+
 fn run(cli: Cli) -> Result<bool> {
     let connection = Connection::from_args_and_env(cli.ip, cli.token);
     match cli.command {
@@ -548,6 +601,29 @@ fn run(cli: Cli) -> Result<bool> {
             runtime::install_ctrlc();
             let mut client = connection.client()?;
             purge::purge(seconds, &mut client, &SystemRuntime::new())?;
+        }
+        Command::Tds {
+            average,
+            listen,
+            capture,
+            dose_g,
+            beverage_g,
+            address,
+        } => {
+            let (dose_g, beverage_g) = tds_masses(capture.as_deref(), dose_g, beverage_g)?;
+            if let (Some(dose), Some(beverage)) = (dose_g, beverage_g) {
+                println!("dose {dose:.1} g, boisson {beverage:.1} g");
+            }
+            runtime::install_ctrlc();
+            let mode = match (listen, average) {
+                (true, _) => difluid::Mode::Listen,
+                (false, Some(rounds)) => difluid::Mode::Average(rounds),
+                (false, None) => difluid::Mode::Single,
+            };
+            difluid::run(mode, address.as_deref(), &mut |m| {
+                println!("{}", difluid::describe(m, dose_g, beverage_g));
+                let _ = std::io::stdout().flush();
+            })?;
         }
     }
     Ok(true)

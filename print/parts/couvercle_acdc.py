@@ -5,7 +5,7 @@ from parts import boitier_ac, boitier_dc
 
 # Connectors plugged from above, through the lid. The HT396 openings take
 # the plug, wider than its header on the latch side.
-_CONNECTEURS = ("combined_j7", "combined_j1", "combined_j8", "combined_j10",
+_CONNECTEURS = ("combined_j7", "combined_j1", "combined_j13", "combined_j8", "combined_j10",
                 "combined_j9", "combined_j6")
 # J8, J10 and J9 share one rectangular opening out to the south and east
 # edges, as wide as J8, the corner connector (first of the group): the lid
@@ -67,6 +67,17 @@ def _j6_rims(wall, jeu, gouttiere_jeu, rim_width):
         (hole_x0 - rim_width, hole_y1, hole_x1, rim_face),
         (hole_x0 - rim_width, hole_y0, hole_x0, rim_face),
     ]
+
+
+def _tongue_rib(wall, jeu, gouttiere_jeu):
+    """Rib under the 2.8 mm tongue of lid between the J13 opening and the
+    J8-J10-J9 opening, from the south rim up to the level of the J6 hole:
+    alone, the tongue is a 1.4 mm thick cantilever off the south edge."""
+    west = _hole("combined_j13", wall, jeu)[2]
+    east = _hole("combined_j8", wall, jeu)[0]
+    if east <= west:
+        return []
+    return [(west, wall + gouttiere_jeu, east, _hole("combined_j6", wall, jeu)[1])]
 
 
 def _group(rects):
@@ -140,7 +151,8 @@ def couvercle_acdc(
         wall, epaisseur_fond,
         gouttiere_jeu, gouttiere_epaisseur, gouttiere_profondeur,
         openings(wall, jeu_connecteur),
-        _j6_rims(wall, jeu_connecteur, gouttiere_jeu, gouttiere_epaisseur),
+        _j6_rims(wall, jeu_connecteur, gouttiere_jeu, gouttiere_epaisseur)
+        + _tongue_rib(wall, jeu_connecteur, gouttiere_jeu),
     )
     if draft:
         return body

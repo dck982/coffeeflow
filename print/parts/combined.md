@@ -25,7 +25,7 @@ four-walled boxes standing on the top face.
 - Component boxes come from the 3D models placed as on the board, not from the
   footprint outlines (the LCSC HT396 outlines are drawn too large), and match
   the drawings in `docs/jlcpcb` (Kefa HT396V/R, JST XH). Heights above the top
-  face: XH J1, J9, J10 7.0 mm; HT396V J6, J7, J8 10.1 mm; HT396R J2, J3 7.4 mm
+  face: XH J1, J9, J10, J13 7.0 mm; HT396V J6, J7, J8 10.1 mm; HT396R J2, J3 7.4 mm
   (the drawing; the LCSC model gives 7.5). With the XH plug in, the mated
   height is 9.8 mm (JST); the boxes show the bare headers.
 - J2 and J3 sit at KiCad X 171.1 so their front face is flush with the east

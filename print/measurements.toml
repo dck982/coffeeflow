@@ -1268,9 +1268,9 @@ unit = "mm"
 how = "combined.kicad_pcb Edge.Cuts : nord de l'extension ouest 24 V (KiCad Y 98.8)."
 
 [combined_dc_largeur]
-value = 50.1
+value = 62.1
 unit = "mm"
-how = "combined.kicad_pcb Edge.Cuts : bord est de la partie basse (KiCad X 106.0)."
+how = "combined.kicad_pcb Edge.Cuts : bord est de la partie basse (KiCad X 118.0, v3 du 2026-11-15 ; X 106.0 en v2)."
 
 [combined_ac_x]
 value = 24.6
@@ -1318,9 +1318,9 @@ unit = "mm"
 how = "user 2026-10-29 : dessous du PCB à 4 mm au-dessus du fond de boitier_ac ; les inserts M2 demandent 3.6 mm (était 5 mm)."
 
 [combined_trous]
-value = [[35.1, 2.5], [98.1, 85.1], [27.1, 85.1], [2.5, 2.4], [2.5, 33.2], [65.0, 55.1]]
+value = [[59.6, 2.4], [98.1, 85.1], [27.1, 85.1], [2.5, 2.4], [2.5, 33.2], [65.0, 55.1]]
 unit = "mm"
-how = "combined.kicad_pcb : centres de H1 à H6 (M2), dans cet ordre. H2, H3, H6 dans boitier_ac ; H1, H4, H5 dans boitier_dc."
+how = "combined.kicad_pcb : centres de H1 à H6 (M2), dans cet ordre. H2, H3, H6 dans boitier_ac ; H1, H4, H5 dans boitier_dc. H1 à KiCad (115.5, 132.2) depuis la v3 du 2026-11-15."
 
 [combined_j2]
 value = [114.65, 54.04, 124.75, 61.96]
@@ -1338,7 +1338,7 @@ unit = "mm"
 how = "parts/combined.py : XH 4 J1 (24 V, CAN), vertical, au bord sud."
 
 [combined_j6]
-value = [25.30, 20.56, 32.70, 32.44]
+value = [34.90, 20.56, 42.30, 32.44]
 unit = "mm"
 how = "parts/combined.py : HT396V 3 J6 (débitmètre), vertical, au milieu de la carte : trou isolé dans le couvercle."
 
@@ -1348,19 +1348,24 @@ unit = "mm"
 how = "parts/combined.py : HT396V 2 J7 (entrée 24 V), vertical, au bord sud. Tourné de 180° (pins inversées) le 2026-10-29 : verrou au sud."
 
 [combined_j8]
-value = [41.46, 0.30, 49.38, 7.70]
+value = [48.76, 0.30, 56.68, 7.70]
 unit = "mm"
 how = "parts/combined.py : HT396V 2 J8 (SSR chaudière), vertical, coin sud-est de la partie basse."
 
 [combined_j9]
-value = [36.65, 18.05, 49.05, 23.80]
+value = [48.60, 19.53, 61.00, 25.28]
 unit = "mm"
 how = "parts/combined.py : XH 4 J9 (pompe), vertical, au bord est de la partie basse."
 
 [combined_j10]
-value = [39.15, 10.10, 49.05, 15.85]
+value = [51.15, 10.12, 61.05, 15.87]
 unit = "mm"
 how = "parts/combined.py : XH 3 J10 (pression), vertical, au bord est de la partie basse."
+
+[combined_j13]
+value = [31.55, 0.60, 43.95, 6.35]
+unit = "mm"
+how = "parts/combined.py : XH 4 J13 (balance), vertical, au bord sud entre J1 et J8. Même pièce que J1, décalée de 15,0 mm vers l'est (v3 du 2026-11-15)."
 
 [plaque_machine_epaisseur]
 value = 4.0

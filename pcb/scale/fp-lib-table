@@ -1,0 +1,1 @@
+(fp_lib_table (version 7) (lib (name "Scale_Local") (type "KiCad") (uri "${KIPRJMOD}/Scale_Local.pretty") (options "") (descr "Scale board footprints")))

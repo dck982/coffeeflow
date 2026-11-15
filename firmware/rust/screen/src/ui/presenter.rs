@@ -726,10 +726,9 @@ impl Presenter {
         }
     }
     fn status(&self, app: &AppWindow, s: &Snapshot, c: &Config, clock: &str) {
-        // Comme le C++ : correctif sur deux chiffres (v0.4.01).
         app.set_version(
             format!(
-                "v{}.{}.{:02}",
+                "v{}.{}.{}",
                 s.screen_version_major, s.screen_version_minor, s.screen_version_patch
             )
             .into(),

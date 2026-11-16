@@ -902,3 +902,166 @@ vers 36 ml, c'est la pompe.
 | Chauffe | NTC +0,1 à +2,6 °C au remplissage ; −1,7 à +1,9 °C pompe en marche ; retour à la consigne à noter s'il dépasse 300 s |
 | Tasse | 89,0 à 92,5 °C ; goût noté, après la purge de 2 L |
 | Extraction | TDS au DiFluid R2, avec la dose pesée et le poids final de la capture |
+
+### 16 novembre, 11 h 29 — `261116-112941`
+
+**Contexte.** Deuxième infusion avec la MPB003, **première en 0.5.5** (écran
+et sensors) : le PI de pression tourne à chaque mesure (≈ 100 ms au lieu de
+200 ms) et reçoit un terme dérivé, Kd = 7,5 %/(bar/s). Cozy Chocolate,
+**mouture desserrée de deux crans** et purge de 2 L faite, comme décidé le
+15/11. Single espresso, porte-filtre sans fond, profil inchangé : 7,5 g
+(pesée non précisée), cible 20 g, anticipation de 1,0 g, consigne de
+90 °C. Boîtier de l'écran à 30,4 °C et 38,9 %.
+
+**Observé par David.** Le café apparaît sur la couronne du panier à la fin
+de la pré-infusion, mais ne couvre le fond qu'une fois l'infusion lancée :
+« comme si le remplissage ne fournissait pas assez de volume ». Au plateau,
+l'aiguille du manomètre fait des allers-retours et la pompe tourne par
+à-coups, « comme une visseuse ».
+
+**Routine** : guide ouvert à 88,2 °C ; rinçage de 5,0 s, 27,7 ml, 28,6 g,
+pression maximale 0,51 bar. **Retour à la consigne en 897,0 s**, minimum
+82,0 °C, chauffe allumée 94,5 s pendant l'attente ; porte-filtre en place
+524,0 s après la consigne ; préparation de 155,9 s. Tasse de 125,2 g.
+
+**Hydraulique.**
+
+| Phase | Début | Durée | Volume | Pression |
+| --- | ---: | ---: | ---: | --- |
+| Précharge | 0,00 s | 8,02 s | — | 0,15 → 0,25 bar |
+| Remplissage | 8,02 s | **10,00 s, échéance** | **36,1 ml (3,61 ml/s)** | 0,25 → **0,46 bar** |
+| Pré-infusion | 18,02 s | 4,04 s, échéance | 8,4 ml (2,09 ml/s) | 0,46 → 0,66 bar |
+| Infusion | 22,06 s | 19,41 s | 52,6 ml | 9,68 bar max |
+
+- **Première goutte (0,3 g) à 26,80 s, à 2,78 bar**, 63,5 ml, 4,7 s après
+  le début de l'infusion.
+- 8 bar à 29,69 s (7,6 s après le début de l'infusion), 4,2 g en tasse.
+  Depuis 8 bar : 11,8 s, **1,27 g/s** en tasse, 2,01 ml/s en amont.
+  **19,1 g à l'arrêt de la pompe**, **21,2 g final**, 2,1 g de gouttes.
+  Pompe en marche 33,4 s.
+- Plateau (31,7 à 41,3 s) : **8,65 ± 0,64 bar**, pompe à **10–100 %**,
+  1,29 g/s, soit **6,72 bar·s/g** à 7,5 g. Pompe à 2 807 tr/min en
+  moyenne, 4,68 ml/s refoulés, 2,06 ml/s au Digmesa : fuite interne de
+  2,62 ml/s.
+- **Oscillation** : la pression va de 7,34 à 9,68 bar avec une période de
+  **0,78 s** (13 passages vers le haut de 31,9 à 41,3 s) ; le moteur passe
+  de ≈ 830 à ≈ 4 500 tr/min à chaque cycle. La veille, en 0.5.4, le même
+  plateau tenait 8,86 à 9,11 bar avec une commande de 66 à 71 %.
+- Arrivée en tasse, depuis le début de l'infusion :
+
+  | Infusion | 1 g | 5 g | 10 g | 18 g |
+  | --- | ---: | ---: | ---: | ---: |
+  | 16/11 11 h 29 | 5,1 s | 8,3 s | 12,7 s | 18,4 s |
+  | 15/11 21 h 41 | 6,4 s | 11,0 s | 16,4 s | 24,0 s |
+  | 11/11 8 h 25 | 1,5 s | 4,4 s | 7,8 s | 13,6 s |
+
+**Thermique.** NTC de 90,00 °C au départ, **+3,23 °C** pendant le
+remplissage, +1,12 °C pendant la pré-infusion ; 95,04 °C au début de
+l'infusion, maximum de 96,04 °C pompe en marche ; 89,75 °C à l'arrêt.
+Baisse pompe en marche −0,17 °C. **Tasse : 92,87 °C, +2,87 °C** ;
+93,51 °C pondérée par le volume.
+
+**Attendus vérifiés** (entrée du 15/11, deux crans plus gros, machine
+chaude).
+
+| Point | Attendu | Mesure |
+| --- | --- | --- |
+| Dose | pesée ; ratio = final / dose pesée | pesée non précisée ; ratio **2,83** à la dose du profil |
+| Hydraulique | 4,7 à 7,6 bar·s/g ; plateau vers 9,0 bar, pompe à 70 à 75 % ; pic au-dessus de 9,2 bar possible | 6,72 bar·s/g : atteint ; **plateau 8,65 ± 0,64 bar, pompe à 10–100 % : oscillation** ; pic 9,68 bar |
+| Remplissage | ≈ 3,6 ml/s ; noter la fin et le volume | 3,61 ml/s : atteint ; **fin sur l'échéance, 36,1 ml** |
+| Première goutte | sous 3,95 bar ; noter si elle finit la pré-infusion | 2,78 bar : atteint ; pendant l'infusion, pas la pré-infusion |
+| Rinçage | 0,1 à 0,7 bar | 0,51 bar : atteint |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 21,0 g final | 19,1 g : atteint ; **21,2 g, au-dessus** |
+| Chauffe | NTC +0,1 à +2,6 °C au remplissage ; −1,7 à +1,9 °C pompe en marche ; retour à la consigne à noter s'il dépasse 300 s | **+3,23 °C, au-dessus** ; −0,17 °C : atteint ; **retour en 897,0 s** |
+| Tasse | 89,0 à 92,5 °C ; goût noté, après la purge de 2 L | **92,87 °C, au-dessus de 0,4 °C** ; goût noté |
+| Extraction | TDS au DiFluid R2 | **7,63 %, 21,5 %** |
+
+**Lecture.**
+
+- *Galette, mesuré.* Deux crans plus gros ramènent la résistance de 9,05 à
+  6,72 bar·s/g, dans la fourchette estimée le 15/11 (6,0 à 7,2).
+- *Remplissage : c'est la pompe, mesuré.* Avec une galette dans la plage,
+  le remplissage finit encore sur l'échéance à 36,1 ml et 0,46 bar, comme
+  la veille. Selon la règle posée le 15/11, la galette n'expliquait pas
+  l'échéance. La pression au repos est de 0,25 bar ; le débit de 3,6 ml/s
+  n'y ajoute que 0,21 bar.
+- *Le Digmesa sous-comptait la vibratoire, indice fort.* Au rinçage, la
+  vibratoire donnait 15 à 19 ml au Digmesa pour 18,6 à 36,5 g en tasse
+  (1,07 à 2,15 g/ml, ≈ 1,5 en médiane, 17 infusions du 1er au 11/11) ; la
+  MPB003 donne 1,24 puis 1,03 g/ml. Les 17 à 30 ml de remplissage de la
+  vibratoire valaient donc plutôt ≈ 25 à 45 ml réels, à ≈ 4,5 ml/s contre
+  3,6 ml/s ce matin. Les volumes de remplissage et de goutte de la
+  vibratoire ne servent plus de référence. Moins de débit, c'est moins de
+  pression dans le même circuit : le seuil de 0,8 bar n'est jamais atteint,
+  et la pré-infusion à 50 % (2,1 ml/s) n'ajoute que 0,2 bar. C'est
+  l'impression de David.
+- *Oscillation : le terme dérivé, mesuré et simulé.* Entre une commande et
+  son effet sur la pression, il passe ≈ 0,25 à 0,4 s. À la période de
+  l'oscillation (1,3 Hz), le terme dérivé pèse ≈ 60 %/bar, quatre fois le
+  proportionnel (15 %/bar). Le calcul de 0.5.5 avait mesuré le bruit de la
+  pente sur un plateau régulé sans dérivée (±1,3 % de commande) ; boucle
+  fermée, la dérivée entretient sa propre oscillation. Le premier pic
+  baisse (9,56 bar contre 9,92), mais chaque cycle remonte à 9,4–9,7 bar.
+- *Simulation.* Modèle pompe + galette (retard, moteur du premier ordre,
+  fuite interne de 0,33 ml/s par bar, compliance, galette linéaire), calé
+  en boucle fermée pour reproduire les deux infusions : en 0.5.5,
+  7,42–9,42 bar, commande 28–100 %, période 0,90 s (mesuré 7,34–9,68,
+  10–100 %, 0,78 s) ; en 0.5.4, pic à 10,07 bar et plateau stable
+  9,00–9,08 (mesuré 9,92 et 8,86–9,11). Pic simulé sur la galette de la
+  veille, montée depuis 3 bar à 100 %, retard de 0,25 / 0,35 / 0,4 s :
+
+  | Régulation | Pic | Plateau |
+  | --- | --- | --- |
+  | 0.5.4 (PI toutes les 200 ms) | 10,06 bar (retard 0,25 s) | stable |
+  | 0.5.5 (Kd 7,5 permanent) | 9,59 bar | **oscille, 7,4–9,6 bar** |
+  | 1 : Kd = 0, PI toutes les 100 ms | 9,39 / 9,78 / 9,96 bar | stable, ±1 % |
+  | 2 : Kd 7,5 jusqu'au premier pic | 9,44 bar ; 8,7 bar atteint 0,8 s plus tard | stable |
+  | 2 : Kd 2 jusqu'au premier pic | 8,93 / 9,20 / 9,41 bar | stable, ±1 % |
+  | 2 : Kd 3 jusqu'au premier pic | 8,93 / 9,04 / 9,26 bar | stable, ±1 % |
+  | 3 : Kd 2 permanent | 8,93 / 9,20 / 9,41 bar | stable, ±2 % |
+
+  Une bonne part du gain sur 0.5.4 vient du PI à chaque mesure (10,06 →
+  9,39 bar). Kd = 7,5 est trop fort même pendant la seule montée : la
+  pression cale avant la cible, puis dépasse. Avec Kd = 2 à 3, le pic baisse
+  encore de 0,4 à 0,7 bar ; limité à la montée, le terme dérivé ne touche
+  plus le plateau, et reste stable à 0,5 s de retard (±0,2 bar, contre
+  ±0,34 pour Kd = 3 permanent). Simulé seulement : un modèle calé sur deux
+  infusions, galette à résistance constante.
+- *Chauffe, mesuré.* +3,23 °C au remplissage, après +2,56 °C la veille :
+  deuxième dépassement de suite, le critère posé le 15/11 pour reprendre la
+  loi de chauffe. Tasse à 92,87 °C, 0,4 °C au-dessus de la plage. Retour à
+  la consigne encore long : 897,0 s, chauffe allumée 94,5 s.
+- *Concentration, mesuré.* Deux moyennes de trois tests au DiFluid R2 :
+  **7,62 et 7,64 %** (indice 1,34652 et 1,34655, échantillon à 24,1–24,2 °C),
+  soit **21,5 et 21,6 %** d'extraction avec 21,2 g / 7,5 g. Proche de la
+  veille (7,63 à 7,75 %, 21,1 à 21,4 %) avec une mouture plus grosse de deux
+  crans et un ratio plus haut.
+- *Goût, David.* **Très bon, acidulé et fruité, « probablement dans les
+  meilleurs cafés que j'ai goûtés »**. Peu de crème, que David attribue au
+  peu de temps passé à 9 bar.
+
+**Décision** (David). **Remplissage à 100 %** pour voir s'il finit sur la
+pression. **Écran 0.5.6** : terme dérivé de **Kd = 3 %/(bar/s) pendant la
+seule montée**, éteint à la première pente nulle ou négative une fois le PI
+actif ; PI à chaque mesure comme en 0.5.5. Profil inchangé par ailleurs. La
+simulation est reprise dans `firmware/analysis/simulate_brew_pressure.py`
+(`calibrate` sur les deux captures, `compare` pour les variantes).
+
+*Estimé.* À 100 %, la pompe tournait à ≈ 4 500 tr/min et le Digmesa
+comptait ≈ 5,1 ml/s à 1,5 bar ce matin : ≈ 5 à 5,5 ml/s au remplissage,
+50 ml et plus en 10 s. La pression au repos est de 0,25 bar et le débit
+ajoutait 0,21 bar à 3,6 ml/s ; à 5,3 ml/s, elle irait vers 0,55 bar si la
+perte de charge suit le débit, 0,7 bar si elle suit son carré. **Le seuil
+de 0,8 bar reste donc incertain** ; l'échéance à ≈ 50 ml est le cas
+probable.
+
+| Point | Attendu (prochaine infusion, remplissage à 100 %) |
+| --- | --- |
+| Dose | pesée ; ratio = final / dose pesée |
+| Remplissage | ≈ 5 à 5,5 ml/s ; fin sur la pression possible, sinon échéance vers 50 ml ; noter la fin et la pression |
+| Première goutte | plus tôt qu'à 4,7 s dans l'infusion ; noter si elle arrive pendant la pré-infusion |
+| Hydraulique | 4,7 à 7,6 bar·s/g ; en 0.5.6, pic sous 9,4 bar, plateau stable vers 9,0 bar, commande à ± 5 % au plus, plus d'à-coups audibles |
+| Rendement | arrêt de la pompe vers 19,0 à 19,3 g, 20,0 à 21,2 g final |
+| Chauffe | NTC au remplissage à noter : un remplissage plus court ou plus long change la durée de chauffe à 90 % |
+| Tasse | 89,0 à 92,5 °C ; goût noté |
+| Extraction | TDS au DiFluid R2 |

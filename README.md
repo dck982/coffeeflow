@@ -32,7 +32,7 @@ La pompe donne en plus sa **vitesse** par son tachymètre, donc le volume dépla
 
 La **température de la chaudière** vient de la sonde NTC vissée en G1/8 dans la chaudière. Son câble rejoint le boîtier de l'écran, proche de la sonde, où un ADS1115 la mesure via un pont alimenté par le **3V3 et le GND du port Sensor AD du Waveshare**. Voir [la calibration NTC/ADS1115](docs/ntc_ads1115_calibration.md).
 
-Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. La pesée du drip tray par cellule de charge est **abandonnée pour l'instant** (peser quelques grammes sur un plateau d'un kilo) — notes dans `docs/driptray.md` ; les pièces imprimées ont été retirées (commit 1aa13ed).
+Le **poids** vient d'une balance **Acaia Lunar** en **BLE**, lue par l'écran. La pesée du drip tray par cellule de charge est **abandonnée pour l'instant** (peser quelques grammes sur un plateau d'un kilo) — notes dans `docs/driptray.md` ; les pièces imprimées ont été retirées (commit 1aa13ed). Une nouvelle balance intégrée au drip tray est en conception (cellule 1 kg, carte `pcb/scale`, pièces `print/parts/scale_*`) : [tray-with-scale.md](docs/tray-with-scale.md).
 
 ## Architecture électronique
 
@@ -245,7 +245,7 @@ Le recuit fait retirer les pièces : les cotes fit-critiques (puits d'aimant, lo
 ```
 coffeeflow/
   README.md          ← cette vue d'ensemble
-  docs/              ← câblage, débitmètres, drip tray, maquettes Three.js ; datasheets/
+  docs/              ← câblage, débitmètres, drip tray et sa balance, maquettes Three.js ; datasheets/
   firmware/rust/     ← firmwares écran et capteurs, protocole CAN, coffeetool (Rust)
   archive/firmware/  ← firmware C++/ESP-IDF d'origine et outils Python (référence)
   print/             ← impressions 3D (nurb)

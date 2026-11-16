@@ -1015,7 +1015,7 @@ def scale_layout():
     """Positions and levels shared by the scale_* parts, machine frame, in mm.
 
     Measured values come from measurements.toml; the rest are the design
-    levels of tray/README.md, « Design decisions ». A part reads what it mates
+    levels of docs/tray-with-scale.md, « Design decisions ». A part reads what it mates
     with from here, so two parts cannot drift apart."""
     plate_width = measured("scale_tole_largeur")
     axis = tuple(measured("scale_tole_trou_centre"))

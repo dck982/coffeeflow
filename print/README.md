@@ -44,7 +44,7 @@ nurb export canal
 | `parts/screen_assembly.py` | Assemblage wedge + base |
 | `parts/canal.py` | Goulotte de guidage des fils |
 | `parts/goujon_indexage.py` | Pesée drip tray — **en pause** (le poids vient d'une Acaia Lunar en BLE). Cotes : `../docs/driptray.md` |
-| `parts/scale_*.py` | Balance dans le drip tray (cellule 1 kg + carte `pcb/scale`), en PETG sauf mention : `scale_base` (socle : cellule, butée haute, boîtier du PCB), `scale_lid`, `scale_washer` (×3, sous la tôle), `scale_adapter`, `scale_tower`, `scale_grille_inner`, `scale_grille_outer`, `scale_tray` (P2S, imprimé debout sur sa face avant : variante `scale_tray_standing`), `scale_chimney` et `scale_bumper` (TPU 90A), `scale_coupon` (gabarit à imprimer d'abord), `scale_assembly`. Conception : `../tray/README.md`, « Phase 2 » ; repère et niveaux communs : `scale_layout()` dans `system.py` |
+| `parts/scale_*.py` | Balance dans le drip tray (cellule 1 kg + carte `pcb/scale`), en PETG sauf mention : `scale_base` (socle : cellule, butée haute, boîtier du PCB), `scale_lid`, `scale_washer` (×3, sous la tôle), `scale_adapter`, `scale_tower`, `scale_grille_inner`, `scale_grille_outer`, `scale_tray` (P2S, imprimé debout sur sa face avant : variante `scale_tray_standing`), `scale_chimney` et `scale_bumper` (TPU 90A), `scale_coupon` (gabarit à imprimer d'abord), `scale_assembly`. Conception : [`../docs/tray-with-scale.md`](../docs/tray-with-scale.md), « Phase 2 » ; repère et niveaux communs : `scale_layout()` dans `system.py` |
 | `measurements.toml` | Cotes (Wago, aimants, Helutherm, M3, modules) |
 | `printer.toml` | A1 Mini |
 | `system.py` | Filet imprimable, puits d'aimant couchés, ouvertures des modules |

@@ -44,6 +44,16 @@ pub const PUMP_REARM_US: i64 = 50 * 1000;
 /// contre une vanne fermée monte en pression. Sans charge, elle met
 /// ≈ 0,7 s à s'arrêter, arrêt détecté compris.
 pub const VALVE_CLOSE_MAX_DELAY_US: i64 = 1000 * 1000;
+/// Fin d'infusion : sous pression, la vanne se ferme avec le SET à 0. Tenue
+/// ouverte jusqu'à l'arrêt de la pompe (≈ 0,9 s), elle laissait la galette
+/// vider le groupe de 9 à 6,5 bar, et la décharge du groupe partait de là.
+/// À 9 bar, la fuite interne de la pompe (≈ 3 ml/s) absorbe presque tout ce
+/// qu'elle refoule en ralentissant : à 3 500 tr/min (5,8 ml/s), il reste
+/// ≈ 0,4 ml, soit < 1 bar dans la chaudière fermée. Plus vite ou sous
+/// 5 bar (purge, rinçage), la règle du tachymètre reste. 5 bar = 3167,3 +
+/// 5 / 0,00075 codes.
+pub const VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE: i16 = 9834;
+pub const VALVE_CLOSE_AT_ONCE_MAX_RPM: u16 = 3500;
 /// Marche à sec : vitesse mesurée au-dessus de ce seuil...
 pub const DRY_MIN_RPM: u16 = 1000;
 /// ... sans front Digmesa et avec une pression sous 1 bar, tout cela tenu
@@ -54,7 +64,7 @@ pub const DRY_HOLD_US: i64 = 2000 * 1000;
 /// vers le bas : une pression d'exactement 1 bar n'est pas « sous 1 bar ».
 pub const DRY_PRESSURE_MAX_CODE: i16 = 4500;
 /// Une pression plus vieille que cela se relit avant de juger la marche à
-/// sec.
+/// sec ou la fermeture de la vanne en fin d'infusion.
 pub const DRY_PRESSURE_MAX_AGE_US: i64 = 300 * 1000;
 /// Règle de marche à sec active. À couper pour faire tourner la pompe au
 /// banc sans Digmesa en amont : sans impulsion, la règle l'arrêterait en 2 s.
@@ -632,7 +642,18 @@ impl<H: Hw> Machine<H> {
 
     /// Pression brute pour la règle de marche à sec : celle du dernier
     /// `STATUS_PRESSURE`, relue si elle a plus de 300 ms.
-    fn pressure_for_dry_rule(&mut self, now: i64) -> Option<i16> {
+    /// Pompe lente sous au moins 5 bar : la vanne peut se fermer avec la
+    /// pompe (`VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE`).
+    fn stops_under_pressure(&mut self) -> bool {
+        let now = self.hw.now_us();
+        self.hw.pump_tach().rpm(now) <= VALVE_CLOSE_AT_ONCE_MAX_RPM
+            && self.recent_pressure(now).is_some_and(|code| {
+                PRESSURE_PLAUSIBLE_CODES.contains(&code)
+                    && code >= VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE
+            })
+    }
+
+    fn recent_pressure(&mut self, now: i64) -> Option<i16> {
         if let Some((raw, at)) = self.pressure_cache
             && now - at <= DRY_PRESSURE_MAX_AGE_US
         {
@@ -674,7 +695,7 @@ impl<H: Hw> Machine<H> {
         self.dry_flow_edge_us = flow_edge;
         let mut pressure = None;
         let conditions = self.dry_rule_enabled && rpm > DRY_MIN_RPM && {
-            pressure = self.pressure_for_dry_rule(now);
+            pressure = self.recent_pressure(now);
             // Absente ou invraisemblable : la pompe s'arrête plutôt que de
             // tourner à sec.
             pressure.is_none_or(|code| {
@@ -832,9 +853,13 @@ impl<H: Hw> Machine<H> {
         // Le niveau est l'intention reçue ; la vanne s'ouvre avec la pompe.
         // La pompe d'abord : un cycle qui part de 0 y lève les défauts, et la
         // vanne d'un cycle en défaut reste fermée. Une pompe qu'on arrête
-        // garde la vanne ouverte jusqu'à son arrêt (`tick_valve_hold`).
-        let stopping = payload.pump_pct == 0 && self.pump_duty > 0 && self.valve_output();
-        self.valve_hold_deadline_us = if stopping {
+        // garde la vanne ouverte jusqu'à son arrêt (`tick_valve_hold`), sauf
+        // en fin d'infusion, sous pression.
+        let hold = payload.pump_pct == 0
+            && self.pump_duty > 0
+            && self.valve_output()
+            && !self.stops_under_pressure();
+        self.valve_hold_deadline_us = if hold {
             self.hw.now_us() + VALVE_CLOSE_MAX_DELAY_US
         } else {
             0

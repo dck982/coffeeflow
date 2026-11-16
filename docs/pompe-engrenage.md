@@ -837,6 +837,19 @@ Mesuré le 13 novembre 2026 en purge à 100 %, sans charge : la pompe met
 la consigne : la pompe qui ralentissait a laissé 0,24 bar dans la chaudière
 fermée. 500 ms ne suffisaient donc pas ; la règle passe à 1 s en 0.5.1.
 
+**Exception en fin d'infusion (0.5.7) : sous au moins 5 bar, pompe à
+3 500 tr/min au plus, la vanne se ferme avec la consigne à 0.** Tenue
+jusqu'à l'arrêt de la pompe (≈ 0,9 s), elle laissait la galette vider le
+groupe : le 16/11 à 15 h 02, la pression passe de 8,98 à 6,48 bar avant la
+fermeture, et David trouve de l'eau au-dessus de la galette, sans grande
+décharge. Avec la vibratoire, la vanne se fermait en 0,4 s. À 9 bar, la
+fuite interne (≈ 3 ml/s) absorbe presque tout ce que la pompe refoule en
+ralentissant : à 3 500 tr/min (5,8 ml/s), il reste ≈ 0,4 ml, moins de 1 bar
+dans la chaudière fermée (compliance ≈ 0,45 ml/bar, estimée par
+`simulate_brew_pressure.py`). Une purge sans porte-filtre (sous 1 bar) ou une
+pompe rapide gardent la règle du tachymètre : la purge reste le moyen de
+faire baisser la pression de la chaudière.
+
 ### Filtration
 
 La notice demande un filtre à **10 µm** avant la pompe, avec une surface
@@ -1437,4 +1450,6 @@ connue.
 | Sabot : précharge | fait le 14 novembre : fil retendu, paliers inchangés, hors de cause |
 | Sabot : bascule | fait le 14 novembre : fuite plafonnée jusqu'à 10 bar, de 60 à 100 % ; l'hystérésis n'est pas mesurable sans changer la commande en cours de purge |
 | Sabot : jeu | si le fil ne change rien : épaisseur des engrenages contre hauteur sous le couvercle du sabot |
-| MPB010 : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de la MPB003 avant de brancher combined |
+| MPB010 et MPB015 : brochage, tachymètre, fixation | comparer aux 7 fils, aux 2 impulsions par tour et à l'équerre de la MPB003 avant de brancher combined |
+| MPB015 : pré-infusion au bas de la plage | 500 et 600 tr/min sous ≈ 1 bar : débit au Digmesa (≈ 2,2 et 2,8 ml/s attendus) et régularité du tachymètre |
+| Bruit, MPB003 contre MPB015 | à 9 bar (OPV ou galette) et à ≈ 5,5 ml/s vers 1 bar : niveau au téléphone, distance fixe, machine fermée si possible. La MPB003 crie à 4 500 tr/min au remplissage ; la MPB015 y tournerait vers 1 050 tr/min, et vers 1 350 à 1 550 au plateau |

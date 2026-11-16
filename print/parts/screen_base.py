@@ -7,6 +7,7 @@ from system import (
     puit_couche,
     AMIN,
     add_well,
+    cable_tie_tower,
     add_heat_insert,
     INSERT_M25,
     INSERT_M3,
@@ -36,14 +37,6 @@ ACTIVE_TOP = 9.09 + 54.36        # top of the touchscreen, up from the wedge's f
 def _block(x0,y0,z0,dx,dy,dz):
     return Pos(x0,y0,z0)*Box(dx,dy,dz,align=AMIN)
 
-def _cable_tie_tower(body, tx, center_y, th, floor):
-    tower_w = 2.0
-    bridge_w = 3.0
-    ty = center_y - tower_w
-    body += _block(tx, ty, floor, tower_w, tower_w*2, th)
-    body += _block(tx + tower_w + bridge_w, ty, floor, tower_w, tower_w*2, th)
-    body += _block(tx, ty, floor+th-tower_w, tower_w*2 + bridge_w, tower_w*2, tower_w)
-    return body
 
 def _add_floor_components(body, side_width, north_y, seat_y, floor, wall):
     # Fond, nord est, de gauche à droite
@@ -102,17 +95,17 @@ def _add_floor_components(body, side_width, north_y, seat_y, floor, wall):
         surplomb_w,surplomb_l,plane=Plane.YZ
     )
 
-    body = _cable_tie_tower(body, 
+    body += cable_tie_tower( 
         inner_west + measured("tower_res_x"), bay_center_y-5, wago_height, floor)
-    body = _cable_tie_tower(body,
+    body += cable_tie_tower(
         inner_west + measured("tower_res_x") + measured("tower_res_dx"), bay_center_y-5, wago_height, floor)
-    body = _cable_tie_tower(body,
+    body += cable_tie_tower(
         inner_west + measured("tower_res_x") + measured("tower_res_dx")*2, bay_center_y-5, wago_height, floor)
 
-    body = _cable_tie_tower(body,
+    body += cable_tie_tower(
         inner_west + measured("tower_res_x"), bay_center_y+10, wago_height, floor)
 
-    body = _cable_tie_tower(body,
+    body += cable_tie_tower(
         inner_west + measured("tower_res_x") + measured("tower_res_dx")*2+5, bay_center_y+10, wago_height, floor)
 
     return body

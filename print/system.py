@@ -268,6 +268,21 @@ def add_heat_insert_against(body, outer, cx, cy, toward, z0, height, insert_def)
     return body + (fill - bore)
 
 
+def cable_tie_tower(x, centre_y, height, floor):
+    """Arch for a cable tie: two 2 x 4 posts 3 mm apart along X, joined by a
+    2 mm beam on top. The tie goes through the arch along Y and around the
+    beam; the wires lie on the beam along X. `x` is the west edge."""
+    post, gap = 2.0, 3.0
+    y0 = centre_y - post
+
+    def block(x0, dx, z0, dz):
+        return Pos(x0, y0, z0) * Box(dx, 2 * post, dz, align=AMIN)
+
+    return (block(x, post, floor, height)
+            + block(x + post + gap, post, floor, height)
+            + block(x, 2 * post + gap, floor + height - post, post))
+
+
 def add_wall(body, outer, x, y, dx, dy, z0, height):
     wall = Pos(x, y, z0) * Box(
         dx,
@@ -1043,15 +1058,28 @@ def scale_layout():
         x0=84.0, x1=167.0, y0=6.0, y1=73.0,
         floor_top=4.0,
         pad_x0=cell.x1 - 20.0,            # raised pad under the fixed end
-        spigots=(holes[0], holes[8], holes[1]),   # (97, 54), (127.31, 36.5), (111.14, 68.14)
-        spigot_diameter=7.7,
-        spigot_depth=1.8,
+        # M3 x 10 from under the plate, through a scale_washer whose collar
+        # centres it in the plate's Ø8 hole, into a 4 mm nylon-insert locknut
+        # half sunk in the floor. None is under the cell: nut and screw end
+        # stand 2.5 mm above the floor, and the cell is 1 mm over it.
+        screw_holes=(holes[3], holes[8], holes[1]),   # (102.18, 34.68), (127.31, 36.5), (111.14, 68.14)
+        nut_pocket_depth=2.0,
+        washer_collar_diameter=7.7,
+        washer_collar_depth=1.8,
         bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=3.0,
-        saddle_x0=134.0, saddle_x1=142.0, saddle_y0=0.5, saddle_y1=3.5,
+        saddle_x0=132.0, saddle_x1=140.0, saddle_y0=0.5, saddle_y1=6.5,
         saddle_top=14.0, saddle_notch_depth=1.0,
+        # Cable tie window through the saddle along X, under the groove.
+        saddle_tie_width=3.0, saddle_tie_height=1.5, saddle_tie_bottom=10.0,
+        # Two cable tie towers for the cell's wires, in the corridor between
+        # the PCB box (Y 32.5) and the cell (Y 47.65), clear of the nut at
+        # X 124..130.5. West edge of each tower.
+        tie_tower_xs=(133.0, 146.0), tie_tower_y=40.0, tie_tower_height=6.0,
     )
 
-    # PCB box, long axis along X: J1 (bus) toward -X, J2 (cell) toward +X.
+    # PCB box, long axis along X: J2 (cell) toward -X, J1 (bus) toward +X,
+    # on the side where the bus cable comes in. Screw holes along -Y (the
+    # machine side), rest ledge along +Y.
     pcb_width, pcb_length = measured("scale_pcb")
     box_wall, wire_room, pcb_play = 1.6, 10.0, 0.3
     inner_x0, inner_y0 = 116.5, 11.0
@@ -1064,8 +1092,7 @@ def scale_layout():
         floor_top=base.floor_top,
         pcb_x0=pcb_x0, pcb_x1=pcb_x0 + pcb_length, pcb_y0=pcb_y0, pcb_y1=pcb_y0 + pcb_width,
         pcb_underside=base.floor_top + 4.0,
-        pcb_holes=((pcb_x0 + pcb_length - 2.5, pcb_y0 + pcb_width - 2.5),
-                   (pcb_x0 + 2.5, pcb_y0 + pcb_width - 2.5)),
+        pcb_holes=((pcb_x0 + 2.5, pcb_y0 + 2.5), (pcb_x0 + pcb_length - 2.5, pcb_y0 + 2.5)),
         wall_top=19.0,
         notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=11.0,
         lid_play=0.2, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,

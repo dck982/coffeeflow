@@ -1538,3 +1538,13 @@ how = "docs/datasheets/db125-2.54.pdf : hauteur du bornier DB125-2.54 au-dessus 
 value = 3.7
 unit = "mm"
 how = "user 2026-11-16 : faisceau des quatre fils AWG 24 libres vers combined."
+
+[scale_ecrou_plats]
+value = 5.4
+unit = "mm"
+how = "user 2026-11-16 : écrou M3 autobloquant (bague nylon) de l'atelier, mesuré sur plats ; fixe scale_base."
+
+[scale_ecrou_hauteur]
+value = 4.0
+unit = "mm"
+how = "user 2026-11-16 : hauteur du même écrou autobloquant, bague nylon comprise."

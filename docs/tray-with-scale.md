@@ -235,7 +235,7 @@ All parts are printed: Bambu PETG Basic, except the soft parts in Bambu TPU 90A.
 | # | Part (`print/parts/`) | Material | Role |
 |---|---|---|---|
 | 1 | `scale_base` | PETG | One piece on the base plate floor: the raised pad that holds the load cell's fixed end, the landings for the overload stops, the bridge that limits upward travel, and the open-top box for the scale PCB. Its underside is flat. Screwed from below through three of the base plate's holes. |
-| 1b | `scale_washer` (×3) | PETG | Stepped washer under the base plate: its collar fills an Ø8 hole and centres the screw that holds `scale_base`. |
+| 1b | `scale_washer` (×3) | PETG | Stepped washer under the base plate: its collar fills an Ø8 hole and centres the M3 screw, and so `scale_base`. |
 | 2 | `scale_lid` | PETG | Skirted lid of the PCB box. |
 | 3 | `scale_adapter` | PETG | Bolted on the load cell's loaded end. Carries the seat and the weak magnets for the tower, and the two adjustable overload stop screws. |
 | 4 | `scale_tower` | PETG | Carries the inner grille's load down through the tray window to the adapter. Weak magnets below, strong magnets above. |
@@ -340,7 +340,7 @@ These settle the former open points. Values are the modelling defaults; each is 
 
    The PCB box fits under the tray: the cell and its adapter already force the tray floor up to Z = 25, and the box needs 20.6. The mouth is not needed for it, and the tray keeps its full-width extension into the mouth.
 
-3. **Base fixing.** `scale_base` has a flat underside, so it prints floor down, and three Ø2.6 pilot holes through its 4 mm floor, over base plate holes: the centre hole (97, 54), the ring-2 hole at (127.31, 36.50) and the ring-1 hole at (111.14, 68.14). Under the plate, each takes a `scale_washer`: a Ø14 × 4.5 mm flange with a Ø7.7 × 1.8 mm collar that fills the Ø8 hole, so the washer centres the screw and the screw locates the base. An M3 × 10 screw goes through the washer and cuts its thread in the pilot hole: 4.5 + 1.8 + 3.7 mm of thread, so its tip stays inside the floor. Head and flange take 7.5 of the 10 mm under the plate. The machine has to be tipped once to fit the three screws. Spigots under the base were dropped: they would lift the base off the print bed. Heat-set inserts were dropped too: the floor is 4 mm and the inserts need 5.
+3. **Base fixing (revised 2026-11-16).** `scale_base` has a flat underside, so it prints floor down, and three Ø3.4 clearance holes through its 4 mm floor, over base plate holes: (102.18, 34.68) and (111.14, 68.14) on ring 1, (127.31, 36.50) on ring 2. Each has a hex pocket, 2 mm deep in the floor's top, for an M3 locknut (5.4 mm across flats, 4 mm tall), which keeps the nut from turning. Under the plate, each hole takes a `scale_washer`: a Ø14 × 1.5 mm flange with a Ø7.7 × 1.8 mm collar that fills the Ø8 hole, so the washer centres the screw and the screw locates the base. An M3 × 10 flat-head screw goes up through washer, plate and floor into the nut: 1.5 + 2 + 2 + 4 = 9.5 mm, so the screw's end stands 0.5 mm above the nut, through its nylon ring, 6.5 mm above the plate. That is why no hole is under the cell, which is 1 mm above the floor; the centre hole (97, 54) of the first model is not used. Nothing is screwed into the plastic, so the base comes off and goes back as often as needed. Spigots under the base were dropped: they would lift the base off the print bed.
 
 4. **Cell fixing**, with the screws in stock (M4 × 10 countersunk, M4 × 8 set screws).
    - Fixed end: two M4 × 10 countersunk from under `scale_base`, through the 5 mm pad, so 5 mm of thread in the cell. The cell is mounted on the bench before the base goes into the machine.
@@ -378,14 +378,14 @@ These settle the former open points. Values are the modelling defaults; each is 
 12. **Sheet metal later.** The two grilles are flat plates with cut openings and at most one straight bend (the outer grille's apron); the inner grille's drip ring and seat would become a separate printed part under a flat sheet. The tray stays printed or molded.
 
 13. **PCB box.** For the 19.3 × 24.7 mm board of `pcb/scale`.
-   - Mounting: two M2 × 3 heat-set inserts under the board's two holes (`add_heat_insert_against` and `INSERT_M2` from `print/system.py`), M2 × 5 screws. The inserts need 3.6 mm, so the board's underside is 4 mm above the box floor, as in the combined board's box.
-   - Room: 10 mm in front of each terminal block (J2, load cell, on one short side; J1, bus, on the other) for the ferrules and the wire bend. The terminal screws are reached from above with the lid off and the tray out.
+   - Mounting: two M2 × 3 heat-set inserts under the board's two holes, along the box's machine-side wall, (`add_heat_insert_against` and `INSERT_M2` from `print/system.py`), M2 × 5 screws. The inserts need 3.6 mm, so the board's underside is 4 mm above the box floor, as in the combined board's box. A ledge along the user-side wall and a rib under each short edge, beneath the terminal blocks, carry the rest of the board; the ribs reach 1.2 mm under it, short of the terminal pads 2.5 mm in.
+   - Room: 10 mm in front of each terminal block (J2, load cell, on one short side; J1, bus, on the other) for the ferrules, which stand 5 mm out of the blocks, and the wire bend. J1 (bus) is at the right end, on the side where the bus cable comes in, and J2 (load cell) at the left: the cell's 20 cm wires come from its fixed end on the right and run along the box, held by two cable tie arches in the corridor between box and cell. That keeps the I2C cable short. The terminal screws are reached from above with the lid off and the tray out.
    - Lid: `scale_lid` is a cap whose skirt comes down the full height of the box and holds by a snug fit, without screws; the tray above keeps it from lifting. The wires enter through notches at the bottom of the skirt, 5 mm wide for the four loose wires (a piece of heat-shrink around them can tighten the entry later). Water falling on the lid runs off.
    - No vents: the board dissipates about 40 mW (7.7 mA at 5 V), and a vent would only let water in.
 
 ### Assembly
 
-Hardware: three M4 × 10 countersunk screws, one M4 × 8 set screw, three M3 × 10 screws, two M2 × 3 heat-set inserts, two M2 × 5 screws, four Ø5 × 2 and four Ø8 × 3 magnets. No nuts anywhere: the M3 screws cut their thread in the base's three Ø2.6 holes.
+Hardware: three M4 × 10 countersunk screws, one M4 × 8 set screw, three M3 × 10 flat-head screws and three M3 nylon-insert locknuts, two M2 × 3 heat-set inserts, two M2 × 5 screws, four Ø5 × 2 and four Ø8 × 3 magnets, three cable ties 2.5 mm wide.
 
 On the bench:
 
@@ -394,13 +394,13 @@ On the bench:
 3. Turn the M4 × 8 set screw into the cell's outermost hole at the loaded end, socket up, until it stands about 1 mm proud under the cell.
 4. Put `scale_adapter` over the loaded end and fix it with one M4 × 10 from above, in the inner hole.
 5. Press the magnets in: two Ø5 × 2 in the adapter's top, two in the tower's foot, so that the two parts attract; two Ø8 × 3 in the tower's top, two under the inner grille, likewise. A drop of varnish over each.
-6. Screw the PCB in the box (J2 toward the cell's fixed end) and wire the cell to J2.
+6. Screw the PCB in the box, J1 at the right end, toward the cell's fixed end. Run the cell's wires along the box to J2 at the left end, tie them to the two arches between box and cell, and wire them to J2.
 
 On the machine:
 
 7. Pass the four wires from the combined board through the right bumper hole, crimp the ferrules.
-8. Set the base on the base plate, its three holes over the plate's holes. Tip the machine, push a `scale_washer` into each of those three plate holes from below, collar first, and drive an M3 × 10 through each into the base. Two of the three holes are meant to be where they are: one under the cell's tip and one beside the box, since nothing goes into them from above.
-9. Lay the wires in the saddle (the notched post at the base's rear edge, which holds them clear of the rear lip's edge), wire them to J1, press `scale_lid` on.
+8. Set the base on the base plate, its three holes over the plate's holes, and drop an M3 nut in each hex pocket. Tip the machine, push a `scale_washer` into each of those three plate holes from below, collar first, and drive an M3 × 10 through each into its nut, holding the nut with a finger from above if it lifts.
+9. Lay the wires in the saddle (the notched post at the base's rear edge, which holds them clear of the rear lip's edge) and tie them to it through its window. Wire them to J1 and press `scale_lid` on.
 10. Set the overload stop (decision 5), with the tower and a known weight on the adapter.
 11. Push `scale_chimney` over the tray's kerb and `scale_bumper` on the tray's right peg. Fit the tray, then the outer grille, the tower and the inner grille.
 

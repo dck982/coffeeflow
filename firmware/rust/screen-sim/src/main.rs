@@ -50,6 +50,7 @@ const SCENARIOS: &[&str] = &[
     "guided-wait",
     "guided-early-removal",
     "guided-prepare",
+    "guided-brew-temp",
     "guided-start",
     "guided-start-other-cup",
     "guided-refused",
@@ -250,6 +251,12 @@ fn fixture(name: &str) -> Result<(Presenter, Snapshot, Config), String> {
         "guided-prepare" => {
             s.weight_g = 0.1;
             guided_view(&mut s, Screen::Wait, Hint::Prepare, false);
+        }
+        "guided-brew-temp" => {
+            s.boiler_temperature_c = 89.6;
+            s.weight_g = 41.6;
+            guided_view(&mut s, Screen::Wait, Hint::WaitBrewTemp, false);
+            s.guided.cup_recognized = true;
         }
         "guided-start" => {
             s.weight_g = 41.6;

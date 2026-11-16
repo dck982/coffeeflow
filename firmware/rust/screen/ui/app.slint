@@ -118,6 +118,7 @@ export component AppWindow inherits Window {
     in property <bool> guided-hint-long: false;
     in property <string> guided-value;
     in property <bool> guided-value-hot: false;
+    in property <string> guided-target;
     in property <string> guided-aside;
     in property <bool> guided-purging: false;
     in property <bool> guided-cup-recognized: false;
@@ -205,8 +206,10 @@ export component AppWindow inherits Window {
         }
         Label { x: 264px; y: 92px; width: 504px; height: 32px; text: "infusion guidée"; color: Theme.dim; }
         Text { x: 264px; y: 130px; width: 504px; height: 128px; text: root.guided-hint; color: Theme.text; font-size: root.guided-hint-long ? 26px : 32px; wrap: word-wrap; overflow: elide; vertical-alignment: top; }
-        Label { x: 264px; y: 262px; width: 250px; height: 92px; text: root.guided-value; font-size: 76px; color: root.guided-value-hot ? root.temperature-color : Theme.text; }
-        Text { x: 520px; y: 280px; width: 248px; height: 64px; text: root.guided-aside; color: Theme.faint; font-size: 18px; wrap: word-wrap; vertical-alignment: center; }
+        guided-value-label := Label { x: 264px; y: 262px; width: min(self.preferred-width, 330px); height: 92px; text: root.guided-value; font-size: 76px; color: root.guided-value-hot ? root.temperature-color : Theme.text; }
+        // La consigne suit la valeur, à sa largeur effective.
+        Label { x: guided-value-label.x + guided-value-label.width + 16px; y: 286px; width: 140px; height: 56px; text: root.guided-target; font-size: 40px; color: Theme.dim; }
+        Text { x: 568px; y: 280px; width: 200px; height: 64px; text: root.guided-aside; color: Theme.faint; font-size: 18px; wrap: word-wrap; vertical-alignment: center; horizontal-alignment: right; }
         Label { x: 32px; y: 346px; width: 736px; height: 24px; text: root.guided-refusal; font-size: 18px; color: Theme.fault; horizontal-alignment: right; }
         Key { x: 32px; y: 376px; width: 216px; height: 88px; label: root.guided-purging ? "arrêter" : "quitter"; clicked => { root.command(25, ""); } }
         Key { x: 464px; y: 376px; width: 304px; height: 88px; primary: true; label: root.guided-step == 1 ? "démarrer" : "suivant"; enabled: root.guided-enabled && !root.guided-purging; clicked => { root.command(24, ""); } }

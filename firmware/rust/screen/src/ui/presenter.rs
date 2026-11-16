@@ -6,7 +6,7 @@ use alloc::{format, rc::Rc, string::String, vec::Vec};
 use screen_core::{
     config::{self, Config, PreinfusionMode, Profile},
     core::{Action, ActionCommand, ActionSource, ActionStatus, Input, Reply},
-    guided::{Hint, Screen},
+    guided::{self, Hint, Screen},
     snapshot::{CycleState, Freshness, Snapshot, brew_ready},
 };
 use slint::{Color, Model, ModelRc, SharedString, VecModel};
@@ -148,6 +148,15 @@ fn hint_text(hint: Hint, screen: Screen, c: &Config) -> String {
         Hint::Prepare => "videz et rincez la tasse, séchez le porte-filtre, préparez la galette, replacez le porte-filtre et la tasse vide".into(),
         Hint::WaitBrewTemp => "attendez la consigne".into(),
         Hint::PressStart => "appuyez sur démarrer".into(),
+    }
+}
+/// Consigne affichée après la température pendant les attentes du guide :
+/// « → 92° ». Vide ailleurs.
+fn guided_target(v: &guided::View, c: &Config) -> String {
+    if !v.purging && matches!(v.hint, Hint::WaitSetpoint | Hint::WaitBrewTemp) {
+        format!("→ {}°", degrees(c.brew_temperature_c))
+    } else {
+        String::new()
     }
 }
 fn tile(name: &str, value: String, detail: &str, enabled: bool, tone: i32) -> Tile {
@@ -826,6 +835,7 @@ impl Presenter {
             weight.into()
         });
         app.set_guided_value_hot(hot && !v.purging);
+        app.set_guided_target(guided_target(v, c).into());
         app.set_guided_aside(
             if v.screen == Screen::Wait && v.hint == Hint::WaitSetpoint {
                 format!(
@@ -1499,6 +1509,22 @@ mod tests {
             hint_text(Hint::ConnectScale, Screen::Wait, &c),
             "reconnectez la balance"
         );
+    }
+    #[test]
+    fn guided_target_shows_the_setpoint_while_waiting() {
+        let c = Config {
+            brew_temperature_c: 91.5,
+            ..Config::default()
+        };
+        let mut v = guided::View {
+            hint: Hint::WaitSetpoint,
+            ..guided::View::default()
+        };
+        assert_eq!(guided_target(&v, &c), "→ 91,5°");
+        v.hint = Hint::WaitBrewTemp;
+        assert_eq!(guided_target(&v, &c), "→ 91,5°");
+        v.hint = Hint::PressStart;
+        assert_eq!(guided_target(&v, &c), "");
     }
     #[test]
     fn recipe_line_drops_missing_dose_and_basket() {

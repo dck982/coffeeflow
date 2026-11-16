@@ -1,6 +1,8 @@
-# Profitec GO drip tray: two revisions
+# Profitec GO drip tray with a scale
 
-This folder documents two revisions of the Profitec GO drip tray assembly. Both revisions share the same metal lower plate. Only the tray and grille differ.
+**Status (2026-11-16):** the firmware still reads the weight from the Acaia Lunar over BLE. The scale parts below are designed but not printed yet, and nothing in the firmware uses the load cell.
+
+This document covers two revisions of the Profitec GO drip tray assembly. Both revisions share the same metal lower plate. Only the tray and grille differ.
 
 Version 1 (all metal) is effectively a failed design, as Profitec acknowledged by replacing it: it rattles when the machine vibrates. Version 2 (molded plastic) is the improvement and the example to follow for a new drip tray. Version 1 is still useful because it is the unit available to measure. Its dimensions define the machine interfaces that any tray must fit: the base plate, the side walls and front lip, the mouth and the hole placement. They also give a reference volume.
 
@@ -14,8 +16,6 @@ A 2 mm folded metal plate with a perforated floor (a centre hole and two rings o
 - **Front lip (user side):** lower than the side walls but taller than the gap under the tray. The tray is tilted to get over it, and once the tray drops into place the lip locks it, so it can't slide out without being lifted.
 - **Rear lip (machine side):** the lowest border. Its only role is to carry the screws that fix the plate to the machine.
 
-![Lower metal plate](../tray/shared-lower-plate.jpg)
-
 ## Version 1: full metal tray
 
 - **Build:** 1 mm stainless steel sheet for the tray, bent and soldered (or similar). No CNC machining.
@@ -25,15 +25,7 @@ A 2 mm folded metal plate with a perforated floor (a centre hole and two rings o
 - **Centring:** the rear end (23 mm long) fits into the mouth, beneath the purge hole of the three-way solenoid valve, which is centred on the machine width. The 178 mm mouth leaves the 174 mm tray body 2 mm of play per side. The shoulder returns come within about 1 mm of each side wall's outer face (2 mm in total), so they limit side play slightly more tightly.
 - **Grille:** a metal grille with arrow marks and a round hole at the mouth end. It has half-circle lift cut-outs on its sides. It stands on the tray floor on its bent-down sides, and its top sits 0.5 mm above the shoulders.
 
-Photos:
-
-- [Tray and grille in normal position](../tray/v1-tray-and-grille-normal.jpg)
-- [Tray and grille upside down](../tray/v1-tray-and-grille-upside-down.jpg)
-- [Shoulder on the base plate](../tray/v1-shoulder-on-base-plate.png)
-- [Version 1 overview, exploded diagram](../tray/v1-metal-tray-overview.jpg): grille is item 16, tray item 17, base plate item 18, and the plastic bumpers that stop the tray in the mouth item 15
-- [Full tray, bird's-eye view from the front](../tray/v1-metal-tray-angled.jpg)
-- [Grille, bird's-eye view from the front](../tray/v1-metal-grille-birdseye-front.jpg)
-- [Grille, underside](../tray/v1-metal-grille-underside.jpg)
+On Profitec's version 1 exploded diagram, the grille is item 16, the tray item 17, the base plate item 18 and the plastic bumpers that stop the tray in the mouth item 15.
 
 ## Version 2: molded plastic tray
 
@@ -42,14 +34,7 @@ Photos:
 - **Anti-splash ball:** a molded ball sits directly beneath the release hole. It disperses the hot water coming down under pressure so it does not spray out around the tray.
 - **Grille:** a simpler grille that matches a small ridge moulded into the plastic tray. It has a single square hole at the south-east corner, used to slide it out.
 
-Overview: the exploded diagram shows the assembly in place. The lower metal plate is item 7, the plastic tray is item 15 and the grille is item 16.
-
-![Version 2 overview, exploded diagram (page 2 of 9)](../tray/v2-overview-exploded-diagram.jpg)
-
-Photos:
-
-- [Plastic tray](../tray/v2-plastic-tray.jpg)
-- [Grille](../tray/v2-plastic-grille.jpg)
+On Profitec's version 2 exploded diagram, the lower metal plate is item 7, the plastic tray item 15 and the grille item 16.
 
 ## Version 1 dimensions
 
@@ -103,7 +88,7 @@ Angles are measured as seen from above with the user in front of the machine: 0�
 | Ring 2 | 300° | 114.50 | 84.31 |
 | Ring 2 | 330° | 127.31 | 71.50 |
 
-The pattern has 19 holes in total (1 + 6 + 12), which matches the photos. The closest pair of holes is 16.5 mm apart, centre to centre, leaving at least 8.5 mm of metal between holes. The pattern spans X = 58–136 mm and Y = 15–93 mm. The plate's centre line is at X = 96.5 mm, so the pattern is centred to within 0.5 mm; `scale_coupon` checks whether the centre hole is at 97 or 96.5. The version 1 figures further down (tray, shoulders, mouth clearances) were derived with the earlier widths and are kept as recorded.
+The pattern has 19 holes in total (1 + 6 + 12), which matches the owner's photos. The closest pair of holes is 16.5 mm apart, centre to centre, leaving at least 8.5 mm of metal between holes. The pattern spans X = 58–136 mm and Y = 15–93 mm. The plate's centre line is at X = 96.5 mm, so the pattern is centred to within 0.5 mm; `scale_coupon` checks whether the centre hole is at 97 or 96.5. The version 1 figures further down (tray, shoulders, mouth clearances) were derived with the earlier widths and are kept as recorded.
 
 ### Mouth and tray extension
 
@@ -128,9 +113,7 @@ The 7.5 mm of total vertical clearance in the mouth leaves room to tilt the tray
 
 The purge outlet comes down through the mouth's top (the raised floor seen from inside the machine) at its front edge, centred on the machine width. The water therefore falls near Y = 0, over the front part of the tray's 23 mm extension.
 
-![Purge hole seen from inside the machine; the raised floor is the top of the mouth](../tray/flush_hole.png)
-
-![Mouth seen from the front: slotted drain grille on the floor, the left bumper on the back wall (the right one is removed), and the base plate's rear lip with its two screws](../tray/mouth-drain-grille-and-bumper.jpg)
+Seen from the front, the mouth has a slotted drain grille on its floor, one bumper on each side of its back wall, and the base plate's rear lip with its two screws.
 
 ### Tray
 
@@ -157,8 +140,6 @@ The shoulders run along the left, right and front edges. The mouth end has none.
 4. A 6 mm return turns back inward at the bottom of the leg, ending 99 mm from centre. The two return tips are 210 − 2 × 6 = 198 mm apart, against the 196 mm base, leaving a 1 mm gap on each side (2 mm in total) with no contact. The returns limit side play and also act as a safety hem against cuts when carrying the tray.
 
 The front shoulder extends from the front wall (Y = 140 mm) to Y = 158 mm, overhanging the front lip. The tray body has 9.75 mm of clearance to each side wall's inner face.
-
-![Tray shoulder on the base plate](../tray/v1-shoulder-on-base-plate.png)
 
 ### Grille
 
@@ -189,7 +170,7 @@ The middle row is at Y = 60.00, which lines up with the lift cut-outs. On that r
 
 #### STEP replica of the grille
 
-[`v1-grille-replica-flat.step`](../tray/v1-grille-replica-flat.step) is a third-party replica of the version 1 grille, drawn flat (without the bent sides) to record where the holes are. Measured from the file:
+A third-party STEP file is a replica of the version 1 grille, drawn flat (without the bent sides) to record where the holes are. Measured from the file:
 
 | Item | Replica value |
 |---|---|
@@ -236,12 +217,11 @@ The goal is a drip tray with a built-in scale, inspired by the La Marzocco desig
 
 ### References
 
-- [La Marzocco drip tray with scales](../tray/marzocco-drip-tray-scale-overview.png): the drip tray (1) and outer grille (2) have one opening per group. Each opening takes a rubber chimney grommet (3), a removable tower with magnets (4) and a separate cup grille (5). The scale modules (6) sit under the tray, one per group.
-- [La Marzocco scale module, exploded](../tray/marzocco-scale-module-exploded.png): the load cell (9) is mounted on a spacer (6), with a top block (5) and a top plate (2, 3) that receives the tower. The module also has an enclosure (10) and a PCB (17) on a bracket (19).
-- [Load cell](../tray/load-cell-1kg.jpg): a 1 kg bar load cell, 12.7 × 12.7 × 75 mm, with four M4 through holes and four loose wires. The seller's drawing for this format gives hole spacings of 44 and 64 mm, centred on the 75 mm length: holes at 5.5, 15.5, 59.5 and 69.5 mm from one end. One end (holes at 5.5 and 15.5 mm) is the fixed end. The other end takes the load, in the direction of the arrow on its label. The same sheet gives 1.0 ± 0.1 mV/V, 1000 Ω and a 5 V recommended excitation, but neither the overload limits nor the deflection.
-
-- [Version 1 grille replica (STEP)](../tray/v1-grille-replica-flat.step): a flat replica of the version 1 grille, giving exact hole positions. It is described under [STEP replica of the grille](#step-replica-of-the-grille).
-- [Third-party drip tray (STL)](../tray/third-party-drip-tray-purge-hood.stl): someone else's attempt at a tray. It is 192.5 mm wide, 169.3 mm deep and 49 mm tall overall, with a 2 mm floor and walls about 19 mm high. It sits directly on the base plate, which is not the approach wanted here, but it shows another way to handle the purge water:
+- La Marzocco drip tray with scales: the drip tray (1) and outer grille (2) have one opening per group. Each opening takes a rubber chimney grommet (3), a removable tower with magnets (4) and a separate cup grille (5). The scale modules (6) sit under the tray, one per group.
+- La Marzocco scale module, exploded: the load cell (9) is mounted on a spacer (6), with a top block (5) and a top plate (2, 3) that receives the tower. The module also has an enclosure (10) and a PCB (17) on a bracket (19).
+- Load cell: a 1 kg bar load cell, 12.7 × 12.7 × 75 mm, with four M4 through holes and four loose wires. The seller's drawing for this format gives hole spacings of 44 and 64 mm, centred on the 75 mm length: holes at 5.5, 15.5, 59.5 and 69.5 mm from one end. One end (holes at 5.5 and 15.5 mm) is the fixed end. The other end takes the load, in the direction of the arrow on its label. The same sheet gives 1.0 ± 0.1 mV/V, 1000 Ω and a 5 V recommended excitation, but neither the overload limits nor the deflection.
+- Version 1 grille replica (STEP): a flat replica of the version 1 grille, giving exact hole positions. It is described under [STEP replica of the grille](#step-replica-of-the-grille).
+- Third-party drip tray (STL): someone else's attempt at a tray. It is 192.5 mm wide, 169.3 mm deep and 49 mm tall overall, with a 2 mm floor and walls about 19 mm high. It sits directly on the base plate, which is not the approach wanted here, but it shows another way to handle the purge water:
   - A 6 mm thick shelf (Z = 13 to 19) reaches into the mouth, clearing the 12 mm rear lip by 1 mm.
   - On that shelf, a D-shaped hood (17 mm wide, 1 mm walls, about 30 mm long) rises to Z = 49, just 2 mm under the mouth's top, enclosing the purge outlet.
   - Inside the hood, a curved ramp catches the jet and turns it forward, down into the main tub. The water leaves under the hood's front wall, which stops at Z = 19.
@@ -436,5 +416,4 @@ On the machine:
 ## Notes
 
 - The version 1 dimensions are as supplied by the owner. They were checked against each other for consistency, not measured again. Values marked "derived" or listed under open points should be measured on the part.
-- The ring angles can't be checked from the photos to better than about 10°, because of perspective.
-- Original `.webp` source files were deleted after conversion. Photos are JPEG, and screenshots are PNG.
+- The ring angles can't be checked from the owner's photos to better than about 10°, because of perspective.

@@ -980,3 +980,221 @@ def polish_couvercle(body, wall, rim_depth):
     edges = [e for e in body.edges().filter_by(Axis.Z).filter_by(keep)
              if not any(e.is_same(c) for c in concave)]
     return polish(body, edges, 0.6)
+
+
+# --- Balance du drip tray : repère et niveaux partagés par les pièces scale_* ---
+#
+# Toutes les pièces scale_* sont modélisées dans le repère machine : X depuis la
+# face intérieure de la paroi gauche de la tôle (vue par l'utilisateur), Y depuis
+# la face de la machine vers l'utilisateur (la bouche est en Y négatif), Z depuis
+# le dessus du fond de la tôle. Ce repère est gauche : une pièce dessinée telle
+# quelle sortirait en miroir. Chaque pièce se termine donc par `scale_frame`,
+# qui inverse Y : dans le viewer, la machine est au nord (Y positif),
+# l'utilisateur au sud et la paroi gauche à l'ouest. Une pièce qui s'imprime
+# retournée passe ensuite par `scale_flip`, et l'assemblage applique
+# `scale_flip` une seconde fois pour la remettre en place.
+
+from types import SimpleNamespace
+
+from nurb import Rectangle, Rot, ThreePointArc, loft
+
+
+def _scale_plate_holes(axis):
+    """Centres of the 19 holes of the base plate: centre, 6 on r = 20 from
+    -45°, 12 on r = 35 every 30°. Angles turn from +X toward the machine."""
+    holes = [axis]
+    for radius, count, first in ((20.0, 6, -45.0), (35.0, 12, 0.0)):
+        for k in range(count):
+            angle = math.radians(first + k * 360.0 / count)
+            holes.append((axis[0] + radius * math.cos(angle),
+                          axis[1] - radius * math.sin(angle)))
+    return holes
+
+
+def scale_layout():
+    """Positions and levels shared by the scale_* parts, machine frame, in mm.
+
+    Measured values come from measurements.toml; the rest are the design
+    levels of tray/README.md, « Design decisions ». A part reads what it mates
+    with from here, so two parts cannot drift apart."""
+    plate_width = measured("scale_tole_largeur")
+    axis = tuple(measured("scale_tole_trou_centre"))
+    section = measured("scale_cellule_section")
+    cell_holes = measured("scale_cellule_trous")
+    cell_length = measured("scale_cellule_longueur")
+    centre_x = plate_width / 2.0
+    holes = _scale_plate_holes(axis)
+
+    # Cell along X, fixed end toward +X, tower axis midway between the two
+    # holes of the loaded end.
+    cell_fixed_tip = axis[0] + (cell_holes[2] + cell_holes[3]) / 2.0
+    cell_bottom = 5.0
+    cell = SimpleNamespace(
+        x0=cell_fixed_tip - cell_length, x1=cell_fixed_tip,
+        y0=axis[1] - section / 2.0, y1=axis[1] + section / 2.0,
+        z0=cell_bottom, z1=cell_bottom + section,
+        section=section,
+        stop_x=cell_fixed_tip - cell_holes[3],    # set screw, tip hole
+        clamp_x=cell_fixed_tip - cell_holes[2],   # adapter screw
+        fixed_xs=(cell_fixed_tip - cell_holes[1], cell_fixed_tip - cell_holes[0]),
+    )
+
+    base = SimpleNamespace(
+        x0=84.0, x1=167.0, y0=6.0, y1=73.0,
+        floor_top=4.0,
+        pad_x0=cell.x1 - 20.0,            # raised pad under the fixed end
+        spigots=(holes[0], holes[8], holes[1]),   # (97, 54), (127.31, 36.5), (111.14, 68.14)
+        spigot_diameter=7.7,
+        spigot_depth=1.8,
+        bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=3.0,
+        saddle_x0=134.0, saddle_x1=142.0, saddle_y0=0.5, saddle_y1=3.5,
+        saddle_top=14.0, saddle_notch_depth=1.0,
+    )
+
+    # PCB box, long axis along X: J1 (bus) toward -X, J2 (cell) toward +X.
+    pcb_width, pcb_length = measured("scale_pcb")
+    box_wall, wire_room, pcb_play = 1.6, 10.0, 0.3
+    inner_x0, inner_y0 = 116.5, 11.0
+    inner_x1 = inner_x0 + pcb_length + 2 * wire_room + 2 * pcb_play
+    inner_y1 = inner_y0 + pcb_width + 2 * pcb_play
+    pcb_x0, pcb_y0 = inner_x0 + wire_room + pcb_play, inner_y0 + pcb_play
+    box = SimpleNamespace(
+        wall=box_wall,
+        inner_x0=inner_x0, inner_x1=inner_x1, inner_y0=inner_y0, inner_y1=inner_y1,
+        floor_top=base.floor_top,
+        pcb_x0=pcb_x0, pcb_x1=pcb_x0 + pcb_length, pcb_y0=pcb_y0, pcb_y1=pcb_y0 + pcb_width,
+        pcb_underside=base.floor_top + 4.0,
+        pcb_holes=((pcb_x0 + pcb_length - 2.5, pcb_y0 + pcb_width - 2.5),
+                   (pcb_x0 + 2.5, pcb_y0 + pcb_width - 2.5)),
+        wall_top=19.0,
+        notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=11.0,
+        lid_play=0.2, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
+    )
+
+    seat = SimpleNamespace(base=24.0, height=3.0, flank_degrees=30.0, socket_clearance=0.5)
+
+    adapter = SimpleNamespace(
+        radius=18.0, flat_x=109.5,
+        bottom=cell.z1 - 5.0, seat_z=cell.z1 + 2.5, top=cell.z1 + 2.5 + seat.height,
+        weak_magnets=((axis[0], axis[1] - 6.4), (axis[0], axis[1] + 6.4)),
+        weak_magnet_gap=1.0,
+    )
+
+    grille_outer = SimpleNamespace(top=48.5, thickness=2.5, cutout=94.0,
+                                   purge_diameter=16.0, purge_y=-8.0,
+                                   pull_hole=20.0, apron_bottom=20.0, play=0.3)
+    grille_inner = SimpleNamespace(size=90.0, top=50.0, thickness=2.5,
+                                   solid_diameter=74.0,
+                                   drip_ring_inner_diameter=70.0, drip_ring_wall=1.6,
+                                   drip_ring_bottom=43.0,
+                                   finger_hole_diameter=16.0, finger_hole_offset=33.0)
+    grille_inner_underside = grille_inner.top - grille_inner.thickness
+
+    tower = SimpleNamespace(
+        radius=18.0,
+        bottom=adapter.seat_z + seat.socket_clearance,
+        top=grille_inner_underside - 0.5,
+        top_seat_z=grille_inner_underside,   # base plane of the grille's seat
+        strong_magnets=((axis[0] - 5.0, axis[1]), (axis[0] + 5.0, axis[1])),
+        strong_magnet_gap=0.4,
+    )
+
+    tray_wall = 2.5
+    tray = SimpleNamespace(
+        wall=tray_wall, floor=2.5,
+        x0=centre_x - 87.0, x1=centre_x + 87.0,
+        y_rear=-23.0, y_front=139.5,
+        raised_underside=25.0, well_underside=2.0,
+        # The tray prints standing on its front wall, so its floor only changes
+        # level along ramps. Plateau over the scale: flat back from plateau_y,
+        # then 45 degrees down to the well. West of plateau_x0 nothing stands
+        # under the tray: the floor climbs gently from the well to the mouth.
+        plateau_x0=72.0, plateau_y=89.0,
+        slope_y_front=112.0, slope_y_rear=4.0, mouth_underside=13.5,
+        rim_top=grille_outer.top,
+        rail_top=grille_outer.top - grille_outer.thickness, rail_width=3.0,
+        window_diameter=42.0, window_tip_radius=2.0, kerb_wall=2.0, kerb_top=35.5,
+        # Web under the kerb's +Y tip, which the chimney's sleeve straddles.
+        kerb_web_width=10.0,
+        water_max=43.5,
+        shoulder_underside=measured("scale_tole_paroi_hauteur"), shoulder_thickness=2.0,
+        shoulder_x0=-measured("scale_tole_epaisseur") - 2.5,
+        shoulder_x1=plate_width + measured("scale_tole_epaisseur") + 2.5,
+        shoulder_y0=2.0,
+        side_play=0.5,
+        # Two pegs stand out of the sloping rear wall, along -Y. The west one
+        # meets the machine's rubber bumper; the east one carries the TPU cap
+        # that replaces the bumper removed for the cable.
+        bumper_west=(centre_x - measured("scale_taquet_x"), measured("scale_taquet_z")),
+        bumper=(centre_x + measured("scale_taquet_x") + 14.0, measured("scale_taquet_z")),
+        bumper_boss_diameter=10.0, bumper_boss_length=6.5, bumper_cap=1.5,
+    )
+
+    chimney = SimpleNamespace(top=45.0, wall=1.6,
+                              bottom=tray.raised_underside + tray.floor)
+
+    return SimpleNamespace(
+        plate_width=plate_width, centre_x=centre_x, axis=axis, holes=holes,
+        plate_depth=measured("scale_tole_profondeur"),
+        plate_thickness=measured("scale_tole_epaisseur"),
+        hole_diameter=measured("scale_tole_trou_diametre"),
+        cell=cell, base=base, box=box, seat=seat, adapter=adapter, tower=tower,
+        tray=tray, chimney=chimney, grille_inner=grille_inner, grille_outer=grille_outer,
+    )
+
+
+def scale_seat(z_base, height, up=True):
+    """Square truncated pyramid of the tower joints, centred on the tower axis.
+
+    Its base (seat.base wide) lies at `z_base` and it tapers along +Z (`up`)
+    or -Z. A boss uses seat.height; the socket that receives it uses the same
+    base plane and seat.height + seat.socket_clearance, so the flanks coincide
+    and the socket's end stays clear of the boss's end."""
+    layout = scale_layout()
+    seat = layout.seat
+    narrow = seat.base - 2.0 * height * math.tan(math.radians(seat.flank_degrees))
+    z_end = z_base + height if up else z_base - height
+    sections = [
+        Pos(*layout.axis, z_base) * Rectangle(seat.base, seat.base),
+        Pos(*layout.axis, z_end) * Rectangle(narrow, narrow),
+    ]
+    return loft(sections if up else sections[::-1], ruled=True)
+
+
+def scale_lens(radius, tip_radius):
+    """Outline of the tray window, its kerb and the chimney: a circle on the
+    tower axis drawn out to a rounded point toward +Y and toward -Y, with
+    flanks at 45 degrees. On a tray printed standing on its front wall, the
+    +Y point lets the kerb start on the floor instead of in the air, and the
+    -Y point roofs the window. Offsetting both radii by the same amount gives
+    a parallel outline. Returns a face in the XY plane, machine frame."""
+    axis = scale_layout().axis
+    reach = (radius - tip_radius) * math.sqrt(2.0)
+
+    def on_circle(offset_y, circle_radius, degrees):
+        angle = math.radians(degrees)
+        return (axis[0] + circle_radius * math.cos(angle),
+                axis[1] + offset_y + circle_radius * math.sin(angle))
+
+    def arc(offset_y, circle_radius, start):
+        return ThreePointArc(*(on_circle(offset_y, circle_radius, start + step)
+                               for step in (0.0, 45.0, 90.0)))
+
+    # Counter-clockwise from the east flank: body arc, +Y tip, body arc, -Y tip.
+    arcs = [arc(0.0, radius, -45.0), arc(reach, tip_radius, 45.0),
+            arc(0.0, radius, 135.0), arc(-reach, tip_radius, 225.0)]
+    flanks = [Line(arcs[k] @ 1, arcs[(k + 1) % 4] @ 0) for k in range(4)]
+    return make_face([edge for pair in zip(arcs, flanks) for edge in pair])
+
+
+def scale_frame(solid):
+    """Last step of every scale_* part: the machine frame is left-handed, so
+    reversing Y turns the model into the real, right-handed object."""
+    return mirror(solid, Plane.XZ)
+
+
+def scale_flip(solid):
+    """Turn a part over about the machine X axis, for one that prints top face
+    down. Applying it twice gives the part back, which is how the assembly
+    puts a flipped part in place."""
+    return Rot(180, 0, 0) * solid

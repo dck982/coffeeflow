@@ -1433,3 +1433,110 @@ how = "user 2026-11-03: centre of the 2-way 5 mm output terminal, from the lower
 value = 3.5
 unit = "mm"
 how = "user 2026-11-03: M3 tapped holes in the upper flank, 3.5 mm from the north-east and south-east corners (box frame), in X and Y."
+
+# --- Balance dans le drip tray (tray/README.md, « Phase 2 »), 2026-11-16 ---
+# Repère machine des pièces scale_* : X depuis la face intérieure de la paroi
+# gauche de la tôle, Y depuis la face de la machine vers l'utilisateur (la
+# bouche est en Y négatif), Z depuis le dessus du fond de la tôle.
+
+[scale_tole_largeur]
+value = 193.0
+unit = "mm"
+how = "user 2026-11-16 : largeur intérieure de la tôle de base entre parois latérales (197 extérieur). Remplace 193,5 (tray/README) et 192 (bac_largeur, août)."
+
+[scale_tole_epaisseur]
+value = 2.0
+unit = "mm"
+how = "user 2026-11-16 : la tôle de base est une plaque de 2 mm pliée ; fond, parois et rebords font 2 mm."
+
+[scale_tole_profondeur]
+value = 140.0
+unit = "mm"
+how = "tray/README.md : longueur intérieure entre rebord arrière et rebord avant."
+
+[scale_tole_paroi_hauteur]
+value = 47.0
+unit = "mm"
+how = "tray/README.md : hauteur des parois latérales au-dessus du fond ; les épaules du tray y reposent. À vérifier avec scale_coupon."
+provisional = true
+
+[scale_tole_rebord_avant]
+value = 17.0
+unit = "mm"
+how = "tray/README.md : hauteur du rebord avant, qui verrouille le tray."
+
+[scale_tole_rebord_arriere]
+value = 12.0
+unit = "mm"
+how = "tray/README.md : hauteur du rebord arrière."
+
+[scale_tole_trou_diametre]
+value = 8.0
+unit = "mm"
+how = "tray/README.md : diamètre des 19 trous du fond."
+
+[scale_tole_trou_centre]
+value = [97.0, 54.0]
+unit = "mm"
+how = "tray/README.md : trou central, sous l'axe de la tête de groupe. X à vérifier avec scale_coupon (97 ou 96,5 depuis la correction de largeur)."
+provisional = true
+
+[scale_bouche_largeur]
+value = 178.0
+unit = "mm"
+how = "tray/README.md : largeur de la bouche, centrée sur la tôle."
+
+[scale_bouche_profondeur]
+value = 32.0
+unit = "mm"
+how = "tray/README.md : la bouche va de Y = -32 à Y = 0."
+
+[scale_bouche_plafond]
+value = 51.0
+unit = "mm"
+how = "tray/README.md : dessus de la bouche au-dessus du fond de la tôle."
+
+[scale_taquet_x]
+value = 47.0
+unit = "mm"
+how = "tray/README.md : les deux trous de taquet (Ø4) du fond de la bouche sont à ±47 de l'axe, à Z = scale_taquet_z. Celui de droite reçoit le câble."
+
+[scale_taquet_z]
+value = 32.0
+unit = "mm"
+how = "tray/README.md : hauteur des trous de taquet au-dessus du fond de la tôle."
+
+[scale_taquet_saillie]
+value = 8.0
+unit = "mm"
+how = "tray/README.md : le taquet d'origine dépasse de 8 mm du fond de la bouche."
+
+[scale_cellule_longueur]
+value = 75.0
+unit = "mm"
+how = "plan du vendeur (user 2026-11-16) : barre 75 x 12,7 x 12,7."
+
+[scale_cellule_section]
+value = 12.7
+unit = "mm"
+how = "plan du vendeur (user 2026-11-16)."
+
+[scale_cellule_trous]
+value = [5.5, 15.5, 59.5, 69.5]
+unit = "mm"
+how = "plan du vendeur (user 2026-11-16) : 4 x M4 traversants, entraxes 44 et 64 centrés sur 75 ; cotes depuis le bout fixe."
+
+[scale_pcb]
+value = [19.3, 24.7]
+unit = "mm"
+how = "pcb/scale/scale.kicad_pcb, Edge.Cuts : rectangle (121.8, 88.2)-(141.1, 112.9). Deux trous M2 à 2,5 mm du grand bord droit et à 2,5 mm de chaque petit bord. J2 (cellule) sur le petit bord haut, J1 (bus) sur le petit bord bas."
+
+[scale_pcb_bornier_hauteur]
+value = 8.4
+unit = "mm"
+how = "docs/datasheets/db125-2.54.pdf : hauteur du bornier DB125-2.54 au-dessus du PCB."
+
+[scale_cable_diametre]
+value = 3.7
+unit = "mm"
+how = "user 2026-11-16 : faisceau des quatre fils AWG 24 libres vers combined."

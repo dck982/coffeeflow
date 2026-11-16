@@ -1055,7 +1055,7 @@ def scale_layout():
     )
 
     base = SimpleNamespace(
-        x0=84.0, x1=167.0, y0=6.0, y1=73.0,
+        x0=84.0, x1=177.0, y0=6.0, y1=73.0,
         floor_top=4.0,
         pad_x0=cell.x1 - 20.0,            # raised pad under the fixed end
         # M3 x 10 from under the plate, through a scale_washer whose collar
@@ -1067,7 +1067,10 @@ def scale_layout():
         washer_collar_diameter=7.7,
         washer_collar_depth=1.8,
         bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=3.0,
-        saddle_x0=132.0, saddle_x1=140.0, saddle_y0=0.5, saddle_y1=6.5,
+        # Cable saddle east of the PCB box (east face X 163.4, lid skirt
+        # 164.8): the bus cable comes off it straight south along the box's
+        # east face to the J1 notch, instead of into the box's north wall.
+        saddle_x0=166.0, saddle_x1=174.0, saddle_y0=0.5, saddle_y1=6.5,
         saddle_top=14.0, saddle_notch_depth=1.0,
         # Cable tie window through the saddle along X, under the groove.
         saddle_tie_width=3.0, saddle_tie_height=1.5, saddle_tie_bottom=10.0,
@@ -1109,14 +1112,20 @@ def scale_layout():
         weak_magnet_gap=1.0,
     )
 
-    grille_outer = SimpleNamespace(top=48.5, thickness=2.5, cutout=94.0,
+    # The cup grille is a rectangle, longer along Y like the chimney's lens, so
+    # it only drops into its cut-out the right way round or turned half a turn,
+    # and both are the same grille. Turned a quarter, its 94 meets a 90 opening.
+    grille_inner = SimpleNamespace(width=86.0, length=94.0, top=50.0, thickness=2.5,
+                                   # Radial gap between the chimney's outer face and the ring.
+                                   drip_ring_clearance=2.5, drip_ring_wall=1.6,
+                                   drip_ring_bottom=43.0,
+                                   finger_hole_diameter=16.0, finger_hole_border=4.0)
+    cutout_gap = 2.0
+    grille_outer = SimpleNamespace(top=48.5, thickness=2.5,
+                                   cutout_width=grille_inner.width + 2.0 * cutout_gap,
+                                   cutout_length=grille_inner.length + 2.0 * cutout_gap,
                                    purge_diameter=16.0, purge_y=-8.0,
                                    pull_hole=20.0, apron_bottom=20.0, play=0.3)
-    grille_inner = SimpleNamespace(size=90.0, top=50.0, thickness=2.5,
-                                   solid_diameter=74.0,
-                                   drip_ring_inner_diameter=70.0, drip_ring_wall=1.6,
-                                   drip_ring_bottom=43.0,
-                                   finger_hole_diameter=16.0, finger_hole_offset=33.0)
     grille_inner_underside = grille_inner.top - grille_inner.thickness
 
     tower = SimpleNamespace(

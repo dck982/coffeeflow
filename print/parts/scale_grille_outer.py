@@ -55,7 +55,8 @@ def _openings(layout):
     """Cut-out for the cup grille, purge opening and pull hole, as cutters."""
     grille = layout.grille_outer
     underside = grille.top - grille.thickness
-    cutout = Pos(*layout.axis, underside) * Box(grille.cutout, grille.cutout, grille.thickness, align=CMIN)
+    cutout = Pos(*layout.axis, underside) * Box(
+        grille.cutout_width, grille.cutout_length, grille.thickness, align=CMIN)
     cutout = chamfer(cutout.edges().filter_by(Axis.Z), CUTOUT_CORNER_CHAMFER)
     purge = Pos(layout.centre_x, grille.purge_y, underside) * Cylinder(
         grille.purge_diameter / 2.0, grille.thickness, align=CMIN)
@@ -76,13 +77,14 @@ def _drain_hole_centres(layout):
     y_min = y0 + RAIL_BORDER + half
     y_max = tray.y_front - tray.wall - RAIL_BORDER - half
     axis_x, axis_y = layout.axis
-    cutout_reach = grille.cutout / 2.0 + OPENING_BORDER + half
+    cutout_reach_x = grille.cutout_width / 2.0 + OPENING_BORDER + half
+    cutout_reach_y = grille.cutout_length / 2.0 + OPENING_BORDER + half
     purge_reach = grille.purge_diameter / 2.0 + OPENING_BORDER
     px0, px1, py0, py1 = _pull_hole_box(layout)
     pull_reach = OPENING_BORDER + half
 
     def clear(x, y):
-        if abs(x - axis_x) < cutout_reach and abs(y - axis_y) < cutout_reach:
+        if abs(x - axis_x) < cutout_reach_x and abs(y - axis_y) < cutout_reach_y:
             return False
         if px0 - pull_reach < x < px1 + pull_reach and py0 - pull_reach < y < py1 + pull_reach:
             return False

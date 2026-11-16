@@ -1072,9 +1072,11 @@ def scale_layout():
         # Cable tie window through the saddle along X, under the groove.
         saddle_tie_width=3.0, saddle_tie_height=1.5, saddle_tie_bottom=10.0,
         # Two cable tie towers for the cell's wires, in the corridor between
-        # the PCB box (Y 32.5) and the cell (Y 47.65), clear of the nut at
-        # X 124..130.5. West edge of each tower.
-        tie_tower_xs=(133.0, 146.0), tie_tower_y=40.0, tie_tower_height=6.0,
+        # the PCB box (Y 32.5) and the cell (Y 47.65), clear of the nuts at
+        # X 98.9..105.5 and 124..130.6. The west one ends at the box's west
+        # face (114.9), where the wires turn north to the J2 notch.
+        # West edge of each tower.
+        tie_tower_xs=(107.5, 146.0), tie_tower_y=40.0, tie_tower_height=6.0,
     )
 
     # PCB box, long axis along X: J2 (cell) toward -X, J1 (bus) toward +X,

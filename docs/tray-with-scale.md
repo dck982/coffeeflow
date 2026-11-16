@@ -383,6 +383,23 @@ These settle the former open points. Values are the modelling defaults; each is 
    - Lid: `scale_lid` is a cap whose skirt comes down the full height of the box and holds by a snug fit, without screws; the tray above keeps it from lifting. The wires enter through notches at the bottom of the skirt, 5 mm wide for the four loose wires (a piece of heat-shrink around them can tighten the entry later). Water falling on the lid runs off.
    - No vents: the board dissipates about 40 mW (7.7 mA at 5 V), and a vent would only let water in.
 
+### Flat-floor variant (under consideration, 2026-11-16)
+
+The reason is printing. A tray with one flat floor over its whole width, with no well and no lower west zone, prints flat, floor on the bed. The window is then a vertical hole: a true circle instead of the lens (the drop shape) that the standing print needs. The kerb web and the chimney's notch go with it. The owner accepts 0.4 to 0.5 L.
+
+Capacity, up to the same water level (Z 43.5, the rails' underside), with the 45° rear slope and the 23 mm extension into the mouth kept. These are hand estimates, about ±10 cm³:
+
+| Tray | Floor underside / top (Z) | Usable capacity |
+|---|---|---|
+| Version 1 (reference) | — | 0.69 L (5 mm below the brim) |
+| `scale_tray` as modelled (well at the front) | 2.0 to 25.0 / 4.5 to 27.5 | 0.60 L (597 cm³, from the model) |
+| Flat, at the current plateau | 25.0 / 27.5 | about 0.36 L |
+| Flat, 1 mm above the bridge | 22.3 / 24.8 | about 0.42 L |
+
+The extension into the mouth adds only about 27 cm³: at that height the rear slope fills most of it.
+
+**Height of a flat floor.** Once the tray is in place, only the bridge (Z 21.3, the top of `scale_base`) and the PCB box's lid (Z 20.6) stand under the floor. Neither is on the load path, so a sagging floor that rested on them would not spoil the reading. The adapter's centring boss (Z 23.2) is a Ø36 disc under the Ø42 window, so the floor stays clear of it. During fitting and removal, though, the tower is off and the tray moves about 25 mm toward the machine. The floor just in front of the window (user side) then passes over the boss. At Z 22.3 it clears the boss only if the tilt lifts it there by at least 1 mm. The owner will test this. If the test fails, the fallback is to keep Z 25.0 in a strip about 25 mm wide in front of the window and lower the rest.
+
 ### Assembly
 
 Hardware: three M4 × 10 countersunk screws, one M4 × 8 set screw, three M3 × 10 flat-head screws and three M3 nylon-insert locknuts, two M2 × 3 heat-set inserts, two M2 × 5 screws, four Ø5 × 2 and four Ø8 × 3 magnets, three cable ties 2.5 mm wide.

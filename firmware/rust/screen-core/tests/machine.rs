@@ -112,15 +112,15 @@ fn pressure_regulation() {
     assert_eq!(tick_sampled(&mut machine, 2100, &mut i), 99); // P dominant
     i.pressure_bar = 8.0;
     // 5,5 bar/s sur deux intervalles : le terme dérivé coupe avant la cible
-    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 43);
+    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 68);
     i.pressure_bar = 9.0;
-    // 10 bar/s : commande au plancher
-    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 10);
-    assert_eq!(tick_sampled(&mut machine, 2400, &mut i), 32); // 5 bar/s
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 39); // 10 bar/s
+    assert_eq!(tick_sampled(&mut machine, 2400, &mut i), 54); // 5 bar/s
     i.pressure_bar = 9.5;
-    assert_eq!(tick_sampled(&mut machine, 2500, &mut i), 43);
-    assert_eq!(tick_sampled(&mut machine, 2600, &mut i), 43);
-    assert_eq!(tick_sampled(&mut machine, 2700, &mut i), 61); // pente nulle
+    assert_eq!(tick_sampled(&mut machine, 2500, &mut i), 54);
+    assert_eq!(tick_sampled(&mut machine, 2600, &mut i), 54);
+    // pente nulle : sommet, le terme dérivé s'éteint
+    assert_eq!(tick_sampled(&mut machine, 2700, &mut i), 61);
     i.pressure_valid = false;
     assert_eq!(tick_sampled(&mut machine, 2800, &mut i), 61);
     i.pressure_valid = true;
@@ -151,10 +151,37 @@ fn derivative_cuts_a_fast_rise_before_the_target() {
     assert_eq!(tick_sampled(&mut machine, 2100, &mut i), 100); // sous 6 bar
     i.pressure_bar = 6.2;
     // activation : P + I reprend 100 %, le terme dérivé (7,5 bar/s) en
-    // retire 56
-    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 44);
+    // retire 22,5
+    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 78);
     i.pressure_bar = 6.9;
-    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 34);
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 68);
+}
+
+#[test]
+fn derivative_stops_at_the_first_pressure_peak() {
+    // Sur le plateau, le terme dérivé entretenait une oscillation de 0,8 s :
+    // passé le premier sommet, seul le PI règle, même si la pression remonte
+    // vite.
+    let mut machine = Machine::new();
+    let mut c = config();
+    c.preinfusion_mode = PreinfusionMode::NONE;
+    let mut i = valid(0.0, false, 8.0);
+    assert!(machine.start(1000, &c, &i));
+    assert_eq!(tick_sampled(&mut machine, 2000, &mut i), 100); // activation
+    i.pressure_bar = 9.0;
+    tick_sampled(&mut machine, 2100, &mut i);
+    i.pressure_bar = 8.8;
+    // 4 bar/s sur deux intervalles : le terme dérivé agit encore
+    // 15 × 0,2 + 85,06 − 3 × 4 = 76,06
+    assert_eq!(tick_sampled(&mut machine, 2200, &mut i), 76);
+    i.pressure_bar = 8.6;
+    // −2 bar/s : sommet passé ; 15 × 0,4 + 85,18 = 91,18
+    assert_eq!(tick_sampled(&mut machine, 2300, &mut i), 91);
+    i.pressure_bar = 9.0;
+    tick_sampled(&mut machine, 2400, &mut i);
+    i.pressure_bar = 9.6;
+    // +5 bar/s, sans effet (il retirerait 15 %) : −15 × 0,6 + 85,00 = 76
+    assert_eq!(tick_sampled(&mut machine, 2500, &mut i), 76);
 }
 
 #[test]

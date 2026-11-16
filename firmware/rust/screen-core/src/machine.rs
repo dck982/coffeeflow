@@ -111,13 +111,17 @@ const BREW_PRESSURE_ACTIVATION_FRACTION: f32 = 2.0 / 3.0;
 // point de fonctionnement est proche de 70 %, avec 300 à 400 ms de retard.
 const BREW_PRESSURE_KP_PCT_PER_BAR: f32 = 15.0;
 const BREW_PRESSURE_KI_PCT_PER_BAR_SECOND: f32 = 3.0;
-// Terme dérivé sur la mesure : la commande vise la pression attendue 0,5 s
-// plus tard (Kd = Kp × 0,5 s). La pompe à engrenage monte de 6 à 9 bar à
-// près de 7 bar/s sur une galette serrée ; entre la mesure et le
-// ralentissement du moteur, il passe 0,5 à 0,6 s, assez pour dépasser la
-// cible de près de 1 bar sans anticipation. Sur le plateau, la pente mesurée
-// a un écart type de 0,17 bar/s, soit ±1,3 % de commande.
-const BREW_PRESSURE_KD_PCT_PER_BAR_PER_SECOND: f32 = 7.5;
+// Terme dérivé sur la mesure, pendant la montée seulement : la pompe à
+// engrenage monte de 6 à 9 bar à près de 7 bar/s sur une galette serrée, et
+// il passe 0,25 à 0,4 s entre une commande et son effet sur la pression ;
+// sans anticipation, la pression dépasse la cible de près de 1 bar. Il
+// s'éteint au premier sommet de pression (pente nulle ou négative) et ne
+// revient plus de l'infusion. Laissé en service sur le plateau avec
+// Kd = 7,5, il entretenait une oscillation de 7,3 à 9,7 bar (période
+// 0,8 s), la commande battant de 10 à 100 %. Avec un modèle pompe + galette
+// calé sur ces deux comportements, Kd = 3 ramène le pic d'une galette serrée
+// vers 8,9 à 9,3 bar ; à 7,5, la pression cale avant la cible puis dépasse.
+const BREW_PRESSURE_KD_PCT_PER_BAR_PER_SECOND: f32 = 3.0;
 // La pente se prend sur deux intervalles de mesure (≈ 250 ms) pour lisser le
 // bruit ; au-delà de cette étendue, les mesures sont trop espacées pour une
 // pente utile.
@@ -151,6 +155,9 @@ pub struct Machine {
     /// dernier, pour la pente du terme dérivé.
     brew_pressure_history: [(u64, f32); 2],
     brew_pressure_history_len: u8,
+    /// Terme dérivé en service : de l'entrée en infusion jusqu'au premier
+    /// sommet de pression une fois le PI actif.
+    brew_pressure_derivative_active: bool,
     /// Date de la dernière mesure prise en compte par le PI.
     last_brew_pressure_sample_ms: u64,
 }
@@ -186,6 +193,7 @@ impl Machine {
             last_brew_pressure_control_ms: 0,
             brew_pressure_history: [(0, 0.0); 2],
             brew_pressure_history_len: 0,
+            brew_pressure_derivative_active: false,
             last_brew_pressure_sample_ms: 0,
         }
     }
@@ -364,22 +372,21 @@ impl Machine {
         self.brew_pressure_integral_pct = f32::from(self.brew_pump_pct);
         self.last_brew_pressure_control_ms = now_ms;
         self.brew_pressure_history_len = 0;
+        self.brew_pressure_derivative_active = true;
         self.last_brew_pressure_sample_ms = 0;
     }
 
     /// Range une nouvelle mesure et renvoie la pente en bar/s entre la plus
-    /// ancienne des mesures gardées et celle-ci, ou 0 sans historique utile.
-    fn record_brew_pressure(&mut self, sample_ms: u64, pressure_bar: f32) -> f32 {
+    /// ancienne des mesures gardées et celle-ci, ou `None` sans historique
+    /// utile.
+    fn record_brew_pressure(&mut self, sample_ms: u64, pressure_bar: f32) -> Option<f32> {
         let slope = if self.brew_pressure_history_len == 2 {
             let (oldest_ms, oldest_bar) = self.brew_pressure_history[0];
             let span_ms = sample_ms.wrapping_sub(oldest_ms);
-            if span_ms > 0 && span_ms <= BREW_PRESSURE_SLOPE_MAX_SPAN_MS {
-                (pressure_bar - oldest_bar) / (span_ms as f32 / 1000.0)
-            } else {
-                0.0
-            }
+            (span_ms > 0 && span_ms <= BREW_PRESSURE_SLOPE_MAX_SPAN_MS)
+                .then(|| (pressure_bar - oldest_bar) / (span_ms as f32 / 1000.0))
         } else {
-            0.0
+            None
         };
         if self.brew_pressure_history_len == 2 {
             self.brew_pressure_history[0] = self.brew_pressure_history[1];
@@ -507,7 +514,7 @@ impl Machine {
         let new_pressure_sample = self.state == State::Brew
             && input.pressure_valid
             && input.pressure_sample_ms != self.last_brew_pressure_sample_ms;
-        let mut pressure_slope_bar_s = 0.0;
+        let mut pressure_slope_bar_s = None;
         if new_pressure_sample {
             self.last_brew_pressure_sample_ms = input.pressure_sample_ms;
             pressure_slope_bar_s =
@@ -550,7 +557,16 @@ impl Machine {
             let error_bar = self.config.target_pressure_bar - input.pressure_bar;
             let pump_floor = f32::from(MINIMUM_BREW_PUMP_PCT);
             let pump_ceiling = f32::from(self.target_pump_pct());
-            let derivative_pct = BREW_PRESSURE_KD_PCT_PER_BAR_PER_SECOND * pressure_slope_bar_s;
+            if self.brew_pressure_control_active
+                && pressure_slope_bar_s.is_some_and(|slope| slope <= 0.0)
+            {
+                self.brew_pressure_derivative_active = false;
+            }
+            let derivative_pct = if self.brew_pressure_derivative_active {
+                BREW_PRESSURE_KD_PCT_PER_BAR_PER_SECOND * pressure_slope_bar_s.unwrap_or(0.0)
+            } else {
+                0.0
+            };
 
             if !self.brew_pressure_control_active
                 && input.pressure_bar

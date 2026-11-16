@@ -633,18 +633,27 @@ défaut de `preinfusion.pump_pct`, 35 %, est une pause sous le seuil de débit
 de la pompe, vanne ouverte. La rampe part de
 `max(preinfusion.pump_pct, kMinimumBrewPumpPct)`.
 
-**Montée et plateau d'infusion (écran 0.5.5).** La rampe monte la commande
+**Montée et plateau d'infusion (écran 0.5.6).** La rampe monte la commande
 par pas de 5 % en 2,5 s jusqu'à `brew.pump_pct`. Le régulateur prend la main
 aux 2/3 de `brew.target_pressure_bar`, en reprenant la commande courante
 (Kp = 15 %/bar, Ki = 3 %/(bar·s)). Il calcule une commande à chaque nouvelle
-mesure de pression (≈ 100 ms ; 200 ms fixes avant 0.5.5). Un terme dérivé
-sur la mesure, Kd = 7,5 %/(bar/s), anticipe la pression de 0,5 s ; la pente
-se lit sur les deux derniers intervalles de mesure, et reste nulle s'ils
-dépassent 400 ms. L'écran envoie un `SET` dès que la commande change, en plus
-du renouvellement du bail toutes les 100 ms. Pourquoi : avec la MPB003, la
-pression monte de 6 à 9 bar à 6,7 bar/s sur une galette serrée (15 novembre,
-pic à 9,92 bar) ; il passe 0,5 à 0,6 s entre la mesure et le ralentissement
-du moteur.
+mesure de pression (≈ 100 ms ; 200 ms fixes avant 0.5.5). **Pendant la
+montée seulement**, un terme dérivé sur la mesure, Kd = 3 %/(bar/s), retire
+de la commande la pente de pression ; la pente se lit sur les deux derniers
+intervalles de mesure, et ne compte pas s'ils dépassent 400 ms. Il s'éteint
+à la première pente nulle ou négative une fois le régulateur actif, et ne
+revient plus de l'infusion. L'écran envoie un `SET` dès que la commande
+change, en plus du renouvellement du bail toutes les 100 ms.
+
+Pourquoi : avec la MPB003, la pression monte de 6 à 9 bar à 6,7 bar/s sur
+une galette serrée (15 novembre, pic à 9,92 bar en 0.5.4), et il passe 0,25 à
+0,4 s entre une commande et son effet sur la pression. En 0.5.5, un terme
+dérivé de 7,5 %/(bar/s) laissé en service sur le plateau entretenait une
+oscillation de 7,3 à 9,7 bar, période 0,8 s, commande de 10 à 100 %
+(16 novembre). Le gain et la coupure au premier sommet viennent de
+`firmware/analysis/simulate_brew_pressure.py`, un modèle pompe + galette calé
+sur ces deux infusions : pic de 9,0 à 9,3 bar sur la galette du 15/11 selon
+le retard (0,25 à 0,4 s), contre 9,5 à 10,1 bar sans terme dérivé.
 
 ### Politique radio
 

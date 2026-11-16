@@ -88,7 +88,7 @@ Angles are measured as seen from above with the user in front of the machine: 0�
 | Ring 2 | 300° | 114.50 | 84.31 |
 | Ring 2 | 330° | 127.31 | 71.50 |
 
-The pattern has 19 holes in total (1 + 6 + 12), which matches the owner's photos. The closest pair of holes is 16.5 mm apart, centre to centre, leaving at least 8.5 mm of metal between holes. The pattern spans X = 58–136 mm and Y = 15–93 mm. The plate's centre line is at X = 96.5 mm, so the pattern is centred to within 0.5 mm; `scale_coupon` checks whether the centre hole is at 97 or 96.5. The version 1 figures further down (tray, shoulders, mouth clearances) were derived with the earlier widths and are kept as recorded.
+The pattern has 19 holes in total (1 + 6 + 12), which matches the owner's photos. The closest pair of holes is 16.5 mm apart, centre to centre, leaving at least 8.5 mm of metal between holes. The pattern spans X = 58–136 mm and Y = 15–93 mm. The plate's centre line is at X = 96.5 mm, so the pattern is centred to within 0.5 mm. `scale_coupon` confirmed on 2026-11-16 that the plate holes sit where the parts put them: a strip laid between the side walls, with holes at X = 97 and 132, lines up with the centre hole and the 0° ring 2 hole. The version 1 figures further down (tray, shoulders, mouth clearances) were derived with the earlier widths and are kept as recorded.
 
 ### Mouth and tray extension
 

@@ -23,8 +23,8 @@ min_wall = 0.6
 What to check on the real base plate:
 
 1. The strip drops between the two side walls with 0.5 mm total play (inner width 193, strip 192.5, 0.25 mm each end).
-2. Both holes line up with the plate's holes: the centre hole (97, 54) and the ring hole (132, 54). Both are provisional in `measurements.toml` (`scale_tole_trou_centre`).
-3. The post top is flush with the top of the plate's side wall (47 mm, `scale_tole_paroi_hauteur`, provisional): if it stands proud or short, correct the measurement, which moves the tray shoulders.
+2. Both holes line up with the plate's holes: the centre hole (97, 54) and the ring hole (132, 54). Recorded in `measurements.toml` as `scale_tole_trou_centre`.
+3. The post top is flush with the top of the plate's side wall (47 mm, `scale_tole_paroi_hauteur`): if it stands proud or short, correct the measurement, which moves the tray shoulders.
 
 - Polish: 1 mm chamfer on the vertical corners at the two ends. The post's top is left sharp since it is the flush reference.
 
@@ -38,3 +38,4 @@ What to check on the real base plate:
 
 - 2026-11-16 - First model.
 - 2026-11-16 - Ends with `scale_frame` (Y reversed): the machine frame is left-handed, so the part was the mirror image of the real object.
+- 2026-11-16 - Printed and checked on the real base plate: it drops between the side walls, both holes line up with the plate's, and the post is flush with the left side wall. `scale_tole_trou_centre` and `scale_tole_paroi_hauteur` are no longer provisional.

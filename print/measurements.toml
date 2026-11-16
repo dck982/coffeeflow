@@ -1457,8 +1457,7 @@ how = "docs/tray-with-scale.md : longueur intérieure entre rebord arrière et r
 [scale_tole_paroi_hauteur]
 value = 47.0
 unit = "mm"
-how = "docs/tray-with-scale.md : hauteur des parois latérales au-dessus du fond ; les épaules du tray y reposent. À vérifier avec scale_coupon."
-provisional = true
+how = "docs/tray-with-scale.md : hauteur des parois latérales au-dessus du fond ; les épaules du tray y reposent. Confirmé le 2026-11-16 par scale_coupon : le poteau de 47 affleure le haut de la paroi gauche."
 
 [scale_tole_rebord_avant]
 value = 17.0
@@ -1478,8 +1477,7 @@ how = "docs/tray-with-scale.md : diamètre des 19 trous du fond."
 [scale_tole_trou_centre]
 value = [97.0, 54.0]
 unit = "mm"
-how = "docs/tray-with-scale.md : trou central, sous l'axe de la tête de groupe. X à vérifier avec scale_coupon (97 ou 96,5 depuis la correction de largeur)."
-provisional = true
+how = "docs/tray-with-scale.md : trou central, sous l'axe de la tête de groupe. Confirmé le 2026-11-16 par scale_coupon : bande entre les parois (jeu 0,25 par côté), ses trous à X = 97 et 132 tombent sur le trou central et le trou d'anneau à 0°."
 
 [scale_bouche_largeur]
 value = 178.0

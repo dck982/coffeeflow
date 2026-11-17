@@ -837,8 +837,15 @@ Mesuré le 13 novembre 2026 en purge à 100 %, sans charge : la pompe met
 la consigne : la pompe qui ralentissait a laissé 0,24 bar dans la chaudière
 fermée. 500 ms ne suffisaient donc pas ; la règle passe à 1 s en 0.5.1.
 
-**Exception en fin d'infusion (0.5.7) : sous au moins 5 bar, pompe à
-3 500 tr/min au plus, la vanne se ferme avec la consigne à 0.** Tenue
+**Exception en fin d'infusion (0.5.8) : sous au moins 5 bar, pompe à
+3 500 tr/min au plus, la vanne se ferme quand le groupe passe sous
+7,5 bar, au plus tard 1 s après la consigne à 0.** La sensors relit la
+pression à chaque tick de 100 ms ; le groupe y descend en ≈ 0,4 s (16/11),
+et la fermeture tombe vers 7,0 à 7,5 bar. En 0.5.7, la vanne se fermait
+avec la consigne : le 17/11 à 8 h 08, le groupe s'est vidé par la purge
+depuis 8,9 bar, la galette a été aspirée contre la douchette, très
+dégradée. Un délai de 50 ms n'aurait rien changé : la pression du groupe
+est encore à 8,98 bar 57 ms après la consigne à 0 (16/11). Tenue
 jusqu'à l'arrêt de la pompe (≈ 0,9 s), elle laissait la galette vider le
 groupe : le 16/11 à 15 h 02, la pression passe de 8,98 à 6,48 bar avant la
 fermeture, et David trouve de l'eau au-dessus de la galette, sans grande

@@ -415,7 +415,7 @@ fn the_valve_closes_after_one_second_if_the_pump_keeps_turning() {
 }
 
 #[test]
-fn the_valve_closes_with_the_pump_at_the_end_of_a_brew() {
+fn the_valve_waits_for_the_group_under_7_5_bar_at_the_end_of_a_brew() {
     // Plateau d'infusion : 9 bar, pompe vers 2 500 tr/min.
     let mut m = present();
     m.hw.pressure_raw = Some(15_167); // 9 bar
@@ -423,15 +423,39 @@ fn the_valve_closes_with_the_pump_at_the_end_of_a_brew() {
     set(&mut m, 68, 500);
     set(&mut m, 0, 500);
     assert_eq!(m.hw.duty, 0);
+    assert!(m.hw.valve);
+    // Pompe arrêtée, groupe encore à 7,5 bar : la vanne reste ouverte.
+    m.hw.tach_rpm = 0;
+    m.hw.pressure_raw = Some(VALVE_CLOSE_BREW_END_CODE);
+    advance(&mut m, 300 * MS, true);
+    assert!(m.hw.valve);
+    m.hw.pressure_raw = Some(VALVE_CLOSE_BREW_END_CODE - 1);
+    advance(&mut m, 100 * MS, true);
     assert!(!m.hw.valve);
     assert!(!last_actuators(&m).valve_open);
 }
 
 #[test]
+fn the_valve_closes_after_one_second_if_the_group_stays_under_pressure() {
+    for raw in [Some(15_167), Some(30_000), None] {
+        let mut m = present();
+        m.hw.pressure_raw = Some(15_167);
+        m.hw.tach_rpm = 2500;
+        set(&mut m, 68, 500);
+        set(&mut m, 0, 500);
+        m.hw.pressure_raw = raw;
+        advance(&mut m, 900 * MS, true);
+        assert!(m.hw.valve, "{raw:?}");
+        advance(&mut m, 100 * MS, true);
+        assert!(!m.hw.valve, "{raw:?}");
+    }
+}
+
+#[test]
 fn a_fast_pump_or_a_low_pressure_keeps_the_valve_until_the_pump_stops() {
     for (raw, rpm) in [
-        (Some(15_167), VALVE_CLOSE_AT_ONCE_MAX_RPM + 1), // 9 bar, pompe rapide
-        (Some(VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE - 1), 2500), // sous 5 bar
+        (Some(15_167), VALVE_CLOSE_BREW_END_MAX_RPM + 1), // 9 bar, pompe rapide
+        (Some(VALVE_CLOSE_BREW_END_MIN_PRESSURE_CODE - 1), 2500), // sous 5 bar
         (Some(30_000), 2500),                            // invraisemblable
         (None, 2500),                                    // pas de mesure
     ] {

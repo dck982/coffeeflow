@@ -44,16 +44,23 @@ pub const PUMP_REARM_US: i64 = 50 * 1000;
 /// contre une vanne fermée monte en pression. Sans charge, elle met
 /// ≈ 0,7 s à s'arrêter, arrêt détecté compris.
 pub const VALVE_CLOSE_MAX_DELAY_US: i64 = 1000 * 1000;
-/// Fin d'infusion : sous pression, la vanne se ferme avec le SET à 0. Tenue
-/// ouverte jusqu'à l'arrêt de la pompe (≈ 0,9 s), elle laissait la galette
-/// vider le groupe de 9 à 6,5 bar, et la décharge du groupe partait de là.
-/// À 9 bar, la fuite interne de la pompe (≈ 3 ml/s) absorbe presque tout ce
-/// qu'elle refoule en ralentissant : à 3 500 tr/min (5,8 ml/s), il reste
-/// ≈ 0,4 ml, soit < 1 bar dans la chaudière fermée. Plus vite ou sous
-/// 5 bar (purge, rinçage), la règle du tachymètre reste. 5 bar = 3167,3 +
-/// 5 / 0,00075 codes.
-pub const VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE: i16 = 9834;
-pub const VALVE_CLOSE_AT_ONCE_MAX_RPM: u16 = 3500;
+/// Fin d'infusion : sous au moins 5 bar, pompe à 3 500 tr/min au plus, la
+/// vanne se ferme quand le groupe passe sous `VALVE_CLOSE_BREW_END_CODE`,
+/// au plus tard après `VALVE_CLOSE_MAX_DELAY_US`. Tenue jusqu'à l'arrêt de
+/// la pompe (≈ 0,9 s), elle laissait la galette vider le groupe jusqu'à
+/// 6,5 bar et de l'eau sur la galette ; fermée avec la pompe, vers 9 bar, la
+/// décharge par la purge aspirait la galette contre la douchette. À
+/// 9 bar, la fuite interne de la pompe (≈ 3 ml/s) absorbe presque tout ce
+/// qu'elle refoule en ralentissant : la chaudière fermée ne monte pas.
+/// Plus vite ou sous 5 bar (purge, rinçage), la règle du tachymètre reste.
+/// 5 bar = 3167,3 + 5 / 0,00075 codes.
+pub const VALVE_CLOSE_BREW_END_MIN_PRESSURE_CODE: i16 = 9834;
+pub const VALVE_CLOSE_BREW_END_MAX_RPM: u16 = 3500;
+/// 7,5 bar = 3167,3 + 7,5 / 0,00075 = 13 167,3 codes, arrondi vers le bas :
+/// la vanne se ferme strictement sous 7,5 bar. Après l'arrêt de la pompe, le
+/// groupe met ≈ 0,4 s à y descendre ; lue toutes les 100 ms, la fermeture
+/// tombe vers 7,0 à 7,5 bar.
+pub const VALVE_CLOSE_BREW_END_CODE: i16 = 13167;
 /// Marche à sec : vitesse mesurée au-dessus de ce seuil...
 pub const DRY_MIN_RPM: u16 = 1000;
 /// ... sans front Digmesa et avec une pression sous 1 bar, tout cela tenu
@@ -180,6 +187,9 @@ pub struct Machine<H: Hw> {
     /// Fin au plus tard de la vanne tenue ouverte après un SET à 0, 0 =
     /// aucune.
     valve_hold_deadline_us: i64,
+    /// Fin d'infusion : la vanne tenue attend la pression du groupe, pas
+    /// l'arrêt de la pompe.
+    valve_hold_on_pressure: bool,
     maintenance_valve: bool,
     heater_on: bool,
     heating_deadline_us: i64,
@@ -260,6 +270,7 @@ impl<H: Hw> Machine<H> {
             lockout_active: cfg.lockout_active,
             valve_open: false,
             valve_hold_deadline_us: 0,
+            valve_hold_on_pressure: false,
             maintenance_valve: false,
             heater_on: false,
             heating_deadline_us: 0,
@@ -640,19 +651,19 @@ impl<H: Hw> Machine<H> {
         self.send_status_actuators();
     }
 
-    /// Pression brute pour la règle de marche à sec : celle du dernier
-    /// `STATUS_PRESSURE`, relue si elle a plus de 300 ms.
-    /// Pompe lente sous au moins 5 bar : la vanne peut se fermer avec la
-    /// pompe (`VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE`).
+    /// Pompe lente sous au moins 5 bar : fin d'infusion, la vanne attend la
+    /// pression du groupe (`VALVE_CLOSE_BREW_END_CODE`).
     fn stops_under_pressure(&mut self) -> bool {
         let now = self.hw.now_us();
-        self.hw.pump_tach().rpm(now) <= VALVE_CLOSE_AT_ONCE_MAX_RPM
+        self.hw.pump_tach().rpm(now) <= VALVE_CLOSE_BREW_END_MAX_RPM
             && self.recent_pressure(now).is_some_and(|code| {
                 PRESSURE_PLAUSIBLE_CODES.contains(&code)
-                    && code >= VALVE_CLOSE_AT_ONCE_MIN_PRESSURE_CODE
+                    && code >= VALVE_CLOSE_BREW_END_MIN_PRESSURE_CODE
             })
     }
 
+    /// Pression brute pour la règle de marche à sec : celle du dernier
+    /// `STATUS_PRESSURE`, relue si elle a plus de 300 ms.
     fn recent_pressure(&mut self, now: i64) -> Option<i16> {
         if let Some((raw, at)) = self.pressure_cache
             && now - at <= DRY_PRESSURE_MAX_AGE_US
@@ -853,12 +864,10 @@ impl<H: Hw> Machine<H> {
         // Le niveau est l'intention reçue ; la vanne s'ouvre avec la pompe.
         // La pompe d'abord : un cycle qui part de 0 y lève les défauts, et la
         // vanne d'un cycle en défaut reste fermée. Une pompe qu'on arrête
-        // garde la vanne ouverte jusqu'à son arrêt (`tick_valve_hold`), sauf
-        // en fin d'infusion, sous pression.
-        let hold = payload.pump_pct == 0
-            && self.pump_duty > 0
-            && self.valve_output()
-            && !self.stops_under_pressure();
+        // garde la vanne ouverte jusqu'à son arrêt, ou en fin d'infusion
+        // jusqu'à la baisse de pression du groupe (`tick_valve_hold`).
+        let hold = payload.pump_pct == 0 && self.pump_duty > 0 && self.valve_output();
+        self.valve_hold_on_pressure = hold && self.stops_under_pressure();
         self.valve_hold_deadline_us = if hold {
             self.hw.now_us() + VALVE_CLOSE_MAX_DELAY_US
         } else {
@@ -1136,13 +1145,25 @@ impl<H: Hw> Machine<H> {
     }
 
     /// Ferme la vanne tenue après un SET à 0 dès que le tachymètre voit la
-    /// pompe arrêtée, au plus tard après `VALVE_CLOSE_MAX_DELAY_US`.
+    /// pompe arrêtée, ou en fin d'infusion dès que le groupe passe sous
+    /// 7,5 bar, au plus tard après `VALVE_CLOSE_MAX_DELAY_US`. La pression se
+    /// relit à chaque tick : celle du dernier `STATUS_PRESSURE` peut avoir
+    /// 100 ms de retard.
     fn tick_valve_hold(&mut self) {
         if self.valve_hold_deadline_us == 0 {
             return;
         }
         let now = self.hw.now_us();
-        if self.hw.pump_tach().rpm(now) != 0 && now < self.valve_hold_deadline_us {
+        let released = if self.valve_hold_on_pressure {
+            let raw = self.hw.pressure_raw();
+            self.pressure_cache = Some((raw, now));
+            raw.is_some_and(|code| {
+                PRESSURE_PLAUSIBLE_CODES.contains(&code) && code < VALVE_CLOSE_BREW_END_CODE
+            })
+        } else {
+            self.hw.pump_tach().rpm(now) == 0
+        };
+        if !released && now < self.valve_hold_deadline_us {
             return;
         }
         self.valve_hold_deadline_us = 0;

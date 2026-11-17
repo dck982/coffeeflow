@@ -1519,6 +1519,16 @@ value = 8.0
 unit = "mm"
 how = "docs/tray-with-scale.md : le taquet d'origine dépasse de 8 mm du fond de la bouche."
 
+[scale_vis_facade_saillie]
+value = 6.0
+unit = "mm"
+how = "user 2026-11-17 (photo) : deux vis dans la façade de la machine, une à chaque coin haut de la tôle, contre les faces latérales. Elles dépassent d'environ 6 mm de la façade vers l'utilisateur (plaque 1,5 + tête 4). Aucune vis sur les faces latérales elles-mêmes."
+
+[scale_vis_facade_z]
+value = 29.0
+unit = "mm"
+how = "user 2026-11-17 : axe des vis de façade 18 mm sous le haut des faces latérales (47), donc Z = 29."
+
 [scale_cellule_longueur]
 value = 75.0
 unit = "mm"

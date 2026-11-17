@@ -240,9 +240,9 @@ All parts are printed: Bambu PETG Basic, except the soft parts in Bambu TPU 90A.
 | 2 | `scale_lid` | PETG | Skirted lid of the PCB box. |
 | 3 | `scale_adapter` | PETG | Bolted on the load cell's loaded end. Carries the seat and the weak magnets for the tower, and the two adjustable overload stop screws. |
 | 4 | `scale_tower` | PETG | Carries the inner grille's load down through the tray window to the adapter. Weak magnets below, strong magnets above. |
-| 5 | `scale_grille_inner` | PETG | Cup grille, 86 (X) × 94 (Y) mm, centred on the group head axis (97, 54); the rectangle only fits the right way round or turned half a turn. Solid over the chimney, rows of drain slots around it, a lens-shaped drip ring underneath, two finger holes. |
+| 5 | `scale_grille_inner` | PETG | Cup grille, 86 (X) × 94 (Y) mm, centred on the group head axis (97, 54); the rectangle only fits the right way round or turned half a turn. Solid over the chimney, rows of drain slots around it, a round drip ring underneath, two finger holes. |
 | 6 | `scale_grille_outer` | PETG | Version 2 style: a flat plate lying on rails in the tray, with a cut-out for the inner grille, a purge opening, a pull hole at the south-east corner and a front apron that hooks over the tray's front wall. |
-| 7 | `scale_tray` | PETG | Version 2 style. Hangs from the base plate's side walls, extends into the mouth and locks behind the front lip. A plateau over the scale, a deep well at the front, a kerbed window for the tower, a sloping rear that catches the purge water. Prints standing on its front wall. |
+| 7 | `scale_tray` | PETG | Version 2 style. Hangs from the base plate's side walls and extends into the mouth. One flat floor at Z 20 over the scale, above the front lip, a round kerbed window for the tower, a sloping rear that catches the purge water. Prints floor on the bed. |
 | 8 | `scale_chimney` | TPU 90A | Sleeve pushed over the tray's window kerb. Rises above the highest water level around the tower without touching it. |
 | 9 | `scale_bumper` | TPU 90A | Rear stop on the tray's right side, in place of the machine's right bumper, whose hole now takes the cable. |
 | 10 | `scale_coupon` | PETG | Fit gauge printed before the large parts: checks the base plate's inner width, the side wall height and two hole positions. |
@@ -297,11 +297,7 @@ Coordinates for this section, in mm: X from the base plate's left inner wall fac
    - Along Y, fixed end toward the user: the cell spans Y = 44 to 119.
    - Toward the machine: not possible, because the fixed end would be in the mouth.
 2. **Height under the tray.** The load cell is 12.7 mm tall before any mount. Version 1's underside is only 15.5 mm above the plate, and version 2 sits even lower. So the tray floor must be raised above the load cell, its tower adapter and the gasket's bottom lip.
-3. **Insertion path.** The tray does not slide in over its whole length: it comes down tilted, its rear end travels only about 25 mm into the mouth, and the front then drops behind the front lip. A low part of the tray's underside therefore only passes over what lies within about 25 mm in front of its final position, and it does so raised by the tilt. Two rules follow:
-   - Everything from the scale back to the mouth is under one raised floor, so that no low part of the tray ever travels over the scale.
-   - The first low part in front of the scale (the well's rear face) ends at least 3 mm in front of the scale's front edge. The left bumper stops the tray before the two can meet.
-
-   The front wall must still reach below Z = 17 to keep the front lip lock.
+3. **Insertion path.** The tray's floor (underside Z 20) stands above everything on the base plate: the scale (highest part 18.7), the front lip (17) and the rear lip (12). It slides straight in, tower off, and nothing locks it forward (see [Flat floor](#flat-floor-adopted-2026-11-17)).
 4. **Capacity.** The raised areas and the chimney both take volume, and the chimney top caps the usable water level. A capacity below version 1's 0.69 L is accepted, but the design should still state its usable volume.
 5. **Screws from below.** The base plate holes are Ø8 mm, and an M4 socket head is only 7 mm across, so it would pass through. Use washers of at least 12 mm, or larger heads, within the 10 mm under the plate. The base plate's own two rear screws come horizontally out of the rear lip: Ø7 heads, 4 mm proud (Y = 0 to 4), axis 5 mm above the floor, 50 mm each side of the centre line (measured in August 2026, `print/measurements.toml`). Nothing may sit there. The base plate's hole spacing does not match the load cell's 10 mm hole spacing. So the load cell bolts to the scale base, and the scale base bolts to the plate.
 6. **Load cell protection.** The free end needs a small gap underneath it to deflect. A printed overload stop under it (and possibly over it) would protect the 1 kg cell. Weight budget: a mug of 100–250 g plus under 100 g of coffee, so at most 350 g, plus the inner grille, tower and magnets. That stays well within the 1 kg rating, leaving margin for someone pressing on the grille.
@@ -361,18 +357,17 @@ These settle the former open points. Values are the modelling defaults; each is 
    - the tower is wide, Ø36 at its foot and top (seat radius 18 mm), and hollow;
    - both joints seat on a square truncated pyramid (24 mm at its base, 30° flanks, 3 mm high): a boss on the adapter under a socket in the tower's foot, and a boss under the grille in a socket in the tower's top. The pyramid centres, sets the angle so the square grille stays parallel to its cut-out, has no play, and resists tipping without relying on the magnets.
 
-8. **Window and chimney.** The tray window leaves 3 mm all round the Ø36 tower, more than the tray's play of about 1 mm in X and Y. A kerb, part of the tray, surrounds the window and rises 8 mm above the plateau. `scale_chimney` (TPU) pushes over the kerb and rises to Z = 45.0. The seal therefore sits 8 mm above the floor. Window, kerb and chimney share one outline: a circle drawn out to a point toward the user and toward the machine, with 45° flanks and rounded tips (4 mm radius on the kerb's outer face, which reaches 30.9 mm from the axis). The tray prints standing on its front wall (decision 9): the point toward the user lets the kerb start on the floor instead of in the air, and the point toward the machine roofs the window. The rounded tips are for the TPU sleeve, which would not follow a sharp corner. Under the tip toward the user, a 10 mm web carries the tray's 45° ramp up to the top of the kerb, so that the rounded tip does not start in the air; the chimney has a notch there and does not grip the kerb over those 10 mm. The inner grille's drip ring follows the chimney's lens 2.5 mm out, and the grille stays solid over it to 1 mm beyond; together they cover the chimney like an umbrella, with 2.5 mm between the chimney top and the grille, against less than 0.5 mm of cell travel.
+8. **Window and chimney.** The tray window is a Ø42 circle on the tower axis: 3 mm all round the Ø36 tower. A round kerb, part of the tray, surrounds the window (outer Ø46) and rises 13 mm above the floor, to Z 35.5. `scale_chimney` (TPU) pushes over the kerb and rises to Z = 45.0. The inner grille's drip ring follows the chimney 2.5 mm out, and the grille stays solid over it to 1 mm beyond; together they cover the chimney like an umbrella, with 2.5 mm between the chimney top and the grille, against less than 0.5 mm of cell travel.
 
-9. **Tray.** It prints standing on its front wall, 163 mm tall, without supports (owner, 2026-11-16). Floors and walls are then vertical walls for the printer, which is also the most watertight way to lay them, and every change of level is a slope. Two earlier stances were dropped: upright, where the raised floor is one large overhang, and tilted at 45° on a flattened edge, which leaned 30 mm off its footing.
-   - Support: side shoulders resting on the base plate's side walls, as in versions 1 and 2. No shoulder in the mouth. A corbel under each shoulder centres the tray between the walls with 0.5 mm of play per side.
-   - Plateau, from X = 72 to the right wall: the floor's underside is at Z = 25.0 over the scale, back from Y = 89; in front of that a 45° ramp comes down to the well (underside Z = 2).
-   - Left zone, X below 72, where nothing stands under the tray: well at the front, then one gentle slope up to Z = 13.5 at the rear lip, so the water runs forward by itself.
-   - Rear: no vertical rear wall, which would be a ceiling for the printer. Each floor ends in a 45° slope up to the rim at Y = −23. The purge water falls on it and runs forward; no splash ball.
+9. **Tray.** One flat floor, underside at Z 20 (1.3 over the highest part of the scale), printed floor on the bed (owner, 2026-11-17). It replaces a tray printed standing on its front wall, whose well, ramps and pointed window existed only for that stance.
+   - Width: the plate's full inner width less 0.5 mm per wall from Y = 7 forward, as version 2; the mouth's width behind. Y = 7 clears the two screw heads in the machine face at the plate's top corners (out to Y 6, axis Z 29); there are no screws on the side walls. The side walls locate the tray. Above Z 31.5 a 45° shoulder leans 9 mm inward to the rails, so the outer grille keeps its width.
+   - Support: narrow flanges on the side walls' tops, 2.5 mm out from the tray's walls, flush with the walls' outer faces; they print without supports.
+   - Rear: no vertical rear wall. The floor ends in a 45° slope up to the rim at Y = −23. The purge water falls on it and runs forward; no splash ball.
    - Rails for the outer grille along both sides, at Z = 46.0; none at the rear.
-   - Size: 202 mm across the shoulders, for the 256 mm bed (P2S).
+   - Size: 197 mm across the shoulders, for the 256 mm bed (P2S).
    - Capacity and print figures are on the part's card.
 
-10. **Grilles.** Inner grille 86 × 94 mm (X = 54 to 140, Y = 7 to 101): longer along Y like the chimney's lens, so it cannot go in a quarter turn off (its 94 meets the cut-out's 90). The cut-out's rear edge is 5 mm from the purge opening, enough since the purge is a downward jet. Rows of drain slots from the drip ring to a 3 mm border, about 1230 mm² of slots. Gap to the outer grille's cut-out: 2 mm all round. Both 2.5 mm thick, printed top face down. Outer grille: purge opening Ø16 centred in X, pull hole 20 mm square at the south-east corner, front apron. It fits the 180 mm bed.
+10. **Grilles.** Inner grille 86 × 94 mm (X = 54 to 140, Y = 7 to 101): a rectangle, so it cannot go in a quarter turn off, which would put its strong magnets across the tower's (its 94 meets the cut-out's 90). The cut-out's rear edge is 5 mm from the purge opening, enough since the purge is a downward jet. Rows of drain slots from the drip ring to a 3 mm border, about 1400 mm² of slots. Gap to the outer grille's cut-out: 2 mm all round. Both 2.5 mm thick, printed top face down. Outer grille: purge opening Ø16 centred in X, pull hole 20 mm square at the south-east corner, front apron. It fits the 180 mm bed.
 
 11. **Rear stop and rattle.** The cable bundle is 3.7 mm in a Ø4 hole, so nothing else fits in that hole. Two pegs stand out of the tray's rear slope, at the bumpers' height. The left one meets the machine's remaining bumper. The right one, about 14 mm outboard of the cable hole, carries `scale_bumper`, a TPU cap, and ends 8 mm behind the tray's rear like the bumper it replaces. The cable comes down in the 8 mm left behind the tray. No TPU pads under the shoulders for now: printed PETG on steel does not ring as version 1's steel on steel does. Pads can be added later without changing the tray.
 
@@ -400,8 +395,8 @@ Not started: the grilles are printed for now. This records what was found so the
 
 - A flat 304 plate, laser cut: the 86 × 94 outline, the slots and the finger holes. The slots (pitch 5.5) and webs stay wider than the sheet, which is what laser cutting needs.
 - Flush-head PEM studs clinched into its underside. 304 sheet takes the studs made for stainless (PEM FHS, hardened 400-series), not the standard ones: name them in the order. The top face stays flat.
-- A printed PETG part under it carries the seat boss with the strong magnets and the lens-shaped drip ring, held by nuts on the studs. No glue, no weld, and it comes apart for cleaning.
-- Rejected: welding the drip ring under the plate. The lens needs a rolled strip that the online offer does not make, and the weld bead on a 1.5 mm sheet would mark or warp the face the cup stands on. A rectangular skirt would avoid the rolling (three press-brake bends and a seam) but not the weld under the cup face; it would also be a 4.5 mm band, very short for a press brake, and a rectangle around the lens takes back the band of slots the lens frees (decision 8). Machining the whole grille from a 304 block is possible at JLCCNC but far dearer.
+- A printed PETG part under it carries the seat boss with the strong magnets and the round drip ring, held by nuts on the studs. No glue, no weld, and it comes apart for cleaning.
+- Rejected: welding the drip ring under the plate. The ring needs a rolled strip that the online offer does not make, and the weld bead on a 1.5 mm sheet would mark or warp the face the cup stands on. A rectangular skirt would avoid the rolling (three press-brake bends and a seam) but not the weld under the cup face; it would also be a 4.5 mm band, very short for a press brake, and a rectangle around the round ring takes back the band of slots it frees (decision 8). Machining the whole grille from a 304 block is possible at JLCCNC but far dearer.
 - Mass of the plate alone, about 6 400 mm² of metal at 7.9 g/cm³: 51 g at 1.0 mm, 76 g at 1.5, 102 g at 2.0. With 1.5 mm and the printed part, about 130 g on the cell, against about 72 g for the all-PETG grille, tower and adapter. With a 200 g cup and 100 g of coffee the cell then carries about 430 g, well inside the 1 kg cell; the tare takes out the fixed part.
 - The plate is thinner than the 2.5 mm PETG grille. The inner grille's top must stay at Z 50.0, 1.5 above the outer grille (decision 2): the printed part under the sheet takes up the difference.
 
@@ -412,33 +407,24 @@ Not started: the grilles are printed for now. This records what was found so the
 - If the sheet is thinner than 2.5 mm, the outer grille's top drops below Z 48.5 unless the rails rise by the difference.
 - Mass, about 18 600 mm² of metal with the apron: about 150 g at 1.0 mm, 220 g at 1.5. It rests on the tray, not on the cell.
 
-### Flat-floor variant (under consideration, 2026-11-16)
+### Flat floor (adopted 2026-11-17)
 
-The reason is printing. A tray with one flat floor over its whole width, with no well and no lower west zone, prints flat, floor on the bed. The window is then a vertical hole: a true circle instead of the lens (the drop shape) that the standing print needs. The kerb web and the chimney's notch go with it. The owner accepts 0.4 to 0.5 L.
+The tray has one flat floor over its whole width and prints floor on the bed. The window is a vertical round hole; the kerb web and the chimney's notch are gone. The owner accepts 0.4 to 0.5 L.
 
-Capacity, up to the same water level (Z 43.5, the rails' underside), with the 45° rear slope and the 23 mm extension into the mouth kept. These are hand estimates, about ±10 cm³:
+Capacity from the models, up to Z 43.5 (the rails' underside), minus the rails and the kerb's column, with the 45° rear slope and the 23 mm extension into the mouth:
 
-| Tray | Floor underside / top (Z) | Usable capacity |
+| Tray | Floor underside (Z) | Usable capacity |
 |---|---|---|
 | Version 1 (reference) | — | 0.69 L (5 mm below the brim) |
-| `scale_tray` as modelled (well at the front) | 2.0 to 25.0 / 4.5 to 27.5 | 0.60 L (597 cm³, from the model) |
-| Flat, at the current plateau | 25.0 / 27.5 | about 0.36 L |
-| Flat, 1 mm above the bridge | 22.3 / 24.8 | about 0.42 L |
+| With a front well, printed standing (replaced) | 2.0 to 20.0 | 0.65 L (649 cm³) |
+| Flat, at the mouth's width | 20.0 | 0.48 L (477 cm³) |
+| **Flat, full width in front of the machine face (`scale_tray`)** | **20.0** | **0.51 L (508 cm³)** |
 
-The extension into the mouth adds only about 27 cm³: at that height the rear slope fills most of it.
+The flat tray loses the 177 cm³ of the well and the lower west zone; above the floor both have the same section, about 23.6 cm³ per mm of water.
 
-**Height of a flat floor.** The figures in this section date from before the base's floor went from 4 to 2 mm (2026-11-17), which brought everything below down 2 mm: the bridge is now at Z 19.3, the lid at 18.6 and the adapter's boss at 21.2. Once the tray is in place, only the bridge (Z 21.3 then, the top of `scale_base`) and the PCB box's lid (Z 20.6 then) stand under the floor. Neither is on the load path, so a sagging floor that rested on them would not spoil the reading. The adapter's centring boss (Z 23.2) is a Ø36 disc under the Ø42 window, so the floor stays clear of it. During fitting and removal, though, the tower is off and the tray moves about 25 mm toward the machine. The floor just in front of the window (user side) then passes over the boss. At Z 22.3 it clears the boss only if the tilt lifts it there by at least 1 mm. The owner will test this. If the test fails, the fallback is to keep Z 25.0 in a strip about 25 mm wide in front of the window and lower the rest.
+Open points:
 
-### Variant: tray above the front lip, as version 2 (noted 2026-11-17, on hold)
-
-The tray's whole underside would stay above the front lip (Z 17), and its front face would show between the lip and the outer grille's skirt, as on version 2. Consequences:
-
-- The front well goes: the tray's lowest underside rises from Z 2 to about Z 17.5, and the tray becomes almost flat, which is where the owner wants to go anyway. Capacity drops from 0.60 L to an estimated 0.45 to 0.5 L (by hand, not modelled).
-- Insertion becomes nearly a straight slide over the lip, so the rule about the first low part ending 3 mm in front of the scale no longer applies.
-- Nothing stops the tray from sliding forward any more: the lip lock is lost and the shoulders on the side walls carry no stop. Version 2 seems to get its hold from resting on the plate's floor (see Version 2), but here the scale takes that floor. A forward stop has to be found before this variant goes ahead.
-- The front face's visible height and its position along Y (flush with the lip or ahead of it) are still to be chosen.
-
-On hold: the owner prints the current tray first and compares.
+- **Forward stop.** The floor is 3 mm above the front lip, so the lip no longer locks the tray. Toward the user it is free until the outer grille's cut-out touches the cup grille (2 mm gap) or the kerb touches the tower (3 mm); either contact shunts the weight. Options noted by the owner: do nothing for a first print and see how far the tray actually moves; a boss on the scale's bridge reaching into a slightly wider chimney, so the tray must be tilted to come out; or two raised strips in the floor indexed by an extension of the base.
 
 ### Assembly
 
@@ -463,7 +449,7 @@ On the machine:
 
 ### Settled with the owner (2026-11-16)
 
-- Tray floor: a well at the front; the tray printed standing on its front wall, with ramps and a pointed window (owner's proposal).
+- Tray floor: a well at the front; the tray printed standing on its front wall, with ramps and a pointed window (owner's proposal). Replaced on 2026-11-17 by one flat floor printed on the bed.
 - Screws: what is in stock, see decision 4.
 - Base plate: 193 mm inside, 197 mm outside, 2 mm sheet.
 - Load cell: the seller's drawing, see References. No overload figure, hence the adjustable stop.

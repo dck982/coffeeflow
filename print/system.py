@@ -1011,7 +1011,7 @@ def polish_couvercle(body, wall, rim_depth):
 
 from types import SimpleNamespace
 
-from nurb import Rectangle, Rot, ThreePointArc, loft
+from nurb import Circle, Pos, Rectangle, Rot, loft
 
 
 def _scale_plate_holes(axis):
@@ -1176,24 +1176,21 @@ def scale_layout():
         wall=tray_wall, floor=2.5,
         x0=centre_x - 87.0, x1=centre_x + 87.0,
         y_rear=-23.0, y_front=139.5,
-        raised_underside=20.0, well_underside=2.0,
-        # The tray prints standing on its front wall, so its floor only changes
-        # level along ramps. Plateau over the scale: flat back from plateau_y,
-        # then 45 degrees down to the well. West of plateau_x0 nothing stands
-        # under the tray: the floor climbs gently from the well to the mouth.
-        plateau_x0=72.0, plateau_y=89.0,
-        slope_y_front=112.0, slope_y_rear=4.0, mouth_underside=13.5,
+        # One flat floor over the whole tray: it prints floor on the bed, and
+        # its underside clears the highest part of the scale under it.
+        underside=20.0,
         rim_top=grille_outer.top,
         rail_top=grille_outer.top - grille_outer.thickness, rail_width=3.0,
-        window_diameter=42.0, window_tip_radius=2.0, kerb_wall=2.0, kerb_top=35.5,
-        # Web under the kerb's +Y tip, which the chimney's sleeve straddles.
-        kerb_web_width=10.0,
-        water_max=43.5,
-        shoulder_underside=measured("scale_tole_paroi_hauteur"), shoulder_thickness=2.0,
-        shoulder_x0=-measured("scale_tole_epaisseur") - 2.5,
-        shoulder_x1=plate_width + measured("scale_tole_epaisseur") + 2.5,
-        shoulder_y0=2.0,
+        window_diameter=42.0, kerb_wall=2.0, kerb_top=35.5,
+        # In front of the machine face the tray takes the plate's full inner
+        # width, less side_play per wall; behind wide_y0 it narrows to the
+        # mouth. wide_y0 clears the screw heads standing out of the machine
+        # face in the plate's top corners, by 1 mm.
         side_play=0.5,
+        wide_y0=measured("scale_vis_facade_saillie") + 1.0,
+        # The shoulders cover the side walls' tops, flush with their outer face.
+        shoulder_underside=measured("scale_tole_paroi_hauteur"), shoulder_thickness=2.0,
+        shoulder_x0=-measured("scale_tole_epaisseur"),
         # Two pegs stand out of the sloping rear wall, along -Y. The west one
         # meets the machine's rubber bumper; the east one carries the TPU cap
         # that replaces the bumper removed for the cable.
@@ -1203,7 +1200,7 @@ def scale_layout():
     )
 
     chimney = SimpleNamespace(top=45.0, wall=1.6,
-                              bottom=tray.raised_underside + tray.floor)
+                              bottom=tray.underside + tray.floor)
 
     return SimpleNamespace(
         plate_width=plate_width, centre_x=centre_x, axis=axis, holes=holes,
@@ -1233,30 +1230,11 @@ def scale_seat(z_base, height, up=True):
     return loft(sections if up else sections[::-1], ruled=True)
 
 
-def scale_lens(radius, tip_radius):
-    """Outline of the tray window, its kerb and the chimney: a circle on the
-    tower axis drawn out to a rounded point toward +Y and toward -Y, with
-    flanks at 45 degrees. On a tray printed standing on its front wall, the
-    +Y point lets the kerb start on the floor instead of in the air, and the
-    -Y point roofs the window. Offsetting both radii by the same amount gives
-    a parallel outline. Returns a face in the XY plane, machine frame."""
-    axis = scale_layout().axis
-    reach = (radius - tip_radius) * math.sqrt(2.0)
-
-    def on_circle(offset_y, circle_radius, degrees):
-        angle = math.radians(degrees)
-        return (axis[0] + circle_radius * math.cos(angle),
-                axis[1] + offset_y + circle_radius * math.sin(angle))
-
-    def arc(offset_y, circle_radius, start):
-        return ThreePointArc(*(on_circle(offset_y, circle_radius, start + step)
-                               for step in (0.0, 45.0, 90.0)))
-
-    # Counter-clockwise from the east flank: body arc, +Y tip, body arc, -Y tip.
-    arcs = [arc(0.0, radius, -45.0), arc(reach, tip_radius, 45.0),
-            arc(0.0, radius, 135.0), arc(-reach, tip_radius, 225.0)]
-    flanks = [Line(arcs[k] @ 1, arcs[(k + 1) % 4] @ 0) for k in range(4)]
-    return make_face([edge for pair in zip(arcs, flanks) for edge in pair])
+def scale_circle(radius):
+    """Outline of the tray window, its kerb, the chimney and the cup grille's
+    drip ring: a circle of this radius on the tower axis. Returns a face in
+    the XY plane, machine frame."""
+    return Pos(*scale_layout().axis) * Circle(radius)
 
 
 def scale_frame(solid):

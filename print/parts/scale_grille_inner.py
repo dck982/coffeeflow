@@ -2,7 +2,7 @@ import math
 
 from nurb import *
 
-from system import CMIN, magnet_well_cutter, scale_flip, scale_frame, scale_layout, scale_lens, scale_seat
+from system import CMIN, magnet_well_cutter, scale_flip, scale_frame, scale_layout, scale_circle, scale_seat
 
 # Clearances around the drain slots, mm.
 SLOT_RING_CLEARANCE = 1.0      # from the drip ring's outer face
@@ -12,38 +12,21 @@ SCAN_STEP = 0.1                # sampling step along a row before the ends are r
 
 
 def _ring_radii(layout):
-    """(body radius, tip radius) of the drip ring's inner and outer faces.
+    """(inner, outer) radius of the drip ring.
 
-    The chimney's outer face is the kerb's lens grown by the tube wall (its
-    grip only shrinks it by a tenth); the ring follows it at a constant gap."""
+    The chimney's outer face is the kerb grown by the tube wall (its grip
+    only shrinks it by a tenth); the ring follows it at a constant gap."""
     tray, chimney, grille = layout.tray, layout.chimney, layout.grille_inner
-    gap = chimney.wall + grille.drip_ring_clearance
-    inner = (tray.window_diameter / 2.0 + tray.kerb_wall + gap, tray.window_tip_radius + tray.kerb_wall + gap)
-    outer = (inner[0] + grille.drip_ring_wall, inner[1] + grille.drip_ring_wall)
-    return inner, outer
-
-
-def _inside_lens(x, y, radius, tip_radius):
-    """Whether (x, y), relative to the tower axis, lies inside `scale_lens(radius, tip_radius)`.
-
-    In each quadrant the lens is its body circle where y < x, its tip circle
-    beyond the tip's tangent point, and between them the band under the 45°
-    flank x + y = radius·√2."""
-    x, y = abs(x), abs(y)
-    reach = (radius - tip_radius) * math.sqrt(2.0)
-    if y - x < 0.0:
-        return x * x + y * y <= radius * radius
-    if y - x > reach:
-        return x * x + (y - reach) ** 2 <= tip_radius * tip_radius
-    return x + y <= radius * math.sqrt(2.0)
+    inner = tray.window_diameter / 2.0 + tray.kerb_wall + chimney.wall + grille.drip_ring_clearance
+    return inner, inner + grille.drip_ring_wall
 
 
 def _slot_room(grille, corner_chamfer, slot_width, slot_web):
     """Predicate on a slot's centre line point (x, y), relative to the axis, and
     the side ("east-west" or "north-south") whose rows may use it."""
     half_x, half_y = grille.width / 2.0, grille.length / 2.0
-    _, (ring_radius, ring_tip) = _ring_radii(scale_layout())
-    ring_reach = SLOT_RING_CLEARANCE + slot_width / 2.0
+    _, ring_radius = _ring_radii(scale_layout())
+    ring_reach = ring_radius + SLOT_RING_CLEARANCE + slot_width / 2.0
     border = SLOT_EDGE_BORDER + slot_width / 2.0
     finger_x, finger_y = _finger_hole_offsets(grille)
     finger_reach = grille.finger_hole_diameter / 2.0 + SLOT_FINGER_CLEARANCE + slot_width / 2.0
@@ -64,7 +47,7 @@ def _slot_room(grille, corner_chamfer, slot_width, slot_web):
             return False
         if (ax - finger_x) ** 2 + (ay - finger_y) ** 2 < finger_reach ** 2:
             return False
-        return not _inside_lens(x, y, ring_radius + ring_reach, ring_tip + ring_reach)
+        return x * x + y * y > ring_reach * ring_reach
 
     return allowed
 
@@ -158,11 +141,11 @@ def _plate(axis, width, length, z0, thickness, corner_chamfer, edge_chamfer, dra
 
 
 def _drip_ring(layout, underside):
-    """Lens-shaped ring under the plate, around the chimney's top, so water
-    running under the plate falls outside the chimney."""
+    """Ring under the plate, around the chimney's top, so water running
+    under the plate falls outside the chimney."""
     grille = layout.grille_inner
     inner, outer = _ring_radii(layout)
-    outline = scale_lens(*outer) - scale_lens(*inner)
+    outline = scale_circle(outer) - scale_circle(inner)
     return Pos(0, 0, grille.drip_ring_bottom) * extrude(outline, amount=underside - grille.drip_ring_bottom)
 
 

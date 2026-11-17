@@ -2,7 +2,7 @@ import math
 
 from nurb import *
 
-from system import CMIN, magnet_well_cutter, scale_flip, scale_frame, scale_layout, scale_circle, scale_seat
+from system import magnet_well_cutter, scale_flip, scale_frame, scale_layout, scale_circle, scale_seat
 
 # Clearances around the drain slots, mm.
 SLOT_RING_CLEARANCE = 1.0      # from the drip ring's outer face
@@ -151,7 +151,7 @@ def _drip_ring(layout, underside):
 
 @part
 def scale_grille_inner(slot_width=3.0, slot_web=2.5, max_slot_length=25.0,
-                       corner_chamfer=4.0, underside_chamfer=1.0, push_out_hole=2.5, draft=False):
+                       corner_chamfer=4.0, underside_chamfer=1.0, draft=False):
     """
     Cup grille that sits on the tower's magnets; solid over the chimney, rows of drain slots around it.
 
@@ -160,7 +160,6 @@ def scale_grille_inner(slot_width=3.0, slot_web=2.5, max_slot_length=25.0,
     max_slot_length: longest slot before it is split in two with a web between
     corner_chamfer: size of the chamfer on the plate's four vertical corners
     underside_chamfer: chamfer along the plate's underside outline
-    push_out_hole: hole on each magnet's axis from the plate's top, to push the magnet out with a pin
     """
     layout = scale_layout()
     axis_x, axis_y = layout.axis
@@ -177,11 +176,9 @@ def scale_grille_inner(slot_width=3.0, slot_web=2.5, max_slot_length=25.0,
     for well_x, well_y in tower.strong_magnets:
         boss -= magnet_well_cutter(
             well_x, well_y, boss_bottom - measured("aimant_puit_fond"), height=magnet_height)
+    # No push-out hole: the plate's top is where the water runs. The magnets
+    # stay for good.
     body += boss
-    # A pin pushed down the hole from the plate's top gets each magnet out.
-    for well_x, well_y in tower.strong_magnets:
-        body -= Pos(well_x, well_y, boss_bottom + magnet_height - 0.01) * Cylinder(
-            push_out_hole / 2.0, grille.top - boss_bottom - magnet_height + 1.0, align=CMIN)
     body += _drip_ring(layout, underside)
 
     # Drain slots and finger holes cut through the plate only.

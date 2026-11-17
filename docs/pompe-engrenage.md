@@ -19,7 +19,8 @@ Retendre le fil du sabot n'a rien changé : la fuite vient d'un jeu
 **Remontée dans la machine le 14 novembre 2026, elle y reste en service**
 ([Dans la machine, contre l'OPV](#dans-la-machine-contre-lopv-14-novembre-2026)) :
 malgré sa fuite, elle livre 2 ml/s à 9–10 bar vers 78 % et jusqu'à 3,9 ml/s
-à 100 %. La décision sera revue à l'arrivée de la
+à 100 %. **David la valide au goût le 17 novembre 2026**
+([Validation au goût](#validation-au-goût-17-novembre-2026)). La décision sera revue à l'arrivée de la
 [MPB010](#alternative--mpb010). Les valeurs viennent de la
 fiche du vendeur, de la notice du fabricant
 ([gearpump-mpb003.pdf](datasheets/gearpump-mpb003.pdf), Chenhui Technology) et de la notice SOVOFLO de la famille de groupes moteur-pompe
@@ -1199,6 +1200,22 @@ Capture `261115-214106`, single espresso inchangé, galette serrée
   vibratoire ; il n'atteint pas 0,8 bar en 10 s (0,48 bar). La galette
   serrée et la pompe ne se séparent pas sur cette infusion.
 - **Après l'arrêt**, le clapet garde 6,6 bar dans la chaudière.
+
+### Validation au goût (17 novembre 2026)
+
+Capture `261117-143024`, écran et sensors 0.5.8, single espresso, Cozy
+Chocolate, 7,6 g pesés. L'analyse complète est dans
+[journal-infusions.md](journal-infusions.md#17-novembre-14-h-30--261117-143024).
+**David valide la MPB003 au goût**, après cinq infusions depuis le
+15 novembre.
+
+- **Plateau** : 8,78 ± 0,06 bar par 71–73 %, 2 785 tr/min, 1,59 ml/s au
+  Digmesa, fuite de 3,05 ml/s : la fuite reste celle des plateaux contre
+  l'OPV.
+- **Remplissage à 100 %** : 47,4 ml à 5,63 ml/s, fini sur la pression à
+  0,90 bar en 8,41 s.
+- **Galette** à 5,50 bar·s/g, 21,3 g nets en tasse, NTC tasse à +2,03 °C
+  sur la consigne de 92 °C.
 
 ## Structure et cotes
 

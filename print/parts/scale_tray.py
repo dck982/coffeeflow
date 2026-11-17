@@ -18,9 +18,9 @@ LOCATING_REAR_Y = 40.0
 # which is as much room as the fill gets: 3 mm does not land there.
 PEG_ROOT_CHAMFER = 2.5
 
-# Least air between the plateau's underside and the top of the scale (the
-# adapter's centring boss), and below the mouth's ceiling for the rim: the
-# tray comes in tilted and must clear both.
+# Least air between the plateau's underside and the highest part of the scale
+# under it, and below the mouth's ceiling for the rim: the tray comes in
+# tilted and must clear both.
 SCALE_CLEARANCE = 1.3
 MOUTH_CEILING_CLEARANCE = 2.0
 # The plateau's west edge and the foot of its ramp stay this far from the scale.
@@ -228,6 +228,16 @@ def build_tray(layout):
     return body - window
 
 
+def _scale_tops(layout):
+    """Top of each part of the scale that stands under the plateau, by name."""
+    cell, base, box = layout.cell, layout.base, layout.box
+    return {
+        "the adapter": layout.adapter.top,
+        "the base's bridge beam": cell.z1 + base.bridge_gap + base.bridge_thickness,
+        "the PCB box lid": box.wall_top + box.lid_plate,
+    }
+
+
 def _refuse_misfit(layout):
     """Refuse a layout that would not go into the machine or would sit on the scale."""
     tray = layout.tray
@@ -238,10 +248,11 @@ def _refuse_misfit(layout):
     if tray.rim_top > ceiling - MOUTH_CEILING_CLEARANCE:
         reject(f"rim top {tray.rim_top} leaves under {MOUTH_CEILING_CLEARANCE} mm below the mouth's "
                f"ceiling at {ceiling}: lower it to {ceiling - MOUTH_CEILING_CLEARANCE} or less")
-    lowest = layout.adapter.top + SCALE_CLEARANCE
+    highest, top = max(_scale_tops(layout).items(), key=lambda item: item[1])
+    lowest = top + SCALE_CLEARANCE
     if tray.raised_underside < lowest:
-        reject(f"plateau underside {tray.raised_underside} would rub the scale (top at "
-               f"{layout.adapter.top}): raise it to {lowest} or more")
+        reject(f"plateau underside {tray.raised_underside} would rub {highest} (top at "
+               f"{top}): raise it to {lowest} or more")
     front_lip = measured("scale_tole_rebord_avant")
     if tray.well_underside >= front_lip:
         reject(f"well underside {tray.well_underside} is not below the front lip's top at "

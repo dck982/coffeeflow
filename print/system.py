@@ -1077,7 +1077,7 @@ def scale_layout():
         nut_boss_top=floor_top + 2.0, nut_boss_diameter=10.0,
         washer_collar_diameter=7.7,
         washer_collar_depth=1.8,
-        bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=3.0,
+        bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=2.4,
         # Cable saddle east of the PCB box (east face X 163.4, lid skirt
         # 164.8): the bus cable comes off it straight south along the box's
         # east face to the J1 notch, instead of into the box's north wall.
@@ -1120,11 +1120,28 @@ def scale_layout():
 
     seat = SimpleNamespace(base=24.0, height=3.0, flank_degrees=30.0, socket_clearance=0.5)
 
+    # The adapter's top is flat, 3 mm over the cell: the weak magnets' wells
+    # (2.2 deep) keep 0.8 of floor over the cell, and the clamp screw's head
+    # cone (2.43 with its recess) fits too. The hex key hole over the stop
+    # screw doubles as the hole for the tower's dowel.
     adapter = SimpleNamespace(
         radius=18.0, flat_x=109.5,
-        bottom=cell.z1 - 5.0, seat_z=cell.z1 + 2.5, top=cell.z1 + 2.5 + seat.height,
+        bottom=cell.z1 - 5.0, top=cell.z1 + 3.0,
         weak_magnets=((axis[0], axis[1] - 6.4), (axis[0], axis[1] + 6.4)),
         weak_magnet_gap=1.0,
+        key_hole=4.0,
+    )
+
+    # Dowel pressed into the tower's flat bottom: it drops into the adapter's
+    # key hole and sets where the tower stands; the magnets turn it into line.
+    # It goes only `proud` into the adapter, the last `tip` of it a 45 degree
+    # cone, so the tower can tip off the weak magnets instead of having to be
+    # lifted straight up. Diameters: adapter hole, dowel 0.10 under it, tower
+    # hole 0.10 under the dowel for a press fit.
+    dowel = SimpleNamespace(
+        x=cell.stop_x, y=axis[1],
+        diameter=adapter.key_hole - 0.1, tower_hole=adapter.key_hole - 0.2,
+        in_tower=4.0, proud=1.0, tip=0.5,
     )
 
     # The cup grille is a rectangle, longer along Y like the chimney's lens, so
@@ -1145,7 +1162,7 @@ def scale_layout():
 
     tower = SimpleNamespace(
         radius=18.0,
-        bottom=adapter.seat_z + seat.socket_clearance,
+        bottom=adapter.top,
         top=grille_inner_underside - 0.5,
         top_seat_z=grille_inner_underside,   # base plane of the grille's seat
         strong_magnets=((axis[0] - 5.0, axis[1]), (axis[0] + 5.0, axis[1])),
@@ -1157,7 +1174,7 @@ def scale_layout():
         wall=tray_wall, floor=2.5,
         x0=centre_x - 87.0, x1=centre_x + 87.0,
         y_rear=-23.0, y_front=139.5,
-        raised_underside=25.0, well_underside=2.0,
+        raised_underside=20.0, well_underside=2.0,
         # The tray prints standing on its front wall, so its floor only changes
         # level along ramps. Plateau over the scale: flat back from plateau_y,
         # then 45 degrees down to the well. West of plateau_x0 nothing stands
@@ -1191,7 +1208,7 @@ def scale_layout():
         plate_depth=measured("scale_tole_profondeur"),
         plate_thickness=measured("scale_tole_epaisseur"),
         hole_diameter=measured("scale_tole_trou_diametre"),
-        cell=cell, base=base, box=box, seat=seat, adapter=adapter, tower=tower,
+        cell=cell, base=base, box=box, seat=seat, adapter=adapter, dowel=dowel, tower=tower,
         tray=tray, chimney=chimney, grille_inner=grille_inner, grille_outer=grille_outer,
     )
 

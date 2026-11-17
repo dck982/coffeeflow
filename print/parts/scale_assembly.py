@@ -75,6 +75,14 @@ def _bumper_in_place(layout):
     return scale_frame(cap)
 
 
+def _dowel_in_place(layout):
+    """The dowel is modelled standing tip up at the origin; in place it hangs
+    tip down from the tower's bottom, `proud` into the adapter."""
+    dowel = layout.dowel
+    hanging = Pos(dowel.x, dowel.y, layout.tower.bottom + dowel.in_tower) * (Rot(180, 0, 0) * use("scale_dowel"))
+    return scale_frame(hanging)
+
+
 @assembly
 def scale_assembly(explode=0.0, show_machine=True):
     """The drip tray scale on the machine's base plate, as the parts leave
@@ -94,11 +102,12 @@ def scale_assembly(explode=0.0, show_machine=True):
     parts = [
         use("scale_base"),
         lifted(scale_flip(use("scale_lid")), 1),
-        lifted(use("scale_adapter"), 1),
+        lifted(scale_flip(use("scale_adapter")), 1),
         lifted(use("scale_tray"), 2),
         lifted(_bumper_in_place(layout), 2),
         lifted(scale_flip(use("scale_chimney")), 3),
         lifted(use("scale_tower"), 4),
+        lifted(_dowel_in_place(layout), 4),
         lifted(scale_flip(use("scale_grille_outer")), 4),
         lifted(scale_flip(use("scale_grille_inner")), 5),
     ]

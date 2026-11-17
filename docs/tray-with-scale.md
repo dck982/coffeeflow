@@ -355,7 +355,7 @@ These settle the former open points. Values are the modelling defaults; each is 
    - Tower to adapter (weak): two pairs of Ø5 × 2 mm, 1.0 mm apart. Rated 7 N each in contact, about a third of that at 1 mm, so about 5 N in total, half of the cell's 1 kg rating. The gap is a parameter of `scale_tower`: a wider gap weakens the joint.
    - Grille to tower (strong): two pairs of Ø8 × 3 mm, 0.5 mm apart, several times stronger.
    - Eight magnets in total, four of each size. Two per joint is what fits beside the clamp screw and the stop screw's access hole on the adapter. Wells open toward the joint; a drop of varnish over each magnet protects it from water.
-   - In a sheet-metal version, a ferritic (magnetic) stainless grille needs no magnets of its own.
+   - In a sheet-metal version, a ferritic (magnetic) stainless grille would need no magnets of its own. JLCCNC offers only austenitic stainless (201, 304), which is not magnetic, so the printed part under the sheet keeps the magnets.
 
 7. **Tower, seats and tipping.** A cup is rarely centred. 350 g at 25 mm off the axis is a tipping moment of 0.086 N·m, and at the grille's edge (45 mm) 0.15 N·m. A slim tower held by weak magnets would tip off the adapter, so:
    - the tower is wide, Ø36 at its foot and top (seat radius 18 mm), and hollow;
@@ -376,13 +376,41 @@ These settle the former open points. Values are the modelling defaults; each is 
 
 11. **Rear stop and rattle.** The cable bundle is 3.7 mm in a Ø4 hole, so nothing else fits in that hole. Two pegs stand out of the tray's rear slope, at the bumpers' height. The left one meets the machine's remaining bumper. The right one, about 14 mm outboard of the cable hole, carries `scale_bumper`, a TPU cap, and ends 8 mm behind the tray's rear like the bumper it replaces. The cable comes down in the 8 mm left behind the tray. No TPU pads under the shoulders for now: printed PETG on steel does not ring as version 1's steel on steel does. Pads can be added later without changing the tray.
 
-12. **Sheet metal later.** The two grilles are flat plates with cut openings and at most one straight bend (the outer grille's apron); the inner grille's drip ring and seat would become a separate printed part under a flat sheet. The tray stays printed or molded.
+12. **Sheet metal later.** The two grilles are flat plates with cut openings and at most one straight bend (the outer grille's apron); the inner grille's drip ring and seat would become a separate printed part under a flat sheet. The tray stays printed or molded. The supplier, the construction and the figures are under [Sheet-metal grilles](#sheet-metal-grilles-jlccnc-checked-2026-11-17).
 
 13. **PCB box.** For the 19.3 × 24.7 mm board of `pcb/scale`.
    - Mounting: two M2 × 3 heat-set inserts under the board's two holes, along the box's machine-side wall, (`add_heat_insert_against` and `INSERT_M2` from `print/system.py`), M2 × 5 screws. The inserts need 3.6 mm, so the board's underside is 4 mm above the box floor, as in the combined board's box. A ledge along the user-side wall and a rib under each short edge, beneath the terminal blocks, carry the rest of the board; the ribs reach 1.2 mm under it, short of the terminal pads 2.5 mm in.
    - Room: 10 mm in front of each terminal block (J2, load cell, on one short side; J1, bus, on the other) for the ferrules, which stand 5 mm out of the blocks, and the wire bend. J1 (bus) is at the right end, on the side where the bus cable comes in, and J2 (load cell) at the left: the cell's 20 cm wires come from its fixed end on the right and run along the box, held by two cable tie arches in the corridor between box and cell. That keeps the I2C cable short. The terminal screws are reached from above with the lid off and the tray out.
    - Lid: `scale_lid` is a cap whose skirt comes down the full height of the box and holds by a snug fit, without screws; the tray above keeps it from lifting. The wires enter through notches at the bottom of the skirt, 5 mm wide for the four loose wires (a piece of heat-shrink around them can tighten the entry later). Water falling on the lid runs off.
    - No vents: the board dissipates about 40 mW (7.7 mA at 5 V), and a vent would only let water in.
+
+### Sheet-metal grilles (JLCCNC, checked 2026-11-17)
+
+Not started: the grilles are printed for now. This records what was found so the question does not need a new search.
+
+**What JLCCNC's sheet-metal service offers** (their capability and materials pages, 2026-11-17):
+
+- Laser cutting (±0.1 mm), press-brake bending (±0.3 mm, ±1°), welding (laser and TIG/argon arc stations), riveting, PEM self-clinching fasteners, finishes; brushing is offered on stainless only. Multi-part assemblies are delivered assembled.
+- Stainless 201 and 304, 0.5 / 0.8 / 1.0 / 1.2 / 1.5 / 2.0 / 2.5 / 3.0 mm and up; 304 is the choice for hot water and coffee. No ferritic grade (430), so no magnetic stainless.
+- Not published: the thinnest weldable sheet and the price of a welded assembly. Ask in the quote if it ever matters.
+- Fasteners ([fastening methods article](https://jlccnc.com/blog/sheet-metal-fastening-methods-fasteners)): self-clinching studs, clinch nuts, rivet nuts, weld studs and blind rivets. The article gives no stud catalogue, sheet thickness or edge distance; JLCCNC says it checks the fastener type, hole size, edge distance and installation order at the quote, so those come from the order review and from PEM's datasheet. Its comparative figures put a self-clinching stud at 4 000–7 000 N in tension, far beyond anything a cup grille sees. Tapping screws in thin sheet and rivets are ruled out by the article itself (threads that do not last, joints that cannot be serviced), and it confirms that welding thin sheet warps it.
+- Press-brake bends are straight lines only. Rolling or curving a strip is not in the online offer.
+
+**Inner grille: 304 plate with PEM studs, the rest printed (owner, 2026-11-17).**
+
+- A flat 304 plate, laser cut: the 86 × 94 outline, the slots and the finger holes. The slots (pitch 5.5) and webs stay wider than the sheet, which is what laser cutting needs.
+- Flush-head PEM studs clinched into its underside. 304 sheet takes the studs made for stainless (PEM FHS, hardened 400-series), not the standard ones: name them in the order. The top face stays flat.
+- A printed PETG part under it carries the seat boss with the strong magnets and the lens-shaped drip ring, held by nuts on the studs. No glue, no weld, and it comes apart for cleaning.
+- Rejected: welding the drip ring under the plate. The lens needs a rolled strip that the online offer does not make, and the weld bead on a 1.5 mm sheet would mark or warp the face the cup stands on. A rectangular skirt would avoid the rolling (three press-brake bends and a seam) but not the weld under the cup face; it would also be a 4.5 mm band, very short for a press brake, and a rectangle around the lens takes back the band of slots the lens frees (decision 8). Machining the whole grille from a 304 block is possible at JLCCNC but far dearer.
+- Mass of the plate alone, about 6 400 mm² of metal at 7.9 g/cm³: 51 g at 1.0 mm, 76 g at 1.5, 102 g at 2.0. With 1.5 mm and the printed part, about 130 g on the cell, against about 72 g for the all-PETG grille, tower and adapter. With a 200 g cup and 100 g of coffee the cell then carries about 430 g, well inside the 1 kg cell; the tare takes out the fixed part.
+- The plate is thinner than the 2.5 mm PETG grille. The inner grille's top must stay at Z 50.0, 1.5 above the outer grille (decision 2): the printed part under the sheet takes up the difference.
+
+**Outer grille: a 304 plate with one bend (the apron).**
+
+- Laser cut plus a single straight press-brake bend: within the offer as it stands.
+- The bend is not a sharp corner: its inside radius is about the sheet thickness. That corner sits over the tray's front wall top, which is square today with 0.5 mm of air to the apron (`scale_grille_outer` card). Either the tray's front wall gets a rounded outer top edge, larger than the bend radius plus the air, or the apron moves forward by the bend radius. The first eats into the 2.5 mm of wall top the grille bears on; choose when the sheet thickness is chosen.
+- If the sheet is thinner than 2.5 mm, the outer grille's top drops below Z 48.5 unless the rails rise by the difference.
+- Mass, about 18 600 mm² of metal with the apron: about 150 g at 1.0 mm, 220 g at 1.5. It rests on the tray, not on the cell.
 
 ### Flat-floor variant (under consideration, 2026-11-16)
 

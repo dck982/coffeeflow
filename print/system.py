@@ -1106,7 +1106,7 @@ def scale_layout():
         pcb_holes=((pcb_x0 + 2.5, pcb_y0 + 2.5), (pcb_x0 + pcb_length - 2.5, pcb_y0 + 2.5)),
         wall_top=base.floor_top + 15.0,
         notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=base.floor_top + 7.0,
-        lid_play=0.15, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
+        lid_play=0.10, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
     )
     # Two cable tie towers for the cell's wires, in the corridor between the
     # lid (Y 33.85) and the cell (Y 47.65), clear of the nuts at X 98.9..105.5
@@ -1128,8 +1128,8 @@ def scale_layout():
         radius=18.0, flat_x=109.5,
         bottom=cell.z1 - 5.0, top=cell.z1 + 3.0,
         weak_magnets=((axis[0], axis[1] - 6.4), (axis[0], axis[1] + 6.4)),
-        weak_magnet_gap=1.0,
-        key_hole=4.0,
+        weak_magnet_gap=1.5,
+        key_hole=5.0,
     )
 
     # Dowel pressed into the tower's flat bottom: it drops into the adapter's
@@ -1142,6 +1142,8 @@ def scale_layout():
         x=cell.stop_x, y=axis[1],
         diameter=adapter.key_hole - 0.1, tower_hole=adapter.key_hole - 0.2,
         in_tower=4.0, proud=1.0, tip=0.5,
+        # Bore for the pin that pushes out the strong magnet right above it.
+        bore=2.5,
     )
 
     # The cup grille is a rectangle, longer along Y like the chimney's lens, so
@@ -1166,7 +1168,7 @@ def scale_layout():
         top=grille_inner_underside - 0.5,
         top_seat_z=grille_inner_underside,   # base plane of the grille's seat
         strong_magnets=((axis[0] - 5.0, axis[1]), (axis[0] + 5.0, axis[1])),
-        strong_magnet_gap=0.4,
+        strong_magnet_gap=1.5,
     )
 
     tray_wall = 2.5

@@ -85,10 +85,20 @@ value = 2.0
 unit = "mm"
 how = "user: small disc magnet thickness."
 
+[aimant_force]
+value = 1.7
+unit = "kg"
+how = "user 2026-11-17: printed on the 8 x 3 magnets' packaging. A maker's pull figure, at contact on thick steel: two magnets face to face a gap apart pull less."
+
+[aimant_petit_force]
+value = 0.7
+unit = "kg"
+how = "user 2026-11-17: 7 N for the 5 x 2 magnets, a maker's figure at contact. Felt very strong on the scale tower's lower joint (two pairs, 1.0 mm apart)."
+
 [aimant_puit_press_fit]
 value = 0.1
 unit = "mm"
-how = "user: how much to add to the aimant_diametre for a press fit. +0.15 (until 2026-11-17) did not hold the magnets at all; 0.0 (scale_* prints, 2026-11-17) was too tight. +0.10 is on trial."
+how = "user: how much to add to the aimant_diametre for a press fit. +0.15 (until 2026-11-17) did not hold the magnets at all; 0.0 (scale_* prints, 2026-11-17) was too tight. +0.10 confirmed on the scale_* prints (2026-11-17): the magnet goes in and stays for good, it only comes out by breaking the plastic. Accepted: a looser well needs a print pause and a covering layer, which costs height and is just as permanent."
 
 [aimant_canal_press_fit]
 value = 0.2

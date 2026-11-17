@@ -45,6 +45,8 @@ def scale_adapter(
     clamp_hole_diameter=4.5,
     head_recess=0.2,
     magnet_recess=0.2,
+    dowel_hole_chamfer=0.0,
+    push_out_hole=2.5,
     draft=False,
 ):
     """
@@ -56,6 +58,8 @@ def scale_adapter(
     clamp_hole_diameter: clearance hole for the M4 countersunk clamp screw
     head_recess: how far the clamp screw's head sits below the top face
     magnet_recess: how far each magnet sits below the top face
+    dowel_hole_chamfer: 45 degree chamfer on the key hole's rim, if the tower's dowel cannot tip out; 0 for none
+    push_out_hole: hole on each magnet's axis from the bottom, to push the magnet out with a pin
     """
     layout = scale_layout()
     axis_y = layout.axis[1]
@@ -75,14 +79,22 @@ def scale_adapter(
         cell.clamp_x, axis_y, cell.z1 - 0.01, adapter.top - head_recess, adapter.top,
         clamp_hole_diameter, measured("vis_fraisee_m4_tete"))
 
-    # Hex key access to the stop screw in the cell's tip hole; the tower's dowel drops into it.
+    # Hex key access to the stop screw in the cell's tip hole; the tower's dowel
+    # drops into it, 1 mm deep, which lets the tower tip off the magnets.
+    key_radius = adapter.key_hole / 2.0
     body -= Pos(cell.stop_x, axis_y, cell.z1 - 0.01) * Cylinder(
-        adapter.key_hole / 2.0, adapter.top - cell.z1 + 0.02, align=CMIN)
+        key_radius, adapter.top - cell.z1 + 0.02, align=CMIN)
+    if dowel_hole_chamfer > 0.0:
+        body -= Pos(cell.stop_x, axis_y, adapter.top - dowel_hole_chamfer) * Cone(
+            key_radius, key_radius + dowel_hole_chamfer + 0.01, dowel_hole_chamfer + 0.01, align=CMIN)
 
-    # Weak magnets, flush minus `magnet_recess`.
+    # Weak magnets, flush minus `magnet_recess`. A pin pushed up the hole under
+    # each one, with the adapter off the cell, gets the magnet back out.
     well_depth = measured("aimant_petit_hauteur") + magnet_recess
     for well_x, well_y in adapter.weak_magnets:
         body -= small_magnet_well_cutter(
             well_x, well_y, adapter.top - well_depth - measured("aimant_puit_fond"), height=well_depth)
+        body -= Pos(well_x, well_y, adapter.bottom - 1.0) * Cylinder(
+            push_out_hole / 2.0, adapter.top - well_depth - adapter.bottom + 1.01, align=CMIN)
 
     return scale_flip(scale_frame(body))

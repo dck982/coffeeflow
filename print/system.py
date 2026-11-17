@@ -304,6 +304,28 @@ def small_magnet_well_cutter(cx, cy, z0, height=0):
     dz = height if height>0 else measured("aimant_petit_hauteur")
     return magnet_well_cutter(cx, cy, z0, height=dz, diameter=measured("aimant_petit_diametre"))
 
+def push_out_hole_cutter(cx, cy, well_end_z, far_z, hole_diameter, magnet_diameter, taper_end_z=None):
+    """Hole from a magnet well's end to the far face, for a pin that pushes the
+    magnet out. It leaves the well through a 45 degree cone from the well's
+    diameter down to the hole's, so a well printed open on the bed ends in a
+    self-supporting taper instead of a bridged ring the slicer turns to
+    spaghetti. The magnet stops on the cone's rim.
+
+    `taper_end_z` stops the cone early where the floor is too thin for it; the
+    hole then carries on at the cone's last diameter, so nothing overhangs it."""
+    well_radius = (magnet_diameter + measured("aimant_puit_press_fit")) / 2.0
+    direction = 1.0 if far_z > well_end_z else -1.0
+    reach = abs(far_z - well_end_z)
+    taper_reach = reach if taper_end_z is None else abs(taper_end_z - well_end_z)
+    cone_height = min(well_radius - hole_diameter / 2.0, taper_reach)
+    hole_radius = well_radius - cone_height
+    cone = Cone(well_radius, hole_radius, cone_height, align=CMIN)
+    shaft = Cylinder(hole_radius, reach + 1.0, align=CMIN)
+    if direction < 0:
+        cone = Rot(180, 0, 0) * cone
+        shaft = Rot(180, 0, 0) * shaft
+    return Pos(cx, cy, well_end_z) * cone + Pos(cx, cy, well_end_z) * shaft
+
 def add_well(body, outer, cx, cy, z0=0, h=None):
     """Fuse a standing magnet pad into `body` and cut the pocket, clipped to `outer`."""
 

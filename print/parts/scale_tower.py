@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import CMIN, magnet_well_cutter, small_magnet_well_cutter, scale_frame, scale_layout, scale_seat
+from system import CMIN, magnet_well_cutter, push_out_hole_cutter, small_magnet_well_cutter, scale_frame, scale_layout, scale_seat
 
 LIGHT_JOINT_GAP = scale_layout().adapter.weak_magnet_gap
 STRONG_JOINT_GAP = scale_layout().tower.strong_magnet_gap
@@ -47,8 +47,9 @@ def scale_tower(weak_magnet_gap=LIGHT_JOINT_GAP, strong_magnet_gap=STRONG_JOINT_
     weak_well_depth = measured("aimant_petit_hauteur") + weak_magnet_gap - adapter_magnet_recess
     for well_x, well_y in adapter.weak_magnets:
         body -= small_magnet_well_cutter(well_x, well_y, tower.bottom - floor_gap, height=weak_well_depth)
-        body -= Pos(well_x, well_y, tower.bottom) * Cylinder(
-            push_out_hole / 2.0, socket_floor_z - tower.bottom + 1.0, align=CMIN)
+        body -= push_out_hole_cutter(
+            well_x, well_y, tower.bottom + weak_well_depth, socket_floor_z, push_out_hole,
+            measured("aimant_petit_diametre"))
 
     # Dowel hole: as deep as the dowel's tower end, so a dowel pushed home stands `proud`.
     body -= Pos(dowel.x, dowel.y, tower.bottom) * Cylinder(dowel.tower_hole / 2.0, dowel.in_tower, align=CMIN)

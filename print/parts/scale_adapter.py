@@ -1,6 +1,6 @@
 from nurb import *
 
-from system import AMIN, CMIN, small_magnet_well_cutter, scale_flip, scale_frame, scale_layout
+from system import AMIN, CMIN, push_out_hole_cutter, small_magnet_well_cutter, scale_flip, scale_frame, scale_layout
 
 CONE_HALF_ANGLE_RISE = 1.0  # a 90 degree countersink widens by 1 mm per mm of height
 
@@ -89,12 +89,15 @@ def scale_adapter(
             key_radius, key_radius + dowel_hole_chamfer + 0.01, dowel_hole_chamfer + 0.01, align=CMIN)
 
     # Weak magnets, flush minus `magnet_recess`. A pin pushed up the hole under
-    # each one, with the adapter off the cell, gets the magnet back out.
+    # each one, with the adapter off the cell, gets the magnet back out. The
+    # floor over the cell is too thin for the whole 45 degree taper: it stops at
+    # the cell's top, and the hole goes on at that width through the slot's flank.
     well_depth = measured("aimant_petit_hauteur") + magnet_recess
     for well_x, well_y in adapter.weak_magnets:
         body -= small_magnet_well_cutter(
             well_x, well_y, adapter.top - well_depth - measured("aimant_puit_fond"), height=well_depth)
-        body -= Pos(well_x, well_y, adapter.bottom - 1.0) * Cylinder(
-            push_out_hole / 2.0, adapter.top - well_depth - adapter.bottom + 1.01, align=CMIN)
+        body -= push_out_hole_cutter(
+            well_x, well_y, adapter.top - well_depth, adapter.bottom, push_out_hole,
+            measured("aimant_petit_diametre"), taper_end_z=cell.z1)
 
     return scale_flip(scale_frame(body))

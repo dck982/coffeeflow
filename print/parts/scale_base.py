@@ -98,18 +98,45 @@ def _countersinks(layout):
     return cutters
 
 
+def _nut_bosses(layout, draft):
+    """Round boss around each M3 nut, top rim chamfered. It rises from the bed
+    and is cut to the floor's outline: the north one reaches the floor's edge,
+    where it fills the floor's chamfer instead of overhanging it. A boss that
+    would graze the PCB box's +Y wall is squared off into it, so the circle
+    does not cross the wall at a slant and leave a thin wedge."""
+    b, x_box = layout.base, layout.box
+    radius = b.nut_boss_diameter / 2.0
+    box_x0, box_x1 = x_box.inner_x0 - x_box.wall, x_box.inner_x1 + x_box.wall
+    box_y1 = x_box.inner_y1 + x_box.wall
+    footprint = block(b.x0, b.x1, b.y0, b.y1, 0.0, b.nut_boss_top)
+    bosses = []
+    for x, y in b.screw_holes:
+        boss = Pos(x, y, 0.0) * Cylinder(radius, b.nut_boss_top, align=CMIN)
+        if box_x0 < x < box_x1 and y - radius < box_y1 + 1.0:
+            boss += block(x - radius, x + radius, box_y1 - 0.5, y, 0.0, b.nut_boss_top)
+        boss = footprint & boss
+        if not draft:
+            # Only the round rim: the straight top edges end against the box
+            # wall or the floor's chamfer, where a chamfer leaves slivers.
+            boss = polish(boss, boss.edges().filter_by(
+                lambda e: e.bounding_box().min.Z > b.nut_boss_top - 0.01
+                and e.geom_type == GeomType.CIRCLE), CHAMFER)
+        bosses.append(boss)
+    return bosses
+
+
 def _screw_holes(layout):
-    """Cutters for the three M3 screws: clearance through the floor and a
-    hex pocket in the floor's top that holds the nut while the screw is
-    driven from under the plate."""
+    """Cutters for the three M3 screws: clearance through floor and boss and a
+    hex pocket in the boss's top that holds the nut while the screw is driven
+    from under the plate."""
     b = layout.base
     clearance = measured("vis_passage")
     nut_across_flats = measured("scale_ecrou_plats") + 0.3
     hex_face = RegularPolygon(nut_across_flats / 2.0, 6, major_radius=False)
-    pocket_bottom = b.floor_top - b.nut_pocket_depth
+    pocket_bottom = b.nut_boss_top - b.nut_pocket_depth
     cutters = []
     for x, y in b.screw_holes:
-        shaft = Pos(x, y, -OVERSHOOT) * Cylinder(clearance / 2.0, b.floor_top + 2 * OVERSHOOT, align=CMIN)
+        shaft = Pos(x, y, -OVERSHOOT) * Cylinder(clearance / 2.0, b.nut_boss_top + 2 * OVERSHOOT, align=CMIN)
         pocket = Pos(x, y, pocket_bottom) * extrude(hex_face, b.nut_pocket_depth + OVERSHOOT)
         cutters += [shaft, pocket]
     return cutters
@@ -218,6 +245,8 @@ def scale_base(
     body += _bridge(layout, cell_side_gap, bridge_post_thickness)
     body += _pcb_box(layout, ledge_depth, ledge_length, rib_outside, draft)
     body += _tie_towers(layout)
+    for boss in _nut_bosses(layout, draft):
+        body += boss
     for cutter in _countersinks(layout) + _screw_holes(layout):
         body -= cutter
     return scale_frame(body)

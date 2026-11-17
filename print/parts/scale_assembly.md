@@ -14,7 +14,7 @@ The drip tray scale in place on the machine, as the parts leave `scale_frame` (m
 
 - Every part is modelled at its real place and ends with `scale_frame`; the obstacles drawn here go through it too. The assembly only undoes print orientation: `scale_flip` for the three parts that print top face down (lid, both grilles), and a quarter turn for the bumper, which is modelled standing on its closed end.
 - The obstacles come from `measurements.toml` and `scale_layout()`. They are rough: the base plate is the owner's measurements (193 mm inside, 2 mm sheet), the mouth is a plain box, the PCB is one envelope with its two terminal blocks. `scale_washer` is not shown: it sits under the base plate.
-- Clearances measured on 2026-11-16 (draft builds, machine frame). No two parts overlap, except the chimney on the tray's kerb (128 mm3, its press fit). Between the weighed parts and the fixed ones: tower to tray window 3.0 mm, tower to chimney 4.9 mm, inner grille to chimney top 2.5 mm, inner grille to outer grille 2.0 mm, adapter to base 6.5 mm. Nothing but the load cell carries the weighed parts.
+- Clearances measured on 2026-11-16 (draft builds, machine frame). No two parts overlap, except the chimney on the tray's kerb (128 mm3, its press fit). Between the weighed parts and the fixed ones: tower to tray window 3.0 mm, tower to chimney 4.9 mm, inner grille to chimney top 2.5 mm, inner grille to outer grille 2.0 mm, adapter to base 2.7 mm (unchanged when the base's floor went 4 -> 2 mm on 2026-11-17: the whole stack came down with it). Nothing but the load cell carries the weighed parts.
 
 ## Don't
 

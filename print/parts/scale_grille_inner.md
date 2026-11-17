@@ -42,3 +42,4 @@ The cup grille: an 86 (X) x 94 (Y) plate, 2.5 thick, vertical corners chamfered 
 - 2026-11-16 - First model: plate, boss with magnet wells, drip ring, 8 slots, two finger holes.
 - 2026-11-16 - Ends with `scale_frame`; drip ring Ø70 and solid Ø74, a single computed row of 4 slots.
 - 2026-11-16 - 86 x 94 rectangle to fix its orientation; lens-shaped drip ring following the chimney; rows of slots from the ring to the border (26 slots); finger holes placed by their border to the edges.
+- 2026-11-17 - Magnet wells at the magnet's nominal diameter (`aimant_puit_press_fit` +0.15 -> 0.0): the +0.15 wells did not hold the magnets at all. On trial.

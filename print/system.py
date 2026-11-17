@@ -1043,7 +1043,9 @@ def scale_layout():
     # Cell along X, fixed end toward +X, tower axis midway between the two
     # holes of the loaded end.
     cell_fixed_tip = axis[0] + (cell_holes[2] + cell_holes[3]) / 2.0
-    cell_bottom = 5.0
+    # The cell sits 1 mm above the base's floor, on the pad under its fixed end.
+    floor_top = 2.0
+    cell_bottom = floor_top + 1.0
     cell = SimpleNamespace(
         x0=cell_fixed_tip - cell_length, x1=cell_fixed_tip,
         y0=axis[1] - section / 2.0, y1=axis[1] + section / 2.0,
@@ -1056,7 +1058,7 @@ def scale_layout():
 
     base = SimpleNamespace(
         x0=84.0, x1=177.0, y0=6.0, y1=73.0,
-        floor_top=4.0,
+        floor_top=floor_top,
         pad_x0=cell.x1 - 20.0,            # raised pad under the fixed end
         # M3 x 10 from under the plate, through a scale_washer whose collar
         # centres it in the plate's Ø8 hole, into a 4 mm nylon-insert locknut
@@ -1064,6 +1066,9 @@ def scale_layout():
         # stand 2.5 mm above the floor, and the cell is 1 mm over it.
         screw_holes=(holes[3], holes[8], holes[1]),   # (102.18, 34.68), (127.31, 36.5), (111.14, 68.14)
         nut_pocket_depth=2.0,
+        # The floor is too thin for the nut's pocket: a boss around each nut
+        # keeps 2 mm of plastic under it.
+        nut_boss_top=floor_top + 2.0, nut_boss_diameter=10.0,
         washer_collar_diameter=7.7,
         washer_collar_depth=1.8,
         bridge_x0=116.0, bridge_x1=119.0, bridge_gap=0.6, bridge_thickness=3.0,
@@ -1098,8 +1103,8 @@ def scale_layout():
         pcb_x0=pcb_x0, pcb_x1=pcb_x0 + pcb_length, pcb_y0=pcb_y0, pcb_y1=pcb_y0 + pcb_width,
         pcb_underside=base.floor_top + 4.0,
         pcb_holes=((pcb_x0 + 2.5, pcb_y0 + 2.5), (pcb_x0 + pcb_length - 2.5, pcb_y0 + 2.5)),
-        wall_top=19.0,
-        notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=11.0,
+        wall_top=base.floor_top + 15.0,
+        notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=base.floor_top + 7.0,
         lid_play=0.2, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
     )
 

@@ -12,7 +12,7 @@ material = "petg"  # Bambu PETG Basic
 
 ## What it is
 
-Block clamped on the loaded end of the load cell. A vertical cylinder (radius 18, flat on the +X side at 109.5) on the tower axis, with a 13 mm wide slot that takes the cell's last 23 mm, and the square-pyramid seat on top that the tower's bottom socket drops onto. It also carries the two weak magnets of the lower joint, the M4 countersunk clamp screw and the access hole for the stop screw. Printed upright as modelled, bottom (Z 12.7) on the bed. Bambu PETG Basic.
+Block clamped on the loaded end of the load cell. A vertical cylinder (radius 18, flat on the +X side at 109.5) on the tower axis, with a 13 mm wide slot that takes the cell's last 23 mm, and the square-pyramid seat on top that the tower's bottom socket drops onto. It also carries the two weak magnets of the lower joint, the M4 countersunk clamp screw and the access hole for the stop screw. Printed upright as modelled, bottom (Z 10.7) on the bed. Bambu PETG Basic.
 
 ## Design notes
 
@@ -36,3 +36,5 @@ Block clamped on the loaded end of the load cell. A vertical cylinder (radius 18
 
 - 2026-11-16 - First model: cylinder body with flat, cell slot, seat boss, clamp screw, stop screw access, two weak magnet wells.
 - 2026-11-16 - Ends with `scale_frame` (Y reversed): the machine frame is left-handed, so the part was the mirror image of the real object.
+- 2026-11-17 - 2 mm lower in the machine (bottom Z 12.7 -> 10.7), with the cell, after the base's floor went 4 -> 2 mm. The part itself is unchanged.
+- 2026-11-17 - Magnet wells at the magnet's nominal diameter (`aimant_puit_press_fit` +0.15 -> 0.0): the +0.15 wells did not hold the magnets at all. On trial.

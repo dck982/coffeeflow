@@ -36,3 +36,4 @@ min_wall = 0.6
 
 - 2026-11-16 - First model.
 - 2026-11-16 - Ends with `scale_frame` (Y reversed): the machine frame is left-handed, so the part was the mirror image of the real object.
+- 2026-11-17 - 2 mm lower in the machine with the PCB box (walls `floor_top` + 15), after the base's floor went 4 -> 2 mm. The part itself is unchanged.

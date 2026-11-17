@@ -19,7 +19,7 @@ min_wall = 0.6
 
 ## Design notes
 
-- **Screw budget, M3 x 10 flat head, into a 4 mm nylon-insert locknut:** 1.5 mm flange + 2 mm plate (the collar is inside it) + 2 mm of floor under the base's nut pocket + 4 mm nut = 9.5 mm, so the screw ends 0.5 mm above the nut, through its nylon ring. No metal washer under the head: a 0.5 mm one would bring the screw's end back flush. The Ø14 flange spans the plate's Ø8 hole, which a 5.5 mm M3 head would pass through. The bore stays at clearance (3.4): the screw threads into the nut only.
+- **Screw budget, M3 x 10 flat head, into a 4 mm nylon-insert locknut:** 1.5 mm flange + 2 mm plate (the collar is inside it) + 2 mm of the base's nut boss under its pocket + 4 mm nut = 9.5 mm, so the screw ends 0.5 mm above the nut, through its nylon ring. No metal washer under the head: a 0.5 mm one would bring the screw's end back flush. The Ø14 flange spans the plate's Ø8 hole, which a 5.5 mm M3 head would pass through. The bore stays at clearance (3.4): the screw threads into the nut only.
 - The collar is 1.8 mm tall in a 2.0 mm plate, so the base's floor sits 0.2 mm above it and the clamp goes through the flange onto the plate.
 - Polish: 1 mm chamfer on the flange's top outer edge only. Not on the bed edge, nor on the collar (it enters the plate hole).
 

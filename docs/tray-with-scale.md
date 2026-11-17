@@ -32,6 +32,7 @@ On Profitec's version 1 exploded diagram, the grille is item 16, the tray item 1
 - **Build:** a black molded plastic tray.
 - **Fit:** it slides over the same two side walls. The shape ends against the machine face with a deeper pocket that extends into the mouth, so it sits lower and closer to the metal base than version 1.
 - **Anti-splash ball:** a molded ball sits directly beneath the release hole. It disperses the hot water coming down under pressure so it does not spray out around the tray.
+- **Front:** the tray stands above the front lip instead of dropping behind it. Seen from the front, from bottom to top: the stainless lip, a band of the black tray's front face, then the grille's stainless skirt. The lip therefore does not lock it. From the photos, the tray seems to rest on the plate's floor, which would give it the friction that keeps it from sliding forward (owner's reading, 2026-11-17, not checked on a real tray).
 - **Grille:** a simpler grille that matches a small ridge moulded into the plastic tray. It has a single square hole at the south-east corner, used to slide it out.
 
 On Profitec's version 2 exploded diagram, the lower metal plate is item 7, the plastic tray item 15 and the grille item 16.
@@ -321,12 +322,12 @@ These settle the former open points. Values are the modelling defaults; each is 
 
    | Level | Z (mm) |
    |---|---|
-   | `scale_base` floor | 0 to 4 |
-   | Fixed-end pad, so cell underside (1 mm gap under the rest of the cell) | 5.0 |
-   | Cell top | 17.7 |
-   | Upward-stop bridge over the cell (0.6 mm gap) | 18.3 to 21.3 |
-   | PCB box with lid (PCB underside at 8.0, terminal blocks up to 18.0) | up to 20.6 |
-   | Adapter seat / top of its centring boss | 20.2 / 23.2 |
+   | `scale_base` floor (nut bosses up to 4) | 0 to 2 |
+   | Fixed-end pad, so cell underside (1 mm gap under the rest of the cell) | 3.0 |
+   | Cell top | 15.7 |
+   | Upward-stop bridge over the cell (0.6 mm gap) | 16.3 to 19.3 |
+   | PCB box with lid (PCB underside at 6.0, terminal blocks up to 16.0) | up to 18.6 |
+   | Adapter seat / top of its centring boss | 18.2 / 21.2 |
    | Tray raised floor, underside / top | 25.0 / 27.5 |
    | Window kerb top | 35.5 |
    | Highest usable water level | 43.5 |
@@ -338,9 +339,9 @@ These settle the former open points. Values are the modelling defaults; each is 
    | Inner grille top | 50.0 (1.5 mm above the outer grille) |
    | Mouth top | 51.0 |
 
-   The PCB box fits under the tray: the cell and its adapter already force the tray floor up to Z = 25, and the box needs 20.6. The mouth is not needed for it, and the tray keeps its full-width extension into the mouth.
+   The PCB box fits under the tray: the cell and its adapter force the tray floor up to Z = 23.2 at least, and the box needs 18.6. The tray's raised floor is still at Z = 25, modelled before the base's floor went from 4 to 2 mm (2026-11-17); lowering it by those 2 mm is the next step. The mouth is not needed for it, and the tray keeps its full-width extension into the mouth.
 
-3. **Base fixing (revised 2026-11-16).** `scale_base` has a flat underside, so it prints floor down, and three Ø3.4 clearance holes through its 4 mm floor, over base plate holes: (102.18, 34.68) and (111.14, 68.14) on ring 1, (127.31, 36.50) on ring 2. Each has a hex pocket, 2 mm deep in the floor's top, for an M3 locknut (5.4 mm across flats, 4 mm tall), which keeps the nut from turning. Under the plate, each hole takes a `scale_washer`: a Ø14 × 1.5 mm flange with a Ø7.7 × 1.8 mm collar that fills the Ø8 hole, so the washer centres the screw and the screw locates the base. An M3 × 10 flat-head screw goes up through washer, plate and floor into the nut: 1.5 + 2 + 2 + 4 = 9.5 mm, so the screw's end stands 0.5 mm above the nut, through its nylon ring, 6.5 mm above the plate. That is why no hole is under the cell, which is 1 mm above the floor; the centre hole (97, 54) of the first model is not used. Nothing is screwed into the plastic, so the base comes off and goes back as often as needed. Spigots under the base were dropped: they would lift the base off the print bed.
+3. **Base fixing (revised 2026-11-16).** `scale_base` has a flat underside, so it prints floor down, and three Ø3.4 clearance holes through its 2 mm floor and a Ø10 boss topped at Z 4 around each, over base plate holes: (102.18, 34.68) and (111.14, 68.14) on ring 1, (127.31, 36.50) on ring 2. Each boss has a hex pocket, 2 mm deep in its top, for an M3 locknut (5.4 mm across flats, 4 mm tall), which keeps the nut from turning. Under the plate, each hole takes a `scale_washer`: a Ø14 × 1.5 mm flange with a Ø7.7 × 1.8 mm collar that fills the Ø8 hole, so the washer centres the screw and the screw locates the base. An M3 × 10 flat-head screw goes up through washer, plate and boss into the nut: 1.5 + 2 + 2 + 4 = 9.5 mm, so the screw's end stands 0.5 mm above the nut, through its nylon ring, 6.5 mm above the plate. That is why no hole is under the cell, which is 1 mm above the floor; the centre hole (97, 54) of the first model is not used. Nothing is screwed into the plastic, so the base comes off and goes back as often as needed. Spigots under the base were dropped: they would lift the base off the print bed.
 
 4. **Cell fixing**, with the screws in stock (M4 × 10 countersunk, M4 × 8 set screws).
    - Fixed end: two M4 × 10 countersunk from under `scale_base`, through the 5 mm pad, so 5 mm of thread in the cell. The cell is mounted on the bench before the base goes into the machine.
@@ -398,7 +399,18 @@ Capacity, up to the same water level (Z 43.5, the rails' underside), with the 45
 
 The extension into the mouth adds only about 27 cm³: at that height the rear slope fills most of it.
 
-**Height of a flat floor.** Once the tray is in place, only the bridge (Z 21.3, the top of `scale_base`) and the PCB box's lid (Z 20.6) stand under the floor. Neither is on the load path, so a sagging floor that rested on them would not spoil the reading. The adapter's centring boss (Z 23.2) is a Ø36 disc under the Ø42 window, so the floor stays clear of it. During fitting and removal, though, the tower is off and the tray moves about 25 mm toward the machine. The floor just in front of the window (user side) then passes over the boss. At Z 22.3 it clears the boss only if the tilt lifts it there by at least 1 mm. The owner will test this. If the test fails, the fallback is to keep Z 25.0 in a strip about 25 mm wide in front of the window and lower the rest.
+**Height of a flat floor.** The figures in this section date from before the base's floor went from 4 to 2 mm (2026-11-17), which brought everything below down 2 mm: the bridge is now at Z 19.3, the lid at 18.6 and the adapter's boss at 21.2. Once the tray is in place, only the bridge (Z 21.3 then, the top of `scale_base`) and the PCB box's lid (Z 20.6 then) stand under the floor. Neither is on the load path, so a sagging floor that rested on them would not spoil the reading. The adapter's centring boss (Z 23.2) is a Ø36 disc under the Ø42 window, so the floor stays clear of it. During fitting and removal, though, the tower is off and the tray moves about 25 mm toward the machine. The floor just in front of the window (user side) then passes over the boss. At Z 22.3 it clears the boss only if the tilt lifts it there by at least 1 mm. The owner will test this. If the test fails, the fallback is to keep Z 25.0 in a strip about 25 mm wide in front of the window and lower the rest.
+
+### Variant: tray above the front lip, as version 2 (noted 2026-11-17, on hold)
+
+The tray's whole underside would stay above the front lip (Z 17), and its front face would show between the lip and the outer grille's skirt, as on version 2. Consequences:
+
+- The front well goes: the tray's lowest underside rises from Z 2 to about Z 17.5, and the tray becomes almost flat, which is where the owner wants to go anyway. Capacity drops from 0.60 L to an estimated 0.45 to 0.5 L (by hand, not modelled).
+- Insertion becomes nearly a straight slide over the lip, so the rule about the first low part ending 3 mm in front of the scale no longer applies.
+- Nothing stops the tray from sliding forward any more: the lip lock is lost and the shoulders on the side walls carry no stop. Version 2 seems to get its hold from resting on the plate's floor (see Version 2), but here the scale takes that floor. A forward stop has to be found before this variant goes ahead.
+- The front face's visible height and its position along Y (flush with the lip or ahead of it) are still to be chosen.
+
+On hold: the owner prints the current tray first and compares.
 
 ### Assembly
 

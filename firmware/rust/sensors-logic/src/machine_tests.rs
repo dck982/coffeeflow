@@ -456,8 +456,8 @@ fn a_fast_pump_or_a_low_pressure_keeps_the_valve_until_the_pump_stops() {
     for (raw, rpm) in [
         (Some(15_167), VALVE_CLOSE_BREW_END_MAX_RPM + 1), // 9 bar, pompe rapide
         (Some(VALVE_CLOSE_BREW_END_MIN_PRESSURE_CODE - 1), 2500), // sous 5 bar
-        (Some(30_000), 2500),                            // invraisemblable
-        (None, 2500),                                    // pas de mesure
+        (Some(30_000), 2500),                             // invraisemblable
+        (None, 2500),                                     // pas de mesure
     ] {
         let mut m = present();
         m.hw.pressure_raw = raw;

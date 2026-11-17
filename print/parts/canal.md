@@ -20,7 +20,7 @@ Goulotte / pont de test pour fils Helutherm : un segment de canal droit, un plot
 
 Printed as a U on the bed (open +Z). One trapezoid pad, centered on the north (+Y) wall, fuses into the wall: a solid margin around the well, then angled returns back to the channel on both sides. `puit_sud=1` mirrors that pad onto the south (−Y) wall, same X and Z. Each well is a vertical cylinder from the bed up to a 0.6 mm bridged face. Flip onto the chassis: open rim and magnet face meet the metal.
 
-Well Ø from `aimant_diametre` + `aimant_puit_press_fit` (8.0 mm since 2026-11-17). Walls 1.68 mm. `aimant_canal_press_fit` exists in measurements but is unused here.
+Well Ø from `aimant_diametre` + `aimant_puit_press_fit` (8.1 mm since 2026-11-17). Walls 1.68 mm. `aimant_canal_press_fit` exists in measurements but is unused here.
 
 `segment_longueur` (default 20 mm) is the straight channel length on each side of the pad, not to the well center: the well sits at the middle of the channel, and each side is `segment_longueur + puit_r + marge_puit + retour_biais` long.
 

@@ -3,6 +3,9 @@ from nurb import *
 from parts.scale_base import CHAMFER, OVERSHOOT, block
 from system import scale_flip, scale_frame, scale_layout
 
+# Gap between a nut boss and the edges of its opening in the skirt.
+BOSS_CLEARANCE = 0.5
+
 
 def _outline(layout, margin):
     """The PCB box's outer footprint grown by `margin` all round: (x0, x1, y0, y1)."""
@@ -26,13 +29,28 @@ def _wire_slots(layout, gap, slot_height):
     return west + east
 
 
+def _boss_openings(layout, headroom):
+    """Notch in the skirt over each of the base's nut bosses, from the skirt's
+    bottom edge to `headroom` above the nut's top. A boss clear of the skirt
+    meets only air."""
+    b = layout.base
+    reach = b.nut_boss_diameter / 2.0 + BOSS_CLEARANCE
+    nut_top = b.nut_boss_top - b.nut_pocket_depth + measured("scale_ecrou_hauteur")
+    return [
+        block(x - reach, x + reach, y - reach, y + reach,
+              layout.box.lid_skirt_bottom - OVERSHOOT, nut_top + headroom)
+        for x, y in b.screw_holes
+    ]
+
+
 @part
-def scale_lid(fit_gap=None, slot_height=4.0, draft=False):
+def scale_lid(fit_gap=None, slot_height=4.0, boss_headroom=2.0, draft=False):
     """Cap over the scale's PCB box: a plate with a skirt that slips over the
     box walls and holds by a snug fit. Prints upside down on its plate.
 
     fit_gap: gap between the box walls and the skirt, per side (default: layout lid_play)
     slot_height: how far the wire slots rise above the box's wall notch bottom
+    boss_headroom: how far the opening over the base's nut boss rises above the nut
     """
     layout = scale_layout()
     x = layout.box
@@ -47,4 +65,6 @@ def scale_lid(fit_gap=None, slot_height=4.0, draft=False):
     inner_x0, inner_x1, inner_y0, inner_y1 = _outline(layout, gap)
     hollow = block(inner_x0, inner_x1, inner_y0, inner_y1, x.lid_skirt_bottom - OVERSHOOT, plate_bottom)
     body = cap - hollow - _wire_slots(layout, gap, slot_height)
+    for opening in _boss_openings(layout, boss_headroom):
+        body -= opening
     return scale_flip(scale_frame(body))

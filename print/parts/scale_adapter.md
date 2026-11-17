@@ -38,3 +38,4 @@ Block clamped on the loaded end of the load cell. A vertical cylinder (radius 18
 - 2026-11-16 - Ends with `scale_frame` (Y reversed): the machine frame is left-handed, so the part was the mirror image of the real object.
 - 2026-11-17 - 2 mm lower in the machine (bottom Z 12.7 -> 10.7), with the cell, after the base's floor went 4 -> 2 mm. The part itself is unchanged.
 - 2026-11-17 - Magnet wells at the magnet's nominal diameter (`aimant_puit_press_fit` +0.15 -> 0.0): the +0.15 wells did not hold the magnets at all. On trial.
+- 2026-11-17 - Magnet wells +0.10 over the magnet's diameter (`aimant_puit_press_fit` 0.0 -> 0.10): 0.0 was too tight. On trial.

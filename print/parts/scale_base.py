@@ -20,14 +20,13 @@ def _vertical_corners(solid):
 
 
 def _floor_plate(layout, draft):
-    """Floor slab plus the tongue under the cable saddle, one outline, chamfered
-    on every convex edge except the bed face, the concave tongue junctions and
-    the tongue's top edges, which the saddle post covers."""
+    """Floor slab, reaching back to the rear lip east of `rear_x0` where it
+    carries the cable saddle, chamfered on every convex edge except the bed
+    face and the concave corner of the step."""
     b = layout.base
     outline = [
-        (b.x0, b.y0), (b.saddle_x0, b.y0), (b.saddle_x0, b.saddle_y0),
-        (b.saddle_x1, b.saddle_y0), (b.saddle_x1, b.y0), (b.x1, b.y0),
-        (b.x1, b.y1), (b.x0, b.y1),
+        (b.x0, b.y0), (b.rear_x0, b.y0), (b.rear_x0, b.rear_y0),
+        (b.x1, b.rear_y0), (b.x1, b.y1), (b.x0, b.y1),
     ]
     plate = extrude(Polygon(*outline, align=None), b.floor_top)
     if draft:
@@ -35,13 +34,9 @@ def _floor_plate(layout, draft):
     concave = concave_edges(plate)
 
     def exposed_edge(edge):
-        box = edge.bounding_box()
-        vertical = box.max.Z - box.min.Z > 0.5
-        on_tongue_top = not vertical and box.min.Y < b.y0 - 0.01
-        return box.max.Z > b.floor_top / 2.0 and edge not in concave and not on_tongue_top
+        return edge.bounding_box().max.Z > b.floor_top / 2.0 and edge not in concave
 
-    exposed = plate.edges().filter_by(exposed_edge)
-    return polish(plate, exposed, CHAMFER)
+    return polish(plate, plate.edges().filter_by(exposed_edge), CHAMFER)
 
 
 def _cable_saddle(layout, notch_width, draft):
@@ -100,8 +95,8 @@ def _countersinks(layout):
 
 def _nut_bosses(layout, draft):
     """Round boss around each M3 nut, top rim chamfered. It rises from the bed
-    and is cut to the floor's outline: the north one reaches the floor's edge,
-    where it fills the floor's chamfer instead of overhanging it. A boss that
+    and is cut to the floor's outline, so a boss near the floor's edge fills
+    the floor's chamfer instead of overhanging it. A boss that
     would graze the PCB box's +Y wall is squared off into it, so the circle
     does not cross the wall at a slant and leave a thin wedge."""
     b, x_box = layout.base, layout.box
@@ -213,8 +208,8 @@ def _tie_towers(layout):
     """Two cable tie arches that hold the cell's wires along the corridor
     between the PCB box and the cell, on their way to J2."""
     b = layout.base
-    towers = [cable_tie_tower(x, b.tie_tower_y, b.tie_tower_height + 0.5, b.floor_top - 0.5)
-              for x in b.tie_tower_xs]
+    towers = [cable_tie_tower(x, y, b.tie_tower_height + 0.5, b.floor_top - 0.5)
+              for x, y in b.tie_towers]
     return towers[0] + towers[1]
 
 

@@ -86,9 +86,9 @@ unit = "mm"
 how = "user: small disc magnet thickness."
 
 [aimant_puit_press_fit]
-value = 0.0
+value = 0.1
 unit = "mm"
-how = "user: how much to add to the aimant_diametre for a press fit. Was +0.15 until 2026-11-17: those wells did not hold the magnets at all. 0.0 is on trial."
+how = "user: how much to add to the aimant_diametre for a press fit. +0.15 (until 2026-11-17) did not hold the magnets at all; 0.0 (scale_* prints, 2026-11-17) was too tight. +0.10 is on trial."
 
 [aimant_canal_press_fit]
 value = 0.2

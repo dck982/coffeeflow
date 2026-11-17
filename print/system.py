@@ -1057,7 +1057,13 @@ def scale_layout():
     )
 
     base = SimpleNamespace(
-        x0=84.0, x1=177.0, y0=6.0, y1=73.0,
+        # y1 leaves 0.86 mm of floor past the south nut boss (r 5 at Y 68.14),
+        # so the boss stays off the floor's edge.
+        x0=84.0, x1=177.0, y0=6.0, y1=74.0,
+        # East of rear_x0 the floor reaches back to rear_y0, against the rear
+        # lip, and carries the cable saddle. West of it, the machine's screw
+        # heads (X 143..150, Y 0..4, Z up to 9) keep the floor at y0.
+        rear_x0=152.0, rear_y0=0.5,
         floor_top=floor_top,
         pad_x0=cell.x1 - 20.0,            # raised pad under the fixed end
         # M3 x 10 from under the plate, through a scale_washer whose collar
@@ -1079,12 +1085,7 @@ def scale_layout():
         saddle_top=14.0, saddle_notch_depth=1.0,
         # Cable tie window through the saddle along X, under the groove.
         saddle_tie_width=3.0, saddle_tie_height=1.5, saddle_tie_bottom=10.0,
-        # Two cable tie towers for the cell's wires, in the corridor between
-        # the PCB box (Y 32.5) and the cell (Y 47.65), clear of the nuts at
-        # X 98.9..105.5 and 124..130.6. The west one ends at the box's west
-        # face (114.9), where the wires turn north to the J2 notch.
-        # West edge of each tower.
-        tie_tower_xs=(107.5, 146.0), tie_tower_y=40.0, tie_tower_height=6.0,
+        tie_tower_height=6.0,
     )
 
     # PCB box, long axis along X: J2 (cell) toward -X, J1 (bus) toward +X,
@@ -1105,8 +1106,17 @@ def scale_layout():
         pcb_holes=((pcb_x0 + 2.5, pcb_y0 + 2.5), (pcb_x0 + pcb_length - 2.5, pcb_y0 + 2.5)),
         wall_top=base.floor_top + 15.0,
         notch_y=(inner_y0 + inner_y1) / 2.0, notch_width=5.0, notch_bottom=base.floor_top + 7.0,
-        lid_play=0.2, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
+        lid_play=0.15, lid_skirt=1.2, lid_plate=1.6, lid_skirt_bottom=base.floor_top + 0.3,
     )
+    # Two cable tie towers for the cell's wires, in the corridor between the
+    # lid (Y 33.85) and the cell (Y 47.65), clear of the nuts at X 98.9..105.5
+    # and 124..130.6, each kept far enough from the cell that the tie's bend
+    # cannot touch it. The west one ends at the box's west face (114.9), where
+    # the wires turn to the J2 notch, and stands 0.5 mm off the lid; the east
+    # one is 1 mm nearer the box than the corridor's middle. (x, y): west
+    # edge and centre line of each tower; a tower is 4 mm deep in Y.
+    lid_y1 = inner_y1 + box_wall + box.lid_play + box.lid_skirt
+    base.tie_towers = ((107.5, lid_y1 + 0.5 + 2.0), (146.0, 39.0))
 
     seat = SimpleNamespace(base=24.0, height=3.0, flank_degrees=30.0, socket_clearance=0.5)
 

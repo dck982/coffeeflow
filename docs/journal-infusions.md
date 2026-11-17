@@ -1349,7 +1349,9 @@ tard 1 s après la consigne à 0. Réglages inchangés depuis 8 h 08 : consigne
 sans fond, **7,6 g pesés** (dose du profil 7,5 g), cible 20 g, anticipation
 de 1,0 g. **Infusion directe, hors guide** : David a oublié de lancer
 l'infusion guidée, donc pas de rinçage guidé ni de tare automatique.
-Boîtier de l'écran à 38,2 °C et 30,9 %.
+Salon (Netatmo, relevé
+après l'infusion) : 54 %, point de rosée **13,0 °C** ; extérieur : 100 %,
+point de rosée 12,2 °C. Boîtier de l'écran à 38,2 °C et 30,9 %.
 
 **Observé par David.** **La MPB003 est validée au goût.** Rien d'autre de
 signalé, ni sur la décharge ni sur la galette.
